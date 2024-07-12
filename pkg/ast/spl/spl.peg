@@ -546,7 +546,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -717,6 +717,7 @@ StreamStatsOptionCurrent <- "current" EQUAL boolVal:Boolean {
 }
 
 StreamStatsOptionGlobal <- "global" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
     ssOption := &structs.StreamStatsOptions{
         Global: boolVal.(bool),
     }
@@ -729,6 +730,7 @@ StreamStatsOptionGlobal <- "global" EQUAL boolVal:Boolean {
 }
 
 StreamStatsOptionAllNum <- "allnum" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
     ssOption := &structs.StreamStatsOptions{
         AllNum: boolVal.(bool),
     }
@@ -744,6 +746,9 @@ StreamStatsOptionWindow <- "window" EQUAL windowSize:PositiveIntegerAsString {
     window, err := strconv.ParseUint(windowSize.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", windowSize.(string))
+    }
+    if window > 10000 {
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be less than or equal to 10000", window)
     }
     ssOption := &structs.StreamStatsOptions{
         Window: window,
@@ -781,7 +786,23 @@ StreamStatsOptionResetAfter <- "reset_after" EQUAL L_PAREN boolExpr:BoolExpr R_P
     return ssOptionArg, nil
 }
 
-StreamStatsOption <- ssOption:(StreamStatsOptionResetOnChange / StreamStatsOptionCurrent / StreamStatsOptionGlobal / StreamStatsOptionAllNum / StreamStatsOptionWindow / StreamStatsOptionResetBefore / StreamStatsOptionResetAfter) {
+StreamStatsOptionTimeWindow <- "time_window" EQUAL spanLength:BinSpanLenOption {
+    spanLen := spanLength.(*structs.BinSpanLength)
+    if spanLen.TimeScale == utils.TMInvalid {
+        return nil, fmt.Errorf("Invalid Syntax, time_window option cannot be used without time scale")
+    }
+    ssOption := &structs.StreamStatsOptions{
+        TimeWindow: spanLen,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "time_window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOption <- ssOption:(StreamStatsOptionResetOnChange / StreamStatsOptionCurrent / StreamStatsOptionGlobal / StreamStatsOptionAllNum / StreamStatsOptionWindow / StreamStatsOptionResetBefore / StreamStatsOptionResetAfter / StreamStatsOptionTimeWindow) {
     return ssOption, nil
 }
 
@@ -820,28 +841,31 @@ StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)*
                 ssOption.AllNum = ssOptArg.streamStatsOptions.AllNum
             case "window":
                 ssOption.Window = ssOptArg.streamStatsOptions.Window
+            case "time_window":
+                ssOption.TimeWindow = ssOptArg.streamStatsOptions.TimeWindow
             case "reset_before":
                 ssOption.ResetBefore = ssOptArg.streamStatsOptions.ResetBefore
             case "reset_after":
                 ssOption.ResetAfter = ssOptArg.streamStatsOptions.ResetAfter
             default:
-                return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
+                return nil, fmt.Errorf("Not a Valid Streamstats Command Option: %v", argOption)
         }
     }
 
     return ssOption, nil
 }
 
-StreamStats <- PIPE CMD_STREAM_STATS ssOptionList:(StreamStatsOptionList)? aggs:(CommonAggregatorBlock) {
+StreamStatsBlock <- PIPE CMD_STREAMSTATS ssOptionList:(StreamStatsOptionList) SPACE aggs:(CommonAggregatorBlock) {
     aggNode := aggs.(*structs.QueryAggregators)
 
-    if ssOptionList != nil {
-        aggNode.StreamStatsOptions = ssOptionList.(*structs.StreamStatsOptions)
-    } else {
-        aggNode.StreamStatsOptions = initializeStreamStatsOptions()
-    }
+    aggNode.StreamStatsOptions = ssOptionList.(*structs.StreamStatsOptions)
 
-    aggNode.StreamStatsOptions.StatsAggs = aggs.(*structs.QueryAggregators)
+    return aggNode, nil
+}
+/ PIPE CMD_STREAMSTATS aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+
+    aggNode.StreamStatsOptions = initializeStreamStatsOptions()
 
     return aggNode, nil
 }
@@ -4974,10 +4998,11 @@ IndexName <- (!SPACE .)+ {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
+CMD_STREAMSTATS <- "streamstats" SPACE
 CMD_FIELDS <- "fields" SPACE
 CMD_WHERE <- "where" SPACE
 CMD_HEAD_NO_SPACE <- "head"

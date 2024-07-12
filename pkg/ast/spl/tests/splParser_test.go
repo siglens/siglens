@@ -9379,3 +9379,579 @@ func Test_Bin29(t *testing.T) {
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
 }
+
+func Test_StreamStats(t *testing.T) {
+	query := `* | streamstats allnum=true global=false time_window=1h count(timestamp) AS tmpStamp`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(0), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(1), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMHour, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
+
+	assert.Nil(t, aggregator.GroupByRequest)
+	assert.NotNil(t, aggregator.MeasureOperations)
+	assert.Equal(t, 1, len(aggregator.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "timestamp", aggregator.MeasureOperations[0].MeasureCol)
+
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 1, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(timestamp)"]
+	assert.True(t, exist)
+	assert.Equal(t, "tmpStamp", renameCol)
+}
+
+func Test_StreamStats_2(t *testing.T) {
+	query := `* | streamstats window=3 time_window=7s reset_on_change=true count as total_events, median(sale_amount) as median_sale, stdev(revenue) as revenue_stdev, range(price) as price_range, mode(product_category) as most_popular_category`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(3), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
+
+	assert.Nil(t, aggregator.GroupByRequest)
+	assert.NotNil(t, aggregator.MeasureOperations)
+	assert.Equal(t, 5, len(aggregator.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Median, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, "sale_amount", aggregator.MeasureOperations[1].MeasureCol)
+	assert.Equal(t, utils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, "revenue", aggregator.MeasureOperations[2].MeasureCol)
+	assert.Equal(t, utils.Range, aggregator.MeasureOperations[3].MeasureFunc)
+	assert.Equal(t, "price", aggregator.MeasureOperations[3].MeasureCol)
+	assert.Equal(t, utils.Mode, aggregator.MeasureOperations[4].MeasureFunc)
+	assert.Equal(t, "product_category", aggregator.MeasureOperations[4].MeasureCol)
+
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 5, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(*)"]
+	assert.True(t, exist)
+	assert.Equal(t, "total_events", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["median(sale_amount)"]
+	assert.True(t, exist)
+	assert.Equal(t, "median_sale", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["stdev(revenue)"]
+	assert.True(t, exist)
+	assert.Equal(t, "revenue_stdev", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["range(price)"]
+	assert.True(t, exist)
+	assert.Equal(t, "price_range", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["mode(product_category)"]
+	assert.True(t, exist)
+	assert.Equal(t, "most_popular_category", renameCol)
+}
+
+func Test_StreamStats_3(t *testing.T) {
+	query := `* | streamstats window=3 time_window=7s reset_on_change=true reset_before=(a=b) reset_after=(c>d) max(abc) AS newAbc`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(3), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+
+	assert.Nil(t, aggregator.GroupByRequest)
+	assert.NotNil(t, aggregator.MeasureOperations)
+	assert.Equal(t, 1, len(aggregator.MeasureOperations))
+	assert.Equal(t, utils.Max, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, "=", aggregator.StreamStatsOptions.ResetBefore.ValueOp)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, ">", aggregator.StreamStatsOptions.ResetAfter.ValueOp)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr)
+	assert.Equal(t, "d", aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 1, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["max(abc)"]
+	assert.True(t, exist)
+	assert.Equal(t, "newAbc", renameCol)
+}
+
+func Test_StreamStats_4(t *testing.T) {
+	query := `* | streamstats window=3 time_window=7s reset_on_change=true reset_before=(a<b) reset_after=(c>d) median(abc) AS newAbc`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(3), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+
+	assert.Nil(t, aggregator.GroupByRequest)
+	assert.NotNil(t, aggregator.MeasureOperations)
+	assert.Equal(t, 1, len(aggregator.MeasureOperations))
+	assert.Equal(t, utils.Median, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetBefore.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, "<", aggregator.StreamStatsOptions.ResetBefore.ValueOp)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetBefore.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, ">", aggregator.StreamStatsOptions.ResetAfter.ValueOp)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr)
+	assert.Equal(t, "d", aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 1, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["median(abc)"]
+	assert.True(t, exist)
+	assert.Equal(t, "newAbc", renameCol)
+}
+
+func Test_StreamStats_5(t *testing.T) {
+	query := `* | streamstats window=10 time_window=1q reset_after=(a=1 OR b>2 AND c<=3) count as event_count, sum(latency) as avg_latency, min(bytes) as max_bytes by first_name, city`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(10), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(1), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMQuarter, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
+
+	assert.Nil(t, aggregator.MeasureOperations)
+	assert.NotNil(t, aggregator.GroupByRequest)
+	assert.Equal(t, 3, len(aggregator.GroupByRequest.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Sum, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, "latency", aggregator.GroupByRequest.MeasureOperations[1].MeasureCol)
+	assert.Equal(t, utils.Min, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, "bytes", aggregator.GroupByRequest.MeasureOperations[2].MeasureCol)
+
+	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
+	assert.Equal(t, true, putils.CompareStringSlices([]string{"first_name", "city"}, aggregator.GroupByRequest.GroupByColumns))
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter.RightValue)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftBool)
+	assert.Equal(t, structs.BoolOpOr, aggregator.StreamStatsOptions.ResetAfter.BoolOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.StreamStatsOptions.ResetAfter.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "=", aggregator.StreamStatsOptions.ResetAfter.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "1", aggregator.StreamStatsOptions.ResetAfter.LeftBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.LeftBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftValue)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool)
+
+	assert.Equal(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.BoolOp, structs.BoolOpAnd)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, ">", aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "2", aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightBool.LeftBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "<=", aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.ValueOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.RightValue.NumericExpr)
+	assert.Equal(t, "3", aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetAfter.RightBool.RightBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 3, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(*)"]
+	assert.True(t, exist)
+	assert.Equal(t, "event_count", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["sum(latency)"]
+	assert.True(t, exist)
+	assert.Equal(t, "avg_latency", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["min(bytes)"]
+	assert.True(t, exist)
+	assert.Equal(t, "max_bytes", renameCol)
+}
+
+func Test_StreamStats_6(t *testing.T) {
+	query := `* | streamstats window=10001 count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_7(t *testing.T) {
+	query := `* | streamstats time_window=6q count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_8(t *testing.T) {
+	query := `* | streamstats timewindow=1us count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_9(t *testing.T) {
+	query := `* | streamstats window=-1 count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_10(t *testing.T) {
+	query := `* | streamstats timewindow=7ms count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_11(t *testing.T) {
+	query := `app_name=Bracecould | streamstats count as total_events, dc(user) as unique_users, avg(response_time) as avg_response_time, max(response_time) as max_response_time, min(response_time) as min_response_time, sum(bytes) as total_bytes by host, application`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(0), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.Nil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
+	assert.Nil(t, aggregator.MeasureOperations)
+
+	assert.NotNil(t, aggregator.GroupByRequest)
+	assert.Equal(t, 6, len(aggregator.GroupByRequest.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Cardinality, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, "user", aggregator.GroupByRequest.MeasureOperations[1].MeasureCol)
+	assert.Equal(t, utils.Avg, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[2].MeasureCol)
+	assert.Equal(t, utils.Max, aggregator.GroupByRequest.MeasureOperations[3].MeasureFunc)
+	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[3].MeasureCol)
+	assert.Equal(t, utils.Min, aggregator.GroupByRequest.MeasureOperations[4].MeasureFunc)
+	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[4].MeasureCol)
+	assert.Equal(t, utils.Sum, aggregator.GroupByRequest.MeasureOperations[5].MeasureFunc)
+	assert.Equal(t, "bytes", aggregator.GroupByRequest.MeasureOperations[5].MeasureCol)
+
+	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
+	assert.Equal(t, true, putils.CompareStringSlices([]string{"host", "application"}, aggregator.GroupByRequest.GroupByColumns))
+
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 6, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(*)"]
+	assert.True(t, exist)
+	assert.Equal(t, "total_events", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["cardinality(user)"]
+	assert.True(t, exist)
+	assert.Equal(t, "unique_users", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["avg(response_time)"]
+	assert.True(t, exist)
+	assert.Equal(t, "avg_response_time", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["max(response_time)"]
+	assert.True(t, exist)
+	assert.Equal(t, "max_response_time", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["min(response_time)"]
+	assert.True(t, exist)
+	assert.Equal(t, "min_response_time", renameCol)
+	renameCol, exist = aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["sum(bytes)"]
+	assert.True(t, exist)
+	assert.Equal(t, "total_bytes", renameCol)
+}
+
+func Test_StreamStats_12(t *testing.T) {
+	query := `city=Boston | streamstats current=false reset_before=(col="abc" OR isbool(mycol)) count as group_count by first_name, city, age`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(0), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.Nil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.MeasureOperations)
+
+	assert.NotNil(t, aggregator.GroupByRequest)
+	assert.Equal(t, 1, len(aggregator.GroupByRequest.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
+
+	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
+	assert.Equal(t, true, putils.CompareStringSlices([]string{"first_name", "city", "age"}, aggregator.GroupByRequest.GroupByColumns))
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore.RightValue)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftBool)
+	assert.Equal(t, structs.BoolOpOr, aggregator.StreamStatsOptions.ResetBefore.BoolOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "col", aggregator.StreamStatsOptions.ResetBefore.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetBefore.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "=", aggregator.StreamStatsOptions.ResetBefore.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.LeftBool.RightValue.StringExpr)
+	assert.Equal(t, "abc", aggregator.StreamStatsOptions.ResetBefore.LeftBool.RightValue.StringExpr.RawString)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightBool)
+	assert.NotNil(t, "isbool", aggregator.StreamStatsOptions.ResetBefore.RightBool.ValueOp)
+
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightBool.LeftValue)
+	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore.RightBool.LeftValue.NumericExpr)
+	assert.Equal(t, "mycol", aggregator.StreamStatsOptions.ResetBefore.RightBool.LeftValue.NumericExpr.Value)
+
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.Nil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns)
+	assert.Equal(t, 1, len(aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns))
+
+	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(*)"]
+	assert.True(t, exist)
+	assert.Equal(t, "group_count", renameCol)
+
+}
+
+
+func Test_StreamStats_13(t *testing.T) {
+	query := `* | streamstats timewindow=7 count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_14(t *testing.T) {
+	query := `* | streamstats timewindow=7.5s count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_15(t *testing.T) {
+	query := `* | streamstats timewindow=5mon count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_16(t *testing.T) {
+	query := `* | streamstats time_window=11year count, max(abc), avg(def)`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.StreamStatsOptions)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.AllNum)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, uint64(0), aggregator.StreamStatsOptions.Window)
+	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
+	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
+	assert.Equal(t, float64(11), aggregator.StreamStatsOptions.TimeWindow.Num)
+	assert.Equal(t, utils.TMYear, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
+	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
+	assert.Nil(t, aggregator.GroupByRequest)
+
+	assert.NotNil(t, aggregator.MeasureOperations)
+	assert.Equal(t, 3, len(aggregator.MeasureOperations))
+	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Max, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, "abc", aggregator.MeasureOperations[1].MeasureCol)
+	assert.Equal(t, utils.Avg, aggregator.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, "def", aggregator.MeasureOperations[2].MeasureCol)
+
+	assert.Nil(t, aggregator.OutputTransforms)
+	assert.Nil(t, aggregator.Next)
+}

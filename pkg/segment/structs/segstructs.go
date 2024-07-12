@@ -99,6 +99,7 @@ const (
 	GroupByType
 	TransactionType
 	VectorArithmeticExprType
+	StreamStatsType
 )
 
 type QueryType uint8
@@ -166,15 +167,14 @@ type QueryAggregators struct {
 }
 
 type StreamStatsOptions struct {
-	AllNum bool
-	Current bool
-	Global bool
+	AllNum        bool
+	Current       bool
+	Global        bool
 	ResetOnChange bool
-	Window uint64
-	ResetBefore *BoolExpr
-	ResetAfter *BoolExpr
-	TimeWindow *BinSpanLength
-	StatsAggs *QueryAggregators
+	Window        uint64
+	ResetBefore   *BoolExpr
+	ResetAfter    *BoolExpr
+	TimeWindow    *BinSpanLength
 }
 
 type ShowRequest struct {
