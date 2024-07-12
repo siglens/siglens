@@ -295,6 +295,39 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func SearchMatchGetFields(searchStr string) ([]string, error) {
+
+    kvPairs := strings.Fields(searchStr)
+    if len(kvPairs) == 0 {
+        return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+    }
+    fieldList := make([]string, 0)
+    
+    for _, kvPair := range kvPairs {
+        parts := strings.Split(kvPair, "=")
+        if len(parts) == 1 {
+            if len(kvPairs) == 1 {
+                fieldList = append(fieldList, "*")
+                return fieldList, nil
+            } else {
+                return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch") 
+            }
+        }
+        if len(parts) != 2 {
+            return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+        }
+        // fieldname is empty
+        if len(parts[0]) == 0 {
+            return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+        }
+        
+        fieldList = append(fieldList, parts[0])
+    }
+    
+    return fieldList, nil
+}
+
+
 func initializeStatsOptions() *structs.StatsOptions {
     return &structs.StatsOptions {
         Delim: " ",
@@ -394,6 +427,16 @@ type MultiValueColOptionArgs struct {
     mvColExpr *structs.MultiValueColLetRequest
 }
 
+type HeadOptionArgs struct {
+    argOption string
+    headExpr *structs.HeadExpr
+}
+
+type BinOptionArgs struct {
+    argOption string
+    binOptions *structs.BinCmdOptions
+}
+
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
@@ -490,7 +533,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -918,6 +961,322 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
+AllTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
+    return timeUnit, nil
+}
+
+BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeScale)? {
+    if timeScale != nil {
+        num, err := strconv.ParseInt(number.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not an integer, err: %v", number.(string), err)
+        }
+        if num <= 0 {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
+        }
+
+        switch timeScale.(utils.TimeUnit) {
+            case utils.TMDecisecond:
+                if 10%num != 0 || num >= 10 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for decisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMCentisecond:
+                if 100%num != 0 || num >= 100 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for centisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMMillisecond:
+                if 1000%num != 0 || num >= 1000 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for millisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMMicrosecond:
+                return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
+            case utils.TMMonth:
+                if num > 12 || 12%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for month %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+            case utils.TMQuarter:
+                if num > 4 || 4%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for quarter %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+        }
+
+        spanLength := &structs.BinSpanLength {
+            Num: float64(num),
+            TimeScale: timeScale.(utils.TimeUnit),
+        }
+
+        return spanLength, nil
+    } 
+
+    num, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not a numerical value, err: %v", number.(string), err)
+    }
+    if num <= 0.0 {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
+    }
+
+    spanLength := &structs.BinSpanLength {
+        Num: num,
+        TimeScale: utils.TMInvalid,
+    }
+
+    return spanLength, nil
+}
+
+BinOptionMinSpan <- "minspan" EQUAL spanLength:BinSpanLenOption {
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "minspan",
+        binOptions: &structs.BinCmdOptions {
+            MinSpan: spanLength.(*structs.BinSpanLength),
+        },
+    }
+    return binOptionArgs, nil
+}
+
+BinOptionMaxBins <- "bins" EQUAL intAsStr:IntegerAsString {
+    numBins, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    if numBins < 2 || numBins > 50000 {
+        return nil, fmt.Errorf("Invalid number of bins %v: must be between 2 and 50000", numBins)
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "bins",
+        binOptions: &structs.BinCmdOptions {
+            MaxBins: numBins,
+        },
+    }
+    return binOptionArgs, nil
+}
+
+
+
+// TODO: chain modifier and what else is supported?
+
+BinOptionAlignTime <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
+    epoch, err := strconv.ParseUint(utcEpoch.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", utcEpoch.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "aligntime",
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp) {
+    var epoch uint64 = 0
+    var err error
+    relTimeModifier := timestamp.(ast.TimeModifier)
+    epochVal, err := CalculateRelativeTime(relTimeModifier, time.Now())
+    epoch = uint64(epochVal)
+    if err != nil {
+        return nil, err
+    }
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "aligntime",
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
+        },
+    }
+    
+    return binOptionArgs, nil
+}
+
+BinOptionStart <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
+    start, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "start",
+        binOptions: &structs.BinCmdOptions {
+            Start: &start,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+BinOptionEnd <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
+    end, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "end",
+        binOptions: &structs.BinCmdOptions {
+            End: &end,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+BinOptionSpan <- "span" EQUAL num1:(FloatAsString / IntegerAsString)? "log" num2:(FloatAsString / IntegerAsString)? {
+    var coeff float64 = 1.0
+    var base float64 = 10.0
+    var err error
+
+    if num2 != nil {
+        base, err = strconv.ParseFloat(num2.(string), 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Invalid base in log span, %v cannot be converted to floar, err: %v", num2.(string), err)
+        }
+        if base <= 1.0 {
+            return nil, fmt.Errorf("Spl peg: Invalid base in log span, base must be greater than 1")
+        }
+    }
+    
+    if num1 != nil {
+        coeff, err = strconv.ParseFloat(num1.(string), 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, %v cannot be converted to float, err: %v", num1.(string), err)
+        }
+        if coeff < 1.0 {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, coefficient must be greater than or equal to 1")
+        }
+        if coeff >= base {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, coefficient must be less than base")
+        }
+    }
+    
+    logSpan := &structs.LogSpan {
+        Coefficient: coeff,
+        Base: base,
+    }
+    spanOptions := &structs.BinSpanOptions {
+        LogSpan: logSpan,
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "span",
+        binOptions: &structs.BinCmdOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+}
+/ "span" EQUAL spanLen:BinSpanLenOption {
+
+    spanOptions := &structs.BinSpanOptions {
+        BinSpanLength: spanLen.(*structs.BinSpanLength),
+    }
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "span",
+        binOptions: &structs.BinCmdOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+} 
+
+BinCmdOption <- option:(BinOptionAlignTime / BinOptionMinSpan / BinOptionMaxBins / BinOptionStart / BinOptionEnd / BinOptionSpan) {
+    return option, nil
+}
+
+BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+
+    numOptions := 1 + len(restSlice)
+
+    binCmdOption := &structs.BinCmdOptions{}
+
+    for i := 0; i < numOptions; i++ {
+        var binOptArg *BinOptionArgs
+        if i == 0 {
+            binOptArg = first.(*BinOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            binOptArg = separator[1].(*BinOptionArgs)
+        }
+
+        argOption := binOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if exist && val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "minspan":
+                binCmdOption.MinSpan = binOptArg.binOptions.MinSpan
+            case "span":
+                binCmdOption.BinSpanOptions = binOptArg.binOptions.BinSpanOptions
+            case "bins":
+                binCmdOption.MaxBins = binOptArg.binOptions.MaxBins
+            case "start":
+                binCmdOption.Start = binOptArg.binOptions.Start
+            case "end":
+                binCmdOption.End = binOptArg.binOptions.End
+            case "aligntime":
+                binCmdOption.AlignTime = binOptArg.binOptions.AlignTime
+            default:
+                return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
+        }
+    }
+
+    return binCmdOption, nil
+}
+
+
+BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    if newFieldName != nil {
+        letColReq.NewColName = newFieldName.(string)
+    }
+
+    letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
+    if letColReq.BinRequest.MaxBins == 0 {
+        letColReq.BinRequest.MaxBins = 100
+    }
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_BIN field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    if newFieldName != nil {
+        letColReq.NewColName = newFieldName.(string)
+    }
+
+    binCmdOption := &structs.BinCmdOptions{
+        MaxBins: 100,
+    }
+
+    letColReq.BinRequest = binCmdOption
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return queryAgg, nil
+}
+
+
 // To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
 BinOptions <- spanOptions:SpanOptions {
     binOptions := &structs.BinOptions {
@@ -934,7 +1293,10 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
+SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
+    if timeScale.(utils.TimeUnit) == utils.TMYear {
+        return nil, fmt.Errorf("SpanLength: Invalid time unit, year is not supported")
+    }
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -945,10 +1307,6 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
         TimeScalr: timeScale.(utils.TimeUnit),
     }
     return spanLength, nil
-}
-
-TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
-    return timeUnit, nil
 }
 
 // limit=topN keeps the N highest scoring distinct values of the split-by field
@@ -2065,6 +2423,23 @@ EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull"
         RightValue: nil,
         ValueOp: opNameStr,
     }
+
+    if opNameStr == "searchmatch" {
+        valExpr := value.(*structs.ValueExpr)
+        if valExpr.StringExpr == nil {
+            return nil, fmt.Errorf("Spl peg: Searchmatch should only have string values as argument")
+        }
+
+        fieldsList, err := SearchMatchGetFields(valExpr.StringExpr.RawString)
+        if err != nil {
+            return nil, err
+        }
+
+        valExpr.StringExpr.StringExprMode = structs.SEMFieldList
+        valExpr.StringExpr.FieldList = fieldsList
+        expr.LeftValue = valExpr
+    }
+    
     return expr, nil
 }
 / opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
@@ -2552,8 +2927,131 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 
+HeadOptionNull <- "null" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "null",
+        headExpr: &structs.HeadExpr{
+            Null: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionKeeplast <- "keeplast" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "keeplast",
+        headExpr: &structs.HeadExpr{
+            Keeplast: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionLimit <- "limit" EQUAL intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    optionArg := &HeadOptionArgs{
+        argOption: "limit",
+        headExpr: &structs.HeadExpr{
+            MaxRows: limit,
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionExpr <- boolExpr:BoolExpr {
+    optionArg := &HeadOptionArgs{
+        argOption: "boolexpr",
+        headExpr: &structs.HeadExpr{
+            BoolExpr: boolExpr.(*structs.BoolExpr),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOption <- option:(HeadOptionKeeplast / HeadOptionNull / HeadOptionLimit / HeadOptionExpr) {
+    return option, nil
+}
+
+HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+    optionWasSpecified["null"] = false
+    optionWasSpecified["keeplast"] = false
+    optionWasSpecified["boolexpr"] = false
+    optionWasSpecified["limit"] = false
+
+    numOptions := 1 + len(restSlice)
+
+    headExpr := &structs.HeadExpr{}
+
+    for i := 0; i < numOptions; i++ {
+        var headOptArg *HeadOptionArgs
+        if i == 0 {
+            headOptArg = first.(*HeadOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            headOptArg = separator[1].(*HeadOptionArgs)
+        }
+
+        argOption := headOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if !exist {
+            return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+        if val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "null":
+                headExpr.Null = headOptArg.headExpr.Null
+            case "keeplast":
+                headExpr.Keeplast = headOptArg.headExpr.Keeplast
+            case "limit":
+                headExpr.MaxRows = headOptArg.headExpr.MaxRows
+            case "boolexpr":
+                headExpr.BoolExpr = headOptArg.headExpr.BoolExpr
+            default:
+                return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+    }
+
+    isBoolExpr, _ := optionWasSpecified["boolexpr"]
+    if !isBoolExpr {
+        isNull, _ := optionWasSpecified["null"]
+        if isNull {
+            return nil, fmt.Errorf("Invalid Syntax, null option can only be present with condition boolean expression")
+        }
+        isKeeplast, _ := optionWasSpecified["keeplast"]
+        if isKeeplast {
+            return nil, fmt.Errorf("Invalid Syntax, keeplast option can only be present with condition boolean expression")
+        }
+    }
+
+    return headExpr, nil
+} 
+
+
 // Returns *structs.QueryAggregators
-HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
+HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            HeadRequest: headExpr.(*structs.HeadExpr),
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_HEAD intAsStr:IntegerAsString {
     limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
@@ -2562,7 +3060,9 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: limit,
+            HeadRequest: &structs.HeadExpr{
+                MaxRows: limit,
+            },
         },
     }
 
@@ -2572,12 +3072,53 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+            HeadRequest: &structs.HeadExpr{
+                MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+            },
         },
     }
 
     return queryAgg, nil
 }
+
+// Returns *structs.QueryAggregators
+TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: limit,
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            TailRequest: tExpr,
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_TAIL_NO_SPACE {
+
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            TailRequest: tExpr,
+        },
+    }
+
+    return queryAgg, nil
+}
+
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
@@ -3477,7 +4018,10 @@ WeekSnap <- ('w'[0-7]) {
     return string(c.text), nil
 }
 
-RelTimeUnit <- timeUnit:(Second / Month / Minute / Hour / Day / Week / Quarter / Year) {
+RelTimeUnit <- timeUnit:(AllTimeScale) {
+    if utils.IsSubseconds(timeUnit.(utils.TimeUnit)) {
+        return nil, fmt.Errorf("Relative Time Format does not support subseconds")
+    }
     return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
 }
 
@@ -3628,6 +4172,10 @@ FloatAsString <- [-+]? [0-9]* "." [0-9]+ {
 
 // Allow leading zeros and a "+" before the number.
 IntegerAsString <- [-+]? [0-9]+ {
+    return string(c.text), nil
+}
+
+PositiveIntegerAsString <- [0-9]+ {
     return string(c.text), nil
 }
 
@@ -4251,7 +4799,7 @@ IndexName <- (!SPACE .)+ {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -4259,6 +4807,8 @@ CMD_FIELDS <- "fields" SPACE
 CMD_WHERE <- "where" SPACE
 CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
+CMD_TAIL_NO_SPACE <- "tail"
+CMD_TAIL <- CMD_TAIL_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
 CMD_SORT <- "sort" SPACE
@@ -4266,6 +4816,7 @@ CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
+CMD_BIN <- "bin" SPACE
 CMD_SPAN <- "span"
 CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"

@@ -760,6 +760,38 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 	return basedir
 }
 
+func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
+	smrLock.Lock()
+	defer smrLock.Unlock()
+
+	segKeySet := make(map[string]struct{})
+	for _, segKey := range segmentKeys {
+		segKeySet[segKey] = struct{}{}
+	}
+
+	segMetas := make(map[string]*structs.SegMeta)
+	err := fileutils.ReadLineByLine(localSegmetaFname, func(line []byte) error {
+		segMeta := structs.SegMeta{}
+		err := json.Unmarshal(line, &segMeta)
+		if err != nil {
+			log.Errorf("GetSegMetas: failed to unmarshal %s: err=%v", line, err)
+			return err
+		}
+
+		if _, ok := segKeySet[segMeta.SegmentKey]; ok {
+			segMetas[segMeta.SegmentKey] = &segMeta
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", localSegmetaFname, err)
+		return nil, err
+	}
+
+	return segMetas, nil
+}
+
 func DeleteVirtualTableSegStore(virtualTableName string) {
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
@@ -779,14 +811,18 @@ func DeleteSegmentsForIndex(segmetaFName, indexName string) {
 	removeSegmentsByIndexOrList(segmetaFName, indexName, nil)
 }
 
-func RemoveSegments(segmetaFName string, segmentsToDelete map[string]*structs.SegMeta) {
+func RemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
+	withLockRemoveSegments(segmetaFName, segmentsToDelete)
+}
+
+func withLockRemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
 	removeSegmentsByIndexOrList(segmetaFName, "", segmentsToDelete)
 }
 
-func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]*structs.SegMeta) {
+func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]struct{}) {
 
 	if indexName == "" && segmentsToDelete == nil {
 		return // nothing to remove
@@ -910,16 +946,27 @@ func (cw *ColWip) WriteSingleString(value string) {
 	cw.cbufidx += uint32(n)
 }
 
-func AddNewRotatedSegment(segmeta structs.SegMeta) {
-
+func AddOrReplaceRotatedSegment(segmeta structs.SegMeta) {
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
+	withLockRemoveSegments(GetLocalSegmetaFName(), map[string]struct{}{segmeta.SegmentKey: struct{}{}})
+	withLockAddRotatedSegment(segmeta)
+}
+
+func AddNewRotatedSegment(segmeta structs.SegMeta) {
+	smrLock.Lock()
+	defer smrLock.Unlock()
+
+	withLockAddRotatedSegment(segmeta)
+}
+
+func withLockAddRotatedSegment(segmeta structs.SegMeta) {
 	fileName := GetLocalSegmetaFName()
 
 	segmetajson, err := json.Marshal(segmeta)
 	if err != nil {
-		log.Errorf("AddNewRotatedSegment: failed to Marshal: err=%v", err)
+		log.Errorf("withLockAddRotatedSegment: failed to Marshal: err=%v", err)
 		return
 	}
 
@@ -928,12 +975,12 @@ func AddNewRotatedSegment(segmeta structs.SegMeta) {
 		if errors.Is(err, os.ErrNotExist) {
 			fd, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
-				log.Errorf("AddNewRotatedSegment: failed to open a new filename=%v: err=%v", fileName, err)
+				log.Errorf("withLockAddRotatedSegment: failed to open a new filename=%v: err=%v", fileName, err)
 				return
 			}
 
 		} else {
-			log.Errorf("AddNewRotatedSegment: failed to open filename=%v: err=%v", fileName, err)
+			log.Errorf("withLockAddRotatedSegment: failed to open filename=%v: err=%v", fileName, err)
 			return
 		}
 	}
@@ -941,17 +988,17 @@ func AddNewRotatedSegment(segmeta structs.SegMeta) {
 	defer fd.Close()
 
 	if _, err := fd.Write(segmetajson); err != nil {
-		log.Errorf("AddNewRotatedSegment: failed to write segmeta filename=%v: err=%v", fileName, err)
+		log.Errorf("withLockAddRotatedSegment: failed to write segmeta filename=%v: err=%v", fileName, err)
 		return
 	}
 
 	if _, err := fd.WriteString("\n"); err != nil {
-		log.Errorf("AddNewRotatedSegment: failed to write newline filename=%v: err=%v", fileName, err)
+		log.Errorf("withLockAddRotatedSegment: failed to write newline filename=%v: err=%v", fileName, err)
 		return
 	}
 	err = fd.Sync()
 	if err != nil {
-		log.Errorf("AddNewRotatedSegment: failed to sync filename=%v: err=%v", fileName, err)
+		log.Errorf("withLockAddRotatedSegment: failed to sync filename=%v: err=%v", fileName, err)
 		return
 	}
 }

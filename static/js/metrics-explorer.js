@@ -18,21 +18,23 @@
  */
 
 var queryIndex = 0;
+let formulaCache = []; 
 var queries = {};
+let formulas = {};
+
 var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
 let availableMetrics = [];
-let previousStartEpoch = null;
-let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
-
+let timeUnit;
+let dayCnt7=0;
+let dayCnt2=0;
 // Used for alert screen
 let isAlertScreen;
-let alertEditFlag = 0;
 let metricsQueryParams = {};
 
 // Theme
@@ -45,16 +47,61 @@ let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", 
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
+
+// Function to check if CSV can be downloaded
+function canDownloadCSV() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Function to check if JSON can be downloaded
+function canDownloadJSON() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Update button states based on data availability
+function updateDownloadButtons() {
+    let csvButton = $('#csv-block');
+    let jsonButton = $('#json-block');
+
+    if (canDownloadCSV()) {
+        csvButton.removeClass('disabled-tab');
+    } else {
+        csvButton.addClass('disabled-tab');
+    }
+
+    if (canDownloadJSON()) {
+        jsonButton.removeClass('disabled-tab');
+    } else {
+        jsonButton.addClass('disabled-tab');
+    }
+}
+
 $(document).ready(async function() {
-
+    updateDownloadButtons();
     var currentPage = window.location.pathname;
-    if (currentPage === "/alert.html") {
+    if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
-    } 
+    }
+    filterStartDate= "now-1h";
+    filterEndDate = "now";
+    $('.inner-range #' + filterStartDate).addClass('active');
+    datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
 
-    let stDate = "now-1h";
-    let endDate = "now";
-    datePickerHandler(stDate, endDate, stDate);
+    $('#metrics-container #date-start').on('change', getStartDateHandler);
+    $('#metrics-container #date-end').on('change', getEndDateHandler);
+    $('#metrics-container #time-start').on('change', getStartTimeHandler);
+    $('#metrics-container #time-end').on('change', getEndTimeHandler);
+    $('#metrics-container #customrange-btn').on('click', customRangeHandlerMetrics);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
@@ -63,14 +110,25 @@ $(document).ready(async function() {
     functionsArray = allFunctions.map(function(item) {
         return item.fn;
     })
-
-    if(!alertEditFlag ){
+    
+    if(!isAlertScreen){
         addQueryElement();
     }
+    
 });
-
+async function customRangeHandlerMetrics(_evt){
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $.each($(".db-range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    datePickerHandler(filterStartDate, filterEndDate, "custom")
+    await refreshMetricsGraphs();
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
+    resetCustomDateRange();
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
@@ -92,7 +150,9 @@ $('#add-formula').on('click', function(){
         addMetricsFormulaElement()
     }
 });
-
+function addToFormulaCache(formulaId, formulaName) {
+    formulaCache.push({ formulaId, formulaName });
+}
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
@@ -105,8 +165,6 @@ $('#toggle-switch').on('change', function() {
         $('#merged-graph-container').show();
     }
 });
-
-let formulas = {};
 
 function generateUniqueId() {
     return 'formula_' + Math.random().toString(36).substr(2, 9);
@@ -293,7 +351,7 @@ function createQueryElementTemplate(queryName) {
         <div class="query-box">
             <div class="query-name active">${queryName}</div>
             <div class="query-builder">
-                <input type="text" class="metrics" placeholder="Select a metric" >
+                <input type="text" class="metrics" placeholder="Select a metric" id="select-metric-input" >
                 <div>from</div>
                 <div class="tag-container">
                     <input type="text" class="everywhere" placeholder="(everywhere)">
@@ -555,7 +613,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -619,6 +680,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).val('');
             updateAutocompleteSource();
             return false;
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.tag-container').offset();
@@ -699,7 +763,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryDetails.aggFunction = ui.item.value;
             getQueryDetails(queryName,queryDetails);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -730,6 +797,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             }
             $(this).val('');
             return false;        
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
@@ -797,7 +867,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     
             queryElement.find('.options-container').hide();
             $(this).val('');
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -845,17 +918,25 @@ function updateCloseIconVisibility() {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-
+    var datasets = [];
+    var labels = [];
     // Extract labels and datasets from seriesData
     var labels = [];
     var datasets = [];
     
     if (seriesData.length > 0) {
-        labels = Object.keys(seriesData[0].values);
-        datasets = seriesData.map(function(series, index) {
+        seriesData.forEach(function (series, index) {
+            Object.keys(series.values).forEach((tsvalue) => {
+                labels.push(new Date(tsvalue))
+            })
+        })
+
+        labels.sort((a, b) => a - b)
+
+        datasets = seriesData.map(function (series, index) {
             return {
                 label: series.seriesName,
-                data: Object.values(series.values),
+                data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
                 borderWidth: 2,
@@ -893,6 +974,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -901,7 +983,33 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -911,8 +1019,10 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
-        }
+            },
+            spanGaps: true,
+        },
+        
     });
 
     // Modify the fill property based on the chart type after chart initialization
@@ -931,7 +1041,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
-     
+    addToFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
@@ -1186,7 +1296,107 @@ function updateLineCharts(lineStyle, stroke) {
 
     mergedGraph.update();
 }
+function convertToCSV(obj) {
+    let csv = 'Queries, Timestamp, Value\n';
+    for (let key in obj) {
+        if (obj.hasOwnProperty(key) && obj[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
 
+            // Find formula name in formulaCache
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            obj[key].datasets.forEach(dataset => {
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        // Use formulaDetails.formulaName as the formula name
+                        let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
+                        let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
+                        if(formulaName==""){
+                            csv += `${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        else{
+                            csv += `${formulaName}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        
+                    }
+                }
+            });
+        }
+    }
+    return csv;
+}
+
+
+
+
+
+// Function to download CSV file
+function downloadCSV() {
+    let csvContent = convertToCSV(chartDataCollection);
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Function to download JSON file
+function downloadJSON() {
+    let formattedData = {};
+
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            formattedData[key] = {
+                formulaName: formulaDetails ? formulaDetails.formulaName : formulaId,
+                datasets: []
+            };
+
+            chartDataCollection[key].datasets.forEach(dataset => {
+                let formattedDataset = {
+                    label: dataset.label,
+                    data: {}
+                };
+
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        formattedDataset.data[timestamp] = dataset.data[timestamp];
+                    }
+                }
+
+                formattedData[key].datasets.push(formattedDataset);
+            });
+        }
+    }
+
+    let jsonContent = JSON.stringify(formattedData, null, 2);
+    let blob = new Blob([jsonContent], { type: 'application/json' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+// Event listeners for clicking on download options
+document.getElementById('csv-block').addEventListener('click', function(){
+    if (canDownloadCSV()) {
+        downloadCSV();
+    }
+});
+document.getElementById('json-block').addEventListener('click', function(){
+    if (canDownloadJSON()) {
+        downloadJSON();
+    }
+});
 // Merge Graphs in one
 function mergeGraphs(chartType) {
     var visualizationContainer = $(`
@@ -1222,11 +1432,10 @@ function mergeGraphs(chartType) {
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
-
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
@@ -1248,6 +1457,7 @@ function mergeGraphs(chartType) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -1256,7 +1466,33 @@ function mergeGraphs(chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -1266,10 +1502,12 @@ function mergeGraphs(chartType) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
+            },
+            spanGaps: true,
         }
     });
     mergedGraph = mergedLineChart;
+    updateDownloadButtons();
 }
 
 // Converting the response in form to use to create graphs
@@ -1277,21 +1515,81 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+        
+        let chartStartTime = data.startTime;
+        let chartEndTime = Math.floor( Date.now()/ 1000);
+        const timeRange =chartEndTime - chartStartTime;
+        // // Determine the best time unit based on the time range
+        if (timeRange > 365 * 24 * 60 * 60  ) {
+            timeUnit = 'month';
+        }else if (timeRange >= 90 * 24 * 60 * 60  ) {
+            timeUnit = '7day';
+        }else if (timeRange >= 30 * 24 * 60 * 60  ) {
+            timeUnit = '2day';
+        } else if (timeRange >= 7 * 24 * 60 * 60 ) {
+            timeUnit = '12hour';
+        } else if (timeRange >= 2 * 24 * 60 * 60 ) {
+            timeUnit = '6hour';
+        } else if (timeRange >= 24 * 60 * 60 ) {
+            timeUnit = '3hour';
+        } else if (timeRange >= 12 * 60 * 60 ) {
+            timeUnit = '30minute';
+        } else if (timeRange >= 3 * 60 * 60 ) {
+            timeUnit = '15minute';
+        } else if (timeRange >= 30 * 60 ) {
+            timeUnit = '5minute';
+        }  else {
+            timeUnit = 'minute';
+        }
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
                 values: {}
             };
 
+            let calculatedInterval = data.intervalSec;
+            let oneDayInMilliseconds = 24 * 60 * 60  ;
+            switch(calculatedInterval){
+                case calculatedInterval >= 28800:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    chartEndTime = chartEndTime + oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 1200:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 300:
+                    chartStartTime = chartStartTime - (60 * 60);
+                    break;
+                case calculatedInterval >= 120:
+                    chartStartTime = chartStartTime - (30 * 60);
+                    break
+                case calculatedInterval >= 60:
+                    chartStartTime = chartStartTime - (15 * 60);
+                    break
+                case calculatedInterval >= 10:
+                    chartStartTime = chartStartTime - (5 * 60);
+                    break
+                default:
+                    chartStartTime = chartStartTime - (1 * 60)
+                    chartEndTime = chartEndTime + (1 * 60)
+            }
             for (let j = 0; j < data.timestamps.length; j++) {
                 // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = new Date(timestampInMilliseconds);
-                let formattedDate = localDate.toLocaleString();
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
 
                 series.values[formattedDate] = data.values[i][j];
             }
-
+            while (chartStartTime <= chartEndTime) {
+                let timestampInMilliseconds = chartStartTime * 1000;
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
+                if(series.values[formattedDate] === undefined){
+                    series.values[formattedDate] = null;
+                }
+                chartStartTime = chartStartTime + calculatedInterval
+            }
             seriesArray.push(series);
         }
     }
@@ -1336,21 +1634,25 @@ async function getMetricsData(queryName, metricName) {
 
     if (res) {
         rawTimeSeriesData = res;
+        updateDownloadButtons();
     }
 }
 
-async function getMetricsDataForFormula(formulaId, formulaDetails){
+async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
+
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
-        if(queryDetails.state === "builder"){
+
+        if (queryDetails.state === "builder") {
             queryString = createQueryString(queryDetails);
-        }else {
+        } else {
             queryString = queryDetails.rawQueryInput;
         }
+
         const query = {
             name: queryName,
             query: queryString,
@@ -1361,11 +1663,18 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
+
     const formula = {
-        formula: formulaDetails.formula 
+        formula: formulaDetails.formula
     };
     formulas.push(formula);
-    const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
+
+    const data = {
+        start: filterStartDate,
+        end: filterEndDate,
+        queries: queriesData,
+        formulas: formulas
+    };
 
     metricsQueryParams = data;
 
@@ -1374,13 +1683,17 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         rawTimeSeriesData = res;
     }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData)
-    if(isAlertScreen){
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+
+    if (isAlertScreen) {
         addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    }else{
+    } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
+    updateDownloadButtons();
 }
+
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
@@ -1517,6 +1830,8 @@ async function getFunctions() {
 }
 
 async function refreshMetricsGraphs(){
+    dayCnt7=0;
+    dayCnt2=0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
   
@@ -1576,7 +1891,9 @@ function getGraphGridColors() {
     return { gridLineColor, tickColor };
 }
 
+
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
+    addToFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
@@ -1648,7 +1965,7 @@ function parsePromQL(query) {
       parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
     } else {
       // If no tags, just set the metric
-      const metricNamePattern = /\(\s*(\w+)\s*\)/;
+      const metricNamePattern = /\s*(\w+)\s*/;
       const metricNameMatch = innerQuery.match(metricNamePattern);
       if (metricNameMatch) {
         parseObject.metrics = metricNameMatch[1];
@@ -1689,6 +2006,7 @@ async function addQueryElementOnAlertEdit(queryName, queryDetails) {
     setupQueryElementEventListeners(queryElement);
     
     queryIndex++;
+    updateDownloadButtons();
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
@@ -1749,3 +2067,109 @@ function addValue(queryElement, value) {
         valueContainer.css('width', '5px');
     }
 }
+
+function xaxisFomatter(value, index, ticks) {
+    const date = new Date(value);
+    const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+
+    let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+    if (timeUnit === 'month') {
+        return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+    }else if (timeUnit === '7day') {
+        if (isDifferentDay) dayCnt7+=1;
+        if (dayCnt7 === 7){
+            dayCnt7 = 0;
+            return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '2day') {
+        if (isDifferentDay) dayCnt2+=1;
+        if (dayCnt2 === 2 ){
+            dayCnt2 = 0;
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '12hour') {
+        if (date.getHours() % 12 === 0 ){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '6hour') {
+        if (date.getHours() % 6 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '3hour') {
+        if (date.getHours() % 3 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '30minute') {
+        if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '15minute') {
+        if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '5minute') {
+        if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else {
+        return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    }
+}
+
+$('#alert-from-metrics-container').click(function() {
+    let mqueries =[];
+    let mformulas = [];
+    let queryString;
+    var queryParams = {}
+    const firstKey = Object.keys(queries)[0];
+    if(queries[firstKey].metrics){ // only if the first query is not empty
+        Object.keys(queries).forEach(function(queryName) {
+            var queryDetails = queries[queryName];
+            if(queryDetails.state === "builder"){
+                queryString = createQueryString(queryDetails);
+            }else {
+                queryString = queryDetails.rawQueryInput;
+            }
+            const formula = { formula: queryName };
+            mformulas.push(formula);
+            const tquery = { name: queryName, query: `(${queryString})`, qlType: "promql" };
+            mqueries.push(tquery);
+        });
+   }
+   if(Object.keys(formulas).length > 0){
+        mformulas=[];
+        Object.keys(formulas).forEach(function(formulaId){
+            let formulaDetails = formulas[formulaId];
+            const formula = {
+                formula: formulaDetails.formula 
+            };
+            mformulas.push(formula);
+        });
+    }
+    if(Object.keys(formulas).length === 0 && Object.keys(queries).length > 1){
+        let queryNames = Object.keys(queries);
+        let formulaInput = queryNames.join(" + ");
+        mformulas=[formulaInput]
+    }
+    var queryParams = {
+        "queryLanguage": 'PromQL',
+        "queries": mqueries,
+        "formulas": mformulas,
+        "start": filterStartDate,
+        "end": filterEndDate,
+        "alert_type": 2,
+        "labels": []
+    };
+    let jsonString = JSON.stringify(queryParams);
+    queryString = encodeURIComponent(jsonString);
+    var newTab = window.open("../alert.html?queryString=" + queryString, '_blank');
+    newTab.focus();
+});

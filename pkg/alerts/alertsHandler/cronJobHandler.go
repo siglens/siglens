@@ -19,12 +19,15 @@ package alertsHandler
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
@@ -131,6 +134,10 @@ func shouldUpdateAlertStateToFiring(alertDetails *alertutils.AlertDetails, curre
 		return false
 	}
 
+	if intervalCount == 1 {
+		return true
+	}
+
 	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
 		AlertId:   alertDetails.AlertId,
 		Limit:     intervalCount - 1,
@@ -214,8 +221,35 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 	return nil
 }
 
+func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRange *dtypeutils.TimeRange) string {
+	if timeRange == nil {
+		log.Errorf("ALERTSERVICE: getLogsQueryLinkForTheAlert: TimeRange is nil. Alert=%+v", alertDetails.AlertName)
+		return ""
+	}
+
+	if alertDetails == nil {
+		log.Errorf("ALERTSERVICE: getLogsQueryLinkForTheAlert: AlertDetails is nil.")
+		return ""
+	}
+
+	baseURL := config.GetQueryServerBaseUrl() + "/index.html"
+
+	// query parameters
+	params := url.Values{}
+	params.Add("searchText", alertDetails.QueryParams.QueryText)
+	params.Add("startEpoch", fmt.Sprintf("%v", timeRange.StartEpochMs))
+	params.Add("endEpoch", fmt.Sprintf("%v", timeRange.EndEpochMs))
+	params.Add("indexName", alertDetails.QueryParams.Index)
+	params.Add("queryLanguage", alertDetails.QueryParams.QueryLanguage)
+
+	// Construct the full URL
+	fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+
+	return fullURL
+}
+
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
-	serResVal, isResultsEmpty, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
+	serResVal, isResultsEmpty, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error processing logs query. Alert=%+v, err=%+v", alertToEvaluate.AlertName, err)
 		return
@@ -238,7 +272,9 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 
 	isAlertConditionMatched := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 
-	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, "")
+	alertDataMessage := fmt.Sprintf("View the Query Results: %v", getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange))
+
+	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 	}
@@ -276,7 +312,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 }
 
 func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
+	err := databaseObj.UpdateAlertStateAndIncrementNumEvaluations(alertId, alertState)
 	return err
 }
 
@@ -342,7 +378,7 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 }
 
 func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job) {
-	serResVal, isResultsEmpty, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams)
+	serResVal, isResultsEmpty, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams)
 	if err != nil {
 		log.Errorf("MinionSearch: evaluate: Error processing logs query. Alert=%+v, err=%+v", msToEvaluate.AlertName, err)
 		return

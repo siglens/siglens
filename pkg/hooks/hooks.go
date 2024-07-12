@@ -102,12 +102,14 @@ type Hooks struct {
 
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}) interface{}
+	FilterQsrsHook                  func(qsrs interface{}) (interface{}, error)
 
 	// Handling ingestion
 	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid uint64) (bool, uint64)
 	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}) error
+	AfterSegmentRotation      func(segmeta interface{}) error
 }
 
 type HtmlSnippets struct {

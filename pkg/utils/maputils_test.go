@@ -15,10 +15,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import (
+	"testing"
 
-const SigLensVersion = "0.2.23d"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_MapToSet(t *testing.T) {
+	map1 := map[string]string{}
+	assert.Equal(t, 0, len(MapToSet(map1)))
+
+	map2 := map[string]int{
+		"key1": 1,
+		"key2": 1,
+		"key3": 5,
+	}
+
+	set := MapToSet(map2)
+	assert.Equal(t, 3, len(set))
+
+	_, ok := set["key1"]
+	assert.True(t, ok)
+	_, ok = set["key2"]
+	assert.True(t, ok)
+	_, ok = set["key3"]
+	assert.True(t, ok)
+}

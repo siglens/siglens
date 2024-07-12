@@ -9,6 +9,7 @@
     --db-options-bg-color:var(--white-3);
     --container-focus-bg-color: #F6FCFF;
     --input-box-bg-color: var(--white-0);
+    --alerting-btn-img: url(../assets/alerting-btn-light.svg);
 }
 /* TOGGLE SWITCH  */
 .switch {
@@ -70,8 +71,21 @@ input:checked + .slider:before {
     align-items: center;
     border: 1px solid var(--border-color-regular);
 }
-.graph-view-container .label{
-    margin-left: 10px;
+.graph-view-container {
+    margin-right: 10px;
+}
+
+.alert-from-metrics-btn {
+    background-image: var(--alerting-btn-img);
+}
+
+.below-btn-img {
+    background-size: 50%;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 30px;
+    width: 30px;
+    /* border: 1px solid var(--border-btn-color); */
 }
 .metrics-query .query-box .options-container {
     display: none;
@@ -110,6 +124,7 @@ input:checked + .slider:before {
 .metrics-query .query-box{
     align-items: flex-start;
     width: 100%;
+    padding: 0px;
 }
 .metrics-query .query-box .query-builder{
     flex-wrap: wrap;
@@ -363,16 +378,16 @@ input:checked + .slider:before {
 }
 
 /* JQUERY AUTOCOMpLETE */
-.ui-widget{
+.metrics-ui-widget.ui-widget{
     height: auto !important;
     max-height: 260px;
     overflow: scroll;
 }
-.ui-widget.ui-widget-content{
+.metrics-ui-widget.ui-widget.ui-widget-content{
     list-style-type: none;
     border-radius: 0px !important;
     width: fit-content;
-    min-width: 233px;
+    min-width: 233px !important;
 }
 .ui-autocomplete {
     position: absolute;
@@ -390,25 +405,25 @@ input:checked + .slider:before {
     background-clip: padding-box;
 }
   
-.ui-autocomplete > li > div {
+.metrics-ui-widget.ui-autocomplete > li > div {
     display: block;
     padding: 3px 20px;
     clear: both;
     font-weight: normal;
-    height: 34px;
+    height: 34px !important;
     white-space: nowrap;
     display: flex;
     align-items: center;
 }
   
-.ui-state-hover,
-.ui-state-active,
-.ui-state-focus {
+.metrics-ui-widget .ui-state-hover,
+.metrics-ui-widget .ui-state-active,
+.metrics-ui-widget .ui-state-focus {
     color: #ffffff;
     text-decoration: none;
-    background-color: #2D69BC;
+    background-color: #2D69BC !important;
     cursor: pointer;
-    height: 34px;
+    height: 34px !important;
 }
   
 .ui-helper-hidden-accessible {

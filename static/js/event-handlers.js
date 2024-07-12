@@ -27,8 +27,8 @@ function setupEventHandlers() {
     $("#live-tail-btn").on("click", runLiveTailBtnHandler);
 
     $('#available-fields').on('click', availableFieldsClickHandler);
-    $('#available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
-    $('#available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
+    $('#views-container #available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
+    $('#views-container #available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideError);
@@ -396,27 +396,41 @@ function runLiveTailBtnHandler(evt) {
 }
 
 function runFilterBtnHandler(evt) {
-    $('.popover').hide();
-    evt.preventDefault();
-    if (
-      $("#run-filter-btn").text() === " " ||
-      $("#query-builder-btn").text() === " "
-    ) {
-
-      resetDashboard();
-      logsRowData = [];
-      wsState = "query";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      availColNames = [];
-      doSearch(data);
-    } else {
-      wsState = "cancel";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      doCancel(data);
+    var currentPage = window.location.pathname;
+    if (currentPage === '/alert.html'){
+        let data = getQueryParamsData();
+        isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
+        if(isQueryBuilderSearch) {
+            data.searchText = getQueryBuilderCode();
+        }else{
+            data.searchText = $('#filter-input').val();
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
+    } else { // index.html
+        $('.popover').hide();
+        evt.preventDefault();
+        if (
+          $("#run-filter-btn").text() === " " ||
+          $("#query-builder-btn").text() === " "
+        ) {
+    
+          resetDashboard();
+          logsRowData = [];
+          wsState = "query";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          availColNames = [];
+          doSearch(data);
+        } else {
+          wsState = "cancel";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          doCancel(data);
+        }
+        $('#daterangepicker').hide(); 
     }
-    $('#daterangepicker').hide();
 }
 
 function filterInputHandler(evt) {
@@ -519,7 +533,16 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
         hideOrShowFieldsInLineViews();
         updateColumns();
     }
-    gridOptions.api.sizeColumnsToFit();
+
+    if(window.location.pathname.includes('dashboard.html')){
+        hideOrShowFieldsInLineViews();
+        updateColumns(); // Function for updating dashboard logs panel
+        currentPanel.selectedFields = selectedFieldsList;
+        panelGridOptions.api.sizeColumnsToFit();
+    }else{
+        gridOptions.api.sizeColumnsToFit();
+    }
+    
     updatedSelFieldList = true
 }
 
@@ -588,29 +611,36 @@ function logOptionSingleHandler() {
     $('#logs-result-container').removeClass('multi');
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-single-btn').addClass('active');
+    
     logsColumnDefs.forEach(function (colDef, index) {
-        if (colDef.field === "logs"){
+        if (colDef.field === "logs") {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
             colDef.cellRenderer = function(params) {
                 const data = params.data || {};
                 let logString = '';
                 let addSeparator = false;
+                
                 Object.entries(data)
                     .filter(([key]) => key !== 'timestamp')
                     .forEach(([key, value]) => {
                         let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
+                        
+                        // Convert objects and arrays to JSON strings
+                        let formattedValue = (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value;
+                        
+                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${formattedValue}</span>`;
                         addSeparator = true;
                     });
-            
+                
                 return `<div style="white-space: nowrap;">${logString}</div>`;
-            }; 
+            };
         }
     });
+    
     gridOptions.api.setColumnDefs(logsColumnDefs);
-    gridOptions.api.resetRowHeights()
-
+    gridOptions.api.resetRowHeights();
+    
     availColNames.forEach((colName, index) => {
         gridOptions.columnApi.setColumnVisible(colName, false);
     });
@@ -620,6 +650,8 @@ function logOptionSingleHandler() {
     hideOrShowFieldsInLineViews();
     Cookies.set('log-view', 'single-line',  {expires: 365});
 }
+
+
 
 function logOptionMultiHandler() {
     $('#logs-result-container').addClass('multi');
