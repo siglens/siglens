@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
+	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
@@ -355,7 +356,7 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 		}
 	}
 
-	writer.RemoveSegments(segmetaFile, segmentsToDelete)
+	writer.RemoveSegments(segmetaFile, utils.MapToSet(segmentsToDelete))
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {
