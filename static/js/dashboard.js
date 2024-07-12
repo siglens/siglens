@@ -36,8 +36,8 @@ $(document).ready(async function () {
     }
     initializeIndexAutocomplete();
     
-    $('#new-dashboard').css("transform", "translate(170px)")
-    $('#new-dashboard').css("width", "calc(100% - 170px)")
+    $('#new-dashboard').css("transform", "translate(150px)")
+    $('#new-dashboard').css("width", "calc(100% - 150px)")
 
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
