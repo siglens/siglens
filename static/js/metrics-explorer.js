@@ -1419,18 +1419,18 @@ function downloadJSON() {
     document.body.removeChild(link);
 }
 
-
-// Event listeners for clicking on download options
-document.getElementById('csv-block').addEventListener('click', function(){
+$('#csv-block').on('click', function() {
     if (canDownloadCSV()) {
         downloadCSV();
     }
 });
-document.getElementById('json-block').addEventListener('click', function(){
+
+$('#json-block').on('click', function() {
     if (canDownloadJSON()) {
         downloadJSON();
     }
 });
+
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId=-1) {
     if(isDashboardScreen){
