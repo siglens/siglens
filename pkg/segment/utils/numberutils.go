@@ -17,7 +17,11 @@
 
 package utils
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 func GetNumberTypeAndVal(numstr string) (SS_IntUintFloatTypes, int64, uint64, float64) {
 	firstchar := numstr[0]
@@ -97,4 +101,21 @@ func getIntTypeAndVal(strnum string) (SS_IntUintFloatTypes, int64, bool) {
 		}
 	}
 	return -1, 0, false
+}
+
+func ParseHumanizedValueToFloat(humanizedValue interface{}) (float64, error) {
+	humanizedValueStr := fmt.Sprintf("%v", humanizedValue)
+
+	if humanizedValueStr == "" {
+		return 0, fmt.Errorf("ParseHumanizedValueToFloat: humanizedValue is empty")
+	}
+
+	cleanedStr := strings.ReplaceAll(humanizedValueStr, ",", "")
+
+	floatVal, err := strconv.ParseFloat(cleanedStr, 64)
+	if err != nil {
+		return 0, fmt.Errorf("ParseHumanizedValueToFloat: error parsing float value. Error: %v", err)
+	}
+
+	return floatVal, nil
 }
