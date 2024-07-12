@@ -183,10 +183,12 @@ const gridOptions = {
     readOnlyEdit: true,
     singleClickEdit: true,
     headerHeight:32,
+    suppressDragLeaveHidesColumns:true,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,
         resizable: true,
+        suppressDragLeaveHidesColumns:true,
         minWidth: 200,
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-down"/>',

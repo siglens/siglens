@@ -27,6 +27,7 @@ let panelContainerWidthGlobal;
 let originalIndexValues = [];
 let indexValues = [];
 let isDefaultDashboard = false;
+
 $(document).ready(async function () {
     let indexes = await getListIndices();
     if (indexes){

@@ -290,16 +290,15 @@ function fetchLogsPanelData(data, panelId) {
         dataType: 'json',
         data: JSON.stringify(data)
     });
-}
-
-function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
+  }
+  
+  function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function(resolve, reject) {
         $('body').css('cursor', 'progress');
 
         if (queryRes) {
             renderChartByChartType(data, queryRes, panelId, currentPanel);
             $('body').css('cursor', 'default');
-            resolve();
         } else {
             fetchLogsPanelData(data, panelId)
                 .then((res) => {
@@ -317,8 +316,8 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
                 });
         }
     });
-}
-
+  }
+  
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
     if (errorMsg !== "") {
@@ -999,4 +998,24 @@ function initializeFilterInputEvents() {
         $("#filter-input").val("").focus();
         $(this).hide();
     });
+    $("#filter-input").keydown(function (e) {
+        if (e.key === '|') {
+          let input = $(this);
+          let value = input.val();
+          let position = this.selectionStart;
+          input.val(value.substring(0, position) + '\n' + value.substring(position));
+          this.selectionStart = this.selectionEnd = position + 2;
+        }
+      });
+      document.getElementById('filter-input').addEventListener('paste', function(event) {
+        event.preventDefault();
+        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
+        let newValue = pasteData.replace(/\|/g, '\n|');
+        let start = this.selectionStart;
+        let end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + newValue.length;
+        autoResizeTextarea.call(this);
+      });
+      
 }
