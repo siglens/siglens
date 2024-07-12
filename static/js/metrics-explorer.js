@@ -2250,7 +2250,7 @@ async function populateMetricsQueryElement(metricsQueryParams){
     
     for (const query of queries) {
         const parsedQueryObject = parsePromQL(query.query);
-        await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
     
     if (queries.length >= 1) {
