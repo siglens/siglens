@@ -181,7 +181,7 @@ $(document).ready(function () {
         $(".nav-metrics").addClass("disable-hover");
         setTimeout(function() {
             $(".nav-metrics").removeClass("disable-hover");
-        }, 2000);
+        }, 1000);
     } else if (currentUrl.includes("metric-summary.html")) {
         $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
@@ -206,7 +206,7 @@ $(document).ready(function () {
         $(".nav-traces").addClass("disable-hover");
         setTimeout(function() {
             $(".nav-traces").removeClass("disable-hover");
-        }, 2000);
+        }, 1000);
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
@@ -215,7 +215,7 @@ $(document).ready(function () {
         $(".nav-ingest").addClass("disable-hover");
         setTimeout(function() {
             $(".nav-ingest").removeClass("disable-hover");
-        }, 2000);   
+        }, 1000);   
     } 
     
     // Hover event handlers updated to respect disable-hover class
