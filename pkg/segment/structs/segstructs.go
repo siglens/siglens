@@ -160,8 +160,21 @@ type QueryAggregators struct {
 	TableName            string
 	TransactionArguments *TransactionArguments
 	StatsOptions         *StatsOptions
+	StreamStatsOptions   *StreamStatsOptions
 	Next                 *QueryAggregators
 	Limit                int
+}
+
+type StreamStatsOptions struct {
+	AllNum bool
+	Current bool
+	Global bool
+	ResetOnChange bool
+	Window uint64
+	ResetBefore *BoolExpr
+	ResetAfter *BoolExpr
+	TimeWindow *BinSpanLength
+	StatsAggs *QueryAggregators
 }
 
 type ShowRequest struct {

@@ -337,6 +337,14 @@ func initializeStatsOptions() *structs.StatsOptions {
     }
 }
 
+func initializeStreamStatsOptions() *structs.StreamStatsOptions {
+    return &structs.StreamStatsOptions {
+        Current: true,
+        Global: true,
+        Window: 0,
+    }
+}
+
 func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
 
     if inputField == "" {
@@ -435,6 +443,11 @@ type HeadOptionArgs struct {
 type BinOptionArgs struct {
     argOption string
     binOptions *structs.BinCmdOptions
+}
+
+type StreamStatsOptionArgs struct {
+    argOption string
+    streamStatsOptions *structs.StreamStatsOptions
 }
 
 type SPathFieldExpr struct {
@@ -556,7 +569,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? options:(StatsOptions)?{
+CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -597,6 +610,13 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
         }
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
     }
+
+    return aggNode, nil
+}
+
+
+AggregatorBlock <- PIPE CMD_STATS aggs:(CommonAggregatorBlock) options:(StatsOptions)?{
+    aggNode := aggs.(*structs.QueryAggregators)
 
     if options != nil {
         aggNode.StatsOptions = options.(*structs.StatsOptions)
@@ -669,6 +689,161 @@ GroupbyBlock <- BY fields:FieldNameList {
     }
 
     return fields, nil
+}
+
+
+StreamStatsOptionResetOnChange <- "reset_on_change" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        ResetOnChange: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_on_change",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionCurrent <- "current" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        Current: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "current",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionGlobal <- "global" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        Global: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "global",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionAllNum <- "allnum" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        AllNum: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "allnum",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionWindow <- "window" EQUAL windowSize:PositiveIntegerAsString {
+    window, err := strconv.ParseUint(windowSize.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", windowSize.(string))
+    }
+    ssOption := &structs.StreamStatsOptions{
+        Window: window,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+
+StreamStatsOptionResetBefore <- "reset_before" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetBefore: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_before",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionResetAfter <- "reset_after" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetAfter: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_after",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOption <- ssOption:(StreamStatsOptionResetOnChange / StreamStatsOptionCurrent / StreamStatsOptionGlobal / StreamStatsOptionAllNum / StreamStatsOptionWindow / StreamStatsOptionResetBefore / StreamStatsOptionResetAfter) {
+    return ssOption, nil
+}
+
+StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+
+    numOptions := 1 + len(restSlice)
+
+    ssOption := initializeStreamStatsOptions()
+
+    for i := 0; i < numOptions; i++ {
+        var ssOptArg *StreamStatsOptionArgs
+        if i == 0 {
+            ssOptArg = first.(*StreamStatsOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            ssOptArg = separator[1].(*StreamStatsOptionArgs)
+        }
+
+        argOption := ssOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if exist && val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "reset_on_change":
+                ssOption.ResetOnChange = ssOptArg.streamStatsOptions.ResetOnChange
+            case "current":
+                ssOption.Current = ssOptArg.streamStatsOptions.Current
+            case "global":
+                ssOption.Global = ssOptArg.streamStatsOptions.Global
+            case "allnum":
+                ssOption.AllNum = ssOptArg.streamStatsOptions.AllNum
+            case "window":
+                ssOption.Window = ssOptArg.streamStatsOptions.Window
+            case "reset_before":
+                ssOption.ResetBefore = ssOptArg.streamStatsOptions.ResetBefore
+            case "reset_after":
+                ssOption.ResetAfter = ssOptArg.streamStatsOptions.ResetAfter
+            default:
+                return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
+        }
+    }
+
+    return ssOption, nil
+}
+
+StreamStats <- PIPE CMD_STREAM_STATS ssOptionList:(StreamStatsOptionList)? aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+
+    if ssOptionList != nil {
+        aggNode.StreamStatsOptions = ssOptionList.(*structs.StreamStatsOptions)
+    } else {
+        aggNode.StreamStatsOptions = initializeStreamStatsOptions()
+    }
+
+    aggNode.StreamStatsOptions.StatsAggs = aggs.(*structs.QueryAggregators)
+
+    return aggNode, nil
 }
 
 RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString {
