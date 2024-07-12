@@ -18,6 +18,7 @@
  */
 
 var queryIndex = 0;
+let formulaCache = []; 
 var queries = {};
 let formulas = {};
 
@@ -33,7 +34,7 @@ let timeUnit;
 let dayCnt7=0;
 let dayCnt2=0;
 // Used for alert screen
-let isAlertScreen;
+let isAlertScreen, isMetricsURL, isDashboardScreen;
 let metricsQueryParams = {};
 
 // Theme
@@ -46,16 +47,64 @@ let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", 
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
-$(document).ready(async function() {
 
+// Function to check if CSV can be downloaded
+function canDownloadCSV() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Function to check if JSON can be downloaded
+function canDownloadJSON() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Update button states based on data availability
+function updateDownloadButtons() {
+    let csvButton = $('#csv-block');
+    let jsonButton = $('#json-block');
+
+    if (canDownloadCSV()) {
+        csvButton.removeClass('disabled-tab');
+    } else {
+        csvButton.addClass('disabled-tab');
+    }
+
+    if (canDownloadJSON()) {
+        jsonButton.removeClass('disabled-tab');
+    } else {
+        jsonButton.addClass('disabled-tab');
+    }
+}
+
+$(document).ready(async function() {
+    updateDownloadButtons();
     var currentPage = window.location.pathname;
     if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
+    }
+    filterStartDate= "now-1h";
+    filterEndDate = "now";
+    $('.inner-range #' + filterStartDate).addClass('active');
+    datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
+    if (currentPage === "/dashboard.html") {
+        isDashboardScreen = true;
     } 
 
-    let stDate = "now-1h";
-    let endDate = "now";
-    datePickerHandler(stDate, endDate, stDate);
+    $('#metrics-container #date-start').on('change', getStartDateHandler);
+    $('#metrics-container #date-end').on('change', getEndDateHandler);
+    $('#metrics-container #time-start').on('change', getStartTimeHandler);
+    $('#metrics-container #time-end').on('change', getEndTimeHandler);
+    $('#metrics-container #customrange-btn').on('click', customRangeHandlerMetrics);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
@@ -64,14 +113,44 @@ $(document).ready(async function() {
     functionsArray = allFunctions.map(function(item) {
         return item.fn;
     })
-    
-    if(!isAlertScreen){
+
+    // Retrieve Query from Metrics Explorer URL to Display Query Element Formula and Visualization
+    const urlParams = new URLSearchParams(window.location.search);
+    if (currentPage.includes('metrics-explorer.html') && urlParams.has('queryString')) {
+        let dataParam = getUrlParameter('queryString');
+        let jsonString = decodeURIComponent(dataParam);
+        let obj = JSON.parse(jsonString);
+        isMetricsURL = true;
+        populateMetricsQueryElement(obj)
+    }
+
+    if(!isAlertScreen && !isMetricsURL && !isDashboardScreen){
         addQueryElement();
     }
+    
 });
+
+async function customRangeHandlerMetrics(_evt){
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $.each($(".db-range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    datePickerHandler(filterStartDate, filterEndDate, "custom")
+    await refreshMetricsGraphs();
+}
+
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    let results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
 
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
+    resetCustomDateRange();
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
@@ -93,7 +172,9 @@ $('#add-formula').on('click', function(){
         addMetricsFormulaElement()
     }
 });
-
+function addToFormulaCache(formulaId, formulaName) {
+    formulaCache.push({ formulaId, formulaName });
+}
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
@@ -129,21 +210,19 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
 
 function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function() {
-        delete formulas[uniqueId];
-        formulaElement.remove();
-        removeVisualizationContainer(uniqueId);
-        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-    });
-}
-
-function formulaAlertRemoveHandler(formulaElement, uniqueId){
-    formulaElement.find('.remove-query').on('click', function() {
-        var formulaBtn = $("#add-formula");
-        formulas = {};
-        formulaElement.remove();
-        formulaBtn.prop('disabled',false);
-        activateFirstQuery();
-        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        if(isAlertScreen){
+            var formulaBtn = $("#add-formula");
+            formulas = {};
+            formulaElement.remove();
+            formulaBtn.prop('disabled',false);
+            activateFirstQuery();
+            $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }else{
+            delete formulas[uniqueId];
+            formulaElement.remove();
+            removeVisualizationContainer(uniqueId);
+            $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
     });
 }
 
@@ -214,14 +293,19 @@ async function addAlertsFormulaElement(formulaInput) {
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
 
-    formulaAlertRemoveHandler(formulaElement, uniqueId);
+    formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
 
-function addMetricsFormulaElement() {
-    let uniqueId = generateUniqueId();
-    let formulaElement = createFormulaElementTemplate(uniqueId);
+async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
+    // For Dashboards 
+    if (formulaInput) {
+        const validationResult = validateFormula(formulaInput);
+        formulas[uniqueId] = validationResult;
+        await getMetricsDataForFormula(uniqueId, validationResult);
+    }
 
+    const formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
     $('#metrics-formula').append(formulaElement);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
@@ -856,12 +940,7 @@ function updateCloseIconVisibility() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
-
-function initializeChart(canvas, seriesData, queryName, chartType) {
-    var ctx = canvas[0].getContext('2d');
-    var datasets = [];
-    var labels = [];
-    // Extract labels and datasets from seriesData
+function prepareChartData(seriesData, chartDataCollection, queryName) {
     var labels = [];
     var datasets = [];
     
@@ -893,6 +972,14 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
+
+    return chartData;
+}
+
+function initializeChart(canvas, seriesData, queryName, chartType) {
+    var ctx = canvas[0].getContext('2d');
+
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName)
 
     const { gridLineColor, tickColor } = getGraphGridColors();
 
@@ -981,50 +1068,56 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     return lineChart;
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString) {
-     
-    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
-    if (existingContainer.length === 0){
-        var visualizationContainer = $(`
-        <div class="metrics-graph" data-query="${queryName}">
-            <div class="query-string">${queryString}</div>
-            <div class="graph-canvas"></div>
-        </div>`);
-
-        // Determine where to insert the new container
-        if (queryName.startsWith('formula')) {
-            // Insert after all formula queries
-            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
-            if (lastFormula.length) {
-                lastFormula.after(visualizationContainer);
+function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
+    if(isDashboardScreen) { // For dashboard page
+        prepareChartData(seriesData, chartDataCollection, queryName);
+        mergeGraphs(chartType, panelId);
+    }else{
+        // For metrics explorer page
+        var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+        if (existingContainer.length === 0){
+            var visualizationContainer = $(`
+            <div class="metrics-graph" data-query="${queryName}">
+                <div class="query-string">${queryString}</div>
+                <div class="graph-canvas"></div>
+            </div>`);
+    
+            // Determine where to insert the new container
+            if (queryName.startsWith('formula')) {
+                // Insert after all formula queries
+                var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+                if (lastFormula.length) {
+                    lastFormula.after(visualizationContainer);
+                } else {
+                    // If no formula queries exist, append to the end
+                    $('#metrics-graphs').append(visualizationContainer);
+                }
             } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
+                // Insert before the first formula query
+                var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+                if (firstFormula.length) {
+                    firstFormula.before(visualizationContainer);
+                } else {
+                    // If no formula queries exist, append to the end
+                    $('#metrics-graphs').append(visualizationContainer);
+                }
             }
-        } else {
-            // Insert before the first formula query
-            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
-            if (firstFormula.length) {
-                firstFormula.before(visualizationContainer);
-            } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
-            }
+    
+            var canvas = $('<canvas></canvas>');
+            visualizationContainer.find('.graph-canvas').append(canvas);
+        } else{
+            existingContainer.find('.query-string').text(queryString);
+            var canvas = $('<canvas></canvas>');
+            existingContainer.find('.graph-canvas').empty().append(canvas);
         }
-
-        var canvas = $('<canvas></canvas>');
-        visualizationContainer.find('.graph-canvas').append(canvas);
-    } else{
-        existingContainer.find('.query-string').text(queryString);
-        var canvas = $('<canvas></canvas>');
-        existingContainer.find('.graph-canvas').empty().append(canvas);
+    
+        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+    
+        lineCharts[queryName] = lineChart;
+        updateGraphWidth();
+        mergeGraphs(chartType)
     }
-
-    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-
-    lineCharts[queryName] = lineChart;
-    updateGraphWidth();
-    mergeGraphs(chartType)
+    addToFormulaCache(queryName, queryString);   
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1237,19 +1330,137 @@ function updateLineCharts(lineStyle, stroke) {
 
     mergedGraph.update();
 }
+function convertToCSV(obj) {
+    let csv = 'Queries, Timestamp, Value\n';
+    for (let key in obj) {
+        if (obj.hasOwnProperty(key) && obj[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
+
+            // Find formula name in formulaCache
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            obj[key].datasets.forEach(dataset => {
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        // Use formulaDetails.formulaName as the formula name
+                        let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
+                        let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
+                        if(formulaName==""){
+                            csv += `${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        else{
+                            csv += `${formulaName}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        
+                    }
+                }
+            });
+        }
+    }
+    return csv;
+}
+
+
+
+
+
+// Function to download CSV file
+function downloadCSV() {
+    let csvContent = convertToCSV(chartDataCollection);
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Function to download JSON file
+function downloadJSON() {
+    let formattedData = {};
+
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            formattedData[key] = {
+                formulaName: formulaDetails ? formulaDetails.formulaName : formulaId,
+                datasets: []
+            };
+
+            chartDataCollection[key].datasets.forEach(dataset => {
+                let formattedDataset = {
+                    label: dataset.label,
+                    data: {}
+                };
+
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        formattedDataset.data[timestamp] = dataset.data[timestamp];
+                    }
+                }
+
+                formattedData[key].datasets.push(formattedDataset);
+            });
+        }
+    }
+
+    let jsonContent = JSON.stringify(formattedData, null, 2);
+    let blob = new Blob([jsonContent], { type: 'application/json' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+$('#csv-block').on('click', function() {
+    if (canDownloadCSV()) {
+        downloadCSV();
+    }
+});
+
+$('#json-block').on('click', function() {
+    if (canDownloadJSON()) {
+        downloadJSON();
+    }
+});
 
 // Merge Graphs in one
-function mergeGraphs(chartType) {
-    var visualizationContainer = $(`
-        <div class="merged-graph-name"></div>
-        <div class="merged-graph"></div>`);
-
-    $('#merged-graph-container').empty().append(visualizationContainer);
+function mergeGraphs(chartType, panelId=-1) {
+    if(isDashboardScreen){
+        // For dashboard page
+        var panelChartEl;
+        if (panelId === -1) {
+            panelChartEl = $(`.panelDisplay .panEdit-panel`);
+        } else {
+            panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+            panelChartEl.css("width", "100%").css("height", "100%");
+        }
     
-    var mergedCanvas = $('<canvas></canvas>');
-
-    $('.merged-graph').empty().append(mergedCanvas);
-    var mergedCtx = mergedCanvas[0].getContext('2d');
+        panelChartEl.empty(); // Clear any existing content
+        var mergedCanvas = $('<canvas></canvas>');
+        panelChartEl.append(mergedCanvas);
+    
+        var mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+    }else{
+        // For metrics explorer page
+        var visualizationContainer = $(`
+            <div class="merged-graph-name"></div>
+            <div class="merged-graph"></div>`);
+    
+        $('#merged-graph-container').empty().append(visualizationContainer);
+        
+        var mergedCanvas = $('<canvas></canvas>');
+    
+        $('.merged-graph').empty().append(mergedCanvas);
+        var mergedCtx = mergedCanvas[0].getContext('2d');
+    }
 
     var mergedData = {
         labels: [],
@@ -1273,11 +1484,10 @@ function mergeGraphs(chartType) {
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
-
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
@@ -1288,6 +1498,7 @@ function mergeGraphs(chartType) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
+                    display: shouldShowLegend(panelId, mergedData.datasets),
                     position: 'bottom',
                     align: 'start',
                     labels: {
@@ -1349,7 +1560,12 @@ function mergeGraphs(chartType) {
         }
     });
     mergedGraph = mergedLineChart;
+    updateDownloadButtons();
 }
+
+const shouldShowLegend = (panelId, datasets) => {
+    return panelId===-1 || datasets.length < 5;
+};
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
@@ -1471,25 +1687,29 @@ async function getMetricsData(queryName, metricName) {
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
     const res = await fetchTimeSeriesData(data);
-    metricsQueryParams = data;
+    metricsQueryParams = data;  // For alerts page 
 
     if (res) {
         rawTimeSeriesData = res;
+        updateDownloadButtons();
     }
 }
 
-async function getMetricsDataForFormula(formulaId, formulaDetails){
+async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
+
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
-        if(queryDetails.state === "builder"){
+
+        if (queryDetails.state === "builder") {
             queryString = createQueryString(queryDetails);
-        }else {
+        } else {
             queryString = queryDetails.rawQueryInput;
         }
+
         const query = {
             name: queryName,
             query: queryString,
@@ -1500,11 +1720,18 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
+
     const formula = {
-        formula: formulaDetails.formula 
+        formula: formulaDetails.formula
     };
     formulas.push(formula);
-    const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
+
+    const data = {
+        start: filterStartDate,
+        end: filterEndDate,
+        queries: queriesData,
+        formulas: formulas
+    };
 
     metricsQueryParams = data;
 
@@ -1513,13 +1740,17 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         rawTimeSeriesData = res;
     }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData)
-    if(isAlertScreen){
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+
+    if (isAlertScreen) {
         addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    }else{
+    } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
+    updateDownloadButtons();
 }
+
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
@@ -1719,6 +1950,7 @@ function getGraphGridColors() {
 
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
+    addToFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
@@ -1815,8 +2047,8 @@ function activateFirstQuery() {
     getQueryDetails(queryName, queryDetails);
 }
  
-
-async function addQueryElementOnAlertEdit(queryName, queryDetails) {
+// Add a query element for both the dashboard edit panel and the alert edit panel
+async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
 
     var queryElement = createQueryElementTemplate(queryName)
     $('#metrics-queries').append(queryElement);
@@ -1831,6 +2063,7 @@ async function addQueryElementOnAlertEdit(queryName, queryDetails) {
     setupQueryElementEventListeners(queryElement);
     
     queryIndex++;
+    updateDownloadButtons();
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
@@ -1997,3 +2230,30 @@ $('#alert-from-metrics-container').click(function() {
     var newTab = window.open("../alert.html?queryString=" + queryString, '_blank');
     newTab.focus();
 });
+
+async function populateMetricsQueryElement(metricsQueryParams){
+    const { start, end, queries, formulas } = metricsQueryParams;
+    if (!isNaN(start)) {
+        let stDate = Number(start);
+        let endDate = Number(end);
+        datePickerHandler(stDate, endDate, "custom");
+        loadCustomDateTimeFromEpoch(stDate,endDate);
+    }else{
+        $(`.ranges .inner-range #${start}`).addClass('active');
+        datePickerHandler(start, end, start);
+    }
+    
+    if (functionsArray) {
+        const allFunctions = await getFunctions();
+        functionsArray = allFunctions.map(item => item.fn);
+    }
+    
+    for (const query of queries) {
+        const parsedQueryObject = parsePromQL(query.query);
+        await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
+    }
+    
+    if (queries.length >= 1) {
+        await addAlertsFormulaElement(formulas[0].formula);
+    }
+}

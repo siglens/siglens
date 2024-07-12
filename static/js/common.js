@@ -290,16 +290,15 @@ function fetchLogsPanelData(data, panelId) {
         dataType: 'json',
         data: JSON.stringify(data)
     });
-}
-
-function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
+  }
+  
+  function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function(resolve, reject) {
         $('body').css('cursor', 'progress');
 
         if (queryRes) {
             renderChartByChartType(data, queryRes, panelId, currentPanel);
             $('body').css('cursor', 'default');
-            resolve();
         } else {
             fetchLogsPanelData(data, panelId)
                 .then((res) => {
@@ -317,8 +316,8 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
                 });
         }
     });
-}
-
+  }
+  
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
     if (errorMsg !== "") {
@@ -540,32 +539,82 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
     }
 }
 
-function runMetricsQuery(data, panelId, currentPanel, queryRes) {
+
+async function runMetricsQuery(data, panelId, currentPanel, queryRes) {
     $('body').css('cursor', 'progress');
-    if (queryRes) {
-        renderChartByChartType(data,queryRes,panelId,currentPanel)
-    } else {
-        $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/timeseries',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then((res) => {
-                renderChartByChartType(data,res,panelId,currentPanel)
-            })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
-                    panelProcessSearchError(xhr, panelId);
+    if (panelId == -1) { // for panel on the editPanelScreen page
+        $(".panelDisplay #panelLogResultsGrid").hide();
+        $(".panelDisplay #empty-response").empty();
+        $('.panelDisplay #corner-popup').hide();
+        $(".panelDisplay #empty-response").hide();
+        $('.panelDisplay .panEdit-panel').show();
+    } else { // for panels on the dashboard page
+        $(`#panel${panelId} #panelLogResultsGrid`).hide();
+        $(`#panel${panelId} #empty-response`).empty();
+        $(`#panel${panelId} #corner-popup`).hide();
+        $(`#panel${panelId} #empty-response`).hide();
+        $(`#panel${panelId} .panEdit-panel`).show();
+    }
+    let chartType = currentPanel.chartType;
+    if (chartType === 'number'){
+        let bigNumVal = null;
+        let dataType = currentPanel.dataType;
+        let rawTimeSeriesData;
+        for (const queryData of data.queriesData) {
+            rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+            const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+            await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+        }
+        $.each(rawTimeSeriesData.values, function (index, valueArray) {
+            $.each(valueArray, function (index, value) {
+                if (value > bigNumVal) {
+                    bigNumVal = value;
                 }
-                $('body').css('cursor', 'default')
-            })
-    }  
+            });
+        }); 
+        if(bigNumVal === undefined || bigNumVal === null){
+            panelProcessEmptyQueryResults("", panelId);
+        }else{
+            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+            allResultsDisplayed--;
+            if(allResultsDisplayed <= 0 || panelId === -1) {
+                $('body').css('cursor', 'default');
+            }
+            $(`#panel${panelId} .panel-body #panel-loading`).hide();   
+        } 
+    }else {
+        chartDataCollection = {};
+        if(panelId === -1){// for panel on the editPanelScreen page
+            for (const queryData of data.queriesData) {
+                const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+                await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+            }
+            for (const formulaData of data.formulasData) {
+                let uniqueId = generateUniqueId();
+                addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
+            }
+        }else{// for panels on the dashboard page
+            for (const queryData of data.queriesData) {
+                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+                const chartData = await convertDataForChart(rawTimeSeriesData);
+                const queryString = queryData.queries[0].query; // Adjust as per your data structure
+                addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+            }
+    
+            for (const formulaData of data.formulasData) {
+                const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+                const chartData = await convertDataForChart(rawTimeSeriesData);
+                const queryString = formulaData.formulas[0].formula; // Adjust as per your data structure
+                addVisualizationContainer(formulaData.formulas[0].formula, chartData, queryString, panelId);
+            }
+        }
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();  
+        allResultsDisplayed--;
+        if(allResultsDisplayed <= 0 || panelId === -1) {
+            $('body').css('cursor', 'default');
+        } 
+        $('body').css('cursor', 'default');
+    }
 }
 
 function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex,dataType) {
@@ -857,8 +906,7 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
                 currentPanel.dataType = "none"
             }
             if (currentPanel.queryType == 'metrics'){
-                let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
+                runMetricsQuery(data, panelId, currentPanel)
             }else{
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             }
@@ -950,4 +998,24 @@ function initializeFilterInputEvents() {
         $("#filter-input").val("").focus();
         $(this).hide();
     });
+    $("#filter-input").keydown(function (e) {
+        if (e.key === '|') {
+          let input = $(this);
+          let value = input.val();
+          let position = this.selectionStart;
+          input.val(value.substring(0, position) + '\n' + value.substring(position));
+          this.selectionStart = this.selectionEnd = position + 2;
+        }
+      });
+      document.getElementById('filter-input').addEventListener('paste', function(event) {
+        event.preventDefault();
+        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
+        let newValue = pasteData.replace(/\|/g, '\n|');
+        let start = this.selectionStart;
+        let end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + newValue.length;
+        autoResizeTextarea.call(this);
+      });
+      
 }

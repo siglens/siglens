@@ -27,6 +27,7 @@ let panelContainerWidthGlobal;
 let originalIndexValues = [];
 let indexValues = [];
 let isDefaultDashboard = false;
+
 $(document).ready(async function () {
     let indexes = await getListIndices();
     if (indexes){
@@ -35,8 +36,8 @@ $(document).ready(async function () {
     }
     initializeIndexAutocomplete();
     
-    $('#new-dashboard').css("transform", "translate(170px)")
-    $('#new-dashboard').css("width", "calc(100% - 170px)")
+    $('#new-dashboard').css("transform", "translate(150px)")
+    $('#new-dashboard').css("width", "calc(100% - 150px)")
 
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
@@ -408,7 +409,7 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         displayPanels();
         setFavoriteValue(dbData.isFavorite);
-        updateTimeRangeForPanels();
+        setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
 
         if (!(localPanels.length > 0)) {
@@ -422,37 +423,84 @@ async function getDashboardData() {
     }
 }
 
-function updateTimeRangeForPanels() {
-    localPanels.forEach(panel => {
-        delete panel.queryRes;
-        if(panel.queryData) {
-            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
-                panel.queryData.start = filterStartDate.toString();
-                panel.queryData.end = filterEndDate.toString();
+function setTimePickerValue(timeRange){
+    let start, end;
+        
+    localPanels.some(panel => {
+        if (panel.queryData) {
+            if (panel.chartType === "Line Chart" || panel.queryType === "metrics") {
+                if (Array.isArray(panel.queryData.queriesData)) {
+                    let query = panel.queryData.queriesData[0];
+                    start = query.start;
+                    end = query.end;
+                    return true; 
+                }
             } else {
-                datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
-                panel.queryData.startEpoch = filterStartDate
-                panel.queryData.endEpoch = filterEndDate
+                start = panel.queryData.startEpoch;
+                end = panel.queryData.endEpoch;
+                datePickerHandler(start, end, "custom");
+                return true; 
             }
-            $('.inner-range .db-range-item').removeClass('active');
-            $('.inner-range #' + filterStartDate).addClass('active');
         }
-    })
-}
+        return false; 
+    });
+    if (timeRange === 'Custom') {
+        let stDate = Number(start);
+        let endDate = Number(end);
+        datePickerHandler(stDate, endDate, "custom");
+        $('.inner-range .db-range-item').removeClass('active');
 
-function updateTimeRangeForPanel(panelIndex) {
-    delete localPanels[panelIndex].queryRes;
-    if(localPanels[panelIndex].queryData) {
-        if(localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
-            localPanels[panelIndex].queryData.start = filterStartDate.toString();
-            localPanels[panelIndex].queryData.end = filterEndDate.toString();
-        } else {
-            localPanels[panelIndex].queryData.startEpoch = filterStartDate
-            localPanels[panelIndex].queryData.endEpoch = filterEndDate
-        }
+        loadCustomDateTimeFromEpoch(stDate, endDate);
+    } else {
+        datePickerHandler(start, end, dbData.timeRange);
+        $('.inner-range .db-range-item').removeClass('active');
+        $('.inner-range #' + start).addClass('active');
     }
 }
+
+
+function updateTimeRangeForAllPanels(filterStartDate,filterEndDate){
+    localPanels.forEach(panel => {
+        delete panel.queryRes;
+        
+        if (panel.queryData) {
+            if (panel.chartType === "Line Chart" || panel.queryType === "metrics") {
+                if (panel.queryData) {
+                    // Update start and end for each item in queriesData
+                    if (Array.isArray(panel.queryData.queriesData)) {
+                        panel.queryData.queriesData.forEach(query => {
+                            query.start = filterStartDate;
+                            query.end = filterEndDate;
+                        });
+                    }
+
+                    // Update start and end for each item in formulasData
+                    if (Array.isArray(panel.queryData.formulasData)) {
+                        panel.queryData.formulasData.forEach(formula => {
+                            formula.start = filterStartDate;
+                            formula.end = filterEndDate;
+                        });
+                    }
+                }
+            } else { // logs
+                panel.queryData.startEpoch = filterStartDate;
+                panel.queryData.endEpoch = filterEndDate;
+            }
+        }
+    });
+    $('.inner-range .db-range-item').removeClass('active');
+
+    if (!isNaN(filterStartDate)) {
+        let stDate = Number(filterStartDate);
+        let endDate = Number(filterEndDate);
+        datePickerHandler(stDate, endDate, "custom");
+        loadCustomDateTimeFromEpoch(stDate,endDate);
+    }else{
+        $('.inner-range #' + filterStartDate).addClass('active');
+        datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
+    }
+}
+
 
 
 // Event listener for Gridstack resize and drag events
@@ -506,7 +554,7 @@ grid.on('resizestop', function(event, ui) {
     $('.default-item').show();
 });
 
-function displayPanels() {
+async function displayPanels() {
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -523,7 +571,7 @@ function displayPanels() {
         if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
     });
 
-    localPanels.forEach((localPanel) => {
+    for (const localPanel of localPanels) {
         let idpanel = localPanel.panelId;
         let widgetOptions = {
             width: parseInt(localPanel.gridpos.w),
@@ -596,7 +644,7 @@ function displayPanels() {
                 //remove startEpoch from from localPanel.queryData
                 delete localPanel.queryData.startEpoch
                 delete localPanel.queryData.endEpoch
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+                await runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
             }
         } else if (localPanel.chartType == 'number') {
             let panEl = $(`#panel${idpanel} .panel-body`)
@@ -642,7 +690,7 @@ function displayPanels() {
             handlePanelView();
             handlePanelRemove(idpanel);
             handlePanelDuplicate();
-    })
+    }
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
     }
@@ -741,21 +789,27 @@ function addPanel(chartIndex) {
             chartType = "Line Chart";
             queryType = "metrics";
             queryData = {
-                start: "now-1h",
-                end: "now",
-                formulas: [
-                    {
-                      "formula": "a"
-                    }
-                  ],
-                  "queries": [
-                    {
-                      "name": "a",
-                      "qlType": "promql",
-                      "query": "testmetric0"
-                    }
-                  ],
-            };
+                "formulasData": [],
+                "queriesData": [
+                  {
+                    "end": "now",
+                    "formulas": [
+                      {
+                        "formula": "a"
+                      }
+                    ],
+                    "queries": [
+                      {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "((testmetric0))"
+                      }
+                    ],
+                    "start": "now-1h"
+                  }
+                ],
+                "start": "now-1h"
+              };
             break;
         case 1: // Bar chart
             chartType = "Bar Chart";

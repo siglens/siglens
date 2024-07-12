@@ -94,9 +94,9 @@ const historyGridOptions = {
 
 let originalIndexValues, indexValues = [];
 
-$(document).ready(async function () {
-
-    $('.theme-btn').on('click', themePickerHandler);
+$(document).ready(async function () {  
+  
+    $('.theme-btn').on('click', themePickerHandler);  
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";
@@ -190,16 +190,41 @@ $("#contact-points-dropdown").on("click", function() {
     }
 });
 
-    
-
-    
+$('#evaluate-for').tooltip({
+    title: 'Evaluate For must be greater than or equal to Evaluate Interval',
+    placement: 'top',
+    trigger: 'manual' 
 });
-function getUrlParameter(name) {
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-    let results = regex.exec(location.search);
-    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+let evaluateForValue = 0;
+
+function checkEvaluateConditions() {
+    let evaluateEveryValue = parseInt($('#evaluate-every').val());
+    evaluateForValue = parseInt($('#evaluate-for').val());
+    let submitbtn = $("#save-alert-btn");
+    let errorMessage = $('.evaluation-error-message');
+    
+    if (evaluateForValue < evaluateEveryValue) {
+        $('#evaluate-for').addClass('error-border'); 
+        errorMessage.show();
+        $('#evaluate-for').tooltip('show');
+        submitbtn.prop('disabled', true);
+    } else {
+        $('#evaluate-for').removeClass('error-border'); 
+        errorMessage.hide();
+        $('#evaluate-for').tooltip('hide'); 
+        submitbtn.prop('disabled', false);
+    }
 }
+
+$('#evaluate-for').on('input', function () {
+    checkEvaluateConditions();
+});
+
+$('#evaluate-every').on('input', function () {
+    checkEvaluateConditions();
+});
+
+});
 
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -507,7 +532,7 @@ async function displayAlert(res){
         
         for (const query of queries) {
             const parsedQueryObject = parsePromQL(query.query);
-            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+            await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
         }
         
         if (queries.length >= 1) {
@@ -527,6 +552,7 @@ async function displayAlert(res){
 
     if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         alertData.alert_id = res.alert_id;
+        $(".rulename").text(res.alert_name).css("display", "block");
     }
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
@@ -639,7 +665,7 @@ function fetchAlertProperties() {
 
             propertiesData.push(
                 { name: "Status", value: mapIndexToAlertState.get(alert.state) },
-                { name: "Condition", value: mapIndexToConditionType.get(alert.condition) },
+                { name: "Condition", value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` },
                 { name: "Evaluate", value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` },
                 { name: "Contact Point", value: alert.contact_name }
             );
@@ -736,9 +762,8 @@ function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     const metricsQueryParams = JSON.parse(res.metricsQueryParams || '{}');
     
-    $('.alert-name').text(res.alert_name);
+    $('.alert-name').text(res.alert_name);  
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    
     if (res.alert_type === 1) {
         $('.alert-query').val(queryParams.queryText);
         $('.alert-type').text(queryParams.data_source);
