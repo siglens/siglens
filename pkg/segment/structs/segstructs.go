@@ -254,6 +254,7 @@ type LetColumnsRequest struct {
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+	BinRequest           *BinCmdOptions
 }
 
 type TailExpr struct {
@@ -460,6 +461,14 @@ func (ma *MeasureAggregator) String() string {
 	return ma.StrEnc
 }
 
+func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []string {
+	var columns []string
+	for _, ma := range measureAggs {
+		columns = append(columns, ma.String())
+	}
+	return columns
+}
+
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
@@ -560,7 +569,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
-			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil)
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {
@@ -682,6 +691,28 @@ func (qa *QueryAggregators) HasTailInChain() bool {
 	}
 
 	return false
+}
+
+func (qa *QueryAggregators) HasBinBlock() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.BinRequest != nil {
+		return true
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasBinInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasBinBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasBinInChain()
+	}
+	return false
+
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
@@ -837,7 +868,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"getfields":        {},
 	"isnum":            {},
 	"isnotnull":        {},
-	"typeof":           {},
 	"spath":            {},
 	"eventcount":       {},
 }

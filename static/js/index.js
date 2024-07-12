@@ -188,10 +188,14 @@ $(".index-container").on("click", ".remove-icon", function(e) {
         $("#index-listing").autocomplete('option', 'source', indexValues);
     }
 
-    // Update selectedSearchIndex
-    selectedSearchIndex = selectedSearchIndex.split(',').filter(function(value) {
+    selectedSearchIndex = selectedSearchIndex.split(',')
+    .map(function(value) {
+        return value.trim();
+    })
+    .filter(function(value) {
         return value !== removedValue;
-    }).join(',');
+    })
+    .join(',');
 
     // Update the input width and placeholder if necessary
     if ($('.index-container').find('.selected-index').length === 0) {

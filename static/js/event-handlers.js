@@ -207,8 +207,30 @@ async function dashboardRangeItemHandler(evt){
     if(currentPanel) {
         if(currentPanel.queryData) {
             if(currentPanel.chartType === "Line Chart" || currentPanel.queryType === "metrics") {
-                currentPanel.queryData.start = filterStartDate.toString();
-                currentPanel.queryData.end = filterEndDate.toString();
+            const startDateStr = filterStartDate.toString();
+                const endDateStr = filterEndDate.toString();
+
+                // Update start and end for queryData
+                if (currentPanel.queryData) {
+                    currentPanel.queryData.start = startDateStr;
+                    currentPanel.queryData.end = endDateStr;
+
+                    // Update start and end for each item in queriesData
+                    if (Array.isArray(currentPanel.queryData.queriesData)) {
+                        currentPanel.queryData.queriesData.forEach(query => {
+                            query.start = startDateStr;
+                            query.end = endDateStr;
+                        });
+                    }
+
+                    // Update start and end for each item in formulasData
+                    if (Array.isArray(currentPanel.queryData.formulasData)) {
+                        currentPanel.queryData.formulasData.forEach(formula => {
+                            formula.start = startDateStr;
+                            formula.end = endDateStr;
+                        });
+                    }
+                }
             } else {
                 currentPanel.queryData.startEpoch = filterStartDate
                 currentPanel.queryData.endEpoch = filterEndDate
@@ -221,8 +243,30 @@ async function dashboardRangeItemHandler(evt){
                 delete panel.queryRes
                 if(panel.queryData) {
                     if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                        panel.queryData.start = filterStartDate.toString();
-                        panel.queryData.end = filterEndDate.toString();
+                        const startDateStr = filterStartDate.toString();
+                        const endDateStr = filterEndDate.toString();
+        
+                        // Update start and end for queryData
+                        if (panel.queryData) {
+                            panel.queryData.start = startDateStr;
+                            panel.queryData.end = endDateStr;
+        
+                            // Update start and end for each item in queriesData
+                            if (Array.isArray(panel.queryData.queriesData)) {
+                                panel.queryData.queriesData.forEach(query => {
+                                    query.start = startDateStr;
+                                    query.end = endDateStr;
+                                });
+                            }
+        
+                            // Update start and end for each item in formulasData
+                            if (Array.isArray(panel.queryData.formulasData)) {
+                                panel.queryData.formulasData.forEach(formula => {
+                                    formula.start = startDateStr;
+                                    formula.end = endDateStr;
+                                });
+                            }
+                        }
                     } else {
                         panel.queryData.startEpoch = filterStartDate
                         panel.queryData.endEpoch = filterEndDate
@@ -611,29 +655,36 @@ function logOptionSingleHandler() {
     $('#logs-result-container').removeClass('multi');
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-single-btn').addClass('active');
+    
     logsColumnDefs.forEach(function (colDef, index) {
-        if (colDef.field === "logs"){
+        if (colDef.field === "logs") {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
             colDef.cellRenderer = function(params) {
                 const data = params.data || {};
                 let logString = '';
                 let addSeparator = false;
+                
                 Object.entries(data)
                     .filter(([key]) => key !== 'timestamp')
                     .forEach(([key, value]) => {
                         let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
+                        
+                        // Convert objects and arrays to JSON strings
+                        let formattedValue = (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value;
+                        
+                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${formattedValue}</span>`;
                         addSeparator = true;
                     });
-            
+                
                 return `<div style="white-space: nowrap;">${logString}</div>`;
-            }; 
+            };
         }
     });
+    
     gridOptions.api.setColumnDefs(logsColumnDefs);
-    gridOptions.api.resetRowHeights()
-
+    gridOptions.api.resetRowHeights();
+    
     availColNames.forEach((colName, index) => {
         gridOptions.columnApi.setColumnVisible(colName, false);
     });
@@ -643,6 +694,8 @@ function logOptionSingleHandler() {
     hideOrShowFieldsInLineViews();
     Cookies.set('log-view', 'single-line',  {expires: 365});
 }
+
+
 
 function logOptionMultiHandler() {
     $('#logs-result-container').addClass('multi');

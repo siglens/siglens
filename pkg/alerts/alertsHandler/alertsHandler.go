@@ -46,7 +46,7 @@ type database interface {
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
 	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
-	GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error)
+	GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
 	GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, error)
@@ -119,7 +119,7 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 		}
 
 	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
-		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
+		_, _, _, _, errorLog, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {
 			return errorLog, err
 		}
@@ -697,7 +697,7 @@ func convertToSiglensAlert(lmDetails alertutils.LogLinesFile) []*alertutils.Mini
 			LogTextHash:     entry.LogTextHash,
 			LogLevel:        entry.LogLevel,
 			Condition:       alertutils.IsAbove,
-			Value:           float32(entry.Value),
+			Value:           float64(entry.Value),
 			EvalFor:         0,
 			EvalInterval:    1,
 			Message:         "Minion search " + alert_name,

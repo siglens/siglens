@@ -21,6 +21,7 @@
 let alertData = {};
 let alertID;
 let alertEditFlag = 0;
+let alertFromMetricsExplorerFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -93,9 +94,9 @@ const historyGridOptions = {
 
 let originalIndexValues, indexValues = [];
 
-$(document).ready(async function () {
-
-    $('.theme-btn').on('click', themePickerHandler);
+$(document).ready(async function () {  
+  
+    $('.theme-btn').on('click', themePickerHandler);  
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";
@@ -189,9 +190,40 @@ $("#contact-points-dropdown").on("click", function() {
     }
 });
 
-    
+$('#evaluate-for').tooltip({
+    title: 'Evaluate For must be greater than or equal to Evaluate Interval',
+    placement: 'top',
+    trigger: 'manual' 
+});
+let evaluateForValue = 0;
 
+function checkEvaluateConditions() {
+    let evaluateEveryValue = parseInt($('#evaluate-every').val());
+    evaluateForValue = parseInt($('#evaluate-for').val());
+    let submitbtn = $("#save-alert-btn");
+    let errorMessage = $('.evaluation-error-message');
     
+    if (evaluateForValue < evaluateEveryValue) {
+        $('#evaluate-for').addClass('error-border'); 
+        errorMessage.show();
+        $('#evaluate-for').tooltip('show');
+        submitbtn.prop('disabled', true);
+    } else {
+        $('#evaluate-for').removeClass('error-border'); 
+        errorMessage.hide();
+        $('#evaluate-for').tooltip('hide'); 
+        submitbtn.prop('disabled', false);
+    }
+}
+
+$('#evaluate-for').on('input', function () {
+    checkEvaluateConditions();
+});
+
+$('#evaluate-every').on('input', function () {
+    checkEvaluateConditions();
+});
+
 });
 
 async function getAlertId() {
@@ -203,6 +235,7 @@ async function getAlertId() {
             originalIndexValues = indexes.map(item => item.index);
             indexValues = [...originalIndexValues];
         }
+        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -211,6 +244,13 @@ async function getAlertId() {
         alertID = id;
        const editFlag = await editAlert(id);
        alertEditFlag = editFlag;
+       alertFromMetricsExplorerFlag = 0;
+    } else if (urlParams.has('queryString')) {
+        let dataParam = getUrlParameter('queryString');
+        let jsonString = decodeURIComponent(dataParam);
+        let obj = JSON.parse(jsonString);
+        alertFromMetricsExplorerFlag = 1;
+        displayAlert(obj);
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -220,7 +260,7 @@ async function getAlertId() {
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
 
-    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
+    if(!alertEditFlag && !alertFromMetricsExplorerFlag && !(window.location.href.includes("alert-details.html"))){
         addQueryElement();
     }
 }
@@ -241,6 +281,7 @@ async function editAlert(alertId){
         return false
     } else {
         alertEditFlag = true;
+        alertFromMetricsExplorerFlag = 0;
         displayAlert(res.alert);
         return true
     }
@@ -326,7 +367,7 @@ if (historyBtn) {
 function submitAddAlertForm(e) {
     e.preventDefault();
     setAlertRule();
-    alertEditFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
+    alertEditFlag && !alertFromMetricsExplorerFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
 }
 
 function setAlertRule() {
@@ -470,10 +511,17 @@ async function displayAlert(res){
         fetchLogsPanelData(data,-1).then((res)=>{
             alertChart(res);
         });
+        $('#query').val(res.queryParams.queryText);
+        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)        
     } else if (res.alert_type === 2){
-        let metricsQueryParams = JSON.parse(res.metricsQueryParams);
+        let metricsQueryParams;
+        if (alertFromMetricsExplorerFlag){
+            metricsQueryParams = res;
+        }else{
+            metricsQueryParams = JSON.parse(res.metricsQueryParams);
+        }
         const { start, end, queries, formulas } = metricsQueryParams;
-        
         $(`.ranges .inner-range #${start}`).addClass('active');
         datePickerHandler(start, end, start);
         
@@ -484,10 +532,10 @@ async function displayAlert(res){
         
         for (const query of queries) {
             const parsedQueryObject = parsePromQL(query.query);
-            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+            await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
         }
         
-        if (queries.length > 1) {
+        if (queries.length >= 1) {
             await addAlertsFormulaElement(formulas[0].formula);
         }
     }
@@ -502,8 +550,9 @@ async function displayAlert(res){
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
 
-    if (alertEditFlag) {
+    if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         alertData.alert_id = res.alert_id;
+        $(".rulename").text(res.alert_name).css("display", "block");
     }
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
@@ -616,7 +665,7 @@ function fetchAlertProperties() {
 
             propertiesData.push(
                 { name: "Status", value: mapIndexToAlertState.get(alert.state) },
-                { name: "Condition", value: mapIndexToConditionType.get(alert.condition) },
+                { name: "Condition", value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` },
                 { name: "Evaluate", value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` },
                 { name: "Contact Point", value: alert.contact_name }
             );
@@ -713,9 +762,8 @@ function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     const metricsQueryParams = JSON.parse(res.metricsQueryParams || '{}');
     
-    $('.alert-name').text(res.alert_name);
+    $('.alert-name').text(res.alert_name);  
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    
     if (res.alert_type === 1) {
         $('.alert-query').val(queryParams.queryText);
         $('.alert-type').text(queryParams.data_source);

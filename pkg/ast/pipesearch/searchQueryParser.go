@@ -467,6 +467,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.EventCountRequest != nil {
 			aggNode.OutputTransforms.LetColumns.EventCountRequest = node.LetColumns.EventCountRequest
 		}
+		if node.LetColumns.BinRequest != nil {
+			aggNode.OutputTransforms.LetColumns.BinRequest = node.LetColumns.BinRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
@@ -593,7 +596,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add
