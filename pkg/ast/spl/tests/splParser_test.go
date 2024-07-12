@@ -9897,9 +9897,7 @@ func Test_StreamStats_12(t *testing.T) {
 	renameCol, exist := aggregator.Next.OutputTransforms.OutputColumns.RenameAggregationColumns["count(*)"]
 	assert.True(t, exist)
 	assert.Equal(t, "group_count", renameCol)
-
 }
-
 
 func Test_StreamStats_13(t *testing.T) {
 	query := `* | streamstats timewindow=7 count as cnt`

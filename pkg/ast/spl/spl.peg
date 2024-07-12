@@ -745,7 +745,7 @@ StreamStatsOptionAllNum <- "allnum" EQUAL boolVal:Boolean {
 StreamStatsOptionWindow <- "window" EQUAL windowSize:PositiveIntegerAsString {
     window, err := strconv.ParseUint(windowSize.(string), 10, 64)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", windowSize.(string))
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be a positive integer", windowSize.(string))
     }
     if window > 10000 {
         return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be less than or equal to 10000", window)
