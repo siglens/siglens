@@ -235,7 +235,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
             errorMessage.hide();
             input.removeClass('error-border');
             disableQueryRemoval();
-            if(isAlertScreen){
+            if (isAlertScreen) {
                 formulas = {};
                 activateFirstQuery();
             }
@@ -243,28 +243,58 @@ function formulaInputHandler(formulaElement, uniqueId) {
             onFormulaErased(uniqueId);
             return;
         }
+
+        // Check if the formula is a constant value
+        if (!isNaN(formula)) {
+            errorMessage.hide();
+            input.removeClass('error-border');
+            formulas[uniqueId] = {
+                formula: formula,
+                queryNames: [],
+                isConstant: true,
+            };
+            await generateConstantSeries(uniqueId, parseFloat(formula));
+            return;
+        }
+
         let validationResult = validateFormula(formula);
         if (validationResult !== false) {
             errorMessage.hide();
             input.removeClass('error-border');
-            // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
-            if(isAlertScreen){
+            if (isAlertScreen) {
                 $('#metrics-queries .metrics-query .query-name').removeClass('active');
             }
-            // Check if validationResult.queryNames is an array
-            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
-                // Run your function with the formula and query names
-                await getMetricsDataForFormula(uniqueId,validationResult);
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
+                await getMetricsDataForFormula(uniqueId, validationResult);
             }
         } else {
             errorMessage.show();
             input.addClass('error-border');
         }
-        // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
     }, 500)); // debounce delay
 }
+
+async function generateConstantSeries(uniqueId, constantValue) {
+    // Generate empty labels based on the selected time range
+    let labels = generateEmptyTimeLabels(filterStartDate);
+    let dataPoints = labels.map(() => constantValue);
+
+    let seriesData = [{
+        seriesName: `Constant ${constantValue}`,
+        values: {},
+    }];
+
+    labels.forEach((label, index) => {
+        const formattedDate = moment(label).format('YYYY-MM-DDTHH:mm:ss');
+        seriesData[0].values[formattedDate] = dataPoints[index];
+    });
+
+    const queryString = `Constant Value: ${constantValue}`;
+    addVisualizationContainer(uniqueId, seriesData, queryString);
+}
+
 
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
