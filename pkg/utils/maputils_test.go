@@ -17,47 +17,29 @@
 
 package utils
 
-import "fmt"
+import (
+	"testing"
 
-type TimeUnit uint8
-
-const (
-	TMInvalid TimeUnit = iota
-	TMMicrosecond
-	TMMillisecond
-	TMCentisecond
-	TMDecisecond
-	TMSecond
-	TMMinute
-	TMHour
-	TMDay
-	TMWeek
-	TMMonth
-	TMQuarter
-	TMYear
+	"github.com/stretchr/testify/assert"
 )
 
-// Convert subseconds
-func ConvertSubseconds(subsecond string) (TimeUnit, error) {
-	switch subsecond {
-	case "us":
-		return TMMicrosecond, nil
-	case "ms":
-		return TMMillisecond, nil
-	case "cs":
-		return TMCentisecond, nil
-	case "ds":
-		return TMDecisecond, nil
-	default:
-		return 0, fmt.Errorf("ConvertSubseconds: can not convert: %v", subsecond)
-	}
-}
+func Test_MapToSet(t *testing.T) {
+	map1 := map[string]string{}
+	assert.Equal(t, 0, len(MapToSet(map1)))
 
-func IsSubseconds(timeUnit TimeUnit) bool {
-	switch timeUnit {
-	case TMMicrosecond, TMMillisecond, TMCentisecond, TMDecisecond:
-		return true
-	default:
-		return false
+	map2 := map[string]int{
+		"key1": 1,
+		"key2": 1,
+		"key3": 5,
 	}
+
+	set := MapToSet(map2)
+	assert.Equal(t, 3, len(set))
+
+	_, ok := set["key1"]
+	assert.True(t, ok)
+	_, ok = set["key2"]
+	assert.True(t, ok)
+	_, ok = set["key3"]
+	assert.True(t, ok)
 }

@@ -32,3 +32,13 @@ func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
 
 	return result
 }
+
+func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
+	set := make(map[K]struct{}, len(m))
+
+	for key := range m {
+		set[key] = struct{}{}
+	}
+
+	return set
+}
