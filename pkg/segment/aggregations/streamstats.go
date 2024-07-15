@@ -48,7 +48,14 @@ func InitRunningStreamStatsResults(defaultVal float64) *structs.RunningStreamSta
 }
 
 
-func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue float64) (float64, error) {
+func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue float64) (float64, bool, error) {
+	result := ssResults.CurrResult
+	valExist := ssOption.NumProcessedRecords > 0
+
+	if measureAgg == utils.Avg && valExist {
+		result = result / float64(ssOption.NumProcessedRecords)
+	}
+
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
@@ -63,44 +70,63 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 			ssResults.CurrResult = colValue
 		}
 	default:
-		return 0.0, fmt.Errorf("performGlobalStreamStatsOnSingleFunc Error, measureAgg: %v not supported", measureAgg)
+		return 0.0, false, fmt.Errorf("performGlobalStreamStatsOnSingleFunc Error, measureAgg: %v not supported", measureAgg)
 	}
 
-	ssOption.NumProcessedRecords++
+	if !ssOption.Current {
+		return result, valExist, nil
+	}
 
 	if measureAgg == utils.Avg {
-		return ssResults.CurrResult / float64(ssOption.NumProcessedRecords), nil
+		return ssResults.CurrResult / float64(ssOption.NumProcessedRecords+1), true, nil
 	}
 
-	return ssResults.CurrResult, nil
+	return ssResults.CurrResult, true, nil
+}
+
+// Remove elements from the window that are outside the window size
+func cleanWindow(currIndex int, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) (error) {
+	for ssResults.Window.Len() > 0 {
+		front := ssResults.Window.Front()
+		frontVal, correctType := front.Value.(*structs.IndexValue)
+		if !correctType {
+			return fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+		}
+		if frontVal.Index + windowSize <= currIndex {
+			if measureAgg == utils.Avg || measureAgg == utils.Sum {
+				ssResults.CurrResult -= frontVal.Value
+			} else if measureAgg == utils.Count {
+				ssResults.CurrResult--
+			}
+			ssResults.Window.Remove(front)
+		} else {
+			break
+		}
+	}
+
+	return nil
 }
 
 
-func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue float64) (float64, error) {
-
-	// Remove elements from the window that are outside the window size
-	if windowSize != 0 {
-		for ssResults.Window.Len() > 0 {
-			front := ssResults.Window.Front()
-			frontVal, correctType := front.Value.(*structs.IndexValue)
-			if !correctType {
-				return 0.0, fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
-			}
-			if frontVal.Index + windowSize <= currIndex {
-				if measureAgg == utils.Avg || measureAgg == utils.Sum {
-					ssResults.CurrResult -= frontVal.Value
-				} else if measureAgg == utils.Count {
-					ssResults.CurrResult--
-				}
-				ssResults.Window.Remove(front)
-			} else {
-				break
-			}
-		}
+func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (float64, bool, error) {
+	if ssResults.Window.Len() == 0 {
+		return 0.0, false, nil
 	}
-	
+	switch measureAgg {
+		case utils.Count:
+			return ssResults.CurrResult, true, nil
+		case utils.Sum:
+			return ssResults.CurrResult, true, nil
+		case utils.Avg:
+			return ssResults.CurrResult / float64(ssResults.Window.Len()), true, nil
+		case utils.Min, utils.Max:
+			return ssResults.Window.Front().Value.(*structs.IndexValue).Value, true, nil
+		default:
+			return 0.0, false, fmt.Errorf("getResults Error, measureAgg: %v not supported", measureAgg)
+	}
+}
 
-	// Add the new element to the window
+func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue float64) (float64, error) {
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
@@ -147,7 +173,47 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssResults *structs.Runn
 	return ssResults.CurrResult, nil
 }
 
-func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}) (float64, error) {
+
+func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue float64) (float64, bool, error) {
+	result := ssResults.CurrResult
+	exist := ssResults.Window.Len() > 0
+	if exist && measureAgg == utils.Avg {
+		result = result / float64(ssResults.Window.Len())
+	}
+
+	// If current is false, compute result before adding the new element to the window
+	if !ssOption.Current && windowSize != 0 {
+		err := cleanWindow(currIndex-1, ssResults, windowSize, measureAgg)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
+		}
+		result, exist, err = getResults(ssResults, measureAgg)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while getting results from the window, err: %v", err)
+		}
+	}
+
+	if windowSize != 0 {
+		err := cleanWindow(currIndex, ssResults, windowSize, measureAgg)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
+		}
+	}
+
+	// Add the new element to the window
+	latestResult, err := performMeasureFunc(currIndex, ssResults, measureAgg, colValue)
+	if err != nil {
+		return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while performing measure function %v, err: %v", measureAgg, err)
+	}
+
+	if !ssOption.Current {
+		return result, exist, nil
+	}
+
+	return latestResult, true, nil	
+}
+
+func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}) (float64, bool, error) {
 
 	floatVal := 0.0
 	var err error
@@ -156,12 +222,12 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 	if measureAgg.MeasureFunc != utils.Count {
 		recordVal, exist := record[measureAgg.MeasureCol]
 		if !exist {
-			return 0.0, fmt.Errorf("performStreamStatsOnSingleFunc Error, measure column: %v not found in the record", measureAgg.MeasureCol)
+			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error, measure column: %v not found in the record", measureAgg.MeasureCol)
 		}
 		floatVal, err = dtypeutils.ConvertToFloat(recordVal, 64)
 		// currently only supporting basic agg functions
 		if err != nil {
-			return 0.0, fmt.Errorf("performStreamStatsOnSingleFunc Error measure column %v does not have a numeric value, err: %v", measureAgg.MeasureCol, err)
+			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error measure column %v does not have a numeric value, err: %v", measureAgg.MeasureCol, err)
 		}
 	}
 
@@ -182,18 +248,18 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 	}
 
 	if bucketKey == "" && ssOption.Window == 0 {
-		result, err = PerformGlobalStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, floatVal)
+		result, exist, err = PerformGlobalStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, floatVal)
 		if err != nil {
-			return 0.0, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
+			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
 		}
 	} else {
-		result, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg.MeasureFunc, floatVal)
+		result, exist, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg.MeasureFunc, floatVal)
 		if err != nil {
-			return 0.0, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing window stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
+			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing window stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
 		}
 	}
 
-	return result, nil
+	return result, exist, nil
 }
 
 
@@ -247,14 +313,22 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 		
 		for measureFuncIndex, measureAgg := range measureAggs {
-			streamStatsResult, err := PerformStreamStatsOnSingleFunc(currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record)
+			streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record)
 			if err != nil {
 				return fmt.Errorf("performStreamStats Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
 			}
-			record[measureAgg.String()] = streamStatsResult
+			if exist {
+				record[measureAgg.String()] = streamStatsResult
+			} else {
+				if measureAgg.MeasureFunc == utils.Count {
+					record[measureAgg.String()] = 0
+				} else {
+					record[measureAgg.String()] = ""
+				}
+			}
 		}
+		agg.StreamStatsOptions.NumProcessedRecords++
 	}
-
 
 	for _, measureAgg := range measureAggs {
 		finalCols[measureAgg.String()] = true
