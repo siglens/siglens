@@ -595,7 +595,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 }
 
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
-	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
+	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) && aggs.StreamStatsOptions == nil {
 		sizeLimit = 0
 	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() {
 		// 1. Dedup needs state information about the previous records, so we can

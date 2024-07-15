@@ -614,6 +614,9 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
+	if qa.HasStreamStatsInChain() {
+		return true
+	}
 	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
 }
 
@@ -734,6 +737,27 @@ func (qa *QueryAggregators) HasBinInChain() bool {
 	}
 	return false
 
+}
+
+func (qa *QueryAggregators) HasStreamStats() bool {
+	if qa != nil && qa.StreamStatsOptions != nil {
+		return true
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasStreamStatsInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasStreamStats() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasStreamStatsInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
