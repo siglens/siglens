@@ -1115,55 +1115,43 @@ function generateEmptyTimeLabels(startDate) {
     if (startDate.includes("now-5m")) {
         startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
         stepSize = 1 * 60 * 1000; // 1 minute
-        unit = 'minute';
     } else if (startDate.includes("now-15m")) {
         startTime = new Date(endTime.getTime() - 15 * 60 * 1000);
         stepSize = 1 * 60 * 1000; // 1 minute
-        unit = 'minute';
     } else if (startDate.includes("now-30m")) {
         startTime = new Date(endTime.getTime() - 30 * 60 * 1000);
         stepSize = 2 * 60 * 1000; // 2 minutes
-        unit = 'minute';
     } else if (startDate.includes("now-1h")) {
         startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
         stepSize = 5 * 60 * 1000; // 5 minutes
-        unit = 'minute';
     } else if (startDate.includes("now-3h")) {
         startTime = new Date(endTime.getTime() - 3 * 60 * 60 * 1000);
         stepSize = 10 * 60 * 1000; // 10 minutes
-        unit = 'minute';
     } else if (startDate.includes("now-6h")) {
         startTime = new Date(endTime.getTime() - 6 * 60 * 60 * 1000);
         stepSize = 15 * 60 * 1000; // 15 minutes
-        unit = 'minute';
     } else if (startDate.includes("now-12h")) {
         startTime = new Date(endTime.getTime() - 12 * 60 * 60 * 1000);
         stepSize = 30 * 60 * 1000; // 30 minutes
-        unit = 'minute';
     } else if (startDate.includes("now-24h")) {
         startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
         stepSize = 60 * 60 * 1000; // 1 hour
-        unit = 'hour';
     } else if (startDate.includes("now-2d")) {
         startTime = new Date(endTime.getTime() - 2 * 24 * 60 * 60 * 1000);
         stepSize = 2 * 60 * 60 * 1000; // 2 hours
-        unit = 'hour';
     } else if (startDate.includes("now-7d")) {
         startTime = new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000);
         stepSize = 6 * 60 * 60 * 1000; // 6 hours
-        unit = 'hour';
     } else if (startDate.includes("now-30d")) {
         startTime = new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000);
         stepSize = 12 * 60 * 60 * 1000; // 12 hours
-        unit = 'hour';
     } else if (startDate.includes("now-90d")) {
         startTime = new Date(endTime.getTime() - 90 * 24 * 60 * 60 * 1000);
-        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 day
-        unit = 'day';
+        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 da
     } else {
         startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
         stepSize = 1 * 60 * 1000; // 1 minute
-        unit = 'minute';
+    
     }
 
     let labels = [];
