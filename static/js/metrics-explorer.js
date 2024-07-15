@@ -1514,18 +1514,18 @@ function downloadJSON() {
     document.body.removeChild(link);
 }
 
-
-// Event listeners for clicking on download options
-document.getElementById('csv-block').addEventListener('click', function(){
+$('#csv-block').on('click', function() {
     if (canDownloadCSV()) {
         downloadCSV();
     }
 });
-document.getElementById('json-block').addEventListener('click', function(){
+
+$('#json-block').on('click', function() {
     if (canDownloadJSON()) {
         downloadJSON();
     }
 });
+
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     try {
@@ -2343,7 +2343,7 @@ async function populateMetricsQueryElement(metricsQueryParams){
     
     for (const query of queries) {
         const parsedQueryObject = parsePromQL(query.query);
-        await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
     
     if (queries.length >= 1) {

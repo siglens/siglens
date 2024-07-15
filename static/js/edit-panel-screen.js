@@ -423,7 +423,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
-			$(".index-container, queryInput-container").css('display', 'inline-flex');
+			$(".index-container, queryInput-container, #query-language-btn").css('display', 'inline-flex');
 			$("#metrics-query-language").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
 				selectedChartTypeIndex = mapChartTypeToIndex.get("Data Table");
@@ -432,10 +432,10 @@ function editPanelInit(redirectedFromViewScreen) {
 			}
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language").css('display', 'inline-block');
-			$(".index-container, queryInput-container").css('display', 'none');
+			$(".index-container, queryInput-container, #query-language-btn").css('display', 'none');
 		}
 		else{
-			$(".index-container, queryInput-container").css('display', 'none');
+			$(".index-container, queryInput-container, #query-language-btn").css('display', 'none');
 			$("#metrics-query-language").css('display', 'none');
 		}
 		displayQueryToolTip(selectedDataSourceTypeIndex);
@@ -505,7 +505,10 @@ $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
 	 if (currentPanel.chartType ==='Line Chart' && currentPanel.queryType ==='metrics') {
 		const data = getMetricsQData();
 		currentPanel.queryData = data;
-    }
+    }else if (currentPanel.queryType ==="logs"){
+		const data = getQueryParamsData();
+		currentPanel.queryData = data;
+	}
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	updateTimeRangeForAllPanels(filterStartDate,filterEndDate)
 	await updateDashboard();
@@ -538,7 +541,7 @@ $('#nestedThroughputDropDown').on('click', handleNestedTptDropDownClick)
 $('#nestedPercentDropDown').on('click', handleNestedPercentDropDownClick);
 $('#nestedTimeDropDown').on('click', handleNestedTimeDropDownClick);
 $('#nestedDataRateDropDown').on('click', handleNestedDataRateDropDownClick);
-$('#query-language-options .panEdit-query-language-option').on('click', setQueryLangHandlerEditPanel);
+$('#query-language-options .query-language-option').on('click', setQueryLangHandlerEditPanel);
 
 $('.btn-runQuery').on('click', runQueryBtnHandler);
 
@@ -772,14 +775,14 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	selectedDataSourceTypeIndex = $(this).data('index');
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
-		$(".index-container, .queryInput-container").css('display', 'inline-flex');
+		$(".index-container, .queryInput-container, #query-language-btn").css('display', 'inline-flex');
 		$("#metrics-query-language").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
 		$("#metrics-query-language").css('display', 'inline-block');
-		$(".index-container, .queryInput-container").css('display', 'none');
+		$(".index-container, .queryInput-container, #query-language-btn").css('display', 'none');
 	}
 	else{
-		$(".index-container, queryInput-container").css('display', 'none');
+		$(".index-container, queryInput-container, #query-language-btn").css('display', 'none');
 		$("#metrics-query-language").css('display', 'none');
 	}
 	currentPanel.queryType = mapIndexToDataSourceType.get(selectedDataSourceTypeIndex);
@@ -1317,7 +1320,7 @@ function getMetricsQData() {
 }
 
 function setQueryLangHandlerEditPanel(e) {
-    $('.panelEditor-container .panEdit-query-language-option').removeClass('active');
+    $('.panelEditor-container .query-language-option').removeClass('active');
     $('.panelEditor-container #query-language-btn span').html($(this).html());
     displayQueryToolTip(selectedDataSourceTypeIndex);
     $(this).addClass('active');

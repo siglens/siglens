@@ -37,7 +37,7 @@ import (
 )
 
 func Test_MetricsQuery(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
@@ -77,7 +77,7 @@ func Test_MetricsQuery(t *testing.T) {
 }
 
 func Test_MetricsQueryMultipleTagValues(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
