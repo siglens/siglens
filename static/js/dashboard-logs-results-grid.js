@@ -84,28 +84,10 @@ const panelGridOption = {
         onBodyScroll(evt) {
             if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
                 let diff = panelLogsRow.length - evt.api.getLastDisplayedRow();
-                if (diff <= 5) {
+                if (diff <= 1) {
                     let scrollingTrigger = true;
-                    data = getQueryParamsData(scrollingTrigger);   
-                    if (
-                        data.searchText !== initialSearchData.searchText ||
-                        data.indexName !== initialSearchData.indexName ||
-                        data.startEpoch !== initialSearchData.startEpoch ||
-                        data.endEpoch !== initialSearchData.endEpoch ||
-                        data.queryLanguage !== initialSearchData.queryLanguage
-                    ) {
-                        scrollingErrorPopup();
-                        return; // Prevent further scrolling
-                    }                 
-                    isFetching = true;
-                    showLoadingIndicator();
-                    if (data && data.searchText == "error") {
-                      alert("Error");
-                      hideLoadingIndicator(); // Hide loading indicator on error
-                      isFetching = false;
-                      return;
-                    }
-    
+                    data = getQueryParamsData(scrollingTrigger);                
+                    isFetching = true;  
                     runPanelLogsQuery(data)
                     .then(() => {
                         isFetching = false;
@@ -115,7 +97,6 @@ const panelGridOption = {
                         isFetching = false;
                     })
                     .finally(() => {
-                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
                         isFetching = false;
                     });
                 }
@@ -126,7 +107,6 @@ const panelGridOption = {
 
 function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`.panelDisplay .big-number-display-container`).hide();
-    let panelGridOptions = panelGridOption;
     let logLinesViewType = currentPanel.logLinesViewType;
 
     if(panelId == -1) // for panel on the editPanelScreen page
@@ -134,7 +114,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     else // for panels on the dashboard page
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
 
-    new agGrid.Grid(panelGridDiv, panelGridOptions);
+    new agGrid.Grid(panelGridDiv, panelGridOption);
 
     let cols = columnOrder.map((colName, index) => {
         let hideCol = false;
@@ -167,21 +147,21 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     panelLogsColumn = _.chain(panelLogsColumn).concat(cols).uniqBy('field').value();
 
     const allColumnIds = [];
-    panelGridOptions.columnApi.getColumns().forEach((column) => {
+    panelGridOption.columnApi.getColumns().forEach((column) => {
         allColumnIds.push(column.getId());
     });
-    panelGridOptions.columnApi.autoSizeColumns(allColumnIds, false);
-    panelGridOptions.api.setRowData(panelLogsRow);
+    panelGridOption.columnApi.autoSizeColumns(allColumnIds, false);
+    panelGridOption.api.setRowData(panelLogsRow);
 
     switch (logLinesViewType){
         case 'Single line display view':
-            panelLogOptionSingleHandler(panelGridOptions,panelLogsColumn);
+            panelLogOptionSingleHandler(panelGridOption,panelLogsColumn);
             break;
         case 'Multi line display view':
-            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumn,panelLogsRow);
+            panelLogOptionMultiHandler(panelGridOption,panelLogsColumn,panelLogsRow);
             break;
         case 'Table view':
-            panelLogOptionTableHandler(panelGridOptions,panelLogsColumn);
+            panelLogOptionTableHandler(panelGridOption,panelLogsColumn);
             if (currentPanel?.selectedFields) {
                 updateColumns(currentPanel.selectedFields);
             }
@@ -190,25 +170,25 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 }
 
-function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumn){
+function panelLogOptionSingleHandler(panelGridOption,panelLogsColumn){
     panelLogsColumn.forEach(function (colDef, index) {
         if (colDef.field === "logs"){
             colDef.cellStyle = null;
             colDef.autoHeight = null;
         }
     });
-    panelGridOptions.api.setColumnDefs(panelLogsColumn);
-    panelGridOptions.api.resetRowHeights()
+    panelGridOption.api.setColumnDefs(panelLogsColumn);
+    panelGridOption.api.resetRowHeights()
     panelLogsColumn.forEach((colDef, index) => {
-        panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
+        panelGridOption.columnApi.setColumnVisible(colDef.field, false);
     });
-    panelGridOptions.columnApi.setColumnVisible("logs", true);
-    panelGridOptions.columnApi.setColumnVisible("timestamp", true);
+    panelGridOption.columnApi.setColumnVisible("logs", true);
+    panelGridOption.columnApi.setColumnVisible("timestamp", true);
     
-    panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
+    panelGridOption.columnApi.autoSizeColumn(panelGridOption.columnApi.getColumn("logs"), false);
 }
 
-function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumn,panelLogsRow) {
+function panelLogOptionMultiHandler(panelGridOption,panelLogsColumn,panelLogsRow) {
 
         panelLogsColumn.forEach(function (colDef, index) {
             if (colDef.field === "logs"){
@@ -216,20 +196,20 @@ function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumn,panelLogsRo
                 colDef.autoHeight = true;
             }
         });
-        panelGridOptions.api.setColumnDefs(panelLogsColumn);
+        panelGridOption.api.setColumnDefs(panelLogsColumn);
         
         panelLogsColumn.forEach((colDef, index) => {
-            panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
+            panelGridOption.columnApi.setColumnVisible(colDef.field, false);
         });
-        panelGridOptions.columnApi.setColumnVisible("logs", true);
-        panelGridOptions.columnApi.setColumnVisible("timestamp", true);
+        panelGridOption.columnApi.setColumnVisible("logs", true);
+        panelGridOption.columnApi.setColumnVisible("timestamp", true);
         
-        panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
-        panelGridOptions.api.setRowData(panelLogsRow);
-        panelGridOptions.api.sizeColumnsToFit();
+        panelGridOption.columnApi.autoSizeColumn(panelGridOption.columnApi.getColumn("logs"), false);
+        panelGridOption.api.setRowData(panelLogsRow);
+        panelGridOption.api.sizeColumnsToFit();
 }
 
-function panelLogOptionTableHandler(panelGridOptions,panelLogsColumn) {
+function panelLogOptionTableHandler(panelGridOption,panelLogsColumn) {
 
         panelLogsColumn.forEach(function (colDef, index) {
             if (colDef.field === "logs") {
@@ -239,11 +219,11 @@ function panelLogOptionTableHandler(panelGridOptions,panelLogsColumn) {
             } else 
                 colDef.hide = false;
         });
-        panelGridOptions.api.setColumnDefs(panelLogsColumn);
-        panelGridOptions.api.resetRowHeights();
+        panelGridOption.api.setColumnDefs(panelLogsColumn);
+        panelGridOption.api.resetRowHeights();
         // Always show timestamp
-        panelGridOptions.columnApi.setColumnVisible("timestamp", true);
-        panelGridOptions.columnApi.setColumnVisible("logs", false);
+        panelGridOption.columnApi.setColumnVisible("timestamp", true);
+        panelGridOption.columnApi.setColumnVisible("logs", false);
 }
 
 
@@ -323,7 +303,7 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
 
 function updateColumns(selectedFieldsList = null) {
 
-    panelGridOptions.columnApi.setColumnVisible("timestamp", true);
+    panelGridOption.columnApi.setColumnVisible("timestamp", true);
     
     let isAnyColActive = false;
     const selectedFieldsSet = selectedFieldsList ? new Set(selectedFieldsList) : null;
@@ -334,18 +314,18 @@ function updateColumns(selectedFieldsList = null) {
         if (shouldBeVisible) {
             colElement.addClass('active');
             isAnyColActive = true;
-            panelGridOptions.columnApi.setColumnVisible(colName, true);
+            panelGridOption.columnApi.setColumnVisible(colName, true);
         } else {
             colElement.removeClass('active');
-            panelGridOptions.columnApi.setColumnVisible(colName, false);
+            panelGridOption.columnApi.setColumnVisible(colName, false);
         }
     });
 
     if (isAnyColActive) {
-        panelGridOptions.columnApi.setColumnVisible("logs", false);
+        panelGridOption.columnApi.setColumnVisible("logs", false);
     }
     
-    panelGridOptions.api.sizeColumnsToFit();
+    panelGridOption.api.sizeColumnsToFit();
 }
 
 function toggleAllAvailableFieldsHandler(evt) {
@@ -361,7 +341,7 @@ function toggleAllAvailableFieldsHandler(evt) {
 
         availColNames.forEach((colName) => {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            panelGridOptions.columnApi.setColumnVisible(colName, true);
+            panelGridOption.columnApi.setColumnVisible(colName, true);
         });
         
         selectedFieldsList = [...availColNames];
@@ -370,13 +350,13 @@ function toggleAllAvailableFieldsHandler(evt) {
 
         availColNames.forEach((colName) => {
             $(`.toggle-${string2Hex(colName)}`).removeClass('active');
-            panelGridOptions.columnApi.setColumnVisible(colName, false);
+            panelGridOption.columnApi.setColumnVisible(colName, false);
         });
 
         selectedFieldsList = [];
     }
 
-    panelGridOptions.columnApi.setColumnVisible("logs", false);
+    panelGridOption.columnApi.setColumnVisible("logs", false);
 
     updatedSelFieldList = true;
 }
