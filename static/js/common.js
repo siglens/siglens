@@ -304,7 +304,7 @@ function fetchLogsPanelData(data, panelId) {
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
                     renderChartByChartType(data, res, panelId, currentPanel);
-                    resolve();
+                    resolve(res);
                 })
                 .catch(function(xhr, err) {
                     if (xhr.status === 400) {
