@@ -56,10 +56,10 @@ let panelLogsColumnDefs = [
             },
         }
     ];
-var panelLogsRows = [];
+var panelLogsRowData = [];
 const panelGridOptions = {
         columnDefs: panelLogsColumnDefs,
-        rowData: panelLogsRows,
+        rowData: panelLogsRowData,
         animateRows: true,
         readOnlyEdit: true,
         singleClickEdit: true,
@@ -84,7 +84,7 @@ const panelGridOptions = {
         suppressFieldDotNotation: true,
         onBodyScroll(evt) {
             if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
-                let diff = panelLogsRows.length - evt.api.getLastDisplayedRow();
+                let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
                 if (diff <= 1) {
                     let scrollingTrigger = true;
                     data = getQueryParamsData(scrollingTrigger);                
@@ -149,7 +149,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
             }
         };
     });
-    panelLogsRows = _.concat(panelLogsRows, hits);
+    panelLogsRowData = _.concat(panelLogsRowData, hits);
     panelLogsColumnDefs = _.chain(panelLogsColumnDefs).concat(cols).uniqBy('field').value();
 
     const allColumnIds = [];
@@ -157,14 +157,14 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
         allColumnIds.push(column.getId());
     });
     panelGridOptions.columnApi.autoSizeColumns(allColumnIds, false);
-    panelGridOptions.api.setRowData(panelLogsRows);
+    panelGridOptions.api.setRowData(panelLogsRowData);
 
     switch (logLinesViewType){
         case 'Single line display view':
             panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs);
             break;
         case 'Multi line display view':
-            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRows);
+            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData);
             break;
         case 'Table view':
             panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs);
@@ -194,7 +194,7 @@ function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs){
     panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
 }
 
-function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRows) {
+function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData) {
 
         panelLogsColumnDefs.forEach(function (colDef, index) {
             if (colDef.field === "logs"){
@@ -211,7 +211,7 @@ function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLo
         panelGridOptions.columnApi.setColumnVisible("timestamp", true);
         
         panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
-        panelGridOptions.api.setRowData(panelLogsRows);
+        panelGridOptions.api.setRowData(panelLogsRowData);
         panelGridOptions.api.sizeColumnsToFit();
 }
 
