@@ -147,6 +147,9 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
+	if agg.StreamStatsOptions != nil {
+		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment)
+	}
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -214,6 +217,20 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 
 	return nil
+}
+
+func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
+	currentOrder := make([]string, len(recs))
+
+	for recordKey := range recs {
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return nil, fmt.Errorf("processSegmentRecordsForHeadExpr: Index not found in recordIndexInFinal for record: %v", recordKey)
+		}
+		currentOrder[idx] = recordKey
+	}
+
+	return currentOrder, nil
 }
 
 func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {

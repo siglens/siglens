@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"container/list"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -174,6 +175,22 @@ type StreamStatsOptions struct {
 	ResetBefore   *BoolExpr
 	ResetAfter    *BoolExpr
 	TimeWindow    *BinSpanLength
+	// expensive for large data and window size
+	RunningStreamStats map[int]map[string]*RunningStreamStatsResults
+	SegmentRecords       map[string]map[string]interface{}
+	NumProcessedRecords  uint64
+	NumProcessedSegments uint64
+}
+
+type RunningStreamStatsResults struct {
+	Window *list.List
+	CurrResult float64
+}
+
+type IndexValue struct {
+	Index int
+	Value float64
+	TimeInMilli uint64
 }
 
 type ShowRequest struct {
