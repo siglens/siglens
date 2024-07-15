@@ -440,14 +440,18 @@ func InitConfigurationData() error {
 /*
 Use only for testing purpose, DO NOT use externally
 */
-func InitializeDefaultConfig() {
-	runningConfig = GetTestConfig()
+func InitializeDefaultConfig(dataPath string) {
+	if !strings.HasSuffix(dataPath, "/") {
+		dataPath += "/"
+	}
+
+	runningConfig = GetTestConfig(dataPath)
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
 }
 
 // To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
 // ExtractConfigData(). Do this in one time.
-func GetTestConfig() common.Configuration {
+func GetTestConfig(dataPath string) common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -465,7 +469,7 @@ func GetTestConfig() common.Configuration {
 		QueryNode:                  "true",
 		IngestNode:                 "true",
 		SegFlushIntervalSecs:       5,
-		DataPath:                   "data/",
+		DataPath:                   dataPath,
 		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:             24 * 90,
 		TimeStampKey:               "timestamp",
@@ -498,10 +502,9 @@ func GetTestConfig() common.Configuration {
 	return testConfig
 }
 
-func InitializeTestingConfig() {
-	InitializeDefaultConfig()
+func InitializeTestingConfig(dataPath string) {
+	InitializeDefaultConfig(dataPath)
 	SetDebugMode(true)
-	SetDataPath("data/")
 }
 
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {

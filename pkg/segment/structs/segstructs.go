@@ -473,6 +473,14 @@ func (ma *MeasureAggregator) String() string {
 	return ma.StrEnc
 }
 
+func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []string {
+	var columns []string
+	for _, ma := range measureAggs {
+		columns = append(columns, ma.String())
+	}
+	return columns
+}
+
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)

@@ -31,7 +31,7 @@ import (
 
 func Test_readTimeStamps(t *testing.T) {
 
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	segDir := "data/"
 	_ = os.MkdirAll(segDir, 0755)
 	segKey := segDir + "test"
@@ -65,7 +65,7 @@ func Test_readTimeStamps(t *testing.T) {
 }
 
 func Benchmark_readTimeFile(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b.TempDir())
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MacBook-Pro.local/final/2022/02/21/01/valtix2/10005995996882630313/0"
 	sumFile := structs.GetBsuFnameFromSegKey(segKey)
 

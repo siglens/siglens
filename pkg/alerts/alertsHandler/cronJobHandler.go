@@ -18,6 +18,7 @@ package alertsHandler
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -248,29 +250,41 @@ func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRang
 	return fullURL
 }
 
+func getMetricsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, parsedJsonMap map[string]interface{}) string {
+	if alertDetails == nil {
+		log.Errorf("ALERTSERVICE: getMetricsQueryLinkForTheAlert: AlertDetails is nil.")
+		return ""
+	}
+
+	baseURL := config.GetQueryServerBaseUrl() + "/metrics-explorer.html"
+
+	params := url.Values{}
+
+	jsonData, err := json.Marshal(parsedJsonMap)
+	if err != nil {
+		log.Errorf("ALERTSERVICE: getMetricsQueryLinkForTheAlert: Error marshalling parsedJsonMap=%v. Alert=%+v, err=%+v", parsedJsonMap, alertDetails.AlertName, err)
+		return ""
+	}
+
+	params.Add("queryString", string(jsonData))
+
+	fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+
+	return fullURL
+}
+
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
-	serResVal, isResultsEmpty, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
+	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error processing logs query. Alert=%+v, err=%+v", alertToEvaluate.AlertName, err)
 		return
 	}
 
-	if isResultsEmpty {
-		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Normal.
-		log.Warnf("ALERTSERVICE: evaluateLogAlert: Empty response returned by server.")
-
-		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
-		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
-		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := handleAlertCondition(alertToEvaluate, false, "")
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
-		}
+	isAlertConditionMatched, err := evaluateLogsQueryConditions(searchResponse, &alertToEvaluate.Condition, alertToEvaluate.Value)
+	if err != nil {
+		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error evaluating logs query conditions. Alert=%+v, err=%+v", alertToEvaluate.AlertName, err)
 		return
 	}
-
-	isAlertConditionMatched := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 
 	alertDataMessage := fmt.Sprintf("View the Query Results: %v", getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange))
 
@@ -288,7 +302,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 
 	qid := rutils.GetNextQid()
 
-	start, end, queries, formulas, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToEvaluate.MetricsQueryParamsString))
+	start, end, queries, formulas, errorLog, parsedJsonMap, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToEvaluate.MetricsQueryParamsString))
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error parsing metrics query. Alert=%+v, ErrLog=%v, err=%+v", alertToEvaluate.AlertName, errorLog, err)
 		return
@@ -304,7 +318,16 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 
 	isAlertConditionMatched := len(alertsDataList) > 0
 
-	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, fmt.Sprintf("%v", alertsDataList))
+	alertDataMessage := ""
+
+	if isAlertConditionMatched {
+		parsedJsonMap["start"] = start
+		parsedJsonMap["end"] = end
+
+		alertDataMessage = fmt.Sprintf("View the Query Results: %v", getMetricsQueryLinkForTheAlert(alertToEvaluate, parsedJsonMap))
+	}
+
+	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
 
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
@@ -316,16 +339,16 @@ func updateAlertState(alertId string, alertState alertutils.AlertState) error {
 	return err
 }
 
-func evaluateConditions(serResVal int, queryCond *alertutils.AlertQueryCondition, val float32) bool {
+func evaluateConditions(serResVal float64, queryCond *alertutils.AlertQueryCondition, val float64) bool {
 	switch *queryCond {
 	case alertutils.IsAbove:
-		return serResVal > int(val)
+		return serResVal > val
 	case alertutils.IsBelow:
-		return serResVal < int(val)
+		return serResVal < val
 	case alertutils.IsEqualTo:
-		return serResVal == int(val)
+		return serResVal == val
 	case alertutils.IsNotEqualTo:
-		return serResVal != int(val)
+		return serResVal != val
 	case alertutils.HasNoValue:
 		return serResVal == 0
 	default:
@@ -333,13 +356,13 @@ func evaluateConditions(serResVal int, queryCond *alertutils.AlertQueryCondition
 	}
 }
 
-func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond *alertutils.AlertQueryCondition, alertValue float32) []alertutils.MetricAlertData {
+func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond *alertutils.AlertQueryCondition, alertValue float64) []alertutils.MetricAlertData {
 
 	alertsDataList := make([]alertutils.MetricAlertData, 0)
 
 	for seriesId, tsMap := range queryRes.Results {
 		for ts, val := range tsMap {
-			toBeAlerted := evaluateConditions(int(val), queryCond, alertValue)
+			toBeAlerted := evaluateConditions(val, queryCond, alertValue)
 			if toBeAlerted {
 				alertData := alertutils.MetricAlertData{
 					SeriesId:  seriesId,
@@ -352,6 +375,95 @@ func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond 
 	}
 
 	return alertsDataList
+}
+
+func evaluateLogsQueryConditions(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+
+	if searchResponse == nil {
+		err := fmt.Errorf("ALERTSERVICE: evaluateLogsQueryConditions: searchResponse is nil")
+		log.Error(err.Error())
+		return false, err
+	}
+
+	if len(searchResponse.MeasureAggregationCols) > 0 {
+		return evaluateRecordsMeasureAggsAlertCondition(searchResponse, queryCond, alertValue)
+	} else if searchResponse.MeasureResults != nil && len(searchResponse.MeasureResults) > 0 {
+		return evaluateMeasureResultsAlertCondition(searchResponse, queryCond, alertValue)
+	}
+
+	return false, nil
+}
+
+func evaluateMeasureResultsAlertCondition(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+	if searchResponse == nil {
+		err := fmt.Errorf("ALERTSERVICE: evaluateMeasureResultsAlertCondition: searchResponse is nil")
+		log.Error(err.Error())
+		return false, err
+	}
+
+	firstBucket := searchResponse.MeasureResults[0]
+	if len(firstBucket.MeasureVal) > 1 {
+		err := fmt.Errorf("ALERTSERVICE: evaluateMeasureResultsAlertCondition: The Query has more than 1 Measure Column")
+		log.Error(err.Error())
+		return false, err
+	}
+
+	for _, bucket := range searchResponse.MeasureResults {
+		for _, measureVal := range bucket.MeasureVal {
+			floatVal, err := utils.ParseHumanizedValueToFloat(measureVal)
+			if err != nil {
+				log.Errorf("ALERTSERVICE: evaluateMeasureResultsAlertCondition: Error converting value to float. Value=%v, err=%v", measureVal, err)
+				continue
+			}
+			toBeAlerted := evaluateConditions(floatVal, queryCond, alertValue)
+			if toBeAlerted {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func evaluateRecordsMeasureAggsAlertCondition(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+	if searchResponse == nil {
+		err := fmt.Errorf("ALERTSERVICE: evaluateRecordsMeasureAggsCondition: searchResponse is nil")
+		log.Error(err.Error())
+		return false, err
+	}
+
+	if len(searchResponse.MeasureAggregationCols) > 1 {
+		err := fmt.Errorf("ALERTSERVICE: evaluateRecordsMeasureAggsCondition: The Query has more than 1 Measure Column")
+		log.Error(err.Error())
+		return false, err
+	}
+
+	if len(searchResponse.RenameColumns) > 0 {
+		for i, measureCol := range searchResponse.MeasureAggregationCols {
+			if newColName, ok := searchResponse.RenameColumns[measureCol]; ok {
+				searchResponse.MeasureAggregationCols[i] = newColName
+			}
+		}
+	}
+
+	for _, record := range searchResponse.Hits.Hits {
+		for _, col := range searchResponse.MeasureAggregationCols {
+			if value, ok := record[col]; ok {
+				floatVal, err := utils.ParseHumanizedValueToFloat(value)
+				if err != nil {
+					log.Errorf("ALERTSERVICE: evaluateRecordsMeasureAggsCondition: Error converting value to float. Value=%v, err=%v", value, err)
+					continue
+				}
+				toBeAlerted := evaluateConditions(floatVal, queryCond, alertValue)
+				if toBeAlerted {
+					return true, nil
+				}
+			}
+
+		}
+	}
+
+	return false, nil
 }
 
 func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.MinionSearch, alertState alertutils.AlertState, eventDesc string) error {
@@ -378,27 +490,18 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 }
 
 func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job) {
-	serResVal, isResultsEmpty, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams)
+	searchResponse, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams)
 	if err != nil {
 		log.Errorf("MinionSearch: evaluate: Error processing logs query. Alert=%+v, err=%+v", msToEvaluate.AlertName, err)
 		return
 	}
 
-	if isResultsEmpty {
-		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Normal.
-		log.Warnf("MinionSearch: evaluate: Empty response returned by server.")
-
-		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
-		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
-		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
-		}
+	isFiring, err := evaluateLogsQueryConditions(searchResponse, &msToEvaluate.Condition, msToEvaluate.Value)
+	if err != nil {
+		log.Errorf("MinionSearch: evaluate: Error evaluating logs query conditions. Alert=%+v, err=%+v", msToEvaluate.AlertName, err)
 		return
 	}
-	isFiring := evaluateConditions(serResVal, &msToEvaluate.Condition, msToEvaluate.Value)
+
 	if isFiring {
 		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Firing, alertutils.AlertFiring)
 		if err != nil {
