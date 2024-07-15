@@ -277,8 +277,39 @@ function formulaInputHandler(formulaElement, uniqueId) {
 }
 
 async function generateConstantSeries(uniqueId, constantValue) {
-    // Generate empty labels based on the selected time range
-    let labels = generateEmptyTimeLabels(filterStartDate);
+    let startTime = new Date(filterStartDate);
+    let endTime = new Date(filterEndDate);
+    let stepSize;
+
+    // Determine the step size based on the time range
+    const timeRange = (endTime - startTime) / 1000; // time range in seconds
+    if (timeRange > 365 * 24 * 60 * 60) {
+        stepSize = 30 * 24 * 60 * 60 * 1000; // 30 days
+    } else if (timeRange >= 90 * 24 * 60 * 60) {
+        stepSize = 7 * 24 * 60 * 60 * 1000; // 7 days
+    } else if (timeRange >= 30 * 24 * 60 * 60) {
+        stepSize = 2 * 24 * 60 * 60 * 1000; // 2 days
+    } else if (timeRange >= 7 * 24 * 60 * 60) {
+        stepSize = 12 * 60 * 60 * 1000; // 12 hours
+    } else if (timeRange >= 2 * 24 * 60 * 60) {
+        stepSize = 6 * 60 * 60 * 1000; // 6 hours
+    } else if (timeRange >= 24 * 60 * 60) {
+        stepSize = 3 * 60 * 60 * 1000; // 3 hours
+    } else if (timeRange >= 12 * 60 * 60) {
+        stepSize = 30 * 60 * 1000; // 30 minutes
+    } else if (timeRange >= 3 * 60 * 60) {
+        stepSize = 15 * 60 * 1000; // 15 minutes
+    } else if (timeRange >= 30 * 60) {
+        stepSize = 5 * 60 * 1000; // 5 minutes
+    } else {
+        stepSize = 1 * 60 * 1000; // 1 minute
+    }
+
+    let labels = [];
+    for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
+        labels.push(time);
+    }
+
     let dataPoints = labels.map(() => constantValue);
 
     let seriesData = [{
@@ -294,7 +325,6 @@ async function generateConstantSeries(uniqueId, constantValue) {
     const queryString = `Constant Value: ${constantValue}`;
     addVisualizationContainer(uniqueId, seriesData, queryString);
 }
-
 
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
@@ -1108,8 +1138,13 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 }
 
 function generateEmptyTimeLabels(startDate) {
+    // Convert startDate to string if it's not
+    if (typeof startDate !== 'string') {
+        startDate = String(startDate);
+    }
+
     const endTime = new Date();
-    let startTime, stepSize, unit;
+    let startTime, stepSize;
 
     // Determine start time and step size based on selected time frame
     if (startDate.includes("now-5m")) {
@@ -1147,11 +1182,10 @@ function generateEmptyTimeLabels(startDate) {
         stepSize = 12 * 60 * 60 * 1000; // 12 hours
     } else if (startDate.includes("now-90d")) {
         startTime = new Date(endTime.getTime() - 90 * 24 * 60 * 60 * 1000);
-        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 da
+        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 day
     } else {
         startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
         stepSize = 1 * 60 * 1000; // 1 minute
-    
     }
 
     let labels = [];
@@ -1161,7 +1195,6 @@ function generateEmptyTimeLabels(startDate) {
 
     return labels;
 }
-
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     if(isDashboardScreen) { // For dashboard page
@@ -1789,6 +1822,12 @@ async function getMetricsData(queryName, metricName) {
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
+    // Check if the formula is purely numeric
+    if (/^-?\d+(\.\d+)?$/.test(formulaDetails.formula.trim())) {
+        await generateConstantSeries(formulaId, parseFloat(formulaDetails.formula));
+        return;
+    }
+
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
@@ -1828,22 +1867,23 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     metricsQueryParams = data;
 
-    const res = await fetchTimeSeriesData(data);
-    if (res) {
-        rawTimeSeriesData = res;
-    }
+    try {
+        const res = await fetchTimeSeriesData(data);
+        if (res) {
+            rawTimeSeriesData = res;
+        }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    } else {
-        addVisualizationContainer(formulaId, chartData, formulaString);
+        const chartData = await convertDataForChart(rawTimeSeriesData);
+        if (isAlertScreen) {
+            addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+        } else {
+            addVisualizationContainer(formulaId, chartData, formulaString);
+        }
+        updateDownloadButtons();
+    } catch (error) {
+        console.error('Error fetching data:', error);
     }
-    updateDownloadButtons();
 }
-
-
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
@@ -1896,16 +1936,16 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
-    if(queryDetails.state === "builder"){
+    if (queryDetails.state === "builder") {
         queryString = createQueryString(queryDetails);
-    }else {
+    } else {
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    if(isAlertScreen){
+    if (isAlertScreen) {
         addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    }else{
+    } else {
         addVisualizationContainer(queryName, chartData, queryString);
     }
 }
@@ -1979,37 +2019,38 @@ async function getFunctions() {
         return res; 
 }
 
-async function refreshMetricsGraphs(){
-    dayCnt7=0;
-    dayCnt2=0;
+async function refreshMetricsGraphs() {
+    dayCnt7 = 0;
+    dayCnt2 = 0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
-  
+
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
-    if(queries[firstKey].metrics){ // only if the first query is not empty
+    if (queries[firstKey].metrics) { // only if the first query is not empty
         // Update graph for each query
-        Object.keys(queries).forEach(async function(queryName) {
+        await Promise.all(Object.keys(queries).map(async function (queryName) {
             var queryDetails = queries[queryName];
-    
+
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
             const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-            
-            await handleQueryAndVisualize(queryName, queryDetails);
-        });
-   }
 
-   if(Object.keys(formulas).length > 0){
+            await handleQueryAndVisualize(queryName, queryDetails);
+        }));
+    }
+
+    if (Object.keys(formulas).length > 0) {
         // Update graph for each formula
-        Object.keys(formulas).forEach(function(formulaId){
-            getMetricsDataForFormula(formulaId, formulas[formulaId])
-        });
-   }
+        await Promise.all(Object.keys(formulas).map(function (formulaId) {
+            return getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }));
+    }
 }
+
 
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
