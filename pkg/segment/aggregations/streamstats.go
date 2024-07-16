@@ -263,8 +263,15 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 }
 
 
+func resetAccumulatedStreamStats(ssOption *structs.StreamStatsOptions) {
+	ssOption.NumProcessedRecords = 0
+	ssOption.RunningStreamStats = make(map[int]map[string]*structs.RunningStreamStatsResults, 0)
+}
+
+
 func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, finishesSegment bool) error {
 	bucketKey := ""
+	currentBucketKey := bucketKey
 	var err error
 
 	if recs == nil {
@@ -298,6 +305,7 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		measureAggs = agg.GroupByRequest.MeasureOperations
 	}
 
+	numPrevSegmentProcessedRecords := agg.StreamStatsOptions.NumProcessedRecords
 
 	for currIndex, recordKey := range currentOrder {
 		record, exist := agg.StreamStatsOptions.SegmentRecords[recordKey]
@@ -311,9 +319,14 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 				return fmt.Errorf("performStreamStats Error while creating bucket key, err: %v", err)
 			}
 		}
+
+		if agg.StreamStatsOptions.ResetOnChange && currentBucketKey != bucketKey {
+			resetAccumulatedStreamStats(agg.StreamStatsOptions)
+			currentBucketKey = bucketKey
+		}
 		
 		for measureFuncIndex, measureAgg := range measureAggs {
-			streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record)
+			streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(int(numPrevSegmentProcessedRecords)+currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record)
 			if err != nil {
 				return fmt.Errorf("performStreamStats Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
 			}
@@ -336,7 +349,9 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 	for recordKey, record := range agg.StreamStatsOptions.SegmentRecords {
 		recs[recordKey] = record
+		delete(agg.StreamStatsOptions.SegmentRecords, recordKey)
 	}
+
 
 	return nil
 }
