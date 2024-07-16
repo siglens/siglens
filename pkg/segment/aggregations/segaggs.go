@@ -134,7 +134,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 			hasSort = true
 		}
 		if agg.Sort != nil || agg.HasSortBlock() {
-			timeSort, timeSortAsc = checkIfTimeSort(agg)		
+			timeSort, timeSortAsc = checkIfTimeSort(agg)
 		}
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort, timeSort, timeSortAsc)
 
