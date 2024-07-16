@@ -115,33 +115,6 @@ func applySnap(snap string, t time.Time) (time.Time, error) {
     }
 }
 
-
-func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error) {
-
-    durNum := time.Duration(num)
-
-    switch unit {
-        case utils.TMSecond:
-            return t.Add(durNum * time.Second), nil
-        case utils.TMMinute:
-            return t.Add(durNum * time.Minute), nil
-        case utils.TMHour:
-            return t.Add(durNum * time.Hour), nil
-        case utils.TMDay:
-            return t.AddDate(0, 0, int(num)), nil
-        case utils.TMWeek:
-            return t.AddDate(0, 0, 7 * int(num)), nil
-        case utils.TMMonth:
-            return t.AddDate(0, int(num), 0), nil
-        case utils.TMQuarter:
-            return t.AddDate(0, 4*int(num), 0), nil
-        case utils.TMYear:
-            return t.AddDate(int(num), 0, 0), nil
-        default:
-            return t, fmt.Errorf("Unsupported time unit for relative timestamp: %v", unit)
-    }
-}
-
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
@@ -160,7 +133,7 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
         snap := timeModifier.RelativeTime.Snap
         finalTime := currTime
         if offsetNum != 0 {
-            finalTime, err = applyOffset(offsetNum, offsetTimeUnit, finalTime)
+            finalTime, err = utils.ApplyOffsetToTime(offsetNum, offsetTimeUnit, finalTime)
             if err != nil {
                 return 0, err
             }
@@ -848,6 +821,16 @@ StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)*
                 ssOption.ResetAfter = ssOptArg.streamStatsOptions.ResetAfter
             default:
                 return nil, fmt.Errorf("Not a Valid Streamstats Command Option: %v", argOption)
+        }
+    }
+
+    timeWindowSpecified, exist := optionWasSpecified["time_window"]
+    if exist && timeWindowSpecified {
+        if !ssOption.Current {
+            return nil, fmt.Errorf("Invalid Syntax, current cannot be set to false with time_window option")
+        }
+        if !ssOption.Global {
+            return nil, fmt.Errorf("Invalid Syntax, global cannot be set to false with time_window option")
         }
     }
 

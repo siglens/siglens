@@ -18,11 +18,11 @@
 package structs
 
 import (
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
-	"container/list"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -176,20 +176,20 @@ type StreamStatsOptions struct {
 	ResetAfter    *BoolExpr
 	TimeWindow    *BinSpanLength
 	// expensive for large data and window size
-	RunningStreamStats map[int]map[string]*RunningStreamStatsResults
+	RunningStreamStats   map[int]map[string]*RunningStreamStatsResults
 	SegmentRecords       map[string]map[string]interface{}
 	NumProcessedRecords  uint64
 	NumProcessedSegments uint64
 }
 
 type RunningStreamStatsResults struct {
-	Window *list.List
+	Window     *list.List
 	CurrResult float64
 }
 
 type IndexValue struct {
-	Index int
-	Value float64
+	Index       int
+	Value       float64
 	TimeInMilli uint64
 }
 
