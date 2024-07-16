@@ -160,8 +160,20 @@ type QueryAggregators struct {
 	TableName            string
 	TransactionArguments *TransactionArguments
 	StatsOptions         *StatsOptions
+	StreamStatsOptions   *StreamStatsOptions
 	Next                 *QueryAggregators
 	Limit                int
+}
+
+type StreamStatsOptions struct {
+	AllNum        bool
+	Current       bool
+	Global        bool
+	ResetOnChange bool
+	Window        uint64
+	ResetBefore   *BoolExpr
+	ResetAfter    *BoolExpr
+	TimeWindow    *BinSpanLength
 }
 
 type ShowRequest struct {
@@ -459,6 +471,14 @@ func (ma *MeasureAggregator) String() string {
 	}
 	ma.StrEnc = fmt.Sprintf("%+v(%v)", ma.MeasureFunc.String(), ma.MeasureCol)
 	return ma.StrEnc
+}
+
+func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []string {
+	var columns []string
+	for _, ma := range measureAggs {
+		columns = append(columns, ma.String())
+	}
+	return columns
 }
 
 func (ss *SegStats) Merge(other *SegStats) {

@@ -106,23 +106,96 @@ func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
 }
 
 func Test_getActiveBaseSegDir(t *testing.T) {
-	config.InitializeDefaultConfig()
+	dataPath := t.TempDir()
+	config.InitializeDefaultConfig(dataPath)
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
 	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, "data/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
+	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
 }
 
 func Test_getFinalBaseSegDirFromActive(t *testing.T) {
-	config.InitializeDefaultConfig()
+	dataPath := t.TempDir()
+	config.InitializeDefaultConfig(dataPath)
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
 	activeBasedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
 	finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
 	assert.Nil(t, err)
-	assert.EqualValues(t, "data/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
+	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
+}
+
+func Test_ReplaceSingleSegMeta(t *testing.T) {
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMetas, err := GetSegMetas([]string{"key1"})
+	assert.NoError(t, err)
+	assert.Empty(t, segMetas)
+
+	segMetaV1 := structs.SegMeta{
+		SegmentKey:  "key1",
+		RecordCount: 20,
+	}
+
+	AddOrReplaceRotatedSegment(segMetaV1)
+	segMetas, err = GetSegMetas([]string{"key1"})
+	assert.NoError(t, err)
+	assert.Len(t, segMetas, 1)
+	assert.Equal(t, segMetaV1.SegmentKey, segMetas["key1"].SegmentKey)
+	assert.Equal(t, segMetaV1.RecordCount, segMetas["key1"].RecordCount)
+
+	segMetaV2 := structs.SegMeta{
+		SegmentKey:  "key1",
+		RecordCount: 50,
+	}
+
+	AddOrReplaceRotatedSegment(segMetaV2)
+	segMetas, err = GetSegMetas([]string{"key1"})
+	assert.NoError(t, err)
+	assert.Len(t, segMetas, 1)
+	assert.Equal(t, segMetaV2.SegmentKey, segMetas["key1"].SegmentKey)
+	assert.Equal(t, segMetaV2.RecordCount, segMetas["key1"].RecordCount)
+}
+
+func Test_ReplaceMiddleSegMeta(t *testing.T) {
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMeta1 := structs.SegMeta{
+		SegmentKey:  "key1",
+		RecordCount: 20,
+	}
+	segMeta2V1 := structs.SegMeta{
+		SegmentKey:  "key2",
+		RecordCount: 50,
+	}
+	segMeta3 := structs.SegMeta{
+		SegmentKey:  "key3",
+		RecordCount: 100,
+	}
+
+	AddOrReplaceRotatedSegment(segMeta1)
+	AddOrReplaceRotatedSegment(segMeta2V1)
+	AddOrReplaceRotatedSegment(segMeta3)
+
+	segMeta2V2 := structs.SegMeta{
+		SegmentKey:  "key2",
+		RecordCount: 80,
+	}
+	AddOrReplaceRotatedSegment(segMeta2V2)
+
+	segMetas, err := GetSegMetas([]string{"key1", "key2", "key3"})
+	assert.NoError(t, err)
+	assert.Len(t, segMetas, 3)
+	assert.Equal(t, segMeta1.SegmentKey, segMetas["key1"].SegmentKey)
+	assert.Equal(t, segMeta1.RecordCount, segMetas["key1"].RecordCount)
+	assert.Equal(t, segMeta2V2.SegmentKey, segMetas["key2"].SegmentKey)
+	assert.Equal(t, segMeta2V2.RecordCount, segMetas["key2"].RecordCount)
+	assert.Equal(t, segMeta3.SegmentKey, segMetas["key3"].SegmentKey)
+	assert.Equal(t, segMeta3.RecordCount, segMetas["key3"].RecordCount)
 }
 
 func Test_getNumberTypeAndVal(t *testing.T) {

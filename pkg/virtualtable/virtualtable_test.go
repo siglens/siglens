@@ -30,7 +30,7 @@ import (
 
 func Test_AddGetVTables(t *testing.T) {
 
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	_ = InitVTable()
 
 	VTableBaseDir = "vtabbase/"
