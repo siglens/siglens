@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,47 +17,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let alertGridDiv = null;
 let alertRowData = [];
 
-let mapIndexToAlertState=new Map([
-    [0, "Inactive"],
-    [1,"Normal"],
-    [2,"Pending"],
-    [3,"Firing"],
+let mapIndexToAlertState = new Map([
+    [0, 'Inactive'],
+    [1, 'Normal'],
+    [2, 'Pending'],
+    [3, 'Firing'],
 ]);
 
-let mapIndexToAlertType=new Map([
-    [1, "Logs"],
-    [2,"Metrics"],
+let mapIndexToAlertType = new Map([
+    [1, 'Logs'],
+    [2, 'Metrics'],
 ]);
 
 $(document).ready(function () {
-
     $('.theme-btn').on('click', themePickerHandler);
     getAllAlerts();
 
-    $('#new-alert-rule').on('click',function(){
-        window.location.href = "../alert.html";
+    $('#new-alert-rule').on('click', function () {
+        window.location.href = '../alert.html';
     });
 });
 
 //get all alerts
-function getAllAlerts(){
+function getAllAlerts() {
     $.ajax({
-        method: "get",
-        url: "api/allalerts",
+        method: 'get',
+        url: 'api/allalerts',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
         displayAllAlerts(res.alerts);
-    })
+    });
 }
 // Custom cell renderer for State field
 function getCssVariableValue(variableName) {
@@ -84,159 +81,159 @@ function stateCellRenderer(params) {
 }
 
 class btnRenderer {
-	init(params) {
+    init(params) {
         this.eGui = document.createElement('span');
-		this.eGui.innerHTML = `<div id="alert-grid-btn">
+        this.eGui.innerHTML = `<div id="alert-grid-btn">
 				<button class='btn' id="editbutton" title="Edit Alert Rule"></button>
                 <button class="btn-simple" id="delbutton" title="Delete Alert Rule"></button>
 				</div>`;
-		this.eButton = this.eGui.querySelector('#editbutton');
-		this.dButton = this.eGui.querySelector('.btn-simple');
+        this.eButton = this.eGui.querySelector('#editbutton');
+        this.dButton = this.eGui.querySelector('.btn-simple');
 
-        function editAlert(event){        
-            var queryString = "?id=" + params.data.alertId;
-            window.location.href = "../alert.html" + queryString;
+        function editAlert(event) {
+            var queryString = '?id=' + params.data.alertId;
+            window.location.href = '../alert.html' + queryString;
             event.stopPropagation();
         }
-        
+
         function deleteAlert() {
-			$.ajax({
-				method: 'delete',
-				url: 'api/alerts/delete',
-				headers: {
-					'Content-Type': 'application/json; charset=utf-8',
-					Accept: '*/*',
-				},
+            $.ajax({
+                method: 'delete',
+                url: 'api/alerts/delete',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                },
                 data: JSON.stringify({
-                    alert_id: params.data.alertId
+                    alert_id: params.data.alertId,
                 }),
-				crossDomain: true,
-			}).then(function (res) {
-				let deletedRowID = params.data.rowId;
-				alertGridOptions.api.applyTransaction({
-					remove: [{ rowId: deletedRowID }],
-				});
-                showToast(res.message, 'success')
-			});
-		}
+                crossDomain: true,
+            }).then(function (res) {
+                let deletedRowID = params.data.rowId;
+                alertGridOptions.api.applyTransaction({
+                    remove: [{ rowId: deletedRowID }],
+                });
+                showToast(res.message, 'success');
+            });
+        }
 
         function showPrompt(event) {
             event.stopPropagation();
-            const alertRuleName = params.data.alertName; 
+            const alertRuleName = params.data.alertName;
             const confirmationMessage = `Are you sure you want to delete the "<strong>${alertRuleName}</strong>" alert?`;
 
-			$('.popupOverlay, .popupContent').addClass('active');
+            $('.popupOverlay, .popupContent').addClass('active');
             $('#delete-alert-name').html(confirmationMessage);
 
             $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
                 $('.popupOverlay, .popupContent').removeClass('active');
             });
-            $('#delete-btn').click(deleteAlert)
-		}
+            $('#delete-btn').click(deleteAlert);
+        }
 
-		
-		this.eButton.addEventListener('click', editAlert);
-		this.dButton.addEventListener('click', showPrompt);
-	}
+        this.eButton.addEventListener('click', editAlert);
+        this.dButton.addEventListener('click', showPrompt);
+    }
 
-	getGui() {
-		return this.eGui;
-	}
-	refresh(params) {
-		return false;
-	}
+    getGui() {
+        return this.eGui;
+    }
+    refresh() {
+        return false;
+    }
 }
 
 let alertColumnDefs = [
     {
-        field: "rowId",
-		hide: true
+        field: 'rowId',
+        hide: true,
     },
     {
-        field: "alertId",
-		hide: true
+        field: 'alertId',
+        hide: true,
     },
     {
-        headerName: "State",
-        field: "alertState",
+        headerName: 'State',
+        field: 'alertState',
         width: 100,
-        cellRenderer: stateCellRenderer
+        cellRenderer: stateCellRenderer,
     },
     {
-        headerName: "Alert Name",
-        field: "alertName",
+        headerName: 'Alert Name',
+        field: 'alertName',
         width: 200,
     },
     {
-        headerName: "Alert Type",
-        field: "alertType",
+        headerName: 'Alert Type',
+        field: 'alertType',
         width: 100,
     },
     {
-        headerName: "Labels",
-        field: "labels",
-        width:200,
+        headerName: 'Labels',
+        field: 'labels',
+        width: 200,
     },
     {
-        headerName: "Actions",
+        headerName: 'Actions',
         cellRenderer: btnRenderer,
-        width:100,
+        width: 100,
     },
 ];
 
 const alertGridOptions = {
     columnDefs: alertColumnDefs,
-	rowData: alertRowData,
-	animateRows: true,
-	rowHeight: 44,
-    headerHeight:32,
-	defaultColDef: {
-		icons: {
-			sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
-			sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-		},
+    rowData: alertRowData,
+    animateRows: true,
+    rowHeight: 44,
+    headerHeight: 32,
+    defaultColDef: {
+        icons: {
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+        },
         cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
-	},
-	enableCellTextSelection: true,
-	suppressScrollOnNewData: true,
-	suppressAnimationFrame: true,
-	getRowId: (params) => params.data.rowId,
-	onGridReady(params) {
-		this.gridApi = params.api;
-	},
+    },
+    enableCellTextSelection: true,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: true,
+    getRowId: (params) => params.data.rowId,
+    onGridReady(params) {
+        this.gridApi = params.api;
+    },
     onRowClicked: onRowClicked,
 };
 
-function displayAllAlerts(res){
+function displayAllAlerts(res) {
     if (alertGridDiv === null) {
         alertGridDiv = document.querySelector('#ag-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
-    let newRow = new Map()
+    let newRow = new Map();
     $.each(res, function (key, value) {
-        newRow.set("rowId", key);
-        newRow.set("alertId", value.alert_id);
-        newRow.set("alertName", value.alert_name);
-        let labels= [];
+        newRow.set('rowId', key);
+        newRow.set('alertId', value.alert_id);
+        newRow.set('alertName', value.alert_name);
+        let labels = [];
         value.labels.forEach(function (label) {
             labels.push(label.label_name + '=' + label.label_value);
         });
         let allLabels = labels.join(', ');
-    
-        newRow.set("labels", allLabels);
-        newRow.set("alertState", mapIndexToAlertState.get(value.state));
-        newRow.set("alertType", mapIndexToAlertType.get(value.alert_type));
+
+        newRow.set('labels', allLabels);
+        newRow.set('alertState', mapIndexToAlertState.get(value.state));
+        newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
-    })
+    });
     alertGridOptions.api.setRowData(alertRowData);
     alertGridOptions.api.sizeColumnsToFit();
 }
 
 function onRowClicked(event) {
-    var queryString = "?id=" + event.data.alertId;
-    window.location.href = "../alert-details.html" + queryString;
+    var queryString = '?id=' + event.data.alertId;
+    window.location.href = '../alert-details.html' + queryString;
     event.stopPropagation();
 }

@@ -2646,6 +2646,10 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 	}
 
 	if spanOpt.LogSpan != nil {
+		if value <= 0 {
+			return value, nil
+		}
+
 		val := value / spanOpt.LogSpan.Coefficient
 		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
 		floorVal := math.Floor(logVal)
@@ -2653,7 +2657,6 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 		if ceilVal == floorVal {
 			ceilVal += 1
 		}
-
 		lowerBound := math.Pow(spanOpt.LogSpan.Base, floorVal) * spanOpt.LogSpan.Coefficient
 		upperBound := math.Pow(spanOpt.LogSpan.Base, ceilVal) * spanOpt.LogSpan.Coefficient
 

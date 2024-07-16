@@ -754,7 +754,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	qid := rutils.GetNextQid()
 
-	start, end, queries, formulas, errorLog, err := ParseMetricTimeSeriesRequest(rawJSON)
+	start, end, queries, formulas, errorLog, _, err := ParseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
 		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
 		return
@@ -822,7 +822,7 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
 	}
 }
-func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
+func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, map[string]interface{}, error) {
 	var start = uint32(0)
 	var end = uint32(0)
 	queries := make([]map[string]interface{}, 0)
@@ -838,28 +838,28 @@ func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	if err != nil {
 		respBodyErr = errors.New("failed to parse request body")
 		errorLog = fmt.Sprintf("the request JSON body received is : %v and err: %v", string(rawJSON), err)
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, nil, respBodyErr
 	}
 
 	start, err = parseTimeStringToUint32(readJSON["start"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse startTime from JSON body")
 		errorLog = "failed to parse startTime from JSON body"
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 
 	}
 	end, err = parseTimeStringToUint32(readJSON["end"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse endTime from JSON body")
 		errorLog = "failed to parse endTime from JSON body"
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
 		respBodyErr = errors.New("failed to parse 'queries' from JSON body")
 		errorLog = fmt.Sprintf("failed to parse 'queries' from JSON body as []interface{} with value: %v", readJSON["queries"])
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	queries = make([]map[string]interface{}, len(queryInterfaces))
@@ -868,27 +868,27 @@ func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'query' from JSON body")
 			errorLog = fmt.Sprintf("failed to parse 'query' object as a map[string]interface{}, 'query' value: %v", qi)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 		_, ok = queryMap["name"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'name' from JSON body")
 			errorLog = fmt.Sprintf("name is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = queryMap["query"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'query' field from 'query' object in JSON body")
 			errorLog = fmt.Sprintf("JSON property 'query' is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = queryMap["qlType"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'qlType' from JSON body")
 			errorLog = fmt.Sprintf("qlType is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 		queries[i] = queryMap
 	}
@@ -897,7 +897,7 @@ func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	if !ok {
 		respBodyErr = errors.New("failed to parse 'formulas' from JSON body")
 		errorLog = fmt.Sprintf("failed to parse 'formulas' from JSON body as []interface{} with value: %v", readJSON["formulas"])
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	formulas = make([]map[string]interface{}, len(formulaInterfaces))
@@ -906,20 +906,20 @@ func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'formula' object from JSON body")
 			errorLog = fmt.Sprintf("failed to parse 'formula' object as a map[string]interface{}, 'formula' value: %v", fi)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = formulaMap["formula"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'formula' field from 'formula' object in JSON body")
 			errorLog = fmt.Sprintf("formula is either missing or not a string in the formula object: %v", formulaMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		formulas[i] = formulaMap
 	}
 
-	return start, end, queries, formulas, errorLog, nil
+	return start, end, queries, formulas, errorLog, readJSON, nil
 }
 
 func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {

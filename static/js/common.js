@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,17 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 // @todo - get rid of these global variables
-
+/*eslint-disable*/
 let timestampDateFmt = 'MMM Do, YYYY @ HH:mm:ss';
 let defaultColumnCount = 2;
-let dataTable = null;
-let aggsDataTable = null;
+// let dataTable = null;
+// let aggsDataTable = null;
 let shouldCloseAllDetails = false;
-let filterStartDate = "now-15m";
-let filterEndDate = "now";
+let filterStartDate = 'now-15m';
+let filterEndDate = 'now';
 let displayStart = moment().subtract(15, 'minutes').valueOf();
 let displayEnd = moment().valueOf();
 let selectedSearchIndex = '';
@@ -42,7 +40,7 @@ let renderTime = 0;
 let wsState = 'query';
 let newUri = null;
 let socket = null;
-let myUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+let myUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
 let data = null;
 let theme = 'light';
 let selectedFieldsList = [];
@@ -65,12 +63,7 @@ let measureInfo = [];
 let isTimechart = false;
 let isQueryBuilderSearch = false;
 let sortByTimestampAtDefault = true;
-let defaultDashboardIds = [
-    "10329b95-47a8-48df-8b1d-0a0a01ec6c42",
-    "a28f485c-4747-4024-bb6b-d230f101f852",
-    "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
-    "53cb3dde-fd78-4253-808c-18e4077ef0f1"
-];
+let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
 
 let aggGridOptions = {
@@ -86,45 +79,45 @@ let aggGridOptions = {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
-        cellRenderer: params => params.value ? params.value : 'null',
+        cellRenderer: (params) => (params.value ? params.value : 'null'),
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-    }
+    },
 };
-
+/*eslint-enable*/
 {{ .CommonExtraFunctions }}
 
 function showError(errorMsg) {
-    $("#logs-result-container").hide();
-    $("#agg-result-container").hide();
-    $("#data-row-container").hide();
+    $('#logs-result-container').hide();
+    $('#agg-result-container').hide();
+    $('#data-row-container').hide();
     $('#empty-response').hide();
     $('#initial-response').hide();
-    let currentTab = $("#custom-chart-tab").tabs("option", "active");
+    let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
-      $("#logs-view-controls").show();
+        $('#logs-view-controls').show();
     } else {
-      $("#logs-view-controls").hide();
+        $('#logs-view-controls').hide();
     }
-    $("#custom-chart-tab").show();
+    $('#custom-chart-tab').show();
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html(' ');
-    $("#run-filter-btn").removeClass("cancel-search");
+    $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html(" ");
-     $("#query-builder-btn").removeClass("cancel-search");
-     $("#query-builder-btn").removeClass("active");
-    $("#live-tail-btn").html("Live Tail");
-    $("#live-tail-btn").removeClass("active");
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
     $('#run-metrics-query-btn').removeClass('active');
 
     wsState = 'query';
 }
-
+//eslint-disable-next-line no-unused-vars
 function showInfo(infoMsg) {
     $('#corner-popup .corner-text').html(infoMsg);
     $('#corner-popup').show();
@@ -132,41 +125,41 @@ function showInfo(infoMsg) {
     $('#corner-popup').css('bottom', '3rem');
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html(' ');
-    $("#run-filter-btn").removeClass("cancel-search");
+    $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
-    $("#query-builder-btn").html(" ");
-    $("#query-builder-btn").removeClass("cancel-search");
-    $("#query-builder-btn").removeClass("active");
-    $("#live-tail-btn").html("Live Tail");
-    $("#live-tail-btn").removeClass("active");
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
     wsState = 'query';
 }
 
 function hideError() {
     $('#corner-popup').hide();
 }
-
+//eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
-    let base64Payload = token.split(".")[1];
+    let base64Payload = token.split('.')[1];
     let payload = decodeURIComponent(
         atob(base64Payload)
-            .split("")
+            .split('')
             .map(function (c) {
-                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             })
-            .join("")
+            .join('')
     );
     return JSON.parse(payload);
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetDashboard() {
     resetAvailableFields();
-    $("#LogResultsGrid").html('');
-    $("#measureAggGrid").html('');
+    $('#LogResultsGrid').html('');
+    $('#measureAggGrid').html('');
     gridDiv = null;
     eGridDiv = null;
 }
-
+//eslint-disable-next-line no-unused-vars
 function string2Hex(tmp) {
     let str = '';
     for (let i = 0; i < tmp.length; i++) {
@@ -174,30 +167,31 @@ function string2Hex(tmp) {
     }
     return str;
 }
-
+//eslint-disable-next-line no-unused-vars
 function addQSParm(name, value) {
-    let re = new RegExp("([?&]" + name + "=)[^&]+", "");
+    let re = new RegExp('([?&]' + name + '=)[^&]+', '');
 
     function add(sep) {
-        myUrl += sep + name + "=" + encodeURIComponent(value);
+        myUrl += sep + name + '=' + encodeURIComponent(value);
     }
 
     function change() {
-        myUrl = myUrl.replace(re, "$1" + encodeURIComponent(value));
+        myUrl = myUrl.replace(re, '$1' + encodeURIComponent(value));
     }
-    if (myUrl.indexOf("?") === -1) {
-        add("?");
+    if (myUrl.indexOf('?') === -1) {
+        add('?');
     } else {
         if (re.test(myUrl)) {
             change();
         } else {
-            add("&");
+            add('&');
         }
     }
 }
 
-function resetQueryResAttr(res, panelId){
-    if (panelId == -1 && currentPanel) // if the query has been made from the editPanelScreen
+function resetQueryResAttr(res, panelId) {
+    if (panelId == -1 && currentPanel)
+        // if the query has been made from the editPanelScreen
         currentPanel.queryRes = res;
     else {
         for (let i = 0; i < localPanels.length; i++) {
@@ -211,18 +205,20 @@ function resetQueryResAttr(res, panelId){
 
 function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
-      if(!res.qtype) {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
+    if (!res.qtype) {
+        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
         return;
     }
-    if(res.hits){
-        if (panelId == -1) { // for panel on the editPanelScreen page
-            $(".panelDisplay #panelLogResultsGrid").show();
-            $(".panelDisplay #empty-response").empty();
+    if (res.hits) {
+        if (panelId == -1) {
+            // for panel on the editPanelScreen page
+            $('.panelDisplay #panelLogResultsGrid').show();
+            $('.panelDisplay #empty-response').empty();
             $('.panelDisplay #corner-popup').hide();
-            $(".panelDisplay #empty-response").hide();
+            $('.panelDisplay #empty-response').hide();
             $('.panelDisplay .panEdit-panel').hide();
-        } else { // for panels on the dashboard page
+        } else {
+            // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).show();
             $(`#panel${panelId} #empty-response`).empty();
             $(`#panel${panelId} #corner-popup`).hide();
@@ -230,49 +226,47 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $(`#panel${panelId} .panEdit-panel`).hide();
         }
         //for aggs-query and segstats-query
-        if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
-            let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
+        if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
+            let columnOrder = [];
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder;
+            } else {
                 if (res.groupByCols) {
-                    columnOrder = _.uniq(_.concat(
-                        res.groupByCols));
+                    columnOrder = _.uniq(_.concat(res.groupByCols));
                 }
                 if (res.measureFunctions) {
-                    columnOrder = _.uniq(_.concat(
-                        columnOrder, res.measureFunctions));
+                    columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
-            renderPanelAggsGrid(columnOrder, res ,panelId)
-        }//for logs-query
-        else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
-                columnOrder = res.allColumns
+            renderPanelAggsGrid(columnOrder, res, panelId);
+        } //for logs-query
+        else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
+            let columnOrder = [];
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder;
+            } else {
+                columnOrder = res.allColumns;
             }
-            if(currentPanel.selectedFields){
+            if (currentPanel.selectedFields) {
                 selectedFieldsList = currentPanel.selectedFields;
-            }else{
+            } else {
                 selectedFieldsList = columnOrder;
             }
             renderAvailableFields(columnOrder);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
         allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
+        if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
     }
     canScrollMore = res.can_scroll_more;
     scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount &&  (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
-        panelProcessEmptyQueryResults("", panelId);
+    if (res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) {
+        panelProcessEmptyQueryResults('', panelId);
     }
 
-    wsState = 'query'
+    wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
@@ -284,16 +278,17 @@ function fetchLogsPanelData(data, panelId) {
         url: 'api/search/' + panelId,
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         crossDomain: true,
         dataType: 'json',
-        data: JSON.stringify(data)
+        data: JSON.stringify(data),
     });
-  }
-  
-  function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
-    return new Promise(function(resolve, reject) {
+}
+
+//eslint-disable-next-line no-unused-vars
+function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
+    return new Promise(function (resolve, reject) {
         $('body').css('cursor', 'progress');
 
         if (queryRes) {
@@ -306,7 +301,7 @@ function fetchLogsPanelData(data, panelId) {
                     renderChartByChartType(data, res, panelId, currentPanel);
                     resolve();
                 })
-                .catch(function(xhr, err) {
+                .catch(function (xhr, _err) {
                     if (xhr.status === 400) {
                         panelProcessSearchError(xhr, panelId);
                     }
@@ -316,14 +311,14 @@ function fetchLogsPanelData(data, panelId) {
                 });
         }
     });
-  }
-  
+}
+
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
-    if (errorMsg !== "") {
+    if (errorMsg !== '') {
         msg = errorMsg;
     } else {
-        msg = "Your query returned no data, adjust your query.";
+        msg = 'Your query returned no data, adjust your query.';
     }
     if (panelId == -1) {
         $(`.panelDisplay .big-number-display-container`).hide();
@@ -379,9 +374,8 @@ function panelProcessSearchError(res, panelId) {
         el.append(`<span>${res.responseText}</span>`);
     }
     wsState = 'query';
-
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetPanelContainer(firstQUpdate) {
     if (firstQUpdate) {
         $('#empty-response').hide();
@@ -391,10 +385,10 @@ function resetPanelContainer(firstQUpdate) {
         hideError();
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetPanelGrid() {
     panelLogsRowData = [];
-    panelGridDiv == null
+    panelGridDiv == null;
 }
 
 function showPanelInfo(infoMsg) {
@@ -406,7 +400,7 @@ function showPanelInfo(infoMsg) {
 
     wsState = 'query';
 }
-
+//eslint-disable-next-line no-unused-vars
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
     let queryLanguage = $('#query-language-options .query-language-option.active').html();
@@ -415,19 +409,19 @@ function getQueryParamsData(scrollingTrigger) {
         sFrom = scrollFrom;
     }
     let data = {
-        'state': wsState,
-        'searchText': queryStr,
-        'startEpoch': filterStartDate,
-        'endEpoch': filterEndDate,
-        'indexName': selectedSearchIndex,
-        'from': sFrom,
-        'queryLanguage' : queryLanguage,
-    }
+        state: wsState,
+        searchText: queryStr,
+        startEpoch: filterStartDate,
+        endEpoch: filterEndDate,
+        indexName: selectedSearchIndex,
+        from: sFrom,
+        queryLanguage: queryLanguage,
+    };
     return data;
 }
-
+//eslint-disable-next-line no-unused-vars
 function getCookie(cname) {
-    let name = cname + "=";
+    let name = cname + '=';
     let decodedCookie = decodeURIComponent(document.cookie);
     let ca = decodedCookie.split(';');
     for (let i = 0; i < ca.length; i++) {
@@ -439,144 +433,198 @@ function getCookie(cname) {
             return c.substring(name.length, c.length);
         }
     }
-    return "";
+    return '';
 }
 
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
     resetQueryResAttr(res, panelId);
     //if data source is metrics
-    if(!res.qtype && chartType != "number") {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
+    if (!res.qtype && chartType != 'number') {
+        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
     }
-    if (res.qtype === "logs-query") {
-        panelProcessEmptyQueryResults("", panelId);
+    if (res.qtype === 'logs-query') {
+        panelProcessEmptyQueryResults('', panelId);
     }
-    
-    if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
-        if (panelId == -1) { // for panel on the editPanelScreen page
-            $(".panelDisplay #panelLogResultsGrid").hide();
-            $(".panelDisplay #empty-response").empty();
+
+    if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+        if (panelId == -1) {
+            // for panel on the editPanelScreen page
+            $('.panelDisplay #panelLogResultsGrid').hide();
+            $('.panelDisplay #empty-response').empty();
             $('.panelDisplay #corner-popup').hide();
-            $(".panelDisplay #empty-response").hide();
+            $('.panelDisplay #empty-response').hide();
             $('.panelDisplay .panEdit-panel').show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
-        } else { // for panels on the dashboard page
+            $(`.panelDisplay .big-number-display-container`).hide();
+        } else {
+            // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).hide();
             $(`#panel${panelId} #empty-response`).empty();
             $(`#panel${panelId} #corner-popup`).hide();
             $(`#panel${panelId} #empty-response`).hide();
             $(`#panel${panelId} .panEdit-panel`).show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
+            $(`.panelDisplay .big-number-display-container`).hide();
         }
 
-        let columnOrder = []
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder
-        }else{
+        let columnOrder = [];
+        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+            columnOrder = res.columnsOrder;
+        } else {
             if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(
-                    res.groupByCols));
+                columnOrder = _.uniq(_.concat(res.groupByCols));
             }
             if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(
-                    columnOrder, res.measureFunctions));
+                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
             }
         }
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
             let resultVal;
-            if (chartType === "number") {
+            if (chartType === 'number') {
                 resultVal = Object.values(res.measure[0].MeasureVal)[0];
             }
 
-            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
-                panelProcessEmptyQueryResults("", panelId);
-            } else if (chartType === "number" && (resultVal === undefined || resultVal === null)) {
-                panelProcessEmptyQueryResults("", panelId);
+            if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
+                panelProcessEmptyQueryResults('', panelId);
+            } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
+                panelProcessEmptyQueryResults('', panelId);
             } else {
                 // for number, bar and pie charts
-                if(panelId ===-1)
-                    renderPanelAggsGrid(columnOrder, res, panelId);
+                if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
 
                 panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
+        if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, queryRes) {
     $('body').css('cursor', 'progress');
     if (queryRes) {
-        renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes)
+        renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes);
     } else {
         $.ajax({
             method: 'post',
             url: 'api/search/' + panelId,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
+                Accept: '*/*',
             },
             crossDomain: true,
             dataType: 'json',
-            data: JSON.stringify(data)
+            data: JSON.stringify(data),
         })
             .then(function (res) {
-                renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res)
+                renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res);
             })
-            .catch(function (xhr, err) {
+            .catch(function (xhr, _err) {
                 if (xhr.status === 400) {
                     panelProcessSearchError(xhr, panelId);
                 }
                 $('body').css('cursor', 'default');
-            })
+            });
+    }
+}
+//eslint-disable-next-line no-unused-vars
+async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
+    $('body').css('cursor', 'progress');
+    if (panelId == -1) {
+        // for panel on the editPanelScreen page
+        $('.panelDisplay #panelLogResultsGrid').hide();
+        $('.panelDisplay #empty-response').empty();
+        $('.panelDisplay #corner-popup').hide();
+        $('.panelDisplay #empty-response').hide();
+        $('.panelDisplay .panEdit-panel').show();
+    } else {
+        // for panels on the dashboard page
+        $(`#panel${panelId} #panelLogResultsGrid`).hide();
+        $(`#panel${panelId} #empty-response`).empty();
+        $(`#panel${panelId} #corner-popup`).hide();
+        $(`#panel${panelId} #empty-response`).hide();
+        $(`#panel${panelId} .panEdit-panel`).show();
+    }
+    let chartType = currentPanel.chartType;
+    if (chartType === 'number') {
+        let bigNumVal = null;
+        let dataType = currentPanel.dataType;
+        let rawTimeSeriesData;
+        for (const queryData of data.queriesData) {
+            rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+            const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+            await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+        }
+        $.each(rawTimeSeriesData.values, function (_index, valueArray) {
+            $.each(valueArray, function (_index, value) {
+                if (value > bigNumVal) {
+                    bigNumVal = value;
+                }
+            });
+        });
+        if (bigNumVal === undefined || bigNumVal === null) {
+            panelProcessEmptyQueryResults('', panelId);
+        } else {
+            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+            allResultsDisplayed--;
+            if (allResultsDisplayed <= 0 || panelId === -1) {
+                $('body').css('cursor', 'default');
+            }
+            $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        }
+    } else {
+        chartDataCollection = {};
+        if (panelId === -1) {
+            // for panel on the editPanelScreen page
+            for (const queryData of data.queriesData) {
+                const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+                await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+            }
+            for (const formulaData of data.formulasData) {
+                let uniqueId = generateUniqueId();
+                addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
+            }
+        } else {
+            // for panels on the dashboard page
+            for (const queryData of data.queriesData) {
+                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+                const chartData = await convertDataForChart(rawTimeSeriesData);
+                const queryString = queryData.queries[0].query; // Adjust as per your data structure
+                addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+            }
+
+            for (const formulaData of data.formulasData) {
+                const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+                const chartData = await convertDataForChart(rawTimeSeriesData);
+                const queryString = formulaData.formulas[0].formula; // Adjust as per your data structure
+                addVisualizationContainer(formulaData.formulas[0].formula, chartData, queryString, panelId);
+            }
+        }
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        allResultsDisplayed--;
+        if (allResultsDisplayed <= 0 || panelId === -1) {
+            $('body').css('cursor', 'default');
+        }
+        $('body').css('cursor', 'default');
     }
 }
 
-function runMetricsQuery(data, panelId, currentPanel, queryRes) {
-    $('body').css('cursor', 'progress');
-    if (queryRes) {
-        renderChartByChartType(data,queryRes,panelId,currentPanel)
-    } else {
-        $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/timeseries',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then((res) => {
-                renderChartByChartType(data,res,panelId,currentPanel)
-            })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
-                    panelProcessSearchError(xhr, panelId);
-                }
-                $('body').css('cursor', 'default')
-            })
-    }  
-}
-
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex,dataType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, dataType) {
     resetQueryResAttr(res, panelId);
     let bigNumVal = null;
-    if (panelId == -1) { // for panel on the editPanelScreen page
-        $(".panelDisplay #panelLogResultsGrid").hide();
-        $(".panelDisplay #empty-response").empty();
+    if (panelId == -1) {
+        // for panel on the editPanelScreen page
+        $('.panelDisplay #panelLogResultsGrid').hide();
+        $('.panelDisplay #empty-response').empty();
         $('.panelDisplay #corner-popup').hide();
-        $(".panelDisplay #empty-response").hide();
+        $('.panelDisplay #empty-response').hide();
         $('.panelDisplay .panEdit-panel').show();
-    } else { // for panels on the dashboard page
+    } else {
+        // for panels on the dashboard page
         $(`#panel${panelId} #panelLogResultsGrid`).hide();
         $(`#panel${panelId} #empty-response`).empty();
         $(`#panel${panelId} #corner-popup`).hide();
@@ -585,64 +633,64 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
     }
 
     if (res.series && res.series.length === 0) {
-        panelProcessEmptyQueryResults("", panelId);
+        panelProcessEmptyQueryResults('', panelId);
         allResultsDisplayed--;
         $('body').css('cursor', 'default');
-	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
-        if (chartType === 'number'){
+        if (chartType === 'number') {
             $.each(res.values, function (index, valueArray) {
                 $.each(valueArray, function (index, value) {
                     if (value > bigNumVal) {
                         bigNumVal = value;
                     }
                 });
-            }); 
-            if(bigNumVal === undefined || bigNumVal === null){
-                panelProcessEmptyQueryResults("", panelId);
-            }else{
+            });
+            if (bigNumVal === undefined || bigNumVal === null) {
+                panelProcessEmptyQueryResults('', panelId);
+            } else {
                 displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
                 allResultsDisplayed--;
-                if(allResultsDisplayed <= 0 || panelId === -1) {
+                if (allResultsDisplayed <= 0 || panelId === -1) {
                     $('body').css('cursor', 'default');
                 }
-                $(`#panel${panelId} .panel-body #panel-loading`).hide();   
-            } 
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();
+            }
         } else {
             hideError();
             let seriesArray = [];
-            if (res.hasOwnProperty('series') && res.hasOwnProperty('timestamps') && res.hasOwnProperty('values')) {
+            if (Object.prototype.hasOwnProperty.call(res, 'series') && Object.prototype.hasOwnProperty.call(res, 'timestamps') && Object.prototype.hasOwnProperty.call(res, 'values')) {
                 for (let i = 0; i < res.series.length; i++) {
                     let series = {
                         seriesName: res.series[i],
-                        values: {}
+                        values: {},
                     };
-        
+
                     for (let j = 0; j < res.timestamps.length; j++) {
                         // Convert epoch seconds to milliseconds by multiplying by 1000
                         let timestampInMilliseconds = res.timestamps[j] * 1000;
                         let localDate = new Date(timestampInMilliseconds);
                         let formattedDate = localDate.toLocaleString();
-        
+
                         series.values[formattedDate] = res.values[i][j];
                     }
-        
+
                     seriesArray.push(series);
                 }
             }
             renderLineChart(seriesArray, panelId);
             allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
+            if (allResultsDisplayed <= 0 || panelId === -1) {
                 $('body').css('cursor', 'default');
             }
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function processMetricsSearchError() {
     showError(`Your query returned no data, adjust your query.`);
 }
-
+//eslint-disable-next-line no-unused-vars
 function createMetricsColorsArray() {
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -655,87 +703,77 @@ function createMetricsColorsArray() {
 
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     let dateVal = new Date(startEpoch);
-    $('#date-start').val(dateVal.toISOString().substring(0,10));
+    $('#date-start').val(dateVal.toISOString().substring(0, 10));
     $('#date-start').addClass('active');
-    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0,10));
+    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0, 10));
     $('.panelEditor-container #date-start').addClass('active');
     let hours = addZero(dateVal.getUTCHours());
     let mins = addZero(dateVal.getUTCMinutes());
-    $('#time-start').val(hours+':'+mins);
+    $('#time-start').val(hours + ':' + mins);
     $('#time-start').addClass('active');
-    $('.panelEditor-container #time-start').val(hours+':'+mins);
+    $('.panelEditor-container #time-start').val(hours + ':' + mins);
     $('.panelEditor-container #time-start').addClass('active');
 
     dateVal = new Date(endEpoch);
-    $('#date-end').val(dateVal.toISOString().substring(0,10));
+    $('#date-end').val(dateVal.toISOString().substring(0, 10));
     $('#date-end').addClass('active');
-    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0,10));
+    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0, 10));
     $('.panelEditor-container #date-end').addClass('active');
     hours = addZero(dateVal.getUTCHours());
     mins = addZero(dateVal.getUTCMinutes());
-    $('#time-end').val(hours+':'+mins);
+    $('#time-end').val(hours + ':' + mins);
     $('#time-end').addClass('active');
-    $('.panelEditor-container #time-end').val(hours+':'+mins);
+    $('.panelEditor-container #time-end').val(hours + ':' + mins);
     $('.panelEditor-container #time-end').addClass('active');
 }
 
 function addZero(i) {
-    if (i < 10) {i = "0" + i}
+    if (i < 10) {
+        i = '0' + i;
+    }
     return i;
 }
-
+//eslint-disable-next-line no-unused-vars
 function setTimePicker() {
     // set time picker of next page with updated time
-    let stDate = Cookies.get('startEpoch') || "now-1h";
-    let endDate = Cookies.get('endEpoch') || "now";
+    let stDate = Cookies.get('startEpoch') || 'now-1h';
+    let endDate = Cookies.get('endEpoch') || 'now';
     if (stDate && endDate) {
-        if(endDate === "now") {
+        if (endDate === 'now') {
             filterStartDate = stDate;
-            filterEndDate =  endDate;
+            filterEndDate = endDate;
             $('.inner-range #' + filterStartDate).addClass('active');
-            datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
+            datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
         } else {
             if (!isNaN(stDate)) {
                 stDate = Number(stDate);
                 endDate = Number(endDate);
-                datePickerHandler(stDate, endDate, "custom");
+                datePickerHandler(stDate, endDate, 'custom');
                 loadCustomDateTimeFromEpoch(stDate, endDate);
                 filterStartDate = stDate;
-                filterEndDate =  endDate;
+                filterEndDate = endDate;
             }
         }
     }
 }
 
 // my org page
+//eslint-disable-next-line no-unused-vars
 function showToastMyOrgPage(msg) {
-    let toast =
-        `<div class="div-toast">
+    let toast = `<div class="div-toast">
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
+    <div>`;
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
-
+//eslint-disable-next-line no-unused-vars
 function showSendTestDataUpdateToast(msg) {
-    let toast =
-        `<div class="test-data-toast">
+    let toast = `<div class="test-data-toast">
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function showSendTestDataUpdateToast(msg) {
-    let toast =
-        `<div class="test-data-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
+    <div>`;
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
@@ -747,29 +785,27 @@ function removeToast() {
     $('.ret-days-toast').remove();
     $('.usage-stats-toast').remove();
 }
-
+//eslint-disable-next-line no-unused-vars
 function showDeleteIndexToast(msg) {
-    let toast =
-        `<div class="usage-stats-toast">
+    let toast = `<div class="usage-stats-toast">
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
+    <div>`;
     $('#logs-stats-header').append(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
-
+//eslint-disable-next-line no-unused-vars
 function showRetDaysUpdateToast(msg) {
-    let toast =
-        `<div class="ret-days-toast">
+    let toast = `<div class="ret-days-toast">
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
+    <div>`;
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
-
+//eslint-disable-next-line no-unused-vars
 function showToast(msg, type = 'error') {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
     let toast = `
@@ -794,23 +830,7 @@ function showToast(msg, type = 'error') {
     }
 }
 
-
-
-
-function myOrgSendTestData(token) {
-    $('#test-data-btn').on('click', (e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            // Disable testDataBtn
-            testDataBtn.disabled = true;
-            sendTestData(e, token);
-        }
-        else {
-            showSendTestDataUpdateToast('Select Test Data');
-        }
-    })
-}
-
+//eslint-disable-next-line no-unused-vars
 function getIngestUrl() {
     return new Promise((resolve, reject) => {
         $.ajax({
@@ -818,69 +838,68 @@ function getIngestUrl() {
             url: '/api/config',
             crossDomain: true,
             dataType: 'json',
-            credentials: 'include'
+            credentials: 'include',
         })
-        .then((res) => {
-            resolve(res.IngestUrl);
-        })
-        .catch((err) => {
-            console.log(err);
-            reject(err);
-        });
+            .then((res) => {
+                resolve(res.IngestUrl);
+            })
+            .catch((err) => {
+                console.log(err);
+                reject(err);
+            });
     });
 }
 
 //renders the response from logs or metrics query to respective selected chart type
-function renderChartByChartType(data,queryRes,panelId,currentPanel){
-    if(!currentPanel.chartType){
-        panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
+function renderChartByChartType(data, queryRes, panelId, currentPanel) {
+    if (!currentPanel.chartType) {
+        panelProcessEmptyQueryResults('Please select a suitable chart type.', panelId);
     }
     switch (currentPanel.chartType) {
-        case "Data Table":
-        case "loglines":
+        case 'Data Table':
+        case 'loglines':
             $('.panelDisplay .panEdit-panel').hide();
-            renderPanelLogsQueryRes(data, panelId,currentPanel,queryRes);
+            renderPanelLogsQueryRes(data, panelId, currentPanel, queryRes);
             break;
-        case "Bar Chart":
-        case "Pie Chart":
-            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+        case 'Bar Chart':
+        case 'Pie Chart':
+            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             break;
-        case "Line Chart":
-            let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+        case 'Line Chart': {
+            let startTime = new Date().getTime();
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, '');
             break;
-        case "number":
-            
-            if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
-                currentPanel.unit = "misc"
-                currentPanel.dataType = "none"
+        }
+        case 'number':
+            if (currentPanel.unit === '' || currentPanel.dataType === 'none' || currentPanel.dataType === '') {
+                currentPanel.unit = 'misc';
+                currentPanel.dataType = 'none';
             }
-            if (currentPanel.queryType == 'metrics'){
-                let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
-            }else{
-                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+            if (currentPanel.queryType == 'metrics') {
+                runMetricsQuery(data, panelId, currentPanel);
+            } else {
+                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             }
             break;
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function findColumnIndex(columnsMap, columnName) {
     // Iterate over the Map entries
-    for (const [ index,name] of columnsMap.entries()) {
+    for (const [index, name] of columnsMap.entries()) {
         if (name === columnName) {
             return index; // Return the index if the column name matches
         }
     }
     return -1; // Return -1 if the column name is not found
 }
-
-function setIndexDisplayValue(selectedSearchIndex){
+//eslint-disable-next-line no-unused-vars
+function setIndexDisplayValue(selectedSearchIndex) {
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
-        $(".index-container .selected-index").remove();
+        $('.index-container .selected-index').remove();
         const selectedIndexes = selectedSearchIndex.split(',');
-        selectedIndexes.forEach(function(index) {
+        selectedIndexes.forEach(function (index) {
             addSelectedIndex(index);
             // Remove the selectedSearchIndex from indexValues
             const indexIndex = indexValues.indexOf(index);
@@ -890,41 +909,41 @@ function setIndexDisplayValue(selectedSearchIndex){
         });
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $("#clearInput").hide();
+    $('#clearInput').hide();
     switch (selectedQueryLangID) {
-        case "1":
+        case '1':
         case 1:
             $('#info-icon-sql').show();
-            $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
+            $('#filter-input').attr('placeholder', "Enter your SQL query here, or click the 'i' icon for examples");
             break;
-        case "2":
+        case '2':
         case 2:
             $('#info-icon-logQL').show();
-            $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
+            $('#filter-input').attr('placeholder', "Enter your LogQL query here, or click the 'i' icon for examples");
             break;
-        case "3":
+        case '3':
         case 3:
             $('#info-icon-spl').show();
-            $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
+            $('#filter-input').attr('placeholder', "Enter your SPL query here, or click the 'i' icon for examples");
             break;
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-    $("#filter-input").on("input", function() {
-        if ($(this).val().trim() !== "") {
-            $("#clearInput").show();
+    $('#filter-input').on('input', function () {
+        if ($(this).val().trim() !== '') {
+            $('#clearInput').show();
         } else {
-            $("#clearInput").hide();
+            $('#clearInput').hide();
         }
     });
 
-    $("#filter-input").focus(function() {
-        if ($(this).val() === "*") {
-            $(this).val("");
+    $('#filter-input').focus(function () {
+        if ($(this).val() === '*') {
+            $(this).val('');
         }
     });
 
@@ -933,32 +952,32 @@ function initializeFilterInputEvents() {
         this.style.height = this.scrollHeight + 'px';
     }
 
-    $("#filter-input").on('focus', function() {
+    $('#filter-input').on('focus', function () {
         $(this).addClass('expanded');
         autoResizeTextarea.call(this);
     });
 
-    $("#filter-input").on('blur', function() {
+    $('#filter-input').on('blur', function () {
         $(this).removeClass('expanded');
         this.style.height = '32px';
     });
 
-    $("#filter-input").on('input', autoResizeTextarea);
+    $('#filter-input').on('input', autoResizeTextarea);
 
-    $("#clearInput").click(function() {
-        $("#filter-input").val("").focus();
+    $('#clearInput').click(function () {
+        $('#filter-input').val('').focus();
         $(this).hide();
     });
-    $("#filter-input").keydown(function (e) {
+    $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
-          let input = $(this);
-          let value = input.val();
-          let position = this.selectionStart;
-          input.val(value.substring(0, position) + '\n' + value.substring(position));
-          this.selectionStart = this.selectionEnd = position + 2;
+            let input = $(this);
+            let value = input.val();
+            let position = this.selectionStart;
+            input.val(value.substring(0, position) + '\n' + value.substring(position));
+            this.selectionStart = this.selectionEnd = position + 2;
         }
-      });
-      document.getElementById('filter-input').addEventListener('paste', function(event) {
+    });
+    document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
         let pasteData = (event.clipboardData || window.clipboardData).getData('text');
         let newValue = pasteData.replace(/\|/g, '\n|');
@@ -967,6 +986,5 @@ function initializeFilterInputEvents() {
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
         autoResizeTextarea.call(this);
-      });
-      
+    });
 }
