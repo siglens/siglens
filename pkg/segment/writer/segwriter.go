@@ -955,6 +955,18 @@ func AddOrReplaceRotatedSegment(segmeta structs.SegMeta) {
 }
 
 func AddNewRotatedSegment(segmeta structs.SegMeta) {
+	if hook := hooks.GlobalHooks.AddSegMeta; hook != nil {
+		alreadyHandled, err := hook(segmeta)
+		if err != nil {
+			log.Errorf("AddNewRotatedSegment: hook failed, err=%v", err)
+			return
+		}
+
+		if alreadyHandled {
+			return
+		}
+	}
+
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
