@@ -478,7 +478,6 @@ async function editPanelInit(redirectedFromViewScreen) {
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
     $('.panelDisplay .panEdit-panel').show();
-    setTimePicker();
     pauseRefreshInterval();
     await runQueryBtnHandler();
 }
@@ -532,8 +531,6 @@ $('#nestedThroughputDropDown').on('click', handleNestedTptDropDownClick);
 $('#nestedPercentDropDown').on('click', handleNestedPercentDropDownClick);
 $('#nestedTimeDropDown').on('click', handleNestedTimeDropDownClick);
 $('#nestedDataRateDropDown').on('click', handleNestedDataRateDropDownClick);
-
-$('.btn-runQuery').on('click', runQueryBtnHandler);
 
 function handleSourceDropDownClick() {
     $('.dropDown-dataSource').toggleClass('active');
@@ -1104,7 +1101,7 @@ function goToViewScreen(panelIndex) {
     displayPanelView(panelIndex);
 }
 
-function goToDashboard(redirectedFromViewScreen) {
+function goToDashboard() {
     // Don't add panel if cancel is clicked.
     let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     if (!flagDBSaved) {
@@ -1114,56 +1111,18 @@ function goToDashboard(redirectedFromViewScreen) {
             }
         }
     }
-    setTimePicker();
     resetNestedUnitMenuOptions(selectedUnitTypeIndex);
     currentPanel = null;
     resetEditPanelScreen();
-    if (redirectedFromViewScreen === -1) {
-        if (localPanels !== undefined) {
-            let stDate;
-            let endDate;
-            if (localPanels[panelIndex].queryData) {
-                if (localPanels[panelIndex].chartType === 'line') {
-                    stDate = localPanels[panelIndex].queryData.start;
-                    endDate = localPanels[panelIndex].queryData.end;
-                } else {
-                    stDate = localPanels[panelIndex].queryData.startEpoch;
-                    endDate = localPanels[panelIndex].queryData.endEpoch;
-                }
-            }
-            $('.inner-range #' + stDate).addClass('active');
-            datePickerHandler(stDate, endDate, stDate);
-        }
-        goToViewScreen(panelIndex);
-    } else {
-        $('.panelEditor-container').hide();
-        $('.popupOverlay').removeClass('active');
-        $('#app-container').show();
-        $('#viewPanel-container').hide();
-        if (localPanels !== undefined) {
-            let stDate;
-            let endDate;
-            let i = 0;
-            while (i < localPanels.length) {
-                if (localPanels[i].queryData) {
-                    if (localPanels[i].chartType === 'line') {
-                        stDate = localPanels[i].queryData.start;
-                        endDate = localPanels[i].queryData.end;
-                    } else {
-                        stDate = localPanels[i].queryData.startEpoch;
-                        endDate = localPanels[i].queryData.endEpoch;
-                    }
-                    break;
-                }
-                i++;
-            }
-            $('.inner-range #' + stDate).addClass('active');
-            datePickerHandler(stDate, endDate, stDate);
-        }
-        displayPanels();
-        if (dbRefresh) {
-            startRefreshInterval(dbRefresh);
-        }
+
+    $('.panelEditor-container').hide();
+    $('.popupOverlay').removeClass('active');
+    $('#app-container').show();
+    $('#viewPanel-container').hide();
+    setTimePickerValue();
+    displayPanels();
+    if (dbRefresh) {
+        startRefreshInterval(dbRefresh);
     }
 }
 //eslint-disable-next-line no-unused-vars

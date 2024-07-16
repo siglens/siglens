@@ -741,29 +741,6 @@ function addZero(i) {
     }
     return i;
 }
-//eslint-disable-next-line no-unused-vars
-function setTimePicker() {
-    // set time picker of next page with updated time
-    let stDate = Cookies.get('startEpoch') || 'now-1h';
-    let endDate = Cookies.get('endEpoch') || 'now';
-    if (stDate && endDate) {
-        if (endDate === 'now') {
-            filterStartDate = stDate;
-            filterEndDate = endDate;
-            $('.inner-range #' + filterStartDate).addClass('active');
-            datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-        } else {
-            if (!isNaN(stDate)) {
-                stDate = Number(stDate);
-                endDate = Number(endDate);
-                datePickerHandler(stDate, endDate, 'custom');
-                loadCustomDateTimeFromEpoch(stDate, endDate);
-                filterStartDate = stDate;
-                filterEndDate = endDate;
-            }
-        }
-    }
-}
 
 // my org page
 //eslint-disable-next-line no-unused-vars

@@ -114,8 +114,6 @@ $(document).ready(async function () {
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
 
-    setTimePicker();
-
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',
@@ -228,7 +226,6 @@ function viewPanelInit() {
     $('.panelDisplay .big-number-display-container').hide();
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
-    setTimePicker();
 }
 
 function handlePanelEdit() {
