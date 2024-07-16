@@ -298,6 +298,7 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 		return nil, errors.New("searchPipeCommandsToASTnode: node type not supported")
 	}
 	pipeCommands.StatsOptions = node.StatsOptions
+	pipeCommands.StreamStatsOptions = node.StreamStatsOptions
 	if node.Next != nil {
 		pipeCommands.Next, err = searchPipeCommandsToASTnode(node.Next, qid)
 

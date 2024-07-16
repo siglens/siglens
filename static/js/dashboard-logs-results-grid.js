@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,25 +17,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let panelGridDiv = null;
 let panelGridOptions;
 let panelLogsColumnDefs;
-$('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
-$('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
+$('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
+$('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
 function getGridPanelRows() {
     // initial dataset
     let panelLogsRowData = [];
     return panelLogsRowData;
 }
-function getGridPanelCols(){
+function getGridPanelCols() {
     // initial columns
     panelLogsColumnDefs = [
         {
-            field: "timestamp",
-            headerName: "timestamp",
+            field: 'timestamp',
+            headerName: 'timestamp',
             editable: true,
             cellEditor: ReadOnlyCellEditor,
             cellEditorPopup: true,
@@ -46,24 +44,24 @@ function getGridPanelCols(){
             cellEditorParams: cellEditorParams,
             maxWidth: 250,
             minWidth: 250,
-            sort: "desc"
+            sort: 'desc',
         },
         {
-            field: "logs",
-            headerName: "logs",
+            field: 'logs',
+            headerName: 'logs',
             cellRenderer: (params) => {
                 let logString = '';
                 let counter = 0;
-                    
+
                 _.forEach(params.data, (value, key) => {
                     let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-                   
-                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                        counter++;
-                    })
+
+                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
+                    counter++;
+                });
                 return logString;
             },
-        }
+        },
     ];
     return panelLogsColumnDefs;
 }
@@ -109,20 +107,20 @@ function getPanelGridOptions() {
     };
     return panelGridOptions;
 }
-
-
-function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
+//eslint-disable-next-line no-unused-vars
+function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     $(`.panelDisplay .big-number-display-container`).hide();
     let panelLogsRowData = getGridPanelRows();
     let panelLogsColumnDefs = getGridPanelCols();
     let panelGridOptions = getPanelGridOptions();
     let logLinesViewType = currentPanel.logLinesViewType;
 
-    if(panelId == -1) // for panel on the editPanelScreen page
+    if (panelId == -1)
+        // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
-    else // for panels on the dashboard page
-        panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-
+    // for panels on the dashboard page
+    else panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(panelGridDiv, panelGridOptions);
 
     let cols = columnOrder.map((colName, index) => {
@@ -148,8 +146,8 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
             headerName: colName,
             cellRenderer: myCellRenderer,
             cellRendererParams: {
-                colName: colName
-            }
+                colName: colName,
+            },
         };
     });
     panelLogsRowData = _.concat(panelLogsRowData, hits);
@@ -162,15 +160,15 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     panelGridOptions.columnApi.autoSizeColumns(allColumnIds, false);
     panelGridOptions.api.setRowData(panelLogsRowData);
 
-    switch (logLinesViewType){
+    switch (logLinesViewType) {
         case 'Single line display view':
-            panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs);
+            panelLogOptionSingleHandler(panelGridOptions, panelLogsColumnDefs);
             break;
         case 'Multi line display view':
-            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData);
+            panelLogOptionMultiHandler(panelGridOptions, panelLogsColumnDefs, panelLogsRowData);
             break;
         case 'Table view':
-            panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs);
+            panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs);
             if (currentPanel?.selectedFields) {
                 updateColumns(currentPanel.selectedFields);
             }
@@ -179,66 +177,62 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 }
 
-function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs){
-    panelLogsColumnDefs.forEach(function (colDef, index) {
-        if (colDef.field === "logs"){
+function panelLogOptionSingleHandler(panelGridOptions, panelLogsColumnDefs) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
+        if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
         }
     });
     panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
-    panelGridOptions.api.resetRowHeights()
-    panelLogsColumnDefs.forEach((colDef, index) => {
+    panelGridOptions.api.resetRowHeights();
+    panelLogsColumnDefs.forEach((colDef, _index) => {
         panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
     });
-    panelGridOptions.columnApi.setColumnVisible("logs", true);
-    panelGridOptions.columnApi.setColumnVisible("timestamp", true);
-    
-    panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
+    panelGridOptions.columnApi.setColumnVisible('logs', true);
+    panelGridOptions.columnApi.setColumnVisible('timestamp', true);
+
+    panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn('logs'), false);
 }
 
-function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData) {
+function panelLogOptionMultiHandler(panelGridOptions, panelLogsColumnDefs, panelLogsRowData) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
+        if (colDef.field === 'logs') {
+            colDef.cellStyle = { 'white-space': 'normal' };
+            colDef.autoHeight = true;
+        }
+    });
+    panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
 
-        panelLogsColumnDefs.forEach(function (colDef, index) {
-            if (colDef.field === "logs"){
-                colDef.cellStyle = {'white-space': 'normal'};
-                colDef.autoHeight = true;
-            }
-        });
-        panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
-        
-        panelLogsColumnDefs.forEach((colDef, index) => {
-            panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
-        });
-        panelGridOptions.columnApi.setColumnVisible("logs", true);
-        panelGridOptions.columnApi.setColumnVisible("timestamp", true);
-        
-        panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
-        panelGridOptions.api.setRowData(panelLogsRowData);
-        panelGridOptions.api.sizeColumnsToFit();
+    panelLogsColumnDefs.forEach((colDef, _index) => {
+        panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
+    });
+    panelGridOptions.columnApi.setColumnVisible('logs', true);
+    panelGridOptions.columnApi.setColumnVisible('timestamp', true);
+
+    panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn('logs'), false);
+    panelGridOptions.api.setRowData(panelLogsRowData);
+    panelGridOptions.api.sizeColumnsToFit();
 }
 
-function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
-
-        panelLogsColumnDefs.forEach(function (colDef, index) {
-            if (colDef.field === "logs") {
-                colDef.cellStyle = null;
-                colDef.autoHeight = null;
-                colDef.hide = true; 
-            } else 
-                colDef.hide = false;
-        });
-        panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
-        panelGridOptions.api.resetRowHeights();
-        // Always show timestamp
-        panelGridOptions.columnApi.setColumnVisible("timestamp", true);
-        panelGridOptions.columnApi.setColumnVisible("logs", false);
+function panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
+        if (colDef.field === 'logs') {
+            colDef.cellStyle = null;
+            colDef.autoHeight = null;
+            colDef.hide = true;
+        } else colDef.hide = false;
+    });
+    panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
+    panelGridOptions.api.resetRowHeights();
+    // Always show timestamp
+    panelGridOptions.columnApi.setColumnVisible('timestamp', true);
+    panelGridOptions.columnApi.setColumnVisible('logs', false);
 }
-
-
-function renderPanelAggsGrid(columnOrder, hits,panelId) {
+//eslint-disable-next-line no-unused-vars
+function renderPanelAggsGrid(columnOrder, hits, panelId) {
     let aggsColumnDefs = [];
-    let segStatsRowData=[];
+    let segStatsRowData = [];
     const aggGridOptions = {
         columnDefs: aggsColumnDefs,
         rowData: [],
@@ -252,27 +246,25 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
                 sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
                 sortDescending: '<i class="fa fa-sort-alpha-down"/>',
             },
-            cellRenderer: params => params.value ? params.value : 'null',
+            cellRenderer: (params) => (params.value ? params.value : 'null'),
         },
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-        }
+        },
     };
     $(`.panelDisplay .big-number-display-container`).hide();
-    if(panelId == -1)
-        panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
-    else 
-        panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-
+    if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
+    else panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(panelGridDiv, aggGridOptions);
 
     let colDefs = aggGridOptions.api.getColumnDefs();
     colDefs.length = 0;
     colDefs = columnOrder.map((colName, index) => {
-        let title =  colName;
+        let title = colName;
         let resize = index + 1 == columnOrder.length ? false : true;
-        let maxWidth = Math.max(displayTextWidth(colName, "italic 19pt  DINpro "), 200)         //200 is approx width of 1trillion number
+        let maxWidth = Math.max(displayTextWidth(colName, 'italic 19pt  DINpro '), 200); //200 is approx width of 1trillion number
         return {
             field: title,
             headerName: title,
@@ -282,44 +274,43 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
     });
     aggsColumnDefs = _.chain(aggsColumnDefs).concat(colDefs).uniqBy('field').value();
     aggGridOptions.api.setColumnDefs(aggsColumnDefs);
-    let newRow = new Map()
-     $.each(hits.measure, function (key, resMap) {
-        newRow.set("id", 0)
-        columnOrder.map((colName, index) => {
-            let ind=-1
-            if (hits.groupByCols !=undefined && hits.groupByCols.length > 0) {
-                ind = findColumnIndex(hits.groupByCols,colName)
+    let newRow = new Map();
+    $.each(hits.measure, function (key, resMap) {
+        newRow.set('id', 0);
+        columnOrder.map((colName, _index) => {
+            let ind = -1;
+            if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
+                ind = findColumnIndex(hits.groupByCols, colName);
             }
             //group by col
-            if (ind !=-1  && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind]!="*"){
-                newRow.set(colName, resMap.GroupByValues[ind])
-            }else if (ind !=-1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0]!="*"){
-                newRow.set(colName, resMap.GroupByValues[0])
-            }else{
-            // Check if MeasureVal is undefined or null and set it to 0
+            if (ind != -1 && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind] != '*') {
+                newRow.set(colName, resMap.GroupByValues[ind]);
+            } else if (ind != -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] != '*') {
+                newRow.set(colName, resMap.GroupByValues[0]);
+            } else {
+                // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(colName, "0");
+                    newRow.set(colName, '0');
                 } else {
                     newRow.set(colName, resMap.MeasureVal[colName]);
                 }
             }
-        })
+        });
         segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
-    })
+    });
     aggGridOptions.api.setRowData(segStatsRowData);
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 }
 
 function updateColumns(selectedFieldsList = null) {
+    panelGridOptions.columnApi.setColumnVisible('timestamp', true);
 
-    panelGridOptions.columnApi.setColumnVisible("timestamp", true);
-    
     let isAnyColActive = false;
     const selectedFieldsSet = selectedFieldsList ? new Set(selectedFieldsList) : null;
     availColNames.forEach((colName) => {
         const colElement = $(`.toggle-${string2Hex(colName)}`);
         const shouldBeVisible = selectedFieldsSet ? selectedFieldsSet.has(colName) : colElement.hasClass('active');
-        
+
         if (shouldBeVisible) {
             colElement.addClass('active');
             isAnyColActive = true;
@@ -331,18 +322,18 @@ function updateColumns(selectedFieldsList = null) {
     });
 
     if (isAnyColActive) {
-        panelGridOptions.columnApi.setColumnVisible("logs", false);
+        panelGridOptions.columnApi.setColumnVisible('logs', false);
     }
-    
+
     panelGridOptions.api.sizeColumnsToFit();
 }
 
-function toggleAllAvailableFieldsHandler(evt) {
+function toggleAllAvailableFieldsHandler(_evt) {
     let el = $('#available-fields .select-unselect-header');
     let isChecked = el.find('.select-unselect-checkmark');
 
     if (isChecked.length === 0) {
-        if (theme === "light") {
+        if (theme === 'light') {
             el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
         } else {
             el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
@@ -352,7 +343,7 @@ function toggleAllAvailableFieldsHandler(evt) {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
             panelGridOptions.columnApi.setColumnVisible(colName, true);
         });
-        
+
         selectedFieldsList = [...availColNames];
     } else {
         isChecked.remove();
@@ -365,7 +356,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         selectedFieldsList = [];
     }
 
-    panelGridOptions.columnApi.setColumnVisible("logs", false);
+    panelGridOptions.columnApi.setColumnVisible('logs', false);
 
     updatedSelFieldList = true;
 }
