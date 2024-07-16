@@ -85,24 +85,41 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 }
 
 // Remove elements from the window that are outside the window size
-func cleanWindow(currIndex int, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) (error) {
-	for ssResults.Window.Len() > 0 {
-		front := ssResults.Window.Front()
-		frontVal, correctType := front.Value.(*structs.IndexValue)
-		if !correctType {
-			return fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) (error) {
+	if global {
+		for ssResults.Window.Len() > 0 {
+			front := ssResults.Window.Front()
+			frontVal, correctType := front.Value.(*structs.IndexValue)
+			if !correctType {
+				return fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+			}
+			if frontVal.Index + windowSize <= currIndex {
+				if measureAgg == utils.Avg || measureAgg == utils.Sum {
+					ssResults.CurrResult -= frontVal.Value
+				} else if measureAgg == utils.Count {
+					ssResults.CurrResult--
+				}
+				ssResults.Window.Remove(front)
+			} else {
+				break
+			}
 		}
-		if frontVal.Index + windowSize <= currIndex {
+	} else {
+		for ssResults.Window.Len() > windowSize {
+			front := ssResults.Window.Front()
+			frontVal, correctType := front.Value.(*structs.IndexValue)
+			if !correctType {
+				return fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+			}
 			if measureAgg == utils.Avg || measureAgg == utils.Sum {
 				ssResults.CurrResult -= frontVal.Value
 			} else if measureAgg == utils.Count {
 				ssResults.CurrResult--
 			}
 			ssResults.Window.Remove(front)
-		} else {
-			break
 		}
 	}
+	
 
 	return nil
 }
@@ -175,6 +192,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 
 
 func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue float64) (float64, bool, error) {
+	var err error
 	result := ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0
 	if exist && measureAgg == utils.Avg {
@@ -183,7 +201,7 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 
 	// If current is false, compute result before adding the new element to the window
 	if !ssOption.Current && windowSize != 0 {
-		err := cleanWindow(currIndex-1, ssResults, windowSize, measureAgg)
+		err := cleanWindow(currIndex-1, ssOption.Global, ssResults, windowSize, measureAgg)
 		if err != nil {
 			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}
@@ -194,7 +212,11 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	}
 
 	if windowSize != 0 {
-		err := cleanWindow(currIndex, ssResults, windowSize, measureAgg)
+		if ssOption.Global {
+			err = cleanWindow(currIndex, ssOption.Global, ssResults, windowSize, measureAgg)
+		} else {
+			err = cleanWindow(currIndex, ssOption.Global, ssResults, windowSize-1, measureAgg)
+		}
 		if err != nil {
 			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}
