@@ -290,6 +290,26 @@ func resetAccumulatedStreamStats(ssOption *structs.StreamStatsOptions) {
 	ssOption.RunningStreamStats = make(map[int]map[string]*structs.RunningStreamStatsResults, 0)
 }
 
+func evaluateResetCondition(boolExpr *structs.BoolExpr, record map[string]interface{}) (bool, error) {
+	if boolExpr == nil {
+		return false, nil
+	}
+
+	fieldsInExpr := boolExpr.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure, 0)
+	err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
+	if err != nil {
+		return false, fmt.Errorf("evaluateResetCondition: Error while retrieving values, err: %v", err)
+	}
+
+	conditionPassed, err := boolExpr.Evaluate(fieldToValue)
+	if err != nil {
+		return false, fmt.Errorf("evaluateResetCondition: Error while evaluating the condition, err: %v", err)
+	}
+
+	return conditionPassed, nil
+}
+
 
 func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, finishesSegment bool) error {
 	bucketKey := ""
@@ -346,6 +366,14 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			resetAccumulatedStreamStats(agg.StreamStatsOptions)
 			currentBucketKey = bucketKey
 		}
+
+		shouldResetBefore, err := evaluateResetCondition(agg.StreamStatsOptions.ResetBefore, record) 
+		if err != nil {
+			return fmt.Errorf("performStreamStats Error while evaluating resetBefore condition, err: %v", err)
+		}
+		if shouldResetBefore{
+			resetAccumulatedStreamStats(agg.StreamStatsOptions)
+		}
 		
 		for measureFuncIndex, measureAgg := range measureAggs {
 			streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(int(numPrevSegmentProcessedRecords)+currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record)
@@ -363,6 +391,14 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 		agg.StreamStatsOptions.NumProcessedRecords++
+
+		shouldResetAfter, err := evaluateResetCondition(agg.StreamStatsOptions.ResetAfter, record) 
+		if err != nil {
+			return fmt.Errorf("performStreamStats Error while evaluating resetBefore condition, err: %v", err)
+		}
+		if shouldResetAfter {
+			resetAccumulatedStreamStats(agg.StreamStatsOptions)
+		}
 	}
 
 	for _, measureAgg := range measureAggs {
@@ -373,7 +409,6 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		recs[recordKey] = record
 		delete(agg.StreamStatsOptions.SegmentRecords, recordKey)
 	}
-
 
 	return nil
 }
