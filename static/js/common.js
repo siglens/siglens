@@ -87,7 +87,7 @@ let aggGridOptions = {
     },
 };
 /*eslint-enable*/
-// {{ .CommonExtraFunctions }}
+{{ .CommonExtraFunctions }}
 
 function showError(errorMsg) {
     $('#logs-result-container').hide();
