@@ -184,10 +184,11 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 
 	r.Header.Add("Content-Type", "application/json")
 	client := &http.Client{}
-	_, err1 := client.Do(r)
-	if err1 != nil {
+	resp, err := client.Do(r)
+	if err != nil {
 		log.Errorf("sendWebhooks: Error sending request. WebhookURL=%v, Error=%v", webhookUrl, err)
 	}
+	resp.Body.Close()
 	return err
 }
 
