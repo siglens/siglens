@@ -235,7 +235,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
             errorMessage.hide();
             input.removeClass('error-border');
             disableQueryRemoval();
-            if (isAlertScreen) {
+            if(isAlertScreen){
                 formulas = {};
                 activateFirstQuery();
             }
@@ -243,87 +243,27 @@ function formulaInputHandler(formulaElement, uniqueId) {
             onFormulaErased(uniqueId);
             return;
         }
-
-        // Check if the formula is a constant value
-        if (!isNaN(formula)) {
-            errorMessage.hide();
-            input.removeClass('error-border');
-            formulas[uniqueId] = {
-                formula: formula,
-                queryNames: [],
-                isConstant: true,
-            };
-            await generateConstantSeries(uniqueId, parseFloat(formula));
-            return;
-        }
-
         let validationResult = validateFormula(formula);
         if (validationResult !== false) {
             errorMessage.hide();
             input.removeClass('error-border');
+            // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
-            if (isAlertScreen) {
+            if(isAlertScreen){
                 $('#metrics-queries .metrics-query .query-name').removeClass('active');
             }
-            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
-                await getMetricsDataForFormula(uniqueId, validationResult);
+            // Check if validationResult.queryNames is an array
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
+                // Run your function with the formula and query names
+                await getMetricsDataForFormula(uniqueId,validationResult);
             }
         } else {
             errorMessage.show();
             input.addClass('error-border');
         }
+        // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
     }, 500)); // debounce delay
-}
-
-async function generateConstantSeries(uniqueId, constantValue) {
-    let startTime = new Date(filterStartDate);
-    let endTime = new Date(filterEndDate);
-    let stepSize;
-
-    // Determine the step size based on the time range
-    const timeRange = (endTime - startTime) / 1000; // time range in seconds
-    if (timeRange > 365 * 24 * 60 * 60) {
-        stepSize = 30 * 24 * 60 * 60 * 1000; // 30 days
-    } else if (timeRange >= 90 * 24 * 60 * 60) {
-        stepSize = 7 * 24 * 60 * 60 * 1000; // 7 days
-    } else if (timeRange >= 30 * 24 * 60 * 60) {
-        stepSize = 2 * 24 * 60 * 60 * 1000; // 2 days
-    } else if (timeRange >= 7 * 24 * 60 * 60) {
-        stepSize = 12 * 60 * 60 * 1000; // 12 hours
-    } else if (timeRange >= 2 * 24 * 60 * 60) {
-        stepSize = 6 * 60 * 60 * 1000; // 6 hours
-    } else if (timeRange >= 24 * 60 * 60) {
-        stepSize = 3 * 60 * 60 * 1000; // 3 hours
-    } else if (timeRange >= 12 * 60 * 60) {
-        stepSize = 30 * 60 * 1000; // 30 minutes
-    } else if (timeRange >= 3 * 60 * 60) {
-        stepSize = 15 * 60 * 1000; // 15 minutes
-    } else if (timeRange >= 30 * 60) {
-        stepSize = 5 * 60 * 1000; // 5 minutes
-    } else {
-        stepSize = 1 * 60 * 1000; // 1 minute
-    }
-
-    let labels = [];
-    for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
-        labels.push(time);
-    }
-
-    let dataPoints = labels.map(() => constantValue);
-
-    let seriesData = [{
-        seriesName: `Constant ${constantValue}`,
-        values: {},
-    }];
-
-    labels.forEach((label, index) => {
-        const formattedDate = moment(label).format('YYYY-MM-DDTHH:mm:ss');
-        seriesData[0].values[formattedDate] = dataPoints[index];
-    });
-
-    const queryString = `Constant Value: ${constantValue}`;
-    addVisualizationContainer(uniqueId, seriesData, queryString);
 }
 
 async function addAlertsFormulaElement(formulaInput) {
@@ -1038,162 +978,94 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-    
-    let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
-    
-    if (chartData.labels.length === 0) {
-        chartData.labels = generateEmptyTimeLabels(filterStartDate);
-    }
+
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName)
 
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-    try {
-        var lineChart = new Chart(ctx, {
-            type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        align: 'start',
-                        labels: {
-                            boxWidth: 10,
-                            boxHeight: 2,
-                            fontSize: 10
-                        }
+    var lineChart = new Chart(ctx, {
+        type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10
                     }
-                },
-                scales: {
-                    x: {
-                        type: 'time',
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    display: true,
+                    title: {
                         display: true,
-                        title: {
-                            display: true,
-                            text: ''
+                        text: ''
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
                         },
-                        grid: {
-                            display: false
-                        },
-                        ticks: { 
-                            color: tickColor,
-                            callback: xaxisFomatter,
-                            autoSkip: false,
-                            major: {
-                                enabled: true,
-                            },
-                            font: context => {
-                                if (context.tick && context.tick.major) {
-                                    return {
-                                        weight: 'bold'
-                                    };
-                                }
+                        font: context => {
+                            if (context.tick && context.tick.major) {
                                 return {
-                                    weight: 'normal'
+                                    weight: 'bold'
                                 };
                             }
-                        },
-                        time: {
-                            unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
-                            tooltipFormat: 'MMM d, HH:mm:ss',
-                            displayFormats: {
-                                minute: 'HH:mm',
-                                hour: 'HH:mm',
-                                day: 'MMM d',
-                                month: 'MMM YYYY'
-                            }
-                        },
+                        return {
+                                weight: 'normal'
+                            };
+                        }
                     },
-                    y: {
-                        display: true,
-                        title: {
-                            display: false,
-                        },
-                        grid: { color: gridLineColor },
-                        ticks: { color: tickColor }
-                    }
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
-                spanGaps: true,
+                y: {
+                    display: true,
+                    title: {
+                        display: false,
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
+                }
             },
+            spanGaps: true,
+        },
+        
+    });
+
+    // Modify the fill property based on the chart type after chart initialization
+    if (chartType === 'Area chart') {
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = true;
         });
-    
-        // Modify the fill property based on the chart type after chart initialization
-        if (chartType === 'Area chart') {
-            lineChart.config.data.datasets.forEach(function(dataset) {
-                dataset.fill = true;
-            });
-        } else {
-            lineChart.config.data.datasets.forEach(function(dataset) {
-                dataset.fill = false;
-            });
-        }
-    
-        lineChart.update();
-    } catch (error) {
-        console.warn('Chart initialization error:', error);
-    }
-    return lineChart;
-    
-}
-
-function generateEmptyTimeLabels(startDate) {
-    // Convert startDate to string if it's not
-    if (typeof startDate !== 'string') {
-        startDate = String(startDate);
-    }
-
-    const endTime = new Date();
-    let startTime, stepSize;
-
-    // Determine start time and step size based on selected time frame
-    if (startDate.includes("now-5m")) {
-        startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
-        stepSize = 1 * 60 * 1000; // 1 minute
-    } else if (startDate.includes("now-15m")) {
-        startTime = new Date(endTime.getTime() - 15 * 60 * 1000);
-        stepSize = 1 * 60 * 1000; // 1 minute
-    } else if (startDate.includes("now-30m")) {
-        startTime = new Date(endTime.getTime() - 30 * 60 * 1000);
-        stepSize = 2 * 60 * 1000; // 2 minutes
-    } else if (startDate.includes("now-1h")) {
-        startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
-        stepSize = 5 * 60 * 1000; // 5 minutes
-    } else if (startDate.includes("now-3h")) {
-        startTime = new Date(endTime.getTime() - 3 * 60 * 60 * 1000);
-        stepSize = 10 * 60 * 1000; // 10 minutes
-    } else if (startDate.includes("now-6h")) {
-        startTime = new Date(endTime.getTime() - 6 * 60 * 60 * 1000);
-        stepSize = 15 * 60 * 1000; // 15 minutes
-    } else if (startDate.includes("now-12h")) {
-        startTime = new Date(endTime.getTime() - 12 * 60 * 60 * 1000);
-        stepSize = 30 * 60 * 1000; // 30 minutes
-    } else if (startDate.includes("now-24h")) {
-        startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
-        stepSize = 60 * 60 * 1000; // 1 hour
-    } else if (startDate.includes("now-2d")) {
-        startTime = new Date(endTime.getTime() - 2 * 24 * 60 * 60 * 1000);
-        stepSize = 2 * 60 * 60 * 1000; // 2 hours
-    } else if (startDate.includes("now-7d")) {
-        startTime = new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000);
-        stepSize = 6 * 60 * 60 * 1000; // 6 hours
-    } else if (startDate.includes("now-30d")) {
-        startTime = new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000);
-        stepSize = 12 * 60 * 60 * 1000; // 12 hours
-    } else if (startDate.includes("now-90d")) {
-        startTime = new Date(endTime.getTime() - 90 * 24 * 60 * 60 * 1000);
-        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 day
     } else {
-        startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
-        stepSize = 1 * 60 * 1000; // 1 minute
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = false;
+        });
     }
 
-    let labels = [];
-    for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
-        labels.push(time);
-    }
-
-    return labels;
+    lineChart.update();
+    return lineChart;
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
@@ -1560,8 +1432,8 @@ $('#json-block').on('click', function() {
 });
 
 // Merge Graphs in one
-function mergeGraphs(chartType, panelId = -1) {
-    try {
+function mergeGraphs(chartType, panelId=-1) {
+    if(isDashboardScreen){
         // For dashboard page
         var panelChartEl;
         if (panelId === -1) {
@@ -1570,124 +1442,126 @@ function mergeGraphs(chartType, panelId = -1) {
             panelChartEl = $(`#panel${panelId} .panEdit-panel`);
             panelChartEl.css("width", "100%").css("height", "100%");
         }
-
+    
         panelChartEl.empty(); // Clear any existing content
         var mergedCanvas = $('<canvas></canvas>');
         panelChartEl.append(mergedCanvas);
-
-        var mergedCtx = mergedCanvas[0] ? mergedCanvas[0].getContext('2d') : null;
-        if (!mergedCtx) {
-            console.warn('Could not get canvas context. Skipping chart creation.');
-            return;
-        }
-
-        var mergedData = {
-            labels: [],
-            datasets: []
-        };
-        var graphNames = [];
-
-        // Loop through chartDataCollection to merge datasets
-        for (var queryName in chartDataCollection) {
-            if (chartDataCollection.hasOwnProperty(queryName)) {
-                // Merge datasets for the current query
-                var datasets = chartDataCollection[queryName].datasets;
-                graphNames.push(`Metrics query - ${queryName}`); 
-                datasets.forEach(function(dataset) {
-                    mergedData.datasets.push({
-                        label: dataset.label,
-                        data: dataset.data,
-                        borderColor: dataset.borderColor,
-                        borderWidth: dataset.borderWidth,
-                        backgroundColor: dataset.backgroundColor,
-                        fill: (chartType === 'Area chart') ? true : false 
-                    });
-                });
-                // Update labels (same for all graphs)
-                mergedData.labels = chartDataCollection[queryName].labels;
-            }
-        }
-        $('.merged-graph-name').html(graphNames.join(', '));
-        const { gridLineColor, tickColor } = getGraphGridColors();
+    
+        var mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+    }else{
+        // For metrics explorer page
+        var visualizationContainer = $(`
+            <div class="merged-graph-name"></div>
+            <div class="merged-graph"></div>`);
+    
+        $('#merged-graph-container').empty().append(visualizationContainer);
         
-        var mergedLineChart = new Chart(mergedCtx, {
-            type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
-            data: mergedData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: shouldShowLegend(panelId, mergedData.datasets),
-                        position: 'bottom',
-                        align: 'start',
-                        labels: {
-                            boxWidth: 10,
-                            boxHeight: 2, 
-                            fontSize: 10 
-                        }
+        var mergedCanvas = $('<canvas></canvas>');
+    
+        $('.merged-graph').empty().append(mergedCanvas);
+        var mergedCtx = mergedCanvas[0].getContext('2d');
+    }
+
+    var mergedData = {
+        labels: [],
+        datasets: []
+    };
+    var graphNames = [];
+
+    // Loop through chartDataCollection to merge datasets
+    for (var queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            // Merge datasets for the current query
+            var datasets = chartDataCollection[queryName].datasets;
+            graphNames.push(`Metrics query - ${queryName}`); 
+            datasets.forEach(function(dataset) {
+                mergedData.datasets.push({
+                    label: dataset.label,
+                    data: dataset.data,
+                    borderColor: dataset.borderColor,
+                    borderWidth: dataset.borderWidth,
+                    backgroundColor: dataset.backgroundColor,
+                    fill: (chartType === 'Area chart') ? true : false 
+                });
+            });
+            // Update labels ( same for all graphs)
+            mergedData.labels = chartDataCollection[queryName].labels;
+        }
+    }
+    $('.merged-graph-name').html(graphNames.join(', '));
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    var mergedLineChart = new Chart(mergedCtx, {
+        type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
+        data: mergedData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: shouldShowLegend(panelId, mergedData.datasets),
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2, 
+                        fontSize: 10 
                     }
-                },
-                scales: {
-                    x: {
-                        type: 'time',
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    display: true,
+                    title: {
                         display: true,
-                        title: {
-                            display: true,
-                            text: ''
+                        text: ''
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
                         },
-                        grid: {
-                            display: false
-                        },
-                        ticks: { 
-                            color: tickColor,
-                            callback: xaxisFomatter,
-                            autoSkip: false,
-                            major: {
-                                enabled: true,
-                            },
-                            font: context => {
-                                if (context.tick && context.tick.major) {
-                                    return {
-                                        weight: 'bold'
-                                    };
-                                }
+                        font: context => {
+                            if (context.tick && context.tick.major) {
                                 return {
-                                    weight: 'normal'
+                                    weight: 'bold'
                                 };
                             }
-                        },
-                        time: {
-                            unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
-                            tooltipFormat: 'MMM d, HH:mm:ss',
-                            displayFormats: {
-                                minute: 'HH:mm',
-                                hour: 'HH:mm',
-                                day: 'MMM d',
-                                month: 'MMM YYYY'
-                            }
-                        },
+                        return {
+                                weight: 'normal'
+                            };
+                        }
                     },
-                    y: {
-                        display: true,
-                        title: {
-                            display: false,
-                        },
-                        grid: { color: gridLineColor },
-                        ticks: { color: tickColor }
-                    }
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
-                spanGaps: true,
-            }
-        });
-        mergedGraph = mergedLineChart;
-        updateDownloadButtons();
-    } catch (error) {
-        console.warn('Error merging graphs:', error);
-    }
+                y: {
+                    display: true,
+                    title: {
+                        display: false,
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
+                }
+            },
+            spanGaps: true,
+        }
+    });
+    mergedGraph = mergedLineChart;
+    updateDownloadButtons();
 }
-
-
 
 const shouldShowLegend = (panelId, datasets) => {
     return panelId===-1 || datasets.length < 5;
@@ -1822,12 +1696,6 @@ async function getMetricsData(queryName, metricName) {
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
-    // Check if the formula is purely numeric
-    if (/^-?\d+(\.\d+)?$/.test(formulaDetails.formula.trim())) {
-        await generateConstantSeries(formulaId, parseFloat(formulaDetails.formula));
-        return;
-    }
-
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
@@ -1867,23 +1735,22 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     metricsQueryParams = data;
 
-    try {
-        const res = await fetchTimeSeriesData(data);
-        if (res) {
-            rawTimeSeriesData = res;
-        }
-
-        const chartData = await convertDataForChart(rawTimeSeriesData);
-        if (isAlertScreen) {
-            addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-        } else {
-            addVisualizationContainer(formulaId, chartData, formulaString);
-        }
-        updateDownloadButtons();
-    } catch (error) {
-        console.error('Error fetching data:', error);
+    const res = await fetchTimeSeriesData(data);
+    if (res) {
+        rawTimeSeriesData = res;
     }
+
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+
+    if (isAlertScreen) {
+        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+    } else {
+        addVisualizationContainer(formulaId, chartData, formulaString);
+    }
+    updateDownloadButtons();
 }
+
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
@@ -1936,16 +1803,16 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
-    if (queryDetails.state === "builder") {
+    if(queryDetails.state === "builder"){
         queryString = createQueryString(queryDetails);
-    } else {
+    }else {
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    if (isAlertScreen) {
+    if(isAlertScreen){
         addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    } else {
+    }else{
         addVisualizationContainer(queryName, chartData, queryString);
     }
 }
@@ -2019,38 +1886,37 @@ async function getFunctions() {
         return res; 
 }
 
-async function refreshMetricsGraphs() {
-    dayCnt7 = 0;
-    dayCnt2 = 0;
+async function refreshMetricsGraphs(){
+    dayCnt7=0;
+    dayCnt2=0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
-
+  
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
-    if (queries[firstKey].metrics) { // only if the first query is not empty
+    if(queries[firstKey].metrics){ // only if the first query is not empty
         // Update graph for each query
-        await Promise.all(Object.keys(queries).map(async function (queryName) {
+        Object.keys(queries).forEach(async function(queryName) {
             var queryDetails = queries[queryName];
-
+    
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
             const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-
+            
             await handleQueryAndVisualize(queryName, queryDetails);
-        }));
-    }
+        });
+   }
 
-    if (Object.keys(formulas).length > 0) {
+   if(Object.keys(formulas).length > 0){
         // Update graph for each formula
-        await Promise.all(Object.keys(formulas).map(function (formulaId) {
-            return getMetricsDataForFormula(formulaId, formulas[formulaId]);
-        }));
-    }
+        Object.keys(formulas).forEach(function(formulaId){
+            getMetricsDataForFormula(formulaId, formulas[formulaId])
+        });
+   }
 }
-
 
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
