@@ -80,9 +80,8 @@ let navbarComponent = `
             </a>
             <ul class="ingestion-dropdown">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/metric-ingestion" target="_blank"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/instrumentation-for-traces" target="_blank"><li class="ingestion-link">Traces Ingestion</li></a>
-                
+                <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
             </ul>
         </div>
     </div>
@@ -211,7 +210,7 @@ $(document).ready(function () {
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
-    } else if (currentUrl.includes("test-data.html")|| currentUrl.includes("https://www.siglens.com/siglens-docs/category/instrumentation-for-traces") || currentUrl.includes("https://www.siglens.com/siglens-docs/category/metric-ingestion")) {
+    } else if (currentUrl.includes("test-data.html")|| currentUrl.includes("metrics-ingestion.html") || currentUrl.includes("traces-ingestion.html")) {
         $(".nav-ingest").addClass("active");  
         $(".nav-ingest").addClass("disable-hover");
         setTimeout(function() {
