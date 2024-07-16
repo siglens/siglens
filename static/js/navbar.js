@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -80,9 +80,8 @@ let navbarComponent = `
             </a>
             <ul class="ingestion-dropdown">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/metric-ingestion" target="_blank"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/instrumentation-for-traces" target="_blank"><li class="ingestion-link">Traces Ingestion</li></a>
-                
+                <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
             </ul>
         </div>
     </div>
@@ -128,13 +127,13 @@ let navbarComponent = `
             </div>
         </div>
     </div>
-`
+`;
 
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
-    { name: 'Settings', url: './org-settings.html', class : 'org-settings' },
-    { name: 'Version', url: './application-version.html', class: 'application-version' }
+    { name: 'Settings', url: './org-settings.html', class: 'org-settings' },
+    { name: 'Version', url: './application-version.html', class: 'application-version' },
 ];
 
 let tracingUpperNavTabs = [
@@ -148,152 +147,138 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
-
-
 $(document).ready(function () {
-    $("#app-side-nav").prepend(navbarComponent);
+    $('#app-side-nav').prepend(navbarComponent);
     const currentUrl = window.location.href;
-    const navItems = [
-        ".nav-search",
-        ".nav-metrics",
-        ".nav-ldb",
-        ".nav-usq",
-        ".nav-slos",
-        ".nav-alerts",
-        ".nav-myorg",
-        ".nav-minion",
-        ".nav-live",
-        ".nav-traces",
-        ".nav-ingest",
-    ];
+    const navItems = ['.nav-search', '.nav-metrics', '.nav-ldb', '.nav-usq', '.nav-slos', '.nav-alerts', '.nav-myorg', '.nav-minion', '.nav-live', '.nav-traces', '.nav-ingest'];
     function removeActiveClass() {
-        navItems.forEach(item => $(item).removeClass("active"));
+        navItems.forEach((item) => $(item).removeClass('active'));
     }
     function setActiveClass(selector) {
-        $(selector).addClass("active");
+        $(selector).addClass('active');
     }
 
-    if (currentUrl.includes("index.html")) {
-        $(".nav-search").addClass("active");
-    } else if (currentUrl.includes("metrics-explorer.html")) {
-        $(".nav-metrics").addClass("active");
-        $(".nav-metrics").addClass("disable-hover");
-        setTimeout(function() {
-            $(".nav-metrics").removeClass("disable-hover");
+    if (currentUrl.includes('index.html')) {
+        $('.nav-search').addClass('active');
+    } else if (currentUrl.includes('metrics-explorer.html')) {
+        $('.nav-metrics').addClass('active');
+        $('.nav-metrics').addClass('disable-hover');
+        setTimeout(function () {
+            $('.nav-metrics').removeClass('disable-hover');
         }, 500);
-    } else if (currentUrl.includes("metric-summary.html")) {
-        $(".nav-metrics").addClass("active");
-    } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
-        $(".nav-ldb").addClass("active");
-    } else if (currentUrl.includes("saved-queries.html")) {
-        $(".nav-usq").addClass("active");
-    } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html") || currentUrl.includes("contacts.html")) {
-        $(".nav-alerts").addClass("active");
-        $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("all-slos.html")) {
-        $(".nav-slos").addClass("active");
-        $('.alerts-nav-tab').appendOrgNavTabs("SLOs", []);
+    } else if (currentUrl.includes('metric-summary.html')) {
+        $('.nav-metrics').addClass('active');
+    } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
+        $('.nav-ldb').addClass('active');
+    } else if (currentUrl.includes('saved-queries.html')) {
+        $('.nav-usq').addClass('active');
+    } else if (currentUrl.includes('alerts.html') || currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
+        $('.nav-alerts').addClass('active');
+        $('.alerts-nav-tab').appendOrgNavTabs('Alerting', alertsUpperNavTabs);
+    } else if (currentUrl.includes('all-slos.html')) {
+        $('.nav-slos').addClass('active');
+        $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
     } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls }} ) {
         $('.nav-myorg').addClass('active');
         $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
-    } else if (currentUrl.includes("minion-searches.html")) {
-        $(".nav-minion").addClass("active");
-    } else if (currentUrl.includes("live-tail.html")) {
-        $(".nav-live").addClass("active");
-    } else if (currentUrl.includes("service-health.html") || currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html") || currentUrl.includes("search-traces.html")) {
-        $(".nav-traces").addClass("active");
-        $(".nav-traces").addClass("disable-hover");
-        setTimeout(function() {
-            $(".nav-traces").removeClass("disable-hover");
+    } else if (currentUrl.includes('minion-searches.html')) {
+        $('.nav-minion').addClass('active');
+    } else if (currentUrl.includes('live-tail.html')) {
+        $('.nav-live').addClass('active');
+    } else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
+        $('.nav-traces').addClass('active');
+        $('.nav-traces').addClass('disable-hover');
+        setTimeout(function () {
+            $('.nav-traces').removeClass('disable-hover');
         }, 500);
         if ($('.subsection-navbar').length) {
-            $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
-        }        
-    } else if (currentUrl.includes("test-data.html")|| currentUrl.includes("https://www.siglens.com/siglens-docs/category/instrumentation-for-traces") || currentUrl.includes("https://www.siglens.com/siglens-docs/category/metric-ingestion")) {
-        $(".nav-ingest").addClass("active");  
-        $(".nav-ingest").addClass("disable-hover");
-        setTimeout(function() {
-            $(".nav-ingest").removeClass("disable-hover");
-        }, 500);   
-    } 
-    
+            $('.subsection-navbar').appendOrgNavTabs('Tracing', tracingUpperNavTabs);
+        }
+    } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
+        $('.nav-ingest').addClass('active');
+        $('.nav-ingest').addClass('disable-hover');
+        setTimeout(function () {
+            $('.nav-ingest').removeClass('disable-hover');
+        }, 500);
+    }
+
     // Hover event handlers updated to respect disable-hover class
-    $(".metrics-dropdown-toggle").hover(
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".metrics-dropdown").stop(true, true).slideDown(0);
+    $('.metrics-dropdown-toggle').hover(
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.metrics-dropdown').stop(true, true).slideDown(0);
             }
         },
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".metrics-dropdown").stop(true, true).slideUp(30);
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.metrics-dropdown').stop(true, true).slideUp(30);
             }
         }
     );
 
-    $(".tracing-dropdown-toggle").hover(
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".traces-dropdown").stop(true, true).slideDown(0);
+    $('.tracing-dropdown-toggle').hover(
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.traces-dropdown').stop(true, true).slideDown(0);
             }
         },
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".traces-dropdown").stop(true, true).slideUp(30);
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.traces-dropdown').stop(true, true).slideUp(30);
             }
         }
     );
 
-    $(".ingestion-dropdown-toggle").hover(
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".ingestion-dropdown").stop(true, true).slideDown(0);
+    $('.ingestion-dropdown-toggle').hover(
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.ingestion-dropdown').stop(true, true).slideDown(0);
             }
         },
-        function() {
-            if (!$(this).closest(".menu").hasClass("disable-hover")) {
-                $(".ingestion-dropdown").stop(true, true).slideUp(30);
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.ingestion-dropdown').stop(true, true).slideUp(30);
             }
         }
     );
 
-    $(".nav-help").hover(
-        function(event) {
+    $('.nav-help').hover(
+        function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideDown(0);
+            $('.help-options').stop(true, true).slideDown(0);
         },
-        function(event) {
+        function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideUp(30);
+            $('.help-options').stop(true, true).slideUp(30);
         }
     );
 
     // Prevent the default click action for Help & Support
-    $(".nav-help").on("click", function(event) {
+    $('.nav-help').on('click', function (event) {
         event.preventDefault();
     });
 
     // Handle the hover event for the help-options to keep it visible
-    $(".help-options").hover(
-        function(event) {
+    $('.help-options').hover(
+        function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideDown(0);
+            $('.help-options').stop(true, true).slideDown(0);
         },
-        function(event) {
+        function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideUp(30);
+            $('.help-options').stop(true, true).slideUp(30);
         }
     );
 
-    $(document).on("click", function (event) {
-        var helpOptions = $(".help-options");
-        var metricsDropdown = $(".metrics-dropdown");
-        var tracesDropdown = $(".traces-dropdown");
-        var ingestionDropdown = $(".ingestion-dropdown");
+    $(document).on('click', function (event) {
+        var helpOptions = $('.help-options');
+        var metricsDropdown = $('.metrics-dropdown');
+        var tracesDropdown = $('.traces-dropdown');
+        var ingestionDropdown = $('.ingestion-dropdown');
 
         if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
             metricsDropdown.hide();
@@ -310,7 +295,7 @@ $(document).ready(function () {
     });
 
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    menuItem.forEach(item => {
+    menuItem.forEach((item) => {
         if (item.href === currentUrl) {
             item.classList.add('active');
         }

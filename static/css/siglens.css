@@ -5223,7 +5223,7 @@ input.form-control {
 }
 
 
-#data-ingestion .myOrg-heading{
+#data-ingestion .myOrg-heading, #vector-metrics-ingestion .myOrg-heading, #telemetry-ingestion .myOrg-heading, #go-app .myOrg-heading, #net-app .myOrg-heading, #java-app .myOrg-heading, #javascript-app .myOrg-heading, #python-app .myOrg-heading{
     font-size: 16px;
     margin-top: 20px;
     margin-bottom: 4px;
