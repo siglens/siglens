@@ -465,10 +465,13 @@ async function editPanelInit(redirectedFromViewScreen) {
     }
     displayQueryToolTip(selectedDataSourceTypeIndex);
 
+    // Handle index display
+    indexValues = [...originalIndexValues];
     if (currentPanel.queryData && currentPanel.queryData.indexName) {
         selectedSearchIndex = currentPanel.queryData.indexName;
     }
     setIndexDisplayValue(selectedSearchIndex);
+    $('#index-listing').autocomplete('option', 'source', indexValues);
 
     if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
     if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
