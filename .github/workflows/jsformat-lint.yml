@@ -1,20 +1,21 @@
 name: Format and Lint the JS code
 
 on:
-  pull_request:
-    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
       - 'static/js/**.js'
 
 
 jobs:
-  format:
+  build:
     runs-on: ubuntu-latest
     name: Format Files
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.head_ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-node@v3
         with:
           node-version: "18.18.0"
