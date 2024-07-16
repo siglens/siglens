@@ -200,9 +200,11 @@ $('.index-container').on('click', '.remove-icon', function (_e) {
         $('#index-listing').autocomplete('option', 'source', indexValues);
     }
 
-    // Update selectedSearchIndex
     selectedSearchIndex = selectedSearchIndex
         .split(',')
+        .map(function (value) {
+            return value.trim();
+        })
         .filter(function (value) {
             return value !== removedValue;
         })

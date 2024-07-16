@@ -22,6 +22,31 @@ let originalIndexValues = [];
 let indexValues = [];
 
 $(document).ready(async () => {
+    function createTooltip(selector, content) {
+        //eslint-disable-next-line no-undef
+        tippy(selector, {
+            content: content, // Tooltip content
+            placement: 'top', // Tooltip placement (top, bottom, left, right)
+            arrow: true, // Show an arrow
+            animation: 'fade', // Tooltip animation
+        });
+    }
+
+    // Call the function for each tooltip
+    createTooltip('#add-index', 'Add New Index');
+    createTooltip('#date-picker-btn', 'Pick the Time Window');
+    createTooltip('#query-builder-btn', 'Run Query');
+    createTooltip('#logs-settings', 'Settings');
+    createTooltip('#saveq-btn', 'Save query');
+    createTooltip('#add-logs-to-db-btn', 'Add to dashboards');
+    createTooltip('#alert-from-logs-btn', 'Create alert');
+    createTooltip('.download-all-logs-btn', 'Download logs');
+    createTooltip('#show-record-intro-btn', 'Query Response Information');
+    createTooltip('#log-opt-single-btn', 'Single Line Display View');
+    createTooltip('#log-opt-multi-btn', 'Wrap Line Display View');
+    createTooltip('#log-opt-table-btn', 'Tabular View');
+    createTooltip('.avail-fields-btn', 'Select field names to display');
+    createTooltip('#run-filter-btn', 'Run query');
     setSaveQueriesDialog();
     let indexes = await getListIndices();
     if (indexes) {
@@ -171,29 +196,6 @@ $(document).ready(async () => {
         }
     });
 
-    $('#filter-input').focus(function () {
-        if ($(this).val() === '*') {
-            $(this).val('');
-        }
-    });
-
-    function autoResizeTextarea() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
-    }
-
-    $('#filter-input').on('focus', function () {
-        $(this).addClass('expanded');
-        autoResizeTextarea.call(this);
-    });
-
-    $('#filter-input').on('blur', function () {
-        $(this).removeClass('expanded');
-        this.style.height = '32px';
-    });
-
-    $('#filter-input').on('input', autoResizeTextarea);
-
     $('#logs-settings').click(function () {
         event.stopPropagation();
         $('#setting-container').fadeToggle('fast');
@@ -204,17 +206,6 @@ $(document).ready(async () => {
             $('#setting-container').hide();
         }
     });
-});
 
-$('#filter-input').on('input', function () {
-    if ($(this).val().trim() !== '') {
-        $('#clearInput').show();
-    } else {
-        $('#clearInput').hide();
-    }
-});
-
-$('#clearInput').click(function () {
-    $('#filter-input').val('').focus();
-    $(this).hide();
+    initializeFilterInputEvents();
 });
