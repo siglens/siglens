@@ -3065,7 +3065,7 @@ float: right;
     justify-content: center;
 }
 
-.settings-btn{
+.settings-btn#logs-settings{
     width: 26px;
     height: 26px;
     margin-left: 10px;

@@ -438,17 +438,12 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
-        isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
-        if (isQueryBuilderSearch) {
-            data.searchText = getQueryBuilderCode();
-        } else {
-            data.searchText = $('#filter-input').val();
-        }
-        fetchLogsPanelData(data, -1).then((res) => {
+        fetchLogsPanelData(data,-1).then((res)=>{
             alertChart(res);
         });
-    } else {
-        // index.html
+    }else if(currentPage ==='/dashboard.html'){
+        runQueryBtnHandler();
+    }else { // index.html
         $('.popover').hide();
         evt.preventDefault();
         if ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ') {

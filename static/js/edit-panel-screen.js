@@ -290,7 +290,7 @@ $(document).ready(function () {
     }
 });
 //eslint-disable-next-line no-unused-vars
-function editPanelInit(redirectedFromViewScreen) {
+async function editPanelInit(redirectedFromViewScreen) {
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -310,6 +310,11 @@ function editPanelInit(redirectedFromViewScreen) {
     $('.panelDisplay #panelLogResultsGrid').hide();
     $('.panelDisplay .panel-info-corner').hide();
     $('#metrics-queries,#metrics-formula').empty();
+    $('#filter-input').val('');
+    $('.tags-list').empty();
+    [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+    $('#aggregations, #aggregate-attribute-text, #search-filter-text').show();
+
     currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     $('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
     // reset inputs to show placeholders
@@ -338,14 +343,19 @@ function editPanelInit(redirectedFromViewScreen) {
             }
         );
     }
-
     if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
-        if (currentPanel.queryType === 'metrics') queryStr = currentPanel.queryData.queries[0].query;
-        else queryStr = currentPanel.queryData.searchText;
-    } else {
-        queryStr = '';
+        if (currentPanel.queryType === 'logs') {
+            let queryMode = currentPanel.queryData.queryMode || '';
+            let queryText = currentPanel.queryData.searchText;
+            if (queryMode === 'Builder') {
+                $('#custom-code-tab').tabs('option', 'active', 0);
+                codeToBuilderParsing(queryText);
+            } else if (queryMode === 'Code' || queryMode === '') {
+                $('#custom-code-tab').tabs('option', 'active', 1);
+                $('#filter-input').val(queryText);
+            }
+        }
     }
-    $('.queryInput').val(queryStr);
 
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
@@ -470,20 +480,25 @@ function editPanelInit(redirectedFromViewScreen) {
     $('.panelDisplay .panEdit-panel').show();
     setTimePicker();
     pauseRefreshInterval();
-    runQueryBtnHandler();
+    await runQueryBtnHandler();
 }
 
 $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on('click', goToDashboard);
-$('.panEdit-save').on('click', async function () {
+$('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
+        if (isQueryBuilderSearch) {
+            data.queryMode = 'Builder';
+        } else {
+            data.queryMode = 'Code';
+        }
     }
     localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
     updateTimeRangeForAllPanels(filterStartDate, filterEndDate);

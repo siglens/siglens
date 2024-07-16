@@ -408,6 +408,14 @@ function getQueryParamsData(scrollingTrigger) {
     if (scrollingTrigger) {
         sFrom = scrollFrom;
     }
+
+    isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
+    if(isQueryBuilderSearch) {
+        queryStr = getQueryBuilderCode();
+    }else{
+        queryStr = $('#filter-input').val();
+    }
+
     let data = {
         state: wsState,
         searchText: queryStr,
