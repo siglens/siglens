@@ -277,33 +277,8 @@ function formulaInputHandler(formulaElement, uniqueId) {
 }
 
 async function generateConstantSeries(uniqueId, constantValue) {
-    let startTime = new Date(filterStartDate);
-    let endTime = new Date(filterEndDate);
-    let stepSize;
-
-    // Determine the step size based on the time range
-    const timeRange = (endTime - startTime) / 1000; // time range in seconds
-    if (timeRange > 365 * 24 * 60 * 60) {
-        stepSize = 30 * 24 * 60 * 60 * 1000; // 30 days
-    } else if (timeRange >= 90 * 24 * 60 * 60) {
-        stepSize = 7 * 24 * 60 * 60 * 1000; // 7 days
-    } else if (timeRange >= 30 * 24 * 60 * 60) {
-        stepSize = 2 * 24 * 60 * 60 * 1000; // 2 days
-    } else if (timeRange >= 7 * 24 * 60 * 60) {
-        stepSize = 12 * 60 * 60 * 1000; // 12 hours
-    } else if (timeRange >= 2 * 24 * 60 * 60) {
-        stepSize = 6 * 60 * 60 * 1000; // 6 hours
-    } else if (timeRange >= 24 * 60 * 60) {
-        stepSize = 3 * 60 * 60 * 1000; // 3 hours
-    } else if (timeRange >= 12 * 60 * 60) {
-        stepSize = 30 * 60 * 1000; // 30 minutes
-    } else if (timeRange >= 3 * 60 * 60) {
-        stepSize = 15 * 60 * 1000; // 15 minutes
-    } else if (timeRange >= 30 * 60) {
-        stepSize = 5 * 60 * 1000; // 5 minutes
-    } else {
-        stepSize = 1 * 60 * 1000; // 1 minute
-    }
+    const endTime = new Date();
+    const { startTime, stepSize } = getStepSize(filterStartDate, endTime);
 
     let labels = [];
     for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
@@ -1137,13 +1112,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     
 }
 
-function generateEmptyTimeLabels(startDate) {
-    // Convert startDate to string if it's not
-    if (typeof startDate !== 'string') {
-        startDate = String(startDate);
-    }
-
-    const endTime = new Date();
+function getStepSize(startDate, endTime) {
     let startTime, stepSize;
 
     // Determine start time and step size based on selected time frame
@@ -1187,6 +1156,13 @@ function generateEmptyTimeLabels(startDate) {
         startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
         stepSize = 1 * 60 * 1000; // 1 minute
     }
+
+    return { startTime, stepSize };
+}
+
+function generateEmptyTimeLabels(startDate) {
+    const endTime = new Date();
+    const { startTime, stepSize } = getStepSize(startDate, endTime);
 
     let labels = [];
     for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
