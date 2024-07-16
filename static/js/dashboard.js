@@ -43,6 +43,8 @@ $(document).ready(async function () {
     }
     initializeIndexAutocomplete();
 
+    initializeFilterInputEvents();
+
     $('#new-dashboard').css('transform', 'translate(150px)');
     $('#new-dashboard').css('width', 'calc(100% - 150px)');
 
@@ -151,7 +153,7 @@ $(`.dbSet-textareaContainer .copy`).click(function () {
 
 $('#save-db-btn').on('click', updateDashboard);
 $('.refresh-btn').on('click', refreshDashboardHandler);
-$('.settings-btn').on('click', handleDbSettings);
+$('#db-settings-btn').on('click', handleDbSettings);
 $('#dbSet-save').on('click', saveDbSetting);
 $('#dbSet-discard').on('click', discardDbSetting);
 $('.dbSet-goToDB').on('click', discardDbSetting);

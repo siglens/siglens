@@ -196,16 +196,5 @@ $(document).ready(async () => {
         }
     });
 
-    $('#logs-settings').click(function () {
-        event.stopPropagation();
-        $('#setting-container').fadeToggle('fast');
-    });
-
-    $(document).click(function (event) {
-        if (!$(event.target).closest('#setting-container').length) {
-            $('#setting-container').hide();
-        }
-    });
-
     initializeFilterInputEvents();
 });

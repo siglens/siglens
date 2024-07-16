@@ -47,6 +47,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/dashboard.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
@@ -64,6 +65,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
@@ -134,7 +136,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <button class="btn dropdown-dash" id="save-db-btn" title="Save dashboard">
                     </button>
-                    <button class="btn settings-btn" title="Dashboard settings">
+                    <button class="btn settings-btn" title="Dashboard settings" id="db-settings-btn">
                     </button>
                     <div class="refresh-container">
                         <button class="btn refresh-btn" title="Refresh dashboard">
@@ -320,7 +322,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </label>
                             </div>
                             <div>
-                                <button class="btn settings-btn panEdit-btn" title="Open dashboard settings"></button>
+                                <button class="btn settings-btn panEdit-btn" title="Open dashboard settings" id="db-settings-btn"></button>
                             </div>
                         </div>
                     </div>

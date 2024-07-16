@@ -1531,3 +1531,6 @@ input:checked + .slider:before {
 #metrics-query-language{
   width: 100%;
 }
+.ag-theme-mycustomtheme .ag-root-wrapper {
+  border: none !important;
+}

@@ -532,7 +532,6 @@ $('#nestedThroughputDropDown').on('click', handleNestedTptDropDownClick);
 $('#nestedPercentDropDown').on('click', handleNestedPercentDropDownClick);
 $('#nestedTimeDropDown').on('click', handleNestedTimeDropDownClick);
 $('#nestedDataRateDropDown').on('click', handleNestedDataRateDropDownClick);
-$('#query-language-options .query-language-option').on('click', setQueryLangHandlerEditPanel);
 
 $('.btn-runQuery').on('click', runQueryBtnHandler);
 
@@ -1289,13 +1288,6 @@ function getMetricsQData() {
     }
 
     return { queriesData, formulasData };
-}
-
-function setQueryLangHandlerEditPanel(_e) {
-    $('.panelEditor-container .query-language-option').removeClass('active');
-    $('.panelEditor-container #query-language-btn span').html($(this).html());
-    displayQueryToolTip(selectedDataSourceTypeIndex);
-    $(this).addClass('active');
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
