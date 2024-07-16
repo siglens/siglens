@@ -1539,10 +1539,15 @@ $('#json-block').on('click', function() {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     try {
-        // Determine the correct element to append the merged graph canvas to
-        console.log("Merging graphs with chart type:", chartType);
-        var panelChartEl = $('#merged-graph-container');
-        panelChartEl.empty(); // Clear any existing content
+        let panelChartEl;
+        if (isDashboardScreen) {
+            panelChartEl = (panelId === -1) ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+            panelChartEl.empty(); // Clear any existing content
+        } else {
+            panelChartEl = $('#merged-graph-container');
+            panelChartEl.empty(); // Clear any existing content
+        }
+
         var mergedCanvas = $('<canvas></canvas>');
         panelChartEl.append(mergedCanvas);
 
@@ -1559,7 +1564,7 @@ function mergeGraphs(chartType, panelId = -1) {
         for (var queryName in chartDataCollection) {
             if (chartDataCollection.hasOwnProperty(queryName)) {
                 var datasets = chartDataCollection[queryName].datasets;
-                graphNames.push(`Metrics query - ${queryName}`); 
+                graphNames.push(`Metrics query - ${queryName}`);
                 datasets.forEach(function(dataset) {
                     mergedData.datasets.push({
                         label: dataset.label,
@@ -1640,6 +1645,7 @@ function mergeGraphs(chartType, panelId = -1) {
         console.warn('Error merging graphs:', error);
     }
 }
+
 
 
 
