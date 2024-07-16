@@ -52,3 +52,12 @@ func ConvertSubseconds(subsecond string) (TimeUnit, error) {
 		return 0, fmt.Errorf("ConvertSubseconds: can not convert: %v", subsecond)
 	}
 }
+
+func IsSubseconds(timeUnit TimeUnit) bool {
+	switch timeUnit {
+	case TMMicrosecond, TMMillisecond, TMCentisecond, TMDecisecond:
+		return true
+	default:
+		return false
+	}
+}

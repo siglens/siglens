@@ -534,13 +534,15 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
 //eslint-disable-next-line no-unused-vars
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     $('body').css('cursor', 'progress');
-    if (panelId == -1) { // for panel on the editPanelScreen page
-        $(".panelDisplay #panelLogResultsGrid").hide();
-        $(".panelDisplay #empty-response").empty();
+    if (panelId == -1) {
+        // for panel on the editPanelScreen page
+        $('.panelDisplay #panelLogResultsGrid').hide();
+        $('.panelDisplay #empty-response').empty();
         $('.panelDisplay #corner-popup').hide();
-        $(".panelDisplay #empty-response").hide();
+        $('.panelDisplay #empty-response').hide();
         $('.panelDisplay .panEdit-panel').show();
-    } else { // for panels on the dashboard page
+    } else {
+        // for panels on the dashboard page
         $(`#panel${panelId} #panelLogResultsGrid`).hide();
         $(`#panel${panelId} #empty-response`).empty();
         $(`#panel${panelId} #corner-popup`).hide();
@@ -548,7 +550,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         $(`#panel${panelId} .panEdit-panel`).show();
     }
     let chartType = currentPanel.chartType;
-    if (chartType === 'number'){
+    if (chartType === 'number') {
         let bigNumVal = null;
         let dataType = currentPanel.dataType;
         let rawTimeSeriesData;
@@ -563,20 +565,21 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     bigNumVal = value;
                 }
             });
-        }); 
-        if(bigNumVal === undefined || bigNumVal === null){
-            panelProcessEmptyQueryResults("", panelId);
-        }else{
+        });
+        if (bigNumVal === undefined || bigNumVal === null) {
+            panelProcessEmptyQueryResults('', panelId);
+        } else {
             displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
             allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
+            if (allResultsDisplayed <= 0 || panelId === -1) {
                 $('body').css('cursor', 'default');
             }
-            $(`#panel${panelId} .panel-body #panel-loading`).hide();   
-        } 
-    }else {
+            $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        }
+    } else {
         chartDataCollection = {};
-        if(panelId === -1){// for panel on the editPanelScreen page
+        if (panelId === -1) {
+            // for panel on the editPanelScreen page
             for (const queryData of data.queriesData) {
                 const parsedQueryObject = parsePromQL(queryData.queries[0].query);
                 await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
@@ -585,14 +588,15 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 let uniqueId = generateUniqueId();
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
-        }else{// for panels on the dashboard page
+        } else {
+            // for panels on the dashboard page
             for (const queryData of data.queriesData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
                 const queryString = queryData.queries[0].query; // Adjust as per your data structure
                 addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
             }
-    
+
             for (const formulaData of data.formulasData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
@@ -600,11 +604,11 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 addVisualizationContainer(formulaData.formulas[0].formula, chartData, queryString, panelId);
             }
         }
-        $(`#panel${panelId} .panel-body #panel-loading`).hide();  
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
+        if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
-        } 
+        }
         $('body').css('cursor', 'default');
     }
 }
@@ -872,8 +876,7 @@ function renderChartByChartType(data, queryRes, panelId, currentPanel) {
                 currentPanel.dataType = 'none';
             }
             if (currentPanel.queryType == 'metrics') {
-                let startTime = new Date().getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.dataType);
+                runMetricsQuery(data, panelId, currentPanel);
             } else {
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             }
@@ -930,17 +933,17 @@ function displayQueryLangToolTip(selectedQueryLangID) {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-    $("#filter-input").on("input", function() {
-        if ($(this).val().trim() !== "") {
-            $("#clearInput").show();
+    $('#filter-input').on('input', function () {
+        if ($(this).val().trim() !== '') {
+            $('#clearInput').show();
         } else {
-            $("#clearInput").hide();
+            $('#clearInput').hide();
         }
     });
 
-    $("#filter-input").focus(function() {
-        if ($(this).val() === "*") {
-            $(this).val("");
+    $('#filter-input').focus(function () {
+        if ($(this).val() === '*') {
+            $(this).val('');
         }
     });
 
@@ -949,32 +952,32 @@ function initializeFilterInputEvents() {
         this.style.height = this.scrollHeight + 'px';
     }
 
-    $("#filter-input").on('focus', function() {
+    $('#filter-input').on('focus', function () {
         $(this).addClass('expanded');
         autoResizeTextarea.call(this);
     });
 
-    $("#filter-input").on('blur', function() {
+    $('#filter-input').on('blur', function () {
         $(this).removeClass('expanded');
         this.style.height = '32px';
     });
 
-    $("#filter-input").on('input', autoResizeTextarea);
+    $('#filter-input').on('input', autoResizeTextarea);
 
-    $("#clearInput").click(function() {
-        $("#filter-input").val("").focus();
+    $('#clearInput').click(function () {
+        $('#filter-input').val('').focus();
         $(this).hide();
     });
-    $("#filter-input").keydown(function (e) {
+    $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
-          let input = $(this);
-          let value = input.val();
-          let position = this.selectionStart;
-          input.val(value.substring(0, position) + '\n' + value.substring(position));
-          this.selectionStart = this.selectionEnd = position + 2;
+            let input = $(this);
+            let value = input.val();
+            let position = this.selectionStart;
+            input.val(value.substring(0, position) + '\n' + value.substring(position));
+            this.selectionStart = this.selectionEnd = position + 2;
         }
-      });
-      document.getElementById('filter-input').addEventListener('paste', function(event) {
+    });
+    document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
         let pasteData = (event.clipboardData || window.clipboardData).getData('text');
         let newValue = pasteData.replace(/\|/g, '\n|');
@@ -983,6 +986,5 @@ function initializeFilterInputEvents() {
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
         autoResizeTextarea.call(this);
-      });
-      
+    });
 }

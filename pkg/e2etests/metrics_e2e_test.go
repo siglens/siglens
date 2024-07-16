@@ -279,8 +279,8 @@ func GetTestMetricsData(startTimestamp uint32) ([]timeSeries, []string, map[stri
 	return allTimeSeries, allMetricNames, allTagKeys, allTagKeyValues
 }
 
-func initTestConfig() error {
-	runningConfig := config.GetTestConfig()
+func initTestConfig(t *testing.T) error {
+	runningConfig := config.GetTestConfig(t.TempDir())
 	runningConfig.DataPath = "metrics-e2etest-data/"
 	runningConfig.SSInstanceName = "test"
 	config.SetConfig(runningConfig)
@@ -363,7 +363,7 @@ func Test_WriteMetrics(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -380,7 +380,7 @@ func Test_UnrotatedMetricNames(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, mNames, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -404,7 +404,7 @@ func Test_RotatedMetricNames(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, mNames, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -435,7 +435,7 @@ func Test_GetAllTagsForAMetric(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, mNames, tagKeys, tagKeyValues := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -480,7 +480,7 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, metricNames, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -535,7 +535,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -603,7 +603,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -673,7 +673,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -744,7 +744,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -817,7 +817,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -886,7 +886,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -959,7 +959,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -1026,7 +1026,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)
@@ -1116,7 +1116,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
 
-	err := initTestConfig()
+	err := initTestConfig(t)
 	assert.Nil(t, err)
 
 	err = ingestTestMetricsData(allTimeSeries)

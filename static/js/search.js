@@ -22,6 +22,25 @@ function wsURL(path) {
     var url = protocol + location.host;
     return url + path;
 }
+//eslint-disable-next-line no-unused-vars
+function doCancel(data) {
+    socket.send(JSON.stringify(data));
+    $('body').css('cursor', 'default');
+    $('#run-filter-btn').html(' ');
+    $('#run-filter-btn').removeClass('cancel-search');
+    $('#run-filter-btn').removeClass('active');
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#progress-div').html(``);
+}
+//eslint-disable-next-line no-unused-vars
+function doLiveTailCancel(_data) {
+    $('body').css('cursor', 'default');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
+    $('#progress-div').html(``);
+}
 
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
@@ -79,7 +98,7 @@ function doSearch(data) {
             switch (eventType) {
                 case 'RUNNING':
                     break;
-                case 'QUERY_UPDATE':{
+                case 'QUERY_UPDATE': {
                     console.time('QUERY_UPDATE');
                     if (timeToFirstByte === 0) {
                         timeToFirstByte = Number(totalTime).toLocaleString();

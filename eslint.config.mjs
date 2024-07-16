@@ -187,6 +187,8 @@ export default [
         "addMetricsFormulaElement": true,
         "convertDataForChart": true,
         "addVisualizationContainer": true,
+        "doLiveTailCancel": true,
+        "doCancel": true,
 
       },
     },

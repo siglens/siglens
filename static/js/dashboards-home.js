@@ -175,23 +175,27 @@ class btnRenderer {
         const starFilledURL = 'url("../assets/star-filled.svg")';
 
         this.eGui = document.createElement('span');
-        this.eGui.innerHTML = `<div id="dashboard-grid-btn">
-             
+        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;"> <!-- Added margin to move the container to the right -->
                 <button class='btn' id="viewbutton" title="Open dashboard"></button>
                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
-                <button class="star-icon" id="favbutton" title="Mark as favorite" ></button>
-                </div>`;
+                <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
+            </div>`;
+
         this.dButton = this.eGui.querySelector('.btn-simple');
+        this.dButton.style.marginRight = '5px';
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon = this.eGui.querySelector('.star-icon');
         this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
-        //Disable delete for default dashboards
+        //Disable delete for default dashboards and show "Default" label
         if (defaultDashboardIds.includes(params.data.uniqId)) {
-            this.dButton.disabled = true;
-            this.dButton.title = 'Delete disabled';
-            this.dButton.classList.add('default-dashboard-delete');
+            const defaultLabel = document.createElement('span');
+            defaultLabel.className = 'default-label';
+            defaultLabel.innerText = 'Default';
+            defaultLabel.style.textDecoration = 'none';
+            this.dButton.style.display = 'none';
+            this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
         }
 
         function deletedb() {
@@ -269,6 +273,7 @@ class btnRenderer {
                     });
             });
         }
+
         function toggleFavorite() {
             $.ajax({
                 method: 'put',
@@ -288,6 +293,7 @@ class btnRenderer {
                 }
             });
         }
+
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
             $('.popupOverlay, .popupContent').addClass('active');
@@ -313,6 +319,7 @@ class btnRenderer {
     getGui() {
         return this.eGui;
     }
+
     refresh(params) {
         // Use the URL of the SVG files for star icons
         const starOutlineURL = 'url("../assets/star-outline.svg")';

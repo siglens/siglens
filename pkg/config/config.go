@@ -20,7 +20,6 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -226,12 +225,7 @@ func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppP
 }
 
 func GetUIDomain() string {
-	hostname := GetQueryHostname()
-	if hostname == "" {
-		return "localhost"
-	} else {
-		return hostname
-	}
+	return GetQueryHostname()
 }
 
 func GetSiglensDBConfig() (string, string, uint64, string, string, string) {
@@ -446,14 +440,18 @@ func InitConfigurationData() error {
 /*
 Use only for testing purpose, DO NOT use externally
 */
-func InitializeDefaultConfig() {
-	runningConfig = GetTestConfig()
+func InitializeDefaultConfig(dataPath string) {
+	if !strings.HasSuffix(dataPath, "/") {
+		dataPath += "/"
+	}
+
+	runningConfig = GetTestConfig(dataPath)
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
 }
 
 // To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
 // ExtractConfigData(). Do this in one time.
-func GetTestConfig() common.Configuration {
+func GetTestConfig(dataPath string) common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -471,7 +469,7 @@ func GetTestConfig() common.Configuration {
 		QueryNode:                  "true",
 		IngestNode:                 "true",
 		SegFlushIntervalSecs:       5,
-		DataPath:                   "data/",
+		DataPath:                   dataPath,
 		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:             24 * 90,
 		TimeStampKey:               "timestamp",
@@ -504,10 +502,9 @@ func GetTestConfig() common.Configuration {
 	return testConfig
 }
 
-func InitializeTestingConfig() {
-	InitializeDefaultConfig()
+func InitializeTestingConfig(dataPath string) {
+	InitializeDefaultConfig(dataPath)
 	SetDebugMode(true)
-	SetDataPath("data/")
 }
 
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
@@ -713,6 +710,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if config.S3IngestBufferSize == 0 {
 		config.S3IngestBufferSize = 1000
+	}
+
+	if config.QueryHostname == "" {
+		config.QueryHostname = fmt.Sprintf("localhost:%v", config.QueryPort)
 	}
 
 	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {
@@ -1104,29 +1105,14 @@ func extractStrArray(inputValueParam interface{}) ([]string, error) {
 	return evArray, nil
 }
 
-func getQueryServerPort() (uint64, error) {
-	if runningConfig.QueryPort == 0 {
-		return 0, errors.New("getQueryServerPort: QueryServer Port config was not specified")
-	}
-	return runningConfig.QueryPort, nil
-}
-
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
-	if hostname == "" {
-		port, err := getQueryServerPort()
-		if err != nil {
-			return "http://localhost:5122"
-		}
-		return "http://localhost:" + fmt.Sprintf("%d", port)
+	if IsTlsEnabled() {
+		hostname = "https://" + hostname
 	} else {
-		if IsTlsEnabled() {
-			hostname = "https://" + hostname
-		} else {
-			hostname = "http://" + hostname
-		}
-		return hostname
+		hostname = "http://" + hostname
 	}
+	return hostname
 }
 
 // DefaultUIServerHttpConfig  set fasthttp server default configuration
