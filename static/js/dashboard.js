@@ -416,36 +416,37 @@ async function getDashboardData() {
 
 function setTimePickerValue(timeRange) {
     let start, end;
-
-    localPanels.some((panel) => {
-        if (panel.queryData) {
-            if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                if (Array.isArray(panel.queryData.queriesData)) {
-                    let query = panel.queryData.queriesData[0];
-                    start = query.start;
-                    end = query.end;
+    if (localPanels.length > 0) {
+        localPanels.some((panel) => {
+            if (panel.queryData) {
+                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                    if (Array.isArray(panel.queryData.queriesData)) {
+                        let query = panel.queryData.queriesData[0];
+                        start = query.start;
+                        end = query.end;
+                        return true;
+                    }
+                } else {
+                    start = panel.queryData.startEpoch;
+                    end = panel.queryData.endEpoch;
+                    datePickerHandler(start, end, 'custom');
                     return true;
                 }
-            } else {
-                start = panel.queryData.startEpoch;
-                end = panel.queryData.endEpoch;
-                datePickerHandler(start, end, 'custom');
-                return true;
             }
-        }
-        return false;
-    });
-    if (timeRange === 'Custom') {
-        let stDate = Number(start);
-        let endDate = Number(end);
-        datePickerHandler(stDate, endDate, 'custom');
-        $('.inner-range .db-range-item').removeClass('active');
+            return false;
+        });
+        if (timeRange === 'Custom') {
+            let stDate = Number(start);
+            let endDate = Number(end);
+            datePickerHandler(stDate, endDate, 'custom');
+            $('.inner-range .db-range-item').removeClass('active');
 
-        loadCustomDateTimeFromEpoch(stDate, endDate);
-    } else {
-        datePickerHandler(start, end, dbData.timeRange);
-        $('.inner-range .db-range-item').removeClass('active');
-        $('.inner-range #' + start).addClass('active');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else {
+            datePickerHandler(start, end, dbData.timeRange);
+            $('.inner-range .db-range-item').removeClass('active');
+            $('.inner-range #' + start).addClass('active');
+        }
     }
 }
 //eslint-disable-next-line no-unused-vars
