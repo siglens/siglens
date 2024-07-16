@@ -177,14 +177,15 @@ function addToFormulaCache(formulaId, formulaName) {
 }
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
-// Toggle switch between merged graph and single graphs 
-$('#toggle-switch').on('change', function() {
+// Event listener for the toggle switch
+$('#toggle-switch').on('change', function () {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
     } else {
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
+        mergeGraphs(chartType); 
     }
 });
 
@@ -1538,15 +1539,9 @@ $('#json-block').on('click', function() {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     try {
-        // For dashboard page
-        var panelChartEl;
-        if (panelId === -1) {
-            panelChartEl = $(`.panelDisplay .panEdit-panel`);
-        } else {
-            panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-            panelChartEl.css("width", "100%").css("height", "100%");
-        }
-
+        // Determine the correct element to append the merged graph canvas to
+        console.log("Merging graphs with chart type:", chartType);
+        var panelChartEl = $('#merged-graph-container');
         panelChartEl.empty(); // Clear any existing content
         var mergedCanvas = $('<canvas></canvas>');
         panelChartEl.append(mergedCanvas);
@@ -1557,16 +1552,12 @@ function mergeGraphs(chartType, panelId = -1) {
             return;
         }
 
-        var mergedData = {
-            labels: [],
-            datasets: []
-        };
+        var mergedData = { labels: [], datasets: [] };
         var graphNames = [];
 
         // Loop through chartDataCollection to merge datasets
         for (var queryName in chartDataCollection) {
             if (chartDataCollection.hasOwnProperty(queryName)) {
-                // Merge datasets for the current query
                 var datasets = chartDataCollection[queryName].datasets;
                 graphNames.push(`Metrics query - ${queryName}`); 
                 datasets.forEach(function(dataset) {
@@ -1579,13 +1570,12 @@ function mergeGraphs(chartType, panelId = -1) {
                         fill: (chartType === 'Area chart') ? true : false 
                     });
                 });
-                // Update labels (same for all graphs)
                 mergedData.labels = chartDataCollection[queryName].labels;
             }
         }
         $('.merged-graph-name').html(graphNames.join(', '));
+
         const { gridLineColor, tickColor } = getGraphGridColors();
-        
         var mergedLineChart = new Chart(mergedCtx, {
             type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
             data: mergedData,
@@ -1608,33 +1598,22 @@ function mergeGraphs(chartType, panelId = -1) {
                     x: {
                         type: 'time',
                         display: true,
-                        title: {
-                            display: true,
-                            text: ''
-                        },
-                        grid: {
-                            display: false
-                        },
+                        title: { display: true, text: '' },
+                        grid: { display: false },
                         ticks: { 
                             color: tickColor,
                             callback: xaxisFomatter,
                             autoSkip: false,
-                            major: {
-                                enabled: true,
-                            },
+                            major: { enabled: true },
                             font: context => {
                                 if (context.tick && context.tick.major) {
-                                    return {
-                                        weight: 'bold'
-                                    };
+                                    return { weight: 'bold' };
                                 }
-                                return {
-                                    weight: 'normal'
-                                };
+                                return { weight: 'normal' };
                             }
                         },
                         time: {
-                            unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                            unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
                             tooltipFormat: 'MMM d, HH:mm:ss',
                             displayFormats: {
                                 minute: 'HH:mm',
@@ -1642,26 +1621,26 @@ function mergeGraphs(chartType, panelId = -1) {
                                 day: 'MMM d',
                                 month: 'MMM YYYY'
                             }
-                        },
+                        }
                     },
                     y: {
                         display: true,
-                        title: {
-                            display: false,
-                        },
+                        title: { display: false },
                         grid: { color: gridLineColor },
                         ticks: { color: tickColor }
                     }
                 },
-                spanGaps: true,
+                spanGaps: true
             }
         });
+
         mergedGraph = mergedLineChart;
         updateDownloadButtons();
     } catch (error) {
         console.warn('Error merging graphs:', error);
     }
 }
+
 
 
 
@@ -1912,17 +1891,16 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
-    if (queryDetails.state === "builder") {
+    if (queryDetails.state === 'builder') {
         queryString = createQueryString(queryDetails);
     } else {
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    } else {
-        addVisualizationContainer(queryName, chartData, queryString);
+    addVisualizationContainer(queryName, chartData, queryString);
+    if (!$('#toggle-switch').is(':checked')) {
+        mergeGraphs(chartType); // Add this line
     }
 }
 
