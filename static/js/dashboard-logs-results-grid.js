@@ -107,20 +107,28 @@ const panelGridOptions = {
         overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     };
 
-let count=0;
+
 function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     panelID=panelId;
-    count++;
     $(`.panelDisplay .big-number-display-container`).hide();
     let logLinesViewType = currentPanel.logLinesViewType;
 
+    if (panelGridDiv==null) {
     if(panelId == -1) // for panel on the editPanelScreen page
+    {
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
+    }
     else // for panels on the dashboard page
+    {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+    }
     
-        if(count<=2){
-    new agGrid.Grid(panelGridDiv, panelGridOptions);}
+    new agGrid.Grid(panelGridDiv, panelGridOptions);
+    }
+    if(panelId!=-1){
+        panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+        new agGrid.Grid(panelGridDiv, panelGridOptions);
+    }
     
     let cols = columnOrder.map((colName, index) => {
         let hideCol = false;

@@ -310,6 +310,7 @@ function editPanelInit(redirectedFromViewScreen) {
 		$('#overview-button').removeClass('active');
 	}
 	resetOptions();
+	panelGridDiv=null;
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #corner-popup').empty();
 	$('.panelDisplay #corner-popup').hide();
@@ -1327,6 +1328,7 @@ async function runQueryBtnHandler() {
 	// reset the current panel's queryRes attribute
 	delete currentPanel.queryRes;
 	resetEditPanel();
+	panelGridDiv=null;
 	$('.panelDisplay .ag-root-wrapper').remove();
 	$(".panelDisplay #empty-response").empty();
 	$(".panelDisplay #empty-response").hide();

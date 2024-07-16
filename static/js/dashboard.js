@@ -80,6 +80,7 @@ $(document).ready(async function () {
             return;
         } else {
             $(this).addClass('active');
+            
             $('#add-widget-options').toggle();
             $('.add-icon').toggleClass('rotate-icon');
             $('#add-panel-btn').toggleClass('active'); 
