@@ -187,9 +187,10 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 	resp, err := client.Do(r)
 	if err != nil {
 		log.Errorf("sendWebhooks: Error sending request. WebhookURL=%v, Error=%v", webhookUrl, err)
+		return err
 	}
 	resp.Body.Close()
-	return err
+	return nil
 }
 
 func isSilenceMinutesOver(silenceMinutes uint64, lastSendTime time.Time) bool {
