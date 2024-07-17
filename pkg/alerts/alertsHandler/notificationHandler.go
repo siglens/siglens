@@ -180,15 +180,18 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 	r, err := http.NewRequest("POST", webhookUrl, bytes.NewBuffer(data))
 	if err != nil {
 		log.Errorf("sendWebhooks: Error creating request. WebhookURL=%v, Error=%v", webhookUrl, err)
+		return err
 	}
 
 	r.Header.Add("Content-Type", "application/json")
 	client := &http.Client{}
-	_, err1 := client.Do(r)
-	if err1 != nil {
+	resp, err := client.Do(r)
+	if err != nil {
 		log.Errorf("sendWebhooks: Error sending request. WebhookURL=%v, Error=%v", webhookUrl, err)
+		return err
 	}
-	return err
+	resp.Body.Close()
+	return nil
 }
 
 func isSilenceMinutesOver(silenceMinutes uint64, lastSendTime time.Time) bool {
