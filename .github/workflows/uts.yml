@@ -1,7 +1,5 @@
 name: siglens-lint-ut
 on: [pull_request]
-permissions:
-  contents: read
 jobs:
   golang-cicd:
     if: '! github.event.pull_request.draft'
