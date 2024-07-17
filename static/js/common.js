@@ -955,7 +955,9 @@ function initializeFilterInputEvents() {
     });
 
     $('#filter-input').on('input', autoResizeTextarea);
-
+    $('#filter-input').on('input', function() {
+        toggleClearButtonVisibility();
+    });
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
