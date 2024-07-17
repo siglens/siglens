@@ -46,6 +46,8 @@ $(document).ready(async function () {
     $('#new-dashboard').css('transform', 'translate(150px)');
     $('#new-dashboard').css('width', 'calc(100% - 150px)');
 
+    $('#dbSet-edit-json').on('click', enableJsonEditing);
+    $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
 
@@ -120,6 +122,25 @@ $(document).ready(async function () {
     });
     $('#favbutton').on('click', toggleFavorite);
 });
+
+function enableJsonEditing() {
+    $('.dbSet-jsonModelData').prop('disabled', false);
+    $('#dbSet-edit-json').hide();
+    $('#dbSet-save-json').show();
+}
+
+function saveJsonChanges() {
+    const jsonText = $('.dbSet-jsonModelData').val();
+    try {
+        JSON.parse(jsonText); // Try to parse the JSON to ensure its validity
+        $('.dbSet-jsonModelData').prop('disabled', true);
+        $('#dbSet-edit-json').show();
+        $('#dbSet-save-json').hide();
+        saveDbSetting();
+    } catch (e) {
+        alert('Invalid JSON format. Please correct the JSON and try again.');
+    }
+}
 
 // Initialize Gridstack
 var options = {
@@ -1061,18 +1082,20 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
-    let trimmedDbName = $('.dbSet-dbName').val().trim();
-    let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
-    if (!trimmedDbName) {
-        // Show error message using error-tip and popupOverlay
-        $('.error-tip').addClass('active');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#error-message').text('Dashboard name cannot be empty.');
+    const jsonText = $('.dbSet-jsonModelData').val().trim();
+    let dbSettings;
+    try {
+        dbSettings = JSON.parse(jsonText); // Parse the JSON to ensure its validity
+    } catch (e) {
+        alert('Invalid JSON format. Please correct the JSON and try again.');
         return;
     }
-
-    dbName = trimmedDbName;
-    dbDescr = trimmedDbDescription;
+    
+    dbName = dbSettings.name;
+    dbDescr = dbSettings.description;
+    timeRange = dbSettings.timeRange;
+    localPanels = dbSettings.panels;
+    dbRefresh = dbSettings.refresh;
 
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {
