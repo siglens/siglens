@@ -1599,17 +1599,31 @@ function mergeGraphs(chartType, panelId = -1) {
     try {
         let panelChartEl;
         if (isDashboardScreen) {
-            panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+            // For dashboard page
+            if (panelId === -1) {
+                panelChartEl = $(`.panelDisplay .panEdit-panel`);
+            } else {
+                panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+                panelChartEl.css('width', '100%').css('height', '100%');
+            }
+    
             panelChartEl.empty(); // Clear any existing content
+            var mergedCanvas = $('<canvas></canvas>');
+            panelChartEl.append(mergedCanvas);
+            mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
         } else {
-            panelChartEl = $('#merged-graph-container');
-            panelChartEl.empty(); // Clear any existing content
-        }
-
-        var mergedCanvas = $('<canvas></canvas>');
-        panelChartEl.append(mergedCanvas);
-
-        var mergedCtx = mergedCanvas[0] ? mergedCanvas[0].getContext('2d') : null;
+            // For metrics explorer page
+            var visualizationContainer = $(`
+                <div class="merged-graph-name"></div>
+                <div class="merged-graph"></div>`);
+    
+            $('#merged-graph-container').empty().append(visualizationContainer);
+    
+            mergedCanvas = $('<canvas></canvas>');
+    
+            $('.merged-graph').empty().append(mergedCanvas);
+            mergedCtx = mergedCanvas[0].getContext('2d');
+        }        
         if (!mergedCtx) {
             console.warn('Could not get canvas context. Skipping chart creation.');
             return;
@@ -1969,9 +1983,10 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    addVisualizationContainer(queryName, chartData, queryString);
-    if (!$('#toggle-switch').is(':checked')) {
-        mergeGraphs(chartType);
+    if (isAlertScreen) {
+        addVisualizationContainerToAlerts(queryName, chartData, queryString);
+    } else {
+        addVisualizationContainer(queryName, chartData, queryString);
     }
 }
 
