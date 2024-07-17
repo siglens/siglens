@@ -376,6 +376,66 @@ func evaluateResetCondition(boolExpr *structs.BoolExpr, record map[string]interf
 	return conditionPassed, nil
 }
 
+func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, currIndex int, currentBucketKey string, record map[string]interface{}, measureAggs []*structs.MeasureAggregator, numPrevSegmentProcessedRecords uint64, timeInMilli uint64, timeSort bool, timeSortAsc bool) (int, uint64, string, error) {
+	bucketKey := ""
+	var err error
+	if agg.GroupByRequest != nil {
+		bucketKey, err = GetBucketKey(record, agg.GroupByRequest)
+		if err != nil {
+			return 0, 0, "", fmt.Errorf("performStreamStats: Error while creating bucket key, err: %v", err)
+		}
+	}
+
+	if agg.StreamStatsOptions.ResetOnChange && currentBucketKey != bucketKey {
+		resetAccumulatedStreamStats(agg.StreamStatsOptions)
+		currentBucketKey = bucketKey
+		currIndex = 0
+		numPrevSegmentProcessedRecords = 0
+	}
+
+	shouldResetBefore, err := evaluateResetCondition(agg.StreamStatsOptions.ResetBefore, record)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("performStreamStats: Error while evaluating resetBefore condition, err: %v", err)
+	}
+	if shouldResetBefore {
+		resetAccumulatedStreamStats(agg.StreamStatsOptions)
+		currIndex = 0
+		numPrevSegmentProcessedRecords = 0
+	}
+
+	for measureFuncIndex, measureAgg := range measureAggs {
+		streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(int(numPrevSegmentProcessedRecords)+currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record, timeInMilli, timeSortAsc)
+		if err != nil {
+			return 0, 0, "", fmt.Errorf("performStreamStats: Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
+		}
+		if exist {
+			record[measureAgg.String()] = streamStatsResult
+		} else {
+			if measureAgg.MeasureFunc == utils.Count {
+				record[measureAgg.String()] = 0
+			} else {
+				record[measureAgg.String()] = ""
+			}
+		}
+	}
+	agg.StreamStatsOptions.NumProcessedRecords++
+	currIndex++
+
+	shouldResetAfter, err := evaluateResetCondition(agg.StreamStatsOptions.ResetAfter, record)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("performStreamStats: Error while evaluating resetAfter condition, err: %v", err)
+	}
+	if shouldResetAfter {
+		resetAccumulatedStreamStats(agg.StreamStatsOptions)
+		currIndex = 0
+		numPrevSegmentProcessedRecords = 0
+	}
+
+	return currIndex, numPrevSegmentProcessedRecords, bucketKey, nil
+}
+
+
+
 func PerformStreamStatsOnRawRecord(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, finishesSegment bool, timeSort bool, timeSortAsc bool) error {
 	if !timeSort && agg.StreamStatsOptions.TimeWindow != nil {
 		return fmt.Errorf("performStreamStats Error: For timewindow to be used the records must be sorted by time")
@@ -426,53 +486,10 @@ func PerformStreamStatsOnRawRecord(nodeResult *structs.NodeResult, agg *structs.
 			return fmt.Errorf("performStreamStats: Error: timestamp not a valid uint64 value")
 		}
 
-		if agg.GroupByRequest != nil {
-			bucketKey, err = GetBucketKey(record, agg.GroupByRequest)
-			if err != nil {
-				return fmt.Errorf("performStreamStats: Error while creating bucket key, err: %v", err)
-			}
-		}
-
-		if agg.StreamStatsOptions.ResetOnChange && currentBucketKey != bucketKey {
-			resetAccumulatedStreamStats(agg.StreamStatsOptions)
-			currentBucketKey = bucketKey
-			currIndex = 0
-		}
-
-		shouldResetBefore, err := evaluateResetCondition(agg.StreamStatsOptions.ResetBefore, record)
+		// record would be updated in this method
+		currIndex, numPrevSegmentProcessedRecords, currentBucketKey, err = PerformStreamStatOnSingleRecord(nodeResult, agg, currIndex, currentBucketKey, record, measureAggs, numPrevSegmentProcessedRecords, timeInMilli, timeSort, timeSortAsc)
 		if err != nil {
-			return fmt.Errorf("performStreamStats: Error while evaluating resetBefore condition, err: %v", err)
-		}
-		if shouldResetBefore {
-			resetAccumulatedStreamStats(agg.StreamStatsOptions)
-			currIndex = 0
-		}
-
-		for measureFuncIndex, measureAgg := range measureAggs {
-			streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(int(numPrevSegmentProcessedRecords)+currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record, timeInMilli, timeSortAsc)
-			if err != nil {
-				return fmt.Errorf("performStreamStats: Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
-			}
-			if exist {
-				record[measureAgg.String()] = streamStatsResult
-			} else {
-				if measureAgg.MeasureFunc == utils.Count {
-					record[measureAgg.String()] = 0
-				} else {
-					record[measureAgg.String()] = ""
-				}
-			}
-		}
-		agg.StreamStatsOptions.NumProcessedRecords++
-		currIndex++
-
-		shouldResetAfter, err := evaluateResetCondition(agg.StreamStatsOptions.ResetAfter, record)
-		if err != nil {
-			return fmt.Errorf("performStreamStats: Error while evaluating resetAfter condition, err: %v", err)
-		}
-		if shouldResetAfter {
-			resetAccumulatedStreamStats(agg.StreamStatsOptions)
-			currIndex = 0
+			return fmt.Errorf("performStreamStats: Error while performing stream stats on record, err: %v", err)
 		}
 	}
 
