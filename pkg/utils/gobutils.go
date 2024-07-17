@@ -45,12 +45,12 @@ func (self *GobbableRegex) SetRegex(raw string) error {
 	return nil
 }
 
-// Implement https://pkg.go.dev/encoding/gob#GobDecoder
+// Implement https://pkg.go.dev/encoding/gob#GobEncoder
 func (self *GobbableRegex) GobEncode() ([]byte, error) {
 	return []byte(self.rawRegex), nil
 }
 
-// Implement https://pkg.go.dev/encoding/gob#GobEncoder
+// Implement https://pkg.go.dev/encoding/gob#GobDecoder
 func (self *GobbableRegex) GobDecode(data []byte) error {
 	self.compiledRegex = nil
 	self.rawRegex = ""
