@@ -958,6 +958,7 @@ function initializeFilterInputEvents() {
 
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
+        toggleClearButtonVisibility();
     });
     $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
@@ -966,7 +967,8 @@ function initializeFilterInputEvents() {
             let position = this.selectionStart;
             input.val(value.substring(0, position) + '\n' + value.substring(position));
             this.selectionStart = this.selectionEnd = position + 2;
-        }
+            
+        }toggleClearButtonVisibility();
     });
     document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
@@ -977,5 +979,6 @@ function initializeFilterInputEvents() {
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
         autoResizeTextarea.call(this);
+        toggleClearButtonVisibility();
     });
 }
