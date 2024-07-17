@@ -41,6 +41,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17026,7 +17027,8 @@ func (c *current) onTextExpr45(opName, stringExpr, regexPattern any) (any, error
 		return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
 	}
 
-	compiledRegex, err := regexp.Compile(regex.RawString)
+	serialRegex := &toputils.SerializableRegex{}
+	err = serialRegex.SetRegex(regex.RawString)
 	if err != nil {
 		return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
 	}
@@ -17034,7 +17036,7 @@ func (c *current) onTextExpr45(opName, stringExpr, regexPattern any) (any, error
 	node := &structs.TextExpr{
 		Op:    opNameStr,
 		Param: stringExpr.(*structs.StringExpr),
-		Regex: compiledRegex,
+		Regex: serialRegex,
 	}
 	return node, nil
 }
