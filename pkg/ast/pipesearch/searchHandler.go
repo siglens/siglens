@@ -475,6 +475,10 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 }
 
 func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
+	if qc == nil {
+		return 0
+	}
+
 	if !qc.EarlyExit {
 		return qc.TotalCount
 	}
