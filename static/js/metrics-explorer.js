@@ -1597,7 +1597,7 @@ $('#json-block').on('click', function () {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     try {
-        let panelChartEl;
+        let panelChartEl,mergedCtx;
         if (isDashboardScreen) {
             // For dashboard page
             if (panelId === -1) {
