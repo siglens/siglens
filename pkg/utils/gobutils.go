@@ -23,16 +23,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type SerializableRegex struct {
+type GobbableRegex struct {
 	rawRegex      string
 	compiledRegex *regexp.Regexp
 }
 
-func (self *SerializableRegex) GetCompiledRegex() *regexp.Regexp {
+func (self *GobbableRegex) GetCompiledRegex() *regexp.Regexp {
 	return self.compiledRegex
 }
 
-func (self *SerializableRegex) SetRegex(raw string) error {
+func (self *GobbableRegex) SetRegex(raw string) error {
 	compiled, err := regexp.Compile(raw)
 	if err != nil {
 		log.Errorf("SerizalizableRegex: failed to compile regex \"%v\", err=%v", raw, err)
@@ -46,12 +46,12 @@ func (self *SerializableRegex) SetRegex(raw string) error {
 }
 
 // Implement https://pkg.go.dev/encoding/gob#GobDecoder
-func (self *SerializableRegex) GobEncode() ([]byte, error) {
+func (self *GobbableRegex) GobEncode() ([]byte, error) {
 	return []byte(self.rawRegex), nil
 }
 
 // Implement https://pkg.go.dev/encoding/gob#GobEncoder
-func (self *SerializableRegex) GobDecode(data []byte) error {
+func (self *GobbableRegex) GobDecode(data []byte) error {
 	self.compiledRegex = nil
 	self.rawRegex = ""
 

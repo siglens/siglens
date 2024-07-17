@@ -24,25 +24,25 @@ import (
 )
 
 func Test_GetNilRegex(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	assert.Nil(t, regex.GetCompiledRegex())
 }
 
 func TestGetNonNilRegex(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	err := regex.SetRegex(".*")
 	assert.NoError(t, err)
 	assert.NotNil(t, regex.GetCompiledRegex())
 }
 
 func Test_SetInvalidRegex(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	err := regex.SetRegex("a(")
 	assert.Error(t, err)
 }
 
 func Test_SetValidRegex(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	err := regex.SetRegex("a.*z")
 	assert.NoError(t, err)
 
@@ -52,7 +52,7 @@ func Test_SetValidRegex(t *testing.T) {
 }
 
 func Test_SetInvalidRegexKeepsLastValidRegex(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	err := regex.SetRegex("a.*z")
 	assert.NoError(t, err)
 
@@ -65,7 +65,7 @@ func Test_SetInvalidRegexKeepsLastValidRegex(t *testing.T) {
 }
 
 func Test_GobEncode(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	encoded, err := regex.GobEncode()
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(""), encoded)
@@ -79,11 +79,11 @@ func Test_GobEncode(t *testing.T) {
 }
 
 func Test_GobEncodeDecode(t *testing.T) {
-	originalRegex := SerializableRegex{}
+	originalRegex := GobbableRegex{}
 	encoded, err := originalRegex.GobEncode()
 	assert.NoError(t, err)
 
-	decodedRegex := SerializableRegex{}
+	decodedRegex := GobbableRegex{}
 	err = decodedRegex.GobDecode(encoded)
 	assert.NoError(t, err)
 	assert.Nil(t, decodedRegex.GetCompiledRegex())
@@ -103,7 +103,7 @@ func Test_GobEncodeDecode(t *testing.T) {
 }
 
 func Test_GobDecodeEmpty(t *testing.T) {
-	regex := SerializableRegex{}
+	regex := GobbableRegex{}
 	err := regex.SetRegex("a.*z")
 	assert.NoError(t, err)
 	assert.NotNil(t, regex.GetCompiledRegex())

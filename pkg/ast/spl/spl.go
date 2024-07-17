@@ -17027,8 +17027,8 @@ func (c *current) onTextExpr45(opName, stringExpr, regexPattern any) (any, error
 		return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
 	}
 
-	serialRegex := &toputils.SerializableRegex{}
-	err = serialRegex.SetRegex(regex.RawString)
+	gobRegex := &toputils.GobbableRegex{}
+	err = gobRegex.SetRegex(regex.RawString)
 	if err != nil {
 		return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
 	}
@@ -17036,7 +17036,7 @@ func (c *current) onTextExpr45(opName, stringExpr, regexPattern any) (any, error
 	node := &structs.TextExpr{
 		Op:    opNameStr,
 		Param: stringExpr.(*structs.StringExpr),
-		Regex: serialRegex,
+		Regex: gobRegex,
 	}
 	return node, nil
 }
