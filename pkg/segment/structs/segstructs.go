@@ -182,8 +182,9 @@ type StreamStatsOptions struct {
 }
 
 type RunningStreamStatsResults struct {
-	Window     *list.List
-	CurrResult float64
+	Window              *list.List
+	CurrResult          float64
+	NumProcessedRecords uint64 // kept for global stats where window = 0
 }
 
 type RunningStreamStatsWindowElement struct {
