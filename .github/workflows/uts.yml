@@ -45,25 +45,3 @@ jobs:
           version: latest
           skip-pkg-cache: true
           skip-build-cache: true
-
-  jsformat-lint:
-    runs-on: ubuntu-latest
-    name: Format Files
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-      - uses: actions/setup-node@v3
-        with:
-          node-version: "18.18.0"
-      - run: npm ci
-      - run: npm run prettier:format
-      - run: npm run lint:js
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-        with:
-          commit_message: "github actions: style: format JS files"
-          branch: ${{ github.head_ref }}
-
