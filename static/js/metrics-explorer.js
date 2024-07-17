@@ -1,4 +1,4 @@
-/*
+/* 
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -30,7 +30,7 @@ let availableMetrics = [];
 let rawTimeSeriesData = [];
 let allFunctions,
     functionsArray = [];
-var aggregationOptions = ['max by', 'min by', 'avg by', 'sum by', 'count by', 'stddev by', 'stdvar by', 'group by'];
+    var aggregationOptions = ['max by', 'min by', 'avg by', 'sum by', 'count by', 'stddev by', 'stdvar by', 'group by'];
 let timeUnit;
 let dayCnt7 = 0;
 let dayCnt2 = 0;
@@ -178,7 +178,7 @@ function addToFormulaCache(formulaId, formulaName) {
 }
 $('.refresh-btn').on('click', refreshMetricsGraphs);
 
-// Toggle switch between merged graph and single graphs
+// Event listener for the toggle switch
 $('#toggle-switch').on('change', function () {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
@@ -186,6 +186,7 @@ $('#toggle-switch').on('change', function () {
     } else {
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
+        mergeGraphs(chartType);
     }
 });
 
@@ -231,39 +232,78 @@ function formulaInputHandler(formulaElement, uniqueId) {
     let input = formulaElement.find('.formula');
     input.on(
         'input',
-        debounce(async function () {
-            let formula = input.val().trim();
-            let errorMessage = formulaElement.find('.formula-error-message');
-            if (formula === '') {
-                errorMessage.hide();
-                input.removeClass('error-border');
-                disableQueryRemoval();
-                if (isAlertScreen) {
-                    formulas = {};
-                    activateFirstQuery();
-                }
-                // Run a different function when the formula is erased
-                onFormulaErased(uniqueId);
-                return;
-            }
-            let validationResult = validateFormula(formula);
-            if (validationResult !== false) {
-                errorMessage.hide();
-                input.removeClass('error-border');
-                formulas[uniqueId] = validationResult;
-                if (isAlertScreen) {
-                    $('#metrics-queries .metrics-query .query-name').removeClass('active');
-                }
-                if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
-                    await getMetricsDataForFormula(uniqueId, validationResult);
-                }
-            } else {
-                errorMessage.show();
-                input.addClass('error-border');
-            }
+         debounce(async function () {
+        let formula = input.val().trim();
+        let errorMessage = formulaElement.find('.formula-error-message');
+        if (formula === '') {
+            errorMessage.hide();
+            input.removeClass('error-border');
             disableQueryRemoval();
-        }, 500)
-    ); // debounce delay
+            if (isAlertScreen) {
+                formulas = {};
+                activateFirstQuery();
+            }
+            // Run a different function when the formula is erased
+            onFormulaErased(uniqueId);
+            return;
+        }
+
+        // Check if the formula is a constant value
+        if (!isNaN(formula)) {
+            errorMessage.hide();
+            input.removeClass('error-border');
+            formulas[uniqueId] = {
+                formula: formula,
+                queryNames: [],
+                isConstant: true,
+            };
+            await generateConstantSeries(uniqueId, parseFloat(formula));
+            return;
+        }
+
+        let validationResult = validateFormula(formula);
+        if (validationResult !== false) {
+            errorMessage.hide();
+            input.removeClass('error-border');
+            formulas[uniqueId] = validationResult;
+            if (isAlertScreen) {
+                $('#metrics-queries .metrics-query .query-name').removeClass('active');
+            }
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
+                await getMetricsDataForFormula(uniqueId, validationResult);
+            }
+        } else {
+            errorMessage.show();
+            input.addClass('error-border');
+        }
+        disableQueryRemoval();
+    }, 500)
+); // debounce delay
+}
+
+async function generateConstantSeries(uniqueId, constantValue) {
+    const endTime = new Date();
+    const { startTime, stepSize } = getStepSize(filterStartDate, endTime);
+
+    let labels = [];
+    for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
+        labels.push(time);
+    }
+
+    let dataPoints = labels.map(() => constantValue);
+
+    let seriesData = [{
+        seriesName: `Constant ${constantValue}`,
+        values: {},
+    }];
+
+    labels.forEach((label, index) => {
+        const formattedDate = moment(label).format('YYYY-MM-DDTHH:mm:ss');
+        seriesData[0].values[formattedDate] = dataPoints[index];
+    });
+
+    const queryString = `Constant Value: ${constantValue}`;
+    addVisualizationContainer(uniqueId, seriesData, queryString);
 }
 
 async function addAlertsFormulaElement(formulaInput) {
@@ -296,7 +336,7 @@ async function addAlertsFormulaElement(formulaInput) {
 }
 
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
-    // For Dashboards
+    // For Dashboards 
     if (formulaInput) {
         const validationResult = validateFormula(formulaInput);
         formulas[uniqueId] = validationResult;
@@ -356,10 +396,10 @@ function disableQueryRemoval() {
         var queryName = $(this).find('.query-name').text();
         var removeButton = $(this).find('.remove-query');
         var queryNameExistsInFormula = $('.formula')
-            .toArray()
-            .some(function (formulaInput) {
-                return $(formulaInput).val().includes(queryName);
-            });
+        .toArray()
+        .some(function (formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
 
         // If query name exists in any formula, disable the remove button
         if (queryNameExistsInFormula) {
@@ -422,10 +462,10 @@ function setupQueryElementEventListeners(queryElement) {
         var queryName = queryElement.find('.query-name').text();
         // Check if the query name exists in any of the formula input fields
         var queryNameExistsInFormula = $('.formula')
-            .toArray()
-            .some(function (formulaInput) {
-                return $(formulaInput).val().includes(queryName);
-            });
+        .toArray()
+        .some(function (formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
 
         // If query name exists in any formula, prevent removal of the query element
         if (queryNameExistsInFormula) {
@@ -456,12 +496,12 @@ function setupQueryElementEventListeners(queryElement) {
 
     // Alias close button
     queryElement
-        .find('.alias-filling-box div')
-        .last()
-        .on('click', function () {
-            $(this).parent().hide();
-            $(this).parent().siblings('.as-btn').show();
-        });
+    .find('.alias-filling-box div')
+    .last()
+    .on('click', function () {
+        $(this).parent().hide();
+        $(this).parent().siblings('.as-btn').show();
+    });
 
     // Hide or Show query element and graph on click on query name
     queryElement.find('.query-name').on('click', function () {
@@ -627,163 +667,163 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     queryElement
-        .find('.metrics')
-        .autocomplete({
-            source: availableMetrics.sort(),
-            minLength: 0,
-            focus: function (event, ui) {
-                $(this).val(ui.item.value);
-                return false;
-            },
-            select: async function (event, ui) {
-                queryDetails.metrics = ui.item.value;
-                getQueryDetails(queryName, queryDetails);
-                const tagsAndValue = await getTagKeyValue(ui.item.value);
-                availableEverything = tagsAndValue.availableEverything[0];
-                availableEverywhere = tagsAndValue.availableEverywhere;
-                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
-                queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-                $(this).blur();
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        })
-        .on('click', function () {
-            $(this).select();
-        })
-        .on('close', function (_event) {
+    .find('.metrics')
+    .autocomplete({
+        source: availableMetrics.sort(),
+        minLength: 0,
+        focus: function (event, ui) {
+            $(this).val(ui.item.value);
+            return false;
+        },
+        select: async function (event, ui) {
+            queryDetails.metrics = ui.item.value;
+            getQueryDetails(queryName, queryDetails);
+            const tagsAndValue = await getTagKeyValue(ui.item.value);
+            availableEverything = tagsAndValue.availableEverything[0];
+            availableEverywhere = tagsAndValue.availableEverywhere;
+            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+            queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+            $(this).blur();
+        },
+        classes: {
+            'ui-autocomplete': 'metrics-ui-widget',
+        },
+    })
+    .on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('click', function () {
+        $(this).select();
+    })
+    .on('close', function (_event) {
+        var selectedValue = $(this).val();
+        if (selectedValue === '') {
+            $(this).val(queryDetails.metrics);
+        }
+    })
+    .on('keydown', function (event) {
+        if (event.keyCode === 27) { 
+            // For the Escape key
             var selectedValue = $(this).val();
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
-            }
-        })
-        .on('keydown', function (event) {
-            if (event.keyCode === 27) {
-                // For the Escape key
-                var selectedValue = $(this).val();
-                if (selectedValue === '') {
-                    $(this).val(queryDetails.metrics);
-                } else if (!availableMetrics.includes(selectedValue)) {
-                    $(this).val(queryDetails.metrics);
-                } else {
-                    queryDetails.metrics = selectedValue;
-                }
-                $(this).blur();
-            }
-        })
-        .on('change', function () {
-            var selectedValue = $(this).val();
-            if (!availableMetrics.includes(selectedValue)) {
+            } else if (!availableMetrics.includes(selectedValue)) {
                 $(this).val(queryDetails.metrics);
             } else {
                 queryDetails.metrics = selectedValue;
             }
             $(this).blur();
-        });
+        }
+    })
+    .on('change', function () {
+        var selectedValue = $(this).val();
+        if (!availableMetrics.includes(selectedValue)) {
+            $(this).val(queryDetails.metrics);
+        } else {
+            queryDetails.metrics = selectedValue;
+        }
+        $(this).blur();
+    });
 
     // Everywhere input (tag:value)
     queryElement
-        .find('.everywhere')
-        .autocomplete({
-            source: function (request, response) {
-                var filtered = $.grep(availableEverywhere, function (item) {
-                    // Check if the tag part of item is not present in queryDetails.everywhere
-                    var tag = item.split(':')[0];
-                    return (
-                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
-                        !queryDetails.everywhere.some(function (existingTag) {
-                            return existingTag.startsWith(tag + ':');
-                        })
-                    );
-                });
-                filtered.sort();
-                response(filtered);
-            },
-            minLength: 0,
-            select: function (event, ui) {
-                addTag(queryElement, ui.item.value);
-                queryDetails.everywhere.push(ui.item.value);
-                getQueryDetails(queryName, queryDetails);
-                var index = availableEverywhere.indexOf(ui.item.value);
-                if (index !== -1) {
-                    availableEverywhere.splice(index, 1);
-                }
-                $(this).val('');
-                updateAutocompleteSource();
-                return false;
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-            open: function (_event, _ui) {
-                var containerPosition = $(this).closest('.tag-container').offset();
-
-                $(this)
-                    .autocomplete('widget')
-                    .css({
-                        position: 'absolute',
-                        top: containerPosition.top + $(this).closest('.tag-container').outerHeight(),
-                        left: containerPosition.left,
-                        'z-index': 1000,
-                    });
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
+    .find('.everywhere')
+    .autocomplete({
+        source: function (request, response) {
+            var filtered = $.grep(availableEverywhere, function (item) {
+                // Check if the tag part of item is not present in queryDetails.everywhere
+                var tag = item.split(':')[0];
+                return (
+                    item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                    !queryDetails.everywhere.some(function (existingTag) {
+                        return existingTag.startsWith(tag + ':');
+                    })
+                );
+            });
+            filtered.sort();
+            response(filtered);
+        },
+        minLength: 0,
+        select: function (event, ui) {
+            addTag(queryElement, ui.item.value);
+            queryDetails.everywhere.push(ui.item.value);
+            getQueryDetails(queryName, queryDetails);
+            var index = availableEverywhere.indexOf(ui.item.value);
+            if (index !== -1) {
+                availableEverywhere.splice(index, 1);
             }
-        })
-        .on('input', function () {
-            this.style.width = this.value.length * 8 + 'px';
-            let typedValue = $(this).val();
-
-            // Remove the wildcard option from available options when the input value changes
-            if (!typedValue.includes(':')) {
-                availableEverywhere = availableEverywhere.filter(function (option) {
-                    return !option.includes(':*');
-                });
-            }
-
-            // Add the wildcard option if the typed value contains a colon ":"
-            if (typedValue.includes(':')) {
-                var parts = typedValue.split(':');
-                var prefix = parts[0];
-                var suffix = parts[1];
-                var wildcardOption = prefix + ':' + suffix + '*';
-
-                availableEverywhere = availableEverywhere.filter(function (option) {
-                    return !option.includes('*');
-                });
-                // Check if the typed value already exists in the available options
-                if (!availableEverywhere.includes(typedValue)) {
-                    availableEverywhere.unshift(wildcardOption);
-                }
-            }
+            $(this).val('');
             updateAutocompleteSource();
-        });
+            return false;
+        },
+        classes: {
+            'ui-autocomplete': 'metrics-ui-widget',
+        },
+        open: function (_event, _ui) {
+            var containerPosition = $(this).closest('.tag-container').offset();
+
+            $(this)
+            .autocomplete('widget')
+            .css({
+                position: 'absolute',
+                top: containerPosition.top + $(this).closest('.tag-container').outerHeight(),
+                left: containerPosition.left,
+                'z-index': 1000,
+            });
+    },
+})
+.on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('input', function () {
+        this.style.width = this.value.length * 8 + 'px';
+        let typedValue = $(this).val();
+
+        // Remove the wildcard option from available options when the input value changes
+        if (!typedValue.includes(':')) {
+            availableEverywhere = availableEverywhere.filter(function (option) {
+                return !option.includes(':*');
+            });
+        }
+
+        // Add the wildcard option if the typed value contains a colon ":"
+        if (typedValue.includes(':')) {
+            var parts = typedValue.split(':');
+            var prefix = parts[0];
+            var suffix = parts[1];
+            var wildcardOption = prefix + ':' + suffix + '*';
+
+            availableEverywhere = availableEverywhere.filter(function (option) {
+                return !option.includes('*');
+            });
+            // Check if the typed value already exists in the available options
+            if (!availableEverywhere.includes(typedValue)) {
+                availableEverywhere.unshift(wildcardOption);
+            }
+        }
+        updateAutocompleteSource();
+    });
 
     queryElement.on('click', '.tag .close', function () {
         var tagContainer = queryElement.find('.everywhere');
 
-        var tagValue = $(this)
+       var tagValue = $(this)
             .parent()
             .contents()
             .filter(function () {
                 return this.nodeType === 3;
             })
             .text()
-            .trim();
-        var index = queryDetails.everywhere.indexOf(tagValue);
+            .trim();        
+            var index = queryDetails.everywhere.indexOf(tagValue);
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
             getQueryDetails(queryName, queryDetails);
@@ -801,81 +841,81 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         updateAutocompleteSource();
     });
 
-    // Aggregation input
-    queryElement
-        .find('.agg-function')
-        .autocomplete({
-            source: aggregationOptions.sort(),
-            minLength: 0,
-            select: function (event, ui) {
-                queryDetails.aggFunction = ui.item.value;
-                getQueryDetails(queryName, queryDetails);
-                $(this).blur();
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        })
-        .on('click', function () {
-            $(this).select();
-        });
+   // Aggregation input
+   queryElement
+   .find('.agg-function')
+   .autocomplete({
+       source: aggregationOptions.sort(),
+       minLength: 0,
+       select: function (event, ui) {
+           queryDetails.aggFunction = ui.item.value;
+           getQueryDetails(queryName, queryDetails);
+           $(this).blur();
+       },
+       classes: {
+           'ui-autocomplete': 'metrics-ui-widget',
+       },
+   })
+   .on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('click', function () {
+        $(this).select();
+    });
 
     // Everything input (value)
     queryElement
-        .find('.everything')
-        .autocomplete({
-            source: function (request, response) {
-                var filtered = $.grep(availableEverything, function (item) {
-                    return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
-                });
-                var sorted = filtered.sort();
-                response(sorted);
-            },
-            minLength: 0,
-            select: function (event, ui) {
-                addValue(queryElement, ui.item.value);
-                queryDetails.everything.push(ui.item.value);
-                getQueryDetails(queryName, queryDetails);
-                var index = availableEverything.indexOf(ui.item.value);
-                if (index !== -1) {
-                    availableEverything.splice(index, 1);
-                }
-                $(this).val('');
-                return false;
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-            open: function (_event, _ui) {
-                var containerPosition = $(this).closest('.value-container').offset();
-
-                $(this)
-                    .autocomplete('widget')
-                    .css({
-                        position: 'absolute',
-                        top: containerPosition.top + $(this).closest('.value-container').outerHeight(),
-                        left: containerPosition.left,
-                        'z-index': 1000,
-                    });
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
+    .find('.everything')
+    .autocomplete({
+        source: function (request, response) {
+            var filtered = $.grep(availableEverything, function (item) {
+                return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
+            });
+            var sorted = filtered.sort();
+            response(sorted);
+        },
+        minLength: 0,
+        select: function (event, ui) {
+            addValue(queryElement, ui.item.value);
+            queryDetails.everything.push(ui.item.value);
+            getQueryDetails(queryName, queryDetails);
+            var index = availableEverything.indexOf(ui.item.value);
+            if (index !== -1) {
+                availableEverything.splice(index, 1);
             }
-        })
-        .on('input', function () {
-            this.style.width = this.value.length * 8 + 'px';
-        });
+            $(this).val('');
+            return false;
+        },
+        classes: {
+            'ui-autocomplete': 'metrics-ui-widget',
+        },
+        open: function (_event, _ui) {
+            var containerPosition = $(this).closest('.value-container').offset();
+
+            $(this)
+            .autocomplete('widget')
+            .css({
+                position: 'absolute',
+                top: containerPosition.top + $(this).closest('.value-container').outerHeight(),
+                left: containerPosition.left,
+                'z-index': 1000,
+            });
+    },
+})
+.on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('input', function () {
+        this.style.width = this.value.length * 8 + 'px';
+    });
 
     queryElement.on('click', '.value .close', function () {
         var valueContainer = queryElement.find('.everything');
@@ -906,47 +946,47 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     });
 
     queryElement
-        .find('#functions-search-box')
-        .autocomplete({
-            source: allFunctions.map(function (item) {
-                return item.name;
-            }),
-            minLength: 0,
-            select: function (event, ui) {
-                var selectedItem = allFunctions.find(function (item) {
-                    return item.name === ui.item.value;
-                });
-                // Check if the selected function is already in queryDetails.functions
-                var indexToRemove = queryDetails.functions.indexOf(selectedItem.fn);
-                if (indexToRemove !== -1) {
-                    queryDetails.functions.splice(indexToRemove, 1); // Remove it
-                    $(this)
-                        .closest('.metrics-query')
-                        .find('.selected-function:contains(' + selectedItem.fn + ')')
-                        .remove();
-                }
+    .find('#functions-search-box')
+    .autocomplete({
+        source: allFunctions.map(function (item) {
+            return item.name;
+        }),
+        minLength: 0,
+        select: function (event, ui) {
+            var selectedItem = allFunctions.find(function (item) {
+                return item.name === ui.item.value;
+            });
+            // Check if the selected function is already in queryDetails.functions
+            var indexToRemove = queryDetails.functions.indexOf(selectedItem.fn);
+            if (indexToRemove !== -1) {
+                queryDetails.functions.splice(indexToRemove, 1); // Remove it
+                $(this)
+                .closest('.metrics-query')
+                .find('.selected-function:contains(' + selectedItem.fn + ')')
+                .remove();
+                        }
 
-                queryDetails.functions.push(selectedItem.fn);
-                appendFunctionDiv(queryElement, selectedItem.fn);
-                getQueryDetails(queryName, queryDetails);
+            queryDetails.functions.push(selectedItem.fn);
+            appendFunctionDiv(queryElement, selectedItem.fn);
+            getQueryDetails(queryName, queryDetails);
 
-                queryElement.find('.options-container').hide();
-                $(this).val('');
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        })
-        .on('click', function () {
-            $(this).select();
-        });
+            queryElement.find('.options-container').hide();
+            $(this).val('');
+        },
+        classes: {
+            'ui-autocomplete': 'metrics-ui-widget',
+        },
+    })
+    .on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('click', function () {
+        $(this).select();
+    });
 
     $('.all-selected-functions').on('click', '.selected-function .close', function () {
         var fnToRemove = $(this)
@@ -1027,96 +1067,165 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
 
-    const { gridLineColor, tickColor } = getGraphGridColors();
-
-    var lineChart = new Chart(ctx, {
-        type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
-                },
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    display: true,
-                    title: {
-                        display: true,
-                        text: '',
-                    },
-                    grid: {
-                        display: false,
-                    },
-                    ticks: {
-                        color: tickColor,
-                        callback: xaxisFomatter,
-                        autoSkip: false,
-                        major: {
-                            enabled: true,
-                        },
-                        font: (context) => {
-                            if (context.tick && context.tick.major) {
-                                return {
-                                    weight: 'bold',
-                                };
-                            }
-                            return {
-                                weight: 'normal',
-                            };
-                        },
-                    },
-                    time: {
-                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
-                        tooltipFormat: 'MMM d, HH:mm:ss',
-                        displayFormats: {
-                            minute: 'HH:mm',
-                            hour: 'HH:mm',
-                            day: 'MMM d',
-                            month: 'MMM YYYY',
-                        },
-                    },
-                },
-                y: {
-                    display: true,
-                    title: {
-                        display: false,
-                    },
-                    grid: { color: gridLineColor },
-                    ticks: { color: tickColor },
-                },
-            },
-            spanGaps: true,
-        },
-    });
-
-    // Modify the fill property based on the chart type after chart initialization
-    if (chartType === 'Area chart') {
-        lineChart.config.data.datasets.forEach(function (dataset) {
-            dataset.fill = true;
-        });
-    } else {
-        lineChart.config.data.datasets.forEach(function (dataset) {
-            dataset.fill = false;
-        });
+    if (chartData.labels.length === 0) {
+        chartData.labels = generateEmptyTimeLabels(filterStartDate);
     }
 
-    lineChart.update();
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    try {
+        var lineChart = new Chart(ctx, {
+            type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        align: 'start',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 2,
+                            fontSize: 10,
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '',
+                        },
+                        grid: {
+                            display: false,
+                        },
+                        ticks: {
+                            color: tickColor,
+                            callback: xaxisFomatter,
+                            autoSkip: false,
+                            major: {
+                                enabled: true,
+                            },
+                            font: (context) => {
+                                if (context.tick && context.tick.major) {
+                                    return {
+                                        weight: 'bold',
+                                    };
+                                }
+                                return {
+                                    weight: 'normal',
+                                };
+                            },
+                        },
+                        time: {
+                            unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
+                            tooltipFormat: 'MMM d, HH:mm:ss',
+                            displayFormats: {
+                                minute: 'HH:mm',
+                                hour: 'HH:mm',
+                                day: 'MMM d',
+                                month: 'MMM YYYY',
+                            },
+                        },
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: false,
+                        },
+                        grid: { color: gridLineColor },
+                        ticks: { color: tickColor },
+                    },
+                },
+                spanGaps: true,
+            },
+        });
+
+        // Modify the fill property based on the chart type after chart initialization
+        if (chartType === 'Area chart') {
+            lineChart.config.data.datasets.forEach(function (dataset) {
+                dataset.fill = true;
+            });
+        } else {
+            lineChart.config.data.datasets.forEach(function (dataset) {
+                dataset.fill = false;
+            });
+        }
+
+        lineChart.update();
+    } catch (error) {
+        console.warn('Chart initialization error:', error);
+    }
     return lineChart;
+
+}
+
+function getStepSize(startDate, endTime) {
+    let startTime, stepSize;
+
+    // Determine start time and step size based on selected time frame
+    if (startDate.includes("now-5m")) {
+        startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
+        stepSize = 1 * 60 * 1000; // 1 minute
+    } else if (startDate.includes("now-15m")) {
+        startTime = new Date(endTime.getTime() - 15 * 60 * 1000);
+        stepSize = 1 * 60 * 1000; // 1 minute
+    } else if (startDate.includes("now-30m")) {
+        startTime = new Date(endTime.getTime() - 30 * 60 * 1000);
+        stepSize = 2 * 60 * 1000; // 2 minutes
+    } else if (startDate.includes("now-1h")) {
+        startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
+        stepSize = 5 * 60 * 1000; // 5 minutes
+    } else if (startDate.includes("now-3h")) {
+        startTime = new Date(endTime.getTime() - 3 * 60 * 60 * 1000);
+        stepSize = 10 * 60 * 1000; // 10 minutes
+    } else if (startDate.includes("now-6h")) {
+        startTime = new Date(endTime.getTime() - 6 * 60 * 60 * 1000);
+        stepSize = 15 * 60 * 1000; // 15 minutes
+    } else if (startDate.includes("now-12h")) {
+        startTime = new Date(endTime.getTime() - 12 * 60 * 60 * 1000);
+        stepSize = 30 * 60 * 1000; // 30 minutes
+    } else if (startDate.includes("now-24h")) {
+        startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+        stepSize = 60 * 60 * 1000; // 1 hour
+    } else if (startDate.includes("now-2d")) {
+        startTime = new Date(endTime.getTime() - 2 * 24 * 60 * 60 * 1000);
+        stepSize = 2 * 60 * 60 * 1000; // 2 hours
+    } else if (startDate.includes("now-7d")) {
+        startTime = new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000);
+        stepSize = 6 * 60 * 60 * 1000; // 6 hours
+    } else if (startDate.includes("now-30d")) {
+        startTime = new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000);
+        stepSize = 12 * 60 * 60 * 1000; // 12 hours
+    } else if (startDate.includes("now-90d")) {
+        startTime = new Date(endTime.getTime() - 90 * 24 * 60 * 60 * 1000);
+        stepSize = 1 * 24 * 60 * 60 * 1000; // 1 day
+    } else {
+        startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
+        stepSize = 1 * 60 * 1000; // 1 minute
+    }
+
+    return { startTime, stepSize };
+}
+
+function generateEmptyTimeLabels(startDate) {
+    const endTime = new Date();
+    const { startTime, stepSize } = getStepSize(startDate, endTime);
+
+    let labels = [];
+    for (let time = startTime; time <= endTime; time = new Date(time.getTime() + stepSize)) {
+        labels.push(time);
+    }
+
+    return labels;
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     var canvas;
-    if (isDashboardScreen) {
+    if (isDashboardScreen) { 
         // For dashboard page
         prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
@@ -1200,25 +1309,25 @@ function toggleLineOptions(displayValue) {
 var displayOptions = ['Line chart', 'Bar chart', 'Area chart'];
 $('#display-input')
     .autocomplete({
-        source: displayOptions,
-        minLength: 0,
-        select: function (event, ui) {
-            toggleLineOptions(ui.item.value);
-            chartType = ui.item.value;
-            toggleChartType(ui.item.value);
-            $(this).blur();
-        },
-    })
-    .on('click', function () {
-        if ($(this).autocomplete('widget').is(':visible')) {
-            $(this).autocomplete('close');
-        } else {
-            $(this).autocomplete('search', '');
-        }
-    })
-    .on('click', function () {
-        $(this).select();
-    });
+    source: displayOptions,
+    minLength: 0,
+    select: function (event, ui) {
+        toggleLineOptions(ui.item.value);
+        chartType = ui.item.value;
+        toggleChartType(ui.item.value);
+        $(this).blur();
+    },
+})
+.on('click', function () {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+})
+.on('click', function () {
+    $(this).select();
+});
 
 function toggleChartType(chartType) {
     // Convert the selected chart type to the corresponding Chart.js chart type
@@ -1261,6 +1370,7 @@ function toggleChartType(chartType) {
     mergeGraphs(chartType);
 }
 
+
 var colorOptions = ['Classic', 'Purple', 'Cool', 'Green', 'Warm', 'Orange', 'Gray', 'Palette'];
 $('#color-input')
     .autocomplete({
@@ -1283,22 +1393,22 @@ $('#color-input')
         $(this).select();
     });
 
-function updateChartTheme(theme) {
-    var colorPalette = {
-        Classic: classic,
-        Purple: purple,
-        Cool: cool,
-        Green: green,
-        Warm: warm,
-        Orange: orange,
-        Gray: gray,
-        Palette: palette,
-    };
+    function updateChartTheme(theme) {
+        var colorPalette = {
+            Classic: classic,
+            Purple: purple,
+            Cool: cool,
+            Green: green,
+            Warm: warm,
+            Orange: orange,
+            Gray: gray,
+            Palette: palette,
+        };
 
     var selectedPalette = colorPalette[theme] || classic;
 
-    // Loop through each chart data
-    for (var queryName in chartDataCollection) {
+     // Loop through each chart data
+     for (var queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
@@ -1322,48 +1432,48 @@ var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
 var strokeOptions = ['Normal', 'Thin', 'Thick'];
 
 $('#line-style-input')
-    .autocomplete({
-        source: lineStyleOptions,
-        minLength: 0,
-        select: function (event, ui) {
-            var selectedLineStyle = ui.item.value;
-            var selectedStroke = $('#stroke-input').val();
-            updateLineCharts(selectedLineStyle, selectedStroke);
-            $(this).blur();
-        },
-    })
-    .on('click', function () {
-        if ($(this).autocomplete('widget').is(':visible')) {
-            $(this).autocomplete('close');
-        } else {
-            $(this).autocomplete('search', '');
-        }
-    })
-    .on('click', function () {
-        $(this).select();
-    });
+.autocomplete({
+    source: lineStyleOptions,
+    minLength: 0,
+    select: function (event, ui) {
+        var selectedLineStyle = ui.item.value;
+        var selectedStroke = $('#stroke-input').val();
+        updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
+    },
+})
+.on('click', function () {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+})
+.on('click', function () {
+    $(this).select();
+});
 
 $('#stroke-input')
-    .autocomplete({
-        source: strokeOptions,
-        minLength: 0,
-        select: function (event, ui) {
-            var selectedStroke = ui.item.value;
-            var selectedLineStyle = $('#line-style-input').val();
-            updateLineCharts(selectedLineStyle, selectedStroke);
-            $(this).blur();
-        },
-    })
-    .on('click', function () {
-        if ($(this).autocomplete('widget').is(':visible')) {
-            $(this).autocomplete('close');
-        } else {
-            $(this).autocomplete('search', '');
-        }
-    })
-    .on('click', function () {
-        $(this).select();
-    });
+.autocomplete({
+    source: strokeOptions,
+    minLength: 0,
+    select: function (event, ui) {
+        var selectedStroke = ui.item.value;
+        var selectedLineStyle = $('#line-style-input').val();
+        updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
+    },
+})
+.on('click', function () {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+})
+.on('click', function () {
+    $(this).select();
+});
 
 // Function to update all line charts based on selected line style and stroke
 function updateLineCharts(lineStyle, stroke) {
@@ -1486,136 +1596,126 @@ $('#json-block').on('click', function () {
 
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
-    var mergedCtx;
-    if (isDashboardScreen) {
-        // For dashboard page
-        var panelChartEl;
-        if (panelId === -1) {
-            panelChartEl = $(`.panelDisplay .panEdit-panel`);
+    try {
+        let panelChartEl;
+        if (isDashboardScreen) {
+            panelChartEl = (panelId === -1) ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+            panelChartEl.empty(); // Clear any existing content
         } else {
-            panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-            panelChartEl.css('width', '100%').css('height', '100%');
+            panelChartEl = $('#merged-graph-container');
+            panelChartEl.empty(); // Clear any existing content
         }
 
-        panelChartEl.empty(); // Clear any existing content
         var mergedCanvas = $('<canvas></canvas>');
         panelChartEl.append(mergedCanvas);
 
-        mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
-    } else {
-        // For metrics explorer page
-        var visualizationContainer = $(`
-            <div class="merged-graph-name"></div>
-            <div class="merged-graph"></div>`);
-
-        $('#merged-graph-container').empty().append(visualizationContainer);
-
-        mergedCanvas = $('<canvas></canvas>');
-
-        $('.merged-graph').empty().append(mergedCanvas);
-        mergedCtx = mergedCanvas[0].getContext('2d');
-    }
-
-    var mergedData = {
-        labels: [],
-        datasets: [],
-    };
-    var graphNames = [];
-
-    // Loop through chartDataCollection to merge datasets
-    for (var queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            // Merge datasets for the current query
-            var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`Metrics query - ${queryName}`);
-            datasets.forEach(function (dataset) {
-                mergedData.datasets.push({
-                    label: dataset.label,
-                    data: dataset.data,
-                    borderColor: dataset.borderColor,
-                    borderWidth: dataset.borderWidth,
-                    backgroundColor: dataset.backgroundColor,
-                    fill: chartType === 'Area chart' ? true : false,
-                });
-            });
-            // Update labels ( same for all graphs)
-            mergedData.labels = chartDataCollection[queryName].labels;
+        var mergedCtx = mergedCanvas[0] ? mergedCanvas[0].getContext('2d') : null;
+        if (!mergedCtx) {
+            console.warn('Could not get canvas context. Skipping chart creation.');
+            return;
         }
-    }
-    $('.merged-graph-name').html(graphNames.join(', '));
-    const { gridLineColor, tickColor } = getGraphGridColors();
-    var mergedLineChart = new Chart(mergedCtx, {
-        type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
-        data: mergedData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: shouldShowLegend(panelId, mergedData.datasets),
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
+
+        var mergedData = { 
+            labels: [], 
+            datasets: [],
+         };
+        var graphNames = [];
+
+        // Loop through chartDataCollection to merge datasets
+        for (var queryName in chartDataCollection) {
+            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+                var datasets = chartDataCollection[queryName].datasets;
+                graphNames.push(`Metrics query - ${queryName}`);
+                datasets.forEach(function (dataset) {
+                    mergedData.datasets.push({
+                        label: dataset.label,
+                        data: dataset.data,
+                        borderColor: dataset.borderColor,
+                        borderWidth: dataset.borderWidth,
+                        backgroundColor: dataset.backgroundColor,
+                        fill: (chartType === 'Area chart') ? true : false,
+                    });
+                });
+                mergedData.labels = chartDataCollection[queryName].labels;
+            }
+        }
+        $('.merged-graph-name').html(graphNames.join(', '));
+        const { gridLineColor, tickColor } = getGraphGridColors();
+        var mergedLineChart = new Chart(mergedCtx, {
+            type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
+            data: mergedData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: shouldShowLegend(panelId, mergedData.datasets),
+                        position: 'bottom',
+                        align: 'start',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 2,
+                            fontSize: 10,
+                        },
                     },
                 },
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    display: true,
-                    title: {
+                scales: {
+                    x: {
+                        type: 'time',
                         display: true,
-                        text: '',
-                    },
-                    grid: {
-                        display: false,
-                    },
-                    ticks: {
-                        color: tickColor,
-                        callback: xaxisFomatter,
-                        autoSkip: false,
-                        major: {
-                            enabled: true,
-                        },
-                        font: (context) => {
-                            if (context.tick && context.tick.major) {
-                                return {
-                                    weight: 'bold',
+                        title: { 
+                            display: true,
+                             text: '',
+                            },
+                        grid: { 
+                            display: false,
+                         },
+                        ticks: {
+                            color: tickColor,
+                            callback: xaxisFomatter,
+                            autoSkip: false,
+                            major: { 
+                                enabled: true,
+                            },
+                            font: (context) => {
+                                if (context.tick && context.tick.major) {
+                                    return { 
+                                        weight: 'bold',
+                                    };
+                                }
+                                return { 
+                                    weight: 'normal',
                                 };
-                            }
-                            return {
-                                weight: 'normal',
-                            };
+                            },
+                        },
+                        time: {
+                            unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
+                            tooltipFormat: 'MMM d, HH:mm:ss',
+                            displayFormats: {
+                                minute: 'HH:mm',
+                                hour: 'HH:mm',
+                                day: 'MMM d',
+                                month: 'MMM YYYY',
+                            },
                         },
                     },
-                    time: {
-                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
-                        tooltipFormat: 'MMM d, HH:mm:ss',
-                        displayFormats: {
-                            minute: 'HH:mm',
-                            hour: 'HH:mm',
-                            day: 'MMM d',
-                            month: 'MMM YYYY',
-                        },
+                    y: {
+                        display: true,
+                        title: { 
+                            display: false,
+                         },
+                        grid: { color: gridLineColor },
+                        ticks: { color: tickColor },
                     },
                 },
-                y: {
-                    display: true,
-                    title: {
-                        display: false,
-                    },
-                    grid: { color: gridLineColor },
-                    ticks: { color: tickColor },
-                },
+                spanGaps: true,
             },
-            spanGaps: true,
-        },
-    });
-    mergedGraph = mergedLineChart;
-    updateDownloadButtons();
+        });
+        mergedGraph = mergedLineChart;
+        updateDownloadButtons();
+    } catch (error) {
+        console.warn('Error merging graphs:', error);
+    }
 }
 
 const shouldShowLegend = (panelId, datasets) => {
@@ -1668,22 +1768,22 @@ async function convertDataForChart(data) {
                 case calculatedInterval >= 1200:
                     chartStartTime = chartStartTime - oneDayInMilliseconds;
                     break;
-                case calculatedInterval >= 300:
-                    chartStartTime = chartStartTime - 60 * 60;
-                    break;
-                case calculatedInterval >= 120:
-                    chartStartTime = chartStartTime - 30 * 60;
-                    break;
-                case calculatedInterval >= 60:
-                    chartStartTime = chartStartTime - 15 * 60;
-                    break;
-                case calculatedInterval >= 10:
-                    chartStartTime = chartStartTime - 5 * 60;
-                    break;
-                default:
-                    chartStartTime = chartStartTime - 1 * 60;
-                    chartEndTime = chartEndTime + 1 * 60;
-            }
+                    case calculatedInterval >= 300:
+                        chartStartTime = chartStartTime - 60 * 60;
+                        break;
+                    case calculatedInterval >= 120:
+                        chartStartTime = chartStartTime - 30 * 60;
+                        break;
+                    case calculatedInterval >= 60:
+                        chartStartTime = chartStartTime - 15 * 60;
+                        break;
+                    case calculatedInterval >= 10:
+                        chartStartTime = chartStartTime - 5 * 60;
+                        break;
+                    default:
+                        chartStartTime = chartStartTime - 1 * 60;
+                        chartEndTime = chartEndTime + 1 * 60;
+                }
             for (let j = 0; j < data.timestamps.length; j++) {
                 // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
@@ -1733,14 +1833,14 @@ async function getMetricNames() {
 }
 
 async function getMetricsData(queryName, metricName) {
-    const query = { name: queryName, query: `(${metricName})`, qlType: 'promql' };
+    const query = { name: queryName, query: `(${metricName})`, qlType:'promql' };
     const queries = [query];
     const formula = { formula: queryName };
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
     const res = await fetchTimeSeriesData(data);
-    metricsQueryParams = data; // For alerts page
+    metricsQueryParams = data; // For alerts page 
 
     if (res) {
         rawTimeSeriesData = res;
@@ -1749,6 +1849,11 @@ async function getMetricsData(queryName, metricName) {
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
+    // Check if the formula is purely numeric
+    if (/^-?\d+(\.\d+)?$/.test(formulaDetails.formula.trim())) {
+        await generateConstantSeries(formulaId, parseFloat(formulaDetails.formula));
+        return;
+    }
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
@@ -1788,19 +1893,22 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     metricsQueryParams = data;
 
-    const res = await fetchTimeSeriesData(data);
-    if (res) {
-        rawTimeSeriesData = res;
-    }
+    try {
+        const res = await fetchTimeSeriesData(data);
+        if (res) {
+            rawTimeSeriesData = res;
+        }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    } else {
-        addVisualizationContainer(formulaId, chartData, formulaString);
+        const chartData = await convertDataForChart(rawTimeSeriesData);
+        if (isAlertScreen) {
+            addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+        } else {
+            addVisualizationContainer(formulaId, chartData, formulaString);
+        }
+        updateDownloadButtons();
+    } catch (error) {
+        console.error('Error fetching data:', error);
     }
-    updateDownloadButtons();
 }
 
 async function fetchTimeSeriesData(data) {
@@ -1861,14 +1969,14 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    } else {
-        addVisualizationContainer(queryName, chartData, queryString);
+    addVisualizationContainer(queryName, chartData, queryString);
+    if (!$('#toggle-switch').is(':checked')) {
+        mergeGraphs(chartType);
     }
 }
 
 async function getQueryDetails(queryName, queryDetails) {
+
     if (isAlertScreen) {
         let isActive = $('#metrics-queries .metrics-query:first').find(`.query-name:contains('${queryName}')`).hasClass('active');
         if (isActive) {
@@ -1877,6 +1985,7 @@ async function getQueryDetails(queryName, queryDetails) {
     } else {
         await handleQueryAndVisualize(queryName, queryDetails);
     }
+
 
     // Check if the query name is present in any formulas and re-run the formula if so
     for (let formulaId in formulas) {
@@ -1890,13 +1999,13 @@ function createQueryString(queryObject) {
     const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
 
     const everywhereString = everywhere
-        .map((tag) => {
-            const parts = tag.split(':');
-            const tagPart = parts.shift(); // Get the first part as the tag
-            const valuePart = parts.join(':'); // Join the remaining parts as the value
-            return `${tagPart}="${valuePart}"`;
-        })
-        .join(',');
+    .map((tag) => {
+        const parts = tag.split(':');
+        const tagPart = parts.shift(); // Get the first part as the tag
+        const valuePart = parts.join(':'); // Join the remaining parts as the value
+        return `${tagPart}="${valuePart}"`;
+    })
+    .join(',');
     const everythingString = everything.join(',');
 
     let queryString = '';
@@ -1944,7 +2053,7 @@ async function refreshMetricsGraphs() {
 
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
-    if (queries[firstKey].metrics) {
+    if (queries[firstKey].metrics) { 
         // only if the first query is not empty
         // Update graph for each query
         Object.keys(queries).forEach(async function (queryName) {
@@ -2235,7 +2344,7 @@ $('#alert-from-metrics-container').click(function () {
     var queryParams = {};
     const firstKey = Object.keys(queries)[0];
     if (queries[firstKey].metrics) {
-        // only if the first query is not empty
+         // only if the first query is not empty
         Object.keys(queries).forEach(function (queryName) {
             var queryDetails = queries[queryName];
             if (queryDetails.state === 'builder') {
