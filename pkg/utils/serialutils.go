@@ -44,3 +44,20 @@ func (self *SerializableRegex) SetRegex(raw string) error {
 
 	return nil
 }
+
+// Implement https://pkg.go.dev/encoding/gob#GobDecoder
+func (self *SerializableRegex) GobEncode() ([]byte, error) {
+	return []byte(self.rawRegex), nil
+}
+
+// Implement https://pkg.go.dev/encoding/gob#GobEncoder
+func (self *SerializableRegex) GobDecode(data []byte) error {
+	self.compiledRegex = nil
+	self.rawRegex = ""
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	return self.SetRegex(string(data))
+}

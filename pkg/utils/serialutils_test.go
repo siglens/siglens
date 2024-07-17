@@ -63,3 +63,53 @@ func Test_SetInvalidRegexKeepsLastValidRegex(t *testing.T) {
 	assert.NotNil(t, compiledRegex)
 	assert.Equal(t, "a.*z", compiledRegex.String())
 }
+
+func Test_GobEncode(t *testing.T) {
+	regex := SerializableRegex{}
+	encoded, err := regex.GobEncode()
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(""), encoded)
+
+	err = regex.SetRegex("a.*z")
+	assert.NoError(t, err)
+
+	encoded, err = regex.GobEncode()
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("a.*z"), encoded)
+}
+
+func Test_GobEncodeDecode(t *testing.T) {
+	originalRegex := SerializableRegex{}
+	encoded, err := originalRegex.GobEncode()
+	assert.NoError(t, err)
+
+	decodedRegex := SerializableRegex{}
+	err = decodedRegex.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Nil(t, decodedRegex.GetCompiledRegex())
+
+	err = originalRegex.SetRegex("a.*z")
+	assert.NoError(t, err)
+
+	encoded, err = originalRegex.GobEncode()
+	assert.NoError(t, err)
+
+	err = decodedRegex.GobDecode(encoded)
+	assert.NoError(t, err)
+
+	compiledRegex := decodedRegex.GetCompiledRegex()
+	assert.NotNil(t, compiledRegex)
+	assert.Equal(t, "a.*z", compiledRegex.String())
+}
+
+func Test_GobDecodeEmpty(t *testing.T) {
+	regex := SerializableRegex{}
+	err := regex.SetRegex("a.*z")
+	assert.NoError(t, err)
+	assert.NotNil(t, regex.GetCompiledRegex())
+	assert.Equal(t, "a.*z", regex.GetCompiledRegex().String())
+
+	err = regex.GobDecode([]byte{})
+	assert.NoError(t, err)
+	assert.Nil(t, regex.GetCompiledRegex())
+}
