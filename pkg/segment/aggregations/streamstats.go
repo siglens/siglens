@@ -34,7 +34,7 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 	for _, colName := range groupByRequest.GroupByColumns {
 		val, ok := record[colName]
 		if !ok {
-			return "", fmt.Errorf("getBucketKey Error, column: %v not found in the record", colName)
+			return "", fmt.Errorf("GetBucketKey: Error: column: %v not found in the record", colName)
 		}
 		bucketKey += fmt.Sprintf("%v_", val)
 	}
@@ -48,7 +48,7 @@ func InitRunningStreamStatsResults(defaultVal float64) *structs.RunningStreamSta
 	}
 }
 
-func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue float64) (float64, bool, error) {
+func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (float64, bool, error) {
 	result := ssResults.CurrResult
 	valExist := ssResults.NumProcessedRecords > 0
 
@@ -60,17 +60,29 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 	case utils.Count:
 		ssResults.CurrResult++
 	case utils.Sum, utils.Avg:
-		ssResults.CurrResult += colValue
+		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+		}
+		ssResults.CurrResult += floatVal
 	case utils.Min:
-		if colValue < ssResults.CurrResult {
-			ssResults.CurrResult = colValue
+		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+		}
+		if floatVal < ssResults.CurrResult {
+			ssResults.CurrResult = floatVal
 		}
 	case utils.Max:
-		if colValue > ssResults.CurrResult {
-			ssResults.CurrResult = colValue
+		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+		}
+		if floatVal > ssResults.CurrResult {
+			ssResults.CurrResult = floatVal
 		}
 	default:
-		return 0.0, false, fmt.Errorf("performGlobalStreamStatsOnSingleFunc Error, measureAgg: %v not supported", measureAgg)
+		return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
 
 	ssResults.NumProcessedRecords++
@@ -91,12 +103,16 @@ func removeFrontElementFromWindow(ssResults *structs.RunningStreamStatsResults, 
 	front := ssResults.Window.Front()
 	frontElement, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
-		return fmt.Errorf("removeFrontElementFromWindow: Error value in the window is not an IndexValue element")
+		return fmt.Errorf("removeFrontElementFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
 	}
 
 	// Update the current result
 	if measureAgg == utils.Avg || measureAgg == utils.Sum {
-		ssResults.CurrResult -= frontElement.Value
+		floatVal, err := dtypeutils.ConvertToFloat(frontElement.Value, 64)
+		if err != nil {
+			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a numeric value, has value: %v, function: %v, err: %v", frontElement.Value, measureAgg, err)
+		}
+		ssResults.CurrResult -= floatVal
 	} else if measureAgg == utils.Count {
 		ssResults.CurrResult--
 	}
@@ -113,7 +129,7 @@ func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamSta
 			front := ssResults.Window.Front()
 			frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
-				return fmt.Errorf("cleanWindow: Error value in the window is not an IndexValue element")
+				return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
 			}
 			if frontVal.Index+windowSize <= currIndex {
 				err := removeFrontElementFromWindow(ssResults, measureAgg)
@@ -159,7 +175,7 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 		front := ssResults.Window.Front()
 		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 		if !correctType {
-			return fmt.Errorf("cleanTimeWindow: Error value in the window is not an IndexValue element")
+			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
 		}
 		eventTimestamp := frontVal.TimeInMilli
 		if timeSortAsc {
@@ -188,7 +204,7 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 
 func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (float64, bool, error) {
 	if ssResults.Window.Len() == 0 {
-		return 0.0, false, nil
+		return 0, false, nil
 	}
 	switch measureAgg {
 	case utils.Count:
@@ -198,50 +214,92 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Avg:
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), true, nil
 	case utils.Min, utils.Max:
-		return ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value, true, nil
+		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+		}
+		ssResults.CurrResult = firstElementFloatVal
+		return ssResults.CurrResult, true, nil
 	default:
-		return 0.0, false, fmt.Errorf("getResults Error, measureAgg: %v not supported", measureAgg)
+		return 0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
 }
 
-func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue float64, timestamp uint64) (float64, error) {
+func getListElementAsFloatFromWindow(listElement *list.Element) (float64, error) {
+	if listElement == nil {
+		return 0.0, fmt.Errorf("getListElementAsFloatFromWindow: Error: listElement is nil")
+	}
+
+	windowElement, correctType := listElement.Value.(*structs.RunningStreamStatsWindowElement)
+	if !correctType {
+		return 0, fmt.Errorf("getListElementAsFloatFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", listElement.Value)
+	}
+	floatVal, err := dtypeutils.ConvertToFloat(windowElement.Value, 64)
+	if err != nil {
+		return 0.0, fmt.Errorf("getListElementAsFloatFromWindow: Error: element in window does not have a numeric value, has value %v, err: %v", windowElement.Value, err)
+	}
+
+	return floatVal, nil
+}
+
+func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (float64, error) {
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case utils.Sum, utils.Avg:
-		ssResults.CurrResult += colValue
+		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
+		}
+		ssResults.CurrResult += floatVal
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case utils.Min:
 		for ssResults.Window.Len() > 0 {
-			lastElement, correctType := ssResults.Window.Back().Value.(*structs.RunningStreamStatsWindowElement)
-			if !correctType {
-				return 0.0, fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+			lastElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Back())
+			if err != nil {
+				return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
 			}
-			if lastElement.Value >= colValue {
+			floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+			if err != nil {
+				return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
+			}
+			if lastElementFloatVal >= floatColVal {
 				ssResults.Window.Remove(ssResults.Window.Back())
 			} else {
 				break
 			}
 		}
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
-		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value
+		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+		}
+		ssResults.CurrResult = firstElementFloatVal
 	case utils.Max:
 		for ssResults.Window.Len() > 0 {
-			lastElement, correctType := ssResults.Window.Back().Value.(*structs.RunningStreamStatsWindowElement)
-			if !correctType {
-				return 0.0, fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
+			lastElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Back())
+			if err != nil {
+				return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
 			}
-			if lastElement.Value <= colValue {
+			floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+			if err != nil {
+				return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
+			}
+			if lastElementFloatVal <= floatColVal {
 				ssResults.Window.Remove(ssResults.Window.Back())
 			} else {
 				break
 			}
 		}
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
-		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value
+		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+		}
+		ssResults.CurrResult = firstElementFloatVal
 	default:
-		return 0.0, fmt.Errorf("performGlobalStreamStatsOnSingleFunc Error, measureAgg: %v not supported", measureAgg)
+		return 0.0, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
 
 	if measureAgg == utils.Avg {
@@ -251,7 +309,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	return ssResults.CurrResult, nil
 }
 
-func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue float64, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
+func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
 	var err error
 	result := ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0
@@ -262,7 +320,7 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	if ssOption.TimeWindow != nil {
 		err := cleanTimeWindow(timestamp, timeSortAsc, ssOption.TimeWindow, ssResults, measureAgg)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the time window, err: %v", err)
+			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while cleaning the time window, err: %v", err)
 		}
 	}
 
@@ -270,11 +328,11 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	if !ssOption.Current && windowSize != 0 {
 		err := cleanWindow(currIndex-1, ssOption.Global, ssResults, windowSize, measureAgg)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
+			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}
 		result, exist, err = getResults(ssResults, measureAgg)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while getting results from the window, err: %v", err)
+			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while getting results from the window, err: %v", err)
 		}
 	}
 
@@ -285,14 +343,14 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 			err = cleanWindow(currIndex, ssOption.Global, ssResults, windowSize-1, measureAgg)
 		}
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
+			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}
 	}
 
 	// Add the new element to the window
 	latestResult, err := performMeasureFunc(currIndex, ssResults, measureAgg, colValue, timestamp)
 	if err != nil {
-		return 0.0, false, fmt.Errorf("performWindowStreamStatsOnSingleFunc: Error while performing measure function %v, err: %v", measureAgg, err)
+		return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while performing measure function %v, err: %v", measureAgg, err)
 	}
 
 	if !ssOption.Current {
@@ -304,23 +362,15 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 
 func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
 
-	floatVal := 0.0
 	var err error
 	var result float64
 
-	if measureAgg.MeasureFunc != utils.Count {
-		recordVal, exist := record[measureAgg.MeasureCol]
-		if !exist {
-			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error, measure column: %v not found in the record", measureAgg.MeasureCol)
-		}
-		floatVal, err = dtypeutils.ConvertToFloat(recordVal, 64)
-		// currently only supporting basic agg functions
-		if err != nil {
-			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error measure column %v does not have a numeric value, err: %v", measureAgg.MeasureCol, err)
-		}
+	colValue, exist := record[measureAgg.MeasureCol]
+	if !exist {
+		return 0.0, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error, measure column: %v not found in the record", measureAgg.MeasureCol)
 	}
 
-	_, exist := ssOption.RunningStreamStats[measureFuncIndex]
+	_, exist = ssOption.RunningStreamStats[measureFuncIndex]
 	if !exist {
 		ssOption.RunningStreamStats[measureFuncIndex] = make(map[string]*structs.RunningStreamStatsResults)
 	}
@@ -337,14 +387,14 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 	}
 
 	if ssOption.Window == 0 && ssOption.TimeWindow == nil {
-		result, exist, err = PerformGlobalStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, floatVal)
+		result, exist, err = PerformGlobalStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, colValue)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
+			return 0.0, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, colValue, err)
 		}
 	} else {
-		result, exist, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg.MeasureFunc, floatVal, timestamp, timeSortAsc)
+		result, exist, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg.MeasureFunc, colValue, timestamp, timeSortAsc)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performStreamStatsOnSingleFunc Error while performing window stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, floatVal, err)
+			return 0.0, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error while performing window stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, colValue, err)
 		}
 	}
 
@@ -382,20 +432,19 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 	if agg.GroupByRequest != nil {
 		bucketKey, err = GetBucketKey(record, agg.GroupByRequest)
 		if err != nil {
-			return 0, 0, "", fmt.Errorf("performStreamStats: Error while creating bucket key, err: %v", err)
+			return 0, 0, "", fmt.Errorf("PerformStreamStatOnSingleRecord: Error while creating bucket key, err: %v", err)
 		}
 	}
 
 	if agg.StreamStatsOptions.ResetOnChange && currentBucketKey != bucketKey {
 		resetAccumulatedStreamStats(agg.StreamStatsOptions)
-		currentBucketKey = bucketKey
 		currIndex = 0
 		numPrevSegmentProcessedRecords = 0
 	}
 
 	shouldResetBefore, err := evaluateResetCondition(agg.StreamStatsOptions.ResetBefore, record)
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("performStreamStats: Error while evaluating resetBefore condition, err: %v", err)
+		return 0, 0, "", fmt.Errorf("PerformStreamStatOnSingleRecord: Error while evaluating resetBefore condition, err: %v", err)
 	}
 	if shouldResetBefore {
 		resetAccumulatedStreamStats(agg.StreamStatsOptions)
@@ -406,7 +455,7 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 	for measureFuncIndex, measureAgg := range measureAggs {
 		streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(int(numPrevSegmentProcessedRecords)+currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record, timeInMilli, timeSortAsc)
 		if err != nil {
-			return 0, 0, "", fmt.Errorf("performStreamStats: Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
+			return 0, 0, "", fmt.Errorf("PerformStreamStatOnSingleRecord: Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
 		}
 		if exist {
 			record[measureAgg.String()] = streamStatsResult
@@ -423,7 +472,7 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 
 	shouldResetAfter, err := evaluateResetCondition(agg.StreamStatsOptions.ResetAfter, record)
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("performStreamStats: Error while evaluating resetAfter condition, err: %v", err)
+		return 0, 0, "", fmt.Errorf("PerformStreamStatOnSingleRecord: Error while evaluating resetAfter condition, err: %v", err)
 	}
 	if shouldResetAfter {
 		resetAccumulatedStreamStats(agg.StreamStatsOptions)
@@ -434,11 +483,9 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 	return currIndex, numPrevSegmentProcessedRecords, bucketKey, nil
 }
 
-
-
 func PerformStreamStatsOnRawRecord(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, finishesSegment bool, timeSort bool, timeSortAsc bool) error {
 	if !timeSort && agg.StreamStatsOptions.TimeWindow != nil {
-		return fmt.Errorf("performStreamStats Error: For timewindow to be used the records must be sorted by time")
+		return fmt.Errorf("PerformStreamStatsOnRawRecord: Error: For time_window to be used the records must be sorted by time")
 	}
 
 	if agg.StreamStatsOptions.SegmentRecords == nil {
@@ -460,7 +507,7 @@ func PerformStreamStatsOnRawRecord(nodeResult *structs.NodeResult, agg *structs.
 
 	currentOrder, err := GetOrderedRecs(agg.StreamStatsOptions.SegmentRecords, recordIndexInFinal)
 	if err != nil {
-		return fmt.Errorf("performStreamStats Error while fetching the order of the records, err: %v", err)
+		return fmt.Errorf("PerformStreamStatsOnRawRecord: Error while fetching the order of the records, err: %v", err)
 	}
 
 	measureAggs := agg.MeasureOperations
@@ -474,22 +521,22 @@ func PerformStreamStatsOnRawRecord(nodeResult *structs.NodeResult, agg *structs.
 	for _, recordKey := range currentOrder {
 		record, exist := agg.StreamStatsOptions.SegmentRecords[recordKey]
 		if !exist {
-			return fmt.Errorf("performStreamStats: Error: record not found")
+			return fmt.Errorf("PerformStreamStatsOnRawRecord: Error: record not found")
 		}
 
 		timestamp, exist := record["timestamp"]
 		if !exist {
-			return fmt.Errorf("performStreamStats: Error: timestamp not found in the record")
+			return fmt.Errorf("PerformStreamStatsOnRawRecord: Error: timestamp not found in the record")
 		}
 		timeInMilli, err := dtypeutils.ConvertToUInt(timestamp, 64)
 		if err != nil {
-			return fmt.Errorf("performStreamStats: Error: timestamp not a valid uint64 value")
+			return fmt.Errorf("PerformStreamStatsOnRawRecord: Error: timestamp not a valid uint64 value, has value: %v", timestamp)
 		}
 
 		// record would be updated in this method
 		currIndex, numPrevSegmentProcessedRecords, currentBucketKey, err = PerformStreamStatOnSingleRecord(nodeResult, agg, currIndex, currentBucketKey, record, measureAggs, numPrevSegmentProcessedRecords, timeInMilli, timeSort, timeSortAsc)
 		if err != nil {
-			return fmt.Errorf("performStreamStats: Error while performing stream stats on record, err: %v", err)
+			return fmt.Errorf("PerformStreamStatsOnRawRecord: Error while performing stream stats on record, err: %v", err)
 		}
 	}
 
@@ -518,14 +565,14 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	if len(nodeResult.Histogram) > 0 {
 		err := performStreamStatsOnHistogram(nodeResult, agg.StreamStatsOptions, agg)
 		if err != nil {
-			return fmt.Errorf("performStreamStats: Error while performing stream stats on histogram, err: %v", err)
+			return fmt.Errorf("PerformStreamStats: Error while performing stream stats on histogram, err: %v", err)
 		}
 	}
 
 	if len(nodeResult.MeasureResults) > 0 {
 		err := performStreamStatsOnMeasureResults(nodeResult, agg.StreamStatsOptions, agg)
 		if err != nil {
-			return fmt.Errorf("performStreamStats: Error while performing stream stats on measure results, err: %v", err)
+			return fmt.Errorf("PerformStreamStats: Error while performing stream stats on measure results, err: %v", err)
 		}
 	}
 
@@ -602,11 +649,11 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 							bucketResult.BucketKey = bucketKey
 						case string:
 							if keyIndex != 0 {
-								return fmt.Errorf("performBinRequestOnHistogram: expected keyIndex to be 0, not %v", keyIndex)
+								return fmt.Errorf("performStreamStatsOnHistogram: expected keyIndex to be 0, not %v", keyIndex)
 							}
 							bucketResult.BucketKey = streamStatsStr
 						default:
-							return fmt.Errorf("performBinRequestOnHistogram: bucket key has unexpected type: %T", bucketKey)
+							return fmt.Errorf("performStreamStatsOnHistogram: bucket key has unexpected type: %T", bucketKey)
 						}
 					}
 				} else {
@@ -629,9 +676,8 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 	return nil
 }
 
+func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption *structs.StreamStatsOptions, agg *structs.QueryAggregators) error {
 
-func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption *structs.StreamStatsOptions, agg *structs.QueryAggregators) (error) {
-	
 	if ssOption.TimeWindow != nil {
 		return fmt.Errorf("performStreamStatsOnMeasureResults: Error: Time window cannot be applied to measure results")
 	}
@@ -663,18 +709,18 @@ func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption
 		// record would be updated in this method
 		currIndex, numPrevSegmentProcessedRecords, currentBucketKey, err = PerformStreamStatOnSingleRecord(nodeResult, agg, currIndex, currentBucketKey, record, measureAggs, numPrevSegmentProcessedRecords, 0, false, false)
 		if err != nil {
-			return fmt.Errorf("performStreamStatsOnHistogram: Error while performing stream stats on record, err: %v", err)
+			return fmt.Errorf("performStreamStatsOnMeasureResults: Error while performing stream stats on record, err: %v", err)
 		}
 
 		for _, measureAgg := range measureAggs {
 			streamStatsResult, resultPresent := record[measureAgg.String()]
 			if !resultPresent {
-				return fmt.Errorf("performStreamStatsOnHistogram: Error while fetching result for measureAgg: %v", measureAgg.String())
+				return fmt.Errorf("performStreamStatsOnMeasureResults: Error while fetching result for measureAgg: %v", measureAgg.String())
 			}
 
 			// Check if the column already exists.
 			isGroupByCol := false
-			colIndex := -1        // Index in GroupByCols or MeasureFunctions.
+			colIndex := -1 // Index in GroupByCols or MeasureFunctions.
 			for i, measureCol := range nodeResult.MeasureFunctions {
 				if measureAgg.String() == measureCol {
 					// We'll write over this existing column.

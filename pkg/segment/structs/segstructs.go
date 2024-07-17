@@ -189,7 +189,7 @@ type RunningStreamStatsResults struct {
 
 type RunningStreamStatsWindowElement struct {
 	Index       int
-	Value       float64
+	Value       interface{}
 	TimeInMilli uint64
 }
 
