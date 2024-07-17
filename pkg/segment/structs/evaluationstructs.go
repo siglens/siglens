@@ -1877,7 +1877,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		regex := self.Regex
 
 		for index, value := range mvSlice {
-			if regex.MatchString(value) {
+			if regex.GetCompiledRegex().MatchString(value) {
 				return strconv.Itoa(index), nil
 			}
 		}
