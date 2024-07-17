@@ -5694,37 +5694,54 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
-.error-message ,#metric-error{
-    display:none;
+.error-message, #metric-error {
+    display: none;
     width: fit-content;
-    text-align: center;
-    border-radius: 6px;
-    padding:7px;
-    border:0.5px solid var(--text-color);
-    background-color: var(--ui-widget-bg-color);
-    color: var(--text-color);
+    text-align: left;
+    border-radius: 4px;
+    padding: 10px 10px 10px 40px;
+    border: 1px solid #ffd7d7;
+    background-color: #fff0f0;
+    color: #d8000c;
     position: relative;
     z-index: 1;
-    bottom: 125%; /* Position above the triggering element */
+    bottom: 125%;
     left: 17.5%;
     transform: translateX(-50%);
     white-space: nowrap;
     box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
 }
 
-.error-message::after ,#metric-error::after{
-    left: 50%;
-    margin-left: -5px;
+.error-message::before, #metric-error::before {
+    content: "!";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: #d8000c;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 20px;
+    font-weight: bold;
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.error-message::after, #metric-error::after {
+    content: '';
+    position: absolute;
+    right: 20px; /* Position the caret 20px from the right edge */
+    margin-left: 0; /* Remove the left margin */
     border-width: 10px;
     border-style: solid;
     rotate: 180deg;
-    bottom:100%;
-    content: '';
-    position: absolute;
-    border-style: solid;
-    border-color: var(--graph-line-color-3) transparent transparent transparent;
-}
-  
+    bottom: 100%;
+    border-color: #fff0f0 transparent transparent transparent;
+}  
 
   
 
