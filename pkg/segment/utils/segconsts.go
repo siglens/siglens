@@ -145,6 +145,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
+	SS_DT_STRING_SLICE
 	SS_DT_STRING_SET
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
@@ -512,6 +513,7 @@ type DtypeEnclosure struct {
 	FloatVal       float64
 	StringVal      string
 	StringValBytes []byte         // byte slice representation of StringVal
+	StringSliceVal []string       // used for array dict
 	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
 }
 
