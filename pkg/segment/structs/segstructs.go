@@ -176,10 +176,9 @@ type StreamStatsOptions struct {
 	ResetAfter    *BoolExpr
 	TimeWindow    *BinSpanLength
 	// expensive for large data and window size
-	RunningStreamStats   map[int]map[string]*RunningStreamStatsResults
-	SegmentRecords       map[string]map[string]interface{}
-	NumProcessedRecords  uint64
-	NumProcessedSegments uint64
+	RunningStreamStats  map[int]map[string]*RunningStreamStatsResults
+	SegmentRecords      map[string]map[string]interface{}
+	NumProcessedRecords uint64
 }
 
 type RunningStreamStatsResults struct {
@@ -187,7 +186,7 @@ type RunningStreamStatsResults struct {
 	CurrResult float64
 }
 
-type IndexValue struct {
+type RunningStreamStatsWindowElement struct {
 	Index       int
 	Value       float64
 	TimeInMilli uint64

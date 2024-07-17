@@ -83,10 +83,10 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 	return ssResults.CurrResult, true, nil
 }
 
-// Remove the front element from the window, pass only t
+// Remove the front element from the window
 func removeFrontElementFromWindow(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
 	front := ssResults.Window.Front()
-	frontElement, correctType := front.Value.(*structs.IndexValue)
+	frontElement, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
 		return fmt.Errorf("removeFrontElementFromWindow: Error value in the window is not an IndexValue element")
 	}
@@ -108,7 +108,7 @@ func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamSta
 	if global {
 		for ssResults.Window.Len() > 0 {
 			front := ssResults.Window.Front()
-			frontVal, correctType := front.Value.(*structs.IndexValue)
+			frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
 				return fmt.Errorf("cleanWindow: Error value in the window is not an IndexValue element")
 			}
@@ -154,7 +154,7 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 
 	for ssResults.Window.Len() > 0 {
 		front := ssResults.Window.Front()
-		frontVal, correctType := front.Value.(*structs.IndexValue)
+		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 		if !correctType {
 			return fmt.Errorf("cleanTimeWindow: Error value in the window is not an IndexValue element")
 		}
@@ -195,7 +195,7 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Avg:
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), true, nil
 	case utils.Min, utils.Max:
-		return ssResults.Window.Front().Value.(*structs.IndexValue).Value, true, nil
+		return ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value, true, nil
 	default:
 		return 0.0, false, fmt.Errorf("getResults Error, measureAgg: %v not supported", measureAgg)
 	}
@@ -205,13 +205,13 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
-		ssResults.Window.PushBack(&structs.IndexValue{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case utils.Sum, utils.Avg:
 		ssResults.CurrResult += colValue
-		ssResults.Window.PushBack(&structs.IndexValue{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case utils.Min:
 		for ssResults.Window.Len() > 0 {
-			lastElement, correctType := ssResults.Window.Back().Value.(*structs.IndexValue)
+			lastElement, correctType := ssResults.Window.Back().Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
 				return 0.0, fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
 			}
@@ -221,11 +221,11 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 				break
 			}
 		}
-		ssResults.Window.PushBack(&structs.IndexValue{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
-		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.IndexValue).Value
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value
 	case utils.Max:
 		for ssResults.Window.Len() > 0 {
-			lastElement, correctType := ssResults.Window.Back().Value.(*structs.IndexValue)
+			lastElement, correctType := ssResults.Window.Back().Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
 				return 0.0, fmt.Errorf("performWindowStreamStatsOnSingleFunc Error, value in the window is not an IndexValue element")
 			}
@@ -235,8 +235,8 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 				break
 			}
 		}
-		ssResults.Window.PushBack(&structs.IndexValue{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
-		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.IndexValue).Value
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		ssResults.CurrResult = ssResults.Window.Front().Value.(*structs.RunningStreamStatsWindowElement).Value
 	default:
 		return 0.0, fmt.Errorf("performGlobalStreamStatsOnSingleFunc Error, measureAgg: %v not supported", measureAgg)
 	}
