@@ -1819,6 +1819,9 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
 		}
+		if self.StartIndex == nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: self.StartIndex is required but is nil")
+		}
 		startIndex, err := strconv.Atoi(self.StartIndex.Value)
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: failed to parse startIndex: %v", err)
@@ -1837,12 +1840,9 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			if endIndex < 0 {
 				endIndex += len(mvSlice)
 			}
-			if endIndex >= len(mvSlice) {
-				endIndex = len(mvSlice) - 1
-			}
 		}
 		// Check for index out of bounds
-		if startIndex > endIndex || startIndex >= len(mvSlice) || endIndex < 0 {
+		if startIndex > endIndex || startIndex >= len(mvSlice) || endIndex < 0 || endIndex >= len(mvSlice) {
 			return "NULL", nil
 		}
 
