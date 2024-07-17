@@ -912,7 +912,6 @@ function setIndexDisplayValue(selectedSearchIndex) {
 //eslint-disable-next-line no-unused-vars
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $('#clearInput').hide();
     switch (selectedQueryLangID) {
         case '1':
         case 1:
@@ -933,13 +932,6 @@ function displayQueryLangToolTip(selectedQueryLangID) {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-    $('#filter-input').on('input', function () {
-        if ($(this).val().trim() !== '') {
-            $('#clearInput').show();
-        } else {
-            $('#clearInput').hide();
-        }
-    });
 
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
@@ -966,7 +958,6 @@ function initializeFilterInputEvents() {
 
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
-        $(this).hide();
     });
     $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
