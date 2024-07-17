@@ -157,3 +157,15 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | bin start=-10000 http_status | stats count by http_status | stats count",now-1d,now,*,countRecord:count(*):*,eq,1,Splunk QL
 "app_name=Bracecould | stats count BY user_email | eval masked_email = replace(user_email,""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@weber.org",Splunk QL 
 "app_name=Bracecould | stats count BY user_email | eval masked_email = replace(""abc@xyz.com"", ""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@xyz.com",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvindex(names,2)",now-1d,now,*,group:res:400,eq,"Heidi",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvindex(names,0,2)",now-1d,now,*,group:res:400,eq,"Frank,Grace,Heidi",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvindex(names,-1)",now-1d,now,*,group:res:404,eq,"Ivan",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvindex(names,-3,-1)",now-1d,now,*,group:res:400,eq,"Grace,Heidi,Ivan",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi Ivan"" | makemv delim="","" names | eval res=mvcount(names)",now-1d,now,*,group:res:400,eq,3,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvcount(names)",now-1d,now,*,group:res:400,eq,4,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi Ivan"" | makemv delim="","" names | eval res=mvjoin(names, ""-"")",now-1d,now,*,group:res:400,eq,"Frank-Grace-Heidi Ivan",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval res=mvjoin(names, ""/"")",now-1d,now,*,group:res:400,eq,"Frank/Grace/Heidi/Ivan",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval grace_position = mvfind(names, ""Gr*"")",now-1d,now,*,group:grace_position:400,eq,1,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval ivan_position = mvfind(names, ""Iv*"")",now-1d,now,*,group:ivan_position:400,eq,3,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi Ivan"" | makemv delim="","" names | eval ivan_position = mvfind(names, ""Iv*"")",now-1d,now,*,group:ivan_position:400,eq,2,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi Ivan"" | makemv delim="","" names | eval john_position = mvfind(names, ""John*"")",now-1d,now,*,group:john_position:400,eq,"NULL",Splunk QL

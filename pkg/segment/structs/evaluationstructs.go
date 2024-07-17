@@ -1725,6 +1725,37 @@ func parseTime(dateStr, format string) (time.Time, error) {
 
 	return time.Parse(format, dateStr)
 }
+
+func (self *TextExpr) validateAndExtractMultiValueFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	if self == nil {
+		return nil, fmt.Errorf("EvaluateText: self is nil")
+	}
+	if self.Param == nil {
+		return nil, fmt.Errorf("EvaluateText: self.Param is nil")
+	}
+	fieldName := self.Param.FieldName
+
+	if fieldToValue == nil {
+		return nil, fmt.Errorf("TextExpr.EvaluateText: fieldToValue map is nil")
+	}
+
+	mvField, exists := fieldToValue[fieldName]
+	if !exists {
+		return nil, fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", fieldName)
+	}
+
+	if mvField.CVal == nil {
+		return nil, fmt.Errorf("TextExpr.EvaluateText: mvField.CVal is nil")
+	}
+
+	mvSlice, ok := mvField.CVal.([]string)
+	if !ok {
+		return nil, fmt.Errorf("TextExpr.EvaluateText: expected mvField.CVal to be a slice of strings, got %T", mvField.CVal)
+	}
+
+	return mvSlice, nil
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
@@ -1784,147 +1815,79 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 		return regex.ReplaceAllString(baseStr, replacementStr), nil
 	case "mvindex":
-		if self == nil || self.Param == nil || self.StartIndex == nil {
-			return "", fmt.Errorf("EvaluateText: self, self.Param, or self.StartIndex is nil")
-		}
-		fieldName := self.Param.FieldName
-
-		if fieldToValue == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: fieldToValue map is nil")
-		}
-
-		mvField, exists := fieldToValue[fieldName]
-		if !exists {
-			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", fieldName)
-		}
-
-		if mvField.CVal == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: mvField.CVal is nil")
-		}
-
-		mvString, ok := mvField.CVal.(string)
-		if !ok {
-			return "", fmt.Errorf("TextExpr.EvaluateText: expected mvField.CVal to be a string, got %T", mvField.CVal)
-		}
-
-		mvStringTrimmed := strings.Trim(mvString, "[]")
-		mvSlice := strings.Split(mvStringTrimmed, " ")
-
-		if self.StartIndex == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: self.StartIndex is required but is nil")
+		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
 		}
 		startIndex, err := strconv.Atoi(self.StartIndex.Value)
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: failed to parse startIndex: %v", err)
 		}
-		// If startIndex is negative, calculate its positive index equivalent from the end of the slice
-		if startIndex < 0 {
-			startIndex = len(mvSlice) + startIndex
-		}
 
-		// Handle endIndex similar to startIndex, including support for negative values
-		if self.EndIndex == nil {
-			// If endIndex is not provided, and startIndex is out of bounds, return an empty string
-			if startIndex < 0 || startIndex >= len(mvSlice) {
-				return "", nil
+		if startIndex < 0 {
+			startIndex += len(mvSlice)
+		}
+		// If endIndex is not provided, use startIndex as endIndex to fetch single value
+		endIndex := startIndex
+		if self.EndIndex != nil {
+			endIndex, err = strconv.Atoi(self.EndIndex.Value)
+			if err != nil {
+				return "", fmt.Errorf("TextExpr.EvaluateText: failed to parse endIndex: %v", err)
 			}
-			return mvSlice[startIndex], nil
+			if endIndex < 0 {
+				endIndex += len(mvSlice)
+			}
+			if endIndex >= len(mvSlice) {
+				endIndex = len(mvSlice) - 1
+			}
 		}
-
-		endIndex, err := strconv.Atoi(self.EndIndex.Value)
-		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: failed to parse endIndex: %v", err)
-		}
-
-		if endIndex < 0 {
-			endIndex = len(mvSlice) + endIndex
-		}
-
-		// Ensure startIndex is within bounds after adjustments
-		if startIndex < 0 {
-			startIndex = 0
-		}
-		// Ensure endIndex does not exceed slice bounds
-		if endIndex >= len(mvSlice) {
-			endIndex = len(mvSlice) - 1
-		}
-
-		// Validate the final indices to ensure they form a valid range
+		// Check for index out of bounds
 		if startIndex > endIndex || startIndex >= len(mvSlice) || endIndex < 0 {
-			return "", nil
+			return "NULL", nil
 		}
 
 		return strings.Join(mvSlice[startIndex:endIndex+1], ","), nil
 	case "mvjoin":
-		fieldName := self.Param.FieldName
-
-		if fieldToValue == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: fieldToValue map is nil")
+		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
 		}
 
-		mvField, exists := fieldToValue[fieldName]
-		if !exists {
-			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", fieldName)
-		}
-
-		if mvField.CVal == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: mvField.CVal is nil")
-		}
-
-		mvString, ok := mvField.CVal.(string)
-		if !ok {
-			return "", fmt.Errorf("TextExpr.EvaluateText: expected mvField.CVal to be a string, got %T", mvField.CVal)
-		}
-
-		mvStringTrimmed := strings.Trim(mvString, "[]")
-		mvSlice := strings.Split(mvStringTrimmed, " ")
 		if self.Delimiter == nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: Delimiter is nil")
 		}
 		delimiter := self.Delimiter.RawString
 
-		joinedString := strings.Join(mvSlice, delimiter)
-
-		return joinedString, nil
+		return strings.Join(mvSlice, delimiter), nil
 	case "mvcount":
-		fieldName := self.Param.FieldName
-
-		if fieldToValue == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: fieldToValue map is nil")
+		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
 		}
-
-		mvField, exists := fieldToValue[fieldName]
-		if !exists {
-			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", fieldName)
-		}
-
-		if mvField.CVal == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: mvField.CVal is nil")
-		}
-
-		mvString, ok := mvField.CVal.(string)
-		if !ok {
-			return "", fmt.Errorf("TextExpr.EvaluateText: expected mvField.CVal to be a string, got %T", mvField.CVal)
-		}
-
-		mvStringTrimmed := strings.Trim(mvString, "[]")
-		mvSlice := strings.Split(mvStringTrimmed, " ")
 
 		count := len(mvSlice)
 
-		// Handle edge cases
-		if count == 1 && mvSlice[0] == "<nil>" {
-			// If the field has no values or explicitly marked as "<nil>", return NULL (or an equivalent)
-			return "", nil // Assuming an empty string represents NULL
-		}
 		return strconv.Itoa(count), nil
+	case "mvfind":
+		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
+		}
+		regex := self.Regex
+
+		for index, value := range mvSlice {
+			if regex.MatchString(value) {
+				return strconv.Itoa(index), nil
+			}
+		}
+
+		// If no match is found
+		return "NULL", nil
 	case "mvappend":
 		fallthrough
 	case "mvdedup":
 		fallthrough
 	case "mvfilter":
-		fallthrough
-	case "mvfind":
 		fallthrough
 	case "mvmap":
 		fallthrough

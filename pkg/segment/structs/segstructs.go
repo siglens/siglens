@@ -859,7 +859,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvappend":         {},
 	"mvdedup":          {},
 	"mvfilter":         {},
-	"mvfind":           {},
 	"mvmap":            {},
 	"mvrange":          {},
 	"mvsort":           {},
