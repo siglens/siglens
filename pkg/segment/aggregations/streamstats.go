@@ -519,6 +519,10 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		return performStreamStatsOnHistogram(nodeResult, agg.StreamStatsOptions, agg)
 	}
 
+	if len(nodeResult.MeasureResults) > 0 {
+		return performStreamStatsOnMeasureResults(nodeResult, agg.StreamStatsOptions, agg)
+	}
+
 	return nil
 }
 
@@ -534,10 +538,10 @@ func getRecordFromFieldToValue(fieldToValue map[string]utils.CValueEnclosure) ma
 func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *structs.StreamStatsOptions, agg *structs.QueryAggregators) error {
 
 	if ssOption.TimeWindow != nil {
-		return fmt.Errorf("performStreamStatsOnHistogram Error: Time window cannot be applied to histograms")
+		return fmt.Errorf("performStreamStatsOnHistogram: Error: Time window cannot be applied to histograms")
 	}
 
-	// Setup a map for fetching values of field
+	// Fetch the fields from group by request and measure operations
 	fieldsInExpr := []string{}
 	measureAggs := agg.MeasureOperations
 	if agg.GroupByRequest != nil {
@@ -549,8 +553,8 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 	}
 
 	currIndex := 0
-	bucketKey := ""
-	currentBucketKey := bucketKey
+	currentBucketKey := ""
+	numPrevSegmentProcessedRecords := ssOption.NumProcessedRecords
 	for _, aggregationResult := range nodeResult.Histogram {
 		for rowIndex, bucketResult := range aggregationResult.Results {
 			// Get the values of all the necessary fields.
@@ -561,36 +565,20 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 			}
 			record := getRecordFromFieldToValue(fieldToValue)
 
-			if agg.GroupByRequest != nil {
-				bucketKey, err = GetBucketKey(record, agg.GroupByRequest)
-				if err != nil {
-					return fmt.Errorf("performStreamStatsOnHistogram: Error while creating bucket key, err: %v", err)
-				}
-			}
-
-			if agg.StreamStatsOptions.ResetOnChange && currentBucketKey != bucketKey {
-				resetAccumulatedStreamStats(agg.StreamStatsOptions)
-				currentBucketKey = bucketKey
-				currIndex = 0
-			}
-
-			shouldResetBefore, err := evaluateResetCondition(agg.StreamStatsOptions.ResetBefore, record)
+			// record would be updated in this method
+			currIndex, numPrevSegmentProcessedRecords, currentBucketKey, err = PerformStreamStatOnSingleRecord(nodeResult, agg, currIndex, currentBucketKey, record, measureAggs, numPrevSegmentProcessedRecords, 0, false, false)
 			if err != nil {
-				return fmt.Errorf("performStreamStatsOnHistogram: Error while evaluating resetBefore condition, err: %v", err)
-			}
-			if shouldResetBefore {
-				resetAccumulatedStreamStats(agg.StreamStatsOptions)
-				currIndex = 0
+				return fmt.Errorf("performStreamStatsOnHistogram: Error while performing stream stats on record, err: %v", err)
 			}
 
-			for measureFuncIndex, measureAgg := range measureAggs {
-				streamStatsResult, exist, err := PerformStreamStatsOnSingleFunc(currIndex, bucketKey, agg.StreamStatsOptions, measureFuncIndex, measureAgg, record, 0, false)
-				if err != nil {
-					return fmt.Errorf("performStreamStatsOnHistogram: Error while performing stream stats on function %v, err: %v", measureAgg.MeasureFunc, err)
-				}
-
+			for _, measureAgg := range measureAggs {
 				// Check if the column to create already exists and is a GroupBy column.
 				isGroupByCol := putils.SliceContainsString(nodeResult.GroupByCols, measureAgg.String())
+
+				streamStatsResult, resultPresent := record[measureAgg.String()]
+				if !resultPresent {
+					return fmt.Errorf("performStreamStatsOnHistogram: Error while fetching result for measureAgg: %v", measureAgg.String())
+				}
 
 				// Set the appropriate column to the computed value.
 				if isGroupByCol {
@@ -599,14 +587,7 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 							continue
 						}
 
-						streamStatsStr := ""
-						if exist {
-							streamStatsStr = fmt.Sprintf("%v", streamStatsResult)
-						} else {
-							if measureAgg.MeasureFunc == utils.Count {
-								streamStatsStr = "0"
-							}
-						}
+						streamStatsStr := fmt.Sprintf("%v", streamStatsResult)
 
 						// Set the appropriate element of BucketKey to cellValueStr.
 						switch bucketKey := bucketResult.BucketKey.(type) {
@@ -623,39 +604,102 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 						}
 					}
 				} else {
-					if exist {
+					if streamStatsResult != "" {
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
 							Dtype: utils.SS_DT_FLOAT,
 							CVal:  streamStatsResult,
 						}
 					} else {
-						if measureAgg.MeasureFunc == utils.Count {
-							aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
-								Dtype: utils.SS_DT_FLOAT,
-								CVal:  streamStatsResult,
-							}
-						} else {
-							aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
-								Dtype: utils.SS_DT_STRING,
-								CVal:  "",
-							}
+						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
+							Dtype: utils.SS_DT_STRING,
+							CVal:  "",
 						}
 					}
 				}
 			}
+		}
+	}
 
-			agg.StreamStatsOptions.NumProcessedRecords++
-			currIndex++
+	return nil
+}
 
-			shouldResetAfter, err := evaluateResetCondition(agg.StreamStatsOptions.ResetAfter, record)
-			if err != nil {
-				return fmt.Errorf("performStreamStatsOnHistogram: Error while evaluating resetAfter condition, err: %v", err)
+
+func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption *structs.StreamStatsOptions, agg *structs.QueryAggregators) (error) {
+	
+	if ssOption.TimeWindow != nil {
+		return fmt.Errorf("performStreamStatsOnMeasureResults: Error: Time window cannot be applied to measure results")
+	}
+
+	// Fetch the fields from group by request and measure operations
+	fieldsInExpr := []string{}
+	measureAggs := agg.MeasureOperations
+	if agg.GroupByRequest != nil {
+		fieldsInExpr = agg.GroupByRequest.GroupByColumns
+		measureAggs = agg.GroupByRequest.MeasureOperations
+	}
+	for _, measureAgg := range measureAggs {
+		fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+	}
+
+	currIndex := 0
+	currentBucketKey := ""
+	numPrevSegmentProcessedRecords := ssOption.NumProcessedRecords
+	// Compute the value for each row.
+	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
+		// Get the values of all the necessary fields.
+		fieldToValue := make(map[string]utils.CValueEnclosure, 0)
+		err := getMeasureResultsFieldValues(fieldToValue, fieldsInExpr, nodeResult, rowIndex)
+		if err != nil {
+			return fmt.Errorf("performStreamStatsOnMeasureResults: Error while getting value from measure results, err: %v", err)
+		}
+
+		record := getRecordFromFieldToValue(fieldToValue)
+		// record would be updated in this method
+		currIndex, numPrevSegmentProcessedRecords, currentBucketKey, err = PerformStreamStatOnSingleRecord(nodeResult, agg, currIndex, currentBucketKey, record, measureAggs, numPrevSegmentProcessedRecords, 0, false, false)
+		if err != nil {
+			return fmt.Errorf("performStreamStatsOnHistogram: Error while performing stream stats on record, err: %v", err)
+		}
+
+		for _, measureAgg := range measureAggs {
+			streamStatsResult, resultPresent := record[measureAgg.String()]
+			if !resultPresent {
+				return fmt.Errorf("performStreamStatsOnHistogram: Error while fetching result for measureAgg: %v", measureAgg.String())
 			}
-			if shouldResetAfter {
-				resetAccumulatedStreamStats(agg.StreamStatsOptions)
-				currIndex = 0
+
+			// Check if the column already exists.
+			isGroupByCol := false
+			colIndex := -1        // Index in GroupByCols or MeasureFunctions.
+			for i, measureCol := range nodeResult.MeasureFunctions {
+				if measureAgg.String() == measureCol {
+					// We'll write over this existing column.
+					isGroupByCol = false
+					colIndex = i
+					break
+				}
 			}
 
+			for i, groupByCol := range nodeResult.GroupByCols {
+				if measureAgg.String() == groupByCol {
+					// We'll write over this existing column.
+					isGroupByCol = true
+					colIndex = i
+					break
+				}
+			}
+
+			if colIndex == -1 {
+				// Append the column as a MeasureFunctions column.
+				isGroupByCol = false
+				colIndex = len(nodeResult.MeasureFunctions)
+				nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, measureAgg.String())
+			}
+
+			// Set the appropriate column to the computed value.
+			if isGroupByCol {
+				bucketHolder.GroupByValues[colIndex] = fmt.Sprintf("%v", streamStatsResult)
+			} else {
+				bucketHolder.MeasureVal[measureAgg.String()] = fmt.Sprintf("%v", streamStatsResult)
+			}
 		}
 	}
 
