@@ -1843,7 +1843,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		// Check for index out of bounds
-		if startIndex > endIndex || startIndex >= len(mvSlice) || endIndex < 0 || endIndex >= len(mvSlice) {
+		if startIndex > endIndex || startIndex < 0 || endIndex < 0 || endIndex >= len(mvSlice) || startIndex >= len(mvSlice) {
 			return "NULL", nil
 		}
 
@@ -1874,10 +1874,15 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
 		}
-		regex := self.Regex
+		compiledRegex := self.Regex.GetCompiledRegex()
+
+		// Check if compiledRegex is nil
+		if compiledRegex == nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: compiled regex is nil")
+		}
 
 		for index, value := range mvSlice {
-			if regex.GetCompiledRegex().MatchString(value) {
+			if compiledRegex.MatchString(value) {
 				return strconv.Itoa(index), nil
 			}
 		}
