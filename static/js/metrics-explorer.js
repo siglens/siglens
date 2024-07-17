@@ -1597,7 +1597,7 @@ $('#json-block').on('click', function () {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     try {
-        let panelChartEl,mergedCtx;
+        let panelChartEl, mergedCtx;
         if (isDashboardScreen) {
             // For dashboard page
             if (panelId === -1) {
@@ -1606,7 +1606,7 @@ function mergeGraphs(chartType, panelId = -1) {
                 panelChartEl = $(`#panel${panelId} .panEdit-panel`);
                 panelChartEl.css('width', '100%').css('height', '100%');
             }
-    
+
             panelChartEl.empty(); // Clear any existing content
             var mergedCanvas = $('<canvas></canvas>');
             panelChartEl.append(mergedCanvas);
@@ -1616,14 +1616,14 @@ function mergeGraphs(chartType, panelId = -1) {
             var visualizationContainer = $(`
                 <div class="merged-graph-name"></div>
                 <div class="merged-graph"></div>`);
-    
+
             $('#merged-graph-container').empty().append(visualizationContainer);
-    
+
             mergedCanvas = $('<canvas></canvas>');
-    
+
             $('.merged-graph').empty().append(mergedCanvas);
             mergedCtx = mergedCanvas[0].getContext('2d');
-        }        
+        }
         if (!mergedCtx) {
             console.warn('Could not get canvas context. Skipping chart creation.');
             return;
