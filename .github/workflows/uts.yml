@@ -63,5 +63,5 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         with:
           commit_message: "github actions: style: format JS files"
-          branch: ${{ github.head_ref }}
+          branch: ${{ github.event.pull_request.head.repo.full_name }}
 
