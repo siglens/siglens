@@ -249,7 +249,13 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	if err != nil {
 		err = fmt.Errorf("GetAlert: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
 		log.Error(err.Error())
-		return nil, err
+
+		// This would mean that the Alert Query is not in Base64 Format. Update the document in db to Base64
+		err = p.UpdateAlert(&alert)
+		if err != nil {
+			log.Errorf("GetAlert: unable to update alert: %v, Error=%v", alert.AlertName, err)
+			return nil, err
+		}
 	}
 
 	return &alert, nil
@@ -267,7 +273,13 @@ func (p Sqlite) GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error) {
 		if err != nil {
 			err = fmt.Errorf("GetAllAlerts: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
 			log.Error(err.Error())
-			continue
+
+			// This would mean that the Alert Query is not in Base64 Format. Update the document in db to Base64
+			err = p.UpdateAlert(alert)
+			if err != nil {
+				log.Errorf("GetAllAlerts: unable to update alert: %v, Error=%v", alert.AlertName, err)
+				continue
+			}
 		}
 		finalAlerts = append(finalAlerts, alert)
 	}
