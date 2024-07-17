@@ -4997,6 +4997,9 @@ func Test_evalFunctionsMvFind(t *testing.T) {
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
+	compiledRegex, _ := regexp.Compile(`err\d+`)
+	assert.Nil(t, err)
+	assert.NotNil(t, compiledRegex)
 
 	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -5012,11 +5015,9 @@ func Test_evalFunctionsMvFind(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvfind")
-	assert.Len(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList, 2)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].FieldName), "http_status")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].StringExprMode), int(structs.SEMRawString))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].RawString), `err\d+`)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Regex), compiledRegex)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
