@@ -373,6 +373,13 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		editedAlert.ContactName = contactData.ContactName
 	}
 
+	// Clear existing labels
+	if err := p.db.Model(&currentAlertData).Association("Labels").Clear(); err != nil {
+		err := fmt.Errorf("UpdateAlert: unable to clear labels for alert: %v, Error=%v", editedAlert.AlertName, err)
+		log.Error(err.Error())
+		return err
+	}
+
 	result := p.db.Set("gorm:association_autoupdate", true).Save(&editedAlert)
 	if result.Error != nil && result.RowsAffected != 1 {
 		err := fmt.Errorf("UpdateAlert: unable to update details for alert: %v, Error=%v", editedAlert.AlertName, result.Error)
