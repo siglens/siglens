@@ -516,11 +516,17 @@ func PerformStreamStats(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 
 	if len(nodeResult.Histogram) > 0 {
-		return performStreamStatsOnHistogram(nodeResult, agg.StreamStatsOptions, agg)
+		err := performStreamStatsOnHistogram(nodeResult, agg.StreamStatsOptions, agg)
+		if err != nil {
+			return fmt.Errorf("performStreamStats: Error while performing stream stats on histogram, err: %v", err)
+		}
 	}
 
 	if len(nodeResult.MeasureResults) > 0 {
-		return performStreamStatsOnMeasureResults(nodeResult, agg.StreamStatsOptions, agg)
+		err := performStreamStatsOnMeasureResults(nodeResult, agg.StreamStatsOptions, agg)
+		if err != nil {
+			return fmt.Errorf("performStreamStats: Error while performing stream stats on measure results, err: %v", err)
+		}
 	}
 
 	return nil
