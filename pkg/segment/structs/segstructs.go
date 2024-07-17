@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -986,7 +985,7 @@ func checkUnsupportedLetColumnCommand(agg *QueryAggregators) error {
 func (br *BucketResult) GetBucketValueForGivenField(fieldName string) (interface{}, int, bool) {
 
 	if value, ok := br.StatRes[fieldName]; ok {
-		return value, -1, true
+		return value.CVal, -1, true
 	}
 
 	index := -1
@@ -1021,24 +1020,17 @@ func (br *BucketResult) GetBucketValueForGivenField(fieldName string) (interface
 
 // Can only be used for GroupBy keys.
 // SetBucketValueForGivenField sets the value of the bucket for the given field name.
-// The Value must be of type string or []string.
-// If the value is of type []string, it is converted to a string.
+// If the BucketKey is a Array or Slice type, then it sets the value at the given index.
+// And will also convert the BucketKey to a []interface{} type if it is not already.
 func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value interface{}, index int, isStatRes bool) error {
 
 	if isStatRes {
-		// Should not set the value, if the field is a Statistic result.
-		return nil
-	}
-
-	// value can be either a string or a list of strings.
-	if valueList, ok := value.([]string); ok {
-		tempValList := make([]string, len(valueList))
-
-		for i, val := range valueList {
-			tempValList[i] = fmt.Sprintf(`"%s"`, val)
+		dVal, err := utils.CreateDtypeEnclosure(value, 0)
+		if err != nil {
+			return fmt.Errorf("SetBucketValueForGivenField: Failed to create dtype enclosure for value: %v", value)
 		}
-
-		value = fmt.Sprintf("[ %v ]", strings.Join(tempValList, ", "))
+		br.StatRes[fieldName] = utils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
+		return nil
 	}
 
 	if index == -1 {
@@ -1068,18 +1060,18 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 		return fmt.Errorf("SetBucketValueForGivenField: Field %v not found in the bucket key. Index: %v is greater than the bucket key Size: %v", fieldName, index, bucketKeyReflectVal.Len())
 	}
 
-	_, ok := br.BucketKey.([]string)
+	_, ok := br.BucketKey.([]interface{})
 	if !ok {
 		// Convert the bucket key to a list type.
-		tempBucketKey := make([]string, len(br.GroupByKeys))
+		tempBucketKey := make([]interface{}, len(br.GroupByKeys))
 		for i := range br.GroupByKeys {
-			tempBucketKey[i] = bucketKeyReflectVal.Index(i).Interface().(string)
+			tempBucketKey[i] = bucketKeyReflectVal.Index(i).Interface()
 		}
 		br.BucketKey = tempBucketKey
 	}
 
-	bucketKeyList := br.BucketKey.([]string)
-	bucketKeyList[index] = value.(string)
+	bucketKeyList := br.BucketKey.([]interface{})
+	bucketKeyList[index] = value
 
 	return nil
 }
