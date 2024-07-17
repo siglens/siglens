@@ -884,6 +884,11 @@ func CreateMeasResultsFromAggResults(limit int,
 			case string:
 				groupByValues = append(groupByValues, bKey)
 				added++
+			case []interface{}:
+				for _, bk := range aggVal.BucketKey.([]interface{}) {
+					groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
+					added++
+				}
 			default:
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}

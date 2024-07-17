@@ -2275,10 +2275,10 @@ func Test_performMultiValueColRequestOnHistogram_OnlyDelimiter(t *testing.T) {
 		},
 	}
 
-	expectedResults := make(map[uint64][]string)
-	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "doe@example.com" ]`, "host@id.com"}
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "doe@example.com"}, "host@id.com"}
 
-	expectedResults[2] = []string{`[ "foo@example.com", "bar@example.com" ]`, "host@id.com"}
+	expectedResults[2] = []interface{}{[]string{"foo@example.com", "bar@example.com"}, "host@id.com"}
 
 	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
 	assert.Nil(t, err)
@@ -2325,9 +2325,9 @@ func Test_performMultiValueColRequestOnHistogram_OnlyRegexDelimiter(t *testing.T
 		},
 	}
 
-	expectedResults := make(map[uint64][]string)
-	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "doe@example.com" ]`, "host@id.com"}
-	expectedResults[2] = []string{`[ "foo@example.com", "bar@example.com" ]`, "host@id.com"}
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "doe@example.com"}, "host@id.com"}
+	expectedResults[2] = []interface{}{[]string{"foo@example.com", "bar@example.com"}, "host@id.com"}
 
 	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
 	assert.Nil(t, err)
@@ -2374,9 +2374,9 @@ func Test_performMultiValueColRequestOnHistogram_DelimiterWithAllowEmptyValues(t
 		},
 	}
 
-	expectedResults := make(map[uint64][]string)
-	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "", "doe@example.com" ]`, "host@id.com"}
-	expectedResults[2] = []string{`[ "", "foo@example.com", "", "bar@example.com", "" ]`, "host@id.com"}
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "", "doe@example.com"}, "host@id.com"}
+	expectedResults[2] = []interface{}{[]string{"", "foo@example.com", "", "bar@example.com", ""}, "host@id.com"}
 
 	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
 	assert.Nil(t, err)
@@ -2423,9 +2423,9 @@ func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
 		},
 	}
 
-	expectedResults := make(map[uint64][]string)
-	expectedResults[1] = []string{"john@example.com jane@example.com doe@example.com", "host@id.com"}
-	expectedResults[2] = []string{"foo@example.com bar@example.com", "host@id.com"}
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{"john@example.com jane@example.com doe@example.com", "host@id.com"}
+	expectedResults[2] = []interface{}{"foo@example.com bar@example.com", "host@id.com"}
 
 	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
 	assert.Nil(t, err)
