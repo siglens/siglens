@@ -656,9 +656,20 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
-			err := hook(segstore)
+			alreadyHandled, err := hook(segstore)
 			if err != nil {
 				log.Errorf("checkAndRotateColFiles: failed to rotate segment %v, err=%v", segstore.SegmentKey, err)
+				return err
+			}
+
+			if alreadyHandled {
+				err := cleanupUnrotatedSegment(segstore, streamid, !forceRotate)
+				if err != nil {
+					log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
+					return err
+				}
+
+				return nil
 			}
 		}
 
@@ -733,7 +744,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		}
 
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, finalSegmentKey)
-		removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
 
 		// upload ingest node dir to s3
 		err = blob.UploadIngestNodeDir()
@@ -741,14 +751,31 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 
-		if !forceRotate {
-			err = segstore.resetSegStore(streamid, segstore.VirtualTableName)
-			if err != nil {
-				return err
-			}
+		err = cleanupUnrotatedSegment(segstore, streamid, !forceRotate)
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
+			return err
 		}
-
 	}
+	return nil
+}
+
+func cleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
+	removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
+
+	err := os.RemoveAll(segstore.segbaseDir)
+	if err != nil {
+		log.Errorf("cleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
+		return err
+	}
+
+	if resetSegstore {
+		err = segstore.resetSegStore(streamId, segstore.VirtualTableName)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

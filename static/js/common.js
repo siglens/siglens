@@ -408,6 +408,16 @@ function getQueryParamsData(scrollingTrigger) {
     if (scrollingTrigger) {
         sFrom = scrollFrom;
     }
+
+    isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
+    if (isQueryBuilderSearch) {
+        queryStr = getQueryBuilderCode();
+        queryMode = 'Builder';
+    } else {
+        queryStr = $('#filter-input').val();
+        queryMode = 'Code';
+    }    
+
     let data = {
         state: wsState,
         searchText: queryStr,
@@ -416,6 +426,7 @@ function getQueryParamsData(scrollingTrigger) {
         indexName: selectedSearchIndex,
         from: sFrom,
         queryLanguage: queryLanguage,
+        queryMode: queryMode,
     };
     return data;
 }
@@ -733,29 +744,6 @@ function addZero(i) {
     }
     return i;
 }
-//eslint-disable-next-line no-unused-vars
-function setTimePicker() {
-    // set time picker of next page with updated time
-    let stDate = Cookies.get('startEpoch') || 'now-1h';
-    let endDate = Cookies.get('endEpoch') || 'now';
-    if (stDate && endDate) {
-        if (endDate === 'now') {
-            filterStartDate = stDate;
-            filterEndDate = endDate;
-            $('.inner-range #' + filterStartDate).addClass('active');
-            datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-        } else {
-            if (!isNaN(stDate)) {
-                stDate = Number(stDate);
-                endDate = Number(endDate);
-                datePickerHandler(stDate, endDate, 'custom');
-                loadCustomDateTimeFromEpoch(stDate, endDate);
-                filterStartDate = stDate;
-                filterEndDate = endDate;
-            }
-        }
-    }
-}
 
 // my org page
 //eslint-disable-next-line no-unused-vars
@@ -912,7 +900,6 @@ function setIndexDisplayValue(selectedSearchIndex) {
 //eslint-disable-next-line no-unused-vars
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $('#clearInput').hide();
     switch (selectedQueryLangID) {
         case '1':
         case 1:
@@ -931,15 +918,16 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             break;
     }
 }
+function toggleClearButtonVisibility() {
+    var filterInputValue = $('#filter-input').val().trim();
+    if (filterInputValue === '') {
+        $('#clearInput').hide();
+    } else {
+        $('#clearInput').show();
+    }
+}
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-    $('#filter-input').on('input', function () {
-        if ($(this).val().trim() !== '') {
-            $('#clearInput').show();
-        } else {
-            $('#clearInput').hide();
-        }
-    });
 
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
@@ -963,10 +951,12 @@ function initializeFilterInputEvents() {
     });
 
     $('#filter-input').on('input', autoResizeTextarea);
-
+    $('#filter-input').on('input', function() {
+        toggleClearButtonVisibility();
+    });
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
-        $(this).hide();
+        toggleClearButtonVisibility();
     });
     $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
@@ -975,7 +965,8 @@ function initializeFilterInputEvents() {
             let position = this.selectionStart;
             input.val(value.substring(0, position) + '\n' + value.substring(position));
             this.selectionStart = this.selectionEnd = position + 2;
-        }
+            
+        }toggleClearButtonVisibility();
     });
     document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
@@ -986,5 +977,18 @@ function initializeFilterInputEvents() {
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
         autoResizeTextarea.call(this);
+        toggleClearButtonVisibility();
     });
+}
+
+function updateQueryModeUI(queryMode) {
+    $('.query-mode-option').removeClass('active');
+
+    if (queryMode === 'Builder') {
+        $('#query-mode-options #mode-option-1').addClass('active');
+        $('#query-mode-btn span').html('Builder');
+    } else {
+        $('#query-mode-options #mode-option-2').addClass('active');
+        $('#query-mode-btn span').html('Code');
+    }
 }
