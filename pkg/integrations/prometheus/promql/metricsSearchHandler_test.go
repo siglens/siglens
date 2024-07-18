@@ -278,6 +278,15 @@ func Test_buildMetricQueryFromFormulaAndQueries(t *testing.T) {
 			},
 			expected: `avg(rate(metric1[5m])) + sum by (type) (metric2{type="test"})`,
 		},
+		{
+			formula: "atan(abs(ceil(123 * a + b))) + abs(ceil(c))",
+			queries: map[string]string{
+				"a": `ceil(avg by (type) (metric1))`,
+				"b": `max by (type) (metric2)`,
+				"c": `min by (type) (metric3)`,
+			},
+			expected: `atan(abs(ceil(123 * ceil(avg by (type) (metric1)) + max by (type) (metric2)))) + abs(ceil(min by (type) (metric3)))`,
+		},
 	}
 
 	for i, tc := range testCases {
