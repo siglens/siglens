@@ -43,8 +43,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
 
+    <style>
+        .tab-chart-list{
+            margin-left: 20px !important;
+            min-width: fit-content;
+        }
+    </style>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -68,33 +76,54 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div class="myOrg">
             <div class="myOrg-container">
-                <div class="org-nav-tab">
-                    {{ .Button1 | safeHTML }}
+                <div class="ingestion-nav-tab">
+                    Metrics Ingestions
                 </div>
-
-                <div class="myOrg-inner-container">
-                    <div>
-                        <div>
+                    <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
+                        <ul class="tab-chart-list">
+                            <li class="tab-li" id="option-1"><a href="#vector-metrics-ingestion" class="custom-query-builder">Vector Metrics</a>
+                            </li>
+                            <li class="tab-li" id="option-2"><a href="#telemetry-ingestion" class="custom-query-builder">OpenTelemetry</a>
+                            </li>
+                        </ul>
+                    
+                        <div class="ingest-inner-container">
+                            <div>
+                                <div id="vector-metrics-ingestion">
                             
-                            <div class="card">                                                      
-                                <div class="message-text-container">
-                                  <p id="versionInfo" class="message-text">Loading...</p>
+                                <div class="container mt-4">
+                                    <div class="d-flex mt-4">
+                                        <h5 class="myOrg-heading">Setup instructions</h5>
+                                        <div class="ingestion-container">
+                                            <div>Follow the steps in <a href="https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics" id="setup-instructions-link" target="_blank">Quick start
+                                                    guide<span id="open-new-tab-icon"></span></a></div>
+                                        </div>
+                                    </div>
                                 </div>
-                              </div>
-                              
-                        </div>
+                            </div>                        
+                            <div id="telemetry-ingestion">
+                            
+                                <div class="container mt-4">
+                                    <div class="d-flex mt-4">
+                                        <h5 class="myOrg-heading">Setup instructions</h5>
+                                        <div class="ingestion-container">
+                                            <div>Follow the steps in <a href="https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry" id="setup-instructions-link" target="_blank">Quick start
+                                                    guide<span id="open-new-tab-icon"></span></a></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                     </div>
-                </div>
+                </div>                  
             </div>
         </div>
 
-        <div id="app-footer">
-            2024 &copy; SigLens
-        </div>
+    <div id="app-footer">
+        2024 &copy; SigLens
+    </div>
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
-    <!-- <script src="./js/cluster-stats.js"></script> -->
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/available-fields.js?cb=1_1_10"></script>
     <script src="./js/log-results-grid.js?cb=1_1_10"></script>
@@ -103,9 +132,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/search.js?cb=1_1_10"></script>
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/application-version.js?cb=1_1_10"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
-
+    <script src="./js/test-data.js"></script>
+    
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

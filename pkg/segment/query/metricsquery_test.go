@@ -32,7 +32,7 @@ import (
 func Test_GetAllMetricNamesOverTheTimeRange(t *testing.T) {
 	// Create Mock Segment Files.
 
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 
 	err := metadata.InitMockMetricsMetadataStore(10000)
 	assert.Nil(t, err)

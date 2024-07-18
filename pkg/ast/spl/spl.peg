@@ -337,6 +337,13 @@ func initializeStatsOptions() *structs.StatsOptions {
     }
 }
 
+func initializeStreamStatsOptions() *structs.StreamStatsOptions {
+    return &structs.StreamStatsOptions {
+        Current: true,
+        Global: true,
+    }
+}
+
 func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
 
     if inputField == "" {
@@ -437,6 +444,11 @@ type BinOptionArgs struct {
     binOptions *structs.BinCmdOptions
 }
 
+type StreamStatsOptionArgs struct {
+    argOption string
+    streamStatsOptions *structs.StreamStatsOptions
+}
+
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
@@ -533,7 +545,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -556,7 +568,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? options:(StatsOptions)?{
+CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -597,6 +609,13 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
         }
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
     }
+
+    return aggNode, nil
+}
+
+
+AggregatorBlock <- PIPE CMD_STATS aggs:(CommonAggregatorBlock) options:(StatsOptions)?{
+    aggNode := aggs.(*structs.QueryAggregators)
 
     if options != nil {
         aggNode.StatsOptions = options.(*structs.StatsOptions)
@@ -669,6 +688,185 @@ GroupbyBlock <- BY fields:FieldNameList {
     }
 
     return fields, nil
+}
+
+
+StreamStatsOptionResetOnChange <- "reset_on_change" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        ResetOnChange: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_on_change",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionCurrent <- "current" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        Current: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "current",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionGlobal <- "global" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
+    ssOption := &structs.StreamStatsOptions{
+        Global: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "global",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionAllNum <- "allnum" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
+    ssOption := &structs.StreamStatsOptions{
+        AllNum: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "allnum",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionWindow <- "window" EQUAL windowSize:PositiveIntegerAsString {
+    window, err := strconv.ParseUint(windowSize.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be a positive integer", windowSize.(string))
+    }
+    if window > 10000 {
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be less than or equal to 10000", window)
+    }
+    ssOption := &structs.StreamStatsOptions{
+        Window: window,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+
+StreamStatsOptionResetBefore <- "reset_before" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetBefore: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_before",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionResetAfter <- "reset_after" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetAfter: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_after",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionTimeWindow <- "time_window" EQUAL spanLength:BinSpanLenOption {
+    spanLen := spanLength.(*structs.BinSpanLength)
+    if spanLen.TimeScale == utils.TMInvalid {
+        return nil, fmt.Errorf("Invalid Syntax, time_window option cannot be used without time scale")
+    }
+    ssOption := &structs.StreamStatsOptions{
+        TimeWindow: spanLen,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "time_window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOption <- ssOption:(StreamStatsOptionResetOnChange / StreamStatsOptionCurrent / StreamStatsOptionGlobal / StreamStatsOptionAllNum / StreamStatsOptionWindow / StreamStatsOptionResetBefore / StreamStatsOptionResetAfter / StreamStatsOptionTimeWindow) {
+    return ssOption, nil
+}
+
+StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+
+    numOptions := 1 + len(restSlice)
+
+    ssOption := initializeStreamStatsOptions()
+
+    for i := 0; i < numOptions; i++ {
+        var ssOptArg *StreamStatsOptionArgs
+        if i == 0 {
+            ssOptArg = first.(*StreamStatsOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            ssOptArg = separator[1].(*StreamStatsOptionArgs)
+        }
+
+        argOption := ssOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if exist && val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "reset_on_change":
+                ssOption.ResetOnChange = ssOptArg.streamStatsOptions.ResetOnChange
+            case "current":
+                ssOption.Current = ssOptArg.streamStatsOptions.Current
+            case "global":
+                ssOption.Global = ssOptArg.streamStatsOptions.Global
+            case "allnum":
+                ssOption.AllNum = ssOptArg.streamStatsOptions.AllNum
+            case "window":
+                ssOption.Window = ssOptArg.streamStatsOptions.Window
+            case "time_window":
+                ssOption.TimeWindow = ssOptArg.streamStatsOptions.TimeWindow
+            case "reset_before":
+                ssOption.ResetBefore = ssOptArg.streamStatsOptions.ResetBefore
+            case "reset_after":
+                ssOption.ResetAfter = ssOptArg.streamStatsOptions.ResetAfter
+            default:
+                return nil, fmt.Errorf("Not a Valid Streamstats Command Option: %v", argOption)
+        }
+    }
+
+    return ssOption, nil
+}
+
+StreamStatsBlock <- PIPE CMD_STREAMSTATS ssOptionList:(StreamStatsOptionList) SPACE aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+
+    aggNode.StreamStatsOptions = ssOptionList.(*structs.StreamStatsOptions)
+
+    return aggNode, nil
+}
+/ PIPE CMD_STREAMSTATS aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+
+    aggNode.StreamStatsOptions = initializeStreamStatsOptions()
+
+    return aggNode, nil
 }
 
 RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString {
@@ -1960,7 +2158,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
-/ (opName:("max" / "min" / "mvappend" / "mvfind") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+/ (opName:("max" / "min" / "mvappend") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1994,6 +2192,30 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
+
+/ (opName:("mvfind") L_PAREN stringExpr:StringExpr COMMA regexPattern:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: TextExpr: %v", err)
+    }
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+
+    compiledRegex, err := regexp.Compile(regex.RawString)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        Regex: compiledRegex,
+    }
+    return node, nil
+}
+
 / (opName:("substr") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr lengthParam:(COMMA NumericExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -4799,10 +5021,11 @@ IndexName <- (!SPACE .)+ {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
+CMD_STREAMSTATS <- "streamstats" SPACE
 CMD_FIELDS <- "fields" SPACE
 CMD_WHERE <- "where" SPACE
 CMD_HEAD_NO_SPACE <- "head"

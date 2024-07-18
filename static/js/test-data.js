@@ -22,7 +22,6 @@ let selectedLogSource = "";
 $(document).ready(function () {
     $('#data-ingestion,#test-data-btn').hide();
     $('.theme-btn').on('click', themePickerHandler);
-    let org_name;
     $(".custom-chart-tab").tabs();
     $(".custom-chart-tab").show();
     $.ajax({
@@ -32,7 +31,7 @@ $(document).ready(function () {
         dataType: 'json',
         credentials: 'include'
     })
-        .then((res) => {
+        .then((_res) => {
             let token;
             {{ if .TestDataSendData }}
                 {{ .TestDataSendData }}
@@ -43,86 +42,83 @@ $(document).ready(function () {
         .catch((err) => {
             console.log(err)
         });
-        var currentUrl = window.location.href;
-        var url = new URL(currentUrl);
-        var baseUrl = url.protocol + '//' + url.hostname;
+    var currentUrl = window.location.href;
+    var url = new URL(currentUrl);
+    var baseUrl = url.protocol + '//' + url.hostname;
 
-        $('#custom-chart-tab').on('click', '.tab-li', function() {
-            selectedLogSource = $(this).text().trim();
-            $('.tab-li').removeClass("active");
-            $(this).addClass("active");
-        
-            var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
-                            '-H \'Content-Type: application/json\' \\\n' +
-                            '-d \'{ "index" : { "_index" : "test" } }\n' +
-                            '{ "name" : "john", "age":"23" }\'';
-            $('#verify-command').text(curlCommand);
-        
-            switch (selectedLogSource) {
-                case 'Vector':
-                case 'Logstash':
-                case 'Fluentd':
-                case 'Filebeat':
-                case 'Promtail':
-                    $('#platform-input').val(selectedLogSource);
-                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
-                    break;
-                case 'Elastic Bulk':
-                    $('#platform-input').val(selectedLogSource);
-                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
-                    break;
-                case 'Splunk HEC':
-                    $('#platform-input').val(selectedLogSource);
-                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
-                    curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
-                            '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
-                            '-d \'{ "index" : { "_index" : "test" } }\n' +
-                            '{ "name" : "john", "age":"23" }\'';
-                    $('#verify-command').text(curlCommand);
-                    break;
-                case 'Send Test Data':
-                    $('#test-data-btn').show();
-                    break;
-                default:
-                    break;
-            }
-        });
-        
+    $('#custom-chart-tab').on('click', '.tab-li', function () {
+        selectedLogSource = $(this).text().trim();
+        $('.tab-li').removeClass("active");
+        $(this).addClass("active");
+
+        var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
+            '-H \'Content-Type: application/json\' \\\n' +
+            '-d \'{ "index" : { "_index" : "test" } }\n' +
+            '{ "name" : "john", "age":"23" }\'';
+        $('#verify-command').text(curlCommand);
+
+        switch (selectedLogSource) {
+            case 'Vector':
+            case 'Logstash':
+            case 'Fluentd':
+            case 'Filebeat':
+            case 'Promtail':
+                $('#platform-input').val(selectedLogSource);
+                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                break;
+            case 'Elastic Bulk':
+                $('#platform-input').val(selectedLogSource);
+                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
+                break;
+            case 'Splunk HEC':
+                $('#platform-input').val(selectedLogSource);
+                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
+                curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
+                    '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
+                    '-d \'{ "index" : { "_index" : "test" } }\n' +
+                    '{ "name" : "john", "age":"23" }\'';
+                $('#verify-command').text(curlCommand);
+                break;
+            case 'Send Test Data':
+                $('#test-data-btn').show();
+                break;
+            default:
+                break;
+        }
+    });
+
     $('.custom-chart-tab ul li:first a').click();
 
     //Copy Handler
-    $('.copyable').each(function() {
+    $('.copyable').each(function () {
         var copyIcon = $('<span class="copy-icon"></span>');
         $(this).after(copyIcon);
     });
 
-    $('.copy-icon').on('click', function(event) {
+    $('.copy-icon').on('click', function (_event) {
         var copyIcon = $(this);
         var inputOrTextarea = copyIcon.prev('.copyable');
         var inputValue = inputOrTextarea.val();
-    
+
         var tempInput = document.createElement("textarea");
         tempInput.value = inputValue;
         document.body.appendChild(tempInput);
         tempInput.select();
         document.execCommand("copy");
         document.body.removeChild(tempInput);
-    
+
         copyIcon.addClass('success');
-        setTimeout(function() {
-            copyIcon.removeClass('success'); 
+        setTimeout(function () {
+            copyIcon.removeClass('success');
         }, 1000);
     });
-    
+
     {{ .Button1Function }}
 })
 
-function dropdown() {
-    $('.dropdown-option').toggleClass('active');
-}
 
 function sendTestData(e, token) {
-    
+
     if (token) {
         sendTestDataWithBearerToken(token).then((res) => {
             showSendTestDataUpdateToast('Sent Test Data Successfully');
@@ -136,7 +132,7 @@ function sendTestData(e, token) {
                 testDataBtn.disabled = false;
             });
     } else {
-        sendTestDataWithoutBearerToken().then((res) => {
+        sendTestDataWithoutBearerToken().then((_res) => {
             showSendTestDataUpdateToast('Sent Test Data Successfully');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
@@ -149,9 +145,7 @@ function sendTestData(e, token) {
             });
     }
 
-        
-
-    function sendTestDataWithBearerToken( token) {
+    function sendTestDataWithBearerToken(token) {
         return new Promise((resolve, reject) => {
             $.ajax({
                 method: 'post',
@@ -176,7 +170,7 @@ function sendTestData(e, token) {
         return new Promise((resolve, reject) => {
             $.ajax({
                 method: 'post',
-                url:  '/api/sampledataset_bulk',
+                url: '/api/sampledataset_bulk',
                 crossDomain: true,
                 dataType: 'json',
                 credentials: 'include'
@@ -189,4 +183,18 @@ function sendTestData(e, token) {
                 });
         });
     }
+}
+
+function myOrgSendTestData(token) {
+    $('#test-data-btn').on('click', (e) => {
+        if (selectedLogSource === 'Send Test Data') {
+            var testDataBtn = document.getElementById("test-data-btn");
+            // Disable testDataBtn
+            testDataBtn.disabled = true;
+            sendTestData(e, token);
+        }
+        else {
+            showSendTestDataUpdateToast('Select Test Data');
+        }
+    })
 }

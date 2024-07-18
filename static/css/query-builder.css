@@ -328,6 +328,7 @@ input.form-control {
 .ui-tabs .ui-tabs-panel {
     padding: 0 !important;
     width: 100%;
+    border: none;
 }
 
 .ui-tabs ui-tabs-nav li {
@@ -468,6 +469,7 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
     padding: 2px 5px;
     outline: none;
+    text-decoration: none;
 }
 
 .disabled-tab {

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
 });
@@ -30,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var tagKeysGridOptions = {
         columnDefs: [
             { headerName: 'Key', field: 'key', filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true }
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true },
         ],
         rowData: [],
         rowHeight: 44,
@@ -45,14 +43,14 @@ document.addEventListener('DOMContentLoaded', function () {
         suppressAnimationFrame: true,
         onGridReady: function (params) {
             params.api.sizeColumnsToFit();
-        }
+        },
     };
 
     var tagPairsGridOptions = {
         columnDefs: [
             { headerName: 'Key', field: 'key', filter: true, resizable: true },
             { headerName: 'Value', field: 'value', filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true }
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true },
         ],
         rowData: [],
         rowHeight: 44,
@@ -67,13 +65,13 @@ document.addEventListener('DOMContentLoaded', function () {
         suppressAnimationFrame: true,
         onGridReady: function (params) {
             params.api.sizeColumnsToFit();
-        }
+        },
     };
 
     var tagKeysValuesGridOptions = {
         columnDefs: [
             { headerName: 'Key', field: 'key', filter: true, resizable: true },
-            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true }
+            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true },
         ],
         rowData: [],
         rowHeight: 44,
@@ -88,11 +86,13 @@ document.addEventListener('DOMContentLoaded', function () {
         suppressAnimationFrame: true,
         onGridReady: function (params) {
             params.api.sizeColumnsToFit();
-        }
+        },
     };
-
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(document.getElementById('tagKeysGrid'), tagKeysGridOptions);
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(document.getElementById('tagPairsGrid'), tagPairsGridOptions);
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(document.getElementById('tagKeysValuesGrid'), tagKeysValuesGridOptions);
 
     function fetchData(startEpoch, endEpoch) {
@@ -100,12 +100,12 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('metrics-explorer/api/v1/series-cardinality', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ startEpoch, endEpoch })
+            body: JSON.stringify({ startEpoch, endEpoch }),
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 totalUniqueSeries.textContent = data.seriesCardinality;
             });
 
@@ -113,12 +113,12 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('metrics-explorer/api/v1/tag-keys-with-most-series', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 })
+            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 }),
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 tagKeysGridOptions.api.setRowData(data.tagKeys);
             });
 
@@ -126,12 +126,12 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('metrics-explorer/api/v1/tag-pairs-with-most-series', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 })
+            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 }),
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 tagPairsGridOptions.api.setRowData(data.tagPairs);
             });
 
@@ -139,25 +139,25 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('metrics-explorer/api/v1/tag-keys-with-most-values', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 })
+            body: JSON.stringify({ startEpoch, endEpoch, limit: 10 }),
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 tagKeysValuesGridOptions.api.setRowData(data.tagKeys);
             });
     }
 
     function updateSelectedTimeRange(element) {
-        document.querySelectorAll('.range-item').forEach(item => {
+        document.querySelectorAll('.range-item').forEach((item) => {
             item.classList.remove('active');
         });
         element.classList.add('active');
         selectedTimeRange.textContent = element.textContent;
     }
 
-    document.querySelectorAll('.range-item').forEach(item => {
+    document.querySelectorAll('.range-item').forEach((item) => {
         item.addEventListener('click', function () {
             var startEpoch = this.id;
             var endEpoch = 'now';
@@ -173,11 +173,10 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedTimeRange.textContent = 'Custom Range';
     });
 
-    document.querySelectorAll('.range-item').forEach(item => {
+    document.querySelectorAll('.range-item').forEach((item) => {
         item.classList.remove('active');
     });
     document.querySelector('.range-item#now-1h').classList.add('active');
     selectedTimeRange.textContent = '1 Hr';
     fetchData('now-1h', 'now');
-      
 });

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
+
 
 let EventCountChart;
 let TotalVolumeChartLogs;
@@ -36,12 +36,10 @@ $(document).ready(() => {
     $('.range-item').on('click', iStatsDatePickerHandler);
 
     // Make api call to get the cluster stats
-    let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     $('.toast-close').on('click', removeToast);
-
     {{ .Button1Function }}
 });
 
@@ -59,8 +57,6 @@ function getTimeRange() {
 }
 
 function renderChart() {
-    let endDate = filterEndDate || "now";
-    let stDate = filterStartDate || "now-7d";
     let data = getTimeRange();
 
     $.ajax({
@@ -74,60 +70,52 @@ function renderChart() {
         dataType: 'json',
         data: JSON.stringify(data)
     })
-    .then(res => drawStatsChart(res, data, "logs")
-        .then(() => {
-            $('#app-content-area').show();
-            return drawStatsChart(res, data, "metrics");
-        })
-    )
-    .catch(showCStatsError);
+        .then(res => drawStatsChart(res, data, "logs")
+            .then(() => {
+                $('#app-content-area').show();
+                return drawStatsChart(res, data, "metrics");
+            })
+        )
+        .catch(showCStatsError);
 }
 
-function drawStatsChart(res,data,chartType) {
+function drawStatsChart(res, data, chartType) {
     return new Promise((resolve) => {
-    let gridLineColor;
-    let tickColor;
-    if ($('html').attr('data-theme') == "light") {
-        gridLineColor = "#DCDBDF";
-        tickColor = "#160F29";
-    }
-    else {
-        gridLineColor = "#383148";
-        tickColor = "#FFFFFF"
-    }
-    var GBCountData = [];
-    var EventCountData = [];
-    _.forEach(res, (mvalue, key) => {
-        if (key === "chartStats") {
-            _.forEach(mvalue, (val, bucketKey) => 
-            {
-                var dataPointsPerMin;
-                if(data.startEpoch==='now-24h'){
-                    dataPointsPerMin = (val.MetricsCount/60);
-                }
-                else{
-                    dataPointsPerMin = (val.MetricsCount/(60*24));
-                }
-                if (chartType === 'logs') {
-                    GBCountData.push({
-                        x: bucketKey,
-                        y: val.LogsGBCount 
-                    }),
-                    EventCountData.push({
-                        x: bucketKey,
-                        y: val.LogsEventCount
-                    })
-                } else if (chartType === 'metrics') {
-                    GBCountData.push({
-                        x: bucketKey,
-                        y: val.MetricsGBCount 
-                    }),
-                    EventCountData.push({
-                        x: bucketKey,
-                        y: val.MetricsDatapointsCount
-                    })
-                }
-            })
+        let gridLineColor;
+        let tickColor;
+        if ($('html').attr('data-theme') == "light") {
+            gridLineColor = "#DCDBDF";
+            tickColor = "#160F29";
+        }
+        else {
+            gridLineColor = "#383148";
+            tickColor = "#FFFFFF"
+        }
+        var GBCountData = [];
+        var EventCountData = [];
+        _.forEach(res, (mvalue, key) => {
+            if (key === "chartStats") {
+                _.forEach(mvalue, (val, bucketKey) => {
+                    if (chartType === 'logs') {
+                        GBCountData.push({
+                            x: bucketKey,
+                            y: val.LogsGBCount
+                        }),
+                            EventCountData.push({
+                                x: bucketKey,
+                                y: val.LogsEventCount
+                            })
+                    } else if (chartType === 'metrics') {
+                        GBCountData.push({
+                            x: bucketKey,
+                            y: val.MetricsGBCount
+                        }),
+                            EventCountData.push({
+                                x: bucketKey,
+                                y: val.MetricsDatapointsCount
+                            })
+                    }
+                })
                 // Destroy only the relevant charts to prevent overwriting
                 if (window[chartType + 'GBCountChart'] !== undefined) {
                     window[chartType + 'GBCountChart'].destroy();
@@ -136,19 +124,19 @@ function drawStatsChart(res,data,chartType) {
                     window[chartType + 'EventCountChart'].destroy();
                 }
 
-            // Create charts and store in a global variable scoped by chart type
-            window[chartType + 'GBCountChart'] = renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType);
-            window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
-        }
+                // Create charts and store in a global variable scoped by chart type
+                window[chartType + 'GBCountChart'] = renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType);
+                window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
+            }
+        });
+        resolve();
     });
-    resolve();
-});
 }
 
-function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
+function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
     var GBCountChartCanvas = $("#GBCountChart-" + chartType).get(0).getContext("2d");
-   
-    GBCountChart = new Chart(GBCountChartCanvas, {
+
+    var GBCountChart = new Chart(GBCountChartCanvas, {
         type: 'line',
         data: {
             datasets: [
@@ -170,19 +158,19 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
+            },
             plugins: {
                 tooltip: {
                     callbacks: {
                         label: function (context) {
                             let label = context.dataset.label || '';
-                            if (context.parsed.y !== null ) {
+                            if (context.parsed.y !== null) {
                                 let f = context.parsed.y;
-                                if (context.parsed.y >=10){
+                                if (context.parsed.y >= 10) {
                                     f = Number((context.parsed.y).toFixed()).toLocaleString("en-us")
                                     label += ' ' + (f) + ' GB';
                                 }
-                                else{
+                                else {
                                     label += ' ' + (f).toFixed(3) + ' GB';
 
                                 }
@@ -198,7 +186,7 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return (value).toFixed(3) + ' GB';
                         },
                         color: tickColor,
@@ -217,7 +205,7 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
                             if (value && value.indexOf('T') > -1) {
                                 let parts = value.split('T');
@@ -248,7 +236,7 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
     return GBCountChart;
 }
 
-function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType){
+function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType) {
     var EventCountCanvas = $("#EventCountChart-" + chartType).get(0).getContext("2d");
 
     EventCountChart = new Chart(EventCountCanvas, {
@@ -273,13 +261,13 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType)
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
+            },
             plugins: {
                 tooltip: {
                     callbacks: {
                         label: function (context) {
                             let label = context.dataset.label || '';
-                            if (context.parsed.y !== null ) {
+                            if (context.parsed.y !== null) {
                                 label += ' ' + parseInt(context.parsed.y).toLocaleString();
                             }
                             return label;
@@ -288,12 +276,12 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType)
                 },
                 legend: {
                     display: false
-                 },
+                },
             },
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return parseInt(value).toLocaleString();
                         },
                         color: tickColor,
@@ -312,7 +300,7 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType)
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
                             if (value && value.indexOf('T') > -1) {
                                 let parts = value.split('T');
@@ -350,23 +338,23 @@ function drawTotalStatsChart(res) {
     var totalStorageUsedMetrics;
     _.forEach(res, (mvalue, key) => {
         if (key === "ingestionStats") {
-            
+
             _.forEach(mvalue, (v, k) => {
-                if (k === 'Log Incoming Volume'){
+                if (k === 'Log Incoming Volume') {
                     totalIncomingVolume = v;
                 }
-                else if (k === 'Metrics Incoming Volume'){
+                else if (k === 'Metrics Incoming Volume') {
                     totalIncomingVolumeMetrics = v;
                 }
-                else if (k === 'Log Storage Used'){
+                else if (k === 'Log Storage Used') {
                     totalStorageUsed = v;
                 }
-                else if (k === 'Logs Storage Saved'){
+                else if (k === 'Logs Storage Saved') {
                     logStorageSaved = v;
-                } else if (k === 'Metrics Storage Saved'){
+                } else if (k === 'Metrics Storage Saved') {
                     metricsStorageSaved = v;
                 }
-                else if (k === 'Metrics Storage Used'){
+                else if (k === 'Metrics Storage Used') {
                     totalStorageUsedMetrics = v;
                 }
             });
@@ -392,11 +380,11 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
     var TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {
         type: 'bar',
         data: {
-            labels: ['Incoming Volume','Storage Used'],
+            labels: ['Incoming Volume', 'Storage Used'],
             datasets: [
                 {
                     label: label,
-                    data: [parseFloat(totalIncomingVolume),parseFloat(totalStorageUsed)],
+                    data: [parseFloat(totalIncomingVolume), parseFloat(totalStorageUsed)],
                     backgroundColor: ['rgba(147, 112, 219)', 'rgba(181, 126, 220, 1)'],
                     borderWidth: 1,
                     categoryPercentage: 0.8,
@@ -404,7 +392,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
                 }
             ]
         },
-        options: {  
+        options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
@@ -426,15 +414,15 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return (value).toFixed(3) + ' GB';
                         }
                     },
-               
+
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (_val, index, _ticks) {
                             return ['Incoming Volume', 'Storage Used'][index];
                         }
                     },
@@ -442,7 +430,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
                         display: true,
                         text: ''
                     },
-                 
+
                 }
             }
         }
@@ -477,8 +465,8 @@ function processClusterStats(res) {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
                 if (k === "Average Latency") {
-                    const numericPart = parseFloat(v); 
-                    const avgLatency = Math.round(numericPart); 
+                    const numericPart = parseFloat(v);
+                    const avgLatency = Math.round(numericPart);
                     tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
                 }
                 else
@@ -488,12 +476,6 @@ function processClusterStats(res) {
         }
     })
 
-    let columnOrder = [
-        'Index Name',
-        'Incoming Volume',
-        'Event Count',
-        ''
-    ];
 
     let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', ''];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
@@ -562,7 +544,7 @@ function processClusterStats(res) {
                     currRow[3] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`
 
                     totalIngestVolume += parseFloat(`${v.ingestVolume}`);
-                    totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',',''));
+                    totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',', ''));
 
                     indexDataTable.row.add(currRow);
                 });
@@ -577,8 +559,8 @@ function processClusterStats(res) {
             metricsDataTable.row.add(currRow);
 
         }
-      
-        totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats["Log Incoming Volume"]}`) * 1000)/1000
+
+        totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats["Log Incoming Volume"]}`) * 1000) / 1000
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString("en-US") : totalIngestVolume}`)} GB`;
         totalValRow[2] = `${totalEventCount.toLocaleString()}`;
         indexDataTable.draw();
@@ -588,14 +570,15 @@ function processClusterStats(res) {
 
     setTimeout(() => {
         displayIndexDataRows(res);
-        $('#index-data-table tbody').on( 'click', 'button', function () {
+        $('#index-data-table tbody').on('click', 'button', function () {
             currRowIndex = $(this).closest('tr').index();
         });
         let delBtns = $('#index-data-table tbody button')
-        delBtns.each((i, btn)=> {
-        let indexName = ($(btn).attr('id')).split('index-del-btn-')[1];
-        $(btn).on('click', () => showDelIndexPopup(indexName, currRowIndex));
-    })}, 0);
+        delBtns.each((i, btn) => {
+            let indexName = ($(btn).attr('id')).split('index-del-btn-')[1];
+            $(btn).on('click', () => showDelIndexPopup(indexName, currRowIndex));
+        })
+    }, 0);
 
 
 
@@ -610,18 +593,18 @@ function processClusterStats(res) {
     }
 
     function confirmIndexDeletion(e, indexName, allowDelete) {
-        if(e) e.stopPropagation();
+        if (e) e.stopPropagation();
         if (indexName && indexName.trim() === "traces") {
             allowDelete = false;
         }
-        if($('#del-index-name-input').val().trim() === ("delete " + indexName )) {
+        if ($('#del-index-name-input').val().trim() === ("delete " + indexName)) {
             $('#del-index-btn').attr("disabled", false);
             allowDelete = true;
         } else {
             $('#del-index-btn').attr("disabled", true);
             allowDelete = false;
         }
-        if(allowDelete) {
+        if (allowDelete) {
             $('#del-index-btn').off('click');
             $('#del-index-btn').on('click', () => deleteIndex(e, indexName));
         } else {
@@ -630,7 +613,7 @@ function processClusterStats(res) {
     }
 
     function deleteIndex(e, indexName) {
-        if(e) e.stopPropagation();
+        if (e) e.stopPropagation();
         $.ajax({
             method: 'post',
             url: 'api/deleteIndex/' + indexName,
@@ -641,12 +624,12 @@ function processClusterStats(res) {
             crossDomain: true,
             dataType: 'json',
         })
-            .then(function (res) { 
+            .then(function (_res) {
                 hidePopUpsOnUsageStats();
                 indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
                 showDeleteIndexToast('Index Deleted Successfully');
             })
-            .catch((err) => {
+            .catch((_err) => {
                 hidePopUpsOnUsageStats();
                 showDeleteIndexToast('Error Deleting Index');
             })
@@ -679,13 +662,13 @@ function renderClusterStatsTables() {
         $('#empty-response').hide();
         drawTotalStatsChart(res);
         {{ .ClusterStatsExtraSetup }}
-            processClusterStats(res);
+        processClusterStats(res);
         $('#app-content-area').show();
     }).catch(showCStatsError);
 }
 
 function showCStatsError(res) {
-    if(res.status == 400) {
+    if (res.status == 400) {
         $('#empty-response').html('Permission Denied');
         $('#empty-response').show();
         $('#app-content-area').hide();
