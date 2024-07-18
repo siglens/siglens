@@ -43,9 +43,9 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 
 func InitRunningStreamStatsResults(defaultVal float64) *structs.RunningStreamStatsResults {
 	return &structs.RunningStreamStatsResults{
-		Window:          list.New().Init(),
+		Window:          list.New(),
 		CurrResult:      defaultVal,
-		SecondaryWindow: list.New().Init(),
+		SecondaryWindow: list.New(),
 	}
 }
 
@@ -126,7 +126,7 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 	front := window.Front()
 	frontElement, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
-		return fmt.Errorf("removeFrontElementFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
+		return fmt.Errorf("removeFrontElementFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", front.Value)
 	}
 
 	// Update the current result
@@ -151,7 +151,7 @@ func performCleanWindow(currIndex int, global bool, window *list.List, ssResults
 			front := window.Front()
 			frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
-				return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
+				return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", front.Value)
 			}
 			if frontVal.Index+windowSize <= currIndex {
 				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
@@ -192,32 +192,21 @@ func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamSta
 	return nil
 }
 
-func performCleanTimeWindow(currTimestamp uint64, thresholdTime uint64, timeSortAsc bool, timeWindow *structs.BinSpanLength, window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
+func performCleanTimeWindow(thresholdTime uint64, timeSortAsc bool, window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
 	for window.Len() > 0 {
 		front := window.Front()
 		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 		if !correctType {
-			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
+			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", front.Value)
 		}
 		eventTimestamp := frontVal.TimeInMilli
-		if timeSortAsc {
-			if eventTimestamp < thresholdTime {
-				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
-				if err != nil {
-					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
-				}
-			} else {
-				break
+		if (timeSortAsc && eventTimestamp < thresholdTime) || (!timeSortAsc && eventTimestamp > thresholdTime) {
+			err := removeFrontElementFromWindow(window, ssResults, measureAgg)
+			if err != nil {
+				return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
 			}
 		} else {
-			if eventTimestamp > thresholdTime {
-				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
-				if err != nil {
-					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
-				}
-			} else {
-				break
-			}
+			break
 		}
 	}
 
@@ -228,27 +217,22 @@ func performCleanTimeWindow(currTimestamp uint64, thresholdTime uint64, timeSort
 func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs.BinSpanLength, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
 
 	currTime := time.UnixMilli(int64(currTimestamp)).In(time.Local)
-	var thresholdTime uint64
+	offsetNum := int64(timeWindow.Num)
 	if timeSortAsc {
-		offsetTime, err := utils.ApplyOffsetToTime(-int64(timeWindow.Num), timeWindow.TimeScale, currTime)
-		if err != nil {
-			return fmt.Errorf("cleanTimeWindow: Error while applying offset to time, timeSortAsc: %v, err: %v", timeSortAsc, err)
-		}
-		thresholdTime = uint64(offsetTime.UnixMilli())
-	} else {
-		offsetTime, err := utils.ApplyOffsetToTime(int64(timeWindow.Num), timeWindow.TimeScale, currTime)
-		if err != nil {
-			return fmt.Errorf("cleanTimeWindow: Error while applying offset to time, timeSortAsc: %v, err: %v", timeSortAsc, err)
-		}
-		thresholdTime = uint64(offsetTime.UnixMilli())
+		offsetNum = -offsetNum
 	}
+	offsetTime, err := utils.ApplyOffsetToTime(offsetNum, timeWindow.TimeScale, currTime)
+	if err != nil {
+		return fmt.Errorf("cleanTimeWindow: Error while applying offset to time, timeSortAsc: %v, err: %v", timeSortAsc, err)
+	}
+	thresholdTime := uint64(offsetTime.UnixMilli())
 
-	err := performCleanTimeWindow(currTimestamp, thresholdTime, timeSortAsc, timeWindow, ssResults.Window, ssResults, measureAgg)
+	err = performCleanTimeWindow(thresholdTime, timeSortAsc, ssResults.Window, ssResults, measureAgg)
 	if err != nil {
 		return fmt.Errorf("cleanTimeWindow: Error while cleaning the primary window, err: %v", err)
 	}
 	if measureAgg == utils.Range {
-		err = performCleanTimeWindow(currTimestamp, thresholdTime, timeSortAsc, timeWindow, ssResults.SecondaryWindow, ssResults, measureAgg)
+		err = performCleanTimeWindow(thresholdTime, timeSortAsc, ssResults.SecondaryWindow, ssResults, measureAgg)
 		if err != nil {
 			return fmt.Errorf("cleanTimeWindow: Error while cleaning the secondary window, err: %v", err)
 		}
@@ -298,7 +282,7 @@ func getListElementAsFloatFromWindow(listElement *list.Element) (float64, error)
 
 	windowElement, correctType := listElement.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
-		return 0, fmt.Errorf("getListElementAsFloatFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", listElement.Value)
+		return 0, fmt.Errorf("getListElementAsFloatFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", listElement.Value)
 	}
 	floatVal, err := dtypeutils.ConvertToFloat(windowElement.Value, 64)
 	if err != nil {
@@ -413,7 +397,9 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	return ssResults.CurrResult, nil
 }
 
-func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
+func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, 
+										windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64, 
+										timeSortAsc bool) (float64, bool, error) {
 	var err error
 	result := ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0
