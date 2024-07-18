@@ -43,8 +43,16 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 
 func InitRunningStreamStatsResults(defaultVal float64) *structs.RunningStreamStatsResults {
 	return &structs.RunningStreamStatsResults{
-		Window:     list.New().Init(),
-		CurrResult: defaultVal,
+		Window:          list.New().Init(),
+		CurrResult:      defaultVal,
+		SecondaryWindow: list.New().Init(),
+	}
+}
+
+func InitRangeStat() *structs.RangeStat {
+	return &structs.RangeStat{
+		Min: math.MaxFloat64,
+		Max: -math.MaxFloat64,
 	}
 }
 
@@ -81,6 +89,21 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 		if floatVal > ssResults.CurrResult {
 			ssResults.CurrResult = floatVal
 		}
+	case utils.Range:
+		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+		}
+		if ssResults.RangeStat == nil {
+			ssResults.RangeStat = InitRangeStat()
+		}
+		if floatVal < ssResults.RangeStat.Min {
+			ssResults.RangeStat.Min = floatVal
+		}
+		if floatVal > ssResults.RangeStat.Max {
+			ssResults.RangeStat.Max = floatVal
+		}
+		ssResults.CurrResult = ssResults.RangeStat.Max - ssResults.RangeStat.Min
 	default:
 		return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -99,8 +122,8 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 }
 
 // Remove the front element from the window
-func removeFrontElementFromWindow(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
-	front := ssResults.Window.Front()
+func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
+	front := window.Front()
 	frontElement, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
 		return fmt.Errorf("removeFrontElementFromWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
@@ -117,22 +140,21 @@ func removeFrontElementFromWindow(ssResults *structs.RunningStreamStatsResults, 
 		ssResults.CurrResult--
 	}
 
-	ssResults.Window.Remove(ssResults.Window.Front())
+	window.Remove(window.Front())
 
 	return nil
 }
 
-// Remove elements from the window that are outside the window size
-func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
+func performCleanWindow(currIndex int, global bool, window *list.List, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
 	if global {
-		for ssResults.Window.Len() > 0 {
-			front := ssResults.Window.Front()
+		for window.Len() > 0 {
+			front := window.Front()
 			frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 			if !correctType {
 				return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
 			}
 			if frontVal.Index+windowSize <= currIndex {
-				err := removeFrontElementFromWindow(ssResults, measureAgg)
+				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
 				if err != nil {
 					return fmt.Errorf("cleanWindow: Error while removing front element from the window, err: %v", err)
 				}
@@ -141,10 +163,60 @@ func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamSta
 			}
 		}
 	} else {
-		for ssResults.Window.Len() > windowSize {
-			err := removeFrontElementFromWindow(ssResults, measureAgg)
+		for window.Len() > windowSize {
+			err := removeFrontElementFromWindow(window, ssResults, measureAgg)
 			if err != nil {
 				return fmt.Errorf("cleanWindow: Error while removing front element from the window, err: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Remove elements from the window that are outside the window size
+func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
+
+	err := performCleanWindow(currIndex, global, ssResults.Window, ssResults, windowSize, measureAgg)
+	if err != nil {
+		return fmt.Errorf("cleanWindow: Error while cleaning the primary window, err: %v", err)
+	}
+
+	if measureAgg == utils.Range {
+		err = performCleanWindow(currIndex, global, ssResults.SecondaryWindow, ssResults, windowSize, measureAgg)
+		if err != nil {
+			return fmt.Errorf("cleanWindow: Error while cleaning the secondary window, err: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func performCleanTimeWindow(currTimestamp uint64, thresholdTime uint64, timeSortAsc bool, timeWindow *structs.BinSpanLength, window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
+	for window.Len() > 0 {
+		front := window.Front()
+		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
+		if !correctType {
+			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
+		}
+		eventTimestamp := frontVal.TimeInMilli
+		if timeSortAsc {
+			if eventTimestamp < thresholdTime {
+				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
+				if err != nil {
+					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
+				}
+			} else {
+				break
+			}
+		} else {
+			if eventTimestamp > thresholdTime {
+				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
+				if err != nil {
+					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
+				}
+			} else {
+				break
 			}
 		}
 	}
@@ -171,31 +243,14 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 		thresholdTime = uint64(offsetTime.UnixMilli())
 	}
 
-	for ssResults.Window.Len() > 0 {
-		front := ssResults.Window.Front()
-		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
-		if !correctType {
-			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement is of type: %T", front.Value)
-		}
-		eventTimestamp := frontVal.TimeInMilli
-		if timeSortAsc {
-			if eventTimestamp < thresholdTime {
-				err := removeFrontElementFromWindow(ssResults, measureAgg)
-				if err != nil {
-					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
-				}
-			} else {
-				break
-			}
-		} else {
-			if eventTimestamp > thresholdTime {
-				err := removeFrontElementFromWindow(ssResults, measureAgg)
-				if err != nil {
-					return fmt.Errorf("cleanTimeWindow: Error while removing front element from the window, timeSortAsc: %v, err: %v", timeSortAsc, err)
-				}
-			} else {
-				break
-			}
+	err := performCleanTimeWindow(currTimestamp, thresholdTime, timeSortAsc, timeWindow, ssResults.Window, ssResults, measureAgg)
+	if err != nil {
+		return fmt.Errorf("cleanTimeWindow: Error while cleaning the primary window, err: %v", err)
+	}
+	if measureAgg == utils.Range {
+		err = performCleanTimeWindow(currTimestamp, thresholdTime, timeSortAsc, timeWindow, ssResults.SecondaryWindow, ssResults, measureAgg)
+		if err != nil {
+			return fmt.Errorf("cleanTimeWindow: Error while cleaning the secondary window, err: %v", err)
 		}
 	}
 
@@ -220,6 +275,17 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 		}
 		ssResults.CurrResult = firstElementFloatVal
 		return ssResults.CurrResult, true, nil
+	case utils.Range:
+		maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+		}
+		minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
+		if err != nil {
+			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+		}
+		ssResults.CurrResult = maxFloatVal - minFloatval
+		return ssResults.CurrResult, true, nil
 	default:
 		return 0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -242,6 +308,38 @@ func getListElementAsFloatFromWindow(listElement *list.Element) (float64, error)
 	return floatVal, nil
 }
 
+func manageMinWindow(window *list.List, index int, newValue float64, timestamp uint64) error {
+	for window.Len() > 0 {
+		lastElementFloatVal, err := getListElementAsFloatFromWindow(window.Back())
+		if err != nil {
+			return fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
+		}
+		if lastElementFloatVal >= newValue {
+			window.Remove(window.Back())
+		} else {
+			break
+		}
+	}
+	window.PushBack(&structs.RunningStreamStatsWindowElement{Index: index, Value: newValue, TimeInMilli: timestamp})
+	return nil
+}
+
+func manageMaxWindow(window *list.List, index int, newValue float64, timestamp uint64) error {
+	for window.Len() > 0 {
+		lastElementFloatVal, err := getListElementAsFloatFromWindow(window.Back())
+		if err != nil {
+			return fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
+		}
+		if lastElementFloatVal <= newValue {
+			window.Remove(window.Back())
+		} else {
+			break
+		}
+	}
+	window.PushBack(&structs.RunningStreamStatsWindowElement{Index: index, Value: newValue, TimeInMilli: timestamp})
+	return nil
+}
+
 func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (float64, error) {
 	switch measureAgg {
 	case utils.Count:
@@ -255,49 +353,55 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		ssResults.CurrResult += floatVal
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case utils.Min:
-		for ssResults.Window.Len() > 0 {
-			lastElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Back())
-			if err != nil {
-				return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
-			}
-			floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
-			if err != nil {
-				return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
-			}
-			if lastElementFloatVal >= floatColVal {
-				ssResults.Window.Remove(ssResults.Window.Back())
-			} else {
-				break
-			}
+		floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
 		}
-		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		err = manageMinWindow(ssResults.Window, currIndex, floatColVal, timestamp)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while managing min window, err: %v", err)
+		}
 		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
 			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = firstElementFloatVal
 	case utils.Max:
-		for ssResults.Window.Len() > 0 {
-			lastElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Back())
-			if err != nil {
-				return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from last window element, err: %v", err)
-			}
-			floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
-			if err != nil {
-				return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
-			}
-			if lastElementFloatVal <= floatColVal {
-				ssResults.Window.Remove(ssResults.Window.Back())
-			} else {
-				break
-			}
+		floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
 		}
-		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+		err = manageMaxWindow(ssResults.Window, currIndex, floatColVal, timestamp)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while managing max window, err: %v", err)
+		}
 		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
 			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = firstElementFloatVal
+	case utils.Range:
+		floatColVal, err := dtypeutils.ConvertToFloat(colValue, 64)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error measure column value %v is not a numeric value, err: %v", colValue, err)
+		}
+		err = manageMaxWindow(ssResults.Window, currIndex, floatColVal, timestamp)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while managing max window, err: %v", err)
+		}
+		err = manageMinWindow(ssResults.SecondaryWindow, currIndex, floatColVal, timestamp)
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while managing min window, err: %v", err)
+		}
+		maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from max window element, err: %v", err)
+		}
+		minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
+		if err != nil {
+			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
+		}
+		ssResults.CurrResult = maxFloatVal - minFloatval
 	default:
 		return 0.0, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}

@@ -184,7 +184,9 @@ type StreamStatsOptions struct {
 type RunningStreamStatsResults struct {
 	Window              *list.List
 	CurrResult          float64
-	NumProcessedRecords uint64 // kept for global stats where window = 0
+	NumProcessedRecords uint64     // kept for global stats where window = 0
+	SecondaryWindow     *list.List // use secondary window for range
+	RangeStat           *RangeStat
 }
 
 type RunningStreamStatsWindowElement struct {
