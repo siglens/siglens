@@ -1094,7 +1094,6 @@ function refreshLogLinesViewMenuOptions() {
     $('.dropDown-logLinesView span').html(logLineView);
 }
 
-
 function goToDashboard() {
     // Don't add panel if cancel is clicked.
     let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
