@@ -788,16 +788,20 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
-	pattern := ""
-	for key := range queries {
-		pattern = fmt.Sprintf("%s|%s", pattern, key)
-	}
-
-	if pattern == "" {
+	if len(queries) == 0 {
 		return "", errors.New("no queries found")
 	}
 
-	pattern = fmt.Sprintf("(%s)", pattern[1:])
+	pattern := ""
+	for key := range queries {
+		if pattern == "" {
+			pattern = fmt.Sprintf(`\b%s\b`, key)
+		} else {
+			pattern = fmt.Sprintf(`%s|\b%s\b`, pattern, key)
+		}
+	}
+
+	pattern = fmt.Sprintf("(%s)", pattern)
 
 	regEx, err := regexp.Compile(pattern)
 	if err != nil {

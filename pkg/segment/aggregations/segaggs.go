@@ -1941,12 +1941,12 @@ func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letC
 			if fieldValue == nil {
 				continue
 			}
+			fieldValueStr, ok := fieldValue.(string)
 
-			if isStatRes {
+			if isStatRes && !ok {
 				return fmt.Errorf("performMultiValueColRequestOnHistogram: field %s is a statistic result. Cannot perform Multi value string operations on a Statistic result", letColReq.MultiValueColRequest.ColName)
 			}
 
-			fieldValueStr, ok := fieldValue.(string)
 			if !ok {
 				fieldValueStr = fmt.Sprintf("%v", fieldValue) // Convert to string
 			}

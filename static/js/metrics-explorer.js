@@ -2228,7 +2228,7 @@ function xaxisFomatter(value, index, ticks) {
     }
 }
 
-$('#alert-from-metrics-container').click(function () {
+$('#alert-from-metrics-btn').click(function () {
     let mqueries = [];
     let mformulas = [];
     let queryString;

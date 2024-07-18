@@ -27,6 +27,7 @@ import (
     "github.com/siglens/siglens/pkg/segment/query"
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
+    toputils "github.com/siglens/siglens/pkg/utils"
     log "github.com/sirupsen/logrus"
 )
 // ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
@@ -2141,7 +2142,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
-/ (opName:("max" / "min" / "mvappend" / "mvfind") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+/ (opName:("max" / "min" / "mvappend") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -2175,6 +2176,31 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
+
+/ (opName:("mvfind") L_PAREN stringExpr:StringExpr COMMA regexPattern:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: TextExpr: %v", err)
+    }
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+
+    gobRegex := toputils.GobbableRegex{}
+	err = gobRegex.SetRegex(regex.RawString)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        Regex: &gobRegex,
+    }
+    return node, nil
+}
+
 / (opName:("substr") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr lengthParam:(COMMA NumericExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {

@@ -397,9 +397,9 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	return ssResults.CurrResult, nil
 }
 
-func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, 
-										windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64, 
-										timeSortAsc bool) (float64, bool, error) {
+func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults,
+	windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64,
+	timeSortAsc bool) (float64, bool, error) {
 	var err error
 	result := ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0

@@ -37,6 +37,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
 // These structs are used to organize boolean, string, and numeric expressions.
@@ -197,6 +198,7 @@ type TextExpr struct {
 	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
 	Cluster     *Cluster   // generates a cluster label
 	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
+	Regex       *toputils.GobbableRegex
 }
 
 type ConditionExpr struct {
