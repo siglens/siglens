@@ -438,15 +438,11 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
-        isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
-        if (isQueryBuilderSearch) {
-            data.searchText = getQueryBuilderCode();
-        } else {
-            data.searchText = $('#filter-input').val();
-        }
         fetchLogsPanelData(data, -1).then((res) => {
             alertChart(res);
         });
+    } else if (currentPage === '/dashboard.html') {
+        runQueryBtnHandler();
     } else {
         // index.html
         $('.popover').hide();

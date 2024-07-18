@@ -290,7 +290,7 @@ $(document).ready(function () {
     }
 });
 //eslint-disable-next-line no-unused-vars
-function editPanelInit(redirectedFromViewScreen) {
+async function editPanelInit(redirectedFromViewScreen) {
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -310,6 +310,11 @@ function editPanelInit(redirectedFromViewScreen) {
     $('.panelDisplay #panelLogResultsGrid').hide();
     $('.panelDisplay .panel-info-corner').hide();
     $('#metrics-queries,#metrics-formula').empty();
+    $('#filter-input').val('');
+    $('.tags-list').empty();
+    [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+    $('#aggregations, #aggregate-attribute-text, #search-filter-text').show();
+
     currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     $('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
     // reset inputs to show placeholders
@@ -338,14 +343,21 @@ function editPanelInit(redirectedFromViewScreen) {
             }
         );
     }
-
-    if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
-        if (currentPanel.queryType === 'metrics') queryStr = currentPanel.queryData.queries[0].query;
-        else queryStr = currentPanel.queryData.searchText;
-    } else {
-        queryStr = '';
+    if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
+        if (currentPanel.queryType === 'logs') {
+            let queryMode = currentPanel.queryData.queryMode;
+            let queryText = currentPanel.queryData.searchText;
+            if (queryMode === 'Code' || queryMode === undefined) {
+                // undefined case for previously created panels and open code for those panels
+                $('#custom-code-tab').tabs('option', 'active', 1);
+                $('#filter-input').val(queryText);
+            } else if (queryMode === 'Builder') {
+                $('#custom-code-tab').tabs('option', 'active', 0);
+                codeToBuilderParsing(queryText);
+            }
+            setDashboardQueryModeHandler(queryMode);
+        }
     }
-    $('.queryInput').val(queryStr);
 
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
@@ -455,10 +467,13 @@ function editPanelInit(redirectedFromViewScreen) {
     }
     displayQueryToolTip(selectedDataSourceTypeIndex);
 
+    // Handle index display
+    indexValues = [...originalIndexValues];
     if (currentPanel.queryData && currentPanel.queryData.indexName) {
         selectedSearchIndex = currentPanel.queryData.indexName;
     }
     setIndexDisplayValue(selectedSearchIndex);
+    $('#index-listing').autocomplete('option', 'source', indexValues);
 
     if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
     if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
@@ -468,16 +483,15 @@ function editPanelInit(redirectedFromViewScreen) {
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
     $('.panelDisplay .panEdit-panel').show();
-    setTimePicker();
     pauseRefreshInterval();
-    runQueryBtnHandler();
+    await runQueryBtnHandler();
 }
 
 $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on('click', goToDashboard);
-$('.panEdit-save').on('click', async function () {
+$('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
@@ -517,9 +531,6 @@ $('#nestedThroughputDropDown').on('click', handleNestedTptDropDownClick);
 $('#nestedPercentDropDown').on('click', handleNestedPercentDropDownClick);
 $('#nestedTimeDropDown').on('click', handleNestedTimeDropDownClick);
 $('#nestedDataRateDropDown').on('click', handleNestedDataRateDropDownClick);
-$('#query-language-options .query-language-option').on('click', setQueryLangHandlerEditPanel);
-
-$('.btn-runQuery').on('click', runQueryBtnHandler);
 
 function handleSourceDropDownClick() {
     $('.dropDown-dataSource').toggleClass('active');
@@ -1090,7 +1101,7 @@ function goToViewScreen(panelIndex) {
     displayPanelView(panelIndex);
 }
 
-function goToDashboard(redirectedFromViewScreen) {
+function goToDashboard() {
     // Don't add panel if cancel is clicked.
     let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     if (!flagDBSaved) {
@@ -1100,56 +1111,18 @@ function goToDashboard(redirectedFromViewScreen) {
             }
         }
     }
-    setTimePicker();
     resetNestedUnitMenuOptions(selectedUnitTypeIndex);
     currentPanel = null;
     resetEditPanelScreen();
-    if (redirectedFromViewScreen === -1) {
-        if (localPanels !== undefined) {
-            let stDate;
-            let endDate;
-            if (localPanels[panelIndex].queryData) {
-                if (localPanels[panelIndex].chartType === 'line') {
-                    stDate = localPanels[panelIndex].queryData.start;
-                    endDate = localPanels[panelIndex].queryData.end;
-                } else {
-                    stDate = localPanels[panelIndex].queryData.startEpoch;
-                    endDate = localPanels[panelIndex].queryData.endEpoch;
-                }
-            }
-            $('.inner-range #' + stDate).addClass('active');
-            datePickerHandler(stDate, endDate, stDate);
-        }
-        goToViewScreen(panelIndex);
-    } else {
-        $('.panelEditor-container').hide();
-        $('.popupOverlay').removeClass('active');
-        $('#app-container').show();
-        $('#viewPanel-container').hide();
-        if (localPanels !== undefined) {
-            let stDate;
-            let endDate;
-            let i = 0;
-            while (i < localPanels.length) {
-                if (localPanels[i].queryData) {
-                    if (localPanels[i].chartType === 'line') {
-                        stDate = localPanels[i].queryData.start;
-                        endDate = localPanels[i].queryData.end;
-                    } else {
-                        stDate = localPanels[i].queryData.startEpoch;
-                        endDate = localPanels[i].queryData.endEpoch;
-                    }
-                    break;
-                }
-                i++;
-            }
-            $('.inner-range #' + stDate).addClass('active');
-            datePickerHandler(stDate, endDate, stDate);
-        }
-        displayPanels();
-        if (dbRefresh) {
-            startRefreshInterval(dbRefresh);
-        }
+
+    $('.panelEditor-container').hide();
+    $('.popupOverlay').removeClass('active');
+    $('#app-container').show();
+    $('#viewPanel-container').hide();
+    setTimePickerValue();
+    displayPanels();
+    if (dbRefresh) {
+        startRefreshInterval(dbRefresh);
     }
 }
 //eslint-disable-next-line no-unused-vars
@@ -1274,13 +1247,6 @@ function getMetricsQData() {
     }
 
     return { queriesData, formulasData };
-}
-
-function setQueryLangHandlerEditPanel(_e) {
-    $('.panelEditor-container .query-language-option').removeClass('active');
-    $('.panelEditor-container #query-language-btn span').html($(this).html());
-    displayQueryToolTip(selectedDataSourceTypeIndex);
-    $(this).addClass('active');
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
