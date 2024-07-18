@@ -1892,7 +1892,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 
 		// If no match is found
-		return "NULL", nil
+		return "", nil
 	case "mvappend":
 		fallthrough
 	case "mvdedup":
