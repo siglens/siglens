@@ -837,12 +837,22 @@
 }
 
 #dbSet-edit-json.panEdit-btn {
-  margin-left: 570px;
+  position: absolute;
+  right: calc(20% + 50px);
+  top: 70px;
+  width: 80px;
+  height: 30px;
+  font-size: small;
 }
 
 #dbSet-save-json.panEdit-btn {
   display: none; 
-  margin-left: 570px;
+  position: absolute;
+  right: calc(20% + 50px);
+  top: 70px;
+  width: 80px;
+  height: 30px;
+  font-size: small;
 }
 
 /* UNIT TYPE NESTED DROPDOWN */

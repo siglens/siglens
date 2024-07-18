@@ -132,15 +132,16 @@ function enableJsonEditing() {
 function saveJsonChanges() {
     const jsonText = $('.dbSet-jsonModelData').val();
     try {
-        JSON.parse(jsonText); // Try to parse the JSON to ensure its validity
+        JSON.parse(jsonText); 
         $('.dbSet-jsonModelData').prop('disabled', true);
         $('#dbSet-edit-json').show();
         $('#dbSet-save-json').hide();
-        saveDbSetting();
+        showToast('JSON saved successfully', 'success'); 
     } catch (e) {
         alert('Invalid JSON format. Please correct the JSON and try again.');
     }
 }
+
 
 // Initialize Gridstack
 var options = {
@@ -993,6 +994,11 @@ function handleDbSettings() {
         $('#app-container').hide();
     }
     $('.dbSet-container').show();
+
+    // Reset the state of the Edit/Save JSON buttons
+    $('.dbSet-jsonModelData').prop('disabled', true);
+    $('#dbSet-edit-json').show();
+    $('#dbSet-save-json').hide();
 
     $('.dbSet-name').html(dbName);
     $('.dbSet-dbName').val(dbName);
