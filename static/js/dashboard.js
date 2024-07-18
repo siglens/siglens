@@ -140,7 +140,7 @@ function saveJsonChanges() {
         timeRange = updatedData.timeRange;
         localPanels = updatedData.panels;
         dbRefresh = updatedData.refresh;
-        const isFavorite = updatedData.isFavorite; 
+        const isFavorite = updatedData.isFavorite;
 
         // Update the dbData object
         dbData = updatedData;
@@ -160,7 +160,7 @@ function saveJsonChanges() {
                     timeRange: timeRange,
                     panels: localPanels,
                     refresh: dbRefresh,
-                    isFavorite: isFavorite 
+                    isFavorite: isFavorite,
                 },
             }),
         })
@@ -192,7 +192,6 @@ function saveJsonChanges() {
         alert('Invalid JSON format. Please correct the JSON and try again.');
     }
 }
-
 
 // Initialize Gridstack
 var options = {
@@ -1166,7 +1165,7 @@ function saveDbSetting() {
         alert('Invalid JSON format. Please correct the JSON and try again.');
         return;
     }
-    
+
     dbName = dbSettings.name;
     dbDescr = dbSettings.description;
     timeRange = dbSettings.timeRange;
