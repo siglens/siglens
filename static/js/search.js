@@ -949,7 +949,7 @@ function timeChart() {
     }
 
     // Ensure all items in measureInfo have GroupByValues property before proceeding
-    const hasGroupByValues = measureInfo.every(item => item.GroupByValues);
+    const hasGroupByValues = measureInfo.every((item) => item.GroupByValues);
 
     if (!hasGroupByValues) {
         return;
@@ -962,7 +962,7 @@ function timeChart() {
     var fontSize = measureInfo.length > 10 ? 10 : 12;
     var rotateLabels = measureInfo.length > 10 ? 45 : 0;
 
-    var xData = measureInfo.map(item => formatGroupByValues(item.GroupByValues, multipleGroupBy));
+    var xData = measureInfo.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy));
 
     var seriesData = measureFunctions.map(function (measureFunction) {
         return {
@@ -1066,8 +1066,6 @@ function convertIfTimestamp(value) {
     }
     return value;
 }
-
-
 
 function codeToBuilderParsing(filterValue) {
     if (filterValue.indexOf('|') != -1) {
