@@ -1028,7 +1028,7 @@ function timeChart() {
     // Ensure the chart resizes properly
     chart.resize();
 
-    // Optional: Make the chart responsive
+    // Made the chart responsive
     $(window).on('resize', function () {
         chart.resize();
     });
