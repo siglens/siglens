@@ -56,7 +56,7 @@ func InitRangeStat() *structs.RangeStat {
 	}
 }
 
-func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (float64, bool, error) {
+func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (float64, bool, error) {
 	result := ssResults.CurrResult
 	valExist := ssResults.NumProcessedRecords > 0
 
@@ -70,13 +70,13 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 	case utils.Sum, utils.Avg:
 		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+			return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
 		}
 		ssResults.CurrResult += floatVal
 	case utils.Min:
 		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+			return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
 		}
 		if floatVal < ssResults.CurrResult {
 			ssResults.CurrResult = floatVal
@@ -84,7 +84,7 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 	case utils.Max:
 		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+			return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
 		}
 		if floatVal > ssResults.CurrResult {
 			ssResults.CurrResult = floatVal
@@ -92,7 +92,7 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 	case utils.Range:
 		floatVal, err := dtypeutils.ConvertToFloat(colValue, 64)
 		if err != nil {
-			return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
+			return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measure column %v does not have a numeric value, function: %v, err: %v", colValue, measureAgg, err)
 		}
 		if ssResults.RangeStat == nil {
 			ssResults.RangeStat = InitRangeStat()
@@ -105,7 +105,7 @@ func PerformGlobalStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, 
 		}
 		ssResults.CurrResult = ssResults.RangeStat.Max - ssResults.RangeStat.Min
 	default:
-		return 0.0, false, fmt.Errorf("PerformGlobalStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
+		return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
 
 	ssResults.NumProcessedRecords++
@@ -477,7 +477,7 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 	}
 
 	if ssOption.Window == 0 && ssOption.TimeWindow == nil {
-		result, exist, err = PerformGlobalStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, colValue)
+		result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg.MeasureFunc, colValue)
 		if err != nil {
 			return 0.0, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, colValue, err)
 		}

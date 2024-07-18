@@ -2642,7 +2642,7 @@ func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *struc
 
 }
 
-func GlobalStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
+func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
 
 	for i, measureFunc := range measureFuncs {
 		ssResults := InitRunningStreamStatsResults(0)
@@ -2654,7 +2654,7 @@ func GlobalStreamStatsHelperTest(t *testing.T, values []float64, ssOption *struc
 		}
 
 		for j, value := range values {
-			res, exist, err := PerformGlobalStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)
+			res, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)
 			ssOption.NumProcessedRecords++
 			assert.Nil(t, err)
 			assert.True(t, exist)
@@ -2765,7 +2765,7 @@ func Test_Time_Window(t *testing.T) {
 
 }
 
-func Test_Global_StreamStats(t *testing.T) {
+func Test_NoWindow_StreamStats(t *testing.T) {
 	ssOption := &structs.StreamStatsOptions{
 		Current: true,
 		Global:  true,
@@ -2783,5 +2783,5 @@ func Test_Global_StreamStats(t *testing.T) {
 	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax}
 	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin}
 
-	GlobalStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
 }
