@@ -22,6 +22,7 @@ let originalIndexValues = [];
 let indexValues = [];
 
 $(document).ready(async () => {
+    toggleClearButtonVisibility();
     function createTooltip(selector, content) {
         //eslint-disable-next-line no-undef
         tippy(selector, {
