@@ -1084,15 +1084,17 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         // Custom tooltip title callback
                         title: function(tooltipItems) {
                             const item = tooltipItems[0];
-                            const dataset = item.chart.data.datasets[item.datasetIndex];
-                            const formulaDetails = formulaCache.find(f => f.formulaId === dataset.label);
-                            return formulaDetails ? formulaDetails.formulaName : dataset.label;
+                            return `${item.label}`;
                         },
                         // Custom tooltip label callback
                         label: function(tooltipItem) {
-                            return tooltipItem.raw;
+                            const dataset = tooltipItem.dataset;
+                            const formulaDetails = formulaCache.find(f => f.formulaId === dataset.label);
+                            const formulaName = formulaDetails ? formulaDetails.formulaName : dataset.label;
+                            return `${formulaName}: ${tooltipItem.formattedValue}`;
                         }
-                    }
+                    },
+                    footerFontStyle: 'normal',
                 }
             },
             scales: {
