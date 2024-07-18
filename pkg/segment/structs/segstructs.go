@@ -857,12 +857,8 @@ var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 
 var unsupportedEvalFuncs = map[string]struct{}{
 	"mvappend":         {},
-	"mvcount":          {},
 	"mvdedup":          {},
 	"mvfilter":         {},
-	"mvfind":           {},
-	"mvindex":          {},
-	"mvjoin":           {},
 	"mvmap":            {},
 	"mvrange":          {},
 	"mvsort":           {},
