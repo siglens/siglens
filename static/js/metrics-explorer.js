@@ -1031,7 +1031,12 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 }
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
+
     var ctx = canvas[0].getContext('2d');
+    if (!ctx) {
+        console.error("Failed to get context for canvas element for query:", queryName);
+        return null;
+    }
 
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
 
@@ -1040,6 +1045,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     // Destroy existing chart instance if it exists
     if (canvas.data('chartInstance')) {
         canvas.data('chartInstance').destroy();
+        canvas.removeData('chartInstance'); // Clear the chart instance data
     }
 
     var lineChart = new Chart(ctx, {
@@ -1056,7 +1062,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         boxWidth: 10,
                         boxHeight: 2,
                         fontSize: 10,
-                        // Custom legend label callback
                         generateLabels: function(chart) {
                             return chart.data.datasets.map(function(dataset, index) {
                                 const formulaDetails = formulaCache.find(item => item.formulaId === dataset.label);
@@ -1081,12 +1086,10 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 },
                 tooltip: {
                     callbacks: {
-                        // Custom tooltip title callback
                         title: function(tooltipItems) {
                             const item = tooltipItems[0];
                             return `${item.label}`;
                         },
-                        // Custom tooltip label callback
                         label: function(tooltipItem) {
                             const dataset = tooltipItem.dataset;
                             const formulaDetails = formulaCache.find(f => f.formulaId === dataset.label);
@@ -1153,7 +1156,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     // Store the chart instance on the canvas element for later destruction
     canvas.data('chartInstance', lineChart);
 
-    // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
         lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = true;
@@ -1168,7 +1170,15 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     return lineChart;
 }
 
-function updateChartLegends(chart) {
+
+
+function updateChartLegends(queryName) {
+    const chart = lineCharts[queryName];
+    if (!chart) {
+        console.error("Chart instance not found for query:", queryName);
+        return;
+    }
+
     chart.options.plugins.legend.labels.generateLabels = function(chart) {
         return chart.data.datasets.map(function(dataset, index) {
             const formulaDetails = formulaCache.find(item => item.formulaId === dataset.label);
@@ -1189,42 +1199,37 @@ function updateChartLegends(chart) {
             };
         });
     };
+
     chart.update();
 }
+
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     var canvas;
     if (isDashboardScreen) {
-        // For dashboard page
         prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
-        // For metrics explorer page
         var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
         if (existingContainer.length === 0) {
             var visualizationContainer = $(`
-            <div class="metrics-graph" data-query="${queryName}">
-                <div class="query-string">${queryString}</div>
-                <div class="graph-canvas"></div>
-            </div>`);
-
-            // Determine where to insert the new container
+                <div class="metrics-graph" data-query="${queryName}">
+                    <div class="query-string">${queryString}</div>
+                    <div class="graph-canvas"></div>
+                </div>`);
+                
             if (queryName.startsWith('formula')) {
-                // Insert after all formula queries
                 var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
                 if (lastFormula.length) {
                     lastFormula.after(visualizationContainer);
                 } else {
-                    // If no formula queries exist, append to the end
                     $('#metrics-graphs').append(visualizationContainer);
                 }
             } else {
-                // Insert before the first formula query
                 var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
                 if (firstFormula.length) {
                     firstFormula.before(visualizationContainer);
                 } else {
-                    // If no formula queries exist, append to the end
                     $('#metrics-graphs').append(visualizationContainer);
                 }
             }
@@ -1237,14 +1242,26 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
             existingContainer.find('.graph-canvas').empty().append(canvas);
         }
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+        if (canvas.length > 0) {
+            var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+            if (lineChart) {
+                lineCharts[queryName] = lineChart;
+            }
+        } else {
+            console.error("Failed to create canvas element for query:", queryName);
+        }
 
-        lineCharts[queryName] = lineChart;
         updateGraphWidth();
         mergeGraphs(chartType);
     }
     addToFormulaCache(queryName, queryString);
 }
+
+
+
+
+
+
 
 function removeVisualizationContainer(queryName) {
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
@@ -1882,11 +1899,17 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     // Reinitialize the chart to update tooltips and legends
     const canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
-    const chart = initializeChart(canvas, chartData, formulaId, chartType);
-
-    // Update chart legends
-    updateChartLegends(chart);
+    if (canvas.length > 0) {
+        const chart = initializeChart(canvas, chartData, formulaId, chartType);
+        // Update chart legends
+        if (chart) {
+            updateChartLegends(chart);
+        } else {
+            console.error("Failed to initialize chart for query:", formulaId);
+        }
+    }
 }
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
