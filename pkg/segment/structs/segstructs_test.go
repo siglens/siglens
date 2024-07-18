@@ -483,7 +483,7 @@ func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 
 	value, index, foundInStat := br.GetBucketValueForGivenField("field1")
 	assert.True(t, foundInStat)
-	assert.Equal(t, "value1", value.(utils.CValueEnclosure).CVal)
+	assert.Equal(t, "value1", value)
 	assert.Equal(t, -1, index)
 }
 
@@ -585,7 +585,7 @@ func Test_SetBucketValueForGivenField_ValidString(t *testing.T) {
 
 	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"key1", "newKey2"}, br.BucketKey)
+	assert.Equal(t, []interface{}{"key1", "newKey2"}, br.BucketKey)
 }
 
 func Test_SetBucketValueForGivenField_ValidStringList(t *testing.T) {
@@ -596,7 +596,7 @@ func Test_SetBucketValueForGivenField_ValidStringList(t *testing.T) {
 
 	err := br.SetBucketValueForGivenField("groupKey2", []string{"newKey2", "anotherKey2"}, 1, false)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"key1", `[ "newKey2", "anotherKey2" ]`}, br.BucketKey)
+	assert.Equal(t, []interface{}{"key1", []string{"newKey2", "anotherKey2"}}, br.BucketKey)
 }
 
 func Test_SetBucketValueForGivenField_InvalidIndex(t *testing.T) {
@@ -642,7 +642,7 @@ func Test_SetBucketValueForGivenField_StatisticResult(t *testing.T) {
 	err := br.SetBucketValueForGivenField("field1", "value", 1, true)
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"key1", "key2"}, br.BucketKey)
-	assert.Equal(t, "value1", br.StatRes["field1"].CVal)
+	assert.Equal(t, "value", br.StatRes["field1"].CVal)
 }
 
 func Test_SetBucketValueForGivenField_ConvertToSlice(t *testing.T) {
@@ -653,7 +653,7 @@ func Test_SetBucketValueForGivenField_ConvertToSlice(t *testing.T) {
 
 	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"key1", "newKey2"}, br.BucketKey)
+	assert.Equal(t, []interface{}{"key1", "newKey2"}, br.BucketKey)
 }
 
 func Test_SetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
