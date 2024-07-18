@@ -711,7 +711,7 @@ function createMetricsColorsArray() {
     }
     return colorArray;
 }
-
+//eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     let dateVal = new Date(startEpoch);
     $('#date-start').val(dateVal.toISOString().substring(0, 10));
@@ -900,7 +900,6 @@ function setIndexDisplayValue(selectedSearchIndex) {
 //eslint-disable-next-line no-unused-vars
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $('#clearInput').hide();
     switch (selectedQueryLangID) {
         case '1':
         case 1:
@@ -919,15 +918,16 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             break;
     }
 }
+function toggleClearButtonVisibility() {
+    var filterInputValue = $('#filter-input').val().trim();
+    if (filterInputValue === '') {
+        $('#clearInput').hide();
+    } else {
+        $('#clearInput').show();
+    }
+}
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-    $('#filter-input').on('input', function () {
-        if ($(this).val().trim() !== '') {
-            $('#clearInput').show();
-        } else {
-            $('#clearInput').hide();
-        }
-    });
 
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
@@ -951,10 +951,12 @@ function initializeFilterInputEvents() {
     });
 
     $('#filter-input').on('input', autoResizeTextarea);
-
+    $('#filter-input').on('input', function() {
+        toggleClearButtonVisibility();
+    });
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
-        $(this).hide();
+        toggleClearButtonVisibility();
     });
     $('#filter-input').keydown(function (e) {
         if (e.key === '|') {
@@ -963,7 +965,8 @@ function initializeFilterInputEvents() {
             let position = this.selectionStart;
             input.val(value.substring(0, position) + '\n' + value.substring(position));
             this.selectionStart = this.selectionEnd = position + 2;
-        }
+            
+        }toggleClearButtonVisibility();
     });
     document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
@@ -974,8 +977,76 @@ function initializeFilterInputEvents() {
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
         autoResizeTextarea.call(this);
+        toggleClearButtonVisibility();
     });
 }
+
+//eslint-disable-next-line no-unused-vars
+function getMetricsQData() {
+    let endDate = filterEndDate || 'now';
+    let stDate = filterStartDate || 'now-15m';
+    let queriesData = [];
+    let formulasData = [];
+
+    // Process each query
+    for (const queryName of Object.keys(queries)) {
+        let queryDetails = queries[queryName];
+        let queryString;
+
+        if (queryDetails.state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
+
+        const query = {
+            name: queryName,
+            query: `(${queryString})`,
+            qlType: 'promql',
+        };
+
+        queriesData.push({
+            end: endDate,
+            queries: [query],
+            start: stDate,
+            formulas: [{ formula: query.name }],
+            state: queryDetails.state,
+        });
+    }
+
+    // Process formulas
+    if (Object.keys(formulas).length > 0) {
+        for (const key of Object.keys(formulas)) {
+            const formulaDetails = formulas[key];
+            const queriesInFormula = formulaDetails.queryNames.map((name) => {
+                const queryDetails = queries[name];
+                let queryString;
+
+                if (queryDetails.state === 'builder') {
+                    queryString = createQueryString(queryDetails);
+                } else {
+                    queryString = queryDetails.rawQueryInput;
+                }
+
+                return {
+                    name: name,
+                    query: `(${queryString})`,
+                    qlType: 'promql',
+                };
+            });
+
+            formulasData.push({
+                end: endDate,
+                formulas: [{ formula: formulaDetails.formula }],
+                queries: queriesInFormula,
+                start: stDate,
+            });
+        }
+    }
+
+    return { queriesData, formulasData };
+}
+
 
 function updateQueryModeUI(queryMode) {
     $('.query-mode-option').removeClass('active');

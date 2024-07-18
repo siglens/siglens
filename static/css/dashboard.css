@@ -836,6 +836,25 @@
   position: relative;
 }
 
+#dbSet-edit-json.panEdit-btn {
+  position: absolute;
+  right: calc(20% + 50px);
+  top: 70px;
+  width: 80px;
+  height: 30px;
+  font-size: small;
+}
+
+#dbSet-save-json.panEdit-btn {
+  display: none; 
+  position: absolute;
+  right: calc(20% + 50px);
+  top: 70px;
+  width: 80px;
+  height: 30px;
+  font-size: small;
+}
+
 /* UNIT TYPE NESTED DROPDOWN */
 
 .dropDown-data-options, .dropDown-throughput-options{
