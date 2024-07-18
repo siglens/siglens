@@ -930,6 +930,14 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             break;
     }
 }
+function toggleClearButtonVisibility() {
+    var filterInputValue = $('#filter-input').val().trim();
+    if (filterInputValue === '') {
+        $('#clearInput').hide();
+    } else {
+        $('#clearInput').show();
+    }
+}
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
 

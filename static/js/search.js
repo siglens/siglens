@@ -349,6 +349,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         if (filterValue != '*') {
             codeToBuilderParsing(filterValue);
             $('#filter-input').val(filterValue).change();
+            toggleClearButtonVisibility();
             isQueryBuilderSearch = true;
         }
     } else {
@@ -357,6 +358,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
             $('#filter-input').val('').change();
         } else {
             $('#filter-input').val(filterValue).change();
+            toggleClearButtonVisibility();
         }
         isQueryBuilderSearch = false;
     }

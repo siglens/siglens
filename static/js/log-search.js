@@ -20,14 +20,7 @@
 let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
-function toggleClearButtonVisibility() {
-    var filterInputValue = $('#filter-input').val().trim();
-    if (filterInputValue === '') {
-        $('#clearInput').hide();
-    } else {
-        $('#clearInput').show();
-    }
-}
+
 $(document).ready(async () => {
     toggleClearButtonVisibility();
     function createTooltip(selector, content) {
