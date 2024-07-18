@@ -711,7 +711,7 @@ function createMetricsColorsArray() {
     }
     return colorArray;
 }
-
+//eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     let dateVal = new Date(startEpoch);
     $('#date-start').val(dateVal.toISOString().substring(0, 10));

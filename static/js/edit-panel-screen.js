@@ -491,7 +491,7 @@ $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on('click', goToDashboard);
-$('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
+$('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
@@ -1094,12 +1094,6 @@ function refreshLogLinesViewMenuOptions() {
     $('.dropDown-logLinesView span').html(logLineView);
 }
 
-function goToViewScreen(panelIndex) {
-    currentPanel = undefined;
-    resetEditPanelScreen();
-    viewPanelInit();
-    displayPanelView(panelIndex);
-}
 
 function goToDashboard() {
     // Don't add panel if cancel is clicked.

@@ -190,6 +190,14 @@ export default [
         "doLiveTailCancel": true,
         "doCancel": true,
         "getMetricsQData": true,
+        "setDashboardQueryModeHandler": true,
+        "originalIndexValues": true,
+        "setTimePickerValue": true,
+        "toggleClearButtonVisibility": true,
+        "updateQueryModeUI": true,
+        "queryMode": true,
+
+
       },
     },
     rules: {

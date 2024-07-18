@@ -1230,7 +1230,7 @@ function resizeCharts() {
         }
     });
 }
-
+//eslint-disable-next-line no-unused-vars
 function setDashboardQueryModeHandler(panelQueryMode) {
     let queryModeCookieValue = Cookies.get('queryMode');
 
