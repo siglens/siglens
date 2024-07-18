@@ -568,6 +568,10 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			if value.Dtype == utils.SS_DT_BACKFILL {
 				return true, nil
 			}
+			// Check for string values that are empty and treat them as NULL
+			if strValue, ok := value.CVal.(string); ok && strings.TrimSpace(strValue) == "" {
+				return true, nil
+			}
 			return false, nil
 		case "like":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -1844,7 +1848,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 		// Check for index out of bounds
 		if startIndex > endIndex || startIndex < 0 || endIndex < 0 || endIndex >= len(mvSlice) || startIndex >= len(mvSlice) {
-			return "NULL", nil
+			return "", nil
 		}
 
 		return strings.Join(mvSlice[startIndex:endIndex+1], ","), nil
