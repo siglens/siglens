@@ -132,11 +132,62 @@ function enableJsonEditing() {
 function saveJsonChanges() {
     const jsonText = $('.dbSet-jsonModelData').val();
     try {
-        JSON.parse(jsonText); 
-        $('.dbSet-jsonModelData').prop('disabled', true);
-        $('#dbSet-edit-json').show();
-        $('#dbSet-save-json').hide();
-        showToast('JSON saved successfully', 'success'); 
+        const updatedData = JSON.parse(jsonText); // Parse the JSON to ensure its validity
+
+        // Update local variables
+        dbName = updatedData.name;
+        dbDescr = updatedData.description;
+        timeRange = updatedData.timeRange;
+        localPanels = updatedData.panels;
+        dbRefresh = updatedData.refresh;
+        const isFavorite = updatedData.isFavorite; 
+
+        // Update the dbData object
+        dbData = updatedData;
+
+        // Make an API call to save the updated dashboard data
+        return fetch('/api/dashboards/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                id: dbId,
+                name: dbName,
+                details: {
+                    name: dbName,
+                    description: dbDescr,
+                    timeRange: timeRange,
+                    panels: localPanels,
+                    refresh: dbRefresh,
+                    isFavorite: isFavorite 
+                },
+            }),
+        })
+            .then((res) => {
+                if (res.status === 409) {
+                    showToast('Dashboard name already exists', 'error');
+                    throw new Error('Dashboard name already exists');
+                }
+                if (res.status == 200) {
+                    $('.name-dashboard').text(dbName);
+                    showToast('Dashboard Updated Successfully', 'success');
+                    // Hide edit/save buttons
+                    $('.dbSet-jsonModelData').prop('disabled', true);
+                    $('#dbSet-edit-json').show();
+                    $('#dbSet-save-json').hide();
+                    return true;
+                }
+                return res.json().then((err) => {
+                    showToast('Request failed: ' + err.message, 'error');
+                    throw new Error('Request failed: ' + err.message);
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+                alert('Failed to save the dashboard. Please try again.');
+                return false;
+            });
     } catch (e) {
         alert('Invalid JSON format. Please correct the JSON and try again.');
     }
