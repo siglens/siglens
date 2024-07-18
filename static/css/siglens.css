@@ -5694,24 +5694,25 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
+
 .error-message, #metric-error {
     display: none;
     width: fit-content;
     text-align: left;
     border-radius: 4px;
-    padding: 10px 10px 10px 40px;
-    border: 1px solid #ffd7d7;
-    background-color: #fff0f0;
-    color: #d8000c;
+    padding: 8px 12px 8px 40px;
+    background-color: white;
+    color: #333;
     position: relative;
     z-index: 1;
     bottom: 125%;
     left: 17.5%;
     transform: translateX(-50%);
     white-space: nowrap;
-    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+    box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
     font-family: Arial, sans-serif;
     font-size: 14px;
+    border: none;
 }
 
 .error-message::before, #metric-error::before {
@@ -5719,14 +5720,14 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     display: inline-block;
     width: 20px;
     height: 20px;
-    background-color: #d8000c;
+    background-color: #f0ad4e;
     color: white;
-    border-radius: 50%;
+    border-radius: 2px;
     text-align: center;
     line-height: 20px;
     font-weight: bold;
     position: absolute;
-    left: 10px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
 }
@@ -5734,15 +5735,12 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .error-message::after, #metric-error::after {
     content: '';
     position: absolute;
-    right: 20px; /* Position the caret 20px from the right edge */
-    margin-left: 0; /* Remove the left margin */
-    border-width: 10px;
+    left: 20px;
+    border-width: 8px;
     border-style: solid;
-    rotate: 180deg;
     bottom: 100%;
-    border-color: #fff0f0 transparent transparent transparent;
-}  
-
+    border-color: transparent transparent white transparent;
+}
   
 
 .metric-summary-searchcontainer{
