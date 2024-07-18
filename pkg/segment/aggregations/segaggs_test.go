@@ -2620,6 +2620,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 	expectedMaxLen := []int{1, 2, 2, 2, 1, 2, 1, 2, 1, 2}
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
+	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
 
 	for i := 0; i < 10; i++ {
 		_, exist, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Count, values[i], uint64(i)+1, true)
@@ -2670,6 +2671,17 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 		assert.Equal(t, expectedValuesMin[i], ssResults.CurrResult)
 	}
 
+	ssResults = InitRunningStreamStatsResults(0)
+
+	for i := 0; i < 10; i++ {
+		_, exist, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Range, values[i], uint64(i)+1, true)
+		assert.Nil(t, err)
+		assert.True(t, exist)
+		assert.Equal(t, expectedMaxLen[i], ssResults.Window.Len())
+		assert.Equal(t, expectedMinLen[i], ssResults.SecondaryWindow.Len())
+		assert.Equal(t, expectedValuesRange[i], ssResults.CurrResult)
+	}
+
 }
 
 func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
@@ -2687,6 +2699,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 	expectedMaxLen := []int{1, 2, 2, 2, 1, 2, 1, 2, 1, 2}
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
+	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
 
 	for i := 0; i < 10; i++ {
 		res, exist, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Count, values[i], uint64(i)+1, true)
@@ -2766,6 +2779,23 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 		assert.Equal(t, expectedValuesMin[i], ssResults.CurrResult)
 	}
 
+	ssResults = InitRunningStreamStatsResults(0)
+
+	for i := 0; i < 10; i++ {
+		res, exist, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Range, values[i], uint64(i)+1, true)
+		assert.Nil(t, err)
+		if i == 0 {
+			assert.False(t, exist)
+			assert.Equal(t, 0.0, res)
+		} else {
+			assert.True(t, exist)
+			assert.Equal(t, expectedValuesRange[i-1], res)
+		}
+		assert.Equal(t, expectedMaxLen[i], ssResults.Window.Len())
+		assert.Equal(t, expectedMinLen[i], ssResults.SecondaryWindow.Len())
+		assert.Equal(t, expectedValuesRange[i], ssResults.CurrResult)
+	}
+
 }
 
 func Test_Time_Window(t *testing.T) {
@@ -2788,6 +2818,7 @@ func Test_Time_Window(t *testing.T) {
 	expectedMaxLen := []int{1, 2, 2, 1, 1, 2, 1, 1, 1, 1}
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 4, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 1, 2, 1}
+	expectedValuesRange := []float64{0, 5, 5, 0, 5, 5, 5, 0, 5, 0}
 
 	for i := 0; i < 10; i++ {
 		_, _, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Count, values[i], timestamp[i], true)
@@ -2832,6 +2863,16 @@ func Test_Time_Window(t *testing.T) {
 		assert.Equal(t, expectedMinLen[i], ssResults.Window.Len())
 		assert.Equal(t, expectedValuesMin[i], ssResults.CurrResult)
 	}
+
+	ssResults = InitRunningStreamStatsResults(0)
+
+	for i := 0; i < 10; i++ {
+		_, _, err := PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResults, 3, utils.Range, values[i], timestamp[i], true)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedMaxLen[i], ssResults.Window.Len())
+		assert.Equal(t, expectedMinLen[i], ssResults.SecondaryWindow.Len())
+		assert.Equal(t, expectedValuesRange[i], ssResults.CurrResult)
+	}
 }
 
 func Test_Global_StreamStats(t *testing.T) {
@@ -2847,6 +2888,7 @@ func Test_Global_StreamStats(t *testing.T) {
 	expectedValuesAvg := []float64{7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7}
 	expectedValuesMax := []float64{7, 7, 7, 7, 7, 7, 8, 8, 9, 9}
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 1, 1, 1, 1}
+	expectedValuesRange := []float64{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
 
 	for i := 0; i < 10; i++ {
 		_, exist, err := PerformGlobalStreamStatsOnSingleFunc(ssOption, ssResults, utils.Count, values[i])
@@ -2904,5 +2946,20 @@ func Test_Global_StreamStats(t *testing.T) {
 		assert.True(t, exist)
 		assert.Equal(t, 0, ssResults.Window.Len())
 		assert.Equal(t, expectedValuesMin[i], ssResults.CurrResult)
+	}
+
+	ssResults = InitRunningStreamStatsResults(math.MaxFloat64)
+	ssOption.NumProcessedRecords = 0
+
+	for i := 0; i < 10; i++ {
+		_, exist, err := PerformGlobalStreamStatsOnSingleFunc(ssOption, ssResults, utils.Range, values[i])
+		ssOption.NumProcessedRecords++
+		assert.Nil(t, err)
+		assert.True(t, exist)
+		assert.Equal(t, 0, ssResults.Window.Len())
+		assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
+		assert.Equal(t, expectedValuesMax[i], ssResults.RangeStat.Max)
+		assert.Equal(t, expectedValuesMin[i], ssResults.RangeStat.Min)
+		assert.Equal(t, expectedValuesRange[i], ssResults.CurrResult)
 	}
 }
