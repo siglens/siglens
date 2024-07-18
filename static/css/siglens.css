@@ -554,6 +554,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    width: 156px !important;
 }
 
 #app-side-nav .menu {
@@ -3065,7 +3066,7 @@ float: right;
     justify-content: center;
 }
 
-.settings-btn{
+.settings-btn#logs-settings{
     width: 26px;
     height: 26px;
     margin-left: 10px;
@@ -5656,7 +5657,7 @@ input.form-control {
     position: absolute;
     top: 0;
     left: 105%;
-    width: 205px;
+    width: 180px;
     z-index: 1;
 }
 ul.metrics-dropdown li, ul.metrics-dropdown li a{
@@ -5670,7 +5671,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     list-style-type: none;
     padding: 0;
     margin: 0;
-    left: 154px;
+    left: 152px;
     border-radius: 5px;
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border: 1px solid var(--border-btn-color);
@@ -5701,9 +5702,6 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     padding: 10px;
 }
 
-.metrics-dropdown li.metrics-summary-metrics-link ,.traces-dropdown li.traces-link,.ingestion-dropdown li.ingestion-link{
-    padding-left: 20px; /* Additional padding for left indent */
-}
 .metric-summary {
     padding-bottom: 1%;
   display:flex;

@@ -43,6 +43,8 @@ $(document).ready(async function () {
     }
     initializeIndexAutocomplete();
 
+    initializeFilterInputEvents();
+
     $('#new-dashboard').css('transform', 'translate(150px)');
     $('#new-dashboard').css('width', 'calc(100% - 150px)');
 
@@ -112,8 +114,6 @@ $(document).ready(async function () {
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
 
-    setTimePicker();
-
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',
@@ -151,7 +151,7 @@ $(`.dbSet-textareaContainer .copy`).click(function () {
 
 $('#save-db-btn').on('click', updateDashboard);
 $('.refresh-btn').on('click', refreshDashboardHandler);
-$('.settings-btn').on('click', handleDbSettings);
+$('#db-settings-btn').on('click', handleDbSettings);
 $('#dbSet-save').on('click', saveDbSetting);
 $('#dbSet-discard').on('click', discardDbSetting);
 $('.dbSet-goToDB').on('click', discardDbSetting);
@@ -226,7 +226,6 @@ function viewPanelInit() {
     $('.panelDisplay .big-number-display-container').hide();
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
-    setTimePicker();
 }
 
 function handlePanelEdit() {
@@ -416,36 +415,37 @@ async function getDashboardData() {
 
 function setTimePickerValue(timeRange) {
     let start, end;
-
-    localPanels.some((panel) => {
-        if (panel.queryData) {
-            if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                if (Array.isArray(panel.queryData.queriesData)) {
-                    let query = panel.queryData.queriesData[0];
-                    start = query.start;
-                    end = query.end;
+    if (localPanels.length > 0) {
+        localPanels.some((panel) => {
+            if (panel.queryData) {
+                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                    if (Array.isArray(panel.queryData.queriesData)) {
+                        let query = panel.queryData.queriesData[0];
+                        start = query.start;
+                        end = query.end;
+                        return true;
+                    }
+                } else {
+                    start = panel.queryData.startEpoch;
+                    end = panel.queryData.endEpoch;
+                    datePickerHandler(start, end, 'custom');
                     return true;
                 }
-            } else {
-                start = panel.queryData.startEpoch;
-                end = panel.queryData.endEpoch;
-                datePickerHandler(start, end, 'custom');
-                return true;
             }
-        }
-        return false;
-    });
-    if (timeRange === 'Custom') {
-        let stDate = Number(start);
-        let endDate = Number(end);
-        datePickerHandler(stDate, endDate, 'custom');
-        $('.inner-range .db-range-item').removeClass('active');
+            return false;
+        });
+        if (timeRange === 'Custom') {
+            let stDate = Number(start);
+            let endDate = Number(end);
+            datePickerHandler(stDate, endDate, 'custom');
+            $('.inner-range .db-range-item').removeClass('active');
 
-        loadCustomDateTimeFromEpoch(stDate, endDate);
-    } else {
-        datePickerHandler(start, end, dbData.timeRange);
-        $('.inner-range .db-range-item').removeClass('active');
-        $('.inner-range #' + start).addClass('active');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else {
+            datePickerHandler(start, end, dbData.timeRange);
+            $('.inner-range .db-range-item').removeClass('active');
+            $('.inner-range #' + start).addClass('active');
+        }
     }
 }
 //eslint-disable-next-line no-unused-vars
@@ -806,6 +806,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: 'Code',
             };
             break;
         case 2: // Pie chart
@@ -819,6 +820,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: 'Code',
             };
             break;
         case 3: // Data Table
@@ -832,6 +834,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             break;
         case 4: // Number
@@ -845,6 +848,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             unit = 'misc';
             break;
@@ -859,6 +863,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             logLinesViewType = 'Single line display view';
             break;
@@ -1224,4 +1229,21 @@ function resizeCharts() {
             }
         }
     });
+}
+
+function setDashboardQueryModeHandler(panelQueryMode) {
+    let queryModeCookieValue = Cookies.get('queryMode');
+
+    if (queryModeCookieValue !== undefined) {
+        if (panelQueryMode === '') {
+            // If panel queryMode is empty, apply the cookie queryMode
+            if (queryModeCookieValue === 'Builder') {
+                $('.custom-code-tab a:first').trigger('click');
+            } else {
+                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
+            }
+        }
+        // Add active class to dropdown options based on the queryMode selected
+        updateQueryModeUI(queryModeCookieValue);
+    }
 }
