@@ -333,15 +333,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         selectedQueryLanguageId = '3';
     }
     queryMode = queryMode.replace('"', '');
-    if (queryMode == 'Builder') {
-        $('.query-mode-option').removeClass('active');
-        $('#query-mode-options #mode-option-1').addClass('active');
-        $('#query-mode-btn span').html('Builder');
-    } else if (queryLanguage == 'Code') {
-        $('.query-mode-option').removeClass('active');
-        $('#query-mode-options #mode-option-2').addClass('active');
-        $('#query-mode-btn span').html('Code');
-    }
+    updateQueryModeUI(queryMode);
     let filterTab = queryParams.get('filterTab');
     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab));
     let filterValue = queryParams.get('searchText');

@@ -70,15 +70,7 @@ $(document).ready(async () => {
             }
         }
         // Add active class to dropdown options based on the queryMode selected.
-        if (queryMode === 'Builder') {
-            $('.query-mode-option').removeClass('active');
-            $('#query-mode-options #mode-option-1').addClass('active');
-            $('#query-mode-btn span').html('Builder');
-        } else {
-            $('.query-mode-option').removeClass('active');
-            $('#query-mode-options #mode-option-2').addClass('active');
-            $('#query-mode-btn span').html('Code');
-        }
+        updateQueryModeUI(queryMode);
     }
     // If query string found , then do search
     if (window.location.search) {
@@ -193,17 +185,6 @@ $(document).ready(async () => {
     $(document).mouseup(function (e) {
         if ($(e.target).closest('.tooltip-inner').length === 0) {
             $('#info-icon-spl').tooltip('hide');
-        }
-    });
-
-    $('#logs-settings').click(function () {
-        event.stopPropagation();
-        $('#setting-container').fadeToggle('fast');
-    });
-
-    $(document).click(function (event) {
-        if (!$(event.target).closest('#setting-container').length) {
-            $('#setting-container').hide();
         }
     });
 
