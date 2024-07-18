@@ -23,6 +23,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -110,6 +111,13 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 			ssResults.RangeStat.Max = floatVal
 		}
 		ssResults.CurrResult = ssResults.RangeStat.Max - ssResults.RangeStat.Min
+	case utils.Cardinality:
+		strValue := fmt.Sprintf("%v", colValue)
+		if ssResults.CardinalityHLL == nil {
+			ssResults.CardinalityHLL = hyperloglog.New()
+		}
+		ssResults.CardinalityHLL.Insert([]byte(strValue))
+		ssResults.CurrResult = float64(ssResults.CardinalityHLL.Estimate())
 	default:
 		return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -144,6 +152,18 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 		ssResults.CurrResult -= floatVal
 	} else if measureAgg == utils.Count {
 		ssResults.CurrResult--
+	} else if measureAgg == utils.Cardinality {
+		strValue := fmt.Sprintf("%v", frontElement.Value)
+		_, exist := ssResults.CardinalityMap[strValue]
+		if exist {
+			ssResults.CardinalityMap[strValue]--
+			if ssResults.CardinalityMap[strValue] == 0 {
+				delete(ssResults.CardinalityMap, strValue)
+			}
+		} else {
+			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
+		}
+		ssResults.CurrResult = float64(len(ssResults.CardinalityMap))
 	}
 
 	window.Remove(window.Front())
@@ -261,20 +281,22 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Min, utils.Max:
 		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = firstElementFloatVal
 		return ssResults.CurrResult, true, nil
 	case utils.Range:
 		maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = maxFloatVal - minFloatval
+		return ssResults.CurrResult, true, nil
+	case utils.Cardinality:
 		return ssResults.CurrResult, true, nil
 	default:
 		return 0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
@@ -392,6 +414,19 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
 		}
 		ssResults.CurrResult = maxFloatVal - minFloatval
+	case utils.Cardinality:
+		if ssResults.CardinalityMap == nil {
+			ssResults.CardinalityMap = make(map[string]int, 0)
+		}
+		strValue := fmt.Sprintf("%v", colValue)
+		_, exist := ssResults.CardinalityMap[strValue]
+		if !exist {
+			ssResults.CardinalityMap[strValue] = 1
+		} else {
+			ssResults.CardinalityMap[strValue]++
+		}
+		ssResults.CurrResult = float64(len(ssResults.CardinalityMap))
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return 0.0, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -550,7 +585,7 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 		if exist {
 			record[measureAgg.String()] = streamStatsResult
 		} else {
-			if measureAgg.MeasureFunc == utils.Count {
+			if measureAgg.MeasureFunc == utils.Count || measureAgg.MeasureFunc == utils.Cardinality {
 				record[measureAgg.String()] = 0.0
 			} else {
 				record[measureAgg.String()] = ""
