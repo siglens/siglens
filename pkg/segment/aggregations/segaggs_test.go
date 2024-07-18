@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"strings"
 	"testing"
@@ -2608,8 +2607,7 @@ func Test_findSpan(t *testing.T) {
 func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedLen [][]int, expectedSecondaryLen [][]int) {
 
 	for i, measureFunc := range measureFuncs {
-		ssResults := InitRunningStreamStatsResults(0)
-		fmt.Println(measureFunc)
+		ssResults := InitRunningStreamStatsResults(measureFunc)
 		for j, value := range values {
 			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureFunc, value, timestamps[j], true)
 			assert.Nil(t, err)
@@ -2628,7 +2626,6 @@ func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *struc
 				}
 			}
 			assert.Equal(t, expectedLen[i][j], ssResults.Window.Len())
-			fmt.Println(expectedLen[i][j], ssResults.Window.Len())
 			if measureFunc == utils.Range {
 				assert.Equal(t, expectedSecondaryLen[i][j], ssResults.SecondaryWindow.Len())
 			}
@@ -2645,13 +2642,8 @@ func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *struc
 func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
 
 	for i, measureFunc := range measureFuncs {
-		ssResults := InitRunningStreamStatsResults(0)
+		ssResults := InitRunningStreamStatsResults(measureFunc)
 		ssOption.NumProcessedRecords = 0
-		if measureFunc == utils.Max {
-			ssResults = InitRunningStreamStatsResults(-math.MaxFloat64)
-		} else if measureFunc == utils.Min {
-			ssResults = InitRunningStreamStatsResults(math.MaxFloat64)
-		}
 
 		for j, value := range values {
 			res, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)

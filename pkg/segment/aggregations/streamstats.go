@@ -41,7 +41,13 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 	return bucketKey, nil
 }
 
-func InitRunningStreamStatsResults(defaultVal float64) *structs.RunningStreamStatsResults {
+func InitRunningStreamStatsResults(measureFunc utils.AggregateFunctions) *structs.RunningStreamStatsResults {
+	defaultVal := 0.0
+	if measureFunc == utils.Min {
+		defaultVal = math.MaxFloat64
+	} else if measureFunc == utils.Max {
+		defaultVal = -math.MaxFloat64
+	}
 	return &structs.RunningStreamStatsResults{
 		Window:          list.New(),
 		CurrResult:      defaultVal,
@@ -467,13 +473,7 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 
 	_, exist = ssOption.RunningStreamStats[measureFuncIndex][bucketKey]
 	if !exist {
-		defaultVal := 0.0
-		if measureAgg.MeasureFunc == utils.Min {
-			defaultVal = math.MaxFloat64
-		} else if measureAgg.MeasureFunc == utils.Max {
-			defaultVal = -math.MaxFloat64
-		}
-		ssOption.RunningStreamStats[measureFuncIndex][bucketKey] = InitRunningStreamStatsResults(defaultVal)
+		ssOption.RunningStreamStats[measureFuncIndex][bucketKey] = InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 	}
 
 	if ssOption.Window == 0 && ssOption.TimeWindow == nil {
@@ -551,7 +551,7 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 			record[measureAgg.String()] = streamStatsResult
 		} else {
 			if measureAgg.MeasureFunc == utils.Count {
-				record[measureAgg.String()] = 0
+				record[measureAgg.String()] = 0.0
 			} else {
 				record[measureAgg.String()] = ""
 			}
