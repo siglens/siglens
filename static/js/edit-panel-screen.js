@@ -343,17 +343,19 @@ async function editPanelInit(redirectedFromViewScreen) {
             }
         );
     }
-    if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
+    if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
         if (currentPanel.queryType === 'logs') {
-            let queryMode = currentPanel.queryData.queryMode || '';
+            let queryMode = currentPanel.queryData.queryMode;
             let queryText = currentPanel.queryData.searchText;
-            if (queryMode === 'Builder') {
-                $('#custom-code-tab').tabs('option', 'active', 0);
-                codeToBuilderParsing(queryText);
-            } else if (queryMode === 'Code' || queryMode === '') {
+            if (queryMode === 'Code' || queryMode === undefined) {
+                // undefined case for previously created panels and open code for those panels
                 $('#custom-code-tab').tabs('option', 'active', 1);
                 $('#filter-input').val(queryText);
+            } else if (queryMode === 'Builder') {
+                $('#custom-code-tab').tabs('option', 'active', 0);
+                codeToBuilderParsing(queryText);
             }
+            setDashboardQueryModeHandler(queryMode);
         }
     }
 

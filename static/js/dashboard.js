@@ -806,6 +806,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: 'Code',
             };
             break;
         case 2: // Pie chart
@@ -819,6 +820,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: 'Code',
             };
             break;
         case 3: // Data Table
@@ -832,6 +834,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             break;
         case 4: // Number
@@ -845,6 +848,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             unit = 'misc';
             break;
@@ -859,6 +863,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
+                queryMode: '',
             };
             logLinesViewType = 'Single line display view';
             break;
@@ -1224,4 +1229,21 @@ function resizeCharts() {
             }
         }
     });
+}
+
+function setDashboardQueryModeHandler(panelQueryMode) {
+    let queryModeCookieValue = Cookies.get('queryMode');
+
+    if (queryModeCookieValue !== undefined) {
+        if (panelQueryMode === '') {
+            // If panel queryMode is empty, apply the cookie queryMode
+            if (queryModeCookieValue === 'Builder') {
+                $('.custom-code-tab a:first').trigger('click');
+            } else {
+                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
+            }
+        }
+        // Add active class to dropdown options based on the queryMode selected
+        updateQueryModeUI(queryModeCookieValue);
+    }
 }

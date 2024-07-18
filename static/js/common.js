@@ -973,3 +973,15 @@ function initializeFilterInputEvents() {
         autoResizeTextarea.call(this);
     });
 }
+
+function updateQueryModeUI(queryMode) {
+    $('.query-mode-option').removeClass('active');
+
+    if (queryMode === 'Builder') {
+        $('#query-mode-options #mode-option-1').addClass('active');
+        $('#query-mode-btn span').html('Builder');
+    } else {
+        $('#query-mode-options #mode-option-2').addClass('active');
+        $('#query-mode-btn span').html('Code');
+    }
+}

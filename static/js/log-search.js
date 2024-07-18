@@ -70,15 +70,7 @@ $(document).ready(async () => {
             }
         }
         // Add active class to dropdown options based on the queryMode selected.
-        if (queryMode === 'Builder') {
-            $('.query-mode-option').removeClass('active');
-            $('#query-mode-options #mode-option-1').addClass('active');
-            $('#query-mode-btn span').html('Builder');
-        } else {
-            $('.query-mode-option').removeClass('active');
-            $('#query-mode-options #mode-option-2').addClass('active');
-            $('#query-mode-btn span').html('Code');
-        }
+        updateQueryModeUI(queryMode);
     }
     // If query string found , then do search
     if (window.location.search) {
