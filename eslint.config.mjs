@@ -189,7 +189,7 @@ export default [
         "addVisualizationContainer": true,
         "doLiveTailCancel": true,
         "doCancel": true,
-
+        "getMetricsQData": true,
       },
     },
     rules: {
