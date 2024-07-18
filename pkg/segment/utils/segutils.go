@@ -81,6 +81,10 @@ func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error
 			}
 			dte.SetRegexp(compiledRegex)
 		}
+	case []string:
+		dte.Dtype = SS_DT_STRING_SLICE
+		dte.StringSliceVal = inVal
+		dte.StringVal = fmt.Sprintf("%v", inVal)
 	case *regexp.Regexp:
 		if inVal == nil {
 			return nil, errors.New("CreateDtypeEnclosure: inVal is nil Regexp")

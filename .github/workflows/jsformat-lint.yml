@@ -1,11 +1,6 @@
-name: Format and Lint the JS code
+name: Format the JS code
 
-on:
-  pull_request:
-    types: [opened, reopened]
-    paths:
-      - 'static/js/**.js'
-
+on: [push]
 
 jobs:
   format:
@@ -13,8 +8,6 @@ jobs:
     name: Format Files
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@v3
         with:
           node-version: "18.18.0"
@@ -25,5 +18,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         with:
-          commit_message: "github actions: style: format JS files"
-          branch: ${{ github.head_ref }}
+          commit_message: "github actions: style: format files"
