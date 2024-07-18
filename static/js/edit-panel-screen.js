@@ -491,7 +491,7 @@ $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on('click', goToDashboard);
-$('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
+$('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
@@ -1094,13 +1094,6 @@ function refreshLogLinesViewMenuOptions() {
     $('.dropDown-logLinesView span').html(logLineView);
 }
 
-function goToViewScreen(panelIndex) {
-    currentPanel = undefined;
-    resetEditPanelScreen();
-    viewPanelInit();
-    displayPanelView(panelIndex);
-}
-
 function goToDashboard() {
     // Don't add panel if cancel is clicked.
     let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
@@ -1183,70 +1176,6 @@ function resetOptions() {
             return;
         }
     });
-}
-function getMetricsQData() {
-    let endDate = filterEndDate || 'now';
-    let stDate = filterStartDate || 'now-15m';
-    let queriesData = [];
-    let formulasData = [];
-
-    // Process each query
-    for (const queryName of Object.keys(queries)) {
-        let queryDetails = queries[queryName];
-        let queryString;
-
-        if (queryDetails.state === 'builder') {
-            queryString = createQueryString(queryDetails);
-        } else {
-            queryString = queryDetails.rawQueryInput;
-        }
-
-        const query = {
-            name: queryName,
-            query: `(${queryString})`,
-            qlType: 'promql',
-        };
-
-        queriesData.push({
-            end: endDate,
-            queries: [query],
-            start: stDate,
-            formulas: [{ formula: query.name }],
-            state: queryDetails.state,
-        });
-    }
-
-    // Process formulas
-    if (Object.keys(formulas).length > 0) {
-        for (const key of Object.keys(formulas)) {
-            const formulaDetails = formulas[key];
-            const queriesInFormula = formulaDetails.queryNames.map((name) => {
-                const queryDetails = queries[name];
-                let queryString;
-
-                if (queryDetails.state === 'builder') {
-                    queryString = createQueryString(queryDetails);
-                } else {
-                    queryString = queryDetails.rawQueryInput;
-                }
-
-                return {
-                    name: name,
-                    query: `(${queryString})`,
-                    qlType: 'promql',
-                };
-            });
-
-            formulasData.push({
-                end: endDate,
-                formulas: [{ formula: formulaDetails.formula }],
-                queries: queriesInFormula,
-                start: stDate,
-            });
-        }
-    }
-
-    return { queriesData, formulasData };
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
