@@ -410,11 +410,13 @@ function getQueryParamsData(scrollingTrigger) {
     }
 
     isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
-    if(isQueryBuilderSearch) {
+    if (isQueryBuilderSearch) {
         queryStr = getQueryBuilderCode();
-    }else{
+        queryMode = 'Builder';
+    } else {
         queryStr = $('#filter-input').val();
-    }
+        queryMode = 'Code';
+    }    
 
     let data = {
         state: wsState,
@@ -424,6 +426,7 @@ function getQueryParamsData(scrollingTrigger) {
         indexName: selectedSearchIndex,
         from: sFrom,
         queryLanguage: queryLanguage,
+        queryMode: queryMode,
     };
     return data;
 }

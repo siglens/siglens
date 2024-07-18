@@ -498,11 +498,6 @@ $('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
-        if (isQueryBuilderSearch) {
-            data.queryMode = 'Builder';
-        } else {
-            data.queryMode = 'Code';
-        }
     }
     localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
     updateTimeRangeForAllPanels(filterStartDate, filterEndDate);
