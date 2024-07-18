@@ -1082,6 +1082,20 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
+    let trimmedDbName = $('.dbSet-dbName').val().trim();
+    let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
+
+    if (!trimmedDbName) {
+        // Show error message using error-tip and popupOverlay
+        $('.error-tip').addClass('active');
+        $('.popupOverlay, .popupContent').addClass('active');
+        $('#error-message').text('Dashboard name cannot be empty.');
+        return;
+    }
+
+    dbName = trimmedDbName;
+    dbDescr = trimmedDbDescription;
+
     const jsonText = $('.dbSet-jsonModelData').val().trim();
     let dbSettings;
     try {
@@ -1101,6 +1115,8 @@ function saveDbSetting() {
         if (updateSuccessful) {
             $('#app-container').show();
             $('.dbSet-container').hide();
+            // Refresh the dashboard data to reflect changes immediately
+            getDashboardData();
         }
     });
 }
