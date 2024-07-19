@@ -79,6 +79,9 @@ input:checked + .slider:before {
 .alert-from-metrics-btn {
     background-image: var(--alerting-btn-img);
 }
+.add-metrics-to-db-btn{
+    background-image: var(--dashboard-btn-img);
+}
 
 .below-btn-img {
     background-size: 50%;
@@ -86,7 +89,7 @@ input:checked + .slider:before {
     background-position: center;
     height: 30px;
     width: 30px;
-    border: none;
+    border: 1px solid var(--border-btn-color);
 }
 .metrics-query .query-box .options-container {
     display: none;
