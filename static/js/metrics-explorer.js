@@ -1561,6 +1561,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     borderWidth: dataset.borderWidth,
                     backgroundColor: dataset.backgroundColor,
                     fill: chartType === 'Area chart' ? true : false,
+                    borderDash: selectedLineStyle === 'Dash' ? [5, 5] : selectedLineStyle === 'Dotted' ? [1, 3] : [],
                 });
             });
             // Update labels ( same for all graphs)
@@ -1642,6 +1643,7 @@ function mergeGraphs(chartType, panelId = -1) {
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
+
 
 const shouldShowLegend = (panelId, datasets) => {
     return panelId === -1 || datasets.length < 5;
