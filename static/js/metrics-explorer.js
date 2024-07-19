@@ -153,41 +153,46 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
     formulaDetailsMap[uniqueId] = {
         formula: '',
         queryNames: [],
-        functions: []
+        functions: [],
     };
 
-    formulaElement.find('#functions-search-box-formula').autocomplete({
-        source: allFunctions.map(function (item) {
-            return item.name;
-        }),
-        minLength: 0,
-        select: async function (event, ui) {
-            var selectedFunction = allFunctions.find(function (item) {
-                return item.name === ui.item.value;
-            });
-            var formulaDetails = formulaDetailsMap[uniqueId];
+    formulaElement
+        .find('#functions-search-box-formula')
+        .autocomplete({
+            source: allFunctions.map(function (item) {
+                return item.name;
+            }),
+            minLength: 0,
+            select: async function (event, ui) {
+                var selectedFunction = allFunctions.find(function (item) {
+                    return item.name === ui.item.value;
+                });
+                var formulaDetails = formulaDetailsMap[uniqueId];
 
-            // Check if the selected function is already in formulaDetails.functions
-            var indexToRemove = formulaDetails.functions.indexOf(selectedFunction.fn);
-            if (indexToRemove !== -1) {
-                formulaDetails.functions.splice(indexToRemove, 1); // Remove it
-                $(this).closest('.formula-box').find('.selected-function-formula:contains(' + selectedFunction.fn + ')').remove();
-            }
+                // Check if the selected function is already in formulaDetails.functions
+                var indexToRemove = formulaDetails.functions.indexOf(selectedFunction.fn);
+                if (indexToRemove !== -1) {
+                    formulaDetails.functions.splice(indexToRemove, 1); // Remove it
+                    $(this)
+                        .closest('.formula-box')
+                        .find('.selected-function-formula:contains(' + selectedFunction.fn + ')')
+                        .remove();
+                }
 
-            formulaDetails.functions.push(selectedFunction.fn);
-            appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
-            let formula = formulaElement.find('.formula').val().trim();
-            let validationResult = validateFormula(formula, uniqueId);
+                formulaDetails.functions.push(selectedFunction.fn);
+                appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
+                let formula = formulaElement.find('.formula').val().trim();
+                let validationResult = validateFormula(formula, uniqueId);
 
-            if (validationResult !== false) {
-                await getMetricsDataForFormula(uniqueId, validationResult);
-            }
-            $(this).val('');
-        },
-        classes: {
-            'ui-autocomplete': 'metrics-ui-widget',
-        },
-    })
+                if (validationResult !== false) {
+                    await getMetricsDataForFormula(uniqueId, validationResult);
+                }
+                $(this).val('');
+            },
+            classes: {
+                'ui-autocomplete': 'metrics-ui-widget',
+            },
+        })
         .on('click', function () {
             if ($(this).autocomplete('widget').is(':visible')) {
                 $(this).autocomplete('close');
@@ -200,9 +205,14 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
         });
 
     $('.all-selected-functions-formula').on('click', '.selected-function-formula .close', async function () {
-        var fnToRemove = $(this).parent('.selected-function-formula').contents().filter(function () {
-            return this.nodeType === 3;
-        }).text().trim();
+        var fnToRemove = $(this)
+            .parent('.selected-function-formula')
+            .contents()
+            .filter(function () {
+                return this.nodeType === 3;
+            })
+            .text()
+            .trim();
 
         var formulaDetails = formulaDetailsMap[uniqueId];
         var indexToRemove = formulaDetails.functions.indexOf(fnToRemove);
@@ -250,7 +260,7 @@ $('#add-formula').on('click', function () {
     }
 });
 function addOrUpdateFormulaCache(formulaId, formulaName, formulaDetails) {
-    let existingIndex = formulaCache.findIndex(item => item.formulaId === formulaId);
+    let existingIndex = formulaCache.findIndex((item) => item.formulaId === formulaId);
     if (existingIndex !== -1) {
         formulaCache[existingIndex] = { formulaId, formulaName, formulaDetails };
     } else {
@@ -472,7 +482,7 @@ function validateFormula(formula, uniqueId) {
     return {
         formula: formula,
         queryNames: usedQueryNames,
-        functions: functionsArray
+        functions: functionsArray,
     };
 }
 
@@ -1902,7 +1912,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
-        functions.forEach(fn => {
+        functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
             formwithfun = `${fn}(${formwithfun})`;
         });
