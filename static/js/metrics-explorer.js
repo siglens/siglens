@@ -227,7 +227,7 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
     });
 }
 
-function formulaInputHandler(formulaElement, uniqueId) {
+async function formulaInputHandler(formulaElement, uniqueId) {
     let input = formulaElement.find('.formula');
     input.on(
         'input',
@@ -251,11 +251,15 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 errorMessage.hide();
                 input.removeClass('error-border');
                 formulas[uniqueId] = validationResult;
-                if (isAlertScreen) {
-                    $('#metrics-queries .metrics-query .query-name').removeClass('active');
-                }
-                if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
-                    await getMetricsDataForFormula(uniqueId, validationResult);
+                if (validationResult.isConstant) {
+                    generateConstantValueChart(uniqueId, validationResult.value, filterStartDate, filterEndDate);
+                } else {
+                    if (isAlertScreen) {
+                        $('#metrics-queries .metrics-query .query-name').removeClass('active');
+                    }
+                    if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
+                        await getMetricsDataForFormula(uniqueId, validationResult);
+                    }
                 }
             } else {
                 errorMessage.show();
@@ -265,6 +269,8 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }, 500)
     ); // debounce delay
 }
+
+
 
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
@@ -340,7 +346,15 @@ function validateFormula(formula) {
         if (queryNames.includes(part)) {
             usedQueryNames.push(part);
         } else if (isNaN(part)) {
-            return false; // Todo: if only numeric value is present in formula
+            return false; // Invalid formula
+        }
+    }
+
+    if (!usedQueryNames.length) {
+        // If there are no query names, check if the formula is a constant
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue)) {
+            return { isConstant: true, value: constantValue };
         }
     }
 
@@ -349,6 +363,159 @@ function validateFormula(formula) {
         queryNames: usedQueryNames,
     };
 }
+
+function generateConstantValueChart(uniqueId, constantValue, startTime, endTime) {
+    // Convert relative times to actual timestamps
+    const now = Math.floor(Date.now() / 1000);
+    const timeRanges = {
+        'now': now,
+        'now-5m': now - 300,
+        'now-15m': now - 900,
+        'now-30m': now - 1800,
+        'now-1h': now - 3600,
+        'now-3h': now - 10800,
+        'now-6h': now - 21600,
+        'now-12h': now - 43200,
+        'now-24h': now - 86400,
+        'now-2d': now - 172800,
+        'now-7d': now - 604800,
+        'now-30d': now - 2592000,
+        'now-90d': now - 7776000,
+        'now-1y': now - 31536000
+    };
+    
+
+    startTime = timeRanges[startTime] || startTime;
+    endTime = timeRanges[endTime] || endTime;
+
+    // Determine the best time unit
+    const timeRange = endTime - startTime;
+    const timeUnit = determineTimeUnit(timeRange);
+
+    // Generate empty labels for the time range
+    const labels = generateEmptyChartLabels(timeUnit, startTime, endTime);
+
+    // Create data points with the constant value
+    const dataPoints = labels.map(() => constantValue);
+
+    const seriesData = [{
+        seriesName: `Constant Value: ${constantValue}`,
+        values: Object.fromEntries(labels.map((label, index) => [label, dataPoints[index]]))
+    }];
+
+    // Create the chart data
+    const chartData = {
+        labels: labels,
+        datasets: [{
+            label: `Constant Value: ${constantValue}`,
+            data: dataPoints,
+            borderColor: '#FF0000', // Red color for the line
+            backgroundColor: '#FF000070', // Red color with opacity
+            borderWidth: 2,
+            fill: false
+        }]
+    };
+
+    // Create the canvas for the chart
+    var existingContainer = $(`.metrics-graph[data-query="${uniqueId}"]`);
+    var canvas;
+    if (existingContainer.length === 0) {
+        var visualizationContainer = $(`
+        <div class="metrics-graph" data-query="${uniqueId}">
+            <div class="query-string">${`Constant Value: ${constantValue}`}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
+
+        canvas = $('<canvas></canvas>');
+        visualizationContainer.find('.graph-canvas').append(canvas);
+        $('#metrics-graphs').append(visualizationContainer);
+    } else {
+        existingContainer.find('.query-string').text(`Constant Value: ${constantValue}`);
+        canvas = $('<canvas></canvas>');
+        existingContainer.find('.graph-canvas').empty().append(canvas);
+    }
+
+    var ctx = canvas[0].getContext('2d');
+    var lineChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '',
+                    },
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        color: '#000',
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
+                        },
+                        font: (context) => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold',
+                                };
+                            }
+                            return {
+                                weight: 'normal',
+                            };
+                        },
+                    },
+                    time: {
+                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM yyyy',
+                        },
+                    },
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: false,
+                    },
+                    grid: { color: '#ccc' },
+                    ticks: { color: '#000' },
+                },
+            },
+            spanGaps: true,
+        },
+    });
+
+    // Modify the fill property based on the chart type after chart initialization
+    lineChart.config.data.datasets.forEach(function (dataset) {
+        dataset.fill = false;
+    });
+
+    lineChart.update();
+}
+
+
+
+
 
 function disableQueryRemoval() {
     // Loop through each query element
@@ -1812,6 +1979,13 @@ async function getMetricsData(queryName, metricName) {
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
+    // Check if the formula is a constant value
+    if (formulaDetails.isConstant) {
+        // Generate a constant value chart for the specified time range
+        generateConstantValueChart(formulaId, formulaDetails.value, filterStartDate, filterEndDate);
+        return;
+    }
+
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
@@ -1865,6 +2039,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     }
     updateDownloadButtons();
 }
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
