@@ -1622,7 +1622,77 @@ const shouldShowLegend = (panelId, datasets) => {
     return panelId === -1 || datasets.length < 5;
 };
 
-// Converting the response in form to use to create graphs
+// Helper function to determine the best time unit based on the time range
+function determineTimeUnit(timeRange) {
+    if (timeRange > 365 * 24 * 60 * 60) {
+        return 'month';
+    } else if (timeRange >= 90 * 24 * 60 * 60) {
+        return '7day';
+    } else if (timeRange >= 30 * 24 * 60 * 60) {
+        return '2day';
+    } else if (timeRange >= 7 * 24 * 60 * 60) {
+        return '12hour';
+    } else if (timeRange >= 2 * 24 * 60 * 60) {
+        return '6hour';
+    } else if (timeRange >= 24 * 60 * 60) {
+        return '3hour';
+    } else if (timeRange >= 12 * 60 * 60) {
+        return '30minute';
+    } else if (timeRange >= 3 * 60 * 60) {
+        return '15minute';
+    } else if (timeRange >= 30 * 60) {
+        return '5minute';
+    } else {
+        return 'minute';
+    }
+}
+
+// Helper function to generate empty chart labels
+function generateEmptyChartLabels(timeUnit, startTime, endTime) {
+    const labels = [];
+    let interval;
+
+    switch (timeUnit) {
+        case 'month':
+            interval = 30 * 24 * 60 * 60;
+            break;
+        case '7day':
+            interval = 7 * 24 * 60 * 60;
+            break;
+        case '2day':
+            interval = 2 * 24 * 60 * 60;
+            break;
+        case '12hour':
+            interval = 12 * 60 * 60;
+            break;
+        case '6hour':
+            interval = 6 * 60 * 60;
+            break;
+        case '3hour':
+            interval = 3 * 60 * 60;
+            break;
+        case '30minute':
+            interval = 30 * 60;
+            break;
+        case '15minute':
+            interval = 15 * 60;
+            break;
+        case '5minute':
+            interval = 5 * 60;
+            break;
+        default:
+            interval = 60;
+    }
+
+    while (startTime <= endTime) {
+        labels.push(moment(startTime * 1000).format('YYYY-MM-DDTHH:mm:ss'));
+        startTime += interval;
+    }
+
+    return labels;
+}
+
+// General function to convert data for chart
 async function convertDataForChart(data) {
     let seriesArray = [];
 
@@ -1630,28 +1700,8 @@ async function convertDataForChart(data) {
         let chartStartTime = data.startTime;
         let chartEndTime = Math.floor(Date.now() / 1000);
         const timeRange = chartEndTime - chartStartTime;
-        // // Determine the best time unit based on the time range
-        if (timeRange > 365 * 24 * 60 * 60) {
-            timeUnit = 'month';
-        } else if (timeRange >= 90 * 24 * 60 * 60) {
-            timeUnit = '7day';
-        } else if (timeRange >= 30 * 24 * 60 * 60) {
-            timeUnit = '2day';
-        } else if (timeRange >= 7 * 24 * 60 * 60) {
-            timeUnit = '12hour';
-        } else if (timeRange >= 2 * 24 * 60 * 60) {
-            timeUnit = '6hour';
-        } else if (timeRange >= 24 * 60 * 60) {
-            timeUnit = '3hour';
-        } else if (timeRange >= 12 * 60 * 60) {
-            timeUnit = '30minute';
-        } else if (timeRange >= 3 * 60 * 60) {
-            timeUnit = '15minute';
-        } else if (timeRange >= 30 * 60) {
-            timeUnit = '5minute';
-        } else {
-            timeUnit = 'minute';
-        }
+        timeUnit = determineTimeUnit(timeRange);
+
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
@@ -1660,7 +1710,7 @@ async function convertDataForChart(data) {
 
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
-            switch (calculatedInterval) {
+            switch (true) {
                 case calculatedInterval >= 28800:
                     chartStartTime = chartStartTime - oneDayInMilliseconds;
                     chartEndTime = chartEndTime + oneDayInMilliseconds;
@@ -1684,14 +1734,14 @@ async function convertDataForChart(data) {
                     chartStartTime = chartStartTime - 1 * 60;
                     chartEndTime = chartEndTime + 1 * 60;
             }
+
             for (let j = 0; j < data.timestamps.length; j++) {
-                // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
-
                 series.values[formattedDate] = data.values[i][j];
             }
+
             while (chartStartTime <= chartEndTime) {
                 let timestampInMilliseconds = chartStartTime * 1000;
                 let localDate = moment(timestampInMilliseconds);
@@ -1699,14 +1749,27 @@ async function convertDataForChart(data) {
                 if (series.values[formattedDate] === undefined) {
                     series.values[formattedDate] = null;
                 }
-                chartStartTime = chartStartTime + calculatedInterval;
+                chartStartTime += calculatedInterval;
             }
+
             seriesArray.push(series);
         }
     }
 
+    if (seriesArray.length === 0) {
+        const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
+        seriesArray.push({
+            seriesName: 'No Data',
+            values: labels.reduce((acc, label) => {
+                acc[label] = null;
+                return acc;
+            }, {}),
+        });
+    }
+
     return seriesArray;
 }
+
 
 async function getMetricNames() {
     const data = {
