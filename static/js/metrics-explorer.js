@@ -1770,7 +1770,6 @@ async function convertDataForChart(data) {
     return seriesArray;
 }
 
-
 async function getMetricNames() {
     const data = {
         start: filterStartDate,
