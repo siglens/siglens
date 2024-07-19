@@ -188,6 +188,9 @@ type RunningStreamStatsResults struct {
 	NumProcessedRecords uint64     // kept for global stats where window = 0
 	SecondaryWindow     *list.List // use secondary window for range
 	RangeStat           *RangeStat
+	CardinalityMap      map[string]int
+	CardinalityHLL      *hyperloglog.Sketch
+	ValuesMap           map[string]struct{}
 }
 
 type RunningStreamStatsWindowElement struct {
