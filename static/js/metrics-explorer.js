@@ -1643,7 +1643,6 @@ function mergeGraphs(chartType, panelId = -1) {
     updateDownloadButtons();
 }
 
-
 const shouldShowLegend = (panelId, datasets) => {
     return panelId === -1 || datasets.length < 5;
 };
