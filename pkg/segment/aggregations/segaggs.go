@@ -78,6 +78,27 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 	})
 }
 
+func checkIfTimeSort(agg *structs.QueryAggregators) (bool, bool) {
+	if agg == nil {
+		return false, false
+	}
+
+	if agg.HasSortBlock() {
+		if len(agg.OutputTransforms.LetColumns.SortColRequest.SortEles) == 1 && agg.OutputTransforms.LetColumns.SortColRequest.SortEles[0].Field == "timestamp" {
+			return true, agg.OutputTransforms.LetColumns.SortColRequest.SortEles[0].SortByAsc
+		} else {
+			return false, false
+		}
+	}
+
+	if agg.Sort != nil && agg.Sort.ColName == "timestamp" {
+		return true, agg.Sort.Ascending
+	}
+
+	return false, false
+
+}
+
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
@@ -106,11 +127,16 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	}
 
 	hasSort := false
+	timeSort := false
+	timeSortAsc := false
 	for agg := post; agg != nil; agg = agg.Next {
 		if agg.HasSortBlock() {
 			hasSort = true
 		}
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
+		if agg.Sort != nil || agg.HasSortBlock() {
+			timeSort, timeSortAsc = checkIfTimeSort(agg)
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort, timeSort, timeSortAsc)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -146,7 +172,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool, timeSort bool, timeSortAsc bool) error {
+	if agg.StreamStatsOptions != nil {
+		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment, timeSort, timeSortAsc)
+	}
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -214,6 +243,20 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 
 	return nil
+}
+
+func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
+	currentOrder := make([]string, len(recs))
+
+	for recordKey := range recs {
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return nil, fmt.Errorf("processSegmentRecordsForHeadExpr: Index not found in recordIndexInFinal for record: %v", recordKey)
+		}
+		currentOrder[idx] = recordKey
+	}
+
+	return currentOrder, nil
 }
 
 func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
