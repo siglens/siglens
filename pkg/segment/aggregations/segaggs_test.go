@@ -2670,7 +2670,6 @@ func StreamStatsValuesHelper(t *testing.T, colValues []interface{}, expectedValu
 	}
 }
 
-
 func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
 
 	for i, measureFunc := range measureFuncs {
@@ -2837,7 +2836,6 @@ func Test_Cardinality(t *testing.T) {
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
 }
 
-
 func createStringsWithNbsp(collection []interface{}) string {
 	uniqueStr := make(map[string]struct{}, 0)
 	result := []string{}
@@ -2869,7 +2867,6 @@ func Test_Values(t *testing.T) {
 	for i := range values {
 		expectedValuesNoWindow = append(expectedValuesNoWindow, createStringsWithNbsp(values[:i+1]))
 	}
-
 
 	ssOption := &structs.StreamStatsOptions{
 		Current: true,

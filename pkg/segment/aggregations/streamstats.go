@@ -83,7 +83,6 @@ func getValuesWindow(valuesMap map[string]int) string {
 	return strings.Join(uniqueStrings, "&nbsp")
 }
 
-
 func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (interface{}, bool, error) {
 	var result interface{}
 	if measureAgg == utils.Values && !ssOption.Current {
@@ -92,7 +91,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 	} else {
 		result = ssResults.CurrResult
 	}
-	
+
 	valExist := ssResults.NumProcessedRecords > 0
 
 	if measureAgg == utils.Avg && valExist {
