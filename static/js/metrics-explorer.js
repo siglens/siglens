@@ -38,7 +38,7 @@ let dayCnt2 = 0;
 let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
-
+let funcApplied = false;
 // Theme
 let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
 let purple = ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'];
@@ -148,7 +148,83 @@ function getUrlParameter(name) {
     let results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
+let formulaDetailsMap = {};
+async function initializeFormulaFunction(formulaElement, uniqueId) {
+    formulaDetailsMap[uniqueId] = {
+        formula: '',
+        queryNames: [],
+        functions: []
+    };
 
+    formulaElement.find('#functions-search-box-formula').autocomplete({
+        source: allFunctions.map(function (item) {
+            return item.name;
+        }),
+        minLength: 0,
+        select: async function (event, ui) {
+            var selectedFunction = allFunctions.find(function (item) {
+                return item.name === ui.item.value;
+            });
+            var formulaDetails = formulaDetailsMap[uniqueId];
+
+            // Check if the selected function is already in formulaDetails.functions
+            var indexToRemove = formulaDetails.functions.indexOf(selectedFunction.fn);
+            if (indexToRemove !== -1) {
+                formulaDetails.functions.splice(indexToRemove, 1); // Remove it
+                $(this).closest('.formula-box').find('.selected-function-formula:contains(' + selectedFunction.fn + ')').remove();
+            }
+
+            formulaDetails.functions.push(selectedFunction.fn);
+            appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
+            let formula = formulaElement.find('.formula').val().trim();
+            let validationResult = validateFormula(formula, uniqueId);
+
+            if (validationResult !== false) {
+                await getMetricsDataForFormula(uniqueId, validationResult);
+            }
+            $(this).val('');
+        },
+        classes: {
+            'ui-autocomplete': 'metrics-ui-widget',
+        },
+    })
+        .on('click', function () {
+            if ($(this).autocomplete('widget').is(':visible')) {
+                $(this).autocomplete('close');
+            } else {
+                $(this).autocomplete('search', '');
+            }
+        })
+        .on('click', function () {
+            $(this).select();
+        });
+
+    $('.all-selected-functions-formula').on('click', '.selected-function-formula .close', async function () {
+        var fnToRemove = $(this).parent('.selected-function-formula').contents().filter(function () {
+            return this.nodeType === 3;
+        }).text().trim();
+
+        var formulaDetails = formulaDetailsMap[uniqueId];
+        var indexToRemove = formulaDetails.functions.indexOf(fnToRemove);
+        if (indexToRemove !== -1) {
+            formulaDetails.functions.splice(indexToRemove, 1);
+        }
+        $(this).parent('.selected-function-formula').remove();
+
+        // Get the updated formula and validate it
+        let formula = formulaElement.find('.formula').val().trim();
+        let validationResult = validateFormula(formula, uniqueId);
+
+        // If the validation passes, call the getMetricsDataForFormula with the updated details
+        if (validationResult !== false) {
+            await getMetricsDataForFormula(uniqueId, validationResult);
+        }
+    });
+}
+function appendFormulaFunctionDiv(formulaElement, fnName) {
+    var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
+    formulaElement.find('.all-selected-functions-formula').append(newDiv);
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     resetCustomDateRange();
@@ -173,8 +249,13 @@ $('#add-formula').on('click', function () {
         addMetricsFormulaElement();
     }
 });
-function addToFormulaCache(formulaId, formulaName) {
-    formulaCache.push({ formulaId, formulaName });
+function addOrUpdateFormulaCache(formulaId, formulaName, formulaDetails) {
+    let existingIndex = formulaCache.findIndex(item => item.formulaId === formulaId);
+    if (existingIndex !== -1) {
+        formulaCache[existingIndex] = { formulaId, formulaName, formulaDetails };
+    } else {
+        formulaCache.push({ formulaId, formulaName, formulaDetails });
+    }
 }
 $('.refresh-btn').on('click', refreshMetricsGraphs);
 
@@ -196,6 +277,7 @@ function generateUniqueId() {
 function createFormulaElementTemplate(uniqueId, initialValue = '') {
     return $(`
         <div class="formula-box" data-id="${uniqueId}">
+        <div style="display: flex;flex-direction: row;">
             <div style="position: relative;" class="d-flex">
                 <div class="formula-arrow">↓</div>
                 <input class="formula" placeholder="Formula, eg. 2*a" value="${initialValue}">
@@ -203,9 +285,19 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
                     <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
                 </div>
             </div>
-            <div>
-                <div class="remove-query">×</div>
+            <div class="Formula-functions-container">
+                    <div class="all-selected-functions-formula">
+                    </div>
+                    <div class="position-container">
+                        <div class="show-functions-formula">
+                        </div>
+                        <div class="options-container-formula">
+                            <input type="text" id="functions-search-box-formula" class="search-box" placeholder="Search...">
+                        </div>
+                    </div>
             </div>
+        </div>
+        <div class="remove-query">×</div>
         </div>`);
 }
 
@@ -223,6 +315,32 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             formulaElement.remove();
             removeVisualizationContainer(uniqueId);
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
+    });
+    formulaElement.find('.show-functions-formula').on('click', function () {
+        event.stopPropagation();
+        var inputField = formulaElement.find('#functions-search-box-formula');
+        var optionsContainer = formulaElement.find('.options-container-formula');
+        var isContainerVisible = optionsContainer.is(':visible');
+
+        if (!isContainerVisible) {
+            optionsContainer.show();
+            inputField.val('');
+            inputField.focus();
+            inputField.autocomplete('search', '');
+        } else {
+            optionsContainer.hide();
+        }
+    });
+
+    // Hide the functions dropdown
+    $('body').on('click', function (event) {
+        var optionsContainer = formulaElement.find('.options-container-formula');
+        var showFunctionsButton = formulaElement.find('.show-functions-formula');
+
+        // Check if the clicked element is not part of the options container or the show-functions button
+        if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
+            optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
     });
 }
@@ -246,7 +364,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 onFormulaErased(uniqueId);
                 return;
             }
-            let validationResult = validateFormula(formula);
+            let validationResult = validateFormula(formula, uniqueId); // Use the updated validateFormula function
             if (validationResult !== false) {
                 errorMessage.hide();
                 input.removeClass('error-border');
@@ -279,9 +397,9 @@ async function addAlertsFormulaElement(formulaInput) {
         $('#metrics-formula').append(formulaElement);
     }
 
-    let validationResult = validateFormula(formulaInput);
-
+    let validationResult = validateFormula(formulaInput, uniqueId);
     formulas[uniqueId] = validationResult;
+    formulaDetailsMap[uniqueId] = validationResult;
     await getMetricsDataForFormula(uniqueId, validationResult);
 
     let formulaElements = $('.formula-arrow');
@@ -290,7 +408,7 @@ async function addAlertsFormulaElement(formulaInput) {
         formulaBtn.prop('disabled', true);
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
-
+    initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
@@ -298,13 +416,15 @@ async function addAlertsFormulaElement(formulaInput) {
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
     // For Dashboards
     if (formulaInput) {
-        const validationResult = validateFormula(formulaInput);
+        const validationResult = validateFormula(formulaInput, uniqueId);
         formulas[uniqueId] = validationResult;
+        formulaDetailsMap[uniqueId] = validationResult;
         await getMetricsDataForFormula(uniqueId, validationResult);
     }
 
     const formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
     $('#metrics-formula').append(formulaElement);
+    initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
@@ -323,8 +443,7 @@ function onFormulaErased(uniqueId) {
     removeVisualizationContainer(uniqueId);
     updateCloseIconVisibility();
 }
-
-function validateFormula(formula) {
+function validateFormula(formula, uniqueId) {
     // Regular expression to include numbers and query names
     let pattern = /^(\s*\w+\s*|\s*\d+\s*)(\s*[-+*/]\s*(\s*\w+\s*|\s*\d+\s*))*$/;
     let matches = formula.match(pattern);
@@ -344,9 +463,16 @@ function validateFormula(formula) {
         }
     }
 
+    // Nest the formula within the functions present in formulaDetails.functions
+    let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
+    for (let func of functionsArray) {
+        formula = `${func}(${formula})`;
+    }
+    funcApplied = true;
     return {
         formula: formula,
         queryNames: usedQueryNames,
+        functions: functionsArray
     };
 }
 
@@ -1165,7 +1291,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         updateGraphWidth();
         mergeGraphs(chartType);
     }
-    addToFormulaCache(queryName, queryString);
+    addOrUpdateFormulaCache(queryName, queryString);
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1773,12 +1899,19 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
-
+    let formwithfun = formulaDetails.formula;
+    if (!funcApplied) {
+        let functions = formulaDetailsMap[formulaId].functions;
+        functions.forEach(fn => {
+            formulaString = `${fn}(${formulaString})`;
+            formwithfun = `${fn}(${formwithfun})`;
+        });
+    }
     const formula = {
-        formula: formulaDetails.formula,
+        formula: formwithfun,
     };
     formulas.push(formula);
-
+    addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
     const data = {
         start: filterStartDate,
         end: filterEndDate,
@@ -1881,7 +2014,11 @@ async function getQueryDetails(queryName, queryDetails) {
     // Check if the query name is present in any formulas and re-run the formula if so
     for (let formulaId in formulas) {
         if (formulas[formulaId].queryNames.includes(queryName)) {
-            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+            const formulaDetails = formulas[formulaId];
+            // Update the formula with the corresponding functions from formulaDetailsMap
+            funcApplied = false;
+            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
+            await getMetricsDataForFormula(formulaId, formulaDetails);
         }
     }
 }
@@ -2000,7 +2137,7 @@ function getGraphGridColors() {
 }
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
-    addToFormulaCache(queryName, queryString);
+    addOrUpdateFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`);
     var canvas;
     if (existingContainer.length === 0) {
