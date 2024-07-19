@@ -142,15 +142,16 @@ type MetricsQueryResponsePromQl struct {
 Struct to represent the metrics arithmetic request and its corresponding timerange
 */
 type QueryArithmetic struct {
-	OperationId uint64
-	LHS         uint64
-	RHS         uint64
-	LHSExpr     *QueryArithmetic
-	RHSExpr     *QueryArithmetic
-	ConstantOp  bool
-	Operation   utils.LogicalAndArithmeticOperator
-	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
-	Constant    float64
+	OperationId   uint64
+	LHS           uint64
+	RHS           uint64
+	LHSExpr       *QueryArithmetic
+	RHSExpr       *QueryArithmetic
+	ConstantOp    bool
+	Operation     utils.LogicalAndArithmeticOperator
+	ReturnBool    bool // If a comparison operator, return 0/1 rather than filtering.
+	Constant      float64
+	OtherConstant float64 // For binary operations, where both LHS and RHS are constants
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results        map[string]map[uint32]float64
 	OperatedState  bool //true if operation has been executed
