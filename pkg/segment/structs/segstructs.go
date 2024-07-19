@@ -287,6 +287,12 @@ type LetColumnsRequest struct {
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
+	FillNullRequest      *FillNullExpr
+}
+
+type FillNullExpr struct {
+	Value     string   // value to fill nulls with. Default 0
+	FieldList []string // list of fields to fill nulls with
 }
 
 type TailExpr struct {
