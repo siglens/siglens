@@ -173,16 +173,9 @@ $('#add-formula').on('click', function () {
         addMetricsFormulaElement();
     }
 });
-
 function addToFormulaCache(formulaId, formulaName) {
-    const existingIndex = formulaCache.findIndex(item => item.formulaId === formulaId);
-    if (existingIndex !== -1) {
-        formulaCache[existingIndex].formulaName = formulaName;
-    } else {
-        formulaCache.push({ formulaId, formulaName });
-    }
+    formulaCache.push({ formulaId, formulaName });
 }
-
 $('.refresh-btn').on('click', refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs
@@ -994,7 +987,7 @@ function updateCloseIconVisibility() {
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
-function prepareChartData(seriesData, chartDataCollection, queryName) {
+function prepareChartData(seriesData, chartDataCollection, queryName, queryString) {
     var labels = [];
     var datasets = [];
 
@@ -1009,7 +1002,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: queryName,
+                label: queryString,  // Use the actual query string or formula
                 data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
@@ -1030,23 +1023,12 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
     return chartData;
 }
 
-function initializeChart(canvas, seriesData, queryName, chartType) {
-
+function initializeChart(canvas, seriesData, queryName, queryString, chartType) {
     var ctx = canvas[0].getContext('2d');
-    if (!ctx) {
-        console.error("Failed to get context for canvas element for query:", queryName);
-        return null;
-    }
 
-    let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName, queryString);
 
     const { gridLineColor, tickColor } = getGraphGridColors();
-
-    // Destroy existing chart instance if it exists
-    if (canvas.data('chartInstance')) {
-        canvas.data('chartInstance').destroy();
-        canvas.removeData('chartInstance'); // Clear the chart instance data
-    }
 
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
@@ -1062,42 +1044,21 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         boxWidth: 10,
                         boxHeight: 2,
                         fontSize: 10,
-                        generateLabels: function(chart) {
-                            return chart.data.datasets.map(function(dataset, index) {
-                                const formulaDetails = formulaCache.find(item => item.formulaId === dataset.label);
-                                const formulaName = formulaDetails ? formulaDetails.formulaName : dataset.label;
-                                return {
-                                    text: formulaName,
-                                    fillStyle: dataset.borderColor,
-                                    hidden: !chart.isDatasetVisible(index),
-                                    lineCap: dataset.borderCapStyle,
-                                    lineDash: dataset.borderDash,
-                                    lineDashOffset: dataset.borderDashOffset,
-                                    lineJoin: dataset.borderJoinStyle,
-                                    lineWidth: dataset.borderWidth,
-                                    strokeStyle: dataset.borderColor,
-                                    pointStyle: dataset.pointStyle,
-                                    rotation: dataset.rotation,
-                                    datasetIndex: index
-                                };
-                            });
-                        }
                     },
                 },
                 tooltip: {
                     callbacks: {
                         title: function(tooltipItems) {
-                            const item = tooltipItems[0];
-                            return `${item.label}`;
+                            // Display formatted timestamp in the title
+                            const date = new Date(tooltipItems[0].parsed.x);
+                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
+                            return formattedDate;
                         },
                         label: function(tooltipItem) {
-                            const dataset = tooltipItem.dataset;
-                            const formulaDetails = formulaCache.find(f => f.formulaId === dataset.label);
-                            const formulaName = formulaDetails ? formulaDetails.formulaName : dataset.label;
-                            return `${formulaName}: ${tooltipItem.formattedValue}`;
+                            // Display dataset label and value
+                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
                         }
-                    },
-                    footerFontStyle: 'normal',
+                    }
                 }
             },
             scales: {
@@ -1153,9 +1114,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         },
     });
 
-    // Store the chart instance on the canvas element for later destruction
-    canvas.data('chartInstance', lineChart);
-
+    // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
         lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = true;
@@ -1170,66 +1129,39 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     return lineChart;
 }
 
-
-
-function updateChartLegends(queryName) {
-    const chart = lineCharts[queryName];
-    if (!chart) {
-        console.error("Chart instance not found for query:", queryName);
-        return;
-    }
-
-    chart.options.plugins.legend.labels.generateLabels = function(chart) {
-        return chart.data.datasets.map(function(dataset, index) {
-            const formulaDetails = formulaCache.find(item => item.formulaId === dataset.label);
-            const formulaName = formulaDetails ? formulaDetails.formulaName : dataset.label;
-            return {
-                text: formulaName,
-                fillStyle: dataset.borderColor,
-                hidden: !chart.isDatasetVisible(index),
-                lineCap: dataset.borderCapStyle,
-                lineDash: dataset.borderDash,
-                lineDashOffset: dataset.borderDashOffset,
-                lineJoin: dataset.borderJoinStyle,
-                lineWidth: dataset.borderWidth,
-                strokeStyle: dataset.borderColor,
-                pointStyle: dataset.pointStyle,
-                rotation: dataset.rotation,
-                datasetIndex: index
-            };
-        });
-    };
-
-    chart.update();
-}
-
-
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     var canvas;
     if (isDashboardScreen) {
-        prepareChartData(seriesData, chartDataCollection, queryName);
+        // For dashboard page
+        prepareChartData(seriesData, chartDataCollection, queryName, queryString);
         mergeGraphs(chartType, panelId);
     } else {
+        // For metrics explorer page
         var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
         if (existingContainer.length === 0) {
             var visualizationContainer = $(`
-                <div class="metrics-graph" data-query="${queryName}">
-                    <div class="query-string">${queryString}</div>
-                    <div class="graph-canvas"></div>
-                </div>`);
-                
+            <div class="metrics-graph" data-query="${queryName}">
+                <div class="query-string">${queryString}</div>
+                <div class="graph-canvas"></div>
+            </div>`);
+
+            // Determine where to insert the new container
             if (queryName.startsWith('formula')) {
+                // Insert after all formula queries
                 var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
                 if (lastFormula.length) {
                     lastFormula.after(visualizationContainer);
                 } else {
+                    // If no formula queries exist, append to the end
                     $('#metrics-graphs').append(visualizationContainer);
                 }
             } else {
+                // Insert before the first formula query
                 var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
                 if (firstFormula.length) {
                     firstFormula.before(visualizationContainer);
                 } else {
+                    // If no formula queries exist, append to the end
                     $('#metrics-graphs').append(visualizationContainer);
                 }
             }
@@ -1242,26 +1174,14 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
             existingContainer.find('.graph-canvas').empty().append(canvas);
         }
 
-        if (canvas.length > 0) {
-            var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-            if (lineChart) {
-                lineCharts[queryName] = lineChart;
-            }
-        } else {
-            console.error("Failed to create canvas element for query:", queryName);
-        }
+        var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
 
+        lineCharts[queryName] = lineChart;
         updateGraphWidth();
         mergeGraphs(chartType);
     }
     addToFormulaCache(queryName, queryString);
 }
-
-
-
-
-
-
 
 function removeVisualizationContainer(queryName) {
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
@@ -1625,7 +1545,7 @@ function mergeGraphs(chartType, panelId = -1) {
             graphNames.push(`Metrics query - ${queryName}`);
             datasets.forEach(function (dataset) {
                 mergedData.datasets.push({
-                    label: dataset.label,
+                    label: dataset.label,  // Ensure the label matches the dataset label
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
@@ -1633,7 +1553,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     fill: chartType === 'Area chart' ? true : false,
                 });
             });
-            // Update labels ( same for all graphs)
+            // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     }
@@ -1656,6 +1576,20 @@ function mergeGraphs(chartType, panelId = -1) {
                         fontSize: 10,
                     },
                 },
+                tooltip: {
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            // Display formatted timestamp in the title
+                            const date = new Date(tooltipItems[0].parsed.x);
+                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
+                            return formattedDate;
+                        },
+                        label: function(tooltipItem) {
+                            // Display dataset label and value
+                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -1891,23 +1825,11 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     const chartData = await convertDataForChart(rawTimeSeriesData);
 
     if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);  // Pass the formula string
     } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
     updateDownloadButtons();
-
-    // Reinitialize the chart to update tooltips and legends
-    const canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
-    if (canvas.length > 0) {
-        const chart = initializeChart(canvas, chartData, formulaId, chartType);
-        // Update chart legends
-        if (chart) {
-            updateChartLegends(chart);
-        } else {
-            console.error("Failed to initialize chart for query:", formulaId);
-        }
-    }
 }
 
 
@@ -2127,7 +2049,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
-    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+    var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
     lineCharts[queryString] = lineChart;
 }
 
@@ -2336,7 +2258,7 @@ function xaxisFomatter(value, index, ticks) {
     }
 }
 
-$('#alert-from-metrics-container').click(function () {
+$('#alert-from-metrics-btn').click(function () {
     let mqueries = [];
     let mformulas = [];
     let queryString;
