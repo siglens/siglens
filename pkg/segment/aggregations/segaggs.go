@@ -987,6 +987,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		if err := performBinRequest(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
+	} else if letColReq.FillNullRequest != nil {
+		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
 	} else {
 		return errors.New("performLetColumnsRequest: expected one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest to have a value")
 	}
@@ -2005,6 +2009,46 @@ func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) int
 		// Store the split values
 		return values
 	}
+}
+
+func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	if recs != nil {
+		if err := performFillNullRequestWithoutGroupby(letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performFillNullRequest: %v", err)
+		}
+		return nil
+	}
+
+	// Applying fillnull for MeasureResults or GroupByCols is not possible case. So, we will not handle it.
+
+	return nil
+}
+
+func performFillNullRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	fillNullReq := letColReq.FillNullRequest
+
+	colsToCheck := finalCols
+
+	if len(fillNullReq.FieldList) > 0 {
+		colsToCheck = make(map[string]bool, 0)
+		for _, field := range fillNullReq.FieldList {
+			colsToCheck[field] = true
+			if _, exists := finalCols[field]; !exists {
+				finalCols[field] = true
+			}
+		}
+	}
+
+	for _, record := range recs {
+		for field := range colsToCheck {
+			value, exists := record[field]
+			if value == nil || !exists {
+				record[field] = fillNullReq.Value
+			}
+		}
+	}
+
+	return nil
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
