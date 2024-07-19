@@ -151,7 +151,6 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 			ssResults.ValuesMap = make(map[string]struct{}, 0)
 		}
 		ssResults.ValuesMap[strValue] = struct{}{}
-		return getValuesNoWindow(ssResults.ValuesMap), true, nil
 	default:
 		return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -164,6 +163,9 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 
 	if measureAgg == utils.Avg {
 		return ssResults.CurrResult / float64(ssResults.NumProcessedRecords), true, nil
+	}
+	if measureAgg == utils.Values {
+		return getValuesNoWindow(ssResults.ValuesMap), true, nil
 	}
 
 	return ssResults.CurrResult, true, nil
