@@ -21,6 +21,8 @@ import (
 	"container/list"
 	"fmt"
 	"math"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -63,12 +65,38 @@ func InitRangeStat() *structs.RangeStat {
 	}
 }
 
+func getValuesNoWindow(valuesMap map[string]struct{}) string {
+	uniqueStrings := make([]string, 0)
+	for str := range valuesMap {
+		uniqueStrings = append(uniqueStrings, str)
+	}
+	sort.Strings(uniqueStrings)
+	return strings.Join(uniqueStrings, "&nbsp")
+}
+
+func getValuesWindow(valuesMap map[string]int) string {
+	uniqueStrings := make([]string, 0)
+	for str := range valuesMap {
+		uniqueStrings = append(uniqueStrings, str)
+	}
+	sort.Strings(uniqueStrings)
+	return strings.Join(uniqueStrings, "&nbsp")
+}
+
+
 func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (interface{}, bool, error) {
-	result := ssResults.CurrResult
+	var result interface{}
+	if measureAgg == utils.Values && !ssOption.Current {
+		// getting values is expensive only do when required
+		result = getValuesNoWindow(ssResults.ValuesMap)
+	} else {
+		result = ssResults.CurrResult
+	}
+	
 	valExist := ssResults.NumProcessedRecords > 0
 
 	if measureAgg == utils.Avg && valExist {
-		result = result / float64(ssResults.NumProcessedRecords)
+		result = ssResults.CurrResult / float64(ssResults.NumProcessedRecords)
 	}
 
 	switch measureAgg {
@@ -118,6 +146,13 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		}
 		ssResults.CardinalityHLL.Insert([]byte(strValue))
 		ssResults.CurrResult = float64(ssResults.CardinalityHLL.Estimate())
+	case utils.Values:
+		strValue := fmt.Sprintf("%v", colValue)
+		if ssResults.ValuesMap == nil {
+			ssResults.ValuesMap = make(map[string]struct{}, 0)
+		}
+		ssResults.ValuesMap[strValue] = struct{}{}
+		return getValuesNoWindow(ssResults.ValuesMap), true, nil
 	default:
 		return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -152,7 +187,7 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 		ssResults.CurrResult -= floatVal
 	} else if measureAgg == utils.Count {
 		ssResults.CurrResult--
-	} else if measureAgg == utils.Cardinality {
+	} else if measureAgg == utils.Cardinality || measureAgg == utils.Values {
 		strValue := fmt.Sprintf("%v", frontElement.Value)
 		_, exist := ssResults.CardinalityMap[strValue]
 		if exist {
@@ -298,6 +333,8 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 		return ssResults.CurrResult, true, nil
 	case utils.Cardinality:
 		return ssResults.CurrResult, true, nil
+	case utils.Values:
+		return getValuesWindow(ssResults.CardinalityMap), true, nil
 	default:
 		return 0.0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -414,7 +451,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
 		}
 		ssResults.CurrResult = maxFloatVal - minFloatval
-	case utils.Cardinality:
+	case utils.Cardinality, utils.Values:
 		if ssResults.CardinalityMap == nil {
 			ssResults.CardinalityMap = make(map[string]int, 0)
 		}
@@ -433,6 +470,9 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 
 	if measureAgg == utils.Avg {
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), nil
+	}
+	if measureAgg == utils.Values {
+		return getValuesWindow(ssResults.CardinalityMap), nil
 	}
 
 	return ssResults.CurrResult, nil
@@ -784,8 +824,12 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 					}
 				} else {
 					if streamStatsResult != "" {
+						dataType := utils.SS_DT_FLOAT
+						if measureAgg.MeasureFunc == utils.Values {
+							dataType = utils.SS_DT_STRING
+						}
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
-							Dtype: utils.SS_DT_FLOAT,
+							Dtype: dataType,
 							CVal:  streamStatsResult,
 						}
 					} else {

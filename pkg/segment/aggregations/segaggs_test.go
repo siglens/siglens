@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -2639,6 +2640,39 @@ func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *struc
 
 }
 
+func StreamStatsValuesHelper(t *testing.T, colValues []interface{}, expectedValues []string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
+	var result interface{}
+	var exist bool
+	var err error
+
+	ssResult := InitRunningStreamStatsResults(utils.Values)
+	for i, colValue := range colValues {
+		if windowSize == 0 && ssOption.TimeWindow == nil {
+			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, utils.Values, colValue)
+			ssOption.NumProcessedRecords++
+		} else {
+			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, utils.Values, colValue, timestamps[i], true)
+		}
+		
+		fmt.Println(result)
+
+		assert.Nil(t, err)
+		if !ssOption.Current {
+			if i == 0 {
+				assert.False(t, exist)
+				assert.Equal(t, 0.0, result)
+			} else {
+				assert.True(t, exist)
+				assert.Equal(t, expectedValues[i-1], result)
+			}
+		} else {
+			assert.True(t, exist)
+			assert.Equal(t, expectedValues[i], result)
+		}
+	}
+}
+
+
 func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
 
 	for i, measureFunc := range measureFuncs {
@@ -2782,7 +2816,7 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
 }
 
-func Test_Window_Cardinality(t *testing.T) {
+func Test_Cardinality(t *testing.T) {
 	values := []float64{7, 2, 2, 2, 1, 2, 3, 2, 4, 5}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	ssOption := &structs.StreamStatsOptions{
@@ -2803,4 +2837,52 @@ func Test_Window_Cardinality(t *testing.T) {
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+}
+
+
+func createStringsWithNbsp(collection []interface{}) string {
+	uniqueStr := make(map[string]struct{}, 0)
+	result := []string{}
+	for _, value := range collection {
+		valueStr := fmt.Sprintf("%v", value)
+		uniqueStr[valueStr] = struct{}{}
+	}
+	for key := range uniqueStr {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return strings.Join(result, "&nbsp")
+}
+
+func Test_Values(t *testing.T) {
+	values := make([]interface{}, 0)
+	values = append(values, 1, "abc", "abc", "Abc", 10, "DEF", 9, "def", 21, "Ab2")
+	expectedValuesWindow := []string{}
+	expectedValuesNoWindow := []string{}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	windowSize := 3
+	for i := range values {
+		if i < windowSize {
+			expectedValuesWindow = append(expectedValuesWindow, createStringsWithNbsp(values[:i+1]))
+		} else {
+			expectedValuesWindow = append(expectedValuesWindow, createStringsWithNbsp(values[i-windowSize+1:i+1]))
+		}
+	}
+	for i := range values {
+		expectedValuesNoWindow = append(expectedValuesNoWindow, createStringsWithNbsp(values[:i+1]))
+	}
+
+
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+
+	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+
+	ssOption.Current = false
+
+	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
 }
