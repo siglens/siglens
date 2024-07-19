@@ -743,7 +743,7 @@ func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, true)
 
-	return res, metricQueriesList, pqlQuerytype, "", nil
+	return res, metricQueriesList, pqlQuerytype, finalSearchText, nil
 }
 
 func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -776,9 +776,16 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	var mQResponse MetricStatsResponse
+
+	if res.IsScalar {
+		// extraMsgToLog is the final search text
+		mQResponse, err = res.FetchScalarMetricsForUi(extraMsgToLog, pqlQuerytype, start, end)
+	} else {
+		mQResponse, err = res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	}
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v, finalSearchText=%v", qid, extraMsgToLog), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
