@@ -2684,11 +2684,12 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange}
-	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen}
-	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen}
+	expectedValuesCardinality := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
@@ -2712,13 +2713,14 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
 	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange}
+	expectedValuesCardinality := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange}
-	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen}
-	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen}
+	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 
@@ -2746,12 +2748,13 @@ func Test_Time_Window(t *testing.T) {
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 4, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 1, 2, 1}
 	expectedValuesRange := []float64{0, 5, 5, 0, 5, 5, 5, 0, 5, 0}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange}
+	expectedValuesCardinality := []float64{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
+	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange}
-	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen}
-	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen}
+	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 
@@ -2770,10 +2773,34 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 	expectedValuesMax := []float64{7, 7, 7, 7, 7, 7, 8, 8, 9, 9}
 	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 1, 1, 1, 1}
 	expectedValuesRange := []float64{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax}
-	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin}
+	expectedValuesCardinality := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 9}
+	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax, expectedValuesCardinality}
+	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin, expectedValuesCardinality}
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+}
+
+func Test_Window_Cardinality(t *testing.T) {
+	values := []float64{7, 2, 2, 2, 1, 2, 3, 2, 4, 5}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	expectedValuesCardinality := []float64{1, 2, 2, 1, 2, 2, 3, 2, 3, 3}
+	expectedValuesNoWindowCardinality := []float64{1, 2, 2, 2, 3, 3, 4, 4, 5, 6}
+	measureFunctions := []utils.AggregateFunctions{utils.Cardinality}
+	expectedFuncValues := [][]float64{expectedValuesCardinality}
+	expectedNoWindowFuncValues := [][]float64{expectedValuesNoWindowCardinality}
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	expectedPrimaryLen := [][]int{expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen}
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
 }

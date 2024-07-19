@@ -63,7 +63,7 @@ func InitRangeStat() *structs.RangeStat {
 	}
 }
 
-func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (float64, bool, error) {
+func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (interface{}, bool, error) {
 	result := ssResults.CurrResult
 	valExist := ssResults.NumProcessedRecords > 0
 
@@ -267,9 +267,9 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 	return nil
 }
 
-func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (float64, bool, error) {
+func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (interface{}, bool, error) {
 	if ssResults.Window.Len() == 0 {
-		return 0, false, nil
+		return 0.0, false, nil
 	}
 	switch measureAgg {
 	case utils.Count:
@@ -299,7 +299,7 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Cardinality:
 		return ssResults.CurrResult, true, nil
 	default:
-		return 0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
+		return 0.0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
 }
 
@@ -352,7 +352,7 @@ func manageMaxWindow(window *list.List, index int, newValue float64, timestamp u
 	return nil
 }
 
-func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (float64, error) {
+func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (interface{}, error) {
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
@@ -440,12 +440,13 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 
 func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults,
 	windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64,
-	timeSortAsc bool) (float64, bool, error) {
+	timeSortAsc bool) (interface{}, bool, error) {
 	var err error
-	result := ssResults.CurrResult
+	var result interface{}
+	result = ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0
 	if exist && measureAgg == utils.Avg {
-		result = result / float64(ssResults.Window.Len())
+		result = ssResults.CurrResult / float64(ssResults.Window.Len())
 	}
 
 	if ssOption.TimeWindow != nil {
@@ -491,10 +492,10 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	return latestResult, true, nil
 }
 
-func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
+func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}, timestamp uint64, timeSortAsc bool) (interface{}, bool, error) {
 
 	var err error
-	var result float64
+	var result interface{}
 
 	colValue, exist := record[measureAgg.MeasureCol]
 	if !exist {
