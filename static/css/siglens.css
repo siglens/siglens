@@ -5717,38 +5717,54 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
-.error-message ,#metric-error{
-    display:none;
+
+.error-message, #metric-error {
+    display: none;
     width: fit-content;
-    text-align: center;
-    border-radius: 6px;
-    padding:7px;
-    border:0.5px solid var(--text-color);
-    background-color: var(--ui-widget-bg-color);
-    color: var(--text-color);
+    text-align: left;
+    border-radius: 4px;
+    padding: 8px 12px 8px 40px;
+    background-color: white;
+    color: #333;
     position: relative;
     z-index: 1;
-    bottom: 125%; /* Position above the triggering element */
-    left: 17.5%;
+    bottom: 125%;
+    left: 25%; 
     transform: translateX(-50%);
     white-space: nowrap;
-    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+    box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    border: 1px solid black;  
 }
 
-.error-message::after ,#metric-error::after{
-    left: 50%;
-    margin-left: -5px;
-    border-width: 10px;
-    border-style: solid;
-    rotate: 180deg;
-    bottom:100%;
+.error-message::before, #metric-error::before {
+    content: "!";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: #f0ad4e;
+    color: white;
+    border-radius: 2px;
+    text-align: center;
+    line-height: 20px;
+    font-weight: bold;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.error-message::after, #metric-error::after {
     content: '';
     position: absolute;
+    left: 25%; 
+    border-width: 8px;
     border-style: solid;
-    border-color: var(--graph-line-color-3) transparent transparent transparent;
+    bottom: 100%;
+    border-color: transparent transparent white transparent;
+    transform: translateX(-25%);  
 }
-  
-
   
 
 .metric-summary-searchcontainer{

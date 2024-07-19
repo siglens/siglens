@@ -23,6 +23,7 @@ const newDashboard = $('.new-dashboard');
 const existingDashboard = $('.existing-dashboard');
 let newDashboardFlag = true;
 let dashboardID;
+let isMetricsScreen;
 
 $(document).ready(function () {
     existingDashboard.hide();
@@ -32,6 +33,8 @@ $(document).ready(function () {
     existingDashboardBtn.on('click', showExistingDashboard);
 
     $('#add-logs-to-db-btn').on('click', openPopup);
+    $('#add-metrics-to-db-btn').on('click', openPopup);
+
     $('#cancel-dbbtn, .popupOverlay').on('click', closePopup);
     $('#selected-dashboard').on('click', displayExistingDashboards);
 
@@ -67,6 +70,10 @@ $(document).ready(function () {
         var queryString = $.param(queryParams);
         window.location.href = '../alert.html?' + queryString;
     });
+    var currentPage = window.location.pathname;
+    if (currentPage === '/metrics-explorer.html') {
+        isMetricsScreen = true;
+    }
 });
 
 function showNewDashboard() {
@@ -112,7 +119,17 @@ function closePopup() {
 function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
-    var timeRange = data.startEpoch;
+    var timeRange;
+    if (isMetricsScreen) {
+        let panelMetricsQueryParams = getMetricsQData();
+        if (panelMetricsQueryParams.queriesData?.[0]?.start != undefined) {
+            timeRange = panelMetricsQueryParams.queriesData[0].start;
+        } else {
+            timeRange = filterStartDate;
+        }
+    } else {
+        timeRange = data.startEpoch;
+    }
     var refresh = '';
 
     if (!inputdbname) {
@@ -274,33 +291,52 @@ function updateDashboard(dashboard) {
 
 function createPanel(panelIndex, startEpoch) {
     let panelId = uuidv4();
-
-    let panel = {
-        chartType: 'Data Table',
-        dataType: '',
-        description: '',
-        gridpos: {
-            h: 250,
-            w: 653,
-            wPercent: 0.49733434881949734,
-            x: 10,
-            y: 20,
-        },
-        logLinesViewType: 'Table view',
-        name: 'New-Panel',
-        panelId: panelId,
-        panelIndex: panelIndex,
-        queryData: {
-            endEpoch: data.endEpoch,
-            from: 0,
-            indexName: data.indexName,
-            queryLanguage: data.queryLanguage,
-            searchText: data.searchText,
-            startEpoch: startEpoch ? startEpoch : data.startEpoch,
-            state: data.state,
-        },
-        queryType: 'logs',
-        unit: '',
-    };
+    let panel;
+    if (isMetricsScreen) {
+        let panelMetricsQueryParams = getMetricsQData();
+        panelMetricsQueryParams.start = startEpoch;
+        panel = {
+            chartType: 'Line Chart',
+            queryType: 'metrics',
+            description: '',
+            gridpos: {
+                h: 2,
+                w: 4,
+                x: 2,
+                y: 0,
+            },
+            name: `panel${panelIndex}`,
+            panelId: panelId,
+            panelIndex: panelIndex,
+            queryData: panelMetricsQueryParams,
+        };
+    } else {
+        panel = {
+            chartType: 'Data Table',
+            dataType: '',
+            description: '',
+            gridpos: {
+                h: 2,
+                w: 4,
+                x: 2,
+                y: 0,
+            },
+            logLinesViewType: 'Table view',
+            name: `panel${panelIndex}`,
+            panelId: panelId,
+            panelIndex: panelIndex,
+            queryData: {
+                endEpoch: data.endEpoch,
+                from: 0,
+                indexName: data.indexName,
+                queryLanguage: data.queryLanguage,
+                searchText: data.searchText,
+                startEpoch: startEpoch ? startEpoch : data.startEpoch,
+                state: data.state,
+            },
+            queryType: 'logs',
+            unit: '',
+        };
+    }
     return panel;
 }

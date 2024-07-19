@@ -98,7 +98,7 @@ func queryMetricsLooper() {
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
-	if aggs != nil && aggs.GroupByRequest != nil {
+	if aggs != nil && aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
 		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
 			return sNode.NodeType, structs.SegmentStatsCmd
 		}
@@ -106,7 +106,7 @@ func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregat
 			return sNode.NodeType, structs.GroupByCmd
 		}
 	}
-	if aggs != nil && aggs.MeasureOperations != nil && aggs.GroupByRequest == nil {
+	if aggs != nil && aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
 		return sNode.NodeType, structs.SegmentStatsCmd
 	}
 	return sNode.NodeType, structs.RRCCmd

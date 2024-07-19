@@ -711,7 +711,7 @@ function createMetricsColorsArray() {
     }
     return colorArray;
 }
-
+//eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     let dateVal = new Date(startEpoch);
     $('#date-start').val(dateVal.toISOString().substring(0, 10));
@@ -980,6 +980,73 @@ function initializeFilterInputEvents() {
         toggleClearButtonVisibility();
     });
 }
+
+//eslint-disable-next-line no-unused-vars
+function getMetricsQData() {
+    let endDate = filterEndDate || 'now';
+    let stDate = filterStartDate || 'now-15m';
+    let queriesData = [];
+    let formulasData = [];
+
+    // Process each query
+    for (const queryName of Object.keys(queries)) {
+        let queryDetails = queries[queryName];
+        let queryString;
+
+        if (queryDetails.state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
+
+        const query = {
+            name: queryName,
+            query: `(${queryString})`,
+            qlType: 'promql',
+        };
+
+        queriesData.push({
+            end: endDate,
+            queries: [query],
+            start: stDate,
+            formulas: [{ formula: query.name }],
+            state: queryDetails.state,
+        });
+    }
+
+    // Process formulas
+    if (Object.keys(formulas).length > 0) {
+        for (const key of Object.keys(formulas)) {
+            const formulaDetails = formulas[key];
+            const queriesInFormula = formulaDetails.queryNames.map((name) => {
+                const queryDetails = queries[name];
+                let queryString;
+
+                if (queryDetails.state === 'builder') {
+                    queryString = createQueryString(queryDetails);
+                } else {
+                    queryString = queryDetails.rawQueryInput;
+                }
+
+                return {
+                    name: name,
+                    query: `(${queryString})`,
+                    qlType: 'promql',
+                };
+            });
+
+            formulasData.push({
+                end: endDate,
+                formulas: [{ formula: formulaDetails.formula }],
+                queries: queriesInFormula,
+                start: stDate,
+            });
+        }
+    }
+
+    return { queriesData, formulasData };
+}
+
 
 function updateQueryModeUI(queryMode) {
     $('.query-mode-option').removeClass('active');
