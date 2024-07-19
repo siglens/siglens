@@ -1002,7 +1002,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: queryString,  // Use the actual query string or formula
+                label: queryString,  
                 data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
@@ -1545,7 +1545,7 @@ function mergeGraphs(chartType, panelId = -1) {
             graphNames.push(`Metrics query - ${queryName}`);
             datasets.forEach(function (dataset) {
                 mergedData.datasets.push({
-                    label: dataset.label,  // Ensure the label matches the dataset label
+                    label: dataset.label, 
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
@@ -1825,7 +1825,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     const chartData = await convertDataForChart(rawTimeSeriesData);
 
     if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);  // Pass the formula string
+        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
     } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
