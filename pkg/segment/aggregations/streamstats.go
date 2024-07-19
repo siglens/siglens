@@ -65,16 +65,7 @@ func InitRangeStat() *structs.RangeStat {
 	}
 }
 
-func getValuesNoWindow(valuesMap map[string]struct{}) string {
-	uniqueStrings := make([]string, 0)
-	for str := range valuesMap {
-		uniqueStrings = append(uniqueStrings, str)
-	}
-	sort.Strings(uniqueStrings)
-	return strings.Join(uniqueStrings, "&nbsp")
-}
-
-func getValuesWindow(valuesMap map[string]int) string {
+func getValues[T any](valuesMap map[string]T) string {
 	uniqueStrings := make([]string, 0)
 	for str := range valuesMap {
 		uniqueStrings = append(uniqueStrings, str)
@@ -87,7 +78,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 	var result interface{}
 	if measureAgg == utils.Values && !ssOption.Current {
 		// getting values is expensive only do when required
-		result = getValuesNoWindow(ssResults.ValuesMap)
+		result = getValues(ssResults.ValuesMap)
 	} else {
 		result = ssResults.CurrResult
 	}
@@ -165,7 +156,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		return ssResults.CurrResult / float64(ssResults.NumProcessedRecords), true, nil
 	}
 	if measureAgg == utils.Values {
-		return getValuesNoWindow(ssResults.ValuesMap), true, nil
+		return getValues(ssResults.ValuesMap), true, nil
 	}
 
 	return ssResults.CurrResult, true, nil
@@ -335,7 +326,7 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Cardinality:
 		return ssResults.CurrResult, true, nil
 	case utils.Values:
-		return getValuesWindow(ssResults.CardinalityMap), true, nil
+		return getValues(ssResults.CardinalityMap), true, nil
 	default:
 		return 0.0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -473,7 +464,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), nil
 	}
 	if measureAgg == utils.Values {
-		return getValuesWindow(ssResults.CardinalityMap), nil
+		return getValues(ssResults.CardinalityMap), nil
 	}
 
 	return ssResults.CurrResult, nil
