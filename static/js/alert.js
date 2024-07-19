@@ -510,23 +510,7 @@ async function displayAlert(res) {
         } else {
             metricsQueryParams = JSON.parse(res.metricsQueryParams);
         }
-        const { start, end, queries, formulas } = metricsQueryParams;
-        $(`.ranges .inner-range #${start}`).addClass('active');
-        datePickerHandler(start, end, start);
-
-        if (functionsArray) {
-            const allFunctions = await getFunctions();
-            functionsArray = allFunctions.map((item) => item.fn);
-        }
-
-        for (const query of queries) {
-            const parsedQueryObject = parsePromQL(query.query);
-            await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
-        }
-
-        if (queries.length >= 1) {
-            await addAlertsFormulaElement(formulas[0].formula);
-        }
+        populateMetricsQueryElement(metricsQueryParams);
     }
     let conditionType = mapIndexToConditionType.get(res.condition);
 
