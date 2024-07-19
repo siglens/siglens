@@ -117,65 +117,53 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 		return nil, nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
 	}
 
-	if queryOp.LHSExpr != nil {
+	processNodeExpr := func(expr *structs.QueryArithmetic, exprSide *uint64) error {
+		if expr == nil {
+			return nil
+		}
+
 		var metricName string
 		var scalarValue float64
-		IsScalar := false
-		// process the LHS expression first
-		result, scalarValuePtr, err := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
+		isScalar := false
+
+		result, scalarValuePtr, err := processQueryArithmeticNodeOp(expr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
+
 		if len(result) > 0 {
 			for groupID := range result {
 				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
 				break
 			}
 		} else if scalarValuePtr != nil {
-			IsScalar = true
+			isScalar = true
 			scalarValue = *scalarValuePtr
 		} else {
-			return nil, nil, fmt.Errorf("processQueryArithmeticNodeOp: result is empty and scalarValuePtr is nil")
+			return fmt.Errorf("processQueryArithmeticNodeOp: processNodeExpr: result is empty and scalarValuePtr is nil")
 		}
 
-		// generate a new LHS hash by adding the operation counter, that is incremented after each operation
-		newLHS := queryOp.LHS + uint64(*operationCounter)
-		// store the result of the LHS expression in the resMap.
-		// We cannot overwrite the LHS result in the resMap, as it may be used in other operations.
-		resMap[newLHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED, ScalarValue: scalarValue, IsScalar: IsScalar}
-		// update the LHS of the current queryOp to the newLHS, so that the result of the LHS expression can be used in the current operation
-		queryOp.LHS = newLHS
+		// Generate a new hash by adding the operation counter
+		newHash := *exprSide + uint64(*operationCounter)
+		// Store the result in the resMap
+		resMap[newHash] = &mresults.MetricsResult{
+			MetricName:  metricName,
+			Results:     result,
+			State:       mresults.AGGREGATED,
+			ScalarValue: scalarValue,
+			IsScalar:    isScalar,
+		}
+		// Update the expression side with the new hash
+		*exprSide = newHash
+		return nil
 	}
 
-	if queryOp.RHSExpr != nil {
-		var metricName string
-		var scalarValue float64
-		IsScalar := false
+	if err := processNodeExpr(queryOp.LHSExpr, &queryOp.LHS); err != nil {
+		return nil, nil, err
+	}
 
-		// process the RHS expression first
-		result, scalarValuePtr, err := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(result) > 0 {
-			for groupID := range result {
-				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
-				break
-			}
-		} else if scalarValuePtr != nil {
-			IsScalar = true
-			scalarValue = *scalarValuePtr
-		} else {
-			return nil, nil, fmt.Errorf("processQueryArithmeticNodeOp: result is empty and scalarValuePtr is nil")
-		}
-
-		// generate a new RHS hash by adding the operation counter, that is incremented after each operation
-		newRHS := queryOp.RHS + uint64(*operationCounter)
-		// store the result of the RHS expression in the resMap
-		// We cannot overwrite the RHS result in the resMap, as it may be used in other operations.
-		resMap[newRHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED, ScalarValue: scalarValue, IsScalar: IsScalar}
-		// update the RHS of the current queryOp to the newRHS, so that the result of the RHS expression can be used in the current operation
-		queryOp.RHS = newRHS
+	if err := processNodeExpr(queryOp.RHSExpr, &queryOp.RHS); err != nil {
+		return nil, nil, err
 	}
 
 	*operationCounter++
@@ -197,10 +185,10 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 			swapped = true
 			resultLHS = resMap[queryOp.RHS]
 		}
-		if resultLHS == nil {
-			// For the case where both LHS and RHS are empty, but this is a constant operation.
-			// This means that this queryOp has only one constant value. So, we can directly return the constant value.
 
+		if resultLHS == nil {
+			// Both LHS and RHS are empty, but this is a constant operation.
+			// This means that this queryOp has only one constant value. So, we can directly return the constant value.
 			scalarValue := valueRHS
 
 			return nil, &scalarValue, nil
@@ -219,22 +207,36 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 			return nil, &scalarValue, nil
 		}
 
+		// Case where the LHS is a vector and the RHS is a constant value.
 		for groupID, tsLHS := range resultLHS.Results {
 			finalResult[groupID] = make(map[uint32]float64)
 			for timestamp, valueLHS := range tsLHS {
 				putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
 			}
 		}
-
 	} else {
+		if !leftOk && !rightOk {
+			// This case should not be possible.
+			return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: both LHS and RHS are empty")
+		}
+
 		var scalarValuePtr *float64
 
 		if (leftOk && resultLHS.IsScalar) && (rightOk && resultRHS.IsScalar) {
-			// This case should not be possible. Both LHS and RHS cannot be Scalar. As currently, we always accumulate the Scalar values to either side.
-			return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: both LHS and RHS are scalar values")
-		} else if !leftOk && !rightOk {
-			// This case should not be possible.
-			return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: both LHS and RHS are empty")
+			// If both the LHS and RHS expressions are scalar values, then we can directly perform the operation with the scalar values.
+			// We can directly return the result of the operation.
+
+			groupID := "scalar_ID"
+			timestamp := uint32(0)
+			valueLHS := resultLHS.ScalarValue
+			valueRHS := resultRHS.ScalarValue
+
+			finalResult[groupID] = make(map[uint32]float64)
+
+			putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
+			scalarValue := finalResult[groupID][timestamp]
+
+			return nil, &scalarValue, nil
 		} else if leftOk && resultLHS.IsScalar {
 			// If the result of the LHS expression is a scalar value, then we can directly perform the operation with the scalar value and the result of the RHS expression.
 			// We can directly return the result of the operation.
