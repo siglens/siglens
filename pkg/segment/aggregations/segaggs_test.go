@@ -2653,8 +2653,6 @@ func StreamStatsValuesHelper(t *testing.T, colValues []interface{}, expectedValu
 		} else {
 			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, utils.Values, colValue, timestamps[i], true)
 		}
-		
-		fmt.Println(result)
 
 		assert.Nil(t, err)
 		if !ssOption.Current {
