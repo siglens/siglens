@@ -754,6 +754,12 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 	for _, measureAgg := range measureAggs {
 		fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
 	}
+	if ssOption.ResetAfter != nil {
+		fieldsInExpr = append(fieldsInExpr, ssOption.ResetAfter.GetFields()...)
+	}
+	if ssOption.ResetBefore != nil {
+		fieldsInExpr = append(fieldsInExpr, ssOption.ResetBefore.GetFields()...)
+	}
 
 	currIndex := 0
 	currentBucketKey := ""
@@ -845,6 +851,12 @@ func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption
 	}
 	for _, measureAgg := range measureAggs {
 		fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+	}
+	if ssOption.ResetAfter != nil {
+		fieldsInExpr = append(fieldsInExpr, ssOption.ResetAfter.GetFields()...)
+	}
+	if ssOption.ResetBefore != nil {
+		fieldsInExpr = append(fieldsInExpr, ssOption.ResetBefore.GetFields()...)
 	}
 
 	currIndex := 0
