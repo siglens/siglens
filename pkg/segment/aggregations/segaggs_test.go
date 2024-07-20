@@ -2840,13 +2840,19 @@ func Test_Cardinality(t *testing.T) {
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
 
+	ssOption.Current = false
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+
 	ssOption.Global = false
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
 
-	ssOption.Current = false
+	ssOption.Current = true
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
 
