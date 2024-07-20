@@ -226,10 +226,23 @@ func dashboardNameExists(dname string, orgid uint64) bool {
 	return exists
 }
 
+var defaultDashboardNames = map[string]bool{
+	"Siglens Query DB":     true,
+	"Siglens Ingestion DB": true,
+	"Siglens Data DB":      true,
+	"Sample Dashboard":     true,
+}
+
 func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	if dname == "" {
 		log.Errorf("createDashboard: failed to create Dashboard, with empty dashboard name")
 		return nil, errors.New("createDashboard: failed to create Dashboard, with empty dashboard name")
+	}
+
+	// Check if the dashboard name is a default name
+	if _, isDefault := defaultDashboardNames[dname]; isDefault {
+		log.Errorf("createDashboard: Dashboard with name %s is a default dashboard name and cannot be used", dname)
+		return nil, errors.New("dashboard name already exists")
 	}
 
 	newId := createUniqId(dname)

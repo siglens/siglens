@@ -174,6 +174,25 @@ func Test_parseUpdateDashboardRequest(t *testing.T) {
 	assert.Equal(t, "mydashboard", details["note"])
 }
 
+// TestCreateDashboardWithDefaultName tests that creating a dashboard with a default name is not allowed
+func TestCreateDashboardWithDefaultName(t *testing.T) {
+
+	defaultName := "Sample Dashboard"
+
+	_, err := createDashboard(defaultName, 1)
+
+	// We expect an error because default names should not be allowed
+	if err == nil {
+		t.Errorf("Expected an error when creating a dashboard with the default name '%s', but got none", defaultName)
+	}
+
+	//Check if the error was the expected one
+	expectedErrMsg := "dashboard name already exists"
+	if err != nil && err.Error() != expectedErrMsg {
+		t.Errorf("Expected error message '%s', but got '%s'", expectedErrMsg, err.Error())
+	}
+}
+
 /*
 func Test_dashboard_storage_methods_multiple_orgs(t *testing.T) {
 	config.InitializeDefaultConfig()
