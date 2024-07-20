@@ -198,29 +198,20 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 	return nil
 }
 
-func performCleanWindow(currIndex int, global bool, window *list.List, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
-	if global {
-		for window.Len() > 0 {
-			front := window.Front()
-			frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
-			if !correctType {
-				return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", front.Value)
-			}
-			if frontVal.Index+windowSize <= currIndex {
-				err := removeFrontElementFromWindow(window, ssResults, measureAgg)
-				if err != nil {
-					return fmt.Errorf("cleanWindow: Error while removing front element from the window, err: %v", err)
-				}
-			} else {
-				break
-			}
+func performCleanWindow(currIndex int, window *list.List, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
+	for window.Len() > 0 {
+		front := window.Front()
+		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
+		if !correctType {
+			return fmt.Errorf("cleanWindow: Error: element in the window is not a RunningStreamStatsWindowElement, it's of type: %T", front.Value)
 		}
-	} else {
-		for window.Len() > windowSize {
+		if frontVal.Index+windowSize <= currIndex {
 			err := removeFrontElementFromWindow(window, ssResults, measureAgg)
 			if err != nil {
 				return fmt.Errorf("cleanWindow: Error while removing front element from the window, err: %v", err)
 			}
+		} else {
+			break
 		}
 	}
 
@@ -228,15 +219,15 @@ func performCleanWindow(currIndex int, global bool, window *list.List, ssResults
 }
 
 // Remove elements from the window that are outside the window size
-func cleanWindow(currIndex int, global bool, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
+func cleanWindow(currIndex int, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
 
-	err := performCleanWindow(currIndex, global, ssResults.Window, ssResults, windowSize, measureAgg)
+	err := performCleanWindow(currIndex, ssResults.Window, ssResults, windowSize, measureAgg)
 	if err != nil {
 		return fmt.Errorf("cleanWindow: Error while cleaning the primary window, err: %v", err)
 	}
 
 	if measureAgg == utils.Range {
-		err = performCleanWindow(currIndex, global, ssResults.SecondaryWindow, ssResults, windowSize, measureAgg)
+		err = performCleanWindow(currIndex, ssResults.SecondaryWindow, ssResults, windowSize, measureAgg)
 		if err != nil {
 			return fmt.Errorf("cleanWindow: Error while cleaning the secondary window, err: %v", err)
 		}
@@ -459,6 +450,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	default:
 		return 0.0, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
+	ssResults.NumProcessedRecords++
 
 	if measureAgg == utils.Avg {
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), nil
@@ -480,6 +472,10 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	if exist && measureAgg == utils.Avg {
 		result = ssResults.CurrResult / float64(ssResults.Window.Len())
 	}
+	if !ssOption.Global {
+		// when global is false use numProcessedRecords to determine the current index
+		currIndex = int(ssResults.NumProcessedRecords)
+	}
 
 	if ssOption.TimeWindow != nil {
 		err := cleanTimeWindow(timestamp, timeSortAsc, ssOption.TimeWindow, ssResults, measureAgg)
@@ -490,7 +486,7 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 
 	// If current is false, compute result before adding the new element to the window
 	if !ssOption.Current && windowSize != 0 {
-		err := cleanWindow(currIndex-1, ssOption.Global, ssResults, windowSize, measureAgg)
+		err = cleanWindow(currIndex-1, ssResults, windowSize, measureAgg)
 		if err != nil {
 			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}
@@ -501,11 +497,7 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	}
 
 	if windowSize != 0 {
-		if ssOption.Global {
-			err = cleanWindow(currIndex, ssOption.Global, ssResults, windowSize, measureAgg)
-		} else {
-			err = cleanWindow(currIndex, ssOption.Global, ssResults, windowSize-1, measureAgg)
-		}
+		err = cleanWindow(currIndex, ssResults, windowSize, measureAgg)
 		if err != nil {
 			return 0.0, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while cleaning the window, err: %v", err)
 		}

@@ -2649,6 +2649,9 @@ func StreamStatsValuesHelper(t *testing.T, colValues []interface{}, expectedValu
 	for i, colValue := range colValues {
 		if windowSize == 0 && ssOption.TimeWindow == nil {
 			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, utils.Values, colValue)
+			if !exist {
+				result = 0.0
+			}
 			ssOption.NumProcessedRecords++
 		} else {
 			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, utils.Values, colValue, timestamps[i], true)
@@ -2674,24 +2677,34 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *str
 
 	for i, measureFunc := range measureFuncs {
 		ssResults := InitRunningStreamStatsResults(measureFunc)
+		defaultVal := ssResults.CurrResult
 		ssOption.NumProcessedRecords = 0
 
 		for j, value := range values {
-			res, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)
 			ssOption.NumProcessedRecords++
 			assert.Nil(t, err)
-			assert.True(t, exist)
-			assert.Equal(t, 0, ssResults.Window.Len())
-			assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
-			if measureFunc == utils.Avg {
-				assert.Equal(t, expectedValues[i][j], res)
-				assert.Equal(t, expectedValues2[i][j], ssResults.CurrResult)
-			} else if measureFunc == utils.Range {
-				assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
-				assert.Equal(t, expectedValues2[i][j], ssResults.RangeStat.Max)
-				assert.Equal(t, expectedValues3[i][j], ssResults.RangeStat.Min)
+			if !ssOption.Current {
+				if j == 0 {
+					assert.False(t, exist)
+					assert.Equal(t, defaultVal, result)
+				} else {
+					assert.True(t, exist)
+					assert.Equal(t, expectedValues[i][j-1], result)
+				}
 			} else {
-				assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
+				assert.Equal(t, 0, ssResults.Window.Len())
+				assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
+				if measureFunc == utils.Avg {
+					assert.Equal(t, expectedValues[i][j], result)
+					assert.Equal(t, expectedValues2[i][j], ssResults.CurrResult)
+				} else if measureFunc == utils.Range {
+					assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
+					assert.Equal(t, expectedValues2[i][j], ssResults.RangeStat.Max)
+					assert.Equal(t, expectedValues3[i][j], ssResults.RangeStat.Min)
+				} else {
+					assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
+				}
 			}
 		}
 	}
@@ -2725,36 +2738,17 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 
-}
-
-func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
-	ssOption := &structs.StreamStatsOptions{
-		Current: false,
-		Global:  true,
-	}
-
-	windowSize := 3
-	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	expectedValuesCount := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	values := []float64{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
-	expectedValuesSum := []float64{7, 9, 14, 8, 12, 10, 17, 15, 21, 15}
-	expectedValuesAvg := []float64{7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5}
-	expectedValuesMax := []float64{7, 7, 7, 5, 6, 6, 8, 8, 9, 9}
-	expectedMaxLen := []int{1, 2, 2, 2, 1, 2, 1, 2, 1, 2}
-	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
-	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
-	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
-	expectedValuesCardinality := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
-	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
-	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
-	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
+	ssOption.Global = false
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 
+	ssOption.Current = false
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+
+	ssOption.Global = true
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 }
 
 func Test_Time_Window(t *testing.T) {
@@ -2788,7 +2782,6 @@ func Test_Time_Window(t *testing.T) {
 	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
-
 }
 
 func Test_NoWindow_StreamStats(t *testing.T) {
@@ -2809,6 +2802,18 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
 	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax, expectedValuesCardinality}
 	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin, expectedValuesCardinality}
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+
+	ssOption.Global = false
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+
+	ssOption.Current = false
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+
+	ssOption.Global = true
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
 }
@@ -2834,6 +2839,19 @@ func Test_Cardinality(t *testing.T) {
 	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
 
 	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+
+	ssOption.Global = false
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+
+	ssOption.Current = false
+
+	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+
+	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+
 }
 
 func createStringsWithNbsp(collection []interface{}) string {
@@ -2880,4 +2898,18 @@ func Test_Values(t *testing.T) {
 	ssOption.Current = false
 
 	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+
+	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+
+	ssOption.Global = false
+
+	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+
+	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+
+	ssOption.Current = true
+
+	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+
+	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
 }
