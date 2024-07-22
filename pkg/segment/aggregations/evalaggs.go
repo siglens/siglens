@@ -28,29 +28,114 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
+func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, exists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalResult := utils.CValueEnclosure{}
+
+	if len(fields) == 0 {
+		floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		if err != nil {
+			return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		if isNumeric {
+			finalResult.Dtype = utils.SS_DT_FLOAT
+			finalResult.CVal = floatValue
+		} else {
+			finalResult.Dtype = utils.SS_DT_STRING
+			finalResult.CVal = strValue
+		}
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("ComputeAggEvalForMinOrMax: there are some errors in the eval function that is inside the %v function: %v", measureAgg.MeasureFunc, err)
+			}
+			if boolResult {
+				finalResult.Dtype = utils.SS_DT_FLOAT
+				finalResult.CVal = float64(1)
+				return finalResult, nil
+			} else {
+				// return current result when no value needs to be updated
+				return currResult, nil
+			}
+		} else {
+			floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("ComputeAggEvalForMinOrMax: Error while evaluating value col request, err: %v", err)
+			}
+
+			if !exists {
+				if isNumeric {
+					finalResult.Dtype = utils.SS_DT_FLOAT
+					finalResult.CVal = floatValue
+				} else {
+					finalResult.Dtype = utils.SS_DT_STRING
+					finalResult.CVal = strValue
+				}
+			} else {
+				currType := currResult.Dtype
+				if currType == utils.SS_DT_STRING {
+					// if new value is numeric override the string result
+					if isNumeric {
+						finalResult.Dtype = utils.SS_DT_FLOAT
+						finalResult.CVal = floatValue
+					} else {
+						strEncValue, isString := currResult.CVal.(string)
+						if !isString {
+							return currResult, fmt.Errorf("ComputeAggEvalForMinOrMax: String type enclosure does not have a string value")
+						}
+
+						if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
+							finalResult.Dtype = utils.SS_DT_STRING
+							finalResult.CVal = strValue
+						} else {
+							// return current result when no value needs to be updated
+							return currResult, nil
+						}
+					}
+				} else if currType == utils.SS_DT_FLOAT {
+					// only check if the current value is numeric
+					if isNumeric {
+						floatEncValue, isFloat := currResult.CVal.(float64)
+						if !isFloat {
+							return currResult, fmt.Errorf("ComputeAggEvalForMinOrMax: Float type enclosure does not have a float value")
+						}
+
+						if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
+							finalResult.Dtype = utils.SS_DT_FLOAT
+							finalResult.CVal = floatValue
+						} else {
+							// return current result when no value needs to be updated
+							return currResult, nil
+						}
+					} else {
+						// string value cannot override numeric value for min max
+						return currResult, nil
+					}
+				} else {
+					return currResult, fmt.Errorf("ComputeAggEvalForMinOrMax: Enclosure does not have a valid data type")
+				}
+			}
+		}
+	}
+
+	return finalResult, nil
+}
+
 func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, isMin bool) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
+	var err error
 	
 	if len(fields) == 0 {
 		enclosure, exists := measureResults[measureAgg.String()]
-		floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-		// We cannot compute min/max if constant is not numeric
-		// TODO: Perform min/max for strings
-		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while evaluating value col request to a numeric value, err: %v", err)
-		}
 		if !exists {
-			enclosure = utils.CValueEnclosure{}
-			if isNumeric {
-				enclosure.Dtype = utils.SS_DT_FLOAT
-				enclosure.CVal = floatValue
-			} else {
-				enclosure.Dtype = utils.SS_DT_STRING
-				enclosure.CVal = strValue
+			enclosure, err = PerformEvalAggForMinOrMax(measureAgg, exists, enclosure, fieldToValue, isMin)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while performing eval agg for min or max, err: %v", err)
 			}
-			measureResults[measureAgg.String()] = enclosure
 		}
+		measureResults[measureAgg.String()] = enclosure
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -66,67 +151,11 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-			if measureAgg.ValueColRequest.BooleanExpr != nil {
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForMinOrMax: there are some errors in the eval function that is inside the %v function: %v", measureAgg.MeasureFunc, err)
-				}
-				if !exists && boolResult {
-					enclosure = utils.CValueEnclosure{
-						Dtype: utils.SS_DT_FLOAT,
-						CVal:  1.0,
-					}
-					measureResults[measureAgg.String()] = enclosure
-				}
-			} else {
-				floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while evaluating value col request, err: %v", err)
-				}
-
-				if !exists {
-					enclosure = utils.CValueEnclosure{}
-					if isNumeric {
-						enclosure.Dtype = utils.SS_DT_FLOAT
-						enclosure.CVal = floatValue
-					} else {
-						enclosure.Dtype = utils.SS_DT_STRING
-						enclosure.CVal = strValue
-					}
-					measureResults[measureAgg.String()] = enclosure
-				} else {
-					currType := enclosure.Dtype
-					if currType == utils.SS_DT_STRING {
-						// if new value is numeric override the string result
-						if isNumeric {
-							enclosure.Dtype = utils.SS_DT_FLOAT
-							enclosure.CVal = floatValue
-						} else {
-							strEncValue, isString := enclosure.CVal.(string)
-							if !isString {
-								return fmt.Errorf("ComputeAggEvalForMinOrMax: String type enclosure does not have a string value")
-							}
-							if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
-								enclosure.CVal = strValue
-							}
-						}
-					} else if currType == utils.SS_DT_FLOAT {
-						// only check if the current value is numeric
-						if isNumeric {
-							floatEncValue, isFloat := enclosure.CVal.(float64)
-							if !isFloat {
-								return fmt.Errorf("ComputeAggEvalForMinOrMax: Float type enclosure does not have a float value")
-							}
-							if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
-								enclosure.CVal = floatValue
-							}
-						}
-					} else {
-						return fmt.Errorf("ComputeAggEvalForMinOrMax: Enclosure does not have a valid data type")
-					}
-					measureResults[measureAgg.String()] = enclosure
-				}
+			result, err := PerformEvalAggForMinOrMax(measureAgg, exists, enclosure, fieldToValue, isMin)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while performing eval agg for min or max, err: %v", err)
 			}
+			measureResults[measureAgg.String()] = result
 		}
 	}
 
