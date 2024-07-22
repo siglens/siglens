@@ -9966,3 +9966,77 @@ func Test_StreamStats_18(t *testing.T) {
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
 }
+
+func Test_FillNull_No_Args(t *testing.T) {
+	query := `* | fillnull`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest)
+	assert.Equal(t, "0", aggregator.OutputTransforms.LetColumns.FillNullRequest.Value)
+}
+
+func Test_FillNull_ValueArg(t *testing.T) {
+	query := `* | fillnull value=NULL`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest)
+	assert.Equal(t, "NULL", aggregator.OutputTransforms.LetColumns.FillNullRequest.Value)
+}
+
+func Test_FillNull_FiedList(t *testing.T) {
+	query := `* | fillnull field1 field2`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest)
+	assert.Equal(t, "0", aggregator.OutputTransforms.LetColumns.FillNullRequest.Value)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
+	assert.Equal(t, 2, len(aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList))
+	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
+}
+
+func Test_FillNull_ValueArg_FieldList(t *testing.T) {
+	query := `* | fillnull value=NULL field1 field2`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest)
+	assert.Equal(t, "NULL", aggregator.OutputTransforms.LetColumns.FillNullRequest.Value)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
+	assert.Equal(t, 2, len(aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList))
+	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
+}

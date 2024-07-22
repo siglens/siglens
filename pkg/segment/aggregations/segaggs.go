@@ -987,6 +987,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		if err := performBinRequest(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
+	} else if letColReq.FillNullRequest != nil {
+		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
 	} else {
 		return errors.New("performLetColumnsRequest: expected one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest to have a value")
 	}
@@ -2004,6 +2008,96 @@ func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) int
 	} else {
 		// Store the split values
 		return values
+	}
+}
+
+func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if recs != nil {
+		if err := performFillNullRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performFillNullRequest: %v", err)
+		}
+		return nil
+	}
+
+	// Applying fillnull for MeasureResults or GroupByCols is not possible case. So, we will not handle it.
+
+	return nil
+}
+
+func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	fillNullReq := letColReq.FillNullRequest
+	currentFillNullRecsCount := len(fillNullReq.Records) + len(recs) // Records that are stored by the fillnull request + records that are currently in recs
+
+	if !nodeResult.RawSearchFinished || currentFillNullRecsCount < nodeResult.CurrentSearchResultCount {
+		// If the search is not finished, we cannot fill nulls.
+		// If the current records are less than the total search records, we cannot fill nulls.
+		// But we need to store the current records for later use and delete them from recs.
+		for recIndex, record := range recs {
+			fillNullReq.Records[recIndex] = record
+			delete(recs, recIndex)
+		}
+
+		if len(fillNullReq.FieldList) == 0 {
+			// No Fields are provided. This means fill null should be applied to all fields.
+			for field := range finalCols {
+				if _, exists := fillNullReq.FinalCols[field]; !exists {
+					fillNullReq.FinalCols[field] = true
+				}
+			}
+		}
+
+		return nil
+	}
+
+	colsToCheck := fillNullReq.FinalCols
+
+	if len(fillNullReq.FieldList) > 0 {
+		colsToCheck = make(map[string]bool, 0)
+		for _, field := range fillNullReq.FieldList {
+			colsToCheck[field] = true
+			if _, exists := finalCols[field]; !exists {
+				finalCols[field] = true
+			}
+		}
+	} else {
+		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
+		for field := range finalCols {
+			if _, exists := colsToCheck[field]; !exists {
+				colsToCheck[field] = true
+			}
+		}
+		// Add all these columns to the finalCols List, so that they are not removed from the final result.
+		for field := range colsToCheck {
+			if _, exists := finalCols[field]; !exists {
+				finalCols[field] = true
+			}
+		}
+	}
+
+	for _, record := range recs {
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+	}
+
+	for recIndex, record := range fillNullReq.Records {
+		if _, exists := recs[recIndex]; exists {
+			log.Errorf("performFillNullRequestWithoutGroupby: record with index %s already exists in recs", recIndex)
+			continue
+		}
+
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+		recs[recIndex] = record
+		delete(fillNullReq.Records, recIndex)
+	}
+
+	return nil
+}
+
+func performFillNullForARecord(record map[string]interface{}, colsToCheck map[string]bool, fillValue string) {
+	for field := range colsToCheck {
+		value, exists := record[field]
+		if value == nil || !exists {
+			record[field] = fillValue
+		}
 	}
 }
 
