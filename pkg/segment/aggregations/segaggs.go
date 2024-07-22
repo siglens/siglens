@@ -2080,7 +2080,8 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 	for recIndex, record := range fillNullReq.Records {
 		if _, exists := recs[recIndex]; exists {
-			fmt.Println("performFillNullRequestWithoutGroupby: record already exists in recs")
+			log.Errorf("performFillNullRequestWithoutGroupby: record with index %s already exists in recs", recIndex)
+			continue
 		}
 
 		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
