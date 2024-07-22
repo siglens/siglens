@@ -684,7 +684,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         $('#views-container').hide();
         renderMeasuresGrid(columnOrder, res);
     }
-    timeChart();
+    timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype);
@@ -784,7 +784,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     isTimechart = res.isTimechart;
     const currentUrl = window.location.href;
-    timeChart();
+    timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
@@ -941,8 +941,19 @@ function parseInterval(interval) {
     }
 }
 
-function timeChart() {
+function timeChart(qtype) {
     // Check if measureInfo is defined and contains at least one item
+    if (isTimechart || qtype === 'aggs-query') {
+        console.log("Displaying chart as the conditions are met.");
+        $('#columnChart').show();
+        $('#hideGraph').hide();
+    } else {
+        console.log("Hiding chart as the conditions are not met.");
+        $('#columnChart').hide();
+        $('#hideGraph').show();
+        return;
+    }
+
     if (!measureInfo || measureInfo.length === 0) {
         return;
     }
