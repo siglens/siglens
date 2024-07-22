@@ -294,7 +294,11 @@ function setDownloadLogsDialog() {
                                 if (key != 'key' && key != 'doc_count') newPerInfo[key] = perInfo[key].value;
                                 else if (key == 'key') {
                                     for (let j = 0; j < textArr.length; j++) {
-                                        newPerInfo[textArr[j]] = perInfo.key[j];
+                                        if (Array.isArray(perInfo.key)) {
+                                            newPerInfo[textArr[j]] = perInfo.key[j];
+                                        } else {
+                                            newPerInfo[textArr[j]] = perInfo.key;
+                                        }
                                     }
                                 }
                             }
