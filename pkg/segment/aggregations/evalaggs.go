@@ -31,23 +31,26 @@ import (
 func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, isMin bool) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
-	edgeValue := -1.7976931348623157e+308
-	if isMin {
-		edgeValue = math.MaxFloat64
-	}
-
+	
 	if len(fields) == 0 {
-		_, exist := sstMap["*"]
-		if !exist {
-			return fmt.Errorf("ComputeAggEvalForMinOrMax: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
-		}
-		floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		enclosure, exists := measureResults[measureAgg.String()]
+		floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute min/max if constant is not numeric
 		// TODO: Perform min/max for strings
-		if err != nil || !isNumeric {
+		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while evaluating value col request to a numeric value, err: %v", err)
 		}
-		edgeValue = floatValue
+		if !exists {
+			enclosure = utils.CValueEnclosure{}
+			if isNumeric {
+				enclosure.Dtype = utils.SS_DT_FLOAT
+				enclosure.CVal = floatValue
+			} else {
+				enclosure.Dtype = utils.SS_DT_STRING
+				enclosure.CVal = strValue
+			}
+			measureResults[measureAgg.String()] = enclosure
+		}
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -56,57 +59,75 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 
 		length := len(sst.Records)
 		for i := 0; i < length; i++ {
+			enclosure, exists := measureResults[measureAgg.String()]
+			
 			fieldToValue = make(map[string]utils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-
 			if measureAgg.ValueColRequest.BooleanExpr != nil {
 				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 				if err != nil {
 					return fmt.Errorf("ComputeAggEvalForMinOrMax: there are some errors in the eval function that is inside the %v function: %v", measureAgg.MeasureFunc, err)
 				}
-				if boolResult {
-					edgeValue = 1
+				if !exists && boolResult {
+					enclosure = utils.CValueEnclosure{
+						Dtype: utils.SS_DT_FLOAT,
+						CVal:  1.0,
+					}
+					measureResults[measureAgg.String()] = enclosure
 				}
 			} else {
-				floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+				floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 				if err != nil {
 					return fmt.Errorf("ComputeAggEvalForMinOrMax: Error while evaluating value col request, err: %v", err)
 				}
-				// records that are not float will be ignored
-				if isNumeric {
-					if (isMin && floatValue < edgeValue) || (!isMin && floatValue > edgeValue) {
-						edgeValue = floatValue
+
+				if !exists {
+					enclosure = utils.CValueEnclosure{}
+					if isNumeric {
+						enclosure.Dtype = utils.SS_DT_FLOAT
+						enclosure.CVal = floatValue
+					} else {
+						enclosure.Dtype = utils.SS_DT_STRING
+						enclosure.CVal = strValue
 					}
+					measureResults[measureAgg.String()] = enclosure
+				} else {
+					currType := enclosure.Dtype
+					if currType == utils.SS_DT_STRING {
+						// if new value is numeric override the string result
+						if isNumeric {
+							enclosure.Dtype = utils.SS_DT_FLOAT
+							enclosure.CVal = floatValue
+						} else {
+							strEncValue, isString := enclosure.CVal.(string)
+							if !isString {
+								return fmt.Errorf("ComputeAggEvalForMinOrMax: String type enclosure does not have a string value")
+							}
+							if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
+								enclosure.CVal = strValue
+							}
+						}
+					} else if currType == utils.SS_DT_FLOAT {
+						// only check if the current value is numeric
+						if isNumeric {
+							floatEncValue, isFloat := enclosure.CVal.(float64)
+							if !isFloat {
+								return fmt.Errorf("ComputeAggEvalForMinOrMax: Float type enclosure does not have a float value")
+							}
+							if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
+								enclosure.CVal = floatValue
+							}
+						}
+					} else {
+						return fmt.Errorf("ComputeAggEvalForMinOrMax: Enclosure does not have a valid data type")
+					}
+					measureResults[measureAgg.String()] = enclosure
 				}
 			}
 		}
-	}
-
-	enclosure, exists := measureResults[measureAgg.String()]
-	if !exists {
-		cVal := -1.7976931348623157e+308
-		if isMin {
-			cVal = math.MaxFloat64
-		}
-
-		enclosure = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_FLOAT,
-			CVal:  cVal,
-		}
-		measureResults[measureAgg.String()] = enclosure
-	}
-
-	eValFloat, err := enclosure.GetFloatValue()
-	if err != nil {
-		return fmt.Errorf("ComputeAggEvalForMinOrMax: Attempted to perform aggregate %v, but the column %s is not a float value", measureAgg.MeasureFunc, fields[0])
-	}
-
-	if (isMin && eValFloat > edgeValue) || (!isMin && eValFloat < edgeValue) {
-		enclosure.CVal = edgeValue
-		measureResults[measureAgg.String()] = enclosure
 	}
 
 	return nil
@@ -123,7 +144,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 		if !exist {
 			return fmt.Errorf("ComputeAggEvalForRange: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute if constant is not numeric
 		if err != nil || !isNumeric {
 			return fmt.Errorf("ComputeAggEvalForRange: Error while evaluating value col request to a numeric value, err: %v", err)
@@ -154,7 +175,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 					minVal = 1
 				}
 			} else {
-				floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+				floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 				if err != nil {
 					return fmt.Errorf("ComputeAggEvalForRange: Error while evaluating value col request, err: %v", err)
 				}
@@ -209,16 +230,16 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 	return nil
 }
 
-func GetFloatValueAfterEvaluation(measureAgg *structs.MeasureAggregator, fieldToValue map[string]utils.CValueEnclosure) (float64, bool, error) {
+func GetFloatValueAfterEvaluation(measureAgg *structs.MeasureAggregator, fieldToValue map[string]utils.CValueEnclosure) (float64, string, bool, error) {
 	valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 	if err != nil {
-		return 0, false, fmt.Errorf("GetFloatValueAfterEvaluation: Error while evaluating eval function: %v", err)
+		return 0, "", false, fmt.Errorf("GetFloatValueAfterEvaluation: Error while evaluating eval function: %v", err)
 	}
 	floatVal, err := dtypeutils.ConvertToFloat(valueStr, 64)
 	if err != nil {
-		return 0, false, nil
+		return 0, valueStr, false, nil
 	}
-	return floatVal, true, nil
+	return floatVal, valueStr, true, nil
 }
 
 func PopulateFieldToValueFromSegStats(fields []string, measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, fieldToValue map[string]utils.CValueEnclosure, i int) error {
@@ -247,7 +268,7 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 		if !exist {
 			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute sum if constant is not numeric
 		if err != nil || !isNumeric {
 			return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
@@ -276,7 +297,7 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 					sumVal += 1
 				}
 			} else {
-				floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+				floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 				if err != nil {
 					return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
 				}
@@ -376,7 +397,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 		if !exist {
 			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute avg if constant is not numeric
 		if err != nil || !isNumeric {
 			return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
@@ -407,7 +428,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 					countVal++
 				}
 			} else {
-				floatValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+				floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 				if err != nil {
 					return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
 				}
