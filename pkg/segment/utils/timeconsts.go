@@ -17,7 +17,10 @@
 
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type TimeUnit uint8
 
@@ -59,5 +62,40 @@ func IsSubseconds(timeUnit TimeUnit) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// Common method to apply offsets to time
+func ApplyOffsetToTime(num int64, unit TimeUnit, t time.Time) (time.Time, error) {
+
+	durNum := time.Duration(num)
+
+	switch unit {
+	case TMMicrosecond:
+		return t.Add(durNum * time.Microsecond), nil
+	case TMMillisecond:
+		return t.Add(durNum * time.Millisecond), nil
+	case TMCentisecond:
+		return t.Add(durNum * 10 * time.Millisecond), nil
+	case TMDecisecond:
+		return t.Add(durNum * 100 * time.Millisecond), nil
+	case TMSecond:
+		return t.Add(durNum * time.Second), nil
+	case TMMinute:
+		return t.Add(durNum * time.Minute), nil
+	case TMHour:
+		return t.Add(durNum * time.Hour), nil
+	case TMDay:
+		return t.AddDate(0, 0, int(num)), nil
+	case TMWeek:
+		return t.AddDate(0, 0, 7*int(num)), nil
+	case TMMonth:
+		return t.AddDate(0, int(num), 0), nil
+	case TMQuarter:
+		return t.AddDate(0, 4*int(num), 0), nil
+	case TMYear:
+		return t.AddDate(int(num), 0, 0), nil
+	default:
+		return t, fmt.Errorf("Unsupported time unit for offset: %v", unit)
 	}
 }

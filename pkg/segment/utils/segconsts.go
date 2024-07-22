@@ -145,6 +145,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
+	SS_DT_STRING_SLICE
 	SS_DT_STRING_SET
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
@@ -512,6 +513,7 @@ type DtypeEnclosure struct {
 	FloatVal       float64
 	StringVal      string
 	StringValBytes []byte         // byte slice representation of StringVal
+	StringSliceVal []string       // used for array dict
 	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
 }
 
@@ -717,6 +719,9 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	case string:
 		e.Dtype = SS_DT_STRING
 		e.CVal = val
+	case []string:
+		e.Dtype = SS_DT_STRING_SLICE
+		e.CVal = val
 	case bool:
 		e.Dtype = SS_DT_BOOL
 		e.CVal = val
@@ -744,6 +749,8 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 		return e.CVal.(map[string]struct{}), nil
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
+	case SS_DT_STRING_SLICE:
+		return e.CVal.([]string), nil
 	case SS_DT_BOOL:
 		return e.CVal.(bool), nil
 	case SS_DT_UNSIGNED_NUM:
@@ -763,6 +770,8 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
+	case SS_DT_STRING_SLICE:
+		return fmt.Sprintf("%v", e.CVal.([]string)), nil
 	case SS_DT_BOOL:
 		return strconv.FormatBool(e.CVal.(bool)), nil
 	case SS_DT_UNSIGNED_NUM:

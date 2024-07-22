@@ -629,26 +629,38 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		if len(lhsRequest) > 0 {
+			lhsIsVector = true
+			arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		}
 		if len(lhsQueryArth) > 0 {
 			arithmeticOperation.LHSExpr = lhsQueryArth[0]
 		}
-		lhsIsVector = true
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
-		arithmeticOperation.ConstantOp = true
-		arithmeticOperation.Constant = constant.Val
+		if arithmeticOperation.ConstantOp {
+			// This implies that both LHS and RHS are constants.
+			arithmeticOperation.RHSExpr = &structs.QueryArithmetic{
+				ConstantOp: true,
+				Constant:   constant.Val,
+			}
+		} else {
+			arithmeticOperation.ConstantOp = true
+			arithmeticOperation.Constant = constant.Val
+		}
 	} else {
 		rhsRequest, _, rhsQueryArth, err = parsePromQLQuery(expr.RHS.String(), timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+		if len(rhsRequest) > 0 {
+			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+			rhsIsVector = true
+		}
 		if len(rhsQueryArth) > 0 {
 			arithmeticOperation.RHSExpr = rhsQueryArth[0]
 		}
-		rhsIsVector = true
 	}
 	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
