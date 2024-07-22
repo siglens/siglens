@@ -9382,7 +9382,7 @@ func Test_Bin29(t *testing.T) {
 }
 
 func Test_StreamStats(t *testing.T) {
-	query := `* | streamstats allnum=true global=false time_window=1h count(timestamp) AS tmpStamp`
+	query := `* | streamstats allnum=true global=true time_window=1h count(timestamp) AS tmpStamp`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -9395,7 +9395,7 @@ func Test_StreamStats(t *testing.T) {
 	assert.NotNil(t, aggregator.StreamStatsOptions)
 	assert.Equal(t, true, aggregator.StreamStatsOptions.AllNum)
 	assert.Equal(t, true, aggregator.StreamStatsOptions.Current)
-	assert.Equal(t, false, aggregator.StreamStatsOptions.Global)
+	assert.Equal(t, true, aggregator.StreamStatsOptions.Global)
 	assert.Equal(t, uint64(0), aggregator.StreamStatsOptions.Window)
 	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
@@ -9953,4 +9953,16 @@ func Test_StreamStats_16(t *testing.T) {
 
 	assert.Nil(t, aggregator.OutputTransforms)
 	assert.Nil(t, aggregator.Next)
+}
+
+func Test_StreamStats_17(t *testing.T) {
+	query := `* | streamstats current=false timewindow=1s count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_StreamStats_18(t *testing.T) {
+	query := `* | streamstats global=false timewindow=1min count as cnt`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
 }
