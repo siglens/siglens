@@ -285,7 +285,7 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
                     <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
                 </div>
             </div>
-            <div class="Formula-functions-container">
+            <div class="formula-functions-container">
                     <div class="all-selected-functions-formula">
                     </div>
                     <div class="position-container">

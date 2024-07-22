@@ -119,7 +119,7 @@ input:checked + .slider:before {
     justify-content: space-between;
     margin-top: 10px;
 }
-.Formula-functions-container div {
+.formula-functions-container div {
     position: relative;
     height: 32px;
     display: flex;
@@ -478,7 +478,7 @@ input:checked + .slider:before {
     background-color: var(--drop-down-btn-bg-regular);
 }
 
-.functions-container,.Formula-functions-container{
+.functions-container,.formula-functions-container{
     border :none !important;
     position: relative;
     height: 32px;
@@ -487,7 +487,7 @@ input:checked + .slider:before {
     padding: 0px 12px;
 }
 
-.functions-container::before ,.Formula-functions-container::before{
+.functions-container::before ,.formula-functions-container::before{
     left: -7px;
     content: "";
     display: inline-block;
