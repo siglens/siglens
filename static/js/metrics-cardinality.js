@@ -27,16 +27,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagKeysGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true },
+            { headerName: 'Key', field: 'key', filter: true, resizable: true,sort: 'asc' },
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true ,sort: 'asc'},
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-
-            resizable: true,
+            icons: {
+                sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+                sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            },
+           sortable: true,
+           filter: false,
+           resizable: false,
+           cellStyle: { 'text-align': 'left' },
+           minWidth: 120,
+           animateRows: true,
+           readOnlyEdit: true,
+           autoHeight: true,
+           resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,
@@ -48,17 +59,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagPairsGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true },
-            { headerName: 'Value', field: 'value', filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true },
+            { headerName: 'Key', field: 'key', filter: true, resizable: true,sort: 'asc' },
+            { headerName: 'Value', field: 'value', filter: true, resizable: true,sort: 'asc' },
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true,sort: 'asc' },
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-
-            resizable: true,
+            icons: {
+                sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+                sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            },
+            sortable: true,
+           filter: false,
+           resizable: false,
+           cellStyle: { 'text-align': 'left' },
+           minWidth: 120,
+           animateRows: true,
+           readOnlyEdit: true,
+           autoHeight: true,
+           resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,
@@ -70,16 +92,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagKeysValuesGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true },
-            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true },
+            { headerName: 'Key', field: 'key', filter: true, resizable: true,sort: 'asc' },
+            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true ,sort: 'asc'},
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-
-            resizable: true,
+            icons: {
+                sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+                sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            },
+            sortable: true,
+           filter: false,
+           resizable: false,
+           cellStyle: { 'text-align': 'left' },
+           minWidth: 120,
+           animateRows: true,
+           readOnlyEdit: true,
+           autoHeight: true,
+           resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,

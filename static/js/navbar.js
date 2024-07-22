@@ -168,6 +168,8 @@ $(document).ready(function () {
         }, 500);
     } else if (currentUrl.includes('metric-summary.html')) {
         $('.nav-metrics').addClass('active');
+    } else if (currentUrl.includes('metric-cardinality.html')) {
+        $('.nav-metrics').addClass('active');
     } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
         $('.nav-ldb').addClass('active');
     } else if (currentUrl.includes('saved-queries.html')) {
