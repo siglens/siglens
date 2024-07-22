@@ -743,7 +743,7 @@ func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, true)
 
-	return res, metricQueriesList, pqlQuerytype, "", nil
+	return res, metricQueriesList, pqlQuerytype, finalSearchText, nil
 }
 
 func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -776,9 +776,16 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	var mQResponse MetricStatsResponse
+
+	if res.IsScalar {
+		// extraMsgToLog is the final search text
+		mQResponse, err = res.FetchScalarMetricsForUi(extraMsgToLog, pqlQuerytype, start, end)
+	} else {
+		mQResponse, err = res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	}
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v, finalSearchText=%v", qid, extraMsgToLog), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -788,16 +795,20 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
-	pattern := ""
-	for key := range queries {
-		pattern = fmt.Sprintf("%s|%s", pattern, key)
-	}
-
-	if pattern == "" {
+	if len(queries) == 0 {
 		return "", errors.New("no queries found")
 	}
 
-	pattern = fmt.Sprintf("(%s)", pattern[1:])
+	pattern := ""
+	for key := range queries {
+		if pattern == "" {
+			pattern = fmt.Sprintf(`\b%s\b`, key)
+		} else {
+			pattern = fmt.Sprintf(`%s|\b%s\b`, pattern, key)
+		}
+	}
+
+	pattern = fmt.Sprintf("(%s)", pattern)
 
 	regEx, err := regexp.Compile(pattern)
 	if err != nil {
