@@ -3431,17 +3431,12 @@ AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr
     return agg, nil
 }
 
-AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggAvg <- "avg" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Avg,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3455,17 +3450,12 @@ AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     return agg, nil
 }
 
-AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggMin <- "min" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Min,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3479,17 +3469,12 @@ AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     return agg, nil
 }
 
-AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggMax <- "max" L_PAREN "eval"  valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Max,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3503,17 +3488,12 @@ AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_
     return agg, nil
 }
 
-AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggRange <- "range" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Range,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3527,17 +3507,12 @@ AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr
     return agg, nil
 }
 
-AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggSum <- "sum" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Sum,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
