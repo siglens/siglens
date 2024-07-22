@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+let lastQType = '';
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -783,6 +783,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         measureInfo = [];
     }
     isTimechart = res.isTimechart;
+    lastQType = res.qtype;
     const currentUrl = window.location.href;
     timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
@@ -943,12 +944,11 @@ function parseInterval(interval) {
 
 function timeChart(qtype) {
     // Check if measureInfo is defined and contains at least one item
+    qtype = qtype || lastQType;
     if (isTimechart || qtype === 'aggs-query') {
-        console.log("Displaying chart as the conditions are met.");
         $('#columnChart').show();
         $('#hideGraph').hide();
     } else {
-        console.log("Hiding chart as the conditions are not met.");
         $('#columnChart').hide();
         $('#hideGraph').show();
         return;
