@@ -5026,6 +5026,8 @@ FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:Fill
         Value: valueStr,
         FieldList: fieldList,
     }
+	fillNullExpr.Records = make(map[string]map[string]interface{}, 0)
+	fillNullExpr.FinalCols = make(map[string]bool, 0)
 
     return &structs.QueryAggregators{
         PipeCommandType: structs.OutputTransformType,

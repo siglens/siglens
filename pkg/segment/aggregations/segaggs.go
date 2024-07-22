@@ -988,7 +988,7 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.FillNullRequest != nil {
-		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols); err != nil {
+		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -2011,9 +2011,9 @@ func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) int
 	}
 }
 
-func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	if recs != nil {
-		if err := performFillNullRequestWithoutGroupby(letColReq, recs, finalCols); err != nil {
+		if err := performFillNullRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performFillNullRequest: %v", err)
 		}
 		return nil
@@ -2024,10 +2024,32 @@ func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.L
 	return nil
 }
 
-func performFillNullRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	fillNullReq := letColReq.FillNullRequest
+	currentFillNullRecsCount := len(fillNullReq.Records) + len(recs) // Records that are stored by the fillnull request + records that are currently in recs
 
-	colsToCheck := finalCols
+	if !nodeResult.RawSearchFinished || currentFillNullRecsCount < nodeResult.CurrentSearchResultCount {
+		// If the search is not finished, we cannot fill nulls.
+		// If the current records are less than the total search records, we cannot fill nulls.
+		// But we need to store the current records for later use and delete them from recs.
+		for recIndex, record := range recs {
+			fillNullReq.Records[recIndex] = record
+			delete(recs, recIndex)
+		}
+
+		if len(fillNullReq.FieldList) == 0 {
+			// No Fields are provided. This means fill null should be applied to all fields.
+			for field := range finalCols {
+				if _, exists := fillNullReq.FinalCols[field]; !exists {
+					fillNullReq.FinalCols[field] = true
+				}
+			}
+		}
+
+		return nil
+	}
+
+	colsToCheck := fillNullReq.FinalCols
 
 	if len(fillNullReq.FieldList) > 0 {
 		colsToCheck = make(map[string]bool, 0)
@@ -2037,18 +2059,45 @@ func performFillNullRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, 
 				finalCols[field] = true
 			}
 		}
-	}
-
-	for _, record := range recs {
+	} else {
+		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
+		for field := range finalCols {
+			if _, exists := colsToCheck[field]; !exists {
+				colsToCheck[field] = true
+			}
+		}
+		// Add all these columns to the finalCols List, so that they are not removed from the final result.
 		for field := range colsToCheck {
-			value, exists := record[field]
-			if value == nil || !exists {
-				record[field] = fillNullReq.Value
+			if _, exists := finalCols[field]; !exists {
+				finalCols[field] = true
 			}
 		}
 	}
 
+	for _, record := range recs {
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+	}
+
+	for recIndex, record := range fillNullReq.Records {
+		if _, exists := recs[recIndex]; exists {
+			fmt.Println("performFillNullRequestWithoutGroupby: record already exists in recs")
+		}
+
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+		recs[recIndex] = record
+		delete(fillNullReq.Records, recIndex)
+	}
+
 	return nil
+}
+
+func performFillNullForARecord(record map[string]interface{}, colsToCheck map[string]bool, fillValue string) {
+	for field := range colsToCheck {
+		value, exists := record[field]
+		if value == nil || !exists {
+			record[field] = fillValue
+		}
+	}
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
