@@ -46,6 +46,7 @@ $('#custom-code-tab').tabs({
             if (isQueryBuilderSearch) {
                 let filterValue = getQueryBuilderCode();
                 if (filterValue != '') $('#filter-input').val(filterValue);
+                toggleClearButtonVisibility();
             }
         }
     },
@@ -619,3 +620,14 @@ function setShowColumnInfoDialog() {
         // return false;
     });
 }
+
+$('#logs-settings').click(function () {
+    event.stopPropagation();
+    $('#setting-container').fadeToggle('fast');
+});
+
+$(document).click(function (event) {
+    if (!$(event.target).closest('#setting-container').length) {
+        $('#setting-container').hide();
+    }
+});
