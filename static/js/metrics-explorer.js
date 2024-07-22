@@ -986,7 +986,8 @@ function updateCloseIconVisibility() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
-function prepareChartData(seriesData, chartDataCollection, queryName) {
+
+function prepareChartData(seriesData, chartDataCollection, queryName, queryString) {
     var labels = [];
     var datasets = [];
 
@@ -1001,7 +1002,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: series.seriesName,
+                label: queryString,
                 data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
@@ -1022,10 +1023,10 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
     return chartData;
 }
 
-function initializeChart(canvas, seriesData, queryName, chartType) {
+function initializeChart(canvas, seriesData, queryName, queryString, chartType) {
     var ctx = canvas[0].getContext('2d');
 
-    let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName, queryString);
 
     const { gridLineColor, tickColor } = getGraphGridColors();
 
@@ -1043,6 +1044,20 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         boxWidth: 10,
                         boxHeight: 2,
                         fontSize: 10,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function (tooltipItems) {
+                            // Display formatted timestamp in the title
+                            const date = new Date(tooltipItems[0].parsed.x);
+                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
+                            return formattedDate;
+                        },
+                        label: function (tooltipItem) {
+                            // Display dataset label and value
+                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
+                        },
                     },
                 },
             },
@@ -1118,7 +1133,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
     var canvas;
     if (isDashboardScreen) {
         // For dashboard page
-        prepareChartData(seriesData, chartDataCollection, queryName);
+        prepareChartData(seriesData, chartDataCollection, queryName, queryString);
         mergeGraphs(chartType, panelId);
     } else {
         // For metrics explorer page
@@ -1159,7 +1174,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
             existingContainer.find('.graph-canvas').empty().append(canvas);
         }
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+        var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
 
         lineCharts[queryName] = lineChart;
         updateGraphWidth();
@@ -1538,7 +1553,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     fill: chartType === 'Area chart' ? true : false,
                 });
             });
-            // Update labels ( same for all graphs)
+            // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     }
@@ -1559,6 +1574,20 @@ function mergeGraphs(chartType, panelId = -1) {
                         boxWidth: 10,
                         boxHeight: 2,
                         fontSize: 10,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function (tooltipItems) {
+                            // Display formatted timestamp in the title
+                            const date = new Date(tooltipItems[0].parsed.x);
+                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
+                            return formattedDate;
+                        },
+                        label: function (tooltipItem) {
+                            // Display dataset label and value
+                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
+                        },
                     },
                 },
             },
@@ -2019,7 +2048,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
-    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+    var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
     lineCharts[queryString] = lineChart;
 }
 
