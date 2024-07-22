@@ -1002,7 +1002,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: queryString,  
+                label: queryString,
                 data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
@@ -1048,18 +1048,18 @@ function initializeChart(canvas, seriesData, queryName, queryString, chartType) 
                 },
                 tooltip: {
                     callbacks: {
-                        title: function(tooltipItems) {
+                        title: function (tooltipItems) {
                             // Display formatted timestamp in the title
                             const date = new Date(tooltipItems[0].parsed.x);
                             const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
                             return formattedDate;
                         },
-                        label: function(tooltipItem) {
+                        label: function (tooltipItem) {
                             // Display dataset label and value
                             return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
             scales: {
                 x: {
@@ -1545,7 +1545,7 @@ function mergeGraphs(chartType, panelId = -1) {
             graphNames.push(`Metrics query - ${queryName}`);
             datasets.forEach(function (dataset) {
                 mergedData.datasets.push({
-                    label: dataset.label, 
+                    label: dataset.label,
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
@@ -1578,18 +1578,18 @@ function mergeGraphs(chartType, panelId = -1) {
                 },
                 tooltip: {
                     callbacks: {
-                        title: function(tooltipItems) {
+                        title: function (tooltipItems) {
                             // Display formatted timestamp in the title
                             const date = new Date(tooltipItems[0].parsed.x);
                             const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
                             return formattedDate;
                         },
-                        label: function(tooltipItem) {
+                        label: function (tooltipItem) {
                             // Display dataset label and value
                             return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
             scales: {
                 x: {
@@ -1831,7 +1831,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     }
     updateDownloadButtons();
 }
-
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
