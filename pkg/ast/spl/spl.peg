@@ -3381,17 +3381,12 @@ AsField <- AS field: (FieldName / String) {
     return fieldStr, nil
 }
 
-AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolExpr.(*structs.BoolExpr),
-    }
-
+AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Count,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3469,7 +3464,7 @@ AggMin <- "min" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     return agg, nil
 }
 
-AggMax <- "max" L_PAREN "eval"  valueExpr:ValueExpr R_PAREN {
+AggMax <- "max" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Max,

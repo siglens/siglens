@@ -10116,7 +10116,10 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, query []byte, measureFu
 }
 
 func Test_aggHasEval_BooleanExpr(t *testing.T) {
-	query := []byte(`city=Boston | stats max(latitude), sum(eval(latitude >= 0 AND http_method="GET"))`)
+	query := []byte(`city=Boston | stats max(latitude), count(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Count, `count(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), sum(eval(latitude >= 0 AND http_method="GET"))`)
 	performCommon_aggEval_BoolExpr(t, query, utils.Sum, `sum(eval(latitude >= 0 AND http_method="GET"))`)
 
 	query = []byte(`city=Boston | stats max(latitude), avg(eval(latitude >= 0 AND http_method="GET"))`)
@@ -10139,7 +10142,10 @@ func Test_aggHasEval_BooleanExpr(t *testing.T) {
 }
 
 func Test_aggHasEval_Constant(t *testing.T) {
-	query := []byte(`city=Boston | stats max(latitude), sum(eval(1))`)
+	query := []byte(`city=Boston | stats max(latitude), count(eval(1))`)
+	performCommon_aggEval_Constant(t, query, utils.Count, `count(eval(1))`, "1")
+
+	query = []byte(`city=Boston | stats max(latitude), sum(eval(1))`)
 	performCommon_aggEval_Constant(t, query, utils.Sum, `sum(eval(1))`, "1")
 
 	query = []byte(`city=Boston | stats max(latitude), avg(eval(20))`)
@@ -10162,7 +10168,10 @@ func Test_aggHasEval_Constant(t *testing.T) {
 }
 
 func Test_aggHasEval_Field(t *testing.T) {
-	query := []byte(`app_name=Bracecould | stats min(longitude), sum(eval(http_status))`)
+	query := []byte(`app_name=Bracecould | stats min(longitude), count(eval(http_status))`)
+	performCommon_aggEval_Field(t, query, utils.Count, `count(eval(http_status))`, "http_status")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), sum(eval(http_status))`)
 	performCommon_aggEval_Field(t, query, utils.Sum, `sum(eval(http_status))`, "http_status")
 
 	query = []byte(`app_name=Bracecould | stats min(longitude), avg(eval(longitude))`)
@@ -10185,7 +10194,10 @@ func Test_aggHasEval_Field(t *testing.T) {
 }
 
 func Test_aggHasEval_ConditionalExpr(t *testing.T) {
-	query := []byte(`app_name=bracecould | stats sum(http_status), sum(eval(if(http_status=500, longitude, 1)))`)
+	query := []byte(`app_name=bracecould | stats sum(http_status), count(eval(if(http_status=500, longitude, 1)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Count, `count(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), sum(eval(if(http_status=500, longitude, 1)))`)
 	performCommon_aggEval_ConditionalExpr(t, query, utils.Sum, `sum(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
 
 	query = []byte(`app_name=bracecould | stats sum(http_status), avg(eval(if(http_status=500, http_status, -20)))`)
