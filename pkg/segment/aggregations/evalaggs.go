@@ -370,7 +370,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	sumVal := float64(0)
 	countVal := int64(0)
-	
+
 	if len(fields) == 0 {
 		countStat, exist := sstMap["*"]
 		if !exist {
@@ -442,53 +442,57 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
+	result := 0
+
 	if len(fields) == 0 {
-		return fmt.Errorf("ComputeAggEvalForCount: Incorrect number of fields for aggCol: %v", measureAgg.String())
-	}
-
-	sst, ok := sstMap[fields[0]]
-	if !ok {
-		return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
-	}
-
-	strSet := make(map[string]struct{}, 0)
-	valuesStrSetVal, exists := runningEvalStats[measureAgg.String()]
-	if !exists {
-		runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
+		result = 1
 	} else {
-		strSet, ok = valuesStrSetVal.(map[string]struct{})
+		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
+			return fmt.Errorf("ComputeAggEvalForCardinality: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
 		}
-	}
 
-	length := len(sst.Records)
-	for i := 0; i < length; i++ {
-		fieldToValue := make(map[string]utils.CValueEnclosure)
-		// Initialize fieldToValue
-		for _, field := range fields {
-			sst, ok := sstMap[field]
+		strSet := make(map[string]struct{}, 0)
+		valuesStrSetVal, exists := runningEvalStats[measureAgg.String()]
+		if !exists {
+			runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
+		} else {
+			strSet, ok = valuesStrSetVal.(map[string]struct{})
 			if !ok {
-				return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+				return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
 			}
-
-			if i >= len(sst.Records) {
-				return fmt.Errorf("ComputeAggEvalForCount: Incorrect length of field: %v for aggCol: %v", field, measureAgg.String())
-			}
-			fieldToValue[field] = *sst.Records[i]
 		}
 
-		cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForCount: there are some errors in the eval function that is inside the cardinality function: %v", err)
-		}
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
 
-		strSet[cellValueStr] = struct{}{}
+			if measureAgg.ValueColRequest.BooleanExpr != nil {
+				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("ComputeAggEvalForCardinality: there are some errors in the eval function that is inside the cardinality function: %v", err)
+				}
+				if boolResult {
+					result = 1
+				}
+			} else {
+				cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("ComputeAggEvalForCardinality: there are some errors in the eval function that is inside the cardinality function: %v", err)
+				}
+				strSet[cellValueStr] = struct{}{}
+				result = len(strSet)
+			}	
+		}
 	}
 
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_SIGNED_NUM,
-		CVal:  int64(len(strSet)),
+		CVal:  int64(result),
 	}
 
 	return nil
@@ -496,37 +500,44 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+	
 	if len(fields) == 0 {
-		return fmt.Errorf("ComputeAggEvalForValues: Incorrect number of fields for aggCol: %v", measureAgg.String())
-	}
-
-	sst, ok := sstMap[fields[0]]
-	if !ok {
-		return fmt.Errorf("ComputeAggEvalForValues: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
-	}
-
-	length := len(sst.Records)
-	for i := 0; i < length; i++ {
-		fieldToValue := make(map[string]utils.CValueEnclosure)
-		// Initialize fieldToValue
-		for _, field := range fields {
-			sst, ok := sstMap[field]
-			if !ok {
-				return fmt.Errorf("ComputeAggEvalForValues: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
-			}
-
-			if i >= len(sst.Records) {
-				return fmt.Errorf("ComputeAggEvalForValues: Incorrect length of field: %v for aggCol: %v", field, measureAgg.String())
-			}
-			fieldToValue[field] = *sst.Records[i]
-		}
-
-		cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+			return fmt.Errorf("ComputeAggEvalForValues: Error while evaluating value col request function: %v", err)
+		}
+		strSet[valueStr] = struct{}{}
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForValues: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
 		}
 
-		strSet[cellValueStr] = struct{}{}
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+
+			if measureAgg.ValueColRequest.BooleanExpr != nil {
+				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+				}
+				if boolResult {
+					strSet["1"] = struct{}{}
+				}
+			} else {
+				cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+				}
+				strSet[cellValueStr] = struct{}{}
+			}	
+		}
 	}
 
 	uniqueStrings := make([]string, 0)
