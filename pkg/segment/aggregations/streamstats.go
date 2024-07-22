@@ -21,8 +21,11 @@ import (
 	"container/list"
 	"fmt"
 	"math"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -62,12 +65,28 @@ func InitRangeStat() *structs.RangeStat {
 	}
 }
 
-func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (float64, bool, error) {
-	result := ssResults.CurrResult
+func getValues[T any](valuesMap map[string]T) string {
+	uniqueStrings := make([]string, 0)
+	for str := range valuesMap {
+		uniqueStrings = append(uniqueStrings, str)
+	}
+	sort.Strings(uniqueStrings)
+	return strings.Join(uniqueStrings, "&nbsp")
+}
+
+func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}) (interface{}, bool, error) {
+	var result interface{}
+	if measureAgg == utils.Values && !ssOption.Current {
+		// getting values is expensive only do when required
+		result = getValues(ssResults.ValuesMap)
+	} else {
+		result = ssResults.CurrResult
+	}
+
 	valExist := ssResults.NumProcessedRecords > 0
 
 	if measureAgg == utils.Avg && valExist {
-		result = result / float64(ssResults.NumProcessedRecords)
+		result = ssResults.CurrResult / float64(ssResults.NumProcessedRecords)
 	}
 
 	switch measureAgg {
@@ -110,6 +129,19 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 			ssResults.RangeStat.Max = floatVal
 		}
 		ssResults.CurrResult = ssResults.RangeStat.Max - ssResults.RangeStat.Min
+	case utils.Cardinality:
+		strValue := fmt.Sprintf("%v", colValue)
+		if ssResults.CardinalityHLL == nil {
+			ssResults.CardinalityHLL = hyperloglog.New()
+		}
+		ssResults.CardinalityHLL.Insert([]byte(strValue))
+		ssResults.CurrResult = float64(ssResults.CardinalityHLL.Estimate())
+	case utils.Values:
+		strValue := fmt.Sprintf("%v", colValue)
+		if ssResults.ValuesMap == nil {
+			ssResults.ValuesMap = make(map[string]struct{}, 0)
+		}
+		ssResults.ValuesMap[strValue] = struct{}{}
 	default:
 		return 0.0, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -122,6 +154,9 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 
 	if measureAgg == utils.Avg {
 		return ssResults.CurrResult / float64(ssResults.NumProcessedRecords), true, nil
+	}
+	if measureAgg == utils.Values {
+		return getValues(ssResults.ValuesMap), true, nil
 	}
 
 	return ssResults.CurrResult, true, nil
@@ -144,6 +179,18 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 		ssResults.CurrResult -= floatVal
 	} else if measureAgg == utils.Count {
 		ssResults.CurrResult--
+	} else if measureAgg == utils.Cardinality || measureAgg == utils.Values {
+		strValue := fmt.Sprintf("%v", frontElement.Value)
+		_, exist := ssResults.CardinalityMap[strValue]
+		if exist {
+			ssResults.CardinalityMap[strValue]--
+			if ssResults.CardinalityMap[strValue] == 0 {
+				delete(ssResults.CardinalityMap, strValue)
+			}
+		} else {
+			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
+		}
+		ssResults.CurrResult = float64(len(ssResults.CardinalityMap))
 	}
 
 	window.Remove(window.Front())
@@ -247,9 +294,9 @@ func cleanTimeWindow(currTimestamp uint64, timeSortAsc bool, timeWindow *structs
 	return nil
 }
 
-func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (float64, bool, error) {
+func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) (interface{}, bool, error) {
 	if ssResults.Window.Len() == 0 {
-		return 0, false, nil
+		return 0.0, false, nil
 	}
 	switch measureAgg {
 	case utils.Count:
@@ -261,23 +308,27 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 	case utils.Min, utils.Max:
 		firstElementFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = firstElementFloatVal
 		return ssResults.CurrResult, true, nil
 	case utils.Range:
 		maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
 		if err != nil {
-			return 0.0, false, fmt.Errorf("performMeasureFunc: Error while getting float value from first window element, err: %v", err)
+			return 0.0, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
 		ssResults.CurrResult = maxFloatVal - minFloatval
 		return ssResults.CurrResult, true, nil
+	case utils.Cardinality:
+		return ssResults.CurrResult, true, nil
+	case utils.Values:
+		return getValues(ssResults.CardinalityMap), true, nil
 	default:
-		return 0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
+		return 0.0, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
 }
 
@@ -330,7 +381,7 @@ func manageMaxWindow(window *list.List, index int, newValue float64, timestamp u
 	return nil
 }
 
-func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (float64, error) {
+func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64) (interface{}, error) {
 	switch measureAgg {
 	case utils.Count:
 		ssResults.CurrResult++
@@ -392,6 +443,19 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 			return 0.0, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
 		}
 		ssResults.CurrResult = maxFloatVal - minFloatval
+	case utils.Cardinality, utils.Values:
+		if ssResults.CardinalityMap == nil {
+			ssResults.CardinalityMap = make(map[string]int, 0)
+		}
+		strValue := fmt.Sprintf("%v", colValue)
+		_, exist := ssResults.CardinalityMap[strValue]
+		if !exist {
+			ssResults.CardinalityMap[strValue] = 1
+		} else {
+			ssResults.CardinalityMap[strValue]++
+		}
+		ssResults.CurrResult = float64(len(ssResults.CardinalityMap))
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return 0.0, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -399,18 +463,22 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	if measureAgg == utils.Avg {
 		return ssResults.CurrResult / float64(ssResults.Window.Len()), nil
 	}
+	if measureAgg == utils.Values {
+		return getValues(ssResults.CardinalityMap), nil
+	}
 
 	return ssResults.CurrResult, nil
 }
 
 func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults,
 	windowSize int, measureAgg utils.AggregateFunctions, colValue interface{}, timestamp uint64,
-	timeSortAsc bool) (float64, bool, error) {
+	timeSortAsc bool) (interface{}, bool, error) {
 	var err error
-	result := ssResults.CurrResult
+	var result interface{}
+	result = ssResults.CurrResult
 	exist := ssResults.Window.Len() > 0
 	if exist && measureAgg == utils.Avg {
-		result = result / float64(ssResults.Window.Len())
+		result = ssResults.CurrResult / float64(ssResults.Window.Len())
 	}
 
 	if ssOption.TimeWindow != nil {
@@ -456,10 +524,10 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	return latestResult, true, nil
 }
 
-func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}, timestamp uint64, timeSortAsc bool) (float64, bool, error) {
+func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *structs.StreamStatsOptions, measureFuncIndex int, measureAgg *structs.MeasureAggregator, record map[string]interface{}, timestamp uint64, timeSortAsc bool) (interface{}, bool, error) {
 
 	var err error
-	var result float64
+	var result interface{}
 
 	colValue, exist := record[measureAgg.MeasureCol]
 	if !exist {
@@ -550,7 +618,7 @@ func PerformStreamStatOnSingleRecord(nodeResult *structs.NodeResult, agg *struct
 		if exist {
 			record[measureAgg.String()] = streamStatsResult
 		} else {
-			if measureAgg.MeasureFunc == utils.Count {
+			if measureAgg.MeasureFunc == utils.Count || measureAgg.MeasureFunc == utils.Cardinality {
 				record[measureAgg.String()] = 0.0
 			} else {
 				record[measureAgg.String()] = ""
@@ -748,8 +816,12 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 					}
 				} else {
 					if streamStatsResult != "" {
+						dataType := utils.SS_DT_FLOAT
+						if measureAgg.MeasureFunc == utils.Values {
+							dataType = utils.SS_DT_STRING
+						}
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
-							Dtype: utils.SS_DT_FLOAT,
+							Dtype: dataType,
 							CVal:  streamStatsResult,
 						}
 					} else {

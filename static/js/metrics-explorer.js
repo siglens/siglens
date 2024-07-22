@@ -41,16 +41,16 @@ let selectedStroke = 'Normal';
 let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
-
-// Theme
-let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
-let purple = ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'];
-let cool = ['#cce9be', '#a5d9b6', '#89c4c2', '#6cabc9', '#5491c8', '#4078b1', '#2f5a9f', '#213e7d'];
-let green = ['#d0ebc2', '#c4eab7', '#aed69e', '#87c37d', '#5daa64', '#45884a', '#2e6a34', '#1a431f'];
-let warm = ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'];
-let orange = ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'];
-let gray = ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'];
-let palette = ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'];
+var colorPalette = {
+    Classic: ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'],
+    Purple: ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'],
+    Cool: ['#cce9be', '#a5d9b6', '#89c4c2', '#6cabc9', '#5491c8', '#4078b1', '#2f5a9f', '#213e7d'],
+    Green: ['#d0ebc2', '#c4eab7', '#aed69e', '#87c37d', '#5daa64', '#45884a', '#2e6a34', '#1a431f'],
+    Warm: ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'],
+    Orange: ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'],
+    Gray: ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'],
+    Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f']
+};
 
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
@@ -583,10 +583,7 @@ async function addQueryElement() {
     setupQueryElementEventListeners(queryElement);
     queryIndex++;
 
-    // Apply stored settings to the new query element
-    await handleQueryAndVisualize(nextQueryName, queries[nextQueryName]);
-    updateChartTheme(selectedTheme);
-    updateLineCharts(selectedLineStyle, selectedStroke);
+
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -1008,8 +1005,8 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
             return {
                 label: series.seriesName,
                 data: series.values,
-                borderColor: classic[index % classic.length],
-                backgroundColor: classic[index % classic.length] + '70',
+                borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
+                backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
                 borderWidth: 2,
                 fill: false,
             };
@@ -1031,18 +1028,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
     const { gridLineColor, tickColor } = getGraphGridColors();
-    var colorPalette = {
-        Classic: classic,
-        Purple: purple,
-        Cool: cool,
-        Green: green,
-        Warm: warm,
-        Orange: orange,
-        Gray: gray,
-        Palette: palette,
-    };
-    var selectedPalette = colorPalette[selectedTheme] || classic;
-
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1188,6 +1174,9 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         mergeGraphs(chartType);
     }
     addToFormulaCache(queryName, queryString);
+    // Apply stored settings to the new query element
+    updateChartTheme(selectedTheme);
+    updateLineCharts(selectedLineStyle, selectedStroke);
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1305,40 +1294,34 @@ $('#color-input')
         $(this).select();
     });
 
-function updateChartTheme(theme) {
-    selectedTheme = theme; // Store the selected theme
-    const colorPalette = {
-        Classic: classic,
-        Purple: purple,
-        Cool: cool,
-        Green: green,
-        Warm: warm,
-        Orange: orange,
-        Gray: gray,
-        Palette: palette,
-    };
+    function updateChartTheme(theme) {
+        selectedTheme = theme; // Store the selected theme
+        var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
 
-    var selectedPalette = colorPalette[theme] || classic;
-    // Loop through each chart data
-    for (var queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            var chartData = chartDataCollection[queryName];
-            chartData.datasets.forEach(function (dataset, index) {
+        // Loop through each chart data
+        for (var queryName in chartDataCollection) {
+            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+                var chartData = chartDataCollection[queryName];
+                chartData.datasets.forEach(function (dataset, index) {
+                    dataset.borderColor = selectedPalette[index % selectedPalette.length];
+                    dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                });
+    
+                var lineChart = lineCharts[queryName];
+                if (lineChart) {
+                    lineChart.update();
+                }
+            }
+        }
+    
+        if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
+            mergedGraph.data.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
             });
-
-            var lineChart = lineCharts[queryName];
-            lineChart.update();
+            mergedGraph.update();
         }
     }
-
-    mergedGraph.data.datasets.forEach(function (dataset, index) {
-        dataset.borderColor = selectedPalette[index % selectedPalette.length];
-        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
-    });
-    mergedGraph.update();
-}
 
 var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
 var strokeOptions = ['Normal', 'Thin', 'Thick'];
@@ -1403,15 +1386,20 @@ function updateLineCharts(lineStyle, stroke) {
             });
 
             var lineChart = lineCharts[queryName];
-            lineChart.update();
+            if (lineChart) {
+                lineChart.update();
+            }
         }
     }
-    mergedGraph.data.datasets.forEach(function (dataset) {
-        dataset.borderDash = lineStyle === 'Dash' ? [5, 5] : lineStyle === 'Dotted' ? [1, 3] : [];
-        dataset.borderWidth = stroke === 'Thin' ? 1 : stroke === 'Thick' ? 3 : 2;
-    });
 
-    mergedGraph.update();
+    if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
+        mergedGraph.data.datasets.forEach(function (dataset) {
+            dataset.borderDash = lineStyle === 'Dash' ? [5, 5] : lineStyle === 'Dotted' ? [1, 3] : [];
+            dataset.borderWidth = stroke === 'Thin' ? 1 : stroke === 'Thick' ? 3 : 2;
+        });
+
+        mergedGraph.update();
+    }
 }
 function convertToCSV(obj) {
     let csv = 'Queries, Timestamp, Value\n';
@@ -1642,6 +1630,7 @@ function mergeGraphs(chartType, panelId = -1) {
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
+
 
 const shouldShowLegend = (panelId, datasets) => {
     return panelId === -1 || datasets.length < 5;
