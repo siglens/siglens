@@ -151,7 +151,93 @@ function getUrlParameter(name) {
     let results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
+let formulaDetailsMap = {};
+async function initializeFormulaFunction(formulaElement, uniqueId) {
+    formulaDetailsMap[uniqueId] = {
+        formula: '',
+        queryNames: [],
+        functions: [],
+    };
 
+    formulaElement
+        .find('#functions-search-box-formula')
+        .autocomplete({
+            source: allFunctions.map(function (item) {
+                return item.name;
+            }),
+            minLength: 0,
+            select: async function (event, ui) {
+                var selectedFunction = allFunctions.find(function (item) {
+                    return item.name === ui.item.value;
+                });
+                var formulaDetails = formulaDetailsMap[uniqueId];
+
+                // Check if the selected function is already in formulaDetails.functions
+                var indexToRemove = formulaDetails.functions.indexOf(selectedFunction.fn);
+                if (indexToRemove !== -1) {
+                    formulaDetails.functions.splice(indexToRemove, 1); // Remove it
+                    $(this)
+                        .closest('.formula-box')
+                        .find('.selected-function-formula:contains(' + selectedFunction.fn + ')')
+                        .remove();
+                }
+
+                formulaDetails.functions.push(selectedFunction.fn);
+                appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
+                let formula = formulaElement.find('.formula').val().trim();
+                let validationResult = validateFormula(formula, uniqueId);
+
+                if (validationResult !== false) {
+                    await getMetricsDataForFormula(uniqueId, validationResult);
+                }
+                $(this).val('');
+            },
+            classes: {
+                'ui-autocomplete': 'metrics-ui-widget',
+            },
+        })
+        .on('click', function () {
+            if ($(this).autocomplete('widget').is(':visible')) {
+                $(this).autocomplete('close');
+            } else {
+                $(this).autocomplete('search', '');
+            }
+        })
+        .on('click', function () {
+            $(this).select();
+        });
+
+    $('.all-selected-functions-formula').on('click', '.selected-function-formula .close', async function () {
+        var fnToRemove = $(this)
+            .parent('.selected-function-formula')
+            .contents()
+            .filter(function () {
+                return this.nodeType === 3;
+            })
+            .text()
+            .trim();
+
+        var formulaDetails = formulaDetailsMap[uniqueId];
+        var indexToRemove = formulaDetails.functions.indexOf(fnToRemove);
+        if (indexToRemove !== -1) {
+            formulaDetails.functions.splice(indexToRemove, 1);
+        }
+        $(this).parent('.selected-function-formula').remove();
+
+        // Get the updated formula and validate it
+        let formula = formulaElement.find('.formula').val().trim();
+        let validationResult = validateFormula(formula, uniqueId);
+
+        // If the validation passes, call the getMetricsDataForFormula with the updated details
+        if (validationResult !== false) {
+            await getMetricsDataForFormula(uniqueId, validationResult);
+        }
+    });
+}
+function appendFormulaFunctionDiv(formulaElement, fnName) {
+    var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
+    formulaElement.find('.all-selected-functions-formula').append(newDiv);
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     resetCustomDateRange();
@@ -176,8 +262,13 @@ $('#add-formula').on('click', function () {
         addMetricsFormulaElement();
     }
 });
-function addToFormulaCache(formulaId, formulaName) {
-    formulaCache.push({ formulaId, formulaName });
+function addOrUpdateFormulaCache(formulaId, formulaName, formulaDetails) {
+    let existingIndex = formulaCache.findIndex((item) => item.formulaId === formulaId);
+    if (existingIndex !== -1) {
+        formulaCache[existingIndex] = { formulaId, formulaName, formulaDetails };
+    } else {
+        formulaCache.push({ formulaId, formulaName, formulaDetails });
+    }
 }
 $('.refresh-btn').on('click', refreshMetricsGraphs);
 
@@ -226,6 +317,32 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             formulaElement.remove();
             removeVisualizationContainer(uniqueId);
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
+    });
+    formulaElement.find('.show-functions-formula').on('click', function () {
+        event.stopPropagation();
+        var inputField = formulaElement.find('#functions-search-box-formula');
+        var optionsContainer = formulaElement.find('.options-container-formula');
+        var isContainerVisible = optionsContainer.is(':visible');
+
+        if (!isContainerVisible) {
+            optionsContainer.show();
+            inputField.val('');
+            inputField.focus();
+            inputField.autocomplete('search', '');
+        } else {
+            optionsContainer.hide();
+        }
+    });
+
+    // Hide the functions dropdown
+    $('body').on('click', function (event) {
+        var optionsContainer = formulaElement.find('.options-container-formula');
+        var showFunctionsButton = formulaElement.find('.show-functions-formula');
+
+        // Check if the clicked element is not part of the options container or the show-functions button
+        if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
+            optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
     });
 }
