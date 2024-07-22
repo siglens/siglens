@@ -16,112 +16,111 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+'use strict';
 let panelGridDiv = null;
-let panelGridOptions;
-let panelLogsColumnDefs;
+let panelID = null;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
-function getGridPanelRows() {
-    // initial dataset
-    let panelLogsRowData = [];
-    return panelLogsRowData;
-}
-function getGridPanelCols() {
-    // initial columns
-    panelLogsColumnDefs = [
-        {
-            field: 'timestamp',
-            headerName: 'timestamp',
-            editable: true,
-            cellEditor: ReadOnlyCellEditor,
-            cellEditorPopup: true,
-            cellEditorPopupPosition: 'under',
-            cellRenderer: (params) => {
-                return moment(params.value).format(timestampDateFmt);
-            },
-            cellEditorParams: cellEditorParams,
-            maxWidth: 250,
-            minWidth: 250,
-            sort: 'desc',
+let panelLogsColumnDefs = [
+    {
+        field: 'timestamp',
+        headerName: 'timestamp',
+        editable: true,
+        cellEditor: ReadOnlyCellEditor,
+        cellEditorPopup: true,
+        cellEditorPopupPosition: 'under',
+        cellRenderer: (params) => {
+            return moment(params.value).format(timestampDateFmt);
         },
-        {
-            field: 'logs',
-            headerName: 'logs',
-            cellRenderer: (params) => {
-                let logString = '';
-                let counter = 0;
+        cellEditorParams: cellEditorParams,
+        maxWidth: 250,
+        minWidth: 250,
+        sort: 'desc',
+    },
+    {
+        field: 'logs',
+        headerName: 'logs',
+        cellRenderer: (params) => {
+            let logString = '';
+            let counter = 0;
 
-                _.forEach(params.data, (value, key) => {
-                    let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+            _.forEach(params.data, (value, key) => {
+                let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
 
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                    counter++;
-                });
-                return logString;
-            },
+                logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
+                counter++;
+            });
+            return logString;
         },
-    ];
-    return panelLogsColumnDefs;
-}
+    },
+];
 
-// let the grid know which columns and what data to use
-function getPanelGridOptions() {
-    panelGridOptions = {
-        columnDefs: getGridPanelCols(),
-        rowData: getGridPanelRows(),
-        animateRows: true,
-        readOnlyEdit: true,
-        singleClickEdit: true,
-        rowHeight: 35,
-        defaultColDef: {
-            initialWidth: 100,
-            sortable: true,
-            resizable: true,
-            minWidth: 200,
-            icons: {
-                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
-                sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-            },
-        },
+var panelLogsRowData = [];
+const panelGridOptions = {
+    columnDefs: panelLogsColumnDefs,
+    rowData: panelLogsRowData,
+    animateRows: true,
+    readOnlyEdit: true,
+    singleClickEdit: true,
+    rowHeight: 35,
+    defaultColDef: {
+        initialWidth: 100,
+        sortable: true,
+        resizable: true,
+        minWidth: 200,
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
-        enableCellTextSelection: true,
-        suppressScrollOnNewData: true,
-        suppressAnimationFrame: true,
-        suppressFieldDotNotation: true,
-        onBodyScroll(evt) {
-            if (evt.direction === 'vertical' && canScrollMore == true) {
-                let diff = getGridPanelRows().length - evt.api.getLastDisplayedRow();
-                // if we're less than 1 items from the end...fetch more data
-                if (diff <= 5) {
-                    let scrollingTrigger = true;
-                    data = getQueryParamsData(scrollingTrigger);
-                    runPanelLogsQuery(data);
-                }
+    },
+    icons: {
+        sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+        sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+    },
+    enableCellTextSelection: true,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: true,
+    suppressFieldDotNotation: true,
+    onBodyScroll(evt) {
+        if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
+            let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
+            if (diff <= 1) {
+                let scrollingTrigger = true;
+                data = getQueryParamsData(scrollingTrigger);                
+                isFetching = true;  
+
+                runPanelLogsQuery(data,panelID,currentPanel)
+                .then(() => {
+                    isFetching = false;
+                })
+                .catch((error) => {
+                    console.warn("Error fetching data", error);
+                    isFetching = false;
+                })
+                .finally(() => {
+                    isFetching = false;
+                });
             }
-        },
-    };
-    return panelGridOptions;
+        }
+    },
+    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
 }
 //eslint-disable-next-line no-unused-vars
-function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
+function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
+    panelID=panelId;
     $(`.panelDisplay .big-number-display-container`).hide();
-    let panelLogsRowData = getGridPanelRows();
-    let panelLogsColumnDefs = getGridPanelCols();
-    let panelGridOptions = getPanelGridOptions();
     let logLinesViewType = currentPanel.logLinesViewType;
 
-    if (panelId == -1)
-        // for panel on the editPanelScreen page
+    if(panelId == -1 && panelGridDiv==null) // for panel on the editPanelScreen page
+    {
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
-    // for panels on the dashboard page
-    else panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-    //eslint-disable-next-line no-undef
-    new agGrid.Grid(panelGridDiv, panelGridOptions);
+        new agGrid.Grid(panelGridDiv, panelGridOptions);
+    }
+    if(panelId!=-1){
+        panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+        new agGrid.Grid(panelGridDiv, panelGridOptions);
+    }
 
     let cols = columnOrder.map((colName, index) => {
         let hideCol = false;
@@ -359,4 +358,13 @@ function toggleAllAvailableFieldsHandler(_evt) {
     panelGridOptions.columnApi.setColumnVisible('logs', false);
 
     updatedSelFieldList = true;
+}
+function scrollingErrorPopup(){
+    $('.popupOverlay').addClass('active');
+    $('#error-popup.popupContent').addClass('active');
+
+    $('#okay-button').on('click', function(){
+        $('.popupOverlay').removeClass('active');
+        $('#error-popup.popupContent').removeClass('active');
+    });
 }
