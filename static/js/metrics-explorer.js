@@ -49,7 +49,7 @@ var colorPalette = {
     Warm: ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'],
     Orange: ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'],
     Gray: ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'],
-    Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f']
+    Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
 // Function to check if CSV can be downloaded
@@ -582,8 +582,6 @@ async function addQueryElement() {
     updateCloseIconVisibility();
     setupQueryElementEventListeners(queryElement);
     queryIndex++;
-
-
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -1294,34 +1292,34 @@ $('#color-input')
         $(this).select();
     });
 
-    function updateChartTheme(theme) {
-        selectedTheme = theme; // Store the selected theme
-        var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+function updateChartTheme(theme) {
+    selectedTheme = theme; // Store the selected theme
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
 
-        // Loop through each chart data
-        for (var queryName in chartDataCollection) {
-            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-                var chartData = chartDataCollection[queryName];
-                chartData.datasets.forEach(function (dataset, index) {
-                    dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                    dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
-                });
-    
-                var lineChart = lineCharts[queryName];
-                if (lineChart) {
-                    lineChart.update();
-                }
+    // Loop through each chart data
+    for (var queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            var chartData = chartDataCollection[queryName];
+            chartData.datasets.forEach(function (dataset, index) {
+                dataset.borderColor = selectedPalette[index % selectedPalette.length];
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+            });
+
+            var lineChart = lineCharts[queryName];
+            if (lineChart) {
+                lineChart.update();
             }
         }
-    
-        if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
-            mergedGraph.data.datasets.forEach(function (dataset, index) {
-                dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
-            });
-            mergedGraph.update();
-        }
     }
+
+    if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
+        mergedGraph.data.datasets.forEach(function (dataset, index) {
+            dataset.borderColor = selectedPalette[index % selectedPalette.length];
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+        });
+        mergedGraph.update();
+    }
+}
 
 var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
 var strokeOptions = ['Normal', 'Thin', 'Thick'];
@@ -1630,7 +1628,6 @@ function mergeGraphs(chartType, panelId = -1) {
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
-
 
 const shouldShowLegend = (panelId, datasets) => {
     return panelId === -1 || datasets.length < 5;
