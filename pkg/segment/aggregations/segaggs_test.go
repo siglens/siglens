@@ -2736,19 +2736,16 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+	optionValue := []bool{true, false}
 
-	ssOption.Global = false
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
 
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
-
-	ssOption.Current = false
-
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
-
-	ssOption.Global = true
-
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+			WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+		}
+	}
 }
 
 func Test_Time_Window(t *testing.T) {
@@ -2803,19 +2800,16 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax, expectedValuesCardinality}
 	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin, expectedValuesCardinality}
 
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+	optionValue := []bool{true, false}
 
-	ssOption.Global = false
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
 
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
-
-	ssOption.Current = false
-
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
-
-	ssOption.Global = true
-
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+			NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+		}
+	}
 }
 
 func Test_Cardinality(t *testing.T) {
@@ -2836,28 +2830,17 @@ func Test_Cardinality(t *testing.T) {
 	expectedPrimaryLen := [][]int{expectedLen}
 	expectedSecondaryLen := [][]int{expectedNilLen}
 
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+	optionSettings := []bool{true, false}
 
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+	for i := 0; i < len(optionSettings); i++ {
+		for j := 0; j < len(optionSettings); j++ {
+			ssOption.Current = optionSettings[i]
+			ssOption.Global = optionSettings[j]
 
-	ssOption.Current = false
-
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
-
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
-
-	ssOption.Global = false
-
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
-
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
-
-	ssOption.Current = true
-
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
-
-	NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
-
+			WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+			NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+		}
+	}
 }
 
 func createStringsWithNbsp(collection []interface{}) string {
@@ -2897,25 +2880,16 @@ func Test_Values(t *testing.T) {
 		Global:  true,
 	}
 
-	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+	optionValue := []bool{true, false}
 
-	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
 
-	ssOption.Current = false
+			StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
+			StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+		}
+	}
 
-	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
-
-	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
-
-	ssOption.Global = false
-
-	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
-
-	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
-
-	ssOption.Current = true
-
-	StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
-
-	StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
 }
