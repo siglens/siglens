@@ -36,7 +36,7 @@ import (
 )
 
 var defaultDashboardIds map[string]struct{}
-var defaultDashboardNames map[string]bool
+var defaultDashboardNames map[string]struct{}
 
 var allidsBaseFname string
 var allDashIdsLock map[uint64]*sync.Mutex = make(map[uint64]*sync.Mutex)
@@ -134,7 +134,7 @@ func getDefaultDashboardFileName() string {
 func InitDashboards() error {
 	var sb strings.Builder
 
-	defaultDashboardNames = make(map[string]bool)
+	defaultDashboardNames = make(map[string]struct{})
 
 	// Read the JSON file
 	jsonData, err := os.ReadFile(getDefaultDashboardFileName())
@@ -153,7 +153,7 @@ func InitDashboards() error {
 
 	// Iterate over the parsed data and save dashboard names
 	for _, name := range dashboards {
-		defaultDashboardNames[name] = true
+		defaultDashboardNames[name] = struct{}{}
 	}
 
 	defaultDashboardIds = make(map[string]struct{})
