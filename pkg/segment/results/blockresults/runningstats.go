@@ -19,8 +19,10 @@ package blockresults
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/axiomhq/hyperloglog"
+	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -35,8 +37,10 @@ type RunningBucketResults struct {
 }
 
 type runningStats struct {
-	rawVal utils.CValueEnclosure // raw value
-	hll    *hyperloglog.Sketch
+	rawVal    utils.CValueEnclosure // raw value
+	hll       *hyperloglog.Sketch
+	rangeStat *structs.RangeStat
+	avgStat   *structs.AvgStat
 }
 
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
@@ -44,6 +48,10 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 	for i := 0; i < len(internalMeasureFns); i++ {
 		if internalMeasureFns[i].MeasureFunc == utils.Cardinality {
 			retVal[i] = runningStats{hll: hyperloglog.New()}
+		} else if internalMeasureFns[i].MeasureFunc == utils.Avg {
+			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
+		} else if internalMeasureFns[i].MeasureFunc == utils.Range {
+			retVal[i] = runningStats{rangeStat: agg.InitRangeStat()}
 		}
 	}
 	return retVal
@@ -82,14 +90,26 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 	for i := 0; i < len(*runningStats); i++ {
 		switch rr.currStats[i].MeasureFunc {
 		case utils.Sum:
-			fallthrough
+			step, err := rr.AddEvalResultsForSum(runningStats, measureResults, i)
+			if err != nil {
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for sum, err: %v", err)
+			}
+			i += step
+		case utils.Avg:
+			step, err := rr.AddEvalResultsForAvg(runningStats, measureResults, i)
+			if err != nil {
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for avg, err: %v", err)
+			}
+			i += step
 		case utils.Max:
 			fallthrough
 		case utils.Min:
-			err := rr.AddEvalResultsForMinOrMaxOrSum(runningStats, measureResults, i)
+			isMin := rr.currStats[i].MeasureFunc == utils.Min
+			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isMin)
 			if err != nil {
 				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for min/max/sum, err: %v", err)
 			}
+			i += step
 		case utils.Count:
 			step, err := rr.AddEvalResultsForCount(runningStats, measureResults, i, usedByTimechart, cnt)
 			if err != nil {
@@ -161,6 +181,30 @@ func (rr *RunningBucketResults) MergeRunningBuckets(toJoin *RunningBucketResults
 func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, toJoinRunningStats []runningStats) {
 	for i := 0; i < len(toJoinRunningStats); i++ {
 		switch rr.currStats[i].MeasureFunc {
+		case utils.Sum, utils.Min, utils.Max:
+			if rr.currStats[i].ValueColRequest == nil {
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' while ValueColRequest is nil, err: %v", err)
+				}
+			} else {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
+				err := rr.ProcessReduceForEval(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' err: %v", err)
+				}
+				i += (len(fields) - 1)
+			}
+		case utils.Avg:
+			if rr.currStats[i].ValueColRequest != nil {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
+				currAvgStat := (*runningStats)[i].avgStat
+				currAvgStat.Sum += toJoinRunningStats[i].avgStat.Sum
+				currAvgStat.Count += toJoinRunningStats[i].avgStat.Count
+				i += (len(fields) - 1)
+			} else {
+				log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'avg' while ValueColRequest is nil")
+			}
 		case utils.Values:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
@@ -222,28 +266,177 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e ut
 	return nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForMinOrMaxOrSum(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) error {
+func GetMinMaxString(str1 string, str2 string, isMin bool) string {
+	if isMin {
+		if str1 < str2 {
+			return str1
+		}
+		return str2
+	} else {
+		if str1 > str2 {
+			return str1
+		}
+		return str2
+	}
+}
+
+func ReduceMinMax(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
+	if e1.Dtype == e2.Dtype {
+		if e1.Dtype == utils.SS_DT_FLOAT {
+			if isMin {
+				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			} else {
+				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			}
+		} else if e1.Dtype == utils.SS_DT_STRING {
+			return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
+		} else {
+			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtypes: %v, %v", e1.Dtype, e2.Dtype)
+		}
+	} else {
+		if e1.Dtype == utils.SS_DT_FLOAT {
+			return e1, nil
+		} else if e2.Dtype == utils.SS_DT_FLOAT {
+			return e2, nil
+		} else {
+			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
+		}
+	}
+}
+
+func ReduceForEval(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, fun utils.AggregateFunctions) (utils.CValueEnclosure, error) {
+	if e1.Dtype == utils.SS_INVALID {
+		return e2, nil
+	} else if e2.Dtype == utils.SS_INVALID {
+		return e1, nil
+	}
+
+	switch fun {
+	case utils.Sum:
+		if e1.Dtype != e2.Dtype || e1.Dtype != utils.SS_DT_FLOAT {
+			return e1, fmt.Errorf("ReduceForEval: unsupported CVal Dtype: %v", e1.Dtype)
+		}
+		return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+	case utils.Min:
+		return ReduceMinMax(e1, e2, true)
+	case utils.Max:
+		return ReduceMinMax(e1, e2, false)
+	case utils.Count:
+		if e1.Dtype != e2.Dtype || e1.Dtype != utils.SS_DT_FLOAT {
+			return e1, fmt.Errorf("ReduceForEval: unsupported CVal Dtype: %v", e1.Dtype)
+		}
+		return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+	default:
+		return e1, fmt.Errorf("ReduceForEval: unsupported function: %v", fun)
+	}
+}
+
+func (rr *RunningBucketResults) ProcessReduceForEval(runningStats *[]runningStats, e utils.CValueEnclosure, i int) error {
+	retVal, err := ReduceForEval((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
+	if err != nil {
+		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
+	} else {
+		(*runningStats)[i].rawVal = retVal
+	}
+	return nil
+}
+
+func PopulateFieldToValueFromMeasureResults(fields []string, measureResults []utils.CValueEnclosure, index int) map[string]utils.CValueEnclosure {
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+	for _, field := range fields {
+		fieldToValue[field] = measureResults[index]
+		index++
+	}
+	return fieldToValue
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
-		return rr.ProcessReduce(runningStats, measureResults[i], i)
+		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
+	}
+	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+	index := i
+	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
+	for _, field := range fields {
+		fieldToValue[field] = measureResults[index]
+		index++
+	}
+	result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+	}
+	(*runningStats)[i].rawVal = result
+
+	return len(fields) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
+	}
+	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+	index := i
+	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
+	for _, field := range fields {
+		fieldToValue[field] = measureResults[index]
+		index++
+	}
+	result, err := agg.PerformEvalAggForAvg(rr.currStats[i], 1, exists, *(*runningStats)[i].avgStat, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+	}
+	(*runningStats)[i].avgStat = &result
+
+	return len(fields) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, isMin bool) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
+	}
+	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+	index := i
+	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
+	for _, field := range fields {
+		fieldToValue[field] = measureResults[index]
+		index++
+	}
+	result, err := agg.PerformEvalAggForMinOrMax(rr.currStats[i], exists, (*runningStats)[i].rawVal, fieldToValue, isMin)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+	}
+	(*runningStats)[i].rawVal = result
+
+	return len(fields) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForMinOrMaxOrSum(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
 
 	fields := rr.currStats[i].ValueColRequest.GetFields()
-	if len(fields) != 1 {
-		return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: Incorrect number of fields (expected: 1, actual: %v) for aggCol: %v", len(fields), rr.currStats[i].String())
-	}
-	fieldToValue := make(map[string]utils.CValueEnclosure)
-	fieldToValue[fields[0]] = measureResults[i]
-	boolResult, err := rr.currStats[i].ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-	if err != nil {
-		return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: there are some errors in the eval function that is inside the min/max/sum function, err: %v", err)
-	}
-	if boolResult {
-		err := rr.ProcessReduce(runningStats, measureResults[i], i)
-		if err != nil {
-			return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: err: %v", err)
-		}
-	}
-	return nil
+	// if len(fields) != 1 {
+	// 	return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: Incorrect number of fields (expected: 1, actual: %v) for aggCol: %v", len(fields), rr.currStats[i].String())
+	// }
+	// // fieldToValue := make(map[string]utils.CValueEnclosure)
+	// // index := i
+	// // exists := (*runningStats)[i].rawVal.Dtype == utils.SS_DT_FLOAT
+	// // for _, field := range fields {
+	// // 	fieldToValue[field] = measureResults[index]
+	// // 	index++
+	// // }
+	// // fieldToValue[fields[0]] = measureResults[i]
+	// result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+	// }
+	// (*runningStats)[i].rawVal = result
+
+	return len(fields) - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, usedByTimechart bool, cnt uint64) (int, error) {

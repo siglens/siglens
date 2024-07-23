@@ -126,7 +126,7 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	var err error
-	
+
 	if len(fields) == 0 {
 		enclosure, exists := measureResults[measureAgg.String()]
 		if !exists {
@@ -145,7 +145,7 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 		length := len(sst.Records)
 		for i := 0; i < length; i++ {
 			enclosure, exists := measureResults[measureAgg.String()]
-			
+
 			fieldToValue = make(map[string]utils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
@@ -170,8 +170,6 @@ func UpdateRangeStat(floatValue float64, rangeStat *structs.RangeStat) {
 		rangeStat.Max = floatValue
 	}
 }
-
-
 
 func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, exists bool, currRangeStat structs.RangeStat, fieldToValue map[string]utils.CValueEnclosure) (structs.RangeStat, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
@@ -395,7 +393,6 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-
 func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64, exists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
 	finalResult := utils.CValueEnclosure{
@@ -437,7 +434,6 @@ func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64,
 	return finalResult, nil
 }
 
-
 func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 
@@ -464,7 +460,7 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForCount: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-			
+
 			currResult, exists := measureResults[measureAgg.String()]
 			result, err := PerformEvalAggForCount(measureAgg, uint64(length), exists, currResult, fieldToValue)
 			if err != nil {
@@ -483,7 +479,7 @@ func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, e
 		Sum:   float64(0),
 		Count: int64(0),
 	}
-	
+
 	if len(fields) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute avg if constant is not numeric
@@ -596,7 +592,7 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 				return 0.0, fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
 			}
 			strSet[cellValueStr] = struct{}{}
-		}	
+		}
 	}
 
 	return float64(len(strSet)), nil
@@ -654,7 +650,7 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	
+
 	if len(fields) == 0 {
 		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
 		if err != nil {
@@ -756,6 +752,27 @@ func AddMeasureAggInRunningStatsForAvg(m *structs.MeasureAggregator, allConverte
 	return idx, nil
 }
 
+func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, measureFunc utils.AggregateFunctions, allReverseIndex *[]int, colToIdx map[string][]int, idx int) int {
+	fields := m.ValueColRequest.GetFields()
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     measureFunc,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx
+}
+
 // Record the index of range() in runningStats; the index is idx
 // To calculate the range(), we need both the min() and max(), which require two columns to store them
 // Since it is the runningStats not the stats for results, we can use one extra col to store the min/max
@@ -793,6 +810,8 @@ func AddMeasureAggInRunningStatsForRange(m *structs.MeasureAggregator, allConver
 		StrEnc:          m.StrEnc,
 	})
 	idx++
+	// idx = SetupMeasureAgg(m, allConvertedMeasureOps, utils.Min, allReverseIndex, colToIdx, idx)
+	// idx = SetupMeasureAgg(m, allConvertedMeasureOps, utils.Max, allReverseIndex, colToIdx, idx)
 
 	return idx, nil
 }

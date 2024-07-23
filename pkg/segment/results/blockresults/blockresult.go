@@ -134,26 +134,38 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
 		case utils.Sum:
-			fallthrough
+			if m.ValueColRequest != nil {
+				idx = aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Sum, &allReverseIndex, colToIdx, idx)
+				continue
+			} else {
+				mFunc = utils.Sum
+			}
 		case utils.Max:
-			fallthrough
+			if m.ValueColRequest != nil {
+				idx = aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Max, &allReverseIndex, colToIdx, idx)
+				continue
+			} else {
+				mFunc = utils.Max
+			}
 		case utils.Min:
 			if m.ValueColRequest != nil {
-				fields := m.ValueColRequest.GetFields()
-				if len(fields) != 1 {
-					log.Errorf("convertRequestToInternalStats: Incorrect number of fields for aggCol: %v", m.String())
-					continue
-				}
-				measureColStr = fields[0]
+				idx = aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Min, &allReverseIndex, colToIdx, idx)
+				continue
+			} else {
+				mFunc = utils.Min
 			}
-			mFunc = m.MeasureFunc
 		case utils.Range:
-			curId, err := aggregations.AddMeasureAggInRunningStatsForRange(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
-			if err != nil {
-				log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for range, err: %v", err)
+			if m.ValueColRequest != nil {
+				idx = aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Range, &allReverseIndex, colToIdx, idx)
+				continue
+			} else {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForRange(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for range, err: %v", err)
+				}
+				idx = curId
+				continue
 			}
-			idx = curId
-			continue
 		case utils.Count:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
@@ -172,11 +184,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			continue
 		case utils.Avg:
 			if m.ValueColRequest != nil {
-				curId, err := aggregations.AddMeasureAggInRunningStatsForAvg(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
-				if err != nil {
-					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for avg, err: %v", err)
-				}
-				idx = curId
+				idx = aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Avg, &allReverseIndex, colToIdx, idx)
 				continue
 			} else {
 				if usedByTimechart {
@@ -620,31 +628,49 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 			idx++
 		case utils.Avg:
-			sumIdx := gb.reverseMeasureIndex[idx]
-			sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
-			if err != nil {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-				continue
-			}
-
 			var avg float64
-			if mInfo.ValueColRequest != nil || usedByTimechart {
-				countIdx := gb.reverseMeasureIndex[idx+1]
-				countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
+			if mInfo.ValueColRequest != nil {
+				sumVal := runningStats[idx].avgStat.Sum
+				countVal := runningStats[idx].avgStat.Count
+				if countVal == 0 {
+					avg = 0
+				} else {
+					avg = sumVal / float64(countVal)
+				}
+				eVal = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+			} else {
+				sumIdx := gb.reverseMeasureIndex[idx]
+				sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
 				if err != nil {
 					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
 					continue
 				}
-				eVal = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
-				idx += 2
-			} else {
-				if bucket.count == 0 {
-					avg = 0
+
+				if usedByTimechart {
+					sumIdx := gb.reverseMeasureIndex[idx]
+					sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
+					if err != nil {
+						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+						continue
+					}
+
+					countIdx := gb.reverseMeasureIndex[idx+1]
+					countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
+					if err != nil {
+						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+						continue
+					}
+					eVal = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
+					idx += 2
 				} else {
-					avg = sumRawVal / float64(bucket.count)
+					if bucket.count == 0 {
+						avg = 0
+					} else {
+						avg = sumRawVal / float64(bucket.count)
+					}
+					eVal = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+					idx++
 				}
-				eVal = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
-				idx++
 			}
 		case utils.Range:
 			minIdx := gb.reverseMeasureIndex[idx]
@@ -712,6 +738,10 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				CVal:  strVal,
 			}
 
+			idx++
+		case utils.Sum:
+			valIdx := gb.reverseMeasureIndex[idx]
+			eVal = runningStats[valIdx].rawVal
 			idx++
 		default:
 			valIdx := gb.reverseMeasureIndex[idx]
