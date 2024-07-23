@@ -3349,9 +3349,12 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
 				}
 				// Evaluate the condition expression to a value.
-				cellValueStr, err = letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
+				cellValue, err := letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
 				if err != nil {
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
+				}
+				if cellValue != nil {
+					cellValueStr = fmt.Sprintf("%v", cellValue)
 				}
 			case structs.VEMStringExpr:
 				cellValueStr, err = letColReq.ValueColRequest.EvaluateValueExprAsString(fieldToValue)

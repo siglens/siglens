@@ -4610,6 +4610,43 @@ func Test_evalFunctionsNullIf(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
+func Test_evalFunctionsNull(t *testing.T) {
+	query := []byte(`city=Boston | eval newField=null()`)
+	_, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "newField")
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "null")
+}
+
+func Test_evalFunctionsNullInAIf(t *testing.T) {
+	query := []byte(`city=Boston | eval newField=if(http_status = 200, null(), "OK")`)
+	_, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "newField")
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.ConditionExpr.Op, "null")
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "OK")
+}
+
 func Test_evalFunctionsIpMask(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY state | eval result=ipmask("255.255.255.0", clientip)`)
 	res, err := spl.Parse("", query)
