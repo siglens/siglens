@@ -32,7 +32,6 @@
   --edit-panel-dropdown-bg-color-hover:var(--black-2);
   --edit-panel-input-bg-focus:var(--black-1);
   --color-selector-active:var(--white-1);
-  --number-and-unit-color:var(--orange-1);
   --db-setting-option-selected:var(--black-4);
   --db-setting-option-text-selected:var(--white-1);
   --db-setting-placeholder:var(--black-5);
@@ -56,7 +55,6 @@
   --color-selector-active:var(--black-1);
   --edit-panel-input-bg-focus:var(--white-2);
   --db-setting-option-text-selected:var(--black-1);
-  --number-and-unit-color:var(--purple-1);
   --db-setting-option-selected:var(--white-8);
   --db-setting-placeholder:var(--black-6);
   --db-setting-text:var(--black-4);
@@ -590,7 +588,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--orange-1);
   font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);

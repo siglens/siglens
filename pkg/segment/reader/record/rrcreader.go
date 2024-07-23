@@ -27,9 +27,11 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -230,7 +232,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
 
-			numTotalSegments, err = query.GetTotalSegmentsToSearch(qid)
+			numTotalSegments, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
 				// For synchronous queries, the query is deleted by this
 				// point, but segmap has all the segments that the query
@@ -240,6 +242,28 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// query isn't deleted until all segments get processed, so
 				// we shouldn't get to this block for async queries.
 				numTotalSegments = uint64(len(segmap))
+				resultCount = len(allrrc)
+				rawSearchFinished = true
+			}
+			nodeRes.RawSearchFinished = rawSearchFinished
+			nodeRes.CurrentSearchResultCount = resultCount
+
+			if len(nodeRes.AllSearchColumnsByTimeRange) == 0 && aggs.AllColumnsByTimeRangeIsRequired() {
+				vTableNames, timeRange, orgid, err := query.GetSearchQueryInformation(qid)
+				if err != nil {
+					nodeRes.AllSearchColumnsByTimeRange = make(map[string]bool, 0)
+				}
+				nodeRes.AllSearchColumnsByTimeRange = metadata.GetColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
+				unrotatedCols := writer.GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
+				for col := range unrotatedCols {
+					if _, exists := nodeRes.AllSearchColumnsByTimeRange[col]; !exists {
+						nodeRes.AllSearchColumnsByTimeRange[col] = true
+					}
+				}
+				nodeRes.AllSearchColumnsByTimeRange = applyColNameTransform(nodeRes.AllSearchColumnsByTimeRange, aggs, make(map[string]int), qid)
+				for colName := range renameHardcodedColumns {
+					nodeRes.AllSearchColumnsByTimeRange[colName] = true
+				}
 			}
 
 			/**
