@@ -1047,7 +1047,7 @@ function getMetricsQData() {
     return { queriesData, formulasData };
 }
 
-
+//eslint-disable-next-line no-unused-vars
 function updateQueryModeUI(queryMode) {
     $('.query-mode-option').removeClass('active');
 
