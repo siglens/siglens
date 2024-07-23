@@ -752,9 +752,11 @@ func AddMeasureAggInRunningStatsForAvg(m *structs.MeasureAggregator, allConverte
 	return idx, nil
 }
 
-func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, measureFunc utils.AggregateFunctions, allReverseIndex *[]int, colToIdx map[string][]int, idx int) int {
+func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, measureFunc utils.AggregateFunctions, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 	fields := m.ValueColRequest.GetFields()
-
+	if len(fields) == 0 {
+		return 0, fmt.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for %v", measureFunc)
+	}
 	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
 	*allReverseIndex = append(*allReverseIndex, idx)
 	for _, field := range fields {
@@ -770,7 +772,7 @@ func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*st
 		})
 		idx++
 	}
-	return idx
+	return idx, nil
 }
 
 // Record the index of range() in runningStats; the index is idx
