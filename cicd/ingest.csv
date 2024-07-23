@@ -225,10 +225,9 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"311&nbsp312&nbsp410&nbsp510",Splunk QL
 "app_name=Bracecould | stats values(eval(if(http_status > 400, 100, ""abc""))) as values",now-1d,now,*,group:values:*,eq,"100&nbspabc",Splunk QL
 "app_name=Bracecould | stats values(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as values",now-1d,now,*,group:values:*,eq,"HEAD&nbspPATCH&nbspPUT",Splunk QL
-"city=Boston | stats avg(eval(if(http_status > 400, ""100"", ""10""))) as avg BY http_method",now-1d,now,*,group:match:GET,eq,44.5,Splunk QL
-"city=Boston | stats sum(eval(if(http_status > 400, ""100"", ""10""))) as sum BY http_method",now-1d,now,*,group:match:POST,eq,7510,Splunk QL
-"app_name=Bracecould | stats min(eval(if(http_status > 400, ""abc"", ""ABC""))) as min BY http_method",now-1d,now,*,group:match:HEAD,eq,"ABC",Splunk QL
-"app_name=Bracecould | stats max(eval(if(http_status > 400, ""abc"", ""ABC""))) as max BY http_method",now-1d,now,*,group:match:HEAD,eq,"abc",Splunk QL
-"city=Boston | stats range(eval(if(http_status > 400, latitude, longitude))) as range BY http_method",now-1d,now,*,group:match:PATCH,eq,357.742052,Splunk QL
-"app_name=Bracecould | stats count(eval(http_status > 300 AND http_method="PATCH")) as count BY http_method",now-1d,now,*,group:match:PATCH,eq,1,Splunk QL
-
+"city=Boston | stats avg(eval(if(http_status > 400, ""100"", ""10""))) as avg BY http_method",now-1d,now,*,group:avg:GET,eq,44.5,Splunk QL
+"city=Boston | stats sum(eval(if(http_status > 400, ""100"", ""10""))) as sum BY http_method",now-1d,now,*,group:sum:POST,eq,7510,Splunk QL
+"app_name=Bracecould | stats min(eval(if(http_status > 400, ""abc"", ""ABC""))) as min BY http_method",now-1d,now,*,group:min:HEAD,eq,"ABC",Splunk QL
+"app_name=Bracecould | stats max(eval(if(http_status > 400, ""abc"", ""ABC""))) as max BY http_method",now-1d,now,*,group:max:HEAD,eq,"abc",Splunk QL
+"city=Boston | stats range(eval(if(http_status > 400, latitude, longitude))) as range BY http_method",now-1d,now,*,group:range:PATCH,eq,357.742052,Splunk QL
+"app_name=Bracecould | stats count(eval(http_status > 300 AND http_method=""PATCH"")) as count BY http_method",now-1d,now,*,group:count:PATCH,eq,1,Splunk QL
