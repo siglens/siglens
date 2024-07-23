@@ -184,7 +184,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 		colReq := agg.OutputTransforms.OutputColumns
 		if colReq != nil {
-			err := performColumnsRequest(nodeResult, colReq, recs, finalCols)
+			err := performColumnsRequest(nodeResult, colReq, agg, recs, finalCols)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -635,8 +635,16 @@ func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, 
 	return nil
 }
 
-func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
+func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
+
+	// Attach columns request to fill null expressions in the chain.
+	// This is to ensure that we do remove the columns that are not required from the All Search Columns
+	// which is used in the fillNull Expr.
+	if aggs != nil {
+		aggs.AttachColumnsRequestToFillNullExprInChain(colReq)
+	}
+
 	if colReq.RenameAggregationColumns != nil {
 		for oldCName, newCName := range colReq.RenameAggregationColumns {
 			if _, exists := finalCols[oldCName]; !exists {
@@ -709,11 +717,11 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 	return nil
 }
 
-func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
+func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
 	if recs != nil {
-		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, recs, finalCols); err != nil {
+		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, aggs, recs, finalCols); err != nil {
 			return fmt.Errorf("performColumnsRequest: %v", err)
 		}
 	}
@@ -2066,6 +2074,23 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 				colsToCheck[field] = true
 			}
 		}
+
+		// Add any Columns that would be there in the previous search results but not in the current.
+		// This contains all the columns that are present in the given time range.
+		for field := range nodeResult.AllSearchColumnsByTimeRange {
+			if _, exists := colsToCheck[field]; !exists {
+				colsToCheck[field] = true
+			}
+		}
+
+		if fillNullReq.ColumnsRequest != nil {
+			// Apply any Columns Transforms and deletions that are present in the previous search results.
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, nil, colsToCheck)
+			if err != nil {
+				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
+			}
+		}
+
 		// Add all these columns to the finalCols List, so that they are not removed from the final result.
 		for field := range colsToCheck {
 			if _, exists := finalCols[field]; !exists {
@@ -3244,8 +3269,8 @@ func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letCol
 		}
 
 		record[letColReq.NewColName] = value
-		finalCols[letColReq.NewColName] = true
 	}
+	finalCols[letColReq.NewColName] = true
 
 	return nil
 }
@@ -3274,7 +3299,15 @@ func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fie
 		value, err := letColReq.ValueColRequest.EvaluateToFloat(fieldToValue)
 		if err != nil {
 			log.Errorf("failed to evaluate numeric expr, err=%v", err)
-			return nil, err
+
+			// It failed to evaluate to a float, it could possibly that the field given is a string
+			valueStr, err := letColReq.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				log.Errorf("failed to evaluate numeric expr to Numeric Expr and string Expr, err=%v", err)
+				return nil, err
+			}
+
+			return valueStr, err
 		}
 		return value, nil
 	case structs.VEMBooleanExpr:
