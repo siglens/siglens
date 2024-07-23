@@ -2085,7 +2085,10 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 		if fillNullReq.ColumnsRequest != nil {
 			// Apply any Columns Transforms and deletions that are present in the previous search results.
-			performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, nil, colsToCheck)
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, nil, colsToCheck)
+			if err != nil {
+				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
+			}
 		}
 
 		// Add all these columns to the finalCols List, so that they are not removed from the final result.
