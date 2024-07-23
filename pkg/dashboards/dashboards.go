@@ -137,18 +137,18 @@ func InitDashboards() error {
 	defaultDashboardNames = make(map[string]bool)
 
 	// Read the JSON file
-	jsonData, e := os.ReadFile(getDefaultDashboardFileName())
-	if e != nil {
-		log.Errorf("InitDashboard: Failed to read default dashboards file, err=%v", e)
-		return e
+	jsonData, err := os.ReadFile(getDefaultDashboardFileName())
+	if err != nil {
+		log.Errorf("InitDashboard: Failed to read default dashboards file, err=%v", err)
+		return err
 	}
 
 	// Parse the JSON data
 	var dashboards map[string]string
-	e = json.Unmarshal(jsonData, &dashboards)
-	if e != nil {
-		log.Errorf("InitDashboard: Failed to unmarshal default dashboards, err=%v", e)
-		return e
+	err = json.Unmarshal(jsonData, &dashboards)
+	if err != nil {
+		log.Errorf("InitDashboard: Failed to unmarshal default dashboards, err=%v", err)
+		return err
 	}
 
 	// Iterate over the parsed data and save dashboard names
@@ -168,7 +168,7 @@ func InitDashboards() error {
 	allidsBaseFname = baseDir + "/allids"
 	latestDashboardReadTimeMillis = make(map[uint64]uint64)
 
-	err := os.MkdirAll(baseDir, 0764)
+	err = os.MkdirAll(baseDir, 0764)
 	if err != nil {
 		log.Errorf("InitDashboard: failed to create basedir=%v, err=%v", baseDir, err)
 		return err

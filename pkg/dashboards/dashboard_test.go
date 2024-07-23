@@ -30,9 +30,9 @@ func Test_dashboard_storage_methods(t *testing.T) {
 
 	//Create the defaultDB directory
 	defaultDBPath := "defaultDBs"
-	e := os.Mkdir(defaultDBPath, 0755)
-	if e != nil {
-		t.Fatalf("Failed to create defaultDB directory: %v", e)
+	err := os.Mkdir(defaultDBPath, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create defaultDB directory: %v", err)
 	}
 
 	//Create the file with JSON content inside defaultDB
@@ -43,9 +43,9 @@ func Test_dashboard_storage_methods(t *testing.T) {
 		"53cb3dde-fd78-4253-808c-18e4077ef0f1": "Sample Dashboard"
 	}`
 	filePath := defaultDBPath + "/allids.json"
-	e = os.WriteFile(filePath, []byte(jsonContent), 0644)
-	if e != nil {
-		t.Fatalf("Failed to write JSON content to file: %v", e)
+	err = os.WriteFile(filePath, []byte(jsonContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write JSON content to file: %v", err)
 	}
 
 	config.InitializeDefaultConfig(t.TempDir())
@@ -60,7 +60,7 @@ func Test_dashboard_storage_methods(t *testing.T) {
 		}
 	}()
 
-	_, err := createDashboard("dashboard-1", 0)
+	_, err = createDashboard("dashboard-1", 0)
 	assert.Nil(t, err)
 
 	_, err = createDashboard("dashboard-2", 0)
@@ -203,7 +203,7 @@ func Test_parseUpdateDashboardRequest(t *testing.T) {
 }
 
 // TestCreateDashboardWithDefaultName tests that creating a dashboard with a default name is not allowed
-func TestCreateDashboardWithDefaultName(t *testing.T) {
+func Test_CreateDashboardWithDefaultName(t *testing.T) {
 
 	defaultName := "Sample Dashboard"
 
