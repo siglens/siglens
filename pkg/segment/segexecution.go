@@ -465,6 +465,8 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		return query.ApplyVectorArithmetic(aggs, qid)
 	}
 
+	rQuery.SetSearchQueryInformation(qid, qc.TableInfo, root.TimeRange, qc.Orgid)
+
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)
 	if aggs != nil {

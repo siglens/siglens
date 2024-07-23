@@ -563,6 +563,27 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 	return retVal, timePassed, totalChecked
 }
 
+func GetColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) map[string]bool {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	allColumns := make(map[string]bool)
+	for _, index := range indexNames {
+		tableMicroIndices, ok := globalMetadata.tableSortedMetadata[index]
+		if !ok {
+			continue
+		}
+
+		for _, smi := range tableMicroIndices {
+			if timeRange.CheckRangeOverLap(smi.EarliestEpochMS, smi.LatestEpochMS) && smi.OrgId == orgid {
+				for col := range smi.ColumnNames {
+					allColumns[col] = true
+				}
+			}
+		}
+	}
+	return allColumns
+}
+
 // returns the a map with columns as keys and returns a bool if the segkey/table was found
 func CheckAndGetColsForSegKey(segKey string, vtable string) (map[string]bool, bool) {
 
