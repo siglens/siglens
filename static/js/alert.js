@@ -510,6 +510,7 @@ async function displayAlert(res) {
         } else {
             metricsQueryParams = JSON.parse(res.metricsQueryParams);
         }
+        // eslint-disable-next-line no-undef
         populateMetricsQueryElement(metricsQueryParams);
     }
     let conditionType = mapIndexToConditionType.get(res.condition);
