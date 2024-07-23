@@ -416,7 +416,7 @@ function getQueryParamsData(scrollingTrigger) {
     } else {
         queryStr = $('#filter-input').val();
         queryMode = 'Code';
-    }    
+    }
 
     let data = {
         state: wsState,
@@ -542,7 +542,7 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
             });
     }
 }
-//eslint-disable-next-line no-unused-vars
+ 
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
@@ -933,7 +933,6 @@ function toggleClearButtonVisibility() {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
             $(this).val('');
@@ -956,7 +955,7 @@ function initializeFilterInputEvents() {
     });
 
     $('#filter-input').on('input', autoResizeTextarea);
-    $('#filter-input').on('input', function() {
+    $('#filter-input').on('input', function () {
         toggleClearButtonVisibility();
     });
     $('#clearInput').click(function () {
@@ -970,8 +969,8 @@ function initializeFilterInputEvents() {
             let position = this.selectionStart;
             input.val(value.substring(0, position) + '\n' + value.substring(position));
             this.selectionStart = this.selectionEnd = position + 2;
-            
-        }toggleClearButtonVisibility();
+        }
+        toggleClearButtonVisibility();
     });
     document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
