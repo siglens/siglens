@@ -567,7 +567,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-            const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+            const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
         }
         $.each(rawTimeSeriesData.values, function (_index, valueArray) {
@@ -590,9 +590,10 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     } else {
         chartDataCollection = {};
         if (panelId === -1) {
+            formulas = {};
             // for panel on the editPanelScreen page
             for (const queryData of data.queriesData) {
-                const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+                const parsedQueryObject = parsePromQL(queryData.queries[0]);
                 await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
             }
             for (const formulaData of data.formulasData) {
@@ -1007,6 +1008,7 @@ function getMetricsQData() {
             name: queryName,
             query: `(${queryString})`,
             qlType: 'promql',
+            state: queryDetails.state,
         };
 
         queriesData.push({
@@ -1014,7 +1016,6 @@ function getMetricsQData() {
             queries: [query],
             start: stDate,
             formulas: [{ formula: query.name }],
-            state: queryDetails.state,
         });
     }
 
