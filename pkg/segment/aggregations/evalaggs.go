@@ -287,9 +287,60 @@ func PopulateFieldToValueFromSegStats(fields []string, measureAgg *structs.Measu
 	return nil
 }
 
+func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, exists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalResult := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+	finalValue := float64(0)
+
+	if len(fields) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute sum if constant is not numeric
+		if err != nil || !isNumeric {
+			return currResult, fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		finalValue = floatValue * float64(count)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("ComputeAggEvalForSum: there are some errors in the eval function that is inside the sum function: %v", err)
+			}
+			if boolResult {
+				finalValue = float64(1)
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
+			}
+			// records that are not float will be ignored
+			if isNumeric {
+				finalValue = floatValue
+			}
+		}
+	}
+
+	if !exists {
+		finalResult.CVal = finalValue
+		return finalResult, nil
+	}
+
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, fmt.Errorf("ComputeAggEvalForSum: Float type enclosure does not have a float value")
+	}
+
+	finalValue += currValue
+	finalResult.CVal = finalValue
+
+	return finalResult, nil
+}
+
 func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	sumVal := float64(0)
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 
 	if len(fields) == 0 {
@@ -297,12 +348,12 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 		if !exist {
 			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-		// We cannot compute sum if constant is not numeric
-		if err != nil || !isNumeric {
-			return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
+		currResult, exists := measureResults[measureAgg.String()]
+		result, err := PerformEvalAggForSum(measureAgg, countStat.Count, exists, currResult, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
 		}
-		sumVal = floatValue * float64(countStat.Count)
+		measureResults[measureAgg.String()] = result
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -317,50 +368,62 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 				return fmt.Errorf("ComputeAggEvalForSum: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			if measureAgg.ValueColRequest.BooleanExpr != nil {
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForSum: there are some errors in the eval function that is inside the sum function: %v", err)
-				}
-				if boolResult {
-					sumVal += 1
-				}
-			} else {
-				floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
-				}
-				// records that are not float will be ignored
-				if isNumeric {
-					sumVal += floatValue
-				}
+			currResult, exists := measureResults[measureAgg.String()]
+			result, err := PerformEvalAggForSum(measureAgg, uint64(length), exists, currResult, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
 			}
+			measureResults[measureAgg.String()] = result
 		}
 	}
-
-	enclosure, exists := measureResults[measureAgg.String()]
-	if !exists {
-		enclosure = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_FLOAT,
-			CVal:  float64(0),
-		}
-		measureResults[measureAgg.String()] = enclosure
-	}
-
-	eValFloat, err := enclosure.GetFloatValue()
-	if err != nil {
-		return fmt.Errorf("ComputeAggEvalForSum: Attempted to perform aggregate sum(), but the column %s is not a float value", fields[0])
-	}
-
-	enclosure.CVal = eValFloat + sumVal
-	measureResults[measureAgg.String()] = enclosure
 
 	return nil
 }
 
-func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
 
-	countVal := int64(0)
+func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64, exists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalResult := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+	finalValue := float64(0)
+
+	if len(fields) == 0 {
+		finalValue = float64(count)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("ComputeAggEvalForCount: there are some errors in the eval function that is inside the count function: %v", err)
+			}
+			if boolResult {
+				finalValue++
+			}
+		} else {
+			// return count as 1 if expression is not boolean
+			finalValue = 1
+		}
+	}
+
+	if !exists {
+		finalResult.CVal = finalValue
+		return finalResult, nil
+	}
+
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, fmt.Errorf("ComputeAggEvalForCount: Float type enclosure does not have a float value")
+	}
+
+	finalValue += currValue
+	finalResult.CVal = finalValue
+
+	return finalResult, nil
+}
+
+
+func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 
 	if len(fields) == 0 {
@@ -368,75 +431,105 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 		if !exist {
 			return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		countVal = int64(countStat.Count)
+		currResult, exists := measureResults[measureAgg.String()]
+		result, err := PerformEvalAggForCount(measureAgg, countStat.Count, exists, currResult, nil)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForCount: Error while performing eval agg for sum, err: %v", err)
+		}
+		measureResults[measureAgg.String()] = result
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
 			return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
 		}
 		length := len(sst.Records)
-		if measureAgg.ValueColRequest.BooleanExpr != nil {
-			for i := 0; i < length; i++ {
-				fieldToValue := make(map[string]utils.CValueEnclosure)
-				err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForCount: Error while populating fieldToValue from sstMap, err: %v", err)
-				}
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForCount: there are some errors in the eval function that is inside the count function: %v", err)
-				}
-				if boolResult {
-					countVal++
-				}
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForCount: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-		} else {
-			countVal = int64(length)
+			
+			currResult, exists := measureResults[measureAgg.String()]
+			result, err := PerformEvalAggForCount(measureAgg, uint64(length), exists, currResult, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+			}
+			measureResults[measureAgg.String()] = result
 		}
 	}
-
-	enclosure, exists := measureResults[measureAgg.String()]
-	if !exists {
-		enclosure = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_SIGNED_NUM,
-			CVal:  int64(0),
-		}
-		measureResults[measureAgg.String()] = enclosure
-	}
-
-	eVal, err := enclosure.GetValue()
-	if err != nil {
-		return fmt.Errorf("ComputeAggEvalForCount: Attempted to perform aggregate count(), but the column %s is not a float value", fields[0])
-	}
-
-	enclosure.CVal = eVal.(int64) + countVal
-	measureResults[measureAgg.String()] = enclosure
 
 	return nil
+}
+
+func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, exists bool, currAvgStat structs.AvgStat, fieldToValue map[string]utils.CValueEnclosure) (structs.AvgStat, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalAvgStat := structs.AvgStat{
+		Sum:   float64(0),
+		Count: int64(0),
+	}
+	
+	if len(fields) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute avg if constant is not numeric
+		if err != nil || !isNumeric {
+			return currAvgStat, fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		finalAvgStat.Sum = floatValue * float64(count)
+		finalAvgStat.Count = int64(count)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currAvgStat, fmt.Errorf("ComputeAggEvalForSum: there are some errors in the eval function that is inside the avg function: %v", err)
+			}
+			if boolResult {
+				finalAvgStat.Sum++
+				finalAvgStat.Count++
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currAvgStat, fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
+			}
+			// records that are not float will be ignored
+			if isNumeric {
+				finalAvgStat.Sum += floatValue
+				finalAvgStat.Count++
+			}
+		}
+	}
+
+	finalAvgStat.Sum += currAvgStat.Sum
+	finalAvgStat.Count += currAvgStat.Count
+
+	return finalAvgStat, nil
 }
 
 func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
-	sumVal := float64(0)
-	countVal := int64(0)
+	avgStat := structs.AvgStat{}
+	var err error
+	avgStatVal, exists := runningEvalStats[measureAgg.String()]
+	if exists {
+		avgStat.Sum = avgStatVal.(*structs.AvgStat).Sum
+		avgStat.Count = avgStatVal.(*structs.AvgStat).Count
+	}
 
 	if len(fields) == 0 {
 		countStat, exist := sstMap["*"]
 		if !exist {
-			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForAvg: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
 		}
-		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-		// We cannot compute avg if constant is not numeric
-		if err != nil || !isNumeric {
-			return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request to a numeric value, err: %v", err)
+		avgStat, err = PerformEvalAggForAvg(measureAgg, countStat.Count, exists, avgStat, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForAvg: Error while performing eval agg for sum, err: %v", err)
 		}
-		sumVal = floatValue * float64(countStat.Count)
-		countVal = int64(countStat.Count)
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForAvg: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
 		}
 
 		length := len(sst.Records)
@@ -444,43 +537,16 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 			fieldToValue = make(map[string]utils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForSum: Error while populating fieldToValue from sstMap, err: %v", err)
+				return fmt.Errorf("ComputeAggEvalForAvg: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-
-			if measureAgg.ValueColRequest.BooleanExpr != nil {
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForSum: there are some errors in the eval function that is inside the avg function: %v", err)
-				}
-				if boolResult {
-					sumVal++
-					countVal++
-				}
-			} else {
-				floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForSum: Error while evaluating value col request, err: %v", err)
-				}
-				// records that are not float will be ignored
-				if isNumeric {
-					sumVal += floatValue
-					countVal++
-				}
+			avgStat, err = PerformEvalAggForAvg(measureAgg, uint64(length), exists, avgStat, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForAvg: Error while performing eval agg for avg, err: %v", err)
 			}
 		}
 	}
 
-	avgStat := &structs.AvgStat{}
-	avgStatVal, exists := runningEvalStats[measureAgg.String()]
-	if !exists {
-		avgStat.Sum = sumVal
-		avgStat.Count = countVal
-	} else {
-		avgStat = avgStatVal.(*structs.AvgStat)
-		avgStat.Sum += sumVal
-		avgStat.Count += countVal
-	}
-	runningEvalStats[measureAgg.String()] = avgStat
+	runningEvalStats[measureAgg.String()] = &avgStat
 
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_FLOAT,
@@ -490,27 +556,62 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+// Always pass valid strSet when using this function
+func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
-	result := 0
 
 	if len(fields) == 0 {
-		result = 1
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			return 0.0, fmt.Errorf("ComputeAggEvalForValues: Error while evaluating value col request function: %v", err)
+		}
+		strSet[valueStr] = struct{}{}
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return 0.0, fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+			}
+			if boolResult {
+				strSet["1"] = struct{}{}
+			}
+		} else {
+			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				return 0.0, fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+			}
+			strSet[cellValueStr] = struct{}{}
+		}	
+	}
+
+	return float64(len(strSet)), nil
+}
+
+func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	result := 0.0
+	var err error
+	var strSet map[string]struct{}
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		strSet = make(map[string]struct{}, 0)
+		runningEvalStats[measureAgg.String()] = strSet
+	} else {
+		strSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
+		}
+	}
+
+	if len(fields) == 0 {
+		result, err = PerformAggEvalForCardinality(measureAgg, strSet, nil)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
+		}
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
 			return fmt.Errorf("ComputeAggEvalForCardinality: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
-		}
-
-		strSet := make(map[string]struct{}, 0)
-		valuesStrSetVal, exists := runningEvalStats[measureAgg.String()]
-		if !exists {
-			runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
-		} else {
-			strSet, ok = valuesStrSetVal.(map[string]struct{})
-			if !ok {
-				return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
-			}
 		}
 
 		length := len(sst.Records)
@@ -521,22 +622,10 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			if measureAgg.ValueColRequest.BooleanExpr != nil {
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForCardinality: there are some errors in the eval function that is inside the cardinality function: %v", err)
-				}
-				if boolResult {
-					result = 1
-				}
-			} else {
-				cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForCardinality: there are some errors in the eval function that is inside the cardinality function: %v", err)
-				}
-				strSet[cellValueStr] = struct{}{}
-				result = len(strSet)
-			}	
+			result, err = PerformAggEvalForCardinality(measureAgg, strSet, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
+			}
 		}
 	}
 
@@ -550,14 +639,12 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	fieldToValue := make(map[string]utils.CValueEnclosure)
 	
 	if len(fields) == 0 {
-		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
 		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForValues: Error while evaluating value col request function: %v", err)
+			return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 		}
-		strSet[valueStr] = struct{}{}
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -572,21 +659,10 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			if measureAgg.ValueColRequest.BooleanExpr != nil {
-				boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
-				}
-				if boolResult {
-					strSet["1"] = struct{}{}
-				}
-			} else {
-				cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-				if err != nil {
-					return fmt.Errorf("ComputeAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
-				}
-				strSet[cellValueStr] = struct{}{}
-			}	
+			_, err = PerformAggEvalForCardinality(measureAgg, strSet, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
+			}
 		}
 	}
 
