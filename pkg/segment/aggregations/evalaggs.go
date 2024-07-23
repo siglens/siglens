@@ -254,6 +254,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 			}
 
 			rangeStat, err = PerformEvalAggForRange(measureAgg, exists, rangeStat, fieldToValue)
+			exists = true
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForRange: Error while performing eval agg for range, err: %v", err)
 			}
@@ -551,6 +552,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 				return fmt.Errorf("ComputeAggEvalForAvg: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 			avgStat, err = PerformEvalAggForAvg(measureAgg, uint64(length), exists, avgStat, fieldToValue)
+			exists = true
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForAvg: Error while performing eval agg for avg, err: %v", err)
 			}
