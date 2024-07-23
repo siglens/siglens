@@ -172,7 +172,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	}
 
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
-		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid)
+		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
 	if err != nil {
 		log.Errorf("qid=%d Failed to InitQueryInformation! error %+v", qid, err)
 		return &structs.NodeResult{
@@ -237,8 +237,13 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 		}
 	}
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
+	allSegResults := allSegFileResults.GetResults()
+	scrollFrom := queryInfo.GetScrollFrom()
+	currentSearchResultCount := len(allSegResults) - scrollFrom
+	SetCurrentSearchResultCount(queryInfo.qid, currentSearchResultCount)
+
 	return &structs.NodeResult{
-		AllRecords:       allSegFileResults.GetResults(),
+		AllRecords:       allSegResults,
 		ErrList:          allSegFileResults.GetAllErrors(),
 		TotalResults:     allSegFileResults.GetQueryCount(),
 		Histogram:        allSegFileResults.GetBucketResults(),

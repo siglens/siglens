@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+let lastQType = '';
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -684,6 +684,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         $('#views-container').hide();
         renderMeasuresGrid(columnOrder, res);
     }
+    timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype);
@@ -782,8 +783,9 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         measureInfo = [];
     }
     isTimechart = res.isTimechart;
+    lastQType = res.qtype;
     const currentUrl = window.location.href;
-    if (currentUrl.includes('index.html')) timeChart();
+    timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
@@ -940,8 +942,10 @@ function parseInterval(interval) {
     }
 }
 
-function timeChart() {
-    if (isTimechart) {
+function timeChart(qtype) {
+    // Check if measureInfo is defined and contains at least one item
+    qtype = qtype || lastQType;
+    if (isTimechart || qtype === 'aggs-query') {
         $('#columnChart').show();
         $('#hideGraph').hide();
     } else {
@@ -950,8 +954,26 @@ function timeChart() {
         return;
     }
 
-    // Extract data for ECharts
-    var timestamps = measureInfo.map((item) => convertTimestamp(item.GroupByValues[0]));
+    if (!measureInfo || measureInfo.length === 0) {
+        return;
+    }
+
+    // Ensure all items in measureInfo have GroupByValues property before proceeding
+    const hasGroupByValues = measureInfo.every((item) => item.GroupByValues);
+
+    if (!hasGroupByValues) {
+        return;
+    }
+
+    // Check if there are multiple group-by columns
+    var multipleGroupBy = measureInfo[0].GroupByValues.length > 1;
+
+    // Determine the font size and rotation based on the number of data points
+    var fontSize = measureInfo.length > 10 ? 10 : 12;
+    var rotateLabels = measureInfo.length > 10 ? 45 : 0;
+
+    var xData = measureInfo.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy));
+
     var seriesData = measureFunctions.map(function (measureFunction) {
         return {
             name: measureFunction,
@@ -991,9 +1013,13 @@ function timeChart() {
         },
         xAxis: {
             type: 'category',
-            data: timestamps,
+            data: xData,
             scale: true,
             splitLine: { show: false },
+            axisLabel: {
+                fontSize: fontSize,
+                rotate: rotateLabels,
+            },
         },
         yAxis: {
             type: 'value',
@@ -1005,13 +1031,25 @@ function timeChart() {
 
     // Initialize ECharts
     let chart = echarts.init($('#columnChart')[0]);
+    chart.clear(); // Clear previous data
     // Set the configuration to the chart
     chart.setOption(option);
 
-    // Optional: Make the chart responsive
+    // Ensure the chart resizes properly
+    chart.resize();
+
+    // Made the chart responsive
     $(window).on('resize', function () {
         chart.resize();
     });
+}
+
+function formatGroupByValues(groupByValues, multipleGroupBy) {
+    if (multipleGroupBy) {
+        return groupByValues.map(convertIfTimestamp).join(', ');
+    } else {
+        return convertIfTimestamp(groupByValues[0]);
+    }
 }
 
 function convertTimestamp(timestampString) {
@@ -1028,6 +1066,15 @@ function convertTimestamp(timestampString) {
 
     var readableDate = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
     return readableDate;
+}
+
+function convertIfTimestamp(value) {
+    // Check if the value is a valid timestamp (e.g., length and date after 1970)
+    const isTimestamp = !isNaN(value) && value.length === 13 && new Date(parseInt(value)).getTime() > 0;
+    if (isTimestamp) {
+        return convertTimestamp(value);
+    }
+    return value;
 }
 
 function codeToBuilderParsing(filterValue) {

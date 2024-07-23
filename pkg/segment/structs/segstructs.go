@@ -188,6 +188,9 @@ type RunningStreamStatsResults struct {
 	NumProcessedRecords uint64     // kept for global stats where window = 0
 	SecondaryWindow     *list.List // use secondary window for range
 	RangeStat           *RangeStat
+	CardinalityMap      map[string]int
+	CardinalityHLL      *hyperloglog.Sketch
+	ValuesMap           map[string]struct{}
 }
 
 type RunningStreamStatsWindowElement struct {
@@ -287,6 +290,14 @@ type LetColumnsRequest struct {
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
+	FillNullRequest      *FillNullExpr
+}
+
+type FillNullExpr struct {
+	Value     string   // value to fill nulls with. Default 0
+	FieldList []string // list of fields to fill nulls with
+	Records   map[string]map[string]interface{}
+	FinalCols map[string]bool
 }
 
 type TailExpr struct {
@@ -392,6 +403,8 @@ type NodeResult struct {
 	TransactionEventRecords   map[string]map[string]interface{}
 	TransactionsProcessed     map[string]map[string]interface{}
 	ColumnsOrder              map[string]int
+	RawSearchFinished         bool
+	CurrentSearchResultCount  int
 }
 
 type SegStats struct {
@@ -601,7 +614,8 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
-			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil)
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

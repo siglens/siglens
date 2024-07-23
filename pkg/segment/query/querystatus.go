@@ -84,20 +84,22 @@ func (qs QueryState) String() string {
 }
 
 type RunningQueryState struct {
-	isAsync           bool
-	isCancelled       bool
-	StateChan         chan *QueryStateChanData // channel to send state changes of query
-	searchRes         *segresults.SearchResults
-	rawRecords        []*utils.RecordResultContainer
-	queryCount        *structs.QueryCount
-	aggs              *structs.QueryAggregators
-	searchHistogram   map[string]*structs.AggregationResult
-	QType             structs.QueryType
-	rqsLock           *sync.Mutex
-	dqs               DistributedQueryServiceInterface
-	totalSegments     uint64
-	finishedSegments  uint64
-	totalRecsSearched uint64
+	isAsync                  bool
+	isCancelled              bool
+	StateChan                chan *QueryStateChanData // channel to send state changes of query
+	searchRes                *segresults.SearchResults
+	rawRecords               []*utils.RecordResultContainer
+	queryCount               *structs.QueryCount
+	aggs                     *structs.QueryAggregators
+	searchHistogram          map[string]*structs.AggregationResult
+	QType                    structs.QueryType
+	rqsLock                  *sync.Mutex
+	dqs                      DistributedQueryServiceInterface
+	totalSegments            uint64
+	finishedSegments         uint64
+	totalRecsSearched        uint64
+	rawSearchIsFinished      bool
+	currentSearchResultCount int
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -263,6 +265,8 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 	return rQuery.totalSegments, nil
 }
 
+// This sets RawSearchIsFinished to true and sends a COMPLETE message to the query's StateChan
+// If there are no aggregations
 func setQidAsFinished(qid uint64) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -272,11 +276,73 @@ func setQidAsFinished(qid uint64) {
 		return
 	}
 
+	rQuery.rqsLock.Lock()
+	rQuery.rawSearchIsFinished = true
+	rQuery.rqsLock.Unlock()
+
 	// Only async queries need to send COMPLETE, but if we need to do post
 	// aggregations, we'll send COMPLETE once we're done with those.
 	if rQuery.isAsync && (rQuery.aggs == nil || rQuery.aggs.Next == nil) {
 		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
 	}
+}
+
+func IsRawSearchFinished(qid uint64) (bool, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
+		return false, fmt.Errorf("qid:%v does not exist", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.rawSearchIsFinished, nil
+}
+
+func SetCurrentSearchResultCount(qid uint64, count int) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("SetCurrentSearchResultCount: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.currentSearchResultCount = count
+	rQuery.rqsLock.Unlock()
+}
+
+func GetCurrentSearchResultCount(qid uint64) (int, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetQuerySizeLimit: qid %+v does not exist!", qid)
+		return 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.currentSearchResultCount, nil
+}
+
+// returns the total number of segments, the current number of search results, and if the raw search is finished
+func GetQuerySearchStateForQid(qid uint64) (uint64, int, bool, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		err := fmt.Errorf("GetQueryStateInfoForQid: qid %+v does not exist", qid)
+		log.Errorf(err.Error())
+		return 0, 0, false, err
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.totalSegments, rQuery.currentSearchResultCount, rQuery.rawSearchIsFinished, nil
 }
 
 func CancelQuery(qid uint64) {
