@@ -1672,6 +1672,7 @@ function mergeGraphs(chartType, panelId = -1) {
         datasets: [],
     };
     var graphNames = [];
+    let colorIndex = 0;
 
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
@@ -1679,18 +1680,23 @@ function mergeGraphs(chartType, panelId = -1) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
             graphNames.push(`Metrics query - ${queryName}`);
-            datasets.forEach(function (dataset) {
+
+            datasets.forEach(function (dataset, datasetIndex) {
+                // Calculate color for the dataset
+                let datasetColor = classic[(colorIndex + datasetIndex) % classic.length];
+
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
-                    borderColor: dataset.borderColor,
+                    borderColor: datasetColor,
                     borderWidth: dataset.borderWidth,
-                    backgroundColor: dataset.backgroundColor,
+                    backgroundColor: datasetColor + '70',
                     fill: chartType === 'Area chart' ? true : false,
                 });
             });
             // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
+            colorIndex++;
         }
     }
     $('.merged-graph-name').html(graphNames.join(', '));
