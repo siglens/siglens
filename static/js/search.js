@@ -784,7 +784,6 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     isTimechart = res.isTimechart;
     lastQType = res.qtype;
-    const currentUrl = window.location.href;
     timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
