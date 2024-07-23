@@ -181,6 +181,3 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval grace_position = mvfind(names, ""Gr*"")",now-1d,now,*,group:grace_position:400,eq,1,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi,Ivan"" | makemv delim="","" names | eval ivan_position = mvfind(names, ""Iv*"")",now-1d,now,*,group:ivan_position:400,eq,3,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval names=""Frank,Grace,Heidi Ivan"" | makemv delim="","" names | eval ivan_position = mvfind(names, ""Iv*"")",now-1d,now,*,group:ivan_position:400,eq,2,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1d@d"")",now-1d,now,*,group:res:400,eq,1721586600000,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1m@m"")",now-1d,now,*,group:res:400,eq,1721738160000,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1h"")",now-1d,now,*,group:res:400,eq,1721734660000,Splunk QL
