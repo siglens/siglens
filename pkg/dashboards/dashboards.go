@@ -36,6 +36,7 @@ import (
 )
 
 var defaultDashboardIds map[string]struct{}
+var defaultDashboardNames map[string]bool
 
 var allidsBaseFname string
 var allDashIdsLock map[uint64]*sync.Mutex = make(map[uint64]*sync.Mutex)
@@ -133,6 +134,28 @@ func getDefaultDashboardFileName() string {
 func InitDashboards() error {
 	var sb strings.Builder
 
+	defaultDashboardNames = make(map[string]bool)
+
+	// Read the JSON file
+	jsonData, e := os.ReadFile(getDefaultDashboardFileName())
+	if e != nil {
+		log.Errorf("InitDashboard: Failed to read default dashboards file, err=%v", e)
+		return e
+	}
+
+	// Parse the JSON data
+	var dashboards map[string]string
+	e = json.Unmarshal(jsonData, &dashboards)
+	if e != nil {
+		log.Errorf("InitDashboard: Failed to unmarshal default dashboards, err=%v", e)
+		return e
+	}
+
+	// Iterate over the parsed data and save dashboard names
+	for _, name := range dashboards {
+		defaultDashboardNames[name] = true
+	}
+
 	defaultDashboardIds = make(map[string]struct{})
 
 	defaultDashboardIds["10329b95-47a8-48df-8b1d-0a0a01ec6c42"] = struct{}{}
@@ -224,13 +247,6 @@ func dashboardNameExists(dname string, orgid uint64) bool {
 	_, exists := allDashboardIds[dname]
 
 	return exists
-}
-
-var defaultDashboardNames = map[string]bool{
-	"Siglens Query DB":     true,
-	"Siglens Ingestion DB": true,
-	"Siglens Data DB":      true,
-	"Sample Dashboard":     true,
 }
 
 func createDashboard(dname string, orgid uint64) (map[string]string, error) {

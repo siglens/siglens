@@ -28,9 +28,37 @@ import (
 
 func Test_dashboard_storage_methods(t *testing.T) {
 
+	//Create the defaultDB directory
+	defaultDBPath := "defaultDBs"
+	e := os.Mkdir(defaultDBPath, 0755)
+	if e != nil {
+		t.Fatalf("Failed to create defaultDB directory: %v", e)
+	}
+
+	//Create the file with JSON content inside defaultDB
+	jsonContent := `{
+		"10329b95-47a8-48df-8b1d-0a0a01ec6c42": "Siglens Ingestion DB",
+		"a28f485c-4747-4024-bb6b-d230f101f852": "Siglens Query DB",
+		"bd74f11e-26c8-4827-bf65-c0b464e1f2a4": "Siglens Data DB",
+		"53cb3dde-fd78-4253-808c-18e4077ef0f1": "Sample Dashboard"
+	}`
+	filePath := defaultDBPath + "/allids.json"
+	e = os.WriteFile(filePath, []byte(jsonContent), 0644)
+	if e != nil {
+		t.Fatalf("Failed to write JSON content to file: %v", e)
+	}
+
 	config.InitializeDefaultConfig(t.TempDir())
 
 	_ = InitDashboards()
+
+	//Delete the defaultDB directory
+	defer func() {
+		err := os.RemoveAll(defaultDBPath)
+		if err != nil {
+			t.Logf("Failed to remove defaultDB directory: %v", err)
+		}
+	}()
 
 	_, err := createDashboard("dashboard-1", 0)
 	assert.Nil(t, err)
