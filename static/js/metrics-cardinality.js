@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagKeysGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true, sort: 'asc' },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true, sort: 'asc' },
+            { headerName: 'Key', field: 'key' },
+            { headerName: 'Number of Series', field: 'numSeries' },
         ],
         rowData: [],
         rowHeight: 44,
@@ -58,9 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagPairsGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true, sort: 'asc' },
-            { headerName: 'Value', field: 'value', filter: true, resizable: true, sort: 'asc' },
-            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true, sort: 'asc' },
+            { headerName: 'Key', field: 'key', filter: true },
+            { headerName: 'Value', field: 'value', filter: true },
+            { headerName: 'Number of Series', field: 'numSeries', filter: true },
         ],
         rowData: [],
         rowHeight: 44,
@@ -90,8 +90,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagKeysValuesGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key', filter: true, resizable: true, sort: 'asc' },
-            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true, sort: 'asc' },
+            { headerName: 'Key', field: 'key' },
+            { headerName: 'Number of Unique Values', field: 'numValues' },
         ],
         rowData: [],
         rowHeight: 44,
