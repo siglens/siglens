@@ -416,7 +416,7 @@ function getQueryParamsData(scrollingTrigger) {
     } else {
         queryStr = $('#filter-input').val();
         queryMode = 'Code';
-    }    
+    }
 
     let data = {
         state: wsState,
@@ -542,7 +542,7 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
             });
     }
 }
-//eslint-disable-next-line no-unused-vars
+ 
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
@@ -567,7 +567,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-            const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+            const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
         }
         $.each(rawTimeSeriesData.values, function (_index, valueArray) {
@@ -590,9 +590,10 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     } else {
         chartDataCollection = {};
         if (panelId === -1) {
+            formulas = {};
             // for panel on the editPanelScreen page
             for (const queryData of data.queriesData) {
-                const parsedQueryObject = parsePromQL(queryData.queries[0].query);
+                const parsedQueryObject = parsePromQL(queryData.queries[0]);
                 await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
             }
             for (const formulaData of data.formulasData) {
@@ -604,15 +605,20 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             for (const queryData of data.queriesData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = queryData.queries[0].query; // Adjust as per your data structure
+                const queryString = queryData.queries[0].query;
                 addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
             }
 
             for (const formulaData of data.formulasData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = formulaData.formulas[0].formula; // Adjust as per your data structure
-                addVisualizationContainer(formulaData.formulas[0].formula, chartData, queryString, panelId);
+                let formulaString = formulaData.formulas[0].formula;
+                // Replace a, b, etc., with actual query values
+                formulaData.queries.forEach((query) => {
+                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                    formulaString = formulaString.replace(regex, query.query);
+                });
+                addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
             }
         }
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
@@ -928,7 +934,6 @@ function toggleClearButtonVisibility() {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
-
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
             $(this).val('');
@@ -951,7 +956,7 @@ function initializeFilterInputEvents() {
     });
 
     $('#filter-input').on('input', autoResizeTextarea);
-    $('#filter-input').on('input', function() {
+    $('#filter-input').on('input', function () {
         toggleClearButtonVisibility();
     });
     $('#clearInput').click(function () {
@@ -965,8 +970,8 @@ function initializeFilterInputEvents() {
             let position = this.selectionStart;
             input.val(value.substring(0, position) + '\n' + value.substring(position));
             this.selectionStart = this.selectionEnd = position + 2;
-            
-        }toggleClearButtonVisibility();
+        }
+        toggleClearButtonVisibility();
     });
     document.getElementById('filter-input').addEventListener('paste', function (event) {
         event.preventDefault();
@@ -1003,6 +1008,7 @@ function getMetricsQData() {
             name: queryName,
             query: `(${queryString})`,
             qlType: 'promql',
+            state: queryDetails.state,
         };
 
         queriesData.push({
@@ -1010,7 +1016,6 @@ function getMetricsQData() {
             queries: [query],
             start: stDate,
             formulas: [{ formula: query.name }],
-            state: queryDetails.state,
         });
     }
 
@@ -1047,7 +1052,7 @@ function getMetricsQData() {
     return { queriesData, formulasData };
 }
 
-
+//eslint-disable-next-line no-unused-vars
 function updateQueryModeUI(queryMode) {
     $('.query-mode-option').removeClass('active');
 

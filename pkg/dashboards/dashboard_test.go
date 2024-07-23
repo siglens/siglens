@@ -28,11 +28,39 @@ import (
 
 func Test_dashboard_storage_methods(t *testing.T) {
 
+	//Create the defaultDB directory
+	defaultDBPath := "defaultDBs"
+	err := os.Mkdir(defaultDBPath, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create defaultDB directory: %v", err)
+	}
+
+	//Create the file with JSON content inside defaultDB
+	jsonContent := `{
+		"10329b95-47a8-48df-8b1d-0a0a01ec6c42": "Siglens Ingestion DB",
+		"a28f485c-4747-4024-bb6b-d230f101f852": "Siglens Query DB",
+		"bd74f11e-26c8-4827-bf65-c0b464e1f2a4": "Siglens Data DB",
+		"53cb3dde-fd78-4253-808c-18e4077ef0f1": "Sample Dashboard"
+	}`
+	filePath := defaultDBPath + "/allids.json"
+	err = os.WriteFile(filePath, []byte(jsonContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write JSON content to file: %v", err)
+	}
+
 	config.InitializeDefaultConfig(t.TempDir())
 
 	_ = InitDashboards()
 
-	_, err := createDashboard("dashboard-1", 0)
+	//Delete the defaultDB directory
+	defer func() {
+		err := os.RemoveAll(defaultDBPath)
+		if err != nil {
+			t.Logf("Failed to remove defaultDB directory: %v", err)
+		}
+	}()
+
+	_, err = createDashboard("dashboard-1", 0)
 	assert.Nil(t, err)
 
 	_, err = createDashboard("dashboard-2", 0)
@@ -172,6 +200,25 @@ func Test_parseUpdateDashboardRequest(t *testing.T) {
 	assert.Equal(t, "Dashboard", name)
 	assert.Equal(t, "Dashboard type", details["description"])
 	assert.Equal(t, "mydashboard", details["note"])
+}
+
+// TestCreateDashboardWithDefaultName tests that creating a dashboard with a default name is not allowed
+func Test_CreateDashboardWithDefaultName(t *testing.T) {
+
+	defaultName := "Sample Dashboard"
+
+	_, err := createDashboard(defaultName, 1)
+
+	// We expect an error because default names should not be allowed
+	if err == nil {
+		t.Errorf("Expected an error when creating a dashboard with the default name '%s', but got none", defaultName)
+	}
+
+	//Check if the error was the expected one
+	expectedErrMsg := "dashboard name already exists"
+	if err != nil && err.Error() != expectedErrMsg {
+		t.Errorf("Expected error message '%s', but got '%s'", expectedErrMsg, err.Error())
+	}
 }
 
 /*
