@@ -604,15 +604,20 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             for (const queryData of data.queriesData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = queryData.queries[0].query; // Adjust as per your data structure
+                const queryString = queryData.queries[0].query;
                 addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
             }
 
             for (const formulaData of data.formulasData) {
                 const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
                 const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = formulaData.formulas[0].formula; // Adjust as per your data structure
-                addVisualizationContainer(formulaData.formulas[0].formula, chartData, queryString, panelId);
+                let formulaString = formulaData.formulas[0].formula;
+                // Replace a, b, etc., with actual query values
+                formulaData.queries.forEach((query) => {
+                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                    formulaString = formulaString.replace(regex, query.query);
+                });
+                addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
             }
         }
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
