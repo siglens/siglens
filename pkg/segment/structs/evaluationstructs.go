@@ -167,10 +167,17 @@ type NumericExpr struct {
 	Value        string
 
 	// Only used when IsTerminal is false.
-	Op    string // Including arithmetic, mathematical and text functions ops
-	Left  *NumericExpr
-	Right *NumericExpr
-	Val   *StringExpr
+	Op           string // Including arithmetic, mathematical and text functions ops
+	Left         *NumericExpr
+	Right        *NumericExpr
+	Val          *StringExpr
+	RelativeTime RelativeTimeExpr
+}
+
+type RelativeTimeExpr struct {
+	Snap     string
+	Offset   int64
+	TimeUnit utils.TimeUnit
 }
 
 type StringExpr struct {
@@ -1384,6 +1391,8 @@ func handleNoArgFunction(op string) (float64, error) {
 		return float64(rand.Int31()), nil
 	case "pi":
 		return math.Pi, nil
+	case "time":
+		return float64(time.Now().UnixMilli()), nil
 	default:
 		log.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
 		return 0, fmt.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
@@ -1607,11 +1616,54 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
 			}
 			return float64(number), nil
+		case "relative_time":
+			if self.Left == nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a non-nil left operand")
+			}
 
+			var epochTime int64
+			var err error
+			// 1. Direct epoch input (e.g., relative_time(1234567890, "-1d")) is stored in self.Value.
+			// 2. Epoch from another command (e.g., relative_time(now(), "-1d")) after evaluation is stored in left, leaving self.Value as an empty string.
+			if self.Value != "" {
+				epochTime, err = strconv.ParseInt(self.Value, 10, 64)
+				if err != nil {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: failed to parse epoch time from Value %v, err: %v", self.Value, err)
+				}
+			} else if left >= 0 {
+				epochTime = int64(left)
+			} else {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a valid timestamp")
+			}
+
+			relTime, err := CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: error calculating relative time: %v", err)
+			}
+
+			return float64(relTime), nil
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
 	}
+}
+
+func CalculateAdjustedTimeForRelativeTimeCommand(timeModifier RelativeTimeExpr, currTime time.Time) (int64, error) {
+	var err error
+	if timeModifier.Offset != 0 {
+		currTime, err = utils.ApplyOffsetToTime(timeModifier.Offset, timeModifier.TimeUnit, currTime)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if timeModifier.Snap != "" {
+		currTime, err = utils.ApplySnap(timeModifier.Snap, currTime)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return currTime.UnixMilli(), nil
 }
 
 func handleTrimFunctions(op string, value string, trim_chars string) string {
