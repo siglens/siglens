@@ -463,7 +463,7 @@ func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error
 		}
 		sstMap[k] = rawStats
 	}
-	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations, nil)
+	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations, make(map[string]interface{}))
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
