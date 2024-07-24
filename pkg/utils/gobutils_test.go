@@ -113,3 +113,8 @@ func Test_GobDecodeEmpty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, regex.GetCompiledRegex())
 }
+
+func Test_GetEmptyList(t *testing.T) {
+	list := GobbableList{}
+	assert.Equal(t, 0, list.Len())
+}

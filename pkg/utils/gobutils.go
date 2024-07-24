@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"container/list"
 	"regexp"
 
 	log "github.com/sirupsen/logrus"
@@ -60,4 +61,8 @@ func (self *GobbableRegex) GobDecode(data []byte) error {
 	}
 
 	return self.SetRegex(string(data))
+}
+
+type GobbableList struct {
+	list.List
 }
