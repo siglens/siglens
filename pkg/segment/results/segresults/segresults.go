@@ -328,7 +328,6 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		case utils.Values:
 			strSet := make(map[string]struct{}, 0)
 			valuesStrSetVal, exists := sr.runningEvalStats[measureAgg.String()]
-			log.Errorf("andrew valuesStrSetVal=%v, exists=%v", valuesStrSetVal, exists)
 			if !exists {
 				sr.runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
 			} else {
