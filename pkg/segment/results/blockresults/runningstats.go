@@ -191,13 +191,13 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' while ValueColRequest is nil, err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for %v while ValueColRequest is nil, err: %v", rr.currStats[i].MeasureFunc, err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduceForEval(runningStats, toJoinRunningStats[i].rawVal, i, rr.currStats[i].MeasureFunc)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for %v err: %v", rr.currStats[i].MeasureFunc, err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -372,7 +372,7 @@ func ReduceAvg(avgStat1 *structs.AvgStat, avgStat2 *structs.AvgStat) *structs.Av
 func (rr *RunningBucketResults) ProcessReduceForEval(runningStats *[]runningStats, e utils.CValueEnclosure, i int, measureFunc utils.AggregateFunctions) error {
 	retVal, err := ReduceForEval((*runningStats)[i].rawVal, e, measureFunc)
 	if err != nil {
-		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
+		return fmt.Errorf("RunningBucketResults.ProcessReduceForEval: failed to add measurement to running stats, err: %v", err)
 	} else {
 		(*runningStats)[i].rawVal = retVal
 	}
@@ -394,14 +394,14 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	}
 	fields := rr.currStats[i].ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String())
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: Need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String())
 	}
 	fieldToValue := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: failed to evaluate ValueColRequest, err: %v", err)
 	}
 	(*runningStats)[i].rawVal = result
 
@@ -414,14 +414,14 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	}
 	fields := rr.currStats[i].ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
 	}
 	fieldToValue := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForAvg(rr.currStats[i], 1, exists, *(*runningStats)[i].avgStat, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: failed to evaluate ValueColRequest, err: %v", err)
 	}
 	(*runningStats)[i].avgStat = &result
 	avg := 0.0
@@ -442,14 +442,14 @@ func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningS
 	}
 	fields := rr.currStats[i].ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for min/max for aggCol: %v", rr.currStats[i].String())
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: Need non zero number of fields in expression for eval stats for min/max for aggCol: %v", rr.currStats[i].String())
 	}
 	fieldToValue := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForMinOrMax(rr.currStats[i], exists, (*runningStats)[i].rawVal, fieldToValue, isMin)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: failed to evaluate ValueColRequest, err: %v", err)
 	}
 	(*runningStats)[i].rawVal = result
 
@@ -469,7 +469,7 @@ func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningSt
 
 	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, *(*runningStats)[i].rangeStat, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: failed to evaluate ValueColRequest, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: failed to evaluate ValueColRequest, err: %v", err)
 	}
 	(*runningStats)[i].rangeStat = &result
 	(*runningStats)[i].rawVal = utils.CValueEnclosure{
