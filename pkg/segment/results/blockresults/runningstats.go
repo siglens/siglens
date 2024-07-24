@@ -560,11 +560,10 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to populate field to value, err: %v", err)
 	}
 
-	strVal, err := rr.currStats[i].ValueColRequest.EvaluateToString(fieldToValue)
+	_, err = agg.PerformAggEvalForCardinality(rr.currStats[i], strSet, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
-	strSet[strVal] = struct{}{}
 	(*runningStats)[i].rawVal.CVal = strSet
 
 	return len(fields) - 1, nil

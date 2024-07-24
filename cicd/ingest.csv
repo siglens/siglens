@@ -189,6 +189,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats sum(eval(if(http_status > 400, 100, 1))) as sum",now-1d,now,*,group:sum:*,eq,105,Splunk QL
 "app_name=Bracecould | stats sum(eval(if(http_status > 400, ""abc"", 10))) as sum",now-1d,now,*,group:sum:*,eq,50,Splunk QL
 "app_name=Bracecould | stats sum(eval(if(http_status > 400, latitude, longitude))) as sum",now-1d,now,*,group:sum:*,eq,-244.96,Splunk QL
+"app_name=Bracecould | stats sum(eval(http_status > 301.1))",now-1d,now,*,group:sum(eval(http_status > 301.1)):*,eq,4,Splunk QL
 "city=Boston | stats avg(eval(http_status > 400)) as avg",now-1d,now,*,group:avg:*,eq,1,Splunk QL
 "app_name=Bracecould | stats avg(eval(2)) as avg",now-1d,now,*,group:avg:*,eq,2,Splunk QL
 "app_name=Bracecould | stats avg(eval(http_status+10)) as avg",now-1d,now,*,group:avg:*,eq,377.333,Splunk QL
