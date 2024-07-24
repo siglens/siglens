@@ -167,6 +167,10 @@ $(document).ready(async function () {
         if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
             event.preventDefault();
             $('#contact-point-error').css('display', 'inline-block');
+            document.getElementById('contact-points-dropdown').scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
         } else {
             $('#contact-point-error').css('display', 'none'); // Hide error message if a valid contact point is selected
         }

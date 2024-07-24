@@ -5702,17 +5702,15 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 }
 
 .metric-summary {
-    padding-bottom: 1%;
+   padding-bottom: 1%;
   display:flex;
   flex-direction: column;
   justify-content: left;
-  overflow-y: scroll;
+  overflow: hidden;
   scrollbar-width: none; 
   -ms-overflow-style: none; 
 }
-.metric-summary-head{
-  margin-top: 0.5%;
-}
+
 .icon {
   visibility: hidden;
 }
@@ -5731,10 +5729,11 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     left: 25%; 
     transform: translateX(-50%);
     white-space: nowrap;
-    box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     font-family: Arial, sans-serif;
     font-size: 14px;
-    border: 1px solid black;  
+    border: 1px solid #d9d9d9;
+    margin-top: 8px;
 }
 
 .error-message::before, #metric-error::before {
@@ -5757,12 +5756,15 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .error-message::after, #metric-error::after {
     content: '';
     position: absolute;
-    left: 25%; 
-    border-width: 8px;
-    border-style: solid;
-    bottom: 100%;
-    border-color: transparent transparent white transparent;
-    transform: translateX(-25%);  
+    left: 15px; 
+    top: -9px;
+    width: 16px;
+    height: 16px;
+    background-color: white;
+    border-left: 1px solid #d9d9d9;
+    border-top: 1px solid #d9d9d9;
+    transform: rotate(45deg);
+    z-index: -1;
 }
   
 
