@@ -71,20 +71,20 @@ type GobbableList struct {
 
 // Implement https://pkg.go.dev/encoding/gob#GobEncoder
 func (self *GobbableList) GobEncode() ([]byte, error) {
-	var buf bytes.Buffer
-	encoder := gob.NewEncoder(&buf)
-	elements := make([]interface{}, 0, self.Len())
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	listValues := make([]interface{}, 0, self.Len())
 
-	for e := self.Front(); e != nil; e = e.Next() {
-		elements = append(elements, e.Value)
+	for element := self.Front(); element != nil; element = element.Next() {
+		listValues = append(listValues, element.Value)
 	}
 
-	if err := encoder.Encode(elements); err != nil {
+	if err := encoder.Encode(listValues); err != nil {
 		log.Errorf("GobbableList.GobEncode: failed to encode; err=%v", err)
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return buffer.Bytes(), nil
 }
 
 // Implement https://pkg.go.dev/encoding/gob#GobDecoder
@@ -98,8 +98,8 @@ func (self *GobbableList) GobDecode(data []byte) error {
 	}
 
 	self.Init()
-	for _, elem := range elements {
-		self.PushBack(elem)
+	for _, element := range elements {
+		self.PushBack(element)
 	}
 
 	return nil
