@@ -262,6 +262,12 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 		return nil, errors.New("searchPipeCommandsToASTnode: search pipe command node is nil ")
 	}
 	switch node.PipeCommandType {
+	case GenerateEventType:
+		pipeCommands, err = parseGenerateCmd(node.GenerateEvent, qid)
+		if err != nil {
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGenerateCmd error: %v", qid, err)
+			return nil, err
+		}
 	case OutputTransformType:
 		pipeCommands, err = parseColumnsCmd(node.OutputTransforms, qid)
 		if err != nil {
@@ -346,6 +352,20 @@ func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAg
 		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
 	}
+	return aggNode, nil
+}
+
+func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregators, error) {
+	aggNode := &QueryAggregators{}
+	aggNode.PipeCommandType = GenerateEventType
+	aggNode.GenerateEvent = &GenerateEvent{}
+	if node == nil {
+		return aggNode, nil
+	}
+	if node.GenTimes != nil {
+		aggNode.GenerateEvent.GenTimes = node.GenTimes
+	}
+
 	return aggNode, nil
 }
 

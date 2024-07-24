@@ -98,6 +98,7 @@ const (
 	GroupByType
 	TransactionType
 	VectorArithmeticExprType
+	GenerateEventType
 )
 
 type QueryType uint8
@@ -160,8 +161,19 @@ type QueryAggregators struct {
 	TransactionArguments *TransactionArguments
 	StatsOptions         *StatsOptions
 	StreamStatsOptions   *StreamStatsOptions
+	GenerateEvent        *GenerateEvent
 	Next                 *QueryAggregators
 	Limit                int
+}
+
+type GenerateEvent struct {
+	GenTimes *GenTimes
+}
+
+type GenTimes struct {
+	StartTime uint64
+	EndTime   uint64
+	Interval  *SpanLength
 }
 
 type StreamStatsOptions struct {
