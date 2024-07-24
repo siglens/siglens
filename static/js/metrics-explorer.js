@@ -1688,7 +1688,7 @@ function mergeGraphs(chartType, panelId = -1) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`${datasets[0].label}`);
+            graphNames.push(`${datasets[0]?.label}`);
 
             datasets.forEach(function (dataset, datasetIndex) {
                 // Calculate color for the dataset
@@ -2450,8 +2450,6 @@ $('#alert-from-metrics-btn').click(function () {
             } else {
                 queryString = queryDetails.rawQueryInput;
             }
-            const formula = { formula: queryName };
-            mformulas.push(formula);
             const tquery = { name: queryName, query: `(${queryString})`, qlType: 'promql' };
             mqueries.push(tquery);
         });

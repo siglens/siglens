@@ -1717,14 +1717,11 @@ div.dts div.dataTables_scrollBody table {
     overflow: scroll;
     border: 1px solid var(--timepicker-border-color);
 }
-#save-query-options,
-#query-language-options,
-#query-mode-options,
-#source-options {
+#save-query-options{
     width: 130px;
     background: var(--index-drop-down-box-bg-color);
     overflow: hidden;
-    padding: 0px 10px 10px 10px;
+    padding: 0px 5px 5px 5px;
     border: 1px solid var(--timepicker-border-color);
 }
 
