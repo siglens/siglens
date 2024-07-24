@@ -38,7 +38,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var excludedInternalIndices = [...]string{"red-traces", "service-dependency"}
+var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
@@ -56,6 +56,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	queryCount, totalResponseTime, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
+	traceIndexData, traceSpanCount, totalTraceBytes, totalTraceOnDiskBytes := GetTracesStats(myid)
 	metricsInMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
@@ -67,6 +68,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.IngestionStats = make(map[string]interface{})
 	httpResp.QueryStats = make(map[string]interface{})
 	httpResp.MetricsStats = make(map[string]interface{})
+	httpResp.TraceStats = make(map[string]interface{})
 
 	httpResp.IngestionStats["Log Incoming Volume"] = convertBytesToGB(logsIncomingBytes)
 	httpResp.IngestionStats["Incoming Volume"] = convertBytesToGB(logsIncomingBytes + float64(metricsIncomingBytes))
@@ -95,8 +97,13 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	} else {
 		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
 	}
+	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
+	httpResp.TraceStats["Total Trace Volume"] = convertBytesToGB(float64(totalTraceBytes))
+	httpResp.TraceStats["Trace Storage Used"] = convertBytesToGB(float64(totalTraceOnDiskBytes))
+	httpResp.TraceStats["Trace Storage Saved"] = calculateStorageSavedPercentage(float64(totalTraceBytes), float64(totalTraceOnDiskBytes))
 
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
+	httpResp.TraceIndexStats = convertTraceIndexDataToSlice(traceIndexData)
 	utils.WriteJsonResponse(ctx, httpResp)
 
 }
@@ -120,6 +127,20 @@ func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.
 		nextVal[idx] = make(map[string]interface{})
 		nextVal[idx]["ingestVolume"] = convertBytesToGB(v[idx]["ingestVolume"].(float64))
 		nextVal[idx]["eventCount"] = humanize.Comma(int64(v[idx]["eventCount"].(uint64)))
+		retVal = append(retVal, nextVal)
+		i++
+	}
+	return retVal[:i]
+}
+
+func convertTraceIndexDataToSlice(traceIndexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
+	retVal := make([]utils.ResultPerIndex, 0, len(traceIndexData))
+	i := 0
+	for idx, v := range traceIndexData {
+		nextVal := make(utils.ResultPerIndex)
+		nextVal[idx] = make(map[string]interface{})
+		nextVal[idx]["traceVolume"] = convertBytesToGB(v[idx]["traceVolume"].(float64))
+		nextVal[idx]["traceSpanCount"] = humanize.Comma(int64(v[idx]["traceSpanCount"].(uint64)))
 		retVal = append(retVal, nextVal)
 		i++
 	}
@@ -171,6 +192,8 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
 		httpResp.ChartStats[k]["MetricsGBCount"] = float64(entry.MetricsBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TraceGBCount"] = float64(entry.TraceBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
 	}
 	utils.WriteJsonResponse(ctx, httpResp)
 }
@@ -238,7 +261,7 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 
 	return pastXhours, granularity
 }
-func isIndexExcluded(indexName string) bool {
+func isTraceRelatedIndex(indexName string) bool {
 	for _, value := range excludedInternalIndices {
 		if indexName == value {
 			return true
@@ -257,7 +280,7 @@ func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, flo
 	sortedIndices := make([]string, 0, len(allVirtualTableNames))
 
 	for k := range allVirtualTableNames {
-		if isIndexExcluded(k) {
+		if isTraceRelatedIndex(k) {
 			continue
 		}
 		sortedIndices = append(sortedIndices, k)
@@ -302,6 +325,63 @@ func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, flo
 		ingestionStats[indexName] = perIndexStat
 	}
 	return ingestionStats, totalEventCount, totalIncomingBytes, totalOnDiskBytes
+}
+
+func GetTracesStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
+
+	totalTraceBytes := float64(0)
+	totalTraceSpanCount := int64(0)
+	totalTraceOnDiskBytes := float64(0)
+
+	traceStats := make(map[string]utils.ResultPerIndex)
+	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
+	traceIndices := make([]string, 0)
+
+	for k := range allVirtualTableNames {
+		if isTraceRelatedIndex(k) {
+			traceIndices = append(traceIndices, k)
+		}
+	}
+	sort.Strings(traceIndices)
+
+	if err != nil {
+		log.Errorf("GetTracesStats: Error in getting virtual table names, err:%v", err)
+	}
+
+	allvtableCnts := segwriter.GetVTableCountsForAll(myid)
+
+	for _, indexName := range traceIndices {
+		if indexName == "" {
+			log.Errorf("GetTracesStats: skipping an empty index name indexName=%v", indexName)
+			continue
+		}
+
+		cnts, ok := allvtableCnts[indexName]
+		if !ok {
+			continue
+		}
+
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+
+		totalTracesForIndex := uint64(cnts.RecordCount) + uint64(unrotatedEventCount)
+		totalTraceSpanCount += int64(totalTracesForIndex)
+
+		totalBytesReceivedForIndex := float64(cnts.BytesCount + unrotatedByteCount)
+		totalTraceBytes += totalBytesReceivedForIndex
+
+		totalOnDiskBytesCountForIndex := uint64(cnts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
+		totalTraceOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
+
+		perIndexStat := make(map[string]map[string]interface{})
+
+		perIndexStat[indexName] = make(map[string]interface{})
+
+		perIndexStat[indexName]["traceVolume"] = totalBytesReceivedForIndex
+		perIndexStat[indexName]["traceSpanCount"] = totalTracesForIndex
+
+		traceStats[indexName] = perIndexStat
+	}
+	return traceStats, totalTraceSpanCount, totalTraceBytes, totalTraceOnDiskBytes
 }
 
 func convertBytesToGB(bytes float64) string {
