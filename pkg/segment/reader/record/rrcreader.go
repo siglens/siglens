@@ -207,6 +207,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	colsIndexMap := make(map[string]int)
 	numProcessedRecords := 0
 
+	if aggs.HasGenerateEvent() {
+		recordIndexInFinal = aggs.GenerateEvent.GeneratedRecordsIndex
+		colsIndexMap = aggs.GenerateEvent.GeneratedColsIndex
+	}
+
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
@@ -396,12 +401,17 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 	}
 
+	if aggs.HasGenerateEvent() {
+		processSingleSegment("generate_event", "generate_event", nil, true)
+	}
+
 	if !(tableColumnsExist || (aggs != nil && aggs.OutputTransforms == nil) || hasQueryAggergatorBlock || transactionArgsExist) {
 		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
 		if len(hardcodedArray) > 0 {
 			numProcessedRecords = 1
 		}
 	} else {
+		
 		for currSeg, blkIds := range segmap {
 			blkIdsIndex := 0
 			for blkNum, recNums := range blkIds.BlkRecIndexes {

@@ -426,7 +426,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)
-	if sizeLimit == 0 || len(rrcs) == 0 {
+	if (sizeLimit == 0 || len(rrcs) == 0) && !aggs.HasGenerateEvent() {
 		return hits, []string{}, nil
 	}
 

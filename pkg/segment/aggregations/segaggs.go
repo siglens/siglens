@@ -120,6 +120,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
+	if post.GenerateEvent != nil  && len(recs) == 0 {
+		return nodeResult
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -177,6 +181,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment, timeSort, timeSortAsc)
 	}
 	switch agg.PipeCommandType {
+	case structs.GenerateEventType:
+		return nil
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")

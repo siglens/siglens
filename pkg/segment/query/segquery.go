@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -41,6 +42,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+
 )
 
 const QUERY_INFO_REFRESH_LOOP_SECS = 300
@@ -138,6 +140,33 @@ func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.
 	return nodeRes
 }
 
+func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeResult {
+
+	if aggs.GenerateEvent == nil {
+		return nil
+	}
+	
+	nodeRes := &structs.NodeResult{
+	}
+
+	aggs.GenerateEvent.GeneratedRecords = make(map[string]map[string]interface{})
+	aggs.GenerateEvent.GeneratedRecordsIndex = make(map[string]int)
+	aggs.GenerateEvent.GeneratedColsIndex = make(map[string]int)
+	aggs.GenerateEvent.GeneratedCols = make(map[string]bool)
+
+	if aggs.GenerateEvent.GenTimes != nil {
+		err := aggregations.PerformGenTimes(aggs)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to generate times! Error: %v", qid, err)
+		}
+	}
+
+	// Call this to for processQueryUpdate to be called
+	IncrementNumFinishedSegments(1, qid, 0, 0, "", false, nil)
+
+	return nodeRes
+}
+
 func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 
@@ -201,6 +230,9 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 				bucketLimit = aggs.BucketLimit
 			}
 			aggs.BucketLimit = bucketLimit
+			if aggs.GenerateEvent != nil {
+				return GenerateEvents(aggs, qid)
+			}
 		} else {
 			aggs = structs.InitDefaultQueryAggregations()
 			aggs.BucketLimit = bucketLimit
@@ -215,6 +247,8 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		}
 	}
 }
+
+
 
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
