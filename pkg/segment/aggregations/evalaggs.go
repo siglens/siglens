@@ -72,49 +72,50 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, exists boo
 					finalResult.Dtype = utils.SS_DT_STRING
 					finalResult.CVal = strValue
 				}
-			} else {
-				currType := currResult.Dtype
-				if currType == utils.SS_DT_STRING {
-					// if new value is numeric override the string result
-					if isNumeric {
+				return finalResult, nil
+			}
+
+			currType := currResult.Dtype
+			if currType == utils.SS_DT_STRING {
+				// if new value is numeric override the string result
+				if isNumeric {
+					finalResult.Dtype = utils.SS_DT_FLOAT
+					finalResult.CVal = floatValue
+				} else {
+					strEncValue, isString := currResult.CVal.(string)
+					if !isString {
+						return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: String type enclosure does not have a string value")
+					}
+
+					if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
+						finalResult.Dtype = utils.SS_DT_STRING
+						finalResult.CVal = strValue
+					} else {
+						// return current result when no value needs to be updated
+						return currResult, nil
+					}
+				}
+			} else if currType == utils.SS_DT_FLOAT {
+				// only check if the current value is numeric
+				if isNumeric {
+					floatEncValue, isFloat := currResult.CVal.(float64)
+					if !isFloat {
+						return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Float type enclosure does not have a float value")
+					}
+
+					if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
 						finalResult.Dtype = utils.SS_DT_FLOAT
 						finalResult.CVal = floatValue
 					} else {
-						strEncValue, isString := currResult.CVal.(string)
-						if !isString {
-							return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: String type enclosure does not have a string value")
-						}
-
-						if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
-							finalResult.Dtype = utils.SS_DT_STRING
-							finalResult.CVal = strValue
-						} else {
-							// return current result when no value needs to be updated
-							return currResult, nil
-						}
-					}
-				} else if currType == utils.SS_DT_FLOAT {
-					// only check if the current value is numeric
-					if isNumeric {
-						floatEncValue, isFloat := currResult.CVal.(float64)
-						if !isFloat {
-							return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Float type enclosure does not have a float value")
-						}
-
-						if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
-							finalResult.Dtype = utils.SS_DT_FLOAT
-							finalResult.CVal = floatValue
-						} else {
-							// return current result when no value needs to be updated
-							return currResult, nil
-						}
-					} else {
-						// string value cannot override numeric value for min max
+						// return current result when no value needs to be updated
 						return currResult, nil
 					}
 				} else {
-					return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Enclosure does not have a valid data type")
+					// string value cannot override numeric value for min max
+					return currResult, nil
 				}
+			} else {
+				return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Enclosure does not have a valid data type")
 			}
 		}
 	}
@@ -139,7 +140,7 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForMinOrMax: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForMinOrMax: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -242,7 +243,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForRange: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForRange: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -289,11 +290,11 @@ func PopulateFieldToValueFromSegStats(fields []string, measureAgg *structs.Measu
 	for _, field := range fields {
 		sst, ok := sstMap[field]
 		if !ok {
-			return fmt.Errorf("PopulateFieldToValueFromSegStats: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("PopulateFieldToValueFromSegStats: sstMap did not have segstats for field %v, measureAgg: %v", field, measureAgg.String())
 		}
 
 		if i >= len(sst.Records) {
-			return fmt.Errorf("PopulateFieldToValueFromSegStats: Incorrect length of field: %v for aggCol: %v", field, measureAgg.String())
+			return fmt.Errorf("PopulateFieldToValueFromSegStats: Incorrect number of records in segstats for field: %v for measureAgg: %v", field, measureAgg.String())
 		}
 		fieldToValue[field] = *sst.Records[i]
 	}
@@ -360,7 +361,7 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	if len(fields) == 0 {
 		countStat, exist := sstMap["*"]
 		if !exist {
-			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
 		}
 		currResult, exists := measureResults[measureAgg.String()]
 		result, err := PerformEvalAggForSum(measureAgg, countStat.Count, exists, currResult, fieldToValue)
@@ -371,7 +372,7 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForSum: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -414,8 +415,8 @@ func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64,
 				finalValue++
 			}
 		} else {
-			// return count as 1 if expression is not boolean
-			finalValue = 1
+			// Always count the record if eval function is not a boolean expression
+			finalValue++
 		}
 	}
 
@@ -441,7 +442,7 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 	if len(fields) == 0 {
 		countStat, exist := sstMap["*"]
 		if !exist {
-			return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForCount: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
 		}
 		currResult, exists := measureResults[measureAgg.String()]
 		result, err := PerformEvalAggForCount(measureAgg, countStat.Count, exists, currResult, nil)
@@ -452,7 +453,7 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForCount: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 		length := len(sst.Records)
 		for i := 0; i < length; i++ {
@@ -532,7 +533,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	if len(fields) == 0 {
 		countStat, exist := sstMap["*"]
 		if !exist {
-			return fmt.Errorf("ComputeAggEvalForAvg: applyAggOpOnSegments sstMap did not have count when constant was used %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForAvg: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
 		}
 		avgStat, err = PerformEvalAggForAvg(measureAgg, countStat.Count, exists, avgStat, fieldToValue)
 		if err != nil {
@@ -541,7 +542,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForAvg: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForAvg: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -569,7 +570,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-// Always pass valid strSet when using this function
+// Always pass a non-nil strSet when using this function
 func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
 
@@ -612,7 +613,7 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	} else {
 		strSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
+			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for measureAgg: %v", measureAgg.String())
 		}
 	}
 
@@ -624,7 +625,7 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCardinality: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForCardinality: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -661,7 +662,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForValues: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+			return fmt.Errorf("ComputeAggEvalForValues: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -719,8 +720,8 @@ func AddMeasureAggInRunningStatsForCount(m *structs.MeasureAggregator, allConver
 	return idx, nil
 }
 
-func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, measureFunc utils.AggregateFunctions, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
-	fields := m.ValueColRequest.GetFields()
+func SetupMeasureAgg(measureAgg *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, measureFunc utils.AggregateFunctions, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
 	if len(fields) == 0 {
 		return 0, fmt.Errorf("SetupMeasureAgg: Zero fields of ValueColRequest for %v", measureFunc)
 	}
@@ -734,8 +735,8 @@ func SetupMeasureAgg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*st
 		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
 			MeasureCol:      field,
 			MeasureFunc:     measureFunc,
-			ValueColRequest: m.ValueColRequest,
-			StrEnc:          m.StrEnc,
+			ValueColRequest: measureAgg.ValueColRequest,
+			StrEnc:          measureAgg.StrEnc,
 		})
 		idx++
 	}
