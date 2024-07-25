@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -35,31 +34,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	nodeResMap = make(map[uint64]*structs.NodeResult)
-	mapMutex   sync.Mutex
-)
-
 func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
-	mapMutex.Lock()
-	defer mapMutex.Unlock()
-
-	// Check if the nodeRes instance exists for the given qid
-	if nr, exists := nodeResMap[qid]; exists {
-		return nr
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		nodeRes = &structs.NodeResult{}
 	}
-
-	// If not exists, create a new instance and add it to the map
-	nr := &structs.NodeResult{}
-	nodeResMap[qid] = nr
-
-	return nr
-}
-
-func deleteNodeResForQid(qid uint64) {
-	mapMutex.Lock()
-	delete(nodeResMap, qid)
-	mapMutex.Unlock()
+	if len(nodeRes.FinalColumns) == 0 {
+		nodeRes.FinalColumns = make(map[string]bool)
+	}
+	return nodeRes
 }
 
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
@@ -212,27 +195,33 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
-	var numTotalSegments uint64
 
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
-		recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-			config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
-		if err != nil {
-			log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
-			return
-		}
-		nodeRes.ColumnsOrder = colsIndexMap
-		for cName := range cols {
-			finalCols[cName] = true
-		}
+		var recs map[string]map[string]interface{}
+		if currSeg != "" {
+			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
+				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
+			if err != nil {
+				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
+				return
+			}
+			recs = _recs
+			nodeRes.ColumnsOrder = colsIndexMap
+			for cName := range cols {
+				finalCols[cName] = true
+			}
 
-		for key := range renameHardcodedColumns {
-			finalCols[key] = true
+			for key := range renameHardcodedColumns {
+				finalCols[key] = true
+			}
+		} else {
+			recs = make(map[string]map[string]interface{})
+			finalCols = nodeRes.FinalColumns
 		}
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
 
-			numTotalSegments, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
+			numTotalSegments, finishedSegments, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
 				// For synchronous queries, the query is deleted by this
 				// point, but segmap has all the segments that the query
@@ -242,11 +231,13 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// query isn't deleted until all segments get processed, so
 				// we shouldn't get to this block for async queries.
 				numTotalSegments = uint64(len(segmap))
+				finishedSegments = numTotalSegments
 				resultCount = len(allrrc)
 				rawSearchFinished = true
 			}
 			nodeRes.RawSearchFinished = rawSearchFinished
 			nodeRes.CurrentSearchResultCount = resultCount
+			nodeRes.RecsAggsProcessedSegments = finishedSegments - 1
 
 			if len(nodeRes.AllSearchColumnsByTimeRange) == 0 && aggs.AllColumnsByTimeRangeIsRequired() {
 				vTableNames, timeRange, orgid, err := query.GetSearchQueryInformation(qid)
@@ -292,6 +283,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
 						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
 						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
+						nodeRes.CurrentSearchResultCount = len(recs)
 					} else {
 						break // Break out of the loop to process next segment.
 					}
@@ -305,6 +297,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						if exists && boolVal {
 							// Update aggs with NextQueryAgg to loop for additional cleaning.
 							aggs = nodeRes.NextQueryAgg
+							nodeRes.CurrentSearchResultCount = len(recs)
 						} else {
 							break
 						}
@@ -402,21 +395,27 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			numProcessedRecords = 1
 		}
 	} else {
-		for currSeg, blkIds := range segmap {
-			blkIdsIndex := 0
-			for blkNum, recNums := range blkIds.BlkRecIndexes {
-				blkIdsIndex++
-				isLastBlk := blkIdsIndex == len(blkIds.BlkRecIndexes)
+		if len(segmap) == 0 && len(nodeRes.FinalColumns) > 0 {
+			// Even if there are no segments, we still need to call processSingleSegment
+			// so that we can do processing of any Aggregations that wait for all segments to be processed.
+			processSingleSegment("", "", nil, true)
+		} else {
+			for currSeg, blkIds := range segmap {
+				blkIdsIndex := 0
+				for blkNum, recNums := range blkIds.BlkRecIndexes {
+					blkIdsIndex++
+					isLastBlk := blkIdsIndex == len(blkIds.BlkRecIndexes)
 
-				blkRecIndexes := make(map[uint16]map[uint16]uint64)
-				blkRecIndexes[blkNum] = recNums
-				processSingleSegment(currSeg, blkIds.VirtualTableName, blkRecIndexes, isLastBlk)
+					blkRecIndexes := make(map[uint16]map[uint16]uint64)
+					blkRecIndexes[blkNum] = recNums
+					processSingleSegment(currSeg, blkIds.VirtualTableName, blkRecIndexes, isLastBlk)
+				}
 			}
 		}
 	}
 
-	if nodeRes.RecsAggsProcessedSegments >= numTotalSegments {
-		deleteNodeResForQid(qid)
+	for col, shouldKeep := range finalCols {
+		nodeRes.FinalColumns[col] = shouldKeep
 	}
 
 	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)

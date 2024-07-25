@@ -267,6 +267,7 @@ type ColumnsRequest struct {
 	IncludeValues            []*IncludeValue   // values of columns to include. Maps column name to index in column
 	RenameAggregationColumns map[string]string // values of aggregations to rename
 	Logfmt                   bool              // true if logfmt request
+	Next                     *ColumnsRequest
 }
 
 type IncludeValue struct {
@@ -407,6 +408,7 @@ type NodeResult struct {
 	RawSearchFinished           bool
 	CurrentSearchResultCount    int
 	AllSearchColumnsByTimeRange map[string]bool
+	FinalColumns                map[string]bool
 }
 
 type SegStats struct {
@@ -868,10 +870,37 @@ func (qa *QueryAggregators) AttachColumnsRequestToFillNullExprInChain(colRequest
 		return
 	}
 	if qa.HasFillNullExpr() {
-		qa.OutputTransforms.LetColumns.FillNullRequest.ColumnsRequest = colRequest
+		fillNullColReq := qa.OutputTransforms.LetColumns.FillNullRequest.ColumnsRequest
+		if fillNullColReq == nil {
+			qa.OutputTransforms.LetColumns.FillNullRequest.ColumnsRequest = colRequest
+		} else {
+			for fillNullColReq.Next != nil {
+				fillNullColReq = fillNullColReq.Next
+			}
+			fillNullColReq.Next = colRequest
+		}
 	}
 	if qa.Next != nil {
 		qa.Next.AttachColumnsRequestToFillNullExprInChain(colRequest)
+	}
+}
+
+func (qa *QueryAggregators) HasColumnsRequest() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.OutputColumns != nil {
+		return true
+	}
+	return false
+}
+
+func (qa *QueryAggregators) CheckForColRequestAndAttachToFillNullExprInChain() {
+	if qa == nil {
+		return
+	}
+	if qa.HasColumnsRequest() {
+		qa.AttachColumnsRequestToFillNullExprInChain(qa.OutputTransforms.OutputColumns)
+	}
+	if qa.Next != nil {
+		qa.Next.CheckForColRequestAndAttachToFillNullExprInChain()
 	}
 }
 

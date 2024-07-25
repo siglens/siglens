@@ -184,7 +184,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 		colReq := agg.OutputTransforms.OutputColumns
 		if colReq != nil {
-			err := performColumnsRequest(nodeResult, colReq, agg, recs, finalCols)
+			err := performColumnsRequest(nodeResult, colReq, recs, finalCols)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -635,15 +635,8 @@ func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, 
 	return nil
 }
 
-func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
+func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
-
-	// Attach columns request to fill null expressions in the chain.
-	// This is to ensure that we do remove the columns that are not required from the All Search Columns
-	// which is used in the fillNull Expr.
-	if aggs != nil {
-		aggs.AttachColumnsRequestToFillNullExprInChain(colReq)
-	}
 
 	if colReq.RenameAggregationColumns != nil {
 		for oldCName, newCName := range colReq.RenameAggregationColumns {
@@ -717,13 +710,14 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 	return nil
 }
 
-func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
+func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
 	if recs != nil {
-		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, aggs, recs, finalCols); err != nil {
+		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performColumnsRequest: %v", err)
 		}
+		return nil
 	}
 
 	nodeResult.RenameColumns = colReq.RenameAggregationColumns
@@ -2047,11 +2041,7 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 		if len(fillNullReq.FieldList) == 0 {
 			// No Fields are provided. This means fill null should be applied to all fields.
-			for field := range finalCols {
-				if _, exists := fillNullReq.FinalCols[field]; !exists {
-					fillNullReq.FinalCols[field] = true
-				}
-			}
+			utils.MergeMapsRetainingFirst(fillNullReq.FinalCols, finalCols)
 		}
 
 		return nil
@@ -2068,35 +2058,24 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 	} else {
-		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
-		for field := range finalCols {
-			if _, exists := colsToCheck[field]; !exists {
-				colsToCheck[field] = true
-			}
-		}
-
 		// Add any Columns that would be there in the previous search results but not in the current.
-		// This contains all the columns that are present in the given time range.
-		for field := range nodeResult.AllSearchColumnsByTimeRange {
-			if _, exists := colsToCheck[field]; !exists {
-				colsToCheck[field] = true
-			}
-		}
+		utils.MergeMapsRetainingFirst(colsToCheck, nodeResult.AllSearchColumnsByTimeRange)
 
-		if fillNullReq.ColumnsRequest != nil {
+		for fillNullReq.ColumnsRequest != nil {
 			// Apply any Columns Transforms and deletions that are present in the previous search results.
-			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, nil, colsToCheck)
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, colsToCheck)
 			if err != nil {
 				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
 			}
+
+			fillNullReq.ColumnsRequest = fillNullReq.ColumnsRequest.Next
 		}
 
+		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
+		utils.MergeMapsRetainingFirst(colsToCheck, finalCols)
+
 		// Add all these columns to the finalCols List, so that they are not removed from the final result.
-		for field := range colsToCheck {
-			if _, exists := finalCols[field]; !exists {
-				finalCols[field] = true
-			}
-		}
+		utils.MergeMapsRetainingFirst(finalCols, colsToCheck)
 	}
 
 	for _, record := range recs {
