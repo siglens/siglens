@@ -171,3 +171,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "* | eval newField=nullif(http_status, 200) | fields newField, http_status | fillnull value=FILLING | eval countVal=if(http_status=200 AND newField=""FILLING"", 1, 0) | stats count(http_status) as count, sum(countVal) as sum_count by newField | where count=sum_count",now-1d,now,*,countRecord:newField,eq,"FILLING",Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where http_status=200 | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where nullStatus=null() | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
+"| gentimes start=08/10/2022 end=08/11/2022 increment=5h | stats count",now-1d,now,*,countRecord:count(*):*,eq,5,Splunk QL
+"| gentimes start=04/04/2021 end=04/07/2021 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"| gentimes start=-30 end=-20 increment=7s | stats count",now-1d,now,*,countRecord:count(*):*,eq,"123,429",Splunk QL
+"| gentimes start=12/01/2021:16:11:56 end=12/05/2021:12:00:01 increment=3m | stats count",now-1d,now,*,countRecord:count(*):*,eq,"1,837",Splunk QL

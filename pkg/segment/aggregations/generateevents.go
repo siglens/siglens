@@ -65,7 +65,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	key := 0
 	currTime := time.UnixMilli(int64(start))
 
-	for start <= end {
+	for start < end {
 		recordKey := fmt.Sprintf("%v", key)
 		// Generate event
 
