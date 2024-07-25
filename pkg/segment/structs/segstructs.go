@@ -641,6 +641,23 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	return false
 }
 
+type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
+
+func (qa *QueryAggregators) HasInChain(hasInCur queryAggregatorsBoolFunc) bool {
+	if qa == nil {
+		return false
+	}
+
+	if hasInCur(qa) {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasInChain(hasInCur)
+	}
+	return false
+
+}
+
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	if qa.HasStreamStatsInChain() {
@@ -650,17 +667,7 @@ func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasQueryAggergatorBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasQueryAggergatorBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasQueryAggergatorBlock)
 }
 
 func (qa *QueryAggregators) HasDedupBlock() bool {
@@ -676,17 +683,7 @@ func (qa *QueryAggregators) HasDedupBlock() bool {
 }
 
 func (qa *QueryAggregators) HasDedupBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasDedupBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasDedupBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasDedupBlock)
 }
 
 func (qa *QueryAggregators) GetSortLimit() uint64 {
@@ -712,16 +709,7 @@ func (qa *QueryAggregators) HasSortBlock() bool {
 }
 
 func (qa *QueryAggregators) HasSortBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasSortBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasSortBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasSortBlock)
 }
 
 func (qa *QueryAggregators) HasTail() bool {
@@ -733,17 +721,7 @@ func (qa *QueryAggregators) HasTail() bool {
 }
 
 func (qa *QueryAggregators) HasTailInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasTail() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasTailInChain()
-	}
-
-	return false
+	return qa.HasInChain((*QueryAggregators).HasTail)
 }
 
 func (qa *QueryAggregators) HasBinBlock() bool {
@@ -755,17 +733,7 @@ func (qa *QueryAggregators) HasBinBlock() bool {
 }
 
 func (qa *QueryAggregators) HasBinInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasBinBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasBinInChain()
-	}
-	return false
-
+	return qa.HasInChain((*QueryAggregators).HasBinBlock)
 }
 
 func (qa *QueryAggregators) HasStreamStats() bool {
@@ -777,16 +745,7 @@ func (qa *QueryAggregators) HasStreamStats() bool {
 }
 
 func (qa *QueryAggregators) HasStreamStatsInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasStreamStats() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasStreamStatsInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasStreamStats)
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
@@ -794,17 +753,7 @@ func (qa *QueryAggregators) HasTransactionArguments() bool {
 }
 
 func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasTransactionArguments() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasTransactionArgumentsInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasTransactionArguments)
 }
 
 func (qa *QueryAggregators) HasRexBlockInQA() bool {
@@ -853,16 +802,7 @@ func (qa *QueryAggregators) HasFillNullExpr() bool {
 }
 
 func (qa *QueryAggregators) HasFillNullExprInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasFillNullExpr() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasFillNullExprInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasFillNullExpr)
 }
 
 func (qa *QueryAggregators) AttachColumnsRequestToFillNullExprInChain(colRequest *ColumnsRequest) {
@@ -1174,21 +1114,8 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 }
 
 func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
-	if qa == nil {
-		return false
+	statsAggPresentInCur := func(obj *QueryAggregators) bool {
+		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
-
-	if qa.GroupByRequest != nil {
-		return true
-	}
-
-	if qa.MeasureOperations != nil {
-		return true
-	}
-
-	if qa.Next != nil {
-		return qa.Next.IsStatsAggPresentInChain()
-	}
-
-	return false
+	return qa.HasInChain(statsAggPresentInCur)
 }
