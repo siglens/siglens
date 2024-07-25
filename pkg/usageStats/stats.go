@@ -543,7 +543,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 // - Initially, it was: bytes, eventCount, time
 // - Then, metrics were added: bytes, eventCount, metricCount, time
 // - Later, logsBytesCount and metricsBytesCount were added: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
-// The current format is bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount
+// The current format is bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount. However, the new format is backward compatible with the old formats.
 func parseStatsRecord(record []string) (ReadStats, error) {
 	var readStats ReadStats
 	var err error

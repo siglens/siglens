@@ -119,32 +119,24 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 	return storageSaved
 }
 
-func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
-	retVal := make([]utils.ResultPerIndex, 0, len(indexData))
-	i := 0
-	for idx, v := range indexData {
+func convertDataToSlice(data map[string]utils.ResultPerIndex, volumeField, countField string) []utils.ResultPerIndex {
+	retVal := make([]utils.ResultPerIndex, 0, len(data))
+	for idx, v := range data {
 		nextVal := make(utils.ResultPerIndex)
 		nextVal[idx] = make(map[string]interface{})
-		nextVal[idx]["ingestVolume"] = convertBytesToGB(v[idx]["ingestVolume"].(float64))
-		nextVal[idx]["eventCount"] = humanize.Comma(int64(v[idx]["eventCount"].(uint64)))
+		nextVal[idx][volumeField] = convertBytesToGB(v[idx][volumeField].(float64))
+		nextVal[idx][countField] = humanize.Comma(int64(v[idx][countField].(uint64)))
 		retVal = append(retVal, nextVal)
-		i++
 	}
-	return retVal[:i]
+	return retVal
+}
+
+func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount")
 }
 
 func convertTraceIndexDataToSlice(traceIndexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
-	retVal := make([]utils.ResultPerIndex, 0, len(traceIndexData))
-	i := 0
-	for idx, v := range traceIndexData {
-		nextVal := make(utils.ResultPerIndex)
-		nextVal[idx] = make(map[string]interface{})
-		nextVal[idx]["traceVolume"] = convertBytesToGB(v[idx]["traceVolume"].(float64))
-		nextVal[idx]["traceSpanCount"] = humanize.Comma(int64(v[idx]["traceSpanCount"].(uint64)))
-		retVal = append(retVal, nextVal)
-		i++
-	}
-	return retVal[:i]
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount")
 }
 
 func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
@@ -269,119 +261,71 @@ func isTraceRelatedIndex(indexName string) bool {
 	}
 	return false
 }
-func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
 
-	totalIncomingBytes := float64(0)
+func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField string) (map[string]utils.ResultPerIndex, int64, float64, float64) {
+	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
 
-	ingestionStats := make(map[string]utils.ResultPerIndex)
+	stats := make(map[string]utils.ResultPerIndex)
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	sortedIndices := make([]string, 0, len(allVirtualTableNames))
+	indices := make([]string, 0)
 
 	for k := range allVirtualTableNames {
-		if isTraceRelatedIndex(k) {
-			continue
+		if filterFunc(k) {
+			indices = append(indices, k)
 		}
-		sortedIndices = append(sortedIndices, k)
 	}
-	sort.Strings(sortedIndices)
+	sort.Strings(indices)
 
 	if err != nil {
-		log.Errorf("getIngestionStats: Error in getting virtual table names, err:%v", err)
+		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
 	}
 
-	allvtableCnts := segwriter.GetVTableCountsForAll(myid)
+	allVTableCounts := segwriter.GetVTableCountsForAll(myid)
 
-	for _, indexName := range sortedIndices {
+	for _, indexName := range indices {
 		if indexName == "" {
-			log.Errorf("getIngestionStats: skipping an empty index name indexName=%v", indexName)
+			log.Errorf("getStats: skipping an empty index name indexName=%v", indexName)
 			continue
 		}
 
-		cnts, ok := allvtableCnts[indexName]
+		counts, ok := allVTableCounts[indexName]
 		if !ok {
 			continue
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 
-		totalEventsForIndex := uint64(cnts.RecordCount) + uint64(unrotatedEventCount)
+		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)
 		totalEventCount += int64(totalEventsForIndex)
 
-		totalBytesReceivedForIndex := float64(cnts.BytesCount + unrotatedByteCount)
-		totalIncomingBytes += totalBytesReceivedForIndex
+		totalBytesReceivedForIndex := float64(counts.BytesCount + unrotatedByteCount)
+		totalBytes += totalBytesReceivedForIndex
 
-		totalOnDiskBytesCountForIndex := uint64(cnts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
+		totalOnDiskBytesCountForIndex := uint64(counts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
 		totalOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
 
 		perIndexStat := make(map[string]map[string]interface{})
 
 		perIndexStat[indexName] = make(map[string]interface{})
 
-		perIndexStat[indexName]["ingestVolume"] = totalBytesReceivedForIndex
-		perIndexStat[indexName]["eventCount"] = totalEventsForIndex
+		perIndexStat[indexName][volumeField] = totalBytesReceivedForIndex
+		perIndexStat[indexName][countField] = totalEventsForIndex
 
-		ingestionStats[indexName] = perIndexStat
+		stats[indexName] = perIndexStat
 	}
-	return ingestionStats, totalEventCount, totalIncomingBytes, totalOnDiskBytes
+	return stats, totalEventCount, totalBytes, totalOnDiskBytes
+}
+
+func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
+	return getStats(myid, func(indexName string) bool {
+		return !isTraceRelatedIndex(indexName)
+	}, "ingestVolume", "eventCount")
 }
 
 func GetTracesStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
-
-	totalTraceBytes := float64(0)
-	totalTraceSpanCount := int64(0)
-	totalTraceOnDiskBytes := float64(0)
-
-	traceStats := make(map[string]utils.ResultPerIndex)
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	traceIndices := make([]string, 0)
-
-	for k := range allVirtualTableNames {
-		if isTraceRelatedIndex(k) {
-			traceIndices = append(traceIndices, k)
-		}
-	}
-	sort.Strings(traceIndices)
-
-	if err != nil {
-		log.Errorf("GetTracesStats: Error in getting virtual table names, err:%v", err)
-	}
-
-	allvtableCnts := segwriter.GetVTableCountsForAll(myid)
-
-	for _, indexName := range traceIndices {
-		if indexName == "" {
-			log.Errorf("GetTracesStats: skipping an empty index name indexName=%v", indexName)
-			continue
-		}
-
-		cnts, ok := allvtableCnts[indexName]
-		if !ok {
-			continue
-		}
-
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-
-		totalTracesForIndex := uint64(cnts.RecordCount) + uint64(unrotatedEventCount)
-		totalTraceSpanCount += int64(totalTracesForIndex)
-
-		totalBytesReceivedForIndex := float64(cnts.BytesCount + unrotatedByteCount)
-		totalTraceBytes += totalBytesReceivedForIndex
-
-		totalOnDiskBytesCountForIndex := uint64(cnts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
-		totalTraceOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
-
-		perIndexStat := make(map[string]map[string]interface{})
-
-		perIndexStat[indexName] = make(map[string]interface{})
-
-		perIndexStat[indexName]["traceVolume"] = totalBytesReceivedForIndex
-		perIndexStat[indexName]["traceSpanCount"] = totalTracesForIndex
-
-		traceStats[indexName] = perIndexStat
-	}
-	return traceStats, totalTraceSpanCount, totalTraceBytes, totalTraceOnDiskBytes
+	return getStats(myid, isTraceRelatedIndex, "traceVolume", "traceSpanCount")
 }
 
 func convertBytesToGB(bytes float64) string {
