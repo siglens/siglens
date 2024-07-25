@@ -1634,14 +1634,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 
 			var epochTime int64
 			var err error
-			// 1. Direct epoch input (e.g., relative_time(1234567890, "-1d")) is stored in self.Value.
-			// 2. Epoch from another command (e.g., relative_time(now(), "-1d")) after evaluation is stored in left, leaving self.Value as an empty string.
-			if self.Value != "" {
-				epochTime, err = strconv.ParseInt(self.Value, 10, 64)
-				if err != nil {
-					return 0, fmt.Errorf("NumericExpr.Evaluate: failed to parse epoch time from Value %v, err: %v", self.Value, err)
-				}
-			} else if left >= 0 {
+			if left >= 0 {
 				epochTime = int64(left)
 			} else {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a valid timestamp")
