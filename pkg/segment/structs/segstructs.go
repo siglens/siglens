@@ -638,18 +638,18 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	return false
 }
 
-type queryAggregatorsBoolFunc func(obj *QueryAggregators) bool
+type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
 
-func (qa *QueryAggregators) HasInChain(hasBlockSingle queryAggregatorsBoolFunc) bool {
+func (qa *QueryAggregators) HasInChain(hasInCur queryAggregatorsBoolFunc) bool {
 	if qa == nil {
 		return false
 	}
 
-	if hasBlockSingle(qa) {
+	if hasInCur(qa) {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasInChain(hasBlockSingle)
+		return qa.Next.HasInChain(hasInCur)
 	}
 	return false
 
@@ -1112,21 +1112,8 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 }
 
 func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
-	if qa == nil {
-		return false
+	statsAggPresentInCur := func(obj *QueryAggregators) bool {
+		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
-
-	if qa.GroupByRequest != nil {
-		return true
-	}
-
-	if qa.MeasureOperations != nil {
-		return true
-	}
-
-	if qa.Next != nil {
-		return qa.Next.IsStatsAggPresentInChain()
-	}
-
-	return false
+	return qa.HasInChain(statsAggPresentInCur)
 }
