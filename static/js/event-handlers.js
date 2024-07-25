@@ -437,8 +437,8 @@ function runLiveTailBtnHandler(evt) {
 function runFilterBtnHandler(evt) {
     const runFilterBtn = $('#run-filter-btn');
     const queryBuilderBtn = $('#query-builder-btn');
-    
-    if (runFilterBtn.hasClass("cancel-search") || queryBuilderBtn.hasClass("cancel-search")) {
+
+    if (runFilterBtn.hasClass('cancel-search') || queryBuilderBtn.hasClass('cancel-search')) {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.close(1000); // Close WebSocket connection
         }
@@ -448,7 +448,6 @@ function runFilterBtnHandler(evt) {
         doCancel(data);
         return;
     }
-    
 
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
