@@ -473,6 +473,53 @@ func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
 	assert.False(t, qa.HasDedupBlockInChain())
 }
 
+func Test_HasSortBlockInChain_emptyChain(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasSortBlockInChain(), "Expected false when the chain is empty, got true")
+}
+
+func Test_HasSortBlockInChain_OnlyOneQA(t *testing.T) {
+	ot := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+func Test_HasSortBlockInChain_OnlyInLastQA(t *testing.T) {
+	ot_sort := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot_sort},
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+
+func Test_HasTail_OnlyInLastQA(t *testing.T) {
+	ot := &OutputTransforms{
+		TailRequest: &TailExpr{},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot},
+	}
+
+	assert.True(t, qa.HasTailInChain())
+}
+
 func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 	br := &BucketResult{
 		StatRes: map[string]utils.CValueEnclosure{
@@ -676,6 +723,11 @@ func Test_IsStatsAggPresentInChain(t *testing.T) {
 		{
 			name:     "Nil QueryAggregators",
 			qa:       nil,
+			expected: false,
+		},
+		{
+			name:     "None of GroupByRequest and MeasureOperations are presented",
+			qa:       &QueryAggregators{Sort: &SortRequest{}},
 			expected: false,
 		},
 		{
