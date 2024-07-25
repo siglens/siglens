@@ -171,13 +171,7 @@ type NumericExpr struct {
 	Left         *NumericExpr
 	Right        *NumericExpr
 	Val          *StringExpr
-	RelativeTime RelativeTimeExpr
-}
-
-type RelativeTimeExpr struct {
-	Snap     string
-	Offset   int64
-	TimeUnit utils.TimeUnit
+	RelativeTime utils.RelativeTimeExpr
 }
 
 type StringExpr struct {
@@ -1653,7 +1647,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a valid timestamp")
 			}
 
-			relTime, err := CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
+			relTime, err := utils.CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
 			if err != nil {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: error calculating relative time: %v", err)
 			}
@@ -1663,24 +1657,6 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
 	}
-}
-
-func CalculateAdjustedTimeForRelativeTimeCommand(timeModifier RelativeTimeExpr, currTime time.Time) (int64, error) {
-	var err error
-	if timeModifier.Offset != 0 {
-		currTime, err = utils.ApplyOffsetToTime(timeModifier.Offset, timeModifier.TimeUnit, currTime)
-		if err != nil {
-			return 0, err
-		}
-	}
-	if timeModifier.Snap != "" {
-		currTime, err = utils.ApplySnap(timeModifier.Snap, currTime)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	return currTime.UnixMilli(), nil
 }
 
 func handleTrimFunctions(op string, value string, trim_chars string) string {

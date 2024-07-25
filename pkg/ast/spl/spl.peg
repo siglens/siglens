@@ -3042,7 +3042,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
     if err != nil {
         return nil, err
     }
-    relTimeSpecifier, ok := specifier.(structs.RelativeTimeExpr)
+    relTimeSpecifier, ok := specifier.(utils.RelativeTimeExpr)
     if !ok {
         return nil, fmt.Errorf("specifier is not of type RelativeTimeExpr")
     }
@@ -4264,7 +4264,7 @@ RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
         return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
     }
 
-    relTimeOffset := structs.RelativeTimeExpr{}
+    relTimeOffset := utils.RelativeTimeExpr{}
     snap := ""
     if snapParam != nil {
         snap = snapParam.(string)
@@ -4275,7 +4275,7 @@ RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
         relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
     } 
 
-    timeModifier := structs.RelativeTimeExpr{
+    timeModifier := utils.RelativeTimeExpr{
 		Offset: relTimeOffset.Offset,
 		Snap:   snap,
 		TimeUnit: relTimeOffset.TimeUnit,
@@ -5058,7 +5058,7 @@ BY <- SPACE "BY"i SPACE // Case insensitive
 
 EQUAL <- EMPTY_OR_SPACE "=" EMPTY_OR_SPACE
 COMMA <- EMPTY_OR_SPACE "," EMPTY_OR_SPACE
-QUOTE <- EMPTY_OR_SPACE '"' EMPTY_OR_SPACE
+QUOTE <- '"'
 L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
