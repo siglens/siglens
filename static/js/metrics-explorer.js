@@ -474,8 +474,7 @@ function validateFormula(formula, uniqueId) {
     }
     if (!usedQueryNames.length) {
         let constantValue = parseFloat(formula);
-        if (!isNaN(constantValue))
-            usedQueryNames = queryNames
+        if (!isNaN(constantValue)) usedQueryNames = queryNames;
     }
 
     // Nest the formula within the functions present in formulaDetails.functions
@@ -1883,21 +1882,21 @@ async function convertDataForChart(data) {
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
                 if (series.values[formattedDate] === undefined) {
-                    if(regexNumeric.test(data.series[i])){
+                    if (regexNumeric.test(data.series[i])) {
                         let result;
                         try {
                             result = math.evaluate(data.series[i]);
-                            if(result >=0){
+                            if (result >= 0) {
                                 series.values[formattedDate] = result;
                             }
                         } catch (error) {
                             console.log(`Error: ${error.message}`);
                         }
-                    }else{
+                    } else {
                         series.values[formattedDate] = null;
-                    }   
+                    }
                 }
-                chartStartTime +=  calculatedInterval;
+                chartStartTime += calculatedInterval;
             }
             seriesArray.push(series);
         }
