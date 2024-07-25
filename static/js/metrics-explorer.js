@@ -1663,7 +1663,6 @@ $('#json-block').on('click', function () {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
-    var colorIndex = 0;
     if (isDashboardScreen) {
         // For dashboard page
         var panelChartEl;
@@ -1718,7 +1717,6 @@ function mergeGraphs(chartType, panelId = -1) {
             });
             // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
-            colorIndex++;
         }
     }
     $('.merged-graph-name').html(graphNames.join(', '));
