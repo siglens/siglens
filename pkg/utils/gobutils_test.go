@@ -113,3 +113,72 @@ func Test_GobDecodeEmpty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, regex.GetCompiledRegex())
 }
+
+func Test_GetEmptyList(t *testing.T) {
+	list := GobbableList{}
+	assert.Equal(t, 0, list.Len())
+}
+
+func Test_EncodeDecodeEmptyList(t *testing.T) {
+	originalList := GobbableList{}
+	encoded, err := originalList.GobEncode()
+	assert.NoError(t, err)
+
+	decodedList := GobbableList{}
+	err = decodedList.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, decodedList.Len())
+}
+
+func Test_EncodeDecodeSingleElementList(t *testing.T) {
+	originalList := GobbableList{}
+	originalList.PushBack(42)
+	encoded, err := originalList.GobEncode()
+	assert.NoError(t, err)
+
+	decodedList := GobbableList{}
+	err = decodedList.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, decodedList.Len())
+	assert.Equal(t, 42, decodedList.Front().Value)
+}
+
+func Test_EncodeDecodeMultipleElementList(t *testing.T) {
+	originalList := GobbableList{}
+	originalList.PushBack(42)
+	originalList.PushBack(43)
+	originalList.PushBack(44)
+	encoded, err := originalList.GobEncode()
+	assert.NoError(t, err)
+
+	decodedList := GobbableList{}
+	err = decodedList.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, decodedList.Len())
+	assert.Equal(t, 42, decodedList.Front().Value)
+	assert.Equal(t, 43, decodedList.Front().Next().Value)
+	assert.Equal(t, 44, decodedList.Front().Next().Next().Value)
+}
+
+func Test_EncodeDecodeMixedList(t *testing.T) {
+	originalList := GobbableList{}
+	originalList.PushBack(42)
+	originalList.PushBack("hello")
+	originalList.PushBack("world")
+	encoded, err := originalList.GobEncode()
+	assert.NoError(t, err)
+
+	decodedList := GobbableList{}
+	err = decodedList.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, decodedList.Len())
+	assert.Equal(t, 42, decodedList.Front().Value)
+	assert.Equal(t, "hello", decodedList.Front().Next().Value)
+	assert.Equal(t, "world", decodedList.Front().Next().Next().Value)
+}
+
+func Test_DecodeInvalidList(t *testing.T) {
+	decodedList := GobbableList{}
+	err := decodedList.GobDecode([]byte("invalid encoding"))
+	assert.Error(t, err)
+}

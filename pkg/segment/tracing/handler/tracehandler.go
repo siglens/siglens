@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
+	"github.com/siglens/siglens/pkg/usageStats"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -469,7 +470,7 @@ func ProcessRedTracesIngest() {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
 		}
-
+		usageStats.UpdateTracesStats(uint64(len(jsonData)), uint64(spanCnt), 0)
 	}
 }
 
