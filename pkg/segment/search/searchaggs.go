@@ -486,7 +486,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				continue
 			}
 
-			if !dtypeVal.IsNumeric() {
+			if !dtypeVal.IsNumeric() && mOp.MeasureFunc != utils.Count {
 				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
 				if err != nil {
 					log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
