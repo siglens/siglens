@@ -53,7 +53,6 @@ var colorPalette = {
     Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
-
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
     for (let key in chartDataCollection) {
@@ -1173,10 +1172,9 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
     return chartData;
 }
 
-
 function initializeChart(canvas, seriesData, queryName, queryString, chartType) {
     var ctx = canvas[0].getContext('2d');
-    
+
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName, queryString);
 
     const { gridLineColor, tickColor } = getGraphGridColors();
@@ -1287,7 +1285,6 @@ function initializeChart(canvas, seriesData, queryName, queryString, chartType) 
     lineChart.update();
     return lineChart;
 }
-
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     var canvas;
@@ -1458,34 +1455,34 @@ $('#color-input')
         $(this).select();
     });
 
-    function updateChartTheme(theme) {
-        selectedTheme = theme; // Store the selected theme
-        var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
-    
-        // Loop through each chart data
-        for (var queryName in chartDataCollection) {
-            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-                var chartData = chartDataCollection[queryName];
-                chartData.datasets.forEach(function (dataset, index) {
-                    dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                    dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
-                });
-    
-                var lineChart = lineCharts[queryName];
-                if (lineChart) {
-                    lineChart.update();
-                }
+function updateChartTheme(theme) {
+    selectedTheme = theme; // Store the selected theme
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+
+    // Loop through each chart data
+    for (var queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            var chartData = chartDataCollection[queryName];
+            chartData.datasets.forEach(function (dataset, index) {
+                dataset.borderColor = selectedPalette[index % selectedPalette.length];
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+            });
+
+            var lineChart = lineCharts[queryName];
+            if (lineChart) {
+                lineChart.update();
             }
         }
-    
-        if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
-            mergedGraph.data.datasets.forEach(function (dataset, index) {
-                dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
-            });
-            mergedGraph.update();
-        }
     }
+
+    if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
+        mergedGraph.data.datasets.forEach(function (dataset, index) {
+            dataset.borderColor = selectedPalette[index % selectedPalette.length];
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+        });
+        mergedGraph.update();
+    }
+}
 
 var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
 var strokeOptions = ['Normal', 'Thin', 'Thick'];
