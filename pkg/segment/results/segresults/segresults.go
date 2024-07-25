@@ -238,6 +238,10 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	for idx, measureAgg := range measureOps {
+		if len(sstMap) == 0 {
+			continue
+		}
+
 		aggOp := measureAgg.MeasureFunc
 		aggCol := measureAgg.MeasureCol
 
