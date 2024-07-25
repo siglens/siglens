@@ -36,6 +36,7 @@ import (
 )
 
 var defaultDashboardIds map[string]struct{}
+var defaultDashboardNames map[string]struct{}
 
 var allidsBaseFname string
 var allDashIdsLock map[uint64]*sync.Mutex = make(map[uint64]*sync.Mutex)
@@ -133,6 +134,28 @@ func getDefaultDashboardFileName() string {
 func InitDashboards() error {
 	var sb strings.Builder
 
+	defaultDashboardNames = make(map[string]struct{})
+
+	// Read the JSON file
+	jsonData, err := os.ReadFile(getDefaultDashboardFileName())
+	if err != nil {
+		log.Errorf("InitDashboard: Failed to read default dashboards file, err=%v", err)
+		return err
+	}
+
+	// Parse the JSON data
+	var dashboards map[string]string
+	err = json.Unmarshal(jsonData, &dashboards)
+	if err != nil {
+		log.Errorf("InitDashboard: Failed to unmarshal default dashboards, err=%v", err)
+		return err
+	}
+
+	// Iterate over the parsed data and save dashboard names
+	for _, name := range dashboards {
+		defaultDashboardNames[name] = struct{}{}
+	}
+
 	defaultDashboardIds = make(map[string]struct{})
 
 	defaultDashboardIds["10329b95-47a8-48df-8b1d-0a0a01ec6c42"] = struct{}{}
@@ -145,7 +168,7 @@ func InitDashboards() error {
 	allidsBaseFname = baseDir + "/allids"
 	latestDashboardReadTimeMillis = make(map[uint64]uint64)
 
-	err := os.MkdirAll(baseDir, 0764)
+	err = os.MkdirAll(baseDir, 0764)
 	if err != nil {
 		log.Errorf("InitDashboard: failed to create basedir=%v, err=%v", baseDir, err)
 		return err
@@ -230,6 +253,12 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	if dname == "" {
 		log.Errorf("createDashboard: failed to create Dashboard, with empty dashboard name")
 		return nil, errors.New("createDashboard: failed to create Dashboard, with empty dashboard name")
+	}
+
+	// Check if the dashboard name is a default name
+	if _, isDefault := defaultDashboardNames[dname]; isDefault {
+		log.Errorf("createDashboard: Dashboard with name %s is a default dashboard name and cannot be used", dname)
+		return nil, errors.New("dashboard name already exists")
 	}
 
 	newId := createUniqId(dname)

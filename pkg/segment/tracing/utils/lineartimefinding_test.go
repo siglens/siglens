@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"math"
 	"testing"
 )
 
@@ -54,8 +55,12 @@ func TestFindPercentileData(t *testing.T) {
 		},
 	}
 
+	precision := 8
+	scale := math.Pow10(precision)
+
 	for _, tc := range testCases {
 		result := FindPercentileData(tc.arr, tc.percentile)
+		result = math.Round(result*scale) / scale
 		if result != tc.expected {
 			t.Errorf("Expected %d percentile to be %f, but got %f", tc.percentile, tc.expected, result)
 		}

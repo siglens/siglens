@@ -18,7 +18,6 @@
 package structs
 
 import (
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -183,10 +182,10 @@ type StreamStatsOptions struct {
 }
 
 type RunningStreamStatsResults struct {
-	Window              *list.List
+	Window              *sutils.GobbableList
 	CurrResult          float64
-	NumProcessedRecords uint64     // kept for global stats where window = 0
-	SecondaryWindow     *list.List // use secondary window for range
+	NumProcessedRecords uint64               // kept for global stats where window = 0
+	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *hyperloglog.Sketch
@@ -294,10 +293,11 @@ type LetColumnsRequest struct {
 }
 
 type FillNullExpr struct {
-	Value     string   // value to fill nulls with. Default 0
-	FieldList []string // list of fields to fill nulls with
-	Records   map[string]map[string]interface{}
-	FinalCols map[string]bool
+	Value          string   // value to fill nulls with. Default 0
+	FieldList      []string // list of fields to fill nulls with
+	Records        map[string]map[string]interface{}
+	FinalCols      map[string]bool
+	ColumnsRequest *ColumnsRequest
 }
 
 type TailExpr struct {
@@ -378,33 +378,34 @@ type QueryCount struct {
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
-	AllRecords                []*utils.RecordResultContainer
-	ErrList                   []error
-	Histogram                 map[string]*AggregationResult
-	TotalResults              *QueryCount
-	VectorResultValue         float64
-	RenameColumns             map[string]string
-	SegEncToKey               map[uint16]string
-	TotalRRCCount             uint64
-	MeasureFunctions          []string        `json:"measureFunctions,omitempty"`
-	MeasureResults            []*BucketHolder `json:"measure,omitempty"`
-	GroupByCols               []string        `json:"groupByCols,omitempty"`
-	Qtype                     string          `json:"qtype,omitempty"`
-	BucketCount               int             `json:"bucketCount,omitempty"`
-	PerformAggsOnRecs         bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType              PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest            *GroupByRequest
-	MeasureOperations         []*MeasureAggregator
-	NextQueryAgg              *QueryAggregators
-	RecsAggsBlockResults      interface{}              // Evaluates to *blockresults.BlockResults
-	RecsAggsColumnKeysMap     map[string][]interface{} // map of column name to column keys for GroupBy Recs
-	RecsAggsProcessedSegments uint64
-	RecsRunningSegStats       []*SegStats
-	TransactionEventRecords   map[string]map[string]interface{}
-	TransactionsProcessed     map[string]map[string]interface{}
-	ColumnsOrder              map[string]int
-	RawSearchFinished         bool
-	CurrentSearchResultCount  int
+	AllRecords                  []*utils.RecordResultContainer
+	ErrList                     []error
+	Histogram                   map[string]*AggregationResult
+	TotalResults                *QueryCount
+	VectorResultValue           float64
+	RenameColumns               map[string]string
+	SegEncToKey                 map[uint16]string
+	TotalRRCCount               uint64
+	MeasureFunctions            []string        `json:"measureFunctions,omitempty"`
+	MeasureResults              []*BucketHolder `json:"measure,omitempty"`
+	GroupByCols                 []string        `json:"groupByCols,omitempty"`
+	Qtype                       string          `json:"qtype,omitempty"`
+	BucketCount                 int             `json:"bucketCount,omitempty"`
+	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest              *GroupByRequest
+	MeasureOperations           []*MeasureAggregator
+	NextQueryAgg                *QueryAggregators
+	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
+	RecsAggsProcessedSegments   uint64
+	RecsRunningSegStats         []*SegStats
+	TransactionEventRecords     map[string]map[string]interface{}
+	TransactionsProcessed       map[string]map[string]interface{}
+	ColumnsOrder                map[string]int
+	RawSearchFinished           bool
+	CurrentSearchResultCount    int
+	AllSearchColumnsByTimeRange map[string]bool
 }
 
 type SegStats struct {
@@ -835,6 +836,44 @@ func (qa *QueryAggregators) HasRexBlockInChainWithStats() bool {
 	return false
 }
 
+// To determine whether to fetch all the columns by time range.
+// Currently, it is only used in the case of FillNullExpr
+func (qa *QueryAggregators) AllColumnsByTimeRangeIsRequired() bool {
+	return qa != nil && qa.HasFillNullExprInChain()
+}
+
+func (qa *QueryAggregators) HasFillNullExpr() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.FillNullRequest != nil {
+		return true
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasFillNullExprInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasFillNullExpr() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasFillNullExprInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) AttachColumnsRequestToFillNullExprInChain(colRequest *ColumnsRequest) {
+	if qa == nil {
+		return
+	}
+	if qa.HasFillNullExpr() {
+		qa.OutputTransforms.LetColumns.FillNullRequest.ColumnsRequest = colRequest
+	}
+	if qa.Next != nil {
+		qa.Next.AttachColumnsRequestToFillNullExprInChain(colRequest)
+	}
+}
+
 // To determine whether it contains ValueColRequest
 func (qa *QueryAggregators) HasValueColRequest() bool {
 	for _, agg := range qa.MeasureOperations {
@@ -924,7 +963,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvzip":            {},
 	"mv_to_json_array": {},
 	"sigfig":           {},
-	"nullif":           {},
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},

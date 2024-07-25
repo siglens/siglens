@@ -2058,6 +2058,12 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
 
     return node, nil
 }
+/ "null" L_PAREN R_PAREN {
+    node := &structs.ConditionExpr {
+        Op: "null",
+    }
+    return node, nil
+}
 
 ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     conditionValuePair := &structs.ConditionValuePair {

@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -87,6 +88,9 @@ type RunningQueryState struct {
 	isAsync                  bool
 	isCancelled              bool
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
+	orgid                    uint64
+	tableInfo                *structs.TableInfo
+	timeRange                *dtu.TimeRange
 	searchRes                *segresults.SearchResults
 	rawRecords               []*utils.RecordResultContainer
 	queryCount               *structs.QueryCount
@@ -327,6 +331,29 @@ func GetCurrentSearchResultCount(qid uint64) (int, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	return rQuery.currentSearchResultCount, nil
+}
+
+func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo *structs.TableInfo, timeRange *dtu.TimeRange, orgid uint64) {
+	rQuery.rqsLock.Lock()
+	rQuery.tableInfo = tableInfo
+	rQuery.timeRange = timeRange
+	rQuery.orgid = orgid
+	rQuery.rqsLock.Unlock()
+}
+
+func GetSearchQueryInformation(qid uint64) ([]string, *dtu.TimeRange, uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		err := fmt.Errorf("GetSearchQueryInformation: qid %+v does not exist", qid)
+		log.Errorf(err.Error())
+		return nil, nil, 0, err
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.tableInfo.GetQueryTables(), rQuery.timeRange, rQuery.orgid, nil
 }
 
 // returns the total number of segments, the current number of search results, and if the raw search is finished
