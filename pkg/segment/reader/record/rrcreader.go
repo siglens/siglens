@@ -37,6 +37,13 @@ import (
 func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
+		// For synchronous queries, the query is deleted by this
+		// point, but segmap has all the segments that the query
+		// searched.
+		// For async queries, the segmap has just one segment
+		// because we process them as the search completes, but the
+		// query isn't deleted until all segments get processed, so
+		// we shouldn't get to this block for async queries.
 		nodeRes = &structs.NodeResult{}
 	}
 	if len(nodeRes.FinalColumns) == 0 {
