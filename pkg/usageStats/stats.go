@@ -58,6 +58,8 @@ type Stats struct {
 	TotalMetricsDatapointsCount uint64
 	LogsBytesCount              uint64
 	MetricsBytesCount           uint64
+	TraceBytesCount             uint64
+	TraceSpanCount              uint64
 }
 
 var ustats = make(map[uint64]*Stats)
@@ -79,6 +81,8 @@ type ReadStats struct {
 	TimeStamp              time.Time
 	LogsBytesCount         uint64
 	MetricsBytesCount      uint64
+	TraceBytesCount        uint64
+	TraceSpanCount         uint64
 }
 
 func StartUsageStats() {
@@ -347,7 +351,9 @@ func FlushStatsToFile(orgid uint64) error {
 			epochAsString := strconv.FormatUint(uint64(time.Now().Unix()), 10)
 			logsBytesAsString := strconv.FormatUint(ustats[orgid].LogsBytesCount, 10)
 			metricsBytesAsString := strconv.FormatUint(ustats[orgid].MetricsBytesCount, 10)
-			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString, logsBytesAsString, metricsBytesAsString}
+			traceBytesAsString := strconv.FormatUint(ustats[orgid].TraceBytesCount, 10)
+			traceSpanCountAsString := strconv.FormatUint(ustats[orgid].TraceSpanCount, 10)
+			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString, logsBytesAsString, metricsBytesAsString, traceBytesAsString, traceSpanCountAsString}
 			records = append(records, record)
 			err = w.WriteAll(records)
 			if err != nil {
@@ -362,7 +368,8 @@ func FlushStatsToFile(orgid uint64) error {
 			atomic.StoreUint64(&ustats[orgid].MetricsDatapointsCount, 0)
 			atomic.StoreUint64(&ustats[orgid].LogsBytesCount, 0)
 			atomic.StoreUint64(&ustats[orgid].MetricsBytesCount, 0)
-
+			atomic.StoreUint64(&ustats[orgid].TraceBytesCount, 0)
+			atomic.StoreUint64(&ustats[orgid].TraceSpanCount, 0)
 			return nil
 		}
 	}
@@ -378,6 +385,16 @@ func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 	atomic.AddUint64(&ustats[orgid].TotalBytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].TotalLogLinesCount, logLinesCount)
 	atomic.AddUint64(&ustats[orgid].LogsBytesCount, logsBytesCount)
+}
+
+func UpdateTracesStats(traceBytesCount uint64, traceSpanCount uint64, orgid uint64) {
+	if _, ok := ustats[orgid]; !ok {
+		ustats[orgid] = &Stats{}
+	}
+	atomic.AddUint64(&ustats[orgid].BytesCount, traceBytesCount)
+	atomic.AddUint64(&ustats[orgid].TraceBytesCount, traceBytesCount)
+	atomic.AddUint64(&ustats[orgid].TraceSpanCount, traceSpanCount)
+	atomic.AddUint64(&ustats[orgid].TotalBytesCount, traceBytesCount)
 }
 
 func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid uint64) {
@@ -512,6 +529,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			entry.LogsBytesCount += rStat.LogsBytesCount
 			entry.MetricsBytesCount += rStat.MetricsBytesCount
 			entry.TimeStamp = rStat.TimeStamp
+			entry.TraceBytesCount += rStat.TraceBytesCount
+			entry.TraceSpanCount += rStat.TraceSpanCount
 			resultMap[bucketInterval] = entry
 		} else {
 			resultMap[bucketInterval] = rStat
@@ -523,8 +542,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 // The data format has evolved over time:
 // - Initially, it was: bytes, eventCount, time
 // - Then, metrics were added: bytes, eventCount, metricCount, time
-// - Later, logsBytesCount and metricsBytesCount were added. However, the new format is backward compatible with the old formats.
-// The current format is: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
+// - Later, logsBytesCount and metricsBytesCount were added: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
+// The current format is bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount. However, the new format is backward compatible with the old formats.
 func parseStatsRecord(record []string) (ReadStats, error) {
 	var readStats ReadStats
 	var err error
@@ -581,6 +600,32 @@ func parseStatsRecord(record []string) (ReadStats, error) {
 		readStats.MetricsBytesCount, err = strconv.ParseUint(record[5], 10, 64)
 		if err != nil {
 			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsBytesCount field '%v': %w", record[5], err)
+		}
+		readStats.TimeStamp = time.Unix(tsString, 0)
+	case 8:
+		readStats.MetricsDatapointsCount, err = strconv.ParseUint(record[2], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsDatapointsCount field '%v': %w", record[2], err)
+		}
+		tsString, err := strconv.ParseInt(record[3], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[3], err)
+		}
+		readStats.LogsBytesCount, err = strconv.ParseUint(record[4], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse LogsBytesCount field '%v': %w", record[4], err)
+		}
+		readStats.MetricsBytesCount, err = strconv.ParseUint(record[5], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsBytesCount field '%v': %w", record[5], err)
+		}
+		readStats.TraceBytesCount, err = strconv.ParseUint(record[6], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse TraceBytesCount field '%v': %w", record[6], err)
+		}
+		readStats.TraceSpanCount, err = strconv.ParseUint(record[7], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse TracesCount field '%v': %w", record[7], err)
 		}
 		readStats.TimeStamp = time.Unix(tsString, 0)
 	default:
