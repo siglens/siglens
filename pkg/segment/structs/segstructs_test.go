@@ -725,7 +725,7 @@ func Test_IsStatsAggPresentInChain(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "None of GroupByRequest and  MeasureOperations are presented",
+			name:     "None of GroupByRequest and MeasureOperations are presented",
 			qa:       &QueryAggregators{Sort: &SortRequest{}},
 			expected: false,
 		},
