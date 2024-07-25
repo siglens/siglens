@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -778,4 +779,96 @@ func Test_IsStatsAggPresentInChain(t *testing.T) {
 		actual := tt.qa.IsStatsAggPresentInChain()
 		assert.Equal(t, tt.expected, actual, tt.name)
 	}
+}
+
+func Test_EncodeDecodeSegStats(t *testing.T) {
+	segStatsList := []*SegStats{
+		{
+			IsNumeric: true,
+			Count:     123,
+			NumStats: &NumericStats{
+				Min: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 1,
+				},
+				Max: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 42,
+				},
+				Sum: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 200,
+				},
+				Dtype: utils.SS_DT_SIGNED_NUM,
+			},
+			Hll:         hyperloglog.New16(),
+			StringStats: nil,
+			Records:     nil,
+		},
+		{
+			IsNumeric: false,
+			Count:     42,
+			NumStats:  nil,
+			Hll:       hyperloglog.New16(),
+			StringStats: &StringStats{
+				StrSet: map[string]struct{}{
+					"str1": {},
+					"str2": {},
+				},
+			},
+			Records: nil,
+		},
+	}
+
+	for _, originalSegStats := range segStatsList {
+		segStatsJson, err := originalSegStats.ToJSON()
+		assert.NoError(t, err)
+		assert.NotNil(t, segStatsJson)
+
+		recoveredSegStats, err := segStatsJson.ToStats()
+		assert.NoError(t, err)
+		assert.NotNil(t, recoveredSegStats)
+
+		assert.Equal(t, originalSegStats, recoveredSegStats)
+	}
+}
+
+func Test_EqualsIsDeepEquals(t *testing.T) {
+	segStat1 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		Hll:       hyperloglog.New16(),
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+		},
+		Records: nil,
+	}
+
+	segStat2 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		Hll:       hyperloglog.New16(),
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+		},
+		Records: nil,
+	}
+
+	assert.Equal(t, segStat1, segStat2)
+
+	segStat2.StringStats.StrSet = map[string]struct{}{
+		"str1": {},
+		"str2": {},
+		"str3": {},
+	}
+
+	assert.NotEqual(t, segStat1, segStat2)
 }

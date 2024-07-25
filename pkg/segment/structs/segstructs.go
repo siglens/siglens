@@ -430,10 +430,11 @@ type StringStats struct {
 
 // json exportable struct for segstats
 type SegStatsJSON struct {
-	IsNumeric bool
-	Count     uint64
-	RawHll    []byte
-	NumStats  *NumericStats
+	IsNumeric   bool
+	Count       uint64
+	RawHll      []byte
+	NumStats    *NumericStats
+	StringStats *StringStats
 }
 
 type AllSegStatsJSON struct {
@@ -481,6 +482,7 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
+	ss.StringStats = ssj.StringStats
 	return ss, nil
 }
 
@@ -496,6 +498,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	}
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
+	segStatJson.StringStats = ss.StringStats
 	return segStatJson, nil
 }
 
