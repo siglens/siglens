@@ -21,6 +21,12 @@ func createGenTimeEvent(start time.Time, end time.Time) map[string]interface{} {
 	}
 }
 
+func SetGeneratedCols(genEvent *structs.GenerateEvent, genCols []string) {
+	for _, col := range genCols {
+		genEvent.GeneratedCols[col] = true
+	}
+}
+
 func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	if aggs.GenerateEvent.GenTimes == nil {
 		return fmt.Errorf("PerformGenTimes: GenTimes is nil")
@@ -31,11 +37,9 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 			TimeScalr: utils.TMDay,
 		}
 	}
+	genCols := []string{"starttime", "endtime", "starthuman", "endhuman"}
 
-	aggs.GenerateEvent.GeneratedCols["starttime"] = true
-	aggs.GenerateEvent.GeneratedCols["endtime"] = true
-	aggs.GenerateEvent.GeneratedCols["starthuman"] = true
-	aggs.GenerateEvent.GeneratedCols["endhuman"] = true
+	SetGeneratedCols(aggs.GenerateEvent, genCols)
 
 	start := aggs.GenerateEvent.GenTimes.StartTime
 	end := aggs.GenerateEvent.GenTimes.EndTime
@@ -66,7 +70,6 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 
 	for start < end {
 		recordKey := fmt.Sprintf("%v", key)
-		// Generate event
 
 		endTime, err := utils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
 		if err != nil {
@@ -76,6 +79,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 		if err != nil {
 			return fmt.Errorf("PerformGenTimes: Error while calculating interval end time, err: %v", err)
 		}
+
 		records[recordKey] = createGenTimeEvent(currTime, intervalEndTime)
 		recordsIndex[recordKey] = key
 		key++
