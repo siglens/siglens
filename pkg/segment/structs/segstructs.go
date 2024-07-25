@@ -666,6 +666,7 @@ func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	return qa.HasInChain((*QueryAggregators).HasQueryAggergatorBlock)
 }
+
 func (qa *QueryAggregators) HasDedupBlock() bool {
 	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
 		letColumns := qa.OutputTransforms.LetColumns
