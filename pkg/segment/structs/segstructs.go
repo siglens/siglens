@@ -938,8 +938,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
-	"relative_time":    {},
-	"time":             {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnum":            {},
