@@ -28,10 +28,10 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
-	"github.com/siglens/siglens/pkg/segment/aggregations"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -42,7 +42,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
-
 )
 
 const QUERY_INFO_REFRESH_LOOP_SECS = 300
@@ -145,9 +144,8 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 	if aggs.GenerateEvent == nil {
 		return nil
 	}
-	
-	nodeRes := &structs.NodeResult{
-	}
+
+	nodeRes := &structs.NodeResult{}
 
 	aggs.GenerateEvent.GeneratedRecords = make(map[string]map[string]interface{})
 	aggs.GenerateEvent.GeneratedRecordsIndex = make(map[string]int)
@@ -247,8 +245,6 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		}
 	}
 }
-
-
 
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,

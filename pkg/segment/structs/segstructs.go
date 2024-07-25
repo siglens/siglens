@@ -167,11 +167,11 @@ type QueryAggregators struct {
 }
 
 type GenerateEvent struct {
-	GenTimes *GenTimes
-	GeneratedRecords map[string]map[string]interface{}
+	GenTimes              *GenTimes
+	GeneratedRecords      map[string]map[string]interface{}
 	GeneratedRecordsIndex map[string]int
-	GeneratedCols map[string]bool
-	GeneratedColsIndex map[string]int
+	GeneratedCols         map[string]bool
+	GeneratedColsIndex    map[string]int
 }
 
 type GenTimes struct {
@@ -680,7 +680,7 @@ func (qa *QueryAggregators) HasGenerateEvent() bool {
 	if qa == nil {
 		return false
 	}
-	
+
 	return qa.GenerateEvent != nil
 }
 

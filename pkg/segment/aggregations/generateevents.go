@@ -8,17 +8,16 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
-
 func getFormattedTime(t time.Time) string {
 	return t.Format("Mon Jan 2 15:04:05 2006 -0700")
 }
 
 func createGenTimeEvent(start time.Time, end time.Time) map[string]interface{} {
 	return map[string]interface{}{
-		"starttime": uint64(start.UnixMilli())/1000,
-		"endtime": uint64(end.UnixMilli())/1000,
+		"starttime":  uint64(start.UnixMilli()) / 1000,
+		"endtime":    uint64(end.UnixMilli()) / 1000,
 		"starthuman": getFormattedTime(start),
-		"endhuman": getFormattedTime(end),
+		"endhuman":   getFormattedTime(end),
 	}
 }
 
@@ -28,7 +27,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	}
 	if aggs.GenerateEvent.GenTimes.Interval == nil {
 		aggs.GenerateEvent.GenTimes.Interval = &structs.SpanLength{
-			Num: 1,
+			Num:       1,
 			TimeScalr: utils.TMDay,
 		}
 	}

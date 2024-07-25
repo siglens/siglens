@@ -411,7 +411,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			numProcessedRecords = 1
 		}
 	} else {
-		
+
 		for currSeg, blkIds := range segmap {
 			blkIdsIndex := 0
 			for blkNum, recNums := range blkIds.BlkRecIndexes {

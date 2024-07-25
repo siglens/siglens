@@ -10241,7 +10241,6 @@ func Test_GenTimes_6(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-
 func Test_GenTimes_7(t *testing.T) {
 	query := `| gentimes start=-3 end=2 | eval myField=replace(date, "^(\d{1,2})/(\d{1,2})/", "\2/\1/")`
 	_, err := spl.Parse("", []byte(query))
@@ -10270,7 +10269,6 @@ func Test_GenTimes_7(t *testing.T) {
 	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
 	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 
-	
 	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
 	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.NewColName, "myField")

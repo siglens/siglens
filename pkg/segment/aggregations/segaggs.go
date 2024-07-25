@@ -120,7 +120,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
-	if post.GenerateEvent != nil  && len(recs) == 0 {
+	if post.GenerateEvent != nil && len(recs) == 0 {
 		return nodeResult
 	}
 
