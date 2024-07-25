@@ -18,7 +18,6 @@
 package structs
 
 import (
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -183,10 +182,10 @@ type StreamStatsOptions struct {
 }
 
 type RunningStreamStatsResults struct {
-	Window              *list.List
+	Window              *sutils.GobbableList
 	CurrResult          float64
-	NumProcessedRecords uint64     // kept for global stats where window = 0
-	SecondaryWindow     *list.List // use secondary window for range
+	NumProcessedRecords uint64               // kept for global stats where window = 0
+	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *hyperloglog.Sketch
@@ -431,10 +430,11 @@ type StringStats struct {
 
 // json exportable struct for segstats
 type SegStatsJSON struct {
-	IsNumeric bool
-	Count     uint64
-	RawHll    []byte
-	NumStats  *NumericStats
+	IsNumeric   bool
+	Count       uint64
+	RawHll      []byte
+	NumStats    *NumericStats
+	StringStats *StringStats
 }
 
 type AllSegStatsJSON struct {
@@ -482,6 +482,7 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
+	ss.StringStats = ssj.StringStats
 	return ss, nil
 }
 
@@ -497,6 +498,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	}
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
+	segStatJson.StringStats = ss.StringStats
 	return segStatJson, nil
 }
 
