@@ -519,7 +519,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1749,6 +1749,19 @@ DedupFieldName <- !("sortby") field:FieldName {
     return field, nil
 }
 
+// Parses one or more FieldNames separate by a space
+// Returns a slice containing all the FieldNames
+SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
+    var fields []string
+    fields = append(fields, first.(string))
+    for _, r := range rest.([]any) {
+        // Extracting the field name from the tuple (SPACE, FieldName)
+        fields = append(fields, r.([]any)[1].(string))
+    }
+
+    return fields, nil
+}
+
 DedupFieldList <- SPACE first:DedupFieldName rest:(SPACE DedupFieldName !EQUAL)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is " " and the second is a FieldName.
@@ -2117,6 +2130,12 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
         ValueList: valueList,
     }
 
+    return node, nil
+}
+/ "null" L_PAREN R_PAREN {
+    node := &structs.ConditionExpr {
+        Op: "null",
+    }
     return node, nil
 }
 
@@ -4497,24 +4516,15 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
     return txnArgs, nil
 }
 
-TransactionDefinitionOption <- option:(SpaceSeparatedFieldNameList / StartsWithOption / EndsWithOption) {
+TransactionDefinitionOption <- option:(TransactionSpaceSeparatedFieldList / StartsWithOption / EndsWithOption) {
     return option, nil
 }
 
-// Parses one or more FieldNames separate by a space
-// Returns a slice containing all the FieldNames
-SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
-    var fields []string
-    fields = append(fields, first.(string))
-    for _, r := range rest.([]any) {
-        // Extracting the field name from the tuple (SPACE, FieldName)
-        fields = append(fields, r.([]any)[1].(string))
-    }
-
+TransactionSpaceSeparatedFieldList <- fields:SpaceSeparatedFieldNameList {
     txnArg := &TxnArgs{
         argOption: "fields",
         arguments: &structs.TransactionArguments{
-            Fields: fields,
+            Fields: fields.([]string),
         },
     }
 
@@ -4975,8 +4985,46 @@ IndexName <- (!SPACE .)+ {
 	return string(c.text), nil
 }
 
+// return *structs.QueryAggregators
+FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:FillNullFieldList? {
+    valueStr := "0"
+    fieldList := make([]string, 0)
+
+    if valueOption != nil {
+        valueStr = valueOption.(string)
+    }
+
+    if fields != nil {
+        fieldList = fields.([]string)
+    }
+
+    fillNullExpr := &structs.FillNullExpr{
+        Value: valueStr,
+        FieldList: fieldList,
+    }
+	fillNullExpr.Records = make(map[string]map[string]interface{}, 0)
+	fillNullExpr.FinalCols = make(map[string]bool, 0)
+
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                FillNullRequest: fillNullExpr,
+            },
+        },
+    }, nil
+}
+
+FillNullValueOption <- SPACE "value" EQUAL str:String {
+    return removeQuotes(str), nil
+}
+
+FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
+    return fieldList, nil
+}
+
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5005,6 +5053,7 @@ CMD_FORMAT <- "format"
 CMD_EARLIEST <- "earliest"
 CMD_LATEST <- "latest"
 CMD_EVENTCOUNT <- "eventcount"
+CMD_FILLNULL <- "fillnull"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

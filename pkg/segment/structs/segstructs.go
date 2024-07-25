@@ -18,7 +18,6 @@
 package structs
 
 import (
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -183,10 +182,10 @@ type StreamStatsOptions struct {
 }
 
 type RunningStreamStatsResults struct {
-	Window              *list.List
+	Window              *sutils.GobbableList
 	CurrResult          float64
-	NumProcessedRecords uint64     // kept for global stats where window = 0
-	SecondaryWindow     *list.List // use secondary window for range
+	NumProcessedRecords uint64               // kept for global stats where window = 0
+	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *hyperloglog.Sketch
@@ -290,6 +289,15 @@ type LetColumnsRequest struct {
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
+	FillNullRequest      *FillNullExpr
+}
+
+type FillNullExpr struct {
+	Value          string   // value to fill nulls with. Default 0
+	FieldList      []string // list of fields to fill nulls with
+	Records        map[string]map[string]interface{}
+	FinalCols      map[string]bool
+	ColumnsRequest *ColumnsRequest
 }
 
 type TailExpr struct {
@@ -370,31 +378,34 @@ type QueryCount struct {
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
-	AllRecords                []*utils.RecordResultContainer
-	ErrList                   []error
-	Histogram                 map[string]*AggregationResult
-	TotalResults              *QueryCount
-	VectorResultValue         float64
-	RenameColumns             map[string]string
-	SegEncToKey               map[uint16]string
-	TotalRRCCount             uint64
-	MeasureFunctions          []string        `json:"measureFunctions,omitempty"`
-	MeasureResults            []*BucketHolder `json:"measure,omitempty"`
-	GroupByCols               []string        `json:"groupByCols,omitempty"`
-	Qtype                     string          `json:"qtype,omitempty"`
-	BucketCount               int             `json:"bucketCount,omitempty"`
-	PerformAggsOnRecs         bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType              PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest            *GroupByRequest
-	MeasureOperations         []*MeasureAggregator
-	NextQueryAgg              *QueryAggregators
-	RecsAggsBlockResults      interface{}              // Evaluates to *blockresults.BlockResults
-	RecsAggsColumnKeysMap     map[string][]interface{} // map of column name to column keys for GroupBy Recs
-	RecsAggsProcessedSegments uint64
-	RecsRunningSegStats       []*SegStats
-	TransactionEventRecords   map[string]map[string]interface{}
-	TransactionsProcessed     map[string]map[string]interface{}
-	ColumnsOrder              map[string]int
+	AllRecords                  []*utils.RecordResultContainer
+	ErrList                     []error
+	Histogram                   map[string]*AggregationResult
+	TotalResults                *QueryCount
+	VectorResultValue           float64
+	RenameColumns               map[string]string
+	SegEncToKey                 map[uint16]string
+	TotalRRCCount               uint64
+	MeasureFunctions            []string        `json:"measureFunctions,omitempty"`
+	MeasureResults              []*BucketHolder `json:"measure,omitempty"`
+	GroupByCols                 []string        `json:"groupByCols,omitempty"`
+	Qtype                       string          `json:"qtype,omitempty"`
+	BucketCount                 int             `json:"bucketCount,omitempty"`
+	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest              *GroupByRequest
+	MeasureOperations           []*MeasureAggregator
+	NextQueryAgg                *QueryAggregators
+	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
+	RecsAggsProcessedSegments   uint64
+	RecsRunningSegStats         []*SegStats
+	TransactionEventRecords     map[string]map[string]interface{}
+	TransactionsProcessed       map[string]map[string]interface{}
+	ColumnsOrder                map[string]int
+	RawSearchFinished           bool
+	CurrentSearchResultCount    int
+	AllSearchColumnsByTimeRange map[string]bool
 }
 
 type SegStats struct {
@@ -419,10 +430,11 @@ type StringStats struct {
 
 // json exportable struct for segstats
 type SegStatsJSON struct {
-	IsNumeric bool
-	Count     uint64
-	RawHll    []byte
-	NumStats  *NumericStats
+	IsNumeric   bool
+	Count       uint64
+	RawHll      []byte
+	NumStats    *NumericStats
+	StringStats *StringStats
 }
 
 type AllSegStatsJSON struct {
@@ -470,6 +482,7 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
+	ss.StringStats = ssj.StringStats
 	return ss, nil
 }
 
@@ -485,6 +498,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	}
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
+	segStatJson.StringStats = ss.StringStats
 	return segStatJson, nil
 }
 
@@ -604,7 +618,8 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
-			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil)
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {
@@ -626,6 +641,23 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	return false
 }
 
+type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
+
+func (qa *QueryAggregators) HasInChain(hasInCur queryAggregatorsBoolFunc) bool {
+	if qa == nil {
+		return false
+	}
+
+	if hasInCur(qa) {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasInChain(hasInCur)
+	}
+	return false
+
+}
+
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	if qa.HasStreamStatsInChain() {
@@ -635,17 +667,7 @@ func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasQueryAggergatorBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasQueryAggergatorBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasQueryAggergatorBlock)
 }
 
 func (qa *QueryAggregators) HasDedupBlock() bool {
@@ -661,17 +683,7 @@ func (qa *QueryAggregators) HasDedupBlock() bool {
 }
 
 func (qa *QueryAggregators) HasDedupBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasDedupBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasDedupBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasDedupBlock)
 }
 
 func (qa *QueryAggregators) GetSortLimit() uint64 {
@@ -697,16 +709,7 @@ func (qa *QueryAggregators) HasSortBlock() bool {
 }
 
 func (qa *QueryAggregators) HasSortBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasSortBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasSortBlockInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasSortBlock)
 }
 
 func (qa *QueryAggregators) HasTail() bool {
@@ -718,17 +721,7 @@ func (qa *QueryAggregators) HasTail() bool {
 }
 
 func (qa *QueryAggregators) HasTailInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasTail() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasTailInChain()
-	}
-
-	return false
+	return qa.HasInChain((*QueryAggregators).HasTail)
 }
 
 func (qa *QueryAggregators) HasBinBlock() bool {
@@ -740,17 +733,7 @@ func (qa *QueryAggregators) HasBinBlock() bool {
 }
 
 func (qa *QueryAggregators) HasBinInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasBinBlock() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasBinInChain()
-	}
-	return false
-
+	return qa.HasInChain((*QueryAggregators).HasBinBlock)
 }
 
 func (qa *QueryAggregators) HasStreamStats() bool {
@@ -762,16 +745,7 @@ func (qa *QueryAggregators) HasStreamStats() bool {
 }
 
 func (qa *QueryAggregators) HasStreamStatsInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.HasStreamStats() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasStreamStatsInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasStreamStats)
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
@@ -779,17 +753,7 @@ func (qa *QueryAggregators) HasTransactionArguments() bool {
 }
 
 func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasTransactionArguments() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasTransactionArgumentsInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).HasTransactionArguments)
 }
 
 func (qa *QueryAggregators) HasRexBlockInQA() bool {
@@ -822,6 +786,35 @@ func (qa *QueryAggregators) HasRexBlockInChainWithStats() bool {
 		return qa.Next.HasRexBlockInChainWithStats()
 	}
 	return false
+}
+
+// To determine whether to fetch all the columns by time range.
+// Currently, it is only used in the case of FillNullExpr
+func (qa *QueryAggregators) AllColumnsByTimeRangeIsRequired() bool {
+	return qa != nil && qa.HasFillNullExprInChain()
+}
+
+func (qa *QueryAggregators) HasFillNullExpr() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.FillNullRequest != nil {
+		return true
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasFillNullExprInChain() bool {
+	return qa.HasInChain((*QueryAggregators).HasFillNullExpr)
+}
+
+func (qa *QueryAggregators) AttachColumnsRequestToFillNullExprInChain(colRequest *ColumnsRequest) {
+	if qa == nil {
+		return
+	}
+	if qa.HasFillNullExpr() {
+		qa.OutputTransforms.LetColumns.FillNullRequest.ColumnsRequest = colRequest
+	}
+	if qa.Next != nil {
+		qa.Next.AttachColumnsRequestToFillNullExprInChain(colRequest)
+	}
 }
 
 // To determine whether it contains ValueColRequest
@@ -913,7 +906,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvzip":            {},
 	"mv_to_json_array": {},
 	"sigfig":           {},
-	"nullif":           {},
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
@@ -1124,21 +1116,8 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 }
 
 func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
-	if qa == nil {
-		return false
+	statsAggPresentInCur := func(obj *QueryAggregators) bool {
+		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
-
-	if qa.GroupByRequest != nil {
-		return true
-	}
-
-	if qa.MeasureOperations != nil {
-		return true
-	}
-
-	if qa.Next != nil {
-		return qa.Next.IsStatsAggPresentInChain()
-	}
-
-	return false
+	return qa.HasInChain(statsAggPresentInCur)
 }
