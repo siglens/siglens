@@ -52,9 +52,9 @@ func InitRunningStreamStatsResults(measureFunc utils.AggregateFunctions) *struct
 		defaultVal = -math.MaxFloat64
 	}
 	return &structs.RunningStreamStatsResults{
-		Window:          list.New(),
+		Window:          &putils.GobbableList{},
 		CurrResult:      defaultVal,
-		SecondaryWindow: list.New(),
+		SecondaryWindow: &putils.GobbableList{},
 	}
 }
 
@@ -163,7 +163,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 }
 
 // Remove the front element from the window
-func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
+func removeFrontElementFromWindow(window *putils.GobbableList, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
 	front := window.Front()
 	frontElement, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
 	if !correctType {
@@ -198,7 +198,7 @@ func removeFrontElementFromWindow(window *list.List, ssResults *structs.RunningS
 	return nil
 }
 
-func performCleanWindow(currIndex int, window *list.List, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
+func performCleanWindow(currIndex int, window *putils.GobbableList, ssResults *structs.RunningStreamStatsResults, windowSize int, measureAgg utils.AggregateFunctions) error {
 	for window.Len() > 0 {
 		front := window.Front()
 		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
@@ -236,7 +236,7 @@ func cleanWindow(currIndex int, ssResults *structs.RunningStreamStatsResults, wi
 	return nil
 }
 
-func performCleanTimeWindow(thresholdTime uint64, timeSortAsc bool, window *list.List, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
+func performCleanTimeWindow(thresholdTime uint64, timeSortAsc bool, window *putils.GobbableList, ssResults *structs.RunningStreamStatsResults, measureAgg utils.AggregateFunctions) error {
 	for window.Len() > 0 {
 		front := window.Front()
 		frontVal, correctType := front.Value.(*structs.RunningStreamStatsWindowElement)
@@ -340,7 +340,7 @@ func getListElementAsFloatFromWindow(listElement *list.Element) (float64, error)
 	return floatVal, nil
 }
 
-func manageMinWindow(window *list.List, index int, newValue float64, timestamp uint64) error {
+func manageMinWindow(window *putils.GobbableList, index int, newValue float64, timestamp uint64) error {
 	for window.Len() > 0 {
 		lastElementFloatVal, err := getListElementAsFloatFromWindow(window.Back())
 		if err != nil {
@@ -356,7 +356,7 @@ func manageMinWindow(window *list.List, index int, newValue float64, timestamp u
 	return nil
 }
 
-func manageMaxWindow(window *list.List, index int, newValue float64, timestamp uint64) error {
+func manageMaxWindow(window *putils.GobbableList, index int, newValue float64, timestamp uint64) error {
 	for window.Len() > 0 {
 		lastElementFloatVal, err := getListElementAsFloatFromWindow(window.Back())
 		if err != nil {
