@@ -642,6 +642,13 @@ func (r *MetricsResult) FetchScalarMetricsForUi(finalSearchText string, pqlQuerr
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
 	httpResp.StartTime = uint32(startTime)
+	// Calculate the interval using the start and end times
+	timerangeSeconds := endTime - startTime
+	calculatedInterval, err := CalculateInterval(timerangeSeconds)
+	if err != nil {
+		return utils.MetricStatsResponse{}, err
+	}
+	httpResp.IntervalSec = calculatedInterval
 
 	httpResp.Series = append(httpResp.Series, finalSearchText)
 	httpResp.Values = append(httpResp.Values, []*float64{&r.ScalarValue})
