@@ -2058,18 +2058,21 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 	} else {
-		// Add any Columns that would be there in the previous search results but not in the current.
-		utils.MergeMapsRetainingFirst(colsToCheck, nodeResult.AllSearchColumnsByTimeRange)
 
-		for fillNullReq.ColumnsRequest != nil {
+		fillNullColReq := fillNullReq.ColumnsRequest
+
+		for fillNullColReq != nil {
 			// Apply any Columns Transforms and deletions that are present in the previous search results.
-			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, colsToCheck)
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullColReq, nil, nodeResult.AllSearchColumnsByTimeRange)
 			if err != nil {
 				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
 			}
 
-			fillNullReq.ColumnsRequest = fillNullReq.ColumnsRequest.Next
+			fillNullColReq = fillNullColReq.Next
 		}
+
+		// Add any Columns that would be there in the previous search results but not in the current.
+		utils.MergeMapsRetainingFirst(colsToCheck, nodeResult.AllSearchColumnsByTimeRange)
 
 		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
 		utils.MergeMapsRetainingFirst(colsToCheck, finalCols)

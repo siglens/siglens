@@ -484,16 +484,17 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 			doBuckPull = true
 		}
 		recsSearchedSinceLastUpdate += recsSearched
-		if segReq.HasMatchedRrc {
-			segsNotSent++
-			segenc := allSegFileResults.SegKeyToEnc[segReq.segKey]
-			IncrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, segenc,
-				"", doBuckPull, nil)
-			segsNotSent = 0
-			recsSearchedSinceLastUpdate = 0
-		} else {
-			segsNotSent++
-		}
+
+		segsNotSent++
+		segenc := allSegFileResults.SegKeyToEnc[segReq.segKey]
+		// We need to increment the number of finished segments and send message to QUERY_UPDATE channel
+		// irrespective of whether a segment has Matched RRC or not. This is to ensure that the query Aggregations
+		// which require all the Segments to be processed are updated correctly.
+		IncrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, segenc,
+			"", doBuckPull, nil)
+		segsNotSent = 0
+		recsSearchedSinceLastUpdate = 0
+
 		if !rrcsCompleted && areAllRRCsFound(allSegFileResults, sortedQSRSlice[idx+1:], segReq.aggs) {
 			qs.SetRRCFinishTime()
 			rrcsCompleted = true

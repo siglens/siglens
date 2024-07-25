@@ -221,7 +221,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
 
-			numTotalSegments, finishedSegments, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
+			numTotalSegments, _, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
 				// For synchronous queries, the query is deleted by this
 				// point, but segmap has all the segments that the query
@@ -231,13 +231,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// query isn't deleted until all segments get processed, so
 				// we shouldn't get to this block for async queries.
 				numTotalSegments = uint64(len(segmap))
-				finishedSegments = numTotalSegments
 				resultCount = len(allrrc)
 				rawSearchFinished = true
 			}
 			nodeRes.RawSearchFinished = rawSearchFinished
 			nodeRes.CurrentSearchResultCount = resultCount
-			nodeRes.RecsAggsProcessedSegments = finishedSegments - 1
 
 			if len(nodeRes.AllSearchColumnsByTimeRange) == 0 && aggs.AllColumnsByTimeRangeIsRequired() {
 				vTableNames, timeRange, orgid, err := query.GetSearchQueryInformation(qid)
