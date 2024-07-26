@@ -1660,6 +1660,7 @@ $('#json-block').on('click', function () {
 // Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
+    var colorIndex = 0;
     if (isDashboardScreen) {
         // For dashboard page
         var panelChartEl;
@@ -1702,15 +1703,20 @@ function mergeGraphs(chartType, panelId = -1) {
             var datasets = chartDataCollection[queryName].datasets;
             graphNames.push(`${datasets[0].label}`);
             datasets.forEach(function (dataset) {
+                // Calculate color for the dataset
+                let datasetColor = colorPalette.Classic[colorIndex % colorPalette.Classic.length];
+
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
-                    borderColor: dataset.borderColor,
+                    borderColor: datasetColor,
                     borderWidth: dataset.borderWidth,
-                    backgroundColor: dataset.backgroundColor,
+                    backgroundColor: datasetColor + '70', // opacity
                     fill: chartType === 'Area chart' ? true : false,
                     borderDash: selectedLineStyle === 'Dash' ? [5, 5] : selectedLineStyle === 'Dotted' ? [1, 3] : [],
                 });
+
+                colorIndex++;
             });
             // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
