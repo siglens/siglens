@@ -10332,3 +10332,51 @@ func Test_aggHasEval_ConditionalExpr(t *testing.T) {
 	query = []byte(`app_name=bracecould | stats sum(http_status), values(eval(if(http_status=500, http_method, 0)))`)
 	performCommon_aggEval_ConditionalExpr(t, query, utils.Values, `values(eval(if(http_status=500, http_method, 0)))`, "http_method", "0")
 }
+
+func Test_MVExpand_NoLimit(t *testing.T) {
+	query := `* | mvexpand batch`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_WithLimit(t *testing.T) {
+	query := `* | mvexpand app_name limit=5`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_InvalidLimit(t *testing.T) {
+	query := `* | mvexpand batch limit=invalid`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_MVExpand_MissingField(t *testing.T) {
+	query := `* | mvexpand`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}

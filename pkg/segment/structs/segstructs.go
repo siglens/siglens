@@ -351,6 +351,7 @@ type MultiValueColLetRequest struct {
 	IsRegex         bool
 	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
 	Setsv           bool // if true, split values are combined into a single value. default is false
+	Limit           int64
 }
 
 type BucketResult struct {
