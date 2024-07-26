@@ -244,8 +244,7 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 	case *parser.ParenExpr:
 		// Ignore the ParenExpr, As the Expr inside the ParenExpr will be handled in the next iteration
 	case *parser.NumberLiteral:
-		mQueryReqs, queryArithmetic, err = handleNumberLiteral(node, mQueryReqs, queryArithmetic)
-		exit = true
+		// Ignore the number literals, As they are handled in the handleCallExpr and BinaryExpr
 	default:
 		log.Errorf("parsePromQLExprNode: Unsupported node type: %T\n", node)
 	}
@@ -615,29 +614,6 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	return mQueryReqs, nil
 }
 
-// handleNumberLiteral
-func handleNumberLiteral(e *parser.NumberLiteral, mQueryReqs []*structs.MetricsQueryRequest,
-	queryArithmetic []*structs.QueryArithmetic) ([]*structs.MetricsQueryRequest, []*structs.QueryArithmetic, error) {
-
-	arithmeticOperation := structs.QueryArithmetic{}
-	var lhsRequest []*structs.MetricsQueryRequest
-	arithmeticOperation.ConstantOp = true
-	arithmeticOperation.Constant = e.Val
-
-	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
-
-	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {
-		mQueryReqs = lhsRequest
-	} else if mQueryReqs[0].MetricsQuery.HashedMName == uint64(0) {
-		// This means there is a common group by on multiple metrics separated by operators.
-		// So, we need to append the aggregations to each of the Request in LHS and RHS.
-		// And we can discard the current aggregation in the mQueryReqs[0]
-		mQueryReqs = appendMetricAggsToTheMQuery(lhsRequest, &mQueryReqs[0].MetricsQuery)
-	} else {
-		mQueryReqs = append(mQueryReqs, lhsRequest...)
-	}
-	return mQueryReqs, queryArithmetic, nil
-}
 func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQueryRequest,
 	queryArithmetic []*structs.QueryArithmetic) ([]*structs.MetricsQueryRequest, []*structs.QueryArithmetic, error) {
 
