@@ -221,6 +221,16 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	TailRequest            *TailExpr
 	HeadRequest            *HeadExpr
+	MultiValueExpr         *MultiValueExpr
+}
+type MultiValueExpr struct {
+	MvExpandExpr *MvExpandExpr
+}
+
+type MvExpandExpr struct {
+	Command string
+	ColName string
+	Limit   int64
 }
 
 type HeadExpr struct {

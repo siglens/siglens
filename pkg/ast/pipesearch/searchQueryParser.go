@@ -482,6 +482,7 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 	aggNode.OutputTransforms.HeadRequest = node.HeadRequest
 	aggNode.OutputTransforms.TailRequest = node.TailRequest
 
+	aggNode.OutputTransforms.MultiValueExpr = node.MultiValueExpr
 	if aggNode.OutputTransforms.HeadRequest != nil && aggNode.OutputTransforms.HeadRequest.BoolExpr == nil && aggNode.OutputTransforms.HeadRequest.MaxRows != 0 {
 		aggNode.Limit = int(aggNode.OutputTransforms.HeadRequest.MaxRows)
 	}
