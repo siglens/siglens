@@ -23,12 +23,14 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -2605,109 +2607,150 @@ func Test_findSpan(t *testing.T) {
 
 }
 
-func WindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedLen [][]int, expectedSecondaryLen [][]int) {
+func compareValues(cValue1 utils.CValueEnclosure, cValue2 utils.CValueEnclosure) bool {
+	if cValue1.Dtype != cValue2.Dtype {
+		return false
+	}
+	if cValue1.Dtype == utils.SS_DT_STRING {
+		return cValue1.CVal.(string) == cValue2.CVal.(string)
+	}
+	if cValue1.Dtype == utils.SS_DT_FLOAT {
+		return cValue1.CVal.(float64) == cValue2.CVal.(float64)
+	}
+	if cValue1.Dtype == utils.SS_INVALID {
+		return cValue1.CVal == cValue2.CVal
+	}
 
-	for i, measureFunc := range measureFuncs {
-		ssResults := InitRunningStreamStatsResults(measureFunc)
+	return false
+}
+
+func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
+
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		for j, value := range values {
-			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureFunc, value, timestamps[j], true)
+			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, nil)
 			assert.Nil(t, err)
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.Equal(t, 0.0, res)
 				} else {
 					assert.True(t, exist)
-					assert.Equal(t, expectedValues[i][j-1], res)
+					assert.True(t, compareValues(expectedValues[i][j-1], res))
 				}
 			} else {
 				assert.True(t, exist)
-				if measureFunc == utils.Avg {
-					assert.Equal(t, expectedValues[i][j], res)
+				if measureAgg.MeasureFunc == utils.Avg {
+					assert.True(t, compareValues(expectedValues[i][j], res))
 				}
 			}
 			assert.Equal(t, expectedLen[i][j], ssResults.Window.Len())
-			if measureFunc == utils.Range {
+			if measureAgg.MeasureFunc == utils.Range {
 				assert.Equal(t, expectedSecondaryLen[i][j], ssResults.SecondaryWindow.Len())
 			}
-			if measureFunc == utils.Avg {
-				assert.Equal(t, expectedValues2[i][j], ssResults.CurrResult)
+			if measureAgg.MeasureFunc == utils.Avg {
+				assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
 			} else {
-				assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
+				assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
 			}
 		}
 	}
 
 }
 
-func StreamStatsValuesHelper(t *testing.T, colValues []interface{}, expectedValues []string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
-	var result interface{}
+func StreamStatsValuesHelper(t *testing.T, colValues []utils.CValueEnclosure, expectedValues [][]string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
+	var result utils.CValueEnclosure
 	var exist bool
 	var err error
+
+	measureAgg := &structs.MeasureAggregator{
+		MeasureFunc: utils.Values,
+	}
 
 	ssResult := InitRunningStreamStatsResults(utils.Values)
 	for i, colValue := range colValues {
 		if windowSize == 0 && ssOption.TimeWindow == nil {
-			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, utils.Values, colValue)
-			if !exist {
-				result = 0.0
-			}
+			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, measureAgg, colValue, nil)
 			ssOption.NumProcessedRecords++
 		} else {
-			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, utils.Values, colValue, timestamps[i], true)
+			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, measureAgg, colValue, timestamps[i], true, nil)
 		}
 
 		assert.Nil(t, err)
 		if !ssOption.Current {
 			if i == 0 {
 				assert.False(t, exist)
-				assert.Equal(t, 0.0, result)
 			} else {
 				assert.True(t, exist)
-				assert.Equal(t, expectedValues[i-1], result)
+				assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+				assert.True(t, putils.CompareStringSlices(expectedValues[i-1], result.CVal.([]string)))
 			}
 		} else {
 			assert.True(t, exist)
-			assert.Equal(t, expectedValues[i], result)
+			assert.True(t, putils.CompareStringSlices(expectedValues[i], result.CVal.([]string)))
 		}
 	}
 }
 
-func NoWindowStreamStatsHelperTest(t *testing.T, values []float64, ssOption *structs.StreamStatsOptions, measureFuncs []utils.AggregateFunctions, expectedValues [][]float64, expectedValues2 [][]float64, expectedValues3 [][]float64) {
+func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedValues3 [][]utils.CValueEnclosure) {
 
-	for i, measureFunc := range measureFuncs {
-		ssResults := InitRunningStreamStatsResults(measureFunc)
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		defaultVal := ssResults.CurrResult
 		ssOption.NumProcessedRecords = 0
 
 		for j, value := range values {
-			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureFunc, value)
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, nil)
 			ssOption.NumProcessedRecords++
 			assert.Nil(t, err)
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.Equal(t, defaultVal, result)
+					assert.True(t, compareValues(defaultVal, result))
 				} else {
 					assert.True(t, exist)
-					assert.Equal(t, expectedValues[i][j-1], result)
+					assert.True(t, compareValues(expectedValues[i][j-1], result))
 				}
 			} else {
 				assert.Equal(t, 0, ssResults.Window.Len())
 				assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
-				if measureFunc == utils.Avg {
-					assert.Equal(t, expectedValues[i][j], result)
-					assert.Equal(t, expectedValues2[i][j], ssResults.CurrResult)
-				} else if measureFunc == utils.Range {
-					assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
-					assert.Equal(t, expectedValues2[i][j], ssResults.RangeStat.Max)
-					assert.Equal(t, expectedValues3[i][j], ssResults.RangeStat.Min)
+				if measureAgg.MeasureFunc == utils.Avg {
+					assert.True(t, compareValues(expectedValues[i][j], result))
+					assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
+				} else if measureAgg.MeasureFunc == utils.Range {
+					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
+					assert.True(t, compareValues(expectedValues2[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Max}))
+					assert.True(t, compareValues(expectedValues3[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Min}))
 				} else {
-					assert.Equal(t, expectedValues[i][j], ssResults.CurrResult)
+					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
 				}
 			}
 		}
 	}
+}
+
+func getMeasureAgg(measureFuncs []utils.AggregateFunctions) []*structs.MeasureAggregator {
+	var measureAggs []*structs.MeasureAggregator
+	for _, measureFunc := range measureFuncs {
+		measureAggs = append(measureAggs, &structs.MeasureAggregator{
+			MeasureFunc: measureFunc,
+		})
+	}
+	return measureAggs
+
+}
+
+func createCValues(values []interface{}, dtypes []utils.SS_DTYPE) []utils.CValueEnclosure {
+	var expectedValues []utils.CValueEnclosure
+	for i, value := range values {
+		if dtypes[i] == utils.SS_DT_FLOAT {
+			floatVal, _ := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
+			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: floatVal})
+		} else {
+			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: fmt.Sprintf("%v", value)})
+		}
+	}
+	return expectedValues
 }
 
 func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
@@ -2718,20 +2761,54 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 
 	windowSize := 3
 	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	expectedValuesCount := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	values := []float64{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
-	expectedValuesSum := []float64{7, 9, 14, 8, 12, 10, 17, 15, 21, 15}
-	expectedValuesAvg := []float64{7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5}
-	expectedValuesMax := []float64{7, 7, 7, 5, 6, 6, 8, 8, 9, 9}
 	expectedMaxLen := []int{1, 2, 2, 2, 1, 2, 1, 2, 1, 2}
-	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	expectedValuesRange := []float64{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
-	expectedValuesCardinality := []float64{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+
+	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3, 3)
+	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
+	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 8, 12, 10, 17, 15, 21, 15)
+	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5)
+	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 5, 6, 6, 8, 8, 9, 9)
+	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 3, 3, 4, 2)
+	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 4, 5, 5, 5, 5, 5, 7)
+	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3, 3)
+
+	dtypes := make([]utils.SS_DTYPE, len(values))
+
+	for i := range values {
+		dtypes[i] = utils.SS_DT_FLOAT
+	}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAgg(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
 	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
 	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
@@ -2743,7 +2820,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 			ssOption.Current = optionValue[i]
 			ssOption.Global = optionValue[j]
 
-			WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+			WindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 		}
 	}
 }
@@ -2760,25 +2837,62 @@ func Test_Time_Window(t *testing.T) {
 
 	windowSize := 3
 	expectedLen := []int{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
-	expectedValuesCount := []float64{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
-	values := []float64{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
-	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 7300, 10000, 11500, 20000}
-	expectedValuesSum := []float64{7, 9, 14, 1, 7, 10, 17, 4, 13, 2}
-	expectedValuesAvg := []float64{7, 4.5, 4.666666666666667, 1, 3.5, 3.3333333333333335, 5.666666666666667, 4, 6.5, 2}
-	expectedValuesMax := []float64{7, 7, 7, 1, 6, 6, 8, 4, 9, 2}
 	expectedMaxLen := []int{1, 2, 2, 1, 1, 2, 1, 1, 1, 1}
-	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 3, 4, 4, 2}
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 1, 2, 1}
-	expectedValuesRange := []float64{0, 5, 5, 0, 5, 5, 5, 0, 5, 0}
-	expectedValuesCardinality := []float64{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
+
+	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 3, 1, 2, 1)
+	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
+	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 1, 7, 10, 17, 4, 13, 2)
+	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 1, 3.5, 3.3333333333333335, 5.666666666666667, 4, 6.5, 2)
+	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 1, 6, 6, 8, 4, 9, 2)
+	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 3, 4, 4, 2)
+	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 0, 5, 5, 5, 0, 5, 0)
+	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 3, 1, 2, 1)
+
+	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 7300, 10000, 11500, 20000}
+
+	dtypes := make([]utils.SS_DTYPE, len(values))
+
+	for i := range values {
+		dtypes[i] = utils.SS_DT_FLOAT
+	}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+
+	measureAggs := getMeasureAgg(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
 	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
 	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
 
-	WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+	WindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
 }
 
 func Test_NoWindow_StreamStats(t *testing.T) {
@@ -2787,18 +2901,53 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 		Global:  true,
 	}
 
-	expectedValuesCount := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	values := []float64{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
-	expectedValuesSum := []float64{7, 9, 14, 15, 21, 24, 32, 36, 45, 47}
-	expectedValuesAvg := []float64{7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7}
-	expectedValuesMax := []float64{7, 7, 7, 7, 7, 7, 8, 8, 9, 9}
-	expectedValuesMin := []float64{7, 2, 2, 1, 1, 1, 1, 1, 1, 1}
-	expectedValuesRange := []float64{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
-	expectedValuesCardinality := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 9}
+	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
+	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 15, 21, 24, 32, 36, 45, 47)
+	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7)
+	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 7, 7, 7, 8, 8, 9, 9)
+	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 1, 1, 1, 1)
+	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 6, 6, 6, 7, 7, 8, 8)
+	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9, 9)
+
 	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
-	expectedFuncValues := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesAvg, expectedValuesMax, expectedValuesMin, expectedValuesRange, expectedValuesCardinality}
-	expectedFuncValues2 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMax, expectedValuesCardinality}
-	expectedFuncValues3 := [][]float64{expectedValuesCount, expectedValuesSum, expectedValuesSum, expectedValuesMax, expectedValuesMin, expectedValuesMin, expectedValuesCardinality}
+	measureAggs := getMeasureAgg(measureFunctions)
+
+	dtypes := make([]utils.SS_DTYPE, len(values))
+
+	for i := range values {
+		dtypes[i] = utils.SS_DT_FLOAT
+	}
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	expectedFuncValues3 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
 
 	optionValue := []bool{true, false}
 
@@ -2807,28 +2956,39 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 			ssOption.Current = optionValue[i]
 			ssOption.Global = optionValue[j]
 
-			NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+			NoWindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, measureAggs, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
 		}
 	}
 }
 
 func Test_Cardinality(t *testing.T) {
-	values := []float64{7, 2, 2, 2, 1, 2, 3, 2, 4, 5}
+	values := append(make([]interface{}, 0), 7, 2, 2, 2, 1, 2, 3, 2, 4, 5)
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	ssOption := &structs.StreamStatsOptions{
 		Current: true,
 		Global:  true,
 	}
+	dtypes := make([]utils.SS_DTYPE, len(values))
+
+	for i := range values {
+		dtypes[i] = utils.SS_DT_FLOAT
+	}
+
 	windowSize := 3
 	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
-	expectedValuesCardinality := []float64{1, 2, 2, 1, 2, 2, 3, 2, 3, 3}
-	expectedValuesNoWindowCardinality := []float64{1, 2, 2, 2, 3, 3, 4, 4, 5, 6}
-	measureFunctions := []utils.AggregateFunctions{utils.Cardinality}
-	expectedFuncValues := [][]float64{expectedValuesCardinality}
-	expectedNoWindowFuncValues := [][]float64{expectedValuesNoWindowCardinality}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	expectedPrimaryLen := [][]int{expectedLen}
 	expectedSecondaryLen := [][]int{expectedNilLen}
+	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 2, 1, 2, 2, 3, 2, 3, 3)
+	expectedValuesNoWindowCardinality := append(make([]interface{}, 0), 1, 2, 2, 2, 3, 3, 4, 4, 5, 6)
+	measureAggs := []*structs.MeasureAggregator{
+		{
+			MeasureFunc: utils.Cardinality,
+		},
+	}
+	expectedFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesCardinality, dtypes)}
+	expectedNoWindowFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesNoWindowCardinality, dtypes)}
+	CValues := createCValues(values, dtypes)
 
 	optionSettings := []bool{true, false}
 
@@ -2837,13 +2997,13 @@ func Test_Cardinality(t *testing.T) {
 			ssOption.Current = optionSettings[i]
 			ssOption.Global = optionSettings[j]
 
-			WindowStreamStatsHelperTest(t, values, ssOption, windowSize, timestamps, measureFunctions, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
-			NoWindowStreamStatsHelperTest(t, values, ssOption, measureFunctions, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+			WindowStreamStatsHelperTest(t, CValues, ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+			NoWindowStreamStatsHelperTest(t, CValues, ssOption, measureAggs, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
 		}
 	}
 }
 
-func createStringsWithNbsp(collection []interface{}) string {
+func createExpectedStrings(collection []interface{}) []string {
 	uniqueStr := make(map[string]struct{}, 0)
 	result := []string{}
 	for _, value := range collection {
@@ -2854,25 +3014,27 @@ func createStringsWithNbsp(collection []interface{}) string {
 		result = append(result, key)
 	}
 	sort.Strings(result)
-	return strings.Join(result, "&nbsp")
+	return result
 }
 
 func Test_Values(t *testing.T) {
 	values := make([]interface{}, 0)
 	values = append(values, 1, "abc", "abc", "Abc", 10, "DEF", 9, "def", 21, "Ab2")
-	expectedValuesWindow := []string{}
-	expectedValuesNoWindow := []string{}
+	dtypes := []utils.SS_DTYPE{utils.SS_DT_FLOAT, utils.SS_DT_STRING, utils.SS_DT_STRING, utils.SS_DT_STRING, utils.SS_DT_FLOAT, utils.SS_DT_STRING, utils.SS_DT_FLOAT, utils.SS_DT_STRING, utils.SS_DT_FLOAT, utils.SS_DT_STRING}
+	expectedValuesWindow := [][]string{}
+	expectedValuesNoWindow := [][]string{}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	CValues := createCValues(values, dtypes)
 	windowSize := 3
 	for i := range values {
 		if i < windowSize {
-			expectedValuesWindow = append(expectedValuesWindow, createStringsWithNbsp(values[:i+1]))
+			expectedValuesWindow = append(expectedValuesWindow, createExpectedStrings(values[:i+1]))
 		} else {
-			expectedValuesWindow = append(expectedValuesWindow, createStringsWithNbsp(values[i-windowSize+1:i+1]))
+			expectedValuesWindow = append(expectedValuesWindow, createExpectedStrings(values[i-windowSize+1:i+1]))
 		}
 	}
 	for i := range values {
-		expectedValuesNoWindow = append(expectedValuesNoWindow, createStringsWithNbsp(values[:i+1]))
+		expectedValuesNoWindow = append(expectedValuesNoWindow, createExpectedStrings(values[:i+1]))
 	}
 
 	ssOption := &structs.StreamStatsOptions{
@@ -2887,8 +3049,8 @@ func Test_Values(t *testing.T) {
 			ssOption.Current = optionValue[i]
 			ssOption.Global = optionValue[j]
 
-			StreamStatsValuesHelper(t, values, expectedValuesWindow, ssOption, timestamps, windowSize)
-			StreamStatsValuesHelper(t, values, expectedValuesNoWindow, ssOption, timestamps, 0)
+			StreamStatsValuesHelper(t, CValues, expectedValuesWindow, ssOption, timestamps, windowSize)
+			StreamStatsValuesHelper(t, CValues, expectedValuesNoWindow, ssOption, timestamps, 0)
 		}
 	}
 
