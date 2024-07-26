@@ -2629,7 +2629,7 @@ func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, s
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		for j, value := range values {
-			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, nil)
+			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, true)
 			assert.Nil(t, err)
 			if !ssOption.Current {
 				if j == 0 {
@@ -2663,7 +2663,7 @@ func WindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, 
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		for j, value := range values {
-			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, nil)
+			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, true)
 			assert.Nil(t, err)
 			if !ssOption.Current {
 				if j == 0 {
@@ -2694,10 +2694,10 @@ func StreamStatsValuesHelper(t *testing.T, colValues []utils.CValueEnclosure, ex
 	ssResult := InitRunningStreamStatsResults(utils.Values)
 	for i, colValue := range colValues {
 		if windowSize == 0 && ssOption.TimeWindow == nil {
-			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, measureAgg, colValue, nil)
+			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, measureAgg, colValue, true)
 			ssOption.NumProcessedRecords++
 		} else {
-			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, measureAgg, colValue, timestamps[i], true, nil)
+			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, measureAgg, colValue, timestamps[i], true, true)
 		}
 
 		assert.Nil(t, err)
@@ -2739,7 +2739,7 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure,
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		ssOption.NumProcessedRecords = 0
 		for j, value := range values {
-			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, nil)
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, true)
 			ssOption.NumProcessedRecords++
 			assert.Nil(t, err)
 			if !ssOption.Current {
@@ -2774,7 +2774,7 @@ func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 		ssOption.NumProcessedRecords = 0
 		for j, value := range values {
-			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, nil)
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, true)
 			ssOption.NumProcessedRecords++
 			assert.Nil(t, err)
 			if !ssOption.Current {

@@ -145,7 +145,7 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) uti
 	}
 }
 
-func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg *structs.MeasureAggregator, colValue utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, bool, error) {
+func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg *structs.MeasureAggregator, colValue utils.CValueEnclosure, include bool) (utils.CValueEnclosure, bool, error) {
 	var result utils.CValueEnclosure
 	valExist := ssResults.NumProcessedRecords > 0
 
@@ -164,7 +164,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		result = calculateAvg(ssResults, false)
 	}
 
-	if measureAgg.ValueColRequest != nil && !EvaluateBoolExpr(measureAgg, fieldToValue) {
+	if !include {
 		return result, valExist, nil
 	}
 
@@ -487,7 +487,7 @@ func getMinMaxElement(ssResult *structs.RunningStreamStatsResults) (utils.CValue
 }
 
 func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResults, measureAgg *structs.MeasureAggregator,
-	colValue utils.CValueEnclosure, timestamp uint64, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	colValue utils.CValueEnclosure, timestamp uint64) (utils.CValueEnclosure, error) {
 
 	defaultResult, _, err := getResults(ssResults, measureAgg.MeasureFunc)
 	if err != nil {
@@ -594,7 +594,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 
 func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults,
 	windowSize int, measureAgg *structs.MeasureAggregator, colValue utils.CValueEnclosure, timestamp uint64,
-	timeSortAsc bool, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, bool, error) {
+	timeSortAsc bool, include bool) (utils.CValueEnclosure, bool, error) {
 	var err error
 	var result utils.CValueEnclosure
 	result = ssResults.CurrResult
@@ -633,8 +633,8 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 		}
 	}
 
-	// If boolean expression evaluates to false and valueColRequest is not nil, return the result
-	if measureAgg.ValueColRequest != nil && !EvaluateBoolExpr(measureAgg, fieldToValue) {
+	// Check if value should be included or not
+	if !include {
 		ssResults.NumProcessedRecords++
 		if !ssOption.Current {
 			return result, exist, nil
@@ -643,7 +643,7 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	}
 
 	// Add the new element to the window
-	latestResult, err := performMeasureFunc(currIndex, ssResults, measureAgg, colValue, timestamp, fieldToValue)
+	latestResult, err := performMeasureFunc(currIndex, ssResults, measureAgg, colValue, timestamp)
 	if err != nil {
 		return utils.CValueEnclosure{}, false, fmt.Errorf("PerformWindowStreamStatsOnSingleFunc: Error while performing measure function %v, err: %v", measureAgg, err)
 	}
@@ -664,6 +664,37 @@ func EvaluateBoolExpr(measureAgg *structs.MeasureAggregator, fieldToValue map[st
 		return false
 	}
 	return true
+}
+
+func CreateCValueFromValueExpression(measureAgg *structs.MeasureAggregator, fieldToValue map[string]utils.CValueEnclosure, colValue utils.CValueEnclosure) (utils.CValueEnclosure, bool) {
+	if measureAgg.ValueColRequest == nil {
+		return colValue, true
+	}
+	if measureAgg.ValueColRequest.BooleanExpr != nil {
+		conditionPassed, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+		if err != nil || !conditionPassed {
+			return utils.CValueEnclosure{}, false
+		} else {
+			return utils.CValueEnclosure{
+				Dtype: utils.SS_DT_FLOAT,
+				CVal:  1.0,
+			}, true
+		}
+	}
+	floatVal, strVal, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+	if err != nil {
+		return utils.CValueEnclosure{}, false
+	}
+	if isNumeric {
+		return utils.CValueEnclosure{
+			Dtype: utils.SS_DT_FLOAT,
+			CVal:  floatVal,
+		}, true
+	}
+	return utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING,
+		CVal:  strVal,
+	}, true
 }
 
 func CreateCValueFromColValue(colValue interface{}) utils.CValueEnclosure {
@@ -714,13 +745,15 @@ func PerformStreamStatsOnSingleFunc(currIndex int, bucketKey string, ssOption *s
 		ssOption.RunningStreamStats[measureFuncIndex][bucketKey] = InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 	}
 
+	finalColValue, include := CreateCValueFromValueExpression(measureAgg, fieldToValue, colCValue)
+
 	if ssOption.Window == 0 && ssOption.TimeWindow == nil {
-		result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg, colCValue, fieldToValue)
+		result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], measureAgg, finalColValue, include)
 		if err != nil {
 			return utils.CValueEnclosure{}, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error while performing global stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, colValue, err)
 		}
 	} else {
-		result, exist, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg, colCValue, timestamp, timeSortAsc, fieldToValue)
+		result, exist, err = PerformWindowStreamStatsOnSingleFunc(currIndex, ssOption, ssOption.RunningStreamStats[measureFuncIndex][bucketKey], int(ssOption.Window), measureAgg, finalColValue, timestamp, timeSortAsc, include)
 		if err != nil {
 			return utils.CValueEnclosure{}, false, fmt.Errorf("PerformStreamStatsOnSingleFunc: Error while performing window stream stats on function %v for value %v, err: %v", measureAgg.MeasureFunc, colValue, err)
 		}
@@ -994,7 +1027,7 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 					if streamStatsResult != "" {
 						dataType := utils.SS_DT_FLOAT
 						if measureAgg.MeasureFunc == utils.Values {
-							dataType = utils.SS_DT_STRING
+							dataType = utils.SS_DT_STRING_SLICE
 						}
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
 							Dtype: dataType,
