@@ -147,14 +147,18 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) uti
 
 func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions, ssResults *structs.RunningStreamStatsResults, measureAgg *structs.MeasureAggregator, colValue utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, bool, error) {
 	var result utils.CValueEnclosure
+	valExist := ssResults.NumProcessedRecords > 0
+
 	if measureAgg.MeasureFunc == utils.Values && !ssOption.Current {
 		// getting values is expensive only do when required
 		result = getValues(ssResults.ValuesMap)
 	} else {
-		result = ssResults.CurrResult
+		if valExist {
+			result = ssResults.CurrResult
+		} else {
+			result = utils.CValueEnclosure{}
+		}
 	}
-
-	valExist := ssResults.NumProcessedRecords > 0
 
 	if measureAgg.MeasureFunc == utils.Avg && valExist {
 		result = calculateAvg(ssResults, false)
@@ -169,19 +173,19 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + 1
 	case utils.Sum, utils.Avg:
 		if colValue.Dtype != utils.SS_DT_FLOAT {
-			return ssResults.CurrResult, valExist, nil
+			return result, valExist, nil
 		}
 		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)
 	case utils.Min, utils.Max:
 		isMin := measureAgg.MeasureFunc == utils.Min
 		resultCVal, err := ReduceMinMax(ssResults.CurrResult, colValue, isMin)
 		if err != nil {
-			return ssResults.CurrResult, valExist, nil
+			return result, valExist, nil
 		}
 		ssResults.CurrResult = resultCVal
 	case utils.Range:
 		if colValue.Dtype != utils.SS_DT_FLOAT {
-			return ssResults.CurrResult, valExist, nil
+			return result, valExist, nil
 		}
 		if ssResults.RangeStat == nil {
 			ssResults.RangeStat = InitRangeStat()
@@ -489,6 +493,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	if err != nil {
 		return utils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error while getting default results from the window, err: %v", err)
 	}
+	ssResults.NumProcessedRecords++
 
 	switch measureAgg.MeasureFunc {
 	case utils.Count:
@@ -576,7 +581,6 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 	default:
 		return utils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
-	ssResults.NumProcessedRecords++
 
 	if measureAgg.MeasureFunc == utils.Avg {
 		return calculateAvg(ssResults, true), nil
