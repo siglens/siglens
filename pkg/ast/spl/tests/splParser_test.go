@@ -10344,11 +10344,11 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator)
 	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
 	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.MultiValueExpr)
-	assert.NotNil(t, aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr)
-	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.Command)
-	assert.Equal(t, "batch", aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.ColName)
-	assert.Equal(t, int64(0), aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.Limit)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10362,11 +10362,11 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator)
 	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
 	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.MultiValueExpr)
-	assert.NotNil(t, aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr)
-	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.Command)
-	assert.Equal(t, "app_name", aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.ColName)
-	assert.Equal(t, int64(5), aggregator.OutputTransforms.MultiValueExpr.MvExpandExpr.Limit)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {

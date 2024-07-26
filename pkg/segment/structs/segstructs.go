@@ -221,16 +221,6 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	TailRequest            *TailExpr
 	HeadRequest            *HeadExpr
-	MultiValueExpr         *MultiValueExpr
-}
-type MultiValueExpr struct {
-	MvExpandExpr *MvExpandExpr
-}
-
-type MvExpandExpr struct {
-	Command string
-	ColName string
-	Limit   int64
 }
 
 type HeadExpr struct {
@@ -361,6 +351,7 @@ type MultiValueColLetRequest struct {
 	IsRegex         bool
 	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
 	Setsv           bool // if true, split values are combined into a single value. default is false
+	Limit           int64
 }
 
 type BucketResult struct {

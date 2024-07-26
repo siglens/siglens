@@ -4988,7 +4988,7 @@ MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
 		}
 	}
 
-	mvexpandExpr := &structs.MvExpandExpr{
+	mvexpandExpr := &structs.MultiValueColLetRequest{
 		Command: "mvexpand",
 		ColName: field.(string),
 	}
@@ -4997,14 +4997,15 @@ MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
 		mvexpandExpr.Limit = limitVal
 	}
 
-	return &structs.QueryAggregators{
-		PipeCommandType: structs.OutputTransformType,
-		OutputTransforms: &structs.OutputTransforms{
-			MultiValueExpr: &structs.MultiValueExpr{
-				MvExpandExpr: mvexpandExpr,
-			},
-		},
-	}, nil
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                MultiValueColRequest: mvexpandExpr,
+            },
+        },
+    }
+    return queryAgg, nil
 }
 
 MvexpandField <- SPACE fieldName:FieldName {
