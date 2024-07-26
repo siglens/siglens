@@ -472,6 +472,11 @@ function validateFormula(formula, uniqueId) {
             return false; // Todo: if only numeric value is present in formula
         }
     }
+    if (!usedQueryNames.length) {
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue))
+            usedQueryNames = queryNames
+    }
 
     // Nest the formula within the functions present in formulaDetails.functions
     let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
@@ -1837,6 +1842,7 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
+            const regexNumeric = /\d+(\.\d+)?[+\-*/%()]?\d+(\.\d+)?|\s+/g;
 
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
@@ -1877,12 +1883,28 @@ async function convertDataForChart(data) {
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
                 if (series.values[formattedDate] === undefined) {
-                    series.values[formattedDate] = null;
+                    if(regexNumeric.test(data.series[i])){
+                        if(data.values[i][data.timestamps.length-1] >=0){
+                            series.values[formattedDate] = data.values[i][data.timestamps.length-1];
+                        }
+                    }else{
+                        series.values[formattedDate] = null;
+                    }   
                 }
-                chartStartTime = chartStartTime + calculatedInterval;
+                chartStartTime +=  calculatedInterval;
             }
             seriesArray.push(series);
         }
+    }
+    if (seriesArray.length === 0) {
+        const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
+        seriesArray.push({
+            seriesName: 'No Data',
+            values: labels.reduce((acc, label) => {
+                acc[label] = null;
+                return acc;
+            }, {}),
+        });
     }
 
     return seriesArray;
@@ -2512,4 +2534,47 @@ async function populateMetricsQueryElement(metricsQueryParams) {
     if (queries.length >= 1) {
         await addAlertsFormulaElement(formulas[0].formula);
     }
+}
+function generateEmptyChartLabels(timeUnit, startTime, endTime) {
+    const labels = [];
+    let interval;
+
+    switch (timeUnit) {
+        case 'month':
+            interval = 30 * 24 * 60 * 60;
+            break;
+        case '7day':
+            interval = 7 * 24 * 60 * 60;
+            break;
+        case '2day':
+            interval = 2 * 24 * 60 * 60;
+            break;
+        case '12hour':
+            interval = 12 * 60 * 60;
+            break;
+        case '6hour':
+            interval = 6 * 60 * 60;
+            break;
+        case '3hour':
+            interval = 3 * 60 * 60;
+            break;
+        case '30minute':
+            interval = 30 * 60;
+            break;
+        case '15minute':
+            interval = 15 * 60;
+            break;
+        case '5minute':
+            interval = 5 * 60;
+            break;
+        default:
+            interval = 60;
+    }
+
+    while (startTime <= endTime) {
+        labels.push(moment(startTime * 1000).format('YYYY-MM-DDTHH:mm:ss'));
+        startTime += interval;
+    }
+
+    return labels;
 }
