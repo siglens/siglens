@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -933,4 +934,18 @@ func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMess
 
 func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
 	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
+}
+
+func IsValidURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func EncodeURL(str string) (string, error) {
+	u, err := url.Parse(str)
+	if err != nil {
+		return "", err
+	}
+	u.RawQuery = url.QueryEscape(u.RawQuery)
+	return u.String(), nil
 }
