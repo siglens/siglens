@@ -190,7 +190,6 @@ type RunningStreamStatsResults struct {
 	CardinalityMap      map[string]int
 	CardinalityHLL      *hyperloglog.Sketch
 	ValuesMap           map[string]struct{}
-	AvgStat             *AvgStat
 }
 
 type RunningStreamStatsWindowElement struct {

@@ -44,12 +44,6 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 }
 
 func InitRunningStreamStatsResults(measureFunc utils.AggregateFunctions) *structs.RunningStreamStatsResults {
-	// defaultVal := 0.0
-	// if measureFunc == utils.Min {
-	// 	defaultVal = math.MaxFloat64
-	// } else if measureFunc == utils.Max {
-	// 	defaultVal = -math.MaxFloat64
-	// }
 	runningSSResult := &structs.RunningStreamStatsResults{
 		Window:          &putils.GobbableList{},
 		SecondaryWindow: &putils.GobbableList{},
@@ -655,17 +649,6 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	return latestResult, true, nil
 }
 
-func EvaluateBoolExpr(measureAgg *structs.MeasureAggregator, fieldToValue map[string]utils.CValueEnclosure) bool {
-	if measureAgg.ValueColRequest.BooleanExpr == nil {
-		return true
-	}
-	conditionPassed, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-	if err != nil || !conditionPassed {
-		return false
-	}
-	return true
-}
-
 func CreateCValueFromValueExpression(measureAgg *structs.MeasureAggregator, fieldToValue map[string]utils.CValueEnclosure, colValue utils.CValueEnclosure) (utils.CValueEnclosure, bool) {
 	if measureAgg.ValueColRequest == nil {
 		return colValue, true
@@ -963,7 +946,11 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 		measureAggs = agg.GroupByRequest.MeasureOperations
 	}
 	for _, measureAgg := range measureAggs {
-		fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+		if measureAgg.ValueColRequest != nil {
+			fieldsInExpr = append(fieldsInExpr, measureAgg.ValueColRequest.GetFields()...)
+		} else {
+			fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+		}
 	}
 	if ssOption.ResetAfter != nil {
 		fieldsInExpr = append(fieldsInExpr, ssOption.ResetAfter.GetFields()...)
@@ -1061,7 +1048,11 @@ func performStreamStatsOnMeasureResults(nodeResult *structs.NodeResult, ssOption
 		measureAggs = agg.GroupByRequest.MeasureOperations
 	}
 	for _, measureAgg := range measureAggs {
-		fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+		if measureAgg.ValueColRequest != nil {
+			fieldsInExpr = append(fieldsInExpr, measureAgg.ValueColRequest.GetFields()...)
+		} else {
+			fieldsInExpr = append(fieldsInExpr, measureAgg.MeasureCol)
+		}
 	}
 	if ssOption.ResetAfter != nil {
 		fieldsInExpr = append(fieldsInExpr, ssOption.ResetAfter.GetFields()...)
