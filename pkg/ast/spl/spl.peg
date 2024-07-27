@@ -627,7 +627,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3215,7 +3215,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 
     return node, nil
 }
-/ opName:("relative_time") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+/ opName:("relative_time") L_PAREN expr:(NumericExprLevel3) COMMA QUOTE specifier:(RelativeTimeCommandTimestampFormat) QUOTE R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
@@ -3224,7 +3224,11 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
     if err != nil {
         return nil, err
     }
-    node.Val = specifier.(*structs.StringExpr)
+    relTimeSpecifier, ok := specifier.(utils.RelativeTimeExpr)
+    if !ok {
+        return nil, fmt.Errorf("specifier is not of type RelativeTimeExpr")
+    }
+    node.RelativeTime = relTimeSpecifier
     return node, nil
 }
 
@@ -3508,17 +3512,12 @@ AsField <- AS field: (FieldName / String) {
     return fieldStr, nil
 }
 
-AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolExpr.(*structs.BoolExpr),
-    }
-
+AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Count,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3558,17 +3557,12 @@ AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr
     return agg, nil
 }
 
-AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggAvg <- "avg" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Avg,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3582,17 +3576,12 @@ AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     return agg, nil
 }
 
-AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggMin <- "min" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Min,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3606,17 +3595,12 @@ AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     return agg, nil
 }
 
-AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggMax <- "max" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Max,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3630,17 +3614,12 @@ AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_
     return agg, nil
 }
 
-AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggRange <- "range" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Range,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -3654,17 +3633,12 @@ AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr
     return agg, nil
 }
 
-AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
+AggSum <- "sum" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Sum,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -4437,6 +4411,33 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
     return timeModifier, nil
 }
 
+RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
+
+    if offset == nil && snapParam == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    }
+
+    relTimeOffset := utils.RelativeTimeExpr{}
+    snap := ""
+    if snapParam != nil {
+        snap = snapParam.(string)
+    }
+
+    if offset != nil {
+        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
+        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
+    } 
+
+    timeModifier := utils.RelativeTimeExpr{
+		Offset: relTimeOffset.Offset,
+		Snap:   snap,
+		TimeUnit: relTimeOffset.TimeUnit,
+    }
+
+    return timeModifier, nil
+}
+
+
 FullTimeStamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
     return string(c.text), nil
 }
@@ -5164,8 +5165,46 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
     return fieldList, nil
 }
 
+MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
+	limitVal := int64(0) // default value indicating no limit
+	var err error
+	if limit != nil {
+		limitVal, err = strconv.ParseInt(limit.(string), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing limit value: %v", err)
+		}
+	}
+
+	mvexpandExpr := &structs.MultiValueColLetRequest{
+		Command: "mvexpand",
+		ColName: field.(string),
+	}
+
+	if limitVal != 0 {
+		mvexpandExpr.Limit = limitVal
+	}
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                MultiValueColRequest: mvexpandExpr,
+            },
+        },
+    }
+    return queryAgg, nil
+}
+
+MvexpandField <- SPACE fieldName:FieldName {
+    return fieldName, nil
+}
+
+MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
+    return intValue, nil
+}
+
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_GENTIMES)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5197,6 +5236,7 @@ CMD_EVENTCOUNT <- "eventcount"
 CMD_FILLNULL <- "fillnull"
 CMD_GENTIMES <- "gentimes"
 EVAL_CONCAT <- SPACE? "." SPACE?
+CMD_MVEXPAND <- "mvexpand"
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
@@ -5215,6 +5255,7 @@ BY <- SPACE "BY"i SPACE // Case insensitive
 
 EQUAL <- EMPTY_OR_SPACE "=" EMPTY_OR_SPACE
 COMMA <- EMPTY_OR_SPACE "," EMPTY_OR_SPACE
+QUOTE <- '"'
 L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 

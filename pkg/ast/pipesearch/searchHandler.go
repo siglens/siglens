@@ -426,7 +426,10 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)
-	if (sizeLimit == 0 || len(rrcs) == 0) && !aggs.HasGenerateEvent() {
+	// if sizeLimit is 0, return empty hits
+	// And Even if len(rrcs) is 0, we will still proceed to the json records
+	// So that any Aggregations that require all the segments to be processed can be done.
+	if sizeLimit == 0 {
 		return hits, []string{}, nil
 	}
 

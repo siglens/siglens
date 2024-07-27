@@ -41,6 +41,12 @@ const (
 	TMYear
 )
 
+type RelativeTimeExpr struct {
+	Snap     string
+	Offset   int64
+	TimeUnit TimeUnit
+}
+
 // Convert subseconds
 func ConvertSubseconds(subsecond string) (TimeUnit, error) {
 	switch subsecond {
@@ -185,4 +191,22 @@ func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
 		return 0, err
 	}
 	return t.UnixMilli(), nil
+}
+
+func CalculateAdjustedTimeForRelativeTimeCommand(timeModifier RelativeTimeExpr, currTime time.Time) (int64, error) {
+	var err error
+	if timeModifier.Offset != 0 {
+		currTime, err = ApplyOffsetToTime(timeModifier.Offset, timeModifier.TimeUnit, currTime)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if timeModifier.Snap != "" {
+		currTime, err = ApplySnap(timeModifier.Snap, currTime)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return currTime.UnixMilli(), nil
 }
