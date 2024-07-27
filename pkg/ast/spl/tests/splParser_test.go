@@ -10283,3 +10283,31 @@ func Test_GenTimes_7(t *testing.T) {
 
 	assert.Nil(t, aggregator.Next.Next)
 }
+
+
+func Test_GenTimes_8(t *testing.T) {
+	query := `| gentimes start=10/01/2022 end=12/03/2023:12:20:56 increment=2`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 2, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMSecond, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}

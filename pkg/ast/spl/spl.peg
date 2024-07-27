@@ -313,6 +313,19 @@ func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
     }
 }
 
+func chainAggregators(curQueryAgg *structs.QueryAggregators, queryAggs []any) {
+    for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+
+    // Link the remaining chains.
+    for i := range queryAggs {
+        queryAgg := queryAggs[i].(*structs.QueryAggregators)
+        curQueryAgg.Next = queryAgg
+
+        // Go to the end of this chain.
+        for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -427,16 +440,8 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
 
             // Go to the end of the first chain.
             curQueryAgg := q.PipeCommands
-            for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-
-            // Link the remaining chains.
-            for i := range queryAggSlice[1:] {
-                queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
-                curQueryAgg.Next = queryAgg
-
-                // Go to the end of this chain.
-                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-            }
+            
+            chainAggregators(curQueryAgg, queryAggSlice[1:])
         }
     }
 
@@ -453,18 +458,9 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
 
     if queryAggBlocks != nil {
         queryAggSlice := queryAggBlocks.([]any)
+        curQueryAgg := q.PipeCommands
 
-        if len(queryAggSlice) > 0 {
-            curQueryAgg := q.PipeCommands
-            // Link the remaining chains.
-            for i := range queryAggSlice {
-                queryAgg := queryAggSlice[i].(*structs.QueryAggregators)
-                curQueryAgg.Next = queryAgg
-
-                // Go to the end of this chain.
-                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-            }
-        }
+        chainAggregators(curQueryAgg, queryAggSlice)
     }
 
     return q, nil
@@ -477,7 +473,7 @@ PartialTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] {
     return completeTimestamp, nil
 }
 
-IntegerAsTime <- intStr:IntegerAsString {
+IntegerAsTimeToUnixEpochMs <- intStr:IntegerAsString {
     timeOffset, err := strconv.ParseInt(intStr.(string), 10, 64)
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
@@ -495,7 +491,7 @@ IntegerAsTime <- intStr:IntegerAsString {
     return finalTime.UnixMilli(), nil
 }
 
-ConvertedTime <- timeStamp:(FullTimeStamp / PartialTimestamp) {
+DateTimeToUnixEpochMs <- timeStamp:(FullTimeStamp / PartialTimestamp) {
     unixEpochInMs, err := utils.ConvertCustomDateTimeFormatToEpochMs(timeStamp.(string))
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while converting the timestamp: %v", err)
@@ -504,7 +500,7 @@ ConvertedTime <- timeStamp:(FullTimeStamp / PartialTimestamp) {
 }
 
 
-GenTimestamp <- epochInMilli:(ConvertedTime / IntegerAsTime) {
+GenTimestamp <- epochInMilli:(DateTimeToUnixEpochMs / IntegerAsTimeToUnixEpochMs) {
     return epochInMilli, nil
 }
 
@@ -531,18 +527,29 @@ GenTimesOptionIncrement <- "increment" EQUAL intStr:IntegerAsString unitStr:("s"
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
     }
-    unit, err := transferUint8ToString(unitStr)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: Unit specified is not string, err: %v", err)
+    if spanNum == 0 {
+        return "", fmt.Errorf("Spl peg: increment cannot be 0")
     }
 
-    timeUnit := utils.TMDay
-    if unit == "s" {
-        timeUnit = utils.TMSecond
-    } else if unit == "m" {
-        timeUnit = utils.TMMinute
-    } else if unit == "h" {
-        timeUnit = utils.TMHour
+    timeUnit := utils.TMSecond
+
+    if unitStr != nil {
+        unit, err := transferUint8ToString(unitStr)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Unit specified is not string, err: %v", err)
+        }
+
+        if unit == "s" {
+            timeUnit = utils.TMSecond
+        } else if unit == "m" {
+            timeUnit = utils.TMMinute
+        } else if unit == "h" {
+            timeUnit = utils.TMHour
+        } else if unit == "d" {
+            timeUnit = utils.TMDay
+        } else {
+            return nil, fmt.Errorf("Spl peg: Invalid time unit: %v", unit)
+        }
     }
 
     return &GenTimesOptionArgs{
@@ -562,7 +569,7 @@ GenTimesOption <- genTimesOption:(GenTimesOptionEnd / GenTimesOptionStart / GenT
 
 GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
     restSlice := rest.([]any)
-    optionWasSpecified := make(map[string]bool)
+    optionWasSpecified := make(map[string]struct{})
 
     numOptions := 1 + len(restSlice)
 
@@ -581,11 +588,11 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
         }
 
         argOption := genTimeOptArg.argOption
-        val, exist := optionWasSpecified[argOption]
-        if exist && val {
+        _, exist := optionWasSpecified[argOption]
+        if exist {
             return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
         }
-        optionWasSpecified[argOption] = true
+        optionWasSpecified[argOption] = struct{}{}
 
         switch argOption {
             case "start":
@@ -599,8 +606,8 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
         }
     }
 
-    startSpecified, exist := optionWasSpecified["start"]
-    if !exist || !startSpecified {
+    _, exist := optionWasSpecified["start"]
+    if !exist {
         return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
     }
 

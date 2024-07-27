@@ -6,18 +6,15 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 )
-
-func getFormattedTime(t time.Time) string {
-	return t.Format("Mon Jan 2 15:04:05 2006 -0700")
-}
 
 func createGenTimeEvent(start time.Time, end time.Time) map[string]interface{} {
 	return map[string]interface{}{
 		"starttime":  uint64(start.UnixMilli()) / 1000,
 		"endtime":    uint64(end.UnixMilli()) / 1000,
-		"starthuman": getFormattedTime(start),
-		"endhuman":   getFormattedTime(end),
+		"starthuman": putils.FormatToHumanReadableTime(start),
+		"endhuman":   putils.FormatToHumanReadableTime(end),
 	}
 }
 

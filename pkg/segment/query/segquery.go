@@ -159,6 +159,12 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 		}
 	}
 
+	err := setTotalSegmentsToSearch(qid, 1)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
+	}
+	SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
+
 	// Call this to for processQueryUpdate to be called
 	IncrementNumFinishedSegments(1, qid, 0, 0, "", false, nil)
 
