@@ -82,50 +82,16 @@ func getValues[T any](valuesMap map[string]T) utils.CValueEnclosure {
 	}
 }
 
-func GetMinMaxString(str1 string, str2 string, isMin bool) string {
-	if isMin {
-		if str1 < str2 {
-			return str1
-		}
-		return str2
-	} else {
-		if str1 > str2 {
-			return str1
-		}
-		return str2
-	}
-}
-
 // Incoming value e2 has to have float or string dtype
-func ReduceMinMax(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
+func GetNoWindowMinMax(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
 	if e2.Dtype != utils.SS_DT_FLOAT && e2.Dtype != utils.SS_DT_STRING {
-		return e1, fmt.Errorf("ReduceMinMax: Error: e2 is invalid")
+		return e1, fmt.Errorf("GetNoWindowMinMax: Error: e2 is invalid")
 	}
 	if e1.Dtype == utils.SS_INVALID {
 		return e2, nil
 	}
 
-	if e1.Dtype == e2.Dtype {
-		if e1.Dtype == utils.SS_DT_FLOAT {
-			if isMin {
-				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			} else {
-				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			}
-		} else if e1.Dtype == utils.SS_DT_STRING {
-			return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
-		} else {
-			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtypes: %v, %v", e1.Dtype, e2.Dtype)
-		}
-	} else {
-		if e1.Dtype == utils.SS_DT_FLOAT {
-			return e1, nil
-		} else if e2.Dtype == utils.SS_DT_FLOAT {
-			return e2, nil
-		} else {
-			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
-		}
-	}
+	return utils.ReduceMinMax(e1, e2, isMin)
 }
 
 func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) utils.CValueEnclosure {
@@ -172,7 +138,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)
 	case utils.Min, utils.Max:
 		isMin := measureAgg.MeasureFunc == utils.Min
-		resultCVal, err := ReduceMinMax(ssResults.CurrResult, colValue, isMin)
+		resultCVal, err := GetNoWindowMinMax(ssResults.CurrResult, colValue, isMin)
 		if err != nil {
 			return result, valExist, nil
 		}
@@ -470,6 +436,7 @@ func manageMaxWindow(window *putils.GobbableList, index int, newValue utils.CVal
 
 func getMinMaxElement(ssResult *structs.RunningStreamStatsResults) (utils.CValueEnclosure, error) {
 
+	// try to get a numeric element from the primary window if not present get string element from secondary window
 	if ssResult.Window.Len() > 0 {
 		return getListElementFromWindow(ssResult.Window.Front())
 	} else if ssResult.SecondaryWindow.Len() > 0 {
