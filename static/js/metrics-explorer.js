@@ -1841,7 +1841,7 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
-            const regexNumeric = /\d+(\.\d+)?[+\-*\/%()]?[\d+(\.\d+)?]?|\s+/g;
+            const regexNumeric = /\d+(\.\d+)?[+\-*/%()]?\d?(\.\d+)?|\s+/g;
 
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
