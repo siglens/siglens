@@ -1948,15 +1948,11 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 			}
 			delete(recs, key)
 			for i, expandedValue := range expandedRecs {
-				expandedValueStr, ok := expandedValue.(string)
-				if !ok {
-					expandedValueStr = fmt.Sprintf("%v", expandedValue)
-				}
 				newRec := make(map[string]interface{})
 				for k, v := range rec {
 					newRec[k] = v
 				}
-				newRec[mvColReq.ColName] = expandedValueStr
+				newRec[mvColReq.ColName] = expandedValue
 				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
 			}
 		default:
