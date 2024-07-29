@@ -68,7 +68,7 @@ $(document).ready(function () {
         };
 
         var queryString = $.param(queryParams);
-        window.location.href = '../alert.html?' + queryString;
+        window.open('../alert.html' + queryString, '_blank');
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
@@ -168,7 +168,7 @@ function createPanelToNewDashboard() {
                 };
                 updateDashboard(dashboard);
                 var queryString = '?id=' + Object.keys(res)[0];
-                window.location.href = '../dashboard.html' + queryString;
+                window.open('../dashboard.html' + queryString, '_blank');
             })
             .catch(function (updateError) {
                 if (updateError.status === 409) {
@@ -255,7 +255,7 @@ function selectDashboardHandler() {
             };
             updateDashboard(dashboard);
             var queryString = '?id=' + dashboardID;
-            window.location.href = '../dashboard.html' + queryString;
+            window.open('../dashboard.html' + queryString, '_blank');
         });
     }
 
