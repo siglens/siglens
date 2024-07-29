@@ -345,7 +345,6 @@ if (historyBtn) {
 }
 
 function submitAddAlertForm(e) {
-    console.log('Submit');
     e.preventDefault();
     setAlertRule();
     alertEditFlag && !alertFromMetricsExplorerFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
