@@ -413,3 +413,11 @@ func Test_getAggPQSById(t *testing.T) {
 	restored_th := restored_aggs["TimeHistogram"].(map[string]interface{})
 	assert.Equal(t, float64(st), restored_th["StartTime"])
 }
+
+func Test_processPostAggs_NoErrorWhenEmptyInput(t *testing.T) {
+	key := "new_column"
+	inputValueParam := []interface{}{key}
+	got, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+	assert.True(t, got[key])
+}
