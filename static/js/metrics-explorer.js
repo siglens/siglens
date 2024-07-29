@@ -402,7 +402,7 @@ function extractFunctionsAndFormula(formulaInput) {
     const functionPattern = /\b(\w+)\s*\(([^()]*)\)/g;
     let match;
     const functionsFound = [];
-    
+
     // Capture functions in the order they appear
     while ((match = functionPattern.exec(formulaInput)) !== null) {
         functionsFound.push(match[1]);
@@ -413,7 +413,7 @@ function extractFunctionsAndFormula(formulaInput) {
 
     // Reverse to maintain the correct order of function execution
     parseObject.functions = functionsFound.reverse();
-    
+
     // The remaining part of the formulaInput should be the innermost formula
     parseObject.formula = formulaInput.trim();
 
@@ -426,22 +426,19 @@ async function addAlertsFormulaElement(formulaInput) {
         formulaInput = queryNames.join(' + ');
     }
     let formulaElement;
-    let functionsAndFormula=extractFunctionsAndFormula(formulaInput);
+    let functionsAndFormula = extractFunctionsAndFormula(formulaInput);
 
-    if($('#metrics-formula .formula-box').length > 0){
-        formulaElement=$('.formula').val(functionsAndFormula.formula);        
-    }
-    else{
-        formulaElement=createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
+    if ($('#metrics-formula .formula-box').length > 0) {
+        formulaElement = $('.formula').val(functionsAndFormula.formula);
+    } else {
+        formulaElement = createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
         $('#metrics-formula').append(formulaElement);
     }
 
-
-    formulaDetailsMap[uniqueId]=functionsAndFormula;
+    formulaDetailsMap[uniqueId] = functionsAndFormula;
     let validationResult = validateFormula(functionsAndFormula.formula, uniqueId);
-    formulas[uniqueId] = validationResult;    
+    formulas[uniqueId] = validationResult;
     await getMetricsDataForFormula(uniqueId, validationResult);
-
 
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
