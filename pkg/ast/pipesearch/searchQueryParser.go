@@ -365,6 +365,12 @@ func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregator
 	if node.GenTimes != nil {
 		aggNode.GenerateEvent.GenTimes = node.GenTimes
 	}
+	if node.InputLookup != nil {
+		aggNode.GenerateEvent.InputLookup = node.InputLookup
+		if aggNode.GenerateEvent.InputLookup.Max == 0 {
+			aggNode.GenerateEvent.InputLookup.Max = 1000000000
+		}
+	}
 
 	return aggNode, nil
 }

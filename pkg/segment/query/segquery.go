@@ -157,6 +157,11 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 		if err != nil {
 			log.Errorf("qid=%d, Failed to generate times! Error: %v", qid, err)
 		}
+	} else if aggs.GenerateEvent.InputLookup != nil {
+		err := aggregations.PerformInputLookup(aggs)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to perform input lookup! Error: %v", qid, err)
+		}
 	}
 
 	err := setTotalSegmentsToSearch(qid, 1)

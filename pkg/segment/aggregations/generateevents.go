@@ -1,7 +1,10 @@
 package aggregations
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -83,6 +86,51 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 		currTime = endTime
 		start = uint64(currTime.UnixMilli())
 	}
+
+	return nil
+}
+
+func checkCSVFormat(filename string) bool {
+	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
+}
+
+
+func PerformInputLookup(aggs *structs.QueryAggregators) error {
+	if aggs.GenerateEvent.InputLookup == nil {
+		return fmt.Errorf("PerformInputLookup: InputLookup is nil")
+	}
+	filename := aggs.GenerateEvent.InputLookup.Filename
+
+	if !checkCSVFormat(filename) {
+		return fmt.Errorf("PerformInputLookup: Only CSV format is currently supported!")
+	}
+	
+	// genCols := []string{}
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("PerformInputLookup: Error while getting current working directory, err: %v", err)
+	}
+	filepath := workingDir + "/lookups/" + filename
+
+	file, err := os.Open(filepath)
+	_ = file
+	if err != nil {
+		return fmt.Errorf("PerformInputLookup: Error while opening file %v, err: %v", filepath, err)
+	}
+	defer file.Close()
+	
+	reader := csv.NewReader(file)
+
+	// read columns from first row of csv file
+	columnNames, err := reader.Read()
+    if err != nil {
+        return fmt.Errorf("PerformInputLookup: Error reading column names, err:", err)
+    }
+
+	SetGeneratedCols(aggs.GenerateEvent, columnNames)
+
+	
+
 
 	return nil
 }
