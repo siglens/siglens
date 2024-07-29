@@ -954,6 +954,7 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 	return nil
 }
 func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
+	// asserts that inputValueParam is slise of strings
 	switch inputValueParam.(type) {
 	case []interface{}:
 		break
