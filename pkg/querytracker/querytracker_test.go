@@ -457,7 +457,7 @@ func Test_parsePostPqsAggBody_ErrIfTableNameIsWildcard(t *testing.T) {
 
 func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
 	json := map[string]interface{}{
-		"groupByColumns": []interface{}{"col1", "col2"}, // should be []interfaces
+		"groupByColumns": []interface{}{"col1", "col2"},
 	}
 	err := parsePostPqsAggBody(json)
 	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
