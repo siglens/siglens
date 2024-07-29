@@ -1916,7 +1916,9 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 	mvColReq := letColReq.MultiValueColRequest
 
-	for _, rec := range recs {
+	newRecs := make(map[string]map[string]interface{})
+
+	for key, rec := range recs {
 		fieldValue, ok := rec[mvColReq.ColName]
 		if !ok {
 			continue
@@ -1931,12 +1933,58 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 		case "makemv":
 			finalValue := performMakeMV(fieldValueStr, mvColReq)
 			rec[mvColReq.ColName] = finalValue
+		case "mvexpand":
+			expandedRecs := performMVExpand(fieldValue)
+
+			// Apply limit if mvColReq.Limit is greater than 0
+			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
+				expandedRecs = expandedRecs[:mvColReq.Limit]
+			}
+			delete(recs, key)
+			for i, expandedValue := range expandedRecs {
+				expandedValueStr, ok := expandedValue.(string)
+				if !ok {
+					expandedValueStr = fmt.Sprintf("%v", expandedValue)
+				}
+				newRec := make(map[string]interface{})
+				for k, v := range rec {
+					newRec[k] = v
+				}
+				newRec[mvColReq.ColName] = expandedValueStr
+				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
+			}
 		default:
 			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
 		}
 	}
-
+	if mvColReq.Command == "mvexpand" {
+		for k, v := range newRecs {
+			recs[k] = v
+		}
+	}
 	return nil
+}
+
+func performMVExpand(fieldValue interface{}) []interface{} {
+	var values []interface{}
+
+	switch v := fieldValue.(type) {
+	case []string:
+		for _, val := range v {
+			values = append(values, val)
+		}
+	case []interface{}:
+		values = v
+	case string:
+		splitValues := strings.Split(v, ",")
+		for _, val := range splitValues {
+			values = append(values, val)
+		}
+	default:
+		return nil
+	}
+
+	return values
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
