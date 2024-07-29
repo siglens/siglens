@@ -438,3 +438,54 @@ func Test_processPostAggs_ErrorWhenNotSlice(t *testing.T) {
 	_, err := processPostAggs(inputValueParam)
 	assert.NotNil(t, err)
 }
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsntString(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": 1,
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[tableName] with value of type [int]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsWildcard(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": "*",
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: tableName can not be *")
+}
+
+func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{"col1", "col2"},
+		"measureColumns": []interface{}{"col1", "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.Nil(t, err)
+}
+
+func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
+	json := map[string]interface{}{
+		"groupByColumns": []interface{}{"col1", "col2"}, // should be []interfaces
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
+}
+func Test_parsePostPqsAggBody_ErrIfColsAreSlicesOfNotInterfaces(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []string{"col1", "col2"}, // should be []interfaces
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[groupByColumns] with value of type [[]string]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfColsAreNotSlicesOfStrings(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{1, "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "processPostAggs type = int not accepted")
+}
