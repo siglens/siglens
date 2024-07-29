@@ -516,11 +516,6 @@ func flushPQueriesToDisk() {
 	}
 }
 
-//	func sortByTotalUsage(nodes []*PersistentSearchNode) {
-//		sort.Slice(nodes, func(i, j int) bool {
-//			return nodes[i].TotalUsage > nodes[j].TotalUsage
-//		})
-//	}
 func readSavedQueryInfo() {
 
 	var sb strings.Builder
