@@ -180,7 +180,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
                         .find('.selected-function-formula:contains(' + selectedFunction.fn + ')')
                         .remove();
                 }
-                
+
                 formulaDetails.functions.push(selectedFunction.fn);
                 appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
                 let formula = formulaElement.find('.formula').val().trim();
@@ -404,7 +404,7 @@ function extractFunctionsAndFormula(formulaInput) {
     const functionPattern = /\b(\w+)\s*\(([^()]*)\)/g;
     let match;
     const functionsFound = [];
-    
+
     // Capture functions in the order they appear
     while ((match = functionPattern.exec(formulaInput)) !== null) {
         functionsFound.push(match[1]);
@@ -415,19 +415,18 @@ function extractFunctionsAndFormula(formulaInput) {
 
     // Reverse to maintain the correct order of function execution
     parseObject.functions = functionsFound;
-    
+
     // The remaining part of the formulaInput should be the innermost formula
     parseObject.formula = formulaInput.trim();
 
     return parseObject;
 }
 function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
-
     if (!Array.isArray(fnNames)) {
         throw new TypeError('fnNames should be an array');
     }
 
-    fnNames.forEach(fnName => {
+    fnNames.forEach((fnName) => {
         var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
         formulaElement.find('.all-selected-functions-formula').append(newDiv);
     });
@@ -440,23 +439,21 @@ async function addAlertsFormulaElement(formulaInput) {
         formulaInput = queryNames.join(' + ');
     }
     let formulaElement;
-    let functionsAndFormula=extractFunctionsAndFormula(formulaInput);
+    let functionsAndFormula = extractFunctionsAndFormula(formulaInput);
 
-    if($('#metrics-formula .formula-box').length > 0){
-        formulaElement=$('.formula').val(functionsAndFormula.formula);        
-    }
-    else{
-        formulaElement=createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
-       
+    if ($('#metrics-formula .formula-box').length > 0) {
+        formulaElement = $('.formula').val(functionsAndFormula.formula);
+    } else {
+        formulaElement = createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
     }
 
-    formulaDetailsMap[uniqueId]=functionsAndFormula;
-    let validationResult = validateFormula(functionsAndFormula.formula, uniqueId); 
-    formulaDetailsMap[uniqueId]=validationResult;
+    formulaDetailsMap[uniqueId] = functionsAndFormula;
+    let validationResult = validateFormula(functionsAndFormula.formula, uniqueId);
+    formulaDetailsMap[uniqueId] = validationResult;
     $('#metrics-formula').append(formulaElement);
-    appendFormulaFunctionAlertDiv(formulaElement,formulaDetailsMap[uniqueId].functions);
+    appendFormulaFunctionAlertDiv(formulaElement, formulaDetailsMap[uniqueId].functions);
     await getMetricsDataForFormula(uniqueId, validationResult);
-    
+
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
     if (formulaElements.length > 0) {
