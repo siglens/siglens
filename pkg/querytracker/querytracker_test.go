@@ -414,10 +414,27 @@ func Test_getAggPQSById(t *testing.T) {
 	assert.Equal(t, float64(st), restored_th["StartTime"])
 }
 
-func Test_processPostAggs_NoErrorWhenEmptyInput(t *testing.T) {
+func Test_processPostAggs_NoErrorWhenEmptySliceOfStrings(t *testing.T) {
+	inputValueParam := []interface{}{}
+	_, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+}
+
+func Test_processPostAggs_NoErrorWhenSliceOfStrings(t *testing.T) {
 	key := "new_column"
 	inputValueParam := []interface{}{key}
 	got, err := processPostAggs(inputValueParam)
 	assert.Nil(t, err)
 	assert.True(t, got[key])
+}
+func Test_processPostAggs_ErrorWhenSliceOfNotStrings(t *testing.T) {
+	inputValueParam := []interface{}{1, 2, 8}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
+}
+
+func Test_processPostAggs_ErrorWhenNotSlice(t *testing.T) {
+	inputValueParam := map[int]string{}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
 }
