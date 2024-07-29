@@ -306,6 +306,22 @@ func IsRawSearchFinished(qid uint64) (bool, error) {
 	return rQuery.rawSearchIsFinished, nil
 }
 
+func SetRawSearchFinished(qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
+		return fmt.Errorf("qid:%v does not exist", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	rQuery.rawSearchIsFinished = true
+	return nil
+}
+
 func SetCurrentSearchResultCount(qid uint64, count int) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]

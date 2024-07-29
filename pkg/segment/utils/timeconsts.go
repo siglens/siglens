@@ -182,6 +182,17 @@ func ApplySnap(snap string, t time.Time) (time.Time, error) {
 	}
 }
 
+// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS"
+// to Unix time in milliseconds (epoch ms).
+func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
+	loc, _ := time.LoadLocation("Local")
+	t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
+	if err != nil {
+		return 0, err
+	}
+	return t.UnixMilli(), nil
+}
+
 func CalculateAdjustedTimeForRelativeTimeCommand(timeModifier RelativeTimeExpr, currTime time.Time) (int64, error) {
 	var err error
 	if timeModifier.Offset != 0 {

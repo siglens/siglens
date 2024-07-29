@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
@@ -138,6 +139,42 @@ func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.
 	return nodeRes
 }
 
+func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeResult {
+
+	if aggs.GenerateEvent == nil {
+		return nil
+	}
+
+	nodeRes := &structs.NodeResult{}
+
+	aggs.GenerateEvent.GeneratedRecords = make(map[string]map[string]interface{})
+	aggs.GenerateEvent.GeneratedRecordsIndex = make(map[string]int)
+	aggs.GenerateEvent.GeneratedColsIndex = make(map[string]int)
+	aggs.GenerateEvent.GeneratedCols = make(map[string]bool)
+
+	if aggs.GenerateEvent.GenTimes != nil {
+		err := aggregations.PerformGenTimes(aggs)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to generate times! Error: %v", qid, err)
+		}
+	}
+
+	err := setTotalSegmentsToSearch(qid, 1)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
+	}
+	SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
+	err = SetRawSearchFinished(qid)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to set raw search finished! Error: %v", qid, err)
+	}
+
+	// Call this to for processQueryUpdate to be called
+	IncrementNumFinishedSegments(1, qid, uint64(len(aggs.GenerateEvent.GeneratedRecords)), 0, "", false, nil)
+
+	return nodeRes
+}
+
 func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 
@@ -201,6 +238,9 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 				bucketLimit = aggs.BucketLimit
 			}
 			aggs.BucketLimit = bucketLimit
+			if aggs.GenerateEvent != nil {
+				return GenerateEvents(aggs, qid)
+			}
 		} else {
 			aggs = structs.InitDefaultQueryAggregations()
 			aggs.BucketLimit = bucketLimit
