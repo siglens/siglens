@@ -172,7 +172,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	}
 
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
-		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid)
+		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
 	if err != nil {
 		log.Errorf("qid=%d Failed to InitQueryInformation! error %+v", qid, err)
 		return &structs.NodeResult{
@@ -237,8 +237,13 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 		}
 	}
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
+	allSegResults := allSegFileResults.GetResults()
+	scrollFrom := queryInfo.GetScrollFrom()
+	currentSearchResultCount := len(allSegResults) - scrollFrom
+	SetCurrentSearchResultCount(queryInfo.qid, currentSearchResultCount)
+
 	return &structs.NodeResult{
-		AllRecords:       allSegFileResults.GetResults(),
+		AllRecords:       allSegResults,
 		ErrList:          allSegFileResults.GetAllErrors(),
 		TotalResults:     allSegFileResults.GetQueryCount(),
 		Histogram:        allSegFileResults.GetBucketResults(),
@@ -300,7 +305,6 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
 	queryType := GetQueryType(queryInfo.qid)
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
 	err = queryInfo.Wait(querySummary)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
@@ -308,6 +312,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
 	setQidAsFinished(queryInfo.qid)
 	return &structs.NodeResult{
 		ErrList:          allSegFileResults.GetAllErrors(),
@@ -479,16 +484,17 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 			doBuckPull = true
 		}
 		recsSearchedSinceLastUpdate += recsSearched
-		if segReq.HasMatchedRrc {
-			segsNotSent++
-			segenc := allSegFileResults.SegKeyToEnc[segReq.segKey]
-			IncrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, segenc,
-				"", doBuckPull, nil)
-			segsNotSent = 0
-			recsSearchedSinceLastUpdate = 0
-		} else {
-			segsNotSent++
-		}
+
+		segsNotSent++
+		segenc := allSegFileResults.SegKeyToEnc[segReq.segKey]
+		// We need to increment the number of finished segments and send message to QUERY_UPDATE channel
+		// irrespective of whether a segment has Matched RRC or not. This is to ensure that the query Aggregations
+		// which require all the Segments to be processed are updated correctly.
+		IncrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, segenc,
+			"", doBuckPull, nil)
+		segsNotSent = 0
+		recsSearchedSinceLastUpdate = 0
+
 		if !rrcsCompleted && areAllRRCsFound(allSegFileResults, sortedQSRSlice[idx+1:], segReq.aggs) {
 			qs.SetRRCFinishTime()
 			rrcsCompleted = true
@@ -666,8 +672,7 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
-	// Use a global variable to store data that meets the conditions during the process of traversing segments
-	runningEvalStats := make(map[string]interface{}, 0)
+
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
@@ -720,7 +725,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, runningEvalStats)
+		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 			allSegFileResults.AddError(err)

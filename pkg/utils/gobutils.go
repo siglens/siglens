@@ -18,6 +18,9 @@
 package utils
 
 import (
+	"bytes"
+	"container/list"
+	"encoding/gob"
 	"regexp"
 
 	log "github.com/sirupsen/logrus"
@@ -60,4 +63,44 @@ func (self *GobbableRegex) GobDecode(data []byte) error {
 	}
 
 	return self.SetRegex(string(data))
+}
+
+type GobbableList struct {
+	list.List // Embedding list.List lets us use all of its methods.
+}
+
+// Implement https://pkg.go.dev/encoding/gob#GobEncoder
+func (self *GobbableList) GobEncode() ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	listValues := make([]interface{}, 0, self.Len())
+
+	for element := self.Front(); element != nil; element = element.Next() {
+		listValues = append(listValues, element.Value)
+	}
+
+	if err := encoder.Encode(listValues); err != nil {
+		log.Errorf("GobbableList.GobEncode: failed to encode; err=%v", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// Implement https://pkg.go.dev/encoding/gob#GobDecoder
+func (self *GobbableList) GobDecode(data []byte) error {
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+
+	var elements []interface{}
+	if err := decoder.Decode(&elements); err != nil {
+		log.Errorf("GobbableList.GobDecode: failed to decode; err=%v", err)
+		return err
+	}
+
+	self.Init()
+	for _, element := range elements {
+		self.PushBack(element)
+	}
+
+	return nil
 }

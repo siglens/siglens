@@ -314,7 +314,7 @@ async function editPanelInit(redirectedFromViewScreen) {
     $('.tags-list').empty();
     [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
     $('#aggregations, #aggregate-attribute-text, #search-filter-text').show();
-
+    // formulas, queries = {};
     currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     $('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
     // reset inputs to show placeholders

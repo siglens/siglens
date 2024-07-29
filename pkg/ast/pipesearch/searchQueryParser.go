@@ -471,6 +471,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.BinRequest != nil {
 			aggNode.OutputTransforms.LetColumns.BinRequest = node.LetColumns.BinRequest
 		}
+		if node.LetColumns.FillNullRequest != nil {
+			aggNode.OutputTransforms.LetColumns.FillNullRequest = node.LetColumns.FillNullRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows

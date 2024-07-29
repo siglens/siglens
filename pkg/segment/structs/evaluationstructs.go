@@ -167,10 +167,11 @@ type NumericExpr struct {
 	Value        string
 
 	// Only used when IsTerminal is false.
-	Op    string // Including arithmetic, mathematical and text functions ops
-	Left  *NumericExpr
-	Right *NumericExpr
-	Val   *StringExpr
+	Op           string // Including arithmetic, mathematical and text functions ops
+	Left         *NumericExpr
+	Right        *NumericExpr
+	Val          *StringExpr
+	RelativeTime utils.RelativeTimeExpr
 }
 
 type StringExpr struct {
@@ -801,10 +802,11 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 		}
 		return strconv.FormatFloat(floatValue, 'f', -1, 64), nil
 	case VEMConditionExpr:
-		str, err := self.ConditionExpr.EvaluateCondition(fieldToValue)
+		val, err := self.ConditionExpr.EvaluateCondition(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
+		str := fmt.Sprintf("%v", val)
 		return str, nil
 	case VEMBooleanExpr:
 		boolResult, err := self.BooleanExpr.Evaluate(fieldToValue)
@@ -854,6 +856,22 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]utils.CValueEnclo
 	default:
 		return 0, fmt.Errorf("ValueExpr.EvaluateToFloat: cannot evaluate to float")
 	}
+}
+
+// This function will first try to evaluate the ValueExpr to a float. If that
+// fails, it will try to evaluate it to a string. If that fails, it will return
+// an error.
+func (expr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
+	value, err := expr.EvaluateToFloat(fieldToValue)
+	if err == nil {
+		return value, "float", nil
+	}
+
+	valueStr, err := expr.EvaluateToString(fieldToValue)
+	if err == nil {
+		return valueStr, "string", nil
+	}
+	return nil, "", fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
 }
 
 func (self *ValueExpr) GetFields() []string {
@@ -1384,6 +1402,8 @@ func handleNoArgFunction(op string) (float64, error) {
 		return float64(rand.Int31()), nil
 	case "pi":
 		return math.Pi, nil
+	case "time":
+		return float64(time.Now().UnixMilli()), nil
 	default:
 		log.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
 		return 0, fmt.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
@@ -1607,7 +1627,25 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
 			}
 			return float64(number), nil
+		case "relative_time":
+			if self.Left == nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a non-nil left operand")
+			}
 
+			var epochTime int64
+			var err error
+			if left >= 0 {
+				epochTime = int64(left)
+			} else {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a valid timestamp")
+			}
+
+			relTime, err := utils.CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: error calculating relative time: %v", err)
+			}
+
+			return float64(relTime), nil
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
@@ -2152,21 +2190,43 @@ func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.C
 	return "", nil
 }
 
-// Field may come from BoolExpr or ValueExpr
-func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	if len(expr.ValueList) != 2 {
+		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
+	}
 
-	switch self.Op {
+	value1, _, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
+	}
+
+	value2, _, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
+	}
+
+	if value1 == value2 {
+		return nil, nil
+	}
+
+	return value1, nil
+}
+
+// Field may come from BoolExpr or ValueExpr
+func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+
+	switch expr.Op {
 	case "if":
-		predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
+		predicateFlag, err := expr.BoolExpr.Evaluate(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
 		}
 
-		trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
+		trueValue, err := expr.TrueValue.EvaluateValueExprAsString(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
 		}
-		falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
+		falseValue, err := expr.FalseValue.EvaluateValueExprAsString(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
 		}
@@ -2176,13 +2236,17 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 			return falseValue, nil
 		}
 	case "validate":
-		return handleComparisonAndConditionalFunctions(self, fieldToValue, self.Op)
+		return handleComparisonAndConditionalFunctions(expr, fieldToValue, expr.Op)
 	case "case":
-		return handleCaseFunction(self, fieldToValue)
+		return handleCaseFunction(expr, fieldToValue)
 	case "coalesce":
-		return handleCoalesceFunction(self, fieldToValue)
+		return handleCoalesceFunction(expr, fieldToValue)
+	case "nullif":
+		return handleNullIfFunction(expr, fieldToValue)
+	case "null":
+		return nil, nil
 	default:
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", expr.Op)
 	}
 
 }

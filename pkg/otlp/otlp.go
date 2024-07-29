@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -122,7 +123,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	}
 
 	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
-
+	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), 0)
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
 }

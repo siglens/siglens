@@ -32,7 +32,6 @@
   --edit-panel-dropdown-bg-color-hover:var(--black-2);
   --edit-panel-input-bg-focus:var(--black-1);
   --color-selector-active:var(--white-1);
-  --number-and-unit-color:var(--orange-1);
   --db-setting-option-selected:var(--black-4);
   --db-setting-option-text-selected:var(--white-1);
   --db-setting-placeholder:var(--black-5);
@@ -41,7 +40,6 @@
   --top-save-btn-bg-img: url("../assets/save-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-light.svg");
   --panel-container: var(--white-5);
-  --front-arrow :  url('../assets/front-arrow-icon-dark.svg');
 }
 
 [data-theme='light']{
@@ -56,7 +54,6 @@
   --color-selector-active:var(--black-1);
   --edit-panel-input-bg-focus:var(--white-2);
   --db-setting-option-text-selected:var(--black-1);
-  --number-and-unit-color:var(--purple-1);
   --db-setting-option-selected:var(--white-8);
   --db-setting-placeholder:var(--black-6);
   --db-setting-text:var(--black-4);
@@ -64,7 +61,6 @@
   --top-save-btn-bg-img: url("../assets/save-btn.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
   --panel-container: var(--white-9);
-  --front-arrow:  url('../assets/front-arrow-icon-light.svg');
 }
 
 
@@ -590,7 +586,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--orange-1);
   font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);
@@ -1526,13 +1521,6 @@ input:checked + .slider:before {
   font-size: 23px;
   padding-bottom: 3px;
   cursor: pointer;
-}
-
-.dashboard-arrow{
-  background-image: var(--front-arrow);
-  height: 10px;
-  width: 6px;
-  background-size: contain;
 }
 
 .avail-fields-btn{

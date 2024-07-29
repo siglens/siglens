@@ -62,10 +62,10 @@ type Span struct {
 type RedMetrics struct {
 	Rate      float64 // Number of entry spans divided by 60 seconds
 	ErrorRate float64 // Percentage of entry spans that errored
-	P50       uint64  // p50, p90, p95, p99 latencies are calculated by the list of durations.
-	P90       uint64
-	P95       uint64
-	P99       uint64
+	P50       float64 // p50, p90, p95, p99 latencies are calculated by the list of durations.
+	P90       float64
+	P95       float64
+	P99       float64
 }
 
 // Accept the request body of search traces and act as the request body of the /api/search
