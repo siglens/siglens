@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/valyala/fasthttp"
 )
 
 // used only by tests to reset tracked info
@@ -384,4 +385,31 @@ func Test_PostPqsClear(t *testing.T) {
 	clearPqsSummary = getPQSSummary()
 	assert.NotNil(t, clearPqsSummary)
 	assert.Equal(t, expected, clearPqsSummary, "the pqsinfo was supposed to be cleared")
+}
+
+func Test_getAggPQSById_ReturnsErrorWhenAggsAreEmpty(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	e := fillAggPQS(&ctx, "id")
+	assert.NotNil(t, e, "No error returned")
+}
+
+func Test_getAggPQSById(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	var st uint64 = 3
+	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: st}}
+	pqid := GetHashForAggs(qa)
+	tableName := []string{"test-1"}
+	assert.NotNil(t, tableName)
+	UpdateQTUsage(tableName, nil, qa)
+
+	aggPQS, e := getAggPQSById(pqid)
+	assert.Nil(t, e, "An error returned")
+	assert.Equal(t, pqid, aggPQS["pqid"])
+	assert.Equal(t, uint32(1), aggPQS["total_usage"])
+	restored_aggs := aggPQS["search_aggs"].(map[string]interface{})
+	restored_th := restored_aggs["TimeHistogram"].(map[string]interface{})
+	assert.Equal(t, float64(st), restored_th["StartTime"])
 }

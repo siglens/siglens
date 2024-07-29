@@ -515,6 +515,11 @@ func flushPQueriesToDisk() {
 	}
 }
 
+//	func sortByTotalUsage(nodes []*PersistentSearchNode) {
+//		sort.Slice(nodes, func(i, j int) bool {
+//			return nodes[i].TotalUsage > nodes[j].TotalUsage
+//		})
+//	}
 func readSavedQueryInfo() {
 
 	var sb strings.Builder
@@ -631,7 +636,7 @@ func GetPQSById(ctx *fasthttp.RequestCtx) {
 	pqid := utils.ExtractParamAsString(ctx.UserValue("pqid"))
 	finalResult := getPqsById(pqid)
 	if finalResult == nil {
-		err := getAggPQSById(ctx, pqid)
+		err := fillAggPQS(ctx, pqid)
 		if err != nil {
 			var httpResp utils.HttpServerResponse
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -677,7 +682,15 @@ func getPqsById(pqid string) map[string]interface{} {
 	return finalResult
 }
 
-func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
+func fillAggPQS(ctx *fasthttp.RequestCtx, pqid string) error {
+	finalResult, err := getAggPQSById(pqid)
+	utils.WriteJsonResponse(ctx, &finalResult)
+	ctx.Response.Header.Set("Content-Type", "application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	return err
+}
+
+func getAggPQSById(pqid string) (map[string]interface{}, error) {
 	pqinfo, exists := localPersistentAggs[pqid]
 	if !exists {
 		for _, info := range allPersistentAggsSorted {
@@ -688,7 +701,7 @@ func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
 	}
 
 	if pqinfo == nil {
-		return fmt.Errorf("pqid %+s does not exist in aggs", pqid)
+		return nil, fmt.Errorf("pqid %+s does not exist in aggs", pqid)
 	}
 	sNode := pqinfo.QueryAggs
 	var convertedAggs map[string]interface{}
@@ -701,11 +714,7 @@ func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
 	finalResult["total_usage"] = pqinfo.TotalUsage
 	finalResult["virtual_tables"] = pqinfo.AllTables
 	finalResult["search_aggs"] = convertedAggs
-
-	utils.WriteJsonResponse(ctx, &finalResult)
-	ctx.Response.Header.Set("Content-Type", "application/json")
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	return nil
+	return finalResult, nil
 }
 
 func RefreshExternalPQInfo(fNames []string) error {
