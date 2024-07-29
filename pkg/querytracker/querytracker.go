@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -934,10 +935,16 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 				}
 			}
 		default:
-			log.Errorf("PostPqsAggCols: Invalid key=[%v]", key)
-			err := fmt.Sprintf("PostPqsAggCols: Invalid key=[%v]", key)
+			message := fmt.Sprintf("PostPqsAggCols: Invalid key=[%v] with value of type [%v]", key, reflect.TypeOf(value))
+			log.Error(message)
+			err := fmt.Sprint(message)
 			return errors.New(err)
 		}
+	}
+	if len(tableName) == 0 {
+		err := errors.New("PostPqsAggCols: No tableName specified")
+		log.Errorf("%+v", err)
+		return err
 	}
 	if _, ok := localGroupByOverride[tableName]; ok {
 		entry := localGroupByOverride[tableName]
