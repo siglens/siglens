@@ -19,6 +19,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -4180,7 +4181,9 @@ func Test_evalFunctionsRelativeTime(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "relative_time")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Op, "now")
 	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.IsTerminal)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Val.RawString, "-1d@d")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.Offset, int64(-1))
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.TimeUnit, utils.TMDay)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.Snap, fmt.Sprintf("%d", utils.TMDay))
 }
 
 func Test_evalFunctionsStrfTime(t *testing.T) {
@@ -10076,4 +10079,304 @@ func Test_FillNull_ValueArg_FieldList(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
 	assert.Equal(t, 2, len(aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList))
 	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
+}
+
+func performCommon_aggEval_BoolExpr(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string) {
+	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(latitude >= 0 AND http_method="GET"))
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 2)
+	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+
+	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.BoolOp)
+	assert.Equal(t, structs.BoolOpAnd, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.BoolOp)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool)
+
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.LeftValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.RightValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "0", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftBool.RightValue.NumericExpr.Value)
+
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.LeftValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.RightValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.RightValue.StringExpr)
+	assert.Equal(t, "http_method", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "GET", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.RightValue.StringExpr.RawString)
+}
+
+func performCommon_aggEval_Constant(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, constantNum string) {
+	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(constantNum))
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 2)
+	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+
+	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr)
+
+	assert.Equal(t, constantNum, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.Value)
+	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
+}
+
+func performCommon_aggEval_Field(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, fieldName string) {
+	// Query Form: app_name=Bracecould | stats min(longitude), measureFunc(eval(field))
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "app_name", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"Bracecould\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 2)
+	assert.Equal(t, "longitude", pipeCommands.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Min, pipeCommands.MeasureOperations[0].MeasureFunc)
+
+	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr)
+
+	assert.Equal(t, fieldName, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.Value)
+	assert.Equal(t, true, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
+}
+
+func performCommon_aggEval_ConditionalExpr(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, trueValueField string, falseValueConstant string) {
+	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "app_name", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"bracecould\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 2)
+	assert.Equal(t, "http_status", pipeCommands.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Sum, pipeCommands.MeasureOperations[0].MeasureFunc)
+
+	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
+
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr)
+	assert.Equal(t, "if", pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.Op)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue.NumericExpr)
+	assert.Equal(t, "http_status", pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "=", pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.ValueOp)
+	assert.Equal(t, "500", pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue.NumericExpr.Value)
+
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr)
+	assert.Equal(t, trueValueField, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr.Value)
+	assert.Equal(t, true, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr.ValueIsField)
+
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr)
+	assert.Equal(t, falseValueConstant, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.Value)
+	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.ValueIsField)
+}
+
+func Test_aggHasEval_BooleanExpr(t *testing.T) {
+	query := []byte(`city=Boston | stats max(latitude), count(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Count, `count(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), sum(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Sum, `sum(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), avg(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Avg, `avg(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), min(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Min, `min(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), max(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Max, `max(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Range, `range(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), dc(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Cardinality, `dc(eval(latitude >= 0 AND http_method="GET"))`)
+
+	query = []byte(`city=Boston | stats max(latitude), values(eval(latitude >= 0 AND http_method="GET"))`)
+	performCommon_aggEval_BoolExpr(t, query, utils.Values, `values(eval(latitude >= 0 AND http_method="GET"))`)
+}
+
+func Test_aggHasEval_Constant(t *testing.T) {
+	query := []byte(`city=Boston | stats max(latitude), count(eval(1))`)
+	performCommon_aggEval_Constant(t, query, utils.Count, `count(eval(1))`, "1")
+
+	query = []byte(`city=Boston | stats max(latitude), sum(eval(1))`)
+	performCommon_aggEval_Constant(t, query, utils.Sum, `sum(eval(1))`, "1")
+
+	query = []byte(`city=Boston | stats max(latitude), avg(eval(20))`)
+	performCommon_aggEval_Constant(t, query, utils.Avg, `avg(eval(20))`, "20")
+
+	query = []byte(`city=Boston | stats max(latitude), min(eval(-3))`)
+	performCommon_aggEval_Constant(t, query, utils.Min, `min(eval(-3))`, "-3")
+
+	query = []byte(`city=Boston | stats max(latitude), max(eval(1000))`)
+	performCommon_aggEval_Constant(t, query, utils.Max, `max(eval(1000))`, "1000")
+
+	query = []byte(`city=Boston | stats max(latitude), range(eval(5))`)
+	performCommon_aggEval_Constant(t, query, utils.Range, `range(eval(5))`, "5")
+
+	query = []byte(`city=Boston | stats max(latitude), dc(eval(0))`)
+	performCommon_aggEval_Constant(t, query, utils.Cardinality, `dc(eval(0))`, "0")
+
+	query = []byte(`city=Boston | stats max(latitude), values(eval(50))`)
+	performCommon_aggEval_Constant(t, query, utils.Values, `values(eval(50))`, "50")
+}
+
+func Test_aggHasEval_Field(t *testing.T) {
+	query := []byte(`app_name=Bracecould | stats min(longitude), count(eval(http_status))`)
+	performCommon_aggEval_Field(t, query, utils.Count, `count(eval(http_status))`, "http_status")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), sum(eval(http_status))`)
+	performCommon_aggEval_Field(t, query, utils.Sum, `sum(eval(http_status))`, "http_status")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), avg(eval(longitude))`)
+	performCommon_aggEval_Field(t, query, utils.Avg, `avg(eval(longitude))`, "longitude")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), min(eval(latitude))`)
+	performCommon_aggEval_Field(t, query, utils.Min, `min(eval(latitude))`, "latitude")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), max(eval(http_status))`)
+	performCommon_aggEval_Field(t, query, utils.Max, `max(eval(http_status))`, "http_status")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), range(eval(longitude))`)
+	performCommon_aggEval_Field(t, query, utils.Range, `range(eval(longitude))`, "longitude")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), dc(eval(latitude))`)
+	performCommon_aggEval_Field(t, query, utils.Cardinality, `dc(eval(latitude))`, "latitude")
+
+	query = []byte(`app_name=Bracecould | stats min(longitude), values(eval(http_status))`)
+	performCommon_aggEval_Field(t, query, utils.Values, `values(eval(http_status))`, "http_status")
+}
+
+func Test_aggHasEval_ConditionalExpr(t *testing.T) {
+	query := []byte(`app_name=bracecould | stats sum(http_status), count(eval(if(http_status=500, longitude, 1)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Count, `count(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), sum(eval(if(http_status=500, longitude, 1)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Sum, `sum(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), avg(eval(if(http_status=500, http_status, -20)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Avg, `avg(eval(if(http_status=500, http_status, -20)))`, "http_status", "-20")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), min(eval(if(http_status=500, latitude, 100)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Min, `min(eval(if(http_status=500, latitude, 100)))`, "latitude", "100")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), max(eval(if(http_status=500, http_status, -1000)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Max, `max(eval(if(http_status=500, http_status, -1000)))`, "http_status", "-1000")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), range(eval(if(http_status=500, latitude, 3)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Range, `range(eval(if(http_status=500, latitude, 3)))`, "latitude", "3")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), dc(eval(if(http_status=500, longitude, 7)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Cardinality, `dc(eval(if(http_status=500, longitude, 7)))`, "longitude", "7")
+
+	query = []byte(`app_name=bracecould | stats sum(http_status), values(eval(if(http_status=500, http_method, 0)))`)
+	performCommon_aggEval_ConditionalExpr(t, query, utils.Values, `values(eval(if(http_status=500, http_method, 0)))`, "http_method", "0")
+}
+
+func Test_MVExpand_NoLimit(t *testing.T) {
+	query := `* | mvexpand batch`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_WithLimit(t *testing.T) {
+	query := `* | mvexpand app_name limit=5`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_InvalidLimit(t *testing.T) {
+	query := `* | mvexpand batch limit=invalid`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_MVExpand_MissingField(t *testing.T) {
+	query := `* | mvexpand`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
 }

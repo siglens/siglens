@@ -259,7 +259,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 	var wsResponse *PipeSearchWSUpdateResponse
 	if qscd.QueryUpdate == nil {
 		log.Errorf("qid=%d, processQueryUpdate: got nil query update!", qid)
-		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+		wErr := conn.WriteJSON(createErrorResponse("Got nil query update"))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
