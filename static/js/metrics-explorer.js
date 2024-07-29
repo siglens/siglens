@@ -150,12 +150,14 @@ function getUrlParameter(name) {
 }
 let formulaDetailsMap = {};
 async function initializeFormulaFunction(formulaElement, uniqueId) {
-    formulaDetailsMap[uniqueId] = {
-        formula: '',
-        queryNames: [],
-        functions: [],
-    };
-
+    if (!formulaDetailsMap[uniqueId] || !formulaDetailsMap[uniqueId].formula) {
+        // Initialize the formula details for the given uniqueId if it does not exist or is empty
+        formulaDetailsMap[uniqueId] = {
+            formula: '',
+            queryNames: [],
+            functions: [],
+        };
+    }
     formulaElement
         .find('#functions-search-box-formula')
         .autocomplete({
@@ -178,7 +180,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
                         .find('.selected-function-formula:contains(' + selectedFunction.fn + ')')
                         .remove();
                 }
-
+                
                 formulaDetails.functions.push(selectedFunction.fn);
                 appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
                 let formula = formulaElement.find('.formula').val().trim();
@@ -412,13 +414,25 @@ function extractFunctionsAndFormula(formulaInput) {
     }
 
     // Reverse to maintain the correct order of function execution
-    parseObject.functions = functionsFound.reverse();
+    parseObject.functions = functionsFound;
     
     // The remaining part of the formulaInput should be the innermost formula
     parseObject.formula = formulaInput.trim();
 
     return parseObject;
 }
+function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
+
+    if (!Array.isArray(fnNames)) {
+        throw new TypeError('fnNames should be an array');
+    }
+
+    fnNames.forEach(fnName => {
+        var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
+        formulaElement.find('.all-selected-functions-formula').append(newDiv);
+    });
+}
+
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
@@ -433,16 +447,16 @@ async function addAlertsFormulaElement(formulaInput) {
     }
     else{
         formulaElement=createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
-        $('#metrics-formula').append(formulaElement);
+       
     }
 
-
     formulaDetailsMap[uniqueId]=functionsAndFormula;
-    let validationResult = validateFormula(functionsAndFormula.formula, uniqueId);
-    formulas[uniqueId] = validationResult;    
+    let validationResult = validateFormula(functionsAndFormula.formula, uniqueId); 
+    formulaDetailsMap[uniqueId]=validationResult;
+    $('#metrics-formula').append(formulaElement);
+    appendFormulaFunctionAlertDiv(formulaElement,formulaDetailsMap[uniqueId].functions);
     await getMetricsDataForFormula(uniqueId, validationResult);
-
-
+    
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
     if (formulaElements.length > 0) {

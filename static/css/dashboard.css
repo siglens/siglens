@@ -324,7 +324,7 @@
 .editPanelMenu-dataSource {
   width: 120px;
   position: absolute;
-  z-index: 9;
+  z-index: 9000;
 }
 
 .queryInput-container {
