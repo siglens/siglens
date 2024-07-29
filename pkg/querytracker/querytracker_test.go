@@ -387,12 +387,12 @@ func Test_PostPqsClear(t *testing.T) {
 	assert.Equal(t, expected, clearPqsSummary, "the pqsinfo was supposed to be cleared")
 }
 
-func Test_getAggPQSById_ReturnsErrorWhenAggsAreEmpty(t *testing.T) {
+func Test_fillAggPQS_ReturnsErrorWhenAggsAreEmpty(t *testing.T) {
 	resetInternalQTInfo()
 	config.SetPQSEnabled(true)
 	ctx := fasthttp.RequestCtx{}
-	e := fillAggPQS(&ctx, "id")
-	assert.NotNil(t, e, "No error returned")
+	err := fillAggPQS(&ctx, "id")
+	assert.EqualError(t, err, "pqid id does not exist in aggs")
 }
 
 func Test_getAggPQSById(t *testing.T) {
@@ -405,8 +405,8 @@ func Test_getAggPQSById(t *testing.T) {
 	assert.NotNil(t, tableName)
 	UpdateQTUsage(tableName, nil, qa)
 
-	aggPQS, e := getAggPQSById(pqid)
-	assert.Nil(t, e, "An error returned")
+	aggPQS, err := getAggPQSById(pqid)
+	assert.Nil(t, err)
 	assert.Equal(t, pqid, aggPQS["pqid"])
 	assert.Equal(t, uint32(1), aggPQS["total_usage"])
 	restored_aggs := aggPQS["search_aggs"].(map[string]interface{})
@@ -455,6 +455,13 @@ func Test_parsePostPqsAggBody_ErrIfTableNameIsWildcard(t *testing.T) {
 	assert.EqualError(t, err, "PostPqsAggCols: tableName can not be *")
 }
 
+func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
+	json := map[string]interface{}{
+		"groupByColumns": []interface{}{"col1", "col2"}, // should be []interfaces
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
+}
 func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
 	json := map[string]interface{}{
 		"tableName":      "some_table",
@@ -465,13 +472,6 @@ func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
-	json := map[string]interface{}{
-		"groupByColumns": []interface{}{"col1", "col2"}, // should be []interfaces
-	}
-	err := parsePostPqsAggBody(json)
-	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
-}
 func Test_parsePostPqsAggBody_ErrIfColsAreSlicesOfNotInterfaces(t *testing.T) {
 	json := map[string]interface{}{
 		"tableName":      "some_table",
