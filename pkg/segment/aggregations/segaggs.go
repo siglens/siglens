@@ -1981,11 +1981,6 @@ func performMVExpand(fieldValue interface{}) []interface{} {
 		}
 	case []interface{}:
 		values = v
-	case string:
-		splitValues := strings.Split(v, ",")
-		for _, val := range splitValues {
-			values = append(values, val)
-		}
 	default:
 		return nil
 	}
