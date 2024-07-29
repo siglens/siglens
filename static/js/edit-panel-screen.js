@@ -1214,6 +1214,7 @@ async function runQueryBtnHandler() {
         data = getQueryParamsData();
         currentPanel.queryData = data;
         $('.panelDisplay .panEdit-panel').hide();
+        initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);
     }
     toggleTableView();
@@ -1312,6 +1313,7 @@ function displayPanelView(panelIndex) {
             responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div><div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
+            initialSearchDashboardData = localPanel.queryData;
             runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
             break;
 

@@ -24,6 +24,7 @@ let localPanels = [],
     dbId,
     allResultsDisplayed = 0;
 let panelIndex;
+let initialSearchDashboardData={};
 //eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
@@ -293,7 +294,6 @@ function handlePanelView() {
 
 function viewPanelInit() {
     $('.panelEditor-container').css('display', 'flex');
-    $('.popupOverlay').addClass('active');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
     $('.panelDisplay #empty-response').hide();
@@ -306,7 +306,7 @@ function handlePanelEdit() {
         panelIndex = $(this).closest('.panel').attr('panel-index');
         editPanelInit();
         $('.panelEditor-container').css('display', 'flex');
-        $('.popupOverlay').addClass('active');
+
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
@@ -416,7 +416,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         <div id="empty-response"></div>`;
         panEl.append(responseDiv);
         $('#panelLogResultsGrid').show();
-
+        initialSearchDashboardData = localPanel.queryData;
         if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
     } else if (localPanel.chartType == 'Line Chart') {
@@ -693,6 +693,7 @@ async function displayPanels() {
             panEl.append(responseDiv);
 
             $('#panelLogResultsGrid').show();
+            initialSearchDashboardData = localPanel.queryData;
             if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
             else runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
         } else if (localPanel.chartType == 'Line Chart') {
