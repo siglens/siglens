@@ -183,7 +183,6 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
                 appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
                 let formula = formulaElement.find('.formula').val().trim();
                 let validationResult = validateFormula(formula, uniqueId);
-
                 if (validationResult !== false) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
                 }
@@ -393,24 +392,56 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }, 500)
     ); // debounce delay
 }
+function extractFunctionsAndFormula(formulaInput) {
+    const parseObject = {
+        formula: '',
+        functions: [],
+    };
 
+    // Define a regular expression to match functions
+    const functionPattern = /\b(\w+)\s*\(([^()]*)\)/g;
+    let match;
+    const functionsFound = [];
+    
+    // Capture functions in the order they appear
+    while ((match = functionPattern.exec(formulaInput)) !== null) {
+        functionsFound.push(match[1]);
+        // Replace the matched function with its content for further processing
+        formulaInput = formulaInput.replace(match[0], match[2]);
+        functionPattern.lastIndex = 0; // Reset the regex index after replacement
+    }
+
+    // Reverse to maintain the correct order of function execution
+    parseObject.functions = functionsFound.reverse();
+    
+    // The remaining part of the formulaInput should be the innermost formula
+    parseObject.formula = formulaInput.trim();
+
+    return parseObject;
+}
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
     if (!formulaInput) {
         formulaInput = queryNames.join(' + ');
     }
+    let formulaElement;
+    let functionsAndFormula=extractFunctionsAndFormula(formulaInput);
 
-    let formulaElement = $('#metrics-formula .formula-box').length > 0 ? $('.formula').val(formulaInput).removeClass('error-border').siblings('.formula-error-message').hide() : createFormulaElementTemplate(uniqueId, formulaInput);
-
-    if ($('#metrics-formula .formula-box').length === 0) {
+    if($('#metrics-formula .formula-box').length > 0){
+        formulaElement=$('.formula').val(functionsAndFormula.formula);        
+    }
+    else{
+        formulaElement=createFormulaElementTemplate(uniqueId, functionsAndFormula.formula);
         $('#metrics-formula').append(formulaElement);
     }
 
-    let validationResult = validateFormula(formulaInput, uniqueId);
-    formulas[uniqueId] = validationResult;
-    formulaDetailsMap[uniqueId] = validationResult;
+
+    formulaDetailsMap[uniqueId]=functionsAndFormula;
+    let validationResult = validateFormula(functionsAndFormula.formula, uniqueId);
+    formulas[uniqueId] = validationResult;    
     await getMetricsDataForFormula(uniqueId, validationResult);
+
 
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
