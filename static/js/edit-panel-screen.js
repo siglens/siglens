@@ -1129,7 +1129,7 @@ function resetPanelTimeRanges() {
 
 function resetEditPanelScreen() {
     resetEditPanel();
-    panelGridDiv=null;
+    panelGridDiv = null;
     $('.dropDown-dataSource span').html('Data Source');
     $('.dropDown-unit span').html('Unit');
     $('.dropDown-logLinesView span').html('Single line display view');
@@ -1197,7 +1197,7 @@ async function runQueryBtnHandler() {
     // reset the current panel's queryRes attribute
     delete currentPanel.queryRes;
     resetEditPanel();
-    panelGridDiv=null;
+    panelGridDiv = null;
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();

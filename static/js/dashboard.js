@@ -24,7 +24,7 @@ let localPanels = [],
     dbId,
     allResultsDisplayed = 0;
 let panelIndex;
-let initialSearchDashboardData={};
+let initialSearchDashboardData = {};
 //eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
