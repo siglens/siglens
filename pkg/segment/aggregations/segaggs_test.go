@@ -2793,7 +2793,7 @@ func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure
 	}
 }
 
-func getMeasureAgg(measureFuncs []utils.AggregateFunctions) []*structs.MeasureAggregator {
+func getMeasureAggs(measureFuncs []utils.AggregateFunctions) []*structs.MeasureAggregator {
 	var measureAggs []*structs.MeasureAggregator
 	for _, measureFunc := range measureFuncs {
 		measureAggs = append(measureAggs, &structs.MeasureAggregator{
@@ -2831,14 +2831,14 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3, 3)
-	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
-	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 8, 12, 10, 17, 15, 21, 15)
-	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5)
-	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 5, 6, 6, 8, 8, 9, 9)
-	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 3, 3, 4, 2)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 4, 5, 5, 5, 5, 5, 7)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3, 3)
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 8, 12, 10, 17, 15, 21, 15}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5}
+	expectedValuesMax := []interface{}{7, 7, 7, 5, 6, 6, 8, 8, 9, 9}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
+	expectedValuesRange := []interface{}{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
 
 	dtypes := getDtypes(len(values), []int{}, []int{})
 
@@ -2851,7 +2851,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
@@ -2903,14 +2903,14 @@ func Test_Time_Window(t *testing.T) {
 	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 1, 2, 1}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 3, 1, 2, 1)
-	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
-	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 1, 7, 10, 17, 4, 13, 2)
-	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 1, 3.5, 3.3333333333333335, 5.666666666666667, 4, 6.5, 2)
-	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 1, 6, 6, 8, 4, 9, 2)
-	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 3, 4, 4, 2)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 0, 5, 5, 5, 0, 5, 0)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 3, 1, 2, 1)
+	expectedValuesCount := []interface{}{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 1, 7, 10, 17, 4, 13, 2}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 1, 3.5, 3.3333333333333335, 5.666666666666667, 4, 6.5, 2}
+	expectedValuesMax := []interface{}{7, 7, 7, 1, 6, 6, 8, 4, 9, 2}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 3, 4, 4, 2}
+	expectedValuesRange := []interface{}{0, 5, 5, 0, 5, 5, 5, 0, 5, 0}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
 
 	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 7300, 10000, 11500, 20000}
 
@@ -2926,7 +2926,7 @@ func Test_Time_Window(t *testing.T) {
 		utils.Cardinality,
 	}
 
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
@@ -2959,17 +2959,17 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 		Global:  true,
 	}
 
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-	values := append(make([]interface{}, 0), 7, 2, 5, 1, 6, 3, 8, 4, 9, 2)
-	expectedValuesSum := append(make([]interface{}, 0), 7, 9, 14, 15, 21, 24, 32, 36, 45, 47)
-	expectedValuesAvg := append(make([]interface{}, 0), 7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7)
-	expectedValuesMax := append(make([]interface{}, 0), 7, 7, 7, 7, 7, 7, 8, 8, 9, 9)
-	expectedValuesMin := append(make([]interface{}, 0), 7, 2, 2, 1, 1, 1, 1, 1, 1, 1)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 5, 5, 6, 6, 6, 7, 7, 8, 8)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9, 9)
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 15, 21, 24, 32, 36, 45, 47}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7}
+	expectedValuesMax := []interface{}{7, 7, 7, 7, 7, 7, 8, 8, 9, 9}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 1, 1, 1, 1}
+	expectedValuesRange := []interface{}{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 9}
 
 	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	dtypes := getDtypes(len(values), []int{}, []int{})
 
@@ -3016,7 +3016,7 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 }
 
 func Test_Cardinality(t *testing.T) {
-	values := append(make([]interface{}, 0), 7, 2, 2, 2, 1, 2, 3, 2, 4, 5)
+	values := []interface{}{7, 2, 2, 2, 1, 2, 3, 2, 4, 5}
 	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	ssOption := &structs.StreamStatsOptions{
 		Current: true,
@@ -3029,8 +3029,8 @@ func Test_Cardinality(t *testing.T) {
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	expectedPrimaryLen := [][]int{expectedLen}
 	expectedSecondaryLen := [][]int{expectedNilLen}
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 2, 1, 2, 2, 3, 2, 3, 3)
-	expectedValuesNoWindowCardinality := append(make([]interface{}, 0), 1, 2, 2, 2, 3, 3, 4, 4, 5, 6)
+	expectedValuesCardinality := []interface{}{1, 2, 2, 1, 2, 2, 3, 2, 3, 3}
+	expectedValuesNoWindowCardinality := []interface{}{1, 2, 2, 2, 3, 3, 4, 4, 5, 6}
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureFunc: utils.Cardinality,
@@ -3068,8 +3068,7 @@ func createExpectedStrings(collection []interface{}) []string {
 }
 
 func Test_Values(t *testing.T) {
-	values := make([]interface{}, 0)
-	values = append(values, 1, "abc", "abc", "Abc", 10, "DEF", 9, "def", 21, "Ab2")
+	values := []interface{}{1, "abc", "abc", "Abc", 10, "DEF", 9, "def", 21, "Ab2"}
 	dtypes := getDtypes(len(values), []int{1, 2, 3, 5, 7, 9}, []int{})
 	expectedValuesWindow := [][]string{}
 	expectedValuesNoWindow := [][]string{}
@@ -3121,16 +3120,16 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 	expectedMinSecondaryLen := []int{0, 0, 1, 1, 2, 1, 1, 2, 2}
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	values := append(make([]interface{}, 0), -3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20)
+	values := []interface{}{-3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20}
 	dtypesValues := getDtypes(len(values), []int{2, 4, 6, 7}, []int{})
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3)
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
-	expectedValuesSum := append(make([]interface{}, 0), -3, 8, 8, 111, 100, 99, -1, -1, 20)
-	expectedValuesAvg := append(make([]interface{}, 0), -3, 4, 4, 55.5, 100, 49.5, -1, -1, 20)
-	expectedValuesMax := append(make([]interface{}, 0), -3, 11, 11, 100, 100, 100, -1, -1, 20)
-	expectedValuesMin := append(make([]interface{}, 0), -3, -3, -3, 11, 100, -1, -1, -1, 20)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 14, 14, 89, 0, 101, 0, 0, 0)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3)
+	expectedValuesSum := []interface{}{-3, 8, 8, 111, 100, 99, -1, -1, 20}
+	expectedValuesAvg := []interface{}{-3, 4, 4, 55.5, 100, 49.5, -1, -1, 20}
+	expectedValuesMax := []interface{}{-3, 11, 11, 100, 100, 100, -1, -1, 20}
+	expectedValuesMin := []interface{}{-3, -3, -3, 11, 100, -1, -1, -1, 20}
+	expectedValuesRange := []interface{}{0, 14, 14, 89, 0, 101, 0, 0, 0}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 
 	measureFunctions := []utils.AggregateFunctions{
 		utils.Count,
@@ -3141,7 +3140,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
@@ -3195,18 +3194,18 @@ func Test_PerformWindowStreamStatsOnSingleFunc_3(t *testing.T) {
 
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	values := append(make([]interface{}, 0), 11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20)
+	values := []interface{}{11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20}
 	dtypesValues := getDtypes(len(values), []int{2, 3, 4, 6}, []int{})
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3)
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
 	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{4})
-	expectedValuesSum := append(make([]interface{}, 0), 11, 8, 8, -3, nil, 100, 100, 99, 19)
-	expectedValuesAvg := append(make([]interface{}, 0), 11, 4, 4, -3, nil, 100, 100, 49.5, 9.5)
-	expectedValuesMax := append(make([]interface{}, 0), 11, 11, 11, -3, "Def", 100, 100, 100, 20)
+	expectedValuesSum := []interface{}{11, 8, 8, -3, nil, 100, 100, 99, 19}
+	expectedValuesAvg := []interface{}{11, 4, 4, -3, nil, 100, 100, 49.5, 9.5}
+	expectedValuesMax := []interface{}{11, 11, 11, -3, "Def", 100, 100, 100, 20}
 	dtypesMax := getDtypes(len(expectedValuesSum), []int{4}, []int{})
-	expectedValuesMin := append(make([]interface{}, 0), 11, -3, -3, -3, "ABC", 100, 100, -1, -1)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 14, 14, 0, nil, 0, 0, 101, 21)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 3, 3, 3, 3, 3, 3)
+	expectedValuesMin := []interface{}{11, -3, -3, -3, "ABC", 100, 100, -1, -1}
+	expectedValuesRange := []interface{}{0, 14, 14, 0, nil, 0, 0, 101, 21}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 
 	measureFunctions := []utils.AggregateFunctions{
 		utils.Count,
@@ -3217,7 +3216,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc_3(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
@@ -3267,18 +3266,18 @@ func Test_Time_Window_2(t *testing.T) {
 
 	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	values := append(make([]interface{}, 0), 11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20)
+	values := []interface{}{11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20}
 	dtypesValues := getDtypes(len(values), []int{2, 3, 4, 6}, []int{})
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 1, 2, 3)
+	expectedValuesCount := []interface{}{1, 2, 3, 1, 2, 3, 1, 2, 3}
 	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
 	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{3, 4, 6})
-	expectedValuesSum := append(make([]interface{}, 0), 11, 8, 8, nil, nil, 100, nil, -1, 19)
-	expectedValuesAvg := append(make([]interface{}, 0), 11, 4, 4, nil, nil, 100, nil, -1, 9.5)
-	expectedValuesMax := append(make([]interface{}, 0), 11, 11, 11, "Def", "Def", 100, "abc", -1, 20)
+	expectedValuesSum := []interface{}{11, 8, 8, nil, nil, 100, nil, -1, 19}
+	expectedValuesAvg := []interface{}{11, 4, 4, nil, nil, 100, nil, -1, 9.5}
+	expectedValuesMax := []interface{}{11, 11, 11, "Def", "Def", 100, "abc", -1, 20}
 	dtypesMax := getDtypes(len(expectedValuesSum), []int{3, 4, 6}, []int{})
-	expectedValuesMin := append(make([]interface{}, 0), 11, -3, -3, "Def", "DEF", 100, "abc", -1, -1)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 14, 14, nil, nil, 0, nil, 0, 21)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 1, 2, 3, 1, 2, 3)
+	expectedValuesMin := []interface{}{11, -3, -3, "Def", "DEF", 100, "abc", -1, -1}
+	expectedValuesRange := []interface{}{0, 14, 14, nil, nil, 0, nil, 0, 21}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 1, 2, 3, 1, 2, 3}
 
 	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 10000, 11500, 12000}
 
@@ -3291,7 +3290,7 @@ func Test_Time_Window_2(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
@@ -3315,16 +3314,16 @@ func Test_NoWindow_StreamStats_2(t *testing.T) {
 		Global:  true,
 	}
 
-	values := append(make([]interface{}, 0), -3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20)
+	values := []interface{}{-3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20}
 	dtypesValues := getDtypes(len(values), []int{2, 4, 6, 7}, []int{})
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
-	expectedValuesSum := append(make([]interface{}, 0), -3, 8, 8, 108, 108, 107, 107, 107, 127)
-	expectedValuesAvg := append(make([]interface{}, 0), -3, 4, 4, 36, 36, 26.75, 26.75, 26.75, 25.4)
-	expectedValuesMax := append(make([]interface{}, 0), -3, 11, 11, 100, 100, 100, 100, 100, 100)
-	expectedValuesMin := append(make([]interface{}, 0), -3, -3, -3, -3, -3, -3, -3, -3, -3)
-	expectedValuesRange := append(make([]interface{}, 0), 0, 14, 14, 103, 103, 103, 103, 103, 103)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	expectedValuesSum := []interface{}{-3, 8, 8, 108, 108, 107, 107, 107, 127}
+	expectedValuesAvg := []interface{}{-3, 4, 4, 36, 36, 26.75, 26.75, 26.75, 25.4}
+	expectedValuesMax := []interface{}{-3, 11, 11, 100, 100, 100, 100, 100, 100}
+	expectedValuesMin := []interface{}{-3, -3, -3, -3, -3, -3, -3, -3, -3}
+	expectedValuesRange := []interface{}{0, 14, 14, 103, 103, 103, 103, 103, 103}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 	measureFunctions := []utils.AggregateFunctions{
 		utils.Count,
@@ -3335,7 +3334,7 @@ func Test_NoWindow_StreamStats_2(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
@@ -3383,18 +3382,18 @@ func Test_NoWindow_StreamStats_3(t *testing.T) {
 		Global:  true,
 	}
 
-	values := append(make([]interface{}, 0), "ABC", "Def", -1, 100, 11, -3, "DEF", "abc", 20)
+	values := []interface{}{"ABC", "Def", -1, 100, 11, -3, "DEF", "abc", 20}
 	dtypesValues := getDtypes(len(values), []int{0, 1, 6, 7}, []int{})
-	expectedValuesCount := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
-	expectedValuesSum := append(make([]interface{}, 0), nil, nil, -1, 99, 110, 107, 107, 107, 127)
+	expectedValuesSum := []interface{}{nil, nil, -1, 99, 110, 107, 107, 107, 127}
 	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{0, 1})
-	expectedValuesAvg := append(make([]interface{}, 0), nil, nil, -1, 49.5, 36.666666666666664, 26.75, 26.75, 26.75, 25.4)
-	expectedValuesMax := append(make([]interface{}, 0), "ABC", "Def", -1, 100, 100, 100, 100, 100, 100)
+	expectedValuesAvg := []interface{}{nil, nil, -1, 49.5, 36.666666666666664, 26.75, 26.75, 26.75, 25.4}
+	expectedValuesMax := []interface{}{"ABC", "Def", -1, 100, 100, 100, 100, 100, 100}
 	dtypesMax := getDtypes(len(expectedValuesCount), []int{0, 1}, []int{})
-	expectedValuesMin := append(make([]interface{}, 0), "ABC", "ABC", -1, -1, -1, -3, -3, -3, -3)
-	expectedValuesRange := append(make([]interface{}, 0), nil, nil, 0, 101, 101, 103, 103, 103, 103)
-	expectedValuesCardinality := append(make([]interface{}, 0), 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	expectedValuesMin := []interface{}{"ABC", "ABC", -1, -1, -1, -3, -3, -3, -3}
+	expectedValuesRange := []interface{}{nil, nil, 0, 101, 101, 103, 103, 103, 103}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 	measureFunctions := []utils.AggregateFunctions{
 		utils.Count,
@@ -3405,7 +3404,7 @@ func Test_NoWindow_StreamStats_3(t *testing.T) {
 		utils.Range,
 		utils.Cardinality,
 	}
-	measureAggs := getMeasureAgg(measureFunctions)
+	measureAggs := getMeasureAggs(measureFunctions)
 
 	expectedFuncValues := [][]utils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
