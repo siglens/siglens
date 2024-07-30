@@ -2901,6 +2901,7 @@ func Test_PerformMVExpand(t *testing.T) {
 		"3": {"numbers": []int{1, 2, 3, 4}},
 		"4": {"prices": []float64{10.5, 20.75, 30.0}},
 		"5": {"flags": []bool{true, false, true}},
+		"6": {"invalid": "not a slice"}, // Non-slice input.
 	}
 
 	expectedResults := map[string]map[string][]interface{}{
@@ -2909,12 +2910,13 @@ func Test_PerformMVExpand(t *testing.T) {
 		"3": {"numbers": {1, 2, 3, 4}},
 		"4": {"prices": {10.5, 20.75, 30.0}},
 		"5": {"flags": {true, false, true}},
+		"6": {"invalid": nil}, // Expect nil as this input should fail.
 	}
 
 	for recNum, rec := range recs {
 		for colName, values := range rec {
 			expandedValues := performMVExpand(values)
-			assert.Equal(t, expectedResults[recNum][colName], expandedValues)
+			assert.Equal(t, expectedResults[recNum][colName], expandedValues, fmt.Sprintf("Test failed for record %s, column %s", recNum, colName))
 		}
 	}
 }
