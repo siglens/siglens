@@ -120,10 +120,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
-	if post.GenerateEvent != nil && len(recs) == 0 {
-		return nodeResult
-	}
-
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -182,7 +178,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 	switch agg.PipeCommandType {
 	case structs.GenerateEventType:
-		return nil
+		return performGenEvent(agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -263,6 +259,91 @@ func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal m
 	}
 
 	return currentOrder, nil
+}
+
+func performGenEvent(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if agg.GenerateEvent == nil {
+		return nil
+	}
+	if agg.GenerateEvent.GenTimes != nil {
+		return performGenTimes(agg, recs, recordIndexInFinal, finalCols)
+	}
+	if agg.GenerateEvent.InputLookup != nil {
+		return performInputLookup(agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+	}
+
+	return nil
+}
+
+func PopulateGeneratedRecords(genEvent *structs.GenerateEvent, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool) error {
+	for cols := range genEvent.GeneratedCols {
+		finalCols[cols] = true
+	}
+
+	for recordKey, recIndex := range genEvent.GeneratedRecordsIndex {
+		record, exists := genEvent.GeneratedRecords[recordKey]
+		if !exists {
+			return fmt.Errorf("PopulateGeneratedRecords: Record not found for recordKey: %v", recordKey)
+		}
+		recs[recordKey] = record
+		recordIndexInFinal[recordKey] = recIndex
+	}
+
+	return nil
+}
+
+func performGenTimes(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool) error {
+	if agg.GenerateEvent.GenTimes == nil {
+		return nil
+	}
+	if recs == nil {
+		return nil
+	}
+
+	return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
+}
+
+func performInputLookup(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if agg.GenerateEvent.InputLookup == nil {
+		return nil
+	}
+	if recs == nil {
+		return nil
+	}
+	if !agg.GenerateEvent.InputLookup.HasPrevResults {
+		return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
+	}
+
+	for col := range agg.GenerateEvent.GeneratedCols {
+		_, exists := finalCols[col]
+		if !exists {
+			finalCols[col] = true
+		}
+	}
+
+	// When the first block of the last segment arrives update the records and record index once
+	if !agg.GenerateEvent.InputLookup.UpdatedRecordIndex && agg.GenerateEvent.InputLookup.NumProcessedSegments == numTotalSegments-1 {
+		offset := 0
+		for _, recIndex := range recordIndexInFinal {
+			if recIndex > offset {
+				offset = recIndex
+			}
+		}
+		offset++
+
+		for genRecKey, genRecIndex := range agg.GenerateEvent.GeneratedRecordsIndex {
+			finalIndex := offset + genRecIndex
+			recs[genRecKey] = agg.GenerateEvent.GeneratedRecords[genRecKey]
+			recordIndexInFinal[genRecKey] = finalIndex
+		}
+		agg.GenerateEvent.InputLookup.UpdatedRecordIndex = true
+	}
+
+	if finishesSegment {
+		agg.GenerateEvent.InputLookup.NumProcessedSegments++
+	}
+
+	return nil
 }
 
 func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {

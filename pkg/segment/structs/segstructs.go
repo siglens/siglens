@@ -182,13 +182,15 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
-	Filename       string
-	Append         bool
-	Start          uint64
-	Strict         bool
-	Max            uint64
-	WhereExpr      *BoolExpr
-	HasPrevResults bool
+	Filename             string
+	Append               bool
+	Start                uint64
+	Strict               bool
+	Max                  uint64
+	WhereExpr            *BoolExpr
+	HasPrevResults       bool
+	NumProcessedSegments uint64
+	UpdatedRecordIndex   bool
 }
 
 type StreamStatsOptions struct {
@@ -706,6 +708,16 @@ func (qa *QueryAggregators) HasGenerateEvent() bool {
 	}
 
 	return qa.GenerateEvent != nil
+}
+
+func (qa *QueryAggregators) HasGeneratedEventsWithNoSearch() bool {
+	if qa == nil || qa.GenerateEvent == nil {
+		return false
+	}
+	if qa.GenerateEvent.InputLookup != nil && qa.GenerateEvent.InputLookup.HasPrevResults {
+		return false
+	}
+	return true
 }
 
 func (qa *QueryAggregators) HasDedupBlock() bool {

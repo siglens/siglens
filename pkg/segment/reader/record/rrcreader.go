@@ -197,11 +197,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	colsIndexMap := make(map[string]int)
 	numProcessedRecords := 0
 
-	if aggs.HasGenerateEvent() {
-		recordIndexInFinal = aggs.GenerateEvent.GeneratedRecordsIndex
-		colsIndexMap = aggs.GenerateEvent.GeneratedColsIndex
-	}
-
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
@@ -399,15 +394,13 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 	}
 
-	if aggs.HasGenerateEvent() {
-		processSingleSegment("generate_event", "generate_event", nil, true)
-	} else if !(tableColumnsExist || (aggs != nil && aggs.OutputTransforms == nil) || hasQueryAggergatorBlock || transactionArgsExist) {
+	if !(tableColumnsExist || (aggs != nil && aggs.OutputTransforms == nil) || hasQueryAggergatorBlock || transactionArgsExist) {
 		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
 		if len(hardcodedArray) > 0 {
 			numProcessedRecords = 1
 		}
 	} else {
-		if len(segmap) == 0 && len(nodeRes.FinalColumns) > 0 {
+		if len(segmap) == 0 && (len(nodeRes.FinalColumns) > 0 || aggs.HasGeneratedEventsWithNoSearch()) {
 			// Even if there are no segments, we still need to call processSingleSegment
 			// so that we can do processing of any Aggregations that wait for all segments to be processed.
 			processSingleSegment("", "", nil, true)

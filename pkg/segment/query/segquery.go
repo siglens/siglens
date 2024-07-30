@@ -244,7 +244,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 			}
 			aggs.BucketLimit = bucketLimit
 			if aggs.GenerateEvent != nil {
-				return GenerateEvents(aggs, qid)
+				res := GenerateEvents(aggs, qid)
+				if aggs.HasGeneratedEventsWithNoSearch() {
+					return res
+				}
 			}
 		} else {
 			aggs = structs.InitDefaultQueryAggregations()
