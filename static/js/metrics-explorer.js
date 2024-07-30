@@ -425,12 +425,11 @@ function extractFunctionsAndFormula(formulaInput) {
     return parseObject;
 }
 function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
-
     if (!Array.isArray(fnNames)) {
         throw new TypeError('fnNames should be an array');
     }
 
-    fnNames.forEach(fnName => {
+    fnNames.forEach((fnName) => {
         var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
         formulaElement.find('.all-selected-functions-formula').append(newDiv);
     });
@@ -470,7 +469,7 @@ async function addAlertsFormulaElement(formulaInput) {
 
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
     // For Dashboards
-    let formulaandfunc,formulaElement;
+    let formulaandfunc, formulaElement;
     if (formulaInput) {
         formulaandfunc = extractFunctionsAndFormula(formulaInput);
         formulaDetailsMap[uniqueId] = formulaandfunc;
@@ -483,12 +482,11 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         $('#metrics-formula').append(formulaElement);
         appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
-    }
-    else{
+    } else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
     }
-    
+
     initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
