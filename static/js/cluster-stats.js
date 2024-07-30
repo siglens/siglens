@@ -250,7 +250,7 @@ function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartTy
         data: {
             datasets: [
                 {
-                    label: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Trace Span Count',
+                    label: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Span Count',
                     data: EventCountData,
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
@@ -297,7 +297,7 @@ function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartTy
                     position: 'left',
                     title: {
                         display: true,
-                        text: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Trace Span Count',
+                        text: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Span Count',
                     },
                     grid: {
                         color: gridLineColor,

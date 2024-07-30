@@ -2475,6 +2475,13 @@ input[type="submit" i] {
     column-gap: 50px;
 }
 
+#cstats-app-container hr{
+    border: 1px solid; 
+    height: 3px; 
+    background: var(--alerting-table-line-color); 
+    margin: 30px 0; 
+}
+
 
 .default-label {
     color: white;
