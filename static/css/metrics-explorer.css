@@ -72,9 +72,6 @@ input:checked + .slider:before {
     align-items: center;
     border: 1px solid var(--border-color-regular);
 }
-.graph-view-container {
-    margin-right: 10px;
-}
 
 .alert-from-metrics-btn {
     background-image: var(--alerting-btn-img);
@@ -91,7 +88,8 @@ input:checked + .slider:before {
     width: 30px;
     border: 1px solid var(--border-btn-color);
 }
-.metrics-query .query-box .options-container {
+.metrics-query .query-box .options-container , 
+.formula-box .options-container-formula{
     display: none;
 }
 
@@ -181,7 +179,7 @@ input:checked + .slider:before {
     transform: rotate(270deg);
 }
 
-.metrics-query input:focus{
+.metrics-query input:focus, .formula-box input:focus{
     background: var(--ui-widget-bg-color);
     outline: none;
     border-radius: 0px;
@@ -518,7 +516,7 @@ input:checked + .slider:before {
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 257px;
+    min-width: 270px;
     padding: 0 !important;
     border:none !important;
     z-index: 999;
