@@ -66,6 +66,9 @@ type MetricsResult struct {
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results map[string]map[uint32]float64
 
+	IsScalar    bool
+	ScalarValue float64
+
 	State bucketState
 
 	rwLock               *sync.RWMutex
@@ -632,6 +635,26 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 
 func removeTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
+}
+
+func (r *MetricsResult) FetchScalarMetricsForUi(finalSearchText string, pqlQuerryType parser.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
+	var httpResp utils.MetricStatsResponse
+	httpResp.Series = make([]string, 0)
+	httpResp.Values = make([][]*float64, 0)
+	httpResp.StartTime = uint32(startTime)
+	// Calculate the interval using the start and end times
+	timerangeSeconds := endTime - startTime
+	calculatedInterval, err := CalculateInterval(timerangeSeconds)
+	if err != nil {
+		return utils.MetricStatsResponse{}, err
+	}
+	httpResp.IntervalSec = calculatedInterval
+
+	httpResp.Series = append(httpResp.Series, finalSearchText)
+	httpResp.Values = append(httpResp.Values, []*float64{&r.ScalarValue})
+	httpResp.Timestamps = []uint32{uint32(endTime)}
+
+	return httpResp, nil
 }
 
 func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {

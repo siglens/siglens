@@ -1118,6 +1118,60 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v2(t *testing.T) {
 	assert.Equal(t, "proc", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.AggregatorBlock.GroupByFields[1])
 }
 
+func Test_parsePromQLQuery_Scalar_Op_v1(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	query := "1 + 2 + 3 * 4"
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeScalar, pqlQuerytype)
+
+	queryOp := queryArithmetic[0]
+
+	assert.Equal(t, segutils.LetAdd, queryOp.Operation)
+	assert.Equal(t, float64(0), queryOp.Constant)
+
+	assert.Equal(t, segutils.LetAdd, queryOp.LHSExpr.Operation)
+	assert.NotNil(t, queryOp.LHSExpr)
+	assert.NotNil(t, queryOp.RHSExpr)
+
+	assert.Equal(t, segutils.LetAdd, queryOp.LHSExpr.Operation)
+	assert.Equal(t, float64(1), queryOp.LHSExpr.Constant)
+
+	assert.NotNil(t, queryOp.LHSExpr.RHSExpr)
+	assert.Equal(t, float64(2), queryOp.LHSExpr.RHSExpr.Constant)
+
+	assert.Equal(t, segutils.LetMultiply, queryOp.RHSExpr.Operation)
+	assert.Equal(t, float64(3), queryOp.RHSExpr.Constant)
+	assert.Equal(t, float64(4), queryOp.RHSExpr.RHSExpr.Constant)
+}
+
+func Test_parsePromQLQuery_Scalar_SingleValue(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	query := "99"
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeScalar, pqlQuerytype)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[0].Operation)
+	assert.True(t, queryArithmetic[0].ConstantOp)
+	assert.NotNil(t, queryArithmetic[0].RHSExpr)
+	assert.True(t, queryArithmetic[0].RHSExpr.ConstantOp)
+	assert.Equal(t, float64(99), queryArithmetic[0].RHSExpr.Constant)
+}
+
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day

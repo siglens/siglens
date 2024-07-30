@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -472,6 +473,53 @@ func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
 	assert.False(t, qa.HasDedupBlockInChain())
 }
 
+func Test_HasSortBlockInChain_emptyChain(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasSortBlockInChain(), "Expected false when the chain is empty, got true")
+}
+
+func Test_HasSortBlockInChain_OnlyOneQA(t *testing.T) {
+	ot := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+func Test_HasSortBlockInChain_OnlyInLastQA(t *testing.T) {
+	ot_sort := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot_sort},
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+
+func Test_HasTail_OnlyInLastQA(t *testing.T) {
+	ot := &OutputTransforms{
+		TailRequest: &TailExpr{},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot},
+	}
+
+	assert.True(t, qa.HasTailInChain())
+}
+
 func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 	br := &BucketResult{
 		StatRes: map[string]utils.CValueEnclosure{
@@ -678,6 +726,11 @@ func Test_IsStatsAggPresentInChain(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:     "None of GroupByRequest and MeasureOperations are presented",
+			qa:       &QueryAggregators{Sort: &SortRequest{}},
+			expected: false,
+		},
+		{
 			name: "Only GroupByRequest Present",
 			qa: &QueryAggregators{
 				GroupByRequest: &GroupByRequest{},
@@ -726,4 +779,96 @@ func Test_IsStatsAggPresentInChain(t *testing.T) {
 		actual := tt.qa.IsStatsAggPresentInChain()
 		assert.Equal(t, tt.expected, actual, tt.name)
 	}
+}
+
+func Test_EncodeDecodeSegStats(t *testing.T) {
+	segStatsList := []*SegStats{
+		{
+			IsNumeric: true,
+			Count:     123,
+			NumStats: &NumericStats{
+				Min: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 1,
+				},
+				Max: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 42,
+				},
+				Sum: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 200,
+				},
+				Dtype: utils.SS_DT_SIGNED_NUM,
+			},
+			Hll:         hyperloglog.New16(),
+			StringStats: nil,
+			Records:     nil,
+		},
+		{
+			IsNumeric: false,
+			Count:     42,
+			NumStats:  nil,
+			Hll:       hyperloglog.New16(),
+			StringStats: &StringStats{
+				StrSet: map[string]struct{}{
+					"str1": {},
+					"str2": {},
+				},
+			},
+			Records: nil,
+		},
+	}
+
+	for _, originalSegStats := range segStatsList {
+		segStatsJson, err := originalSegStats.ToJSON()
+		assert.NoError(t, err)
+		assert.NotNil(t, segStatsJson)
+
+		recoveredSegStats, err := segStatsJson.ToStats()
+		assert.NoError(t, err)
+		assert.NotNil(t, recoveredSegStats)
+
+		assert.Equal(t, originalSegStats, recoveredSegStats)
+	}
+}
+
+func Test_EqualsIsDeepEquals(t *testing.T) {
+	segStat1 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		Hll:       hyperloglog.New16(),
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+		},
+		Records: nil,
+	}
+
+	segStat2 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		Hll:       hyperloglog.New16(),
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+		},
+		Records: nil,
+	}
+
+	assert.Equal(t, segStat1, segStat2)
+
+	segStat2.StringStats.StrSet = map[string]struct{}{
+		"str1": {},
+		"str2": {},
+		"str3": {},
+	}
+
+	assert.NotEqual(t, segStat1, segStat2)
 }

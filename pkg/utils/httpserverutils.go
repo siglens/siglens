@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -372,11 +373,13 @@ type DeleteIndexErrorResponseInfo struct {
 type ResultPerIndex map[string]map[string]interface{} // maps index name to index stats
 
 type ClusterStatsResponseInfo struct {
-	IngestionStats map[string]interface{}            `json:"ingestionStats"`
-	QueryStats     map[string]interface{}            `json:"queryStats"`
-	MetricsStats   map[string]interface{}            `json:"metricsStats"`
-	IndexStats     []ResultPerIndex                  `json:"indexStats"`
-	ChartStats     map[string]map[string]interface{} `json:"chartStats"`
+	IngestionStats  map[string]interface{}            `json:"ingestionStats"`
+	QueryStats      map[string]interface{}            `json:"queryStats"`
+	MetricsStats    map[string]interface{}            `json:"metricsStats"`
+	IndexStats      []ResultPerIndex                  `json:"indexStats"`
+	TraceIndexStats []ResultPerIndex                  `json:"traceIndexStats"`
+	ChartStats      map[string]map[string]interface{} `json:"chartStats"`
+	TraceStats      map[string]interface{}            `json:"traceStats"`
 }
 
 type MetricsStatsResponseInfo struct {
@@ -931,4 +934,18 @@ func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMess
 
 func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
 	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
+}
+
+func IsValidURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func EncodeURL(str string) (string, error) {
+	u, err := url.Parse(str)
+	if err != nil {
+		return "", err
+	}
+	u.RawQuery = url.QueryEscape(u.RawQuery)
+	return u.String(), nil
 }

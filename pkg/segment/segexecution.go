@@ -88,8 +88,10 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 	}
 
 	operationCounter := 0
+	IsScalar := false
+	var scalarValue float64
 
-	finalResult, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsDoNotNeedToMatch)
+	finalResult, scalarValuePtr, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsDoNotNeedToMatch)
 	if err != nil {
 		log.Errorf("ProcessQueryArithmeticAndLogical: Error processing query arithmetic node operation: %v", err)
 		return &mresults.MetricsResult{
@@ -97,61 +99,71 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 		}
 	}
 
+	if scalarValuePtr != nil {
+		IsScalar = true
+		scalarValue = *scalarValuePtr
+	}
+
 	// delete all the intermediate results from the resMap
 	for id := range resMap {
 		delete(resMap, id)
 	}
 
-	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
+	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED, ScalarValue: scalarValue, IsScalar: IsScalar}
 }
 
-func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, error) {
+func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, *float64, error) {
 	if queryOp == nil {
-		return nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
+		return nil, nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
 	}
 
-	if queryOp.LHSExpr != nil {
-		var metricName string
-		// process the LHS expression first
-		result, err := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
-		if err != nil {
-			return nil, err
+	processNodeExpr := func(expr *structs.QueryArithmetic, exprSide *uint64) error {
+		if expr == nil {
+			return nil
 		}
+
+		var metricName string
+		var scalarValue float64
+		isScalar := false
+
+		result, scalarValuePtr, err := processQueryArithmeticNodeOp(expr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
+		if err != nil {
+			return err
+		}
+
 		if len(result) > 0 {
 			for groupID := range result {
 				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
 				break
 			}
+		} else if scalarValuePtr != nil {
+			isScalar = true
+			scalarValue = *scalarValuePtr
+		} else {
+			return fmt.Errorf("processQueryArithmeticNodeOp: processNodeExpr: result is empty and scalarValuePtr is nil")
 		}
-		// generate a new LHS hash by adding the operation counter, that is incremented after each operation
-		newLHS := queryOp.LHS + uint64(*operationCounter)
-		// store the result of the LHS expression in the resMap.
-		// We cannot overwrite the LHS result in the resMap, as it may be used in other operations.
-		resMap[newLHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
-		// update the LHS of the current queryOp to the newLHS, so that the result of the LHS expression can be used in the current operation
-		queryOp.LHS = newLHS
+
+		// Generate a new hash by adding the operation counter
+		newHash := *exprSide + uint64(*operationCounter)
+		// Store the result in the resMap
+		resMap[newHash] = &mresults.MetricsResult{
+			MetricName:  metricName,
+			Results:     result,
+			State:       mresults.AGGREGATED,
+			ScalarValue: scalarValue,
+			IsScalar:    isScalar,
+		}
+		// Update the expression side with the new hash
+		*exprSide = newHash
+		return nil
 	}
 
-	if queryOp.RHSExpr != nil {
-		var metricName string
-		// process the RHS expression first
-		result, err := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
-		if err != nil {
-			return nil, err
-		}
-		if len(result) > 0 {
-			for groupID := range result {
-				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
-				break
-			}
-		}
-		// generate a new RHS hash by adding the operation counter, that is incremented after each operation
-		newRHS := queryOp.RHS + uint64(*operationCounter)
-		// store the result of the RHS expression in the resMap
-		// We cannot overwrite the RHS result in the resMap, as it may be used in other operations.
-		resMap[newRHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
-		// update the RHS of the current queryOp to the newRHS, so that the result of the RHS expression can be used in the current operation
-		queryOp.RHS = newRHS
+	if err := processNodeExpr(queryOp.LHSExpr, &queryOp.LHS); err != nil {
+		return nil, nil, err
+	}
+
+	if err := processNodeExpr(queryOp.RHSExpr, &queryOp.RHS); err != nil {
+		return nil, nil, err
 	}
 
 	*operationCounter++
@@ -159,42 +171,97 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 	return HelperQueryArithmeticAndLogical(queryOp, resMap, opLabelsDoNotNeedToMatch)
 }
 
-func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, error) {
+func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, *float64, error) {
 	finalResult := make(map[string]map[uint32]float64)
 
-	resultLHS := resMap[queryOp.LHS]
-	resultRHS := resMap[queryOp.RHS]
+	resultLHS, leftOk := resMap[queryOp.LHS]
+	resultRHS, rightOk := resMap[queryOp.RHS]
 	swapped := false
+
 	if queryOp.ConstantOp {
 		resultLHS, ok := resMap[queryOp.LHS]
 		valueRHS := queryOp.Constant
-		if !ok { //this means the rhs is a vector result
+		if !ok { //this means the rhs can be a vector result. It can also be a scalar value or even empty.
 			swapped = true
 			resultLHS = resMap[queryOp.RHS]
 		}
+
 		if resultLHS == nil {
-			// For the case where both LHS and RHS are constants
-			// We are not processing those constants. So we return the result as is.
-			if len(resMap) == 1 {
-				for _, res := range resMap {
-					if res != nil {
-						finalResult = res.Results
-					}
-				}
-				return finalResult, nil
-			} else {
-				return nil, nil
-			}
+			// Both LHS and RHS are empty, but this is a constant operation.
+			// This means that this queryOp has only one constant value. So, we can directly return the constant value.
+			scalarValue := valueRHS
+
+			return nil, &scalarValue, nil
+		} else if resultLHS.IsScalar {
+			// If the result of the LHS expression is a scalar value, then we can directly perform the operation with the scalar value and the constant value.
+			// We can directly return the result of the operation.
+
+			groupID := "scalar_ID"
+			timestamp := uint32(0)
+			valueLHS := resultLHS.ScalarValue
+			finalResult[groupID] = make(map[uint32]float64)
+
+			putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
+			scalarValue := finalResult[groupID][timestamp]
+
+			return nil, &scalarValue, nil
 		}
 
+		// Case where the LHS is a vector and the RHS is a constant value.
 		for groupID, tsLHS := range resultLHS.Results {
 			finalResult[groupID] = make(map[uint32]float64)
 			for timestamp, valueLHS := range tsLHS {
 				putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
 			}
 		}
-
 	} else {
+		if !leftOk && !rightOk {
+			// This case should not be possible.
+			return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: both LHS and RHS are empty")
+		}
+
+		var scalarValuePtr *float64
+
+		if (leftOk && resultLHS.IsScalar) && (rightOk && resultRHS.IsScalar) {
+			// If both the LHS and RHS expressions are scalar values, then we can directly perform the operation with the scalar values.
+			// We can directly return the result of the operation.
+
+			groupID := "scalar_ID"
+			timestamp := uint32(0)
+			valueLHS := resultLHS.ScalarValue
+			valueRHS := resultRHS.ScalarValue
+
+			finalResult[groupID] = make(map[uint32]float64)
+
+			putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
+			scalarValue := finalResult[groupID][timestamp]
+
+			return nil, &scalarValue, nil
+		} else if leftOk && resultLHS.IsScalar {
+			// If the result of the LHS expression is a scalar value, then we can directly perform the operation with the scalar value and the result of the RHS expression.
+			// We can directly return the result of the operation.
+
+			scalarValuePtr = &resultLHS.ScalarValue
+			resultLHS = resultRHS
+			swapped = true
+		} else if rightOk && resultRHS.IsScalar {
+			// If the result of the RHS expression is a scalar value, then we can directly perform the operation with the result of the LHS expression and the scalar value.
+			// We can directly return the result of the operation.
+
+			scalarValuePtr = &resultRHS.ScalarValue
+		}
+
+		if scalarValuePtr != nil {
+			for groupID, tsLHS := range resultLHS.Results {
+				finalResult[groupID] = make(map[uint32]float64)
+				for timestamp, valueLHS := range tsLHS {
+					putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, *scalarValuePtr, swapped)
+				}
+			}
+
+			return finalResult, nil, nil
+		}
+
 		// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
 		// This way, we can quickly find the corresponding rGrpID for a given lGrpID in the other vector. If there is no corresponding result, it means there are no matching labels between the two vectors.
 		idToMatchingLabelSet := make(map[string]string)
@@ -219,7 +286,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 					_, exists := matchingLabelsComb[matchingLabelValStr]
 					// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
 					if exists {
-						return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
+						return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 					}
 					matchingLabelsComb[matchingLabelValStr] = struct{}{}
 				}
@@ -233,7 +300,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				_, exists := matchingLabelsComb[matchingLabelValStr]
 				// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
 				if exists {
-					return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
+					return nil, nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 				}
 				matchingLabelsComb[matchingLabelValStr] = struct{}{}
 
@@ -339,7 +406,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 
 	}
 
-	return finalResult, nil
+	return finalResult, nil, nil
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
@@ -398,6 +465,12 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		return query.ApplyVectorArithmetic(aggs, qid)
 	}
 
+	rQuery.SetSearchQueryInformation(qid, qc.TableInfo, root.TimeRange, qc.Orgid)
+
+	if aggs != nil {
+		aggs.CheckForColRequestAndAttachToFillNullExprInChain()
+	}
+
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)
 	if aggs != nil {
@@ -413,7 +486,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	}
 	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
-	if rQuery.IsAsync() && aggs != nil && aggs.Next != nil {
+	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGenerateEvent()) {
 		err := query.SetFinalStatsForQid(qid, nodeRes)
 		if err != nil {
 			log.Errorf("executeQueryInternal: failed to set final stats: %v", err)

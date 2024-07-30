@@ -78,6 +78,27 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 	})
 }
 
+func checkIfTimeSort(agg *structs.QueryAggregators) (bool, bool) {
+	if agg == nil {
+		return false, false
+	}
+
+	if agg.HasSortBlock() {
+		if len(agg.OutputTransforms.LetColumns.SortColRequest.SortEles) == 1 && agg.OutputTransforms.LetColumns.SortColRequest.SortEles[0].Field == "timestamp" {
+			return true, agg.OutputTransforms.LetColumns.SortColRequest.SortEles[0].SortByAsc
+		} else {
+			return false, false
+		}
+	}
+
+	if agg.Sort != nil && agg.Sort.ColName == "timestamp" {
+		return true, agg.Sort.Ascending
+	}
+
+	return false, false
+
+}
+
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
@@ -99,6 +120,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
+	if post.GenerateEvent != nil && len(recs) == 0 {
+		return nodeResult
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -106,11 +131,16 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	}
 
 	hasSort := false
+	timeSort := false
+	timeSortAsc := false
 	for agg := post; agg != nil; agg = agg.Next {
 		if agg.HasSortBlock() {
 			hasSort = true
 		}
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
+		if agg.Sort != nil || agg.HasSortBlock() {
+			timeSort, timeSortAsc = checkIfTimeSort(agg)
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort, timeSort, timeSortAsc)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -146,8 +176,13 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool, timeSort bool, timeSortAsc bool) error {
+	if agg.StreamStatsOptions != nil {
+		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment, timeSort, timeSortAsc)
+	}
 	switch agg.PipeCommandType {
+	case structs.GenerateEventType:
+		return nil
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -214,6 +249,20 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 
 	return nil
+}
+
+func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
+	currentOrder := make([]string, len(recs))
+
+	for recordKey := range recs {
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return nil, fmt.Errorf("processSegmentRecordsForHeadExpr: Index not found in recordIndexInFinal for record: %v", recordKey)
+		}
+		currentOrder[idx] = recordKey
+	}
+
+	return currentOrder, nil
 }
 
 func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
@@ -594,6 +643,7 @@ func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, 
 
 func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
+
 	if colReq.RenameAggregationColumns != nil {
 		for oldCName, newCName := range colReq.RenameAggregationColumns {
 			if _, exists := finalCols[oldCName]; !exists {
@@ -673,6 +723,7 @@ func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.Colum
 		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performColumnsRequest: %v", err)
 		}
+		return nil
 	}
 
 	nodeResult.RenameColumns = colReq.RenameAggregationColumns
@@ -942,6 +993,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.BinRequest != nil {
 		if err := performBinRequest(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.FillNullRequest != nil {
+		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -1867,7 +1922,9 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 	mvColReq := letColReq.MultiValueColRequest
 
-	for _, rec := range recs {
+	newRecs := make(map[string]map[string]interface{})
+
+	for key, rec := range recs {
 		fieldValue, ok := rec[mvColReq.ColName]
 		if !ok {
 			continue
@@ -1882,12 +1939,47 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 		case "makemv":
 			finalValue := performMakeMV(fieldValueStr, mvColReq)
 			rec[mvColReq.ColName] = finalValue
+		case "mvexpand":
+			expandedRecs := performMVExpand(fieldValue)
+
+			// Apply limit if mvColReq.Limit is greater than 0
+			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
+				expandedRecs = expandedRecs[:mvColReq.Limit]
+			}
+			delete(recs, key)
+			for i, expandedValue := range expandedRecs {
+				newRec := make(map[string]interface{})
+				for k, v := range rec {
+					newRec[k] = v
+				}
+				newRec[mvColReq.ColName] = expandedValue
+				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
+			}
 		default:
 			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
 		}
 	}
-
+	if mvColReq.Command == "mvexpand" {
+		for k, v := range newRecs {
+			recs[k] = v
+		}
+	}
 	return nil
+}
+
+func performMVExpand(fieldValue interface{}) []interface{} {
+	var values []interface{}
+
+	isArrayOrSlice, v, _ := utils.IsArrayOrSlice(fieldValue)
+	if !isArrayOrSlice {
+		return nil
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		values = append(values, v.Index(i).Interface())
+	}
+
+	return values
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
@@ -1961,6 +2053,101 @@ func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) int
 	} else {
 		// Store the split values
 		return values
+	}
+}
+
+func performFillNullRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if recs != nil {
+		if err := performFillNullRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performFillNullRequest: %v", err)
+		}
+		return nil
+	}
+
+	// Applying fillnull for MeasureResults or GroupByCols is not possible case. So, we will not handle it.
+
+	return nil
+}
+
+func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	fillNullReq := letColReq.FillNullRequest
+	currentFillNullRecsCount := len(fillNullReq.Records) + len(recs) // Records that are stored by the fillnull request + records that are currently in recs
+
+	if !nodeResult.RawSearchFinished || currentFillNullRecsCount < nodeResult.CurrentSearchResultCount {
+		// If the search is not finished, we cannot fill nulls.
+		// If the current records are less than the total search records, we cannot fill nulls.
+		// But we need to store the current records for later use and delete them from recs.
+		for recIndex, record := range recs {
+			fillNullReq.Records[recIndex] = record
+			delete(recs, recIndex)
+		}
+
+		if len(fillNullReq.FieldList) == 0 {
+			// No Fields are provided. This means fill null should be applied to all fields.
+			utils.MergeMapsRetainingFirst(fillNullReq.FinalCols, finalCols)
+		}
+
+		return nil
+	}
+
+	colsToCheck := fillNullReq.FinalCols
+
+	if len(fillNullReq.FieldList) > 0 {
+		colsToCheck = make(map[string]bool, 0)
+		for _, field := range fillNullReq.FieldList {
+			colsToCheck[field] = true
+			if _, exists := finalCols[field]; !exists {
+				finalCols[field] = true
+			}
+		}
+	} else {
+
+		fillNullColReq := fillNullReq.ColumnsRequest
+
+		for fillNullColReq != nil {
+			// Apply any Columns Transforms and deletions that are present in the previous search results.
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullColReq, nil, nodeResult.AllSearchColumnsByTimeRange)
+			if err != nil {
+				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
+			}
+
+			fillNullColReq = fillNullColReq.Next
+		}
+
+		// Add any Columns that would be there in the previous search results but not in the current.
+		utils.MergeMapsRetainingFirst(colsToCheck, nodeResult.AllSearchColumnsByTimeRange)
+
+		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
+		utils.MergeMapsRetainingFirst(colsToCheck, finalCols)
+
+		// Add all these columns to the finalCols List, so that they are not removed from the final result.
+		utils.MergeMapsRetainingFirst(finalCols, colsToCheck)
+	}
+
+	for _, record := range recs {
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+	}
+
+	for recIndex, record := range fillNullReq.Records {
+		if _, exists := recs[recIndex]; exists {
+			log.Errorf("performFillNullRequestWithoutGroupby: record with index %s already exists in recs", recIndex)
+			continue
+		}
+
+		performFillNullForARecord(record, colsToCheck, fillNullReq.Value)
+		recs[recIndex] = record
+		delete(fillNullReq.Records, recIndex)
+	}
+
+	return nil
+}
+
+func performFillNullForARecord(record map[string]interface{}, colsToCheck map[string]bool, fillValue string) {
+	for field := range colsToCheck {
+		value, exists := record[field]
+		if value == nil || !exists {
+			record[field] = fillValue
+		}
 	}
 }
 
@@ -3107,8 +3294,8 @@ func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letCol
 		}
 
 		record[letColReq.NewColName] = value
-		finalCols[letColReq.NewColName] = true
 	}
+	finalCols[letColReq.NewColName] = true
 
 	return nil
 }
@@ -3137,7 +3324,15 @@ func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fie
 		value, err := letColReq.ValueColRequest.EvaluateToFloat(fieldToValue)
 		if err != nil {
 			log.Errorf("failed to evaluate numeric expr, err=%v", err)
-			return nil, err
+
+			// It failed to evaluate to a float, it could possibly that the field given is a string
+			valueStr, err := letColReq.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				log.Errorf("failed to evaluate numeric expr to Numeric Expr and string Expr, err=%v", err)
+				return nil, err
+			}
+
+			return valueStr, err
 		}
 		return value, nil
 	case structs.VEMBooleanExpr:
@@ -3179,9 +3374,12 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
 				}
 				// Evaluate the condition expression to a value.
-				cellValueStr, err = letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
+				cellValue, err := letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
 				if err != nil {
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
+				}
+				if cellValue != nil {
+					cellValueStr = fmt.Sprintf("%v", cellValue)
 				}
 			case structs.VEMStringExpr:
 				cellValueStr, err = letColReq.ValueColRequest.EvaluateValueExprAsString(fieldToValue)

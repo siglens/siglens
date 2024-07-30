@@ -189,6 +189,7 @@ function saveJsonChanges() {
                 return false;
             });
     } catch (e) {
+        console.error(e);
         alert('Invalid JSON format. Please correct the JSON and try again.');
     }
 }
@@ -1162,6 +1163,7 @@ function saveDbSetting() {
     try {
         dbSettings = JSON.parse(jsonText); // Parse the JSON to ensure its validity
     } catch (e) {
+        console.error(e);
         alert('Invalid JSON format. Please correct the JSON and try again.');
         return;
     }

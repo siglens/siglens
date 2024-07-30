@@ -15,10 +15,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import (
+	"fmt"
 
-const SigLensVersion = "0.2.25"
+	log "github.com/sirupsen/logrus"
+)
+
+func TeeErrorf(format string, args ...interface{}) error {
+	err := fmt.Errorf(format, args...)
+	log.Error(err.Error())
+
+	return err
+}

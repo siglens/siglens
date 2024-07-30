@@ -8,6 +8,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
@@ -59,6 +60,12 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 }
 
 func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+	// Check if the query is just a number
+	_, err := dtypeutils.ConvertToFloat(query, 64)
+	if err == nil {
+		// If yes, then add 0 + to the query, to convert it as a Binary Expr
+		query = fmt.Sprintf("0 + %s", query)
+	}
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myid)
 	if err != nil {
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
@@ -629,26 +636,38 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		if len(lhsRequest) > 0 {
+			lhsIsVector = true
+			arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		}
 		if len(lhsQueryArth) > 0 {
 			arithmeticOperation.LHSExpr = lhsQueryArth[0]
 		}
-		lhsIsVector = true
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
-		arithmeticOperation.ConstantOp = true
-		arithmeticOperation.Constant = constant.Val
+		if arithmeticOperation.ConstantOp {
+			// This implies that both LHS and RHS are constants.
+			arithmeticOperation.RHSExpr = &structs.QueryArithmetic{
+				ConstantOp: true,
+				Constant:   constant.Val,
+			}
+		} else {
+			arithmeticOperation.ConstantOp = true
+			arithmeticOperation.Constant = constant.Val
+		}
 	} else {
 		rhsRequest, _, rhsQueryArth, err = parsePromQLQuery(expr.RHS.String(), timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+		if len(rhsRequest) > 0 {
+			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+			rhsIsVector = true
+		}
 		if len(rhsQueryArth) > 0 {
 			arithmeticOperation.RHSExpr = rhsQueryArth[0]
 		}
-		rhsIsVector = true
 	}
 	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool

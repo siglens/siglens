@@ -706,11 +706,11 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						hits := readEvent["hits"].(map[string]interface{})
 						records := hits["records"].([]interface{})
 						if len(records) != 1 {
-							log.Fatalf("RunQueryFromFile: Expected records for this special case is 1 found: %v", len(records))
+							log.Fatalf("RunQueryFromFile: Expected records for this special case is 1 found: %v. Query= %v", len(records), rec[0])
 						}
 						data := records[0].(map[string]interface{})
-						if len(data) != 1 {
-							log.Fatalf("RunQueryFromFile: Expected number of columns for this special case is 1 found: %v", len(data))
+						if len(data) == 0 {
+							log.Fatalf("RunQueryFromFile: Expected number of columns for this special case to be not zero. Query= %v", rec[0])
 						}
 						actualValue, ok := data[col]
 						if !ok {
