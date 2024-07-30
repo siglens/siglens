@@ -425,8 +425,10 @@ func Test_processPostAggs_NoErrorWhenSliceOfStrings(t *testing.T) {
 	inputValueParam := []interface{}{key}
 	got, err := processPostAggs(inputValueParam)
 	assert.Nil(t, err)
+	assert.Len(t, got, 1)
 	assert.True(t, got[key])
 }
+
 func Test_processPostAggs_ErrorWhenSliceOfNotStrings(t *testing.T) {
 	inputValueParam := []interface{}{1, 2, 8}
 	_, err := processPostAggs(inputValueParam)
@@ -462,6 +464,7 @@ func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
 	err := parsePostPqsAggBody(json)
 	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
 }
+
 func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
 	json := map[string]interface{}{
 		"tableName":      "some_table",

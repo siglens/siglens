@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -930,10 +929,9 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 				}
 			}
 		default:
-			message := fmt.Sprintf("PostPqsAggCols: Invalid key=[%v] with value of type [%v]", key, reflect.TypeOf(value))
-			log.Error(message)
-			err := fmt.Sprint(message)
-			return errors.New(err)
+			err := fmt.Errorf("PostPqsAggCols: Invalid key=[%v] with value of type [%T]", key, value)
+			log.Error(err)
+			return err
 		}
 	}
 	if len(tableName) == 0 {
@@ -956,7 +954,7 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 	return nil
 }
 func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
-	// asserts that inputValueParam is slise of strings
+	// asserts that inputValueParam is a slice of strings
 	switch inputValueParam.(type) {
 	case []interface{}:
 		break
