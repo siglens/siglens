@@ -43,6 +43,10 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	tsKey string, esQuery bool, qid uint64,
 	aggs *structs.QueryAggregators, colsIndexMap map[string]int) (map[string]map[string]interface{}, map[string]bool, error) {
 
+	if aggs.HasGenerateEvent() {
+		return aggs.GenerateEvent.GeneratedRecords, aggs.GenerateEvent.GeneratedCols, nil
+	}
+
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {

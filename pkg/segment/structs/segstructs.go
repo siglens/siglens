@@ -98,6 +98,7 @@ const (
 	GroupByType
 	TransactionType
 	VectorArithmeticExprType
+	GenerateEventType
 )
 
 type QueryType uint8
@@ -160,8 +161,23 @@ type QueryAggregators struct {
 	TransactionArguments *TransactionArguments
 	StatsOptions         *StatsOptions
 	StreamStatsOptions   *StreamStatsOptions
+	GenerateEvent        *GenerateEvent
 	Next                 *QueryAggregators
 	Limit                int
+}
+
+type GenerateEvent struct {
+	GenTimes              *GenTimes
+	GeneratedRecords      map[string]map[string]interface{}
+	GeneratedRecordsIndex map[string]int
+	GeneratedCols         map[string]bool
+	GeneratedColsIndex    map[string]int
+}
+
+type GenTimes struct {
+	StartTime uint64
+	EndTime   uint64
+	Interval  *SpanLength
 }
 
 type StreamStatsOptions struct {
@@ -663,7 +679,7 @@ func (qa *QueryAggregators) HasInChain(hasInCur queryAggregatorsBoolFunc) bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	if qa.HasStreamStatsInChain() {
+	if qa.HasStreamStatsInChain() || qa.HasGenerateEvent() {
 		return true
 	}
 	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
@@ -671,6 +687,14 @@ func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	return qa.HasInChain((*QueryAggregators).HasQueryAggergatorBlock)
+}
+
+func (qa *QueryAggregators) HasGenerateEvent() bool {
+	if qa == nil {
+		return false
+	}
+
+	return qa.GenerateEvent != nil
 }
 
 func (qa *QueryAggregators) HasDedupBlock() bool {
