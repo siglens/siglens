@@ -1841,8 +1841,8 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
-            const regexNumeric = /\d+(\.\d+)?[+\-*/%()]?\d?(\.\d+)?|\s+/g;
-
+            //eslint-disable-next-line no-useless-escape
+            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
             switch (calculatedInterval) {
