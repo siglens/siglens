@@ -42,6 +42,21 @@ app_name=Termitehad http_status=2**,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2**********,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2*0,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2*****0,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad http_status=302,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad http_status=**2,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad http_status=*2,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad http_status=30******2,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad http_status=404,now-90d,now,*,total,eq,3,Splunk QL
+app_name=Termitehad http_status=4*4,now-90d,now,*,total,eq,3,Splunk QL
+app_name=Termitehad http_status=4,now-90d,now,*,total,eq,0,Splunk QL
+app_name=Termitehad city=Tucson*,now-90d,now,*,total,eq,1,Splunk QL
+app_name=Termitehad city=Tucso*n*,now-90d,now,*,total,eq,1,Splunk QL
+app_name=Termitehad city=Tuc*s*o*n*,now-90d,now,*,total,eq,1,Splunk QL
+app_name=Termitehad city=Tuc**s*o*n*,now-90d,now,*,total,eq,1,Splunk QL
+app_name=Termitehad city=Tucson,now-90d,now,*,total,eq,1,Splunk QL
+app_name=Termitehad city=*on,now-90d,now,*,total,eq,5,Splunk QL
+app_name=Termitehad city=*on*,now-90d,now,*,total,eq,6,Splunk QL
+app_name=Termitehad city=on*,now-90d,now,*,total,eq,0,Splunk QL
 app_name=Oxam,now-1d,now,*,total,gt,0,Splunk QL
 search app_name=Oxam,now-1d,now,*,total,gt,0,Splunk QL
 search Sunday,now-1d,now,*,total,gt,1,Splunk QL
