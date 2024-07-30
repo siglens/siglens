@@ -712,6 +712,90 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	}
 }
 
+func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	if self.IsTerminal {
+		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
+		rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
+		leftFloat, errLeftFloat := self.LeftValue.EvaluateToFloat(fieldToValue)
+		rightFloat, errRightFloat := self.RightValue.EvaluateToFloat(fieldToValue)
+
+		if errLeftFloat == nil && errRightFloat == nil {
+			switch self.ValueOp {
+			case "=":
+				return leftFloat == rightFloat, nil
+			case "!=":
+				return leftFloat != rightFloat, nil
+			case "<":
+				return leftFloat < rightFloat, nil
+			case ">":
+				return leftFloat > rightFloat, nil
+			case "<=":
+				return leftFloat <= rightFloat, nil
+			case ">=":
+				return leftFloat >= rightFloat, nil
+			default:
+				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for floats", self.ValueOp)
+			}
+		} else if errLeftStr == nil && errRightStr == nil {
+			leftStr = strings.ToLower(leftStr)
+			rightStr = strings.ToLower(rightStr)
+			match, err := filepath.Match(rightStr, leftStr)
+			if err != nil {
+				return false, nil
+			}
+			switch self.ValueOp {
+			case "=":
+				return match, nil
+			case "!=":
+				return !match, nil
+			case "<":
+				return leftStr < rightStr, nil
+			case ">":
+				return leftStr > rightStr, nil
+			case "<=":
+				return (leftStr <= rightStr || match), nil
+			case ">=":
+				return (leftStr >= rightStr || match), nil
+			default:
+				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
+			}
+		} else {
+			if errLeftStr != nil && errLeftFloat != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: left cannot be evaluated to a string or float")
+			}
+			if errRightStr != nil && errRightFloat != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: right cannot be evaluated to a string or float")
+			}
+			return false, fmt.Errorf("BoolExpr.Evaluate: left and right ValueExpr have different types")
+		}
+	} else { // IsTerminal is false
+		left, err := self.LeftBool.Evaluate(fieldToValue)
+		if err != nil {
+			return false, err
+		}
+
+		var right bool
+		if self.RightBool != nil {
+			var err error
+			right, err = self.RightBool.Evaluate(fieldToValue)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		switch self.BoolOp {
+		case BoolOpNot:
+			return !left, nil
+		case BoolOpAnd:
+			return left && right, nil
+		case BoolOpOr:
+			return left || right, nil
+		default:
+			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
+		}
+	}
+}
+
 func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 	_, cidrNet, err := net.ParseCIDR(cidrStr)
 	if err != nil {

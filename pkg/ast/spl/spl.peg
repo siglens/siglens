@@ -5353,6 +5353,8 @@ InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
     if !inputLookup.GenerateEvent.InputLookup.Append {
         return nil, fmt.Errorf("Inputlookup after search must have append as true")
     }
+    inputLookup.GenerateEvent.InputLookup.HasPrevResults = true
+    
     return inputLookup, nil
 }
 

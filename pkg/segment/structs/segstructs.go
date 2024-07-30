@@ -168,7 +168,7 @@ type QueryAggregators struct {
 
 type GenerateEvent struct {
 	GenTimes              *GenTimes
-	InputLookup 		  *InputLookup
+	InputLookup           *InputLookup
 	GeneratedRecords      map[string]map[string]interface{}
 	GeneratedRecordsIndex map[string]int
 	GeneratedCols         map[string]bool
@@ -182,12 +182,13 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
-	Filename string
-	Append  bool
-	Start uint64
-	Strict bool
-	Max uint64
-	WhereExpr *BoolExpr
+	Filename       string
+	Append         bool
+	Start          uint64
+	Strict         bool
+	Max            uint64
+	WhereExpr      *BoolExpr
+	HasPrevResults bool
 }
 
 type StreamStatsOptions struct {
