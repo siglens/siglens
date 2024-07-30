@@ -33,6 +33,31 @@ min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
 "{gender=""female"",city=""Fresno""} | logfmt city_life=""city"", single_gender=""gender""",now-1d,now,*,total,gt,100,Log QL
 "{weekday=""Sunday""} | logfmt",now-1d,now,*,total,gt,1,Log QL
 "count_over_time({batch=""batch-*""}[1d])", now-1d,now,*,total,gt,100,Log QL
+app_name=Termitehad,now-90d,now,ind-5,total,eq,18,Splunk QL
+app_name=Termitehad http_status=*,now-90d,now,ind-5,total,eq,18,Splunk QL
+app_name=Termitehad http_status=**,now-90d,now,ind-5,total,eq,18,Splunk QL
+app_name=Termitehad http_status=***,now-90d,now,ind-5,total,eq,18,Splunk QL
+app_name=Termitehad http_status=200,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=20*,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=2**,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=2**********,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=2*0,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=2*****0,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=302,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=30******2,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=**2,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=*2,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=404,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=4*4,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad http_status=4,now-90d,now,ind-5,total,eq,0,Splunk QL
+app_name=Termitehad city=Tucson*,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=Tucso*n*,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=Tuc*s*o*n*,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=Tuc**s*o*n*,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=Tucson,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=Houston,now-90d,now,ind-5,total,eq,6,Splunk QL
+app_name=Termitehad city=*on,now-90d,now,ind-5,total,eq,12,Splunk QL
+app_name=Termitehad city=*on*,now-90d,now,ind-5,total,eq,12,Splunk QL
 app_name=Oxam,now-1d,now,*,total,gt,0,Splunk QL
 search app_name=Oxam,now-1d,now,*,total,gt,0,Splunk QL
 search Sunday,now-1d,now,*,total,gt,1,Splunk QL
