@@ -185,6 +185,37 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                     </div>
+
+                    <p class="index-stats-header">Traces Stats</p>
+                    <div class="chart-container">
+                        <div class="graph-container mt-2">
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Trace Span Count</div>
+                                <canvas id="EventCountChart-trace"></canvas>
+                            </div>
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Trace Volume</div>
+                                <canvas id="GBCountChart-trace"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="query-index-container">
+                        <div class="index-stats">
+                            <table id="trace-data-table" class="index-data-table"></table>
+                        </div>
+                    </div>
+                    <div class="graph-container mt-5 traces-container">
+                        <div class="bar_chart_container">
+                            <canvas id="TotalVolumeChart-traces"></canvas>
+                            <div class="bar-graph-footer">Traces Storage</div>
+                        </div>
+                        <div class="storage-savings-container">
+                            <div class="fw-bold storage-savings-title">
+                                Storage Savings
+                            </div>
+                        </div>
+                    </div>
                     <div class="query-stats-container">
                     <div class="query-stats">
                         <p class="query-stats-header">Query Stats</p>
