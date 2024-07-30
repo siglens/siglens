@@ -1970,15 +1970,13 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 func performMVExpand(fieldValue interface{}) []interface{} {
 	var values []interface{}
 
-	switch v := fieldValue.(type) {
-	case []string:
-		for _, val := range v {
-			values = append(values, val)
-		}
-	case []interface{}:
-		values = v
-	default:
+	isArrayOrSlice, v, _ := utils.IsArrayOrSlice(fieldValue)
+	if !isArrayOrSlice {
 		return nil
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		values = append(values, v.Index(i).Interface())
 	}
 
 	return values

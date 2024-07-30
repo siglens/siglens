@@ -2893,3 +2893,28 @@ func Test_Values(t *testing.T) {
 	}
 
 }
+
+func Test_PerformMVExpand(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": []string{"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": []string{"foo@example.com", "", "bar@example.com"}},
+		"3": {"numbers": []int{1, 2, 3, 4}},
+		"4": {"prices": []float64{10.5, 20.75, 30.0}},
+		"5": {"flags": []bool{true, false, true}},
+	}
+
+	expectedResults := map[string]map[string][]interface{}{
+		"1": {"senders": {"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": {"foo@example.com", "", "bar@example.com"}},
+		"3": {"numbers": {1, 2, 3, 4}},
+		"4": {"prices": {10.5, 20.75, 30.0}},
+		"5": {"flags": {true, false, true}},
+	}
+
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			expandedValues := performMVExpand(values)
+			assert.Equal(t, expectedResults[recNum][colName], expandedValues)
+		}
+	}
+}
