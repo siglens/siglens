@@ -271,3 +271,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1w"")",now-1d,now,*,group:res:400,eq,1721133460000,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1s"")",now-1d,now,*,group:res:400,eq,1721738259000,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval nowResult=relative_time(now(),""-1h"") | eval timeResult=relative_time(time()/1000,""-1h"") | eval finalResult=if(nowResult=timeResult, ""Pass"", ""Fail"")",now-1d,now,*,group:finalResult:400,eq,"Pass",Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 2| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,8,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
