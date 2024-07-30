@@ -71,11 +71,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div id="all-slos">
             <h1 class="myOrg-heading">SLOs</h1>
-            {{ if .OrgSLOs}}
-            {{ .OrgSLOs |  safeHTML }}
-            {{else}}
-            {{ safeHTML "ent"}}
-            {{end }}
+            {{ if .EnterpriseEnabled }}
+            {{ .OrgSLOs | safeHTML }}
+            {{ else }}
+            {{ EntMsg }}
+            {{ end }}
         </div>
 
         <div id="app-footer">
