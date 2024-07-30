@@ -30,17 +30,6 @@ import (
     toputils "github.com/siglens/siglens/pkg/utils"
     log "github.com/sirupsen/logrus"
 )
-// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
-// to Unix time in milliseconds (epoch ms).
-func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
-    loc, _ := time.LoadLocation("Local")
-    t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
-    if err != nil {
-        return 0, err
-    }
-    return t.UnixMilli(), nil
-}
-
 
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
@@ -50,7 +39,7 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
     } else if timeModifier.AbsoluteTime == "1" {
         return 1, nil
     } else if timeModifier.AbsoluteTime != "" {
-        epoch, err = ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
+        epoch, err = utils.ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
         if err != nil {
             return 0, err
         }
@@ -244,6 +233,23 @@ func initializeStreamStatsOptions() *structs.StreamStatsOptions {
     }
 }
 
+func initializeGenTimesOption() (*structs.GenTimes, error) {
+    endTime := time.Now()
+    daySnap := fmt.Sprintf("%v", utils.TMDay)
+    endTime, err := utils.ApplySnap(daySnap, endTime)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
+    }
+
+    return &structs.GenTimes{
+        EndTime: uint64(endTime.UnixMilli()),
+        Interval: &structs.SpanLength{
+            Num: 1,
+            TimeScalr: utils.TMDay,
+        },
+    }, nil
+}
+
 func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
 
     if inputField == "" {
@@ -307,6 +313,19 @@ func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
     }
 }
 
+func chainAggregators(curQueryAgg *structs.QueryAggregators, queryAggs []any) {
+    for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+
+    // Link the remaining chains.
+    for i := range queryAggs {
+        queryAgg := queryAggs[i].(*structs.QueryAggregators)
+        curQueryAgg.Next = queryAgg
+
+        // Go to the end of this chain.
+        for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -347,6 +366,11 @@ type BinOptionArgs struct {
 type StreamStatsOptionArgs struct {
     argOption string
     streamStatsOptions *structs.StreamStatsOptions
+}
+
+type GenTimesOptionArgs struct {
+    argOption string
+    genTimesOption *structs.GenTimes
 }
 
 type SPathFieldExpr struct {
@@ -416,20 +440,178 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
 
             // Go to the end of the first chain.
             curQueryAgg := q.PipeCommands
-            for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-
-            // Link the remaining chains.
-            for i := range queryAggSlice[1:] {
-                queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
-                curQueryAgg.Next = queryAgg
-
-                // Go to the end of this chain.
-                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-            }
+            
+            chainAggregators(curQueryAgg, queryAggSlice[1:])
         }
     }
 
     return q, nil
+}
+/ SPACE? PIPE CMD_GENTIMES SPACE genTimesOption:(GenTimesOptionList) queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+    var q ast.QueryStruct
+    q.PipeCommands = &structs.QueryAggregators{
+        PipeCommandType: structs.GenerateEventType,
+        GenerateEvent: &structs.GenerateEvent{
+            GenTimes: genTimesOption.(*structs.GenTimes),
+        },
+    }
+
+    if queryAggBlocks != nil {
+        queryAggSlice := queryAggBlocks.([]any)
+        curQueryAgg := q.PipeCommands
+
+        chainAggregators(curQueryAgg, queryAggSlice)
+    }
+
+    return q, nil
+}
+
+PartialTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] {
+    timestamp := string(c.text)
+    completeTimestamp := fmt.Sprintf("%s:00:00:00", timestamp)
+
+    return completeTimestamp, nil
+}
+
+IntegerAsTimeToUnixEpochMs <- intStr:IntegerAsString {
+    timeOffset, err := strconv.ParseInt(intStr.(string), 10, 64)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
+    }
+    finalTime, err := utils.ApplyOffsetToTime(timeOffset, utils.TMDay, time.Now())
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while applying the offset: %v", err)
+    }
+    daySnap := fmt.Sprintf("%v", utils.TMDay)
+    finalTime, err = utils.ApplySnap(daySnap, finalTime)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
+    }
+
+    return finalTime.UnixMilli(), nil
+}
+
+DateTimeToUnixEpochMs <- timeStamp:(FullTimeStamp / PartialTimestamp) {
+    unixEpochInMs, err := utils.ConvertCustomDateTimeFormatToEpochMs(timeStamp.(string))
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the timestamp: %v", err)
+    }
+    return unixEpochInMs, nil
+}
+
+
+GenTimestamp <- epochInMilli:(DateTimeToUnixEpochMs / IntegerAsTimeToUnixEpochMs) {
+    return epochInMilli, nil
+}
+
+GenTimesOptionEnd <- "end" EQUAL timeStamp:(GenTimestamp) {
+    return &GenTimesOptionArgs{
+        argOption: "end",
+        genTimesOption: &structs.GenTimes{
+            EndTime: uint64(timeStamp.(int64)),
+        },
+    }, nil
+}
+
+GenTimesOptionStart <- "start" EQUAL timeStamp:(GenTimestamp) {
+    return &GenTimesOptionArgs{
+        argOption: "start",
+        genTimesOption: &structs.GenTimes{
+            StartTime: uint64(timeStamp.(int64)),
+        },
+    }, nil
+}
+
+GenTimesOptionIncrement <- "increment" EQUAL intStr:IntegerAsString unitStr:("s" / "m" / "d" / "h")? {
+    spanNum, err := strconv.ParseInt(intStr.(string), 10, 64)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
+    }
+    if spanNum == 0 {
+        return "", fmt.Errorf("Spl peg: increment cannot be 0")
+    }
+
+    timeUnit := utils.TMSecond
+
+    if unitStr != nil {
+        unit, err := transferUint8ToString(unitStr)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Unit specified is not string, err: %v", err)
+        }
+
+        if unit == "s" {
+            timeUnit = utils.TMSecond
+        } else if unit == "m" {
+            timeUnit = utils.TMMinute
+        } else if unit == "h" {
+            timeUnit = utils.TMHour
+        } else if unit == "d" {
+            timeUnit = utils.TMDay
+        } else {
+            return nil, fmt.Errorf("Spl peg: Invalid time unit: %v", unit)
+        }
+    }
+
+    return &GenTimesOptionArgs{
+        argOption: "increment",
+        genTimesOption: &structs.GenTimes{
+            Interval: &structs.SpanLength{
+                Num: int(spanNum),
+                TimeScalr: timeUnit,
+            },
+        },
+    }, nil
+}
+
+GenTimesOption <- genTimesOption:(GenTimesOptionEnd / GenTimesOptionStart / GenTimesOptionIncrement) {
+    return genTimesOption, nil
+}
+
+GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]struct{})
+
+    numOptions := 1 + len(restSlice)
+
+    genTimeOption, err := initializeGenTimesOption()
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Error while initializing the GenTimesOption: %v", err)
+    }
+
+    for i := 0; i < numOptions; i++ {
+        var genTimeOptArg *GenTimesOptionArgs
+        if i == 0 {
+            genTimeOptArg = first.(*GenTimesOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            genTimeOptArg = separator[1].(*GenTimesOptionArgs)
+        }
+
+        argOption := genTimeOptArg.argOption
+        _, exist := optionWasSpecified[argOption]
+        if exist {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = struct{}{}
+
+        switch argOption {
+            case "start":
+                genTimeOption.StartTime = genTimeOptArg.genTimesOption.StartTime
+            case "end":
+                genTimeOption.EndTime = genTimeOptArg.genTimesOption.EndTime
+            case "increment":
+                genTimeOption.Interval = genTimeOptArg.genTimesOption.Interval
+            default:
+                return nil, fmt.Errorf("Not a Valid GenTimes Command Option: %v", argOption)
+        }
+    }
+
+    _, exist := optionWasSpecified["start"]
+    if !exist {
+        return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
+    }
+
+    return genTimeOption, nil
 }
 
 InitialSearchBlock <- CMD_SEARCH? clause:ClauseLevel4 {
@@ -4228,6 +4410,7 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
 
     return timeModifier, nil
 }
+
 RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
 
     if offset == nil && snapParam == nil {
@@ -4255,9 +4438,13 @@ RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
 }
 
 
-AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+FullTimeStamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    return string(c.text), nil
+}
+
+AbsoluteTimestamp <- timestamp:FullTimeStamp {
     relTimeModifier := ast.TimeModifier{
-        AbsoluteTime: string(c.text),
+        AbsoluteTime: timestamp.(string),
     }
     return relTimeModifier, nil
 }
@@ -5017,7 +5204,7 @@ MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5047,6 +5234,7 @@ CMD_EARLIEST <- "earliest"
 CMD_LATEST <- "latest"
 CMD_EVENTCOUNT <- "eventcount"
 CMD_FILLNULL <- "fillnull"
+CMD_GENTIMES <- "gentimes"
 EVAL_CONCAT <- SPACE? "." SPACE?
 CMD_MVEXPAND <- "mvexpand"
 
