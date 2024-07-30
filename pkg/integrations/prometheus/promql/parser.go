@@ -8,6 +8,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
@@ -59,6 +60,12 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 }
 
 func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+	// Check if the query is just a number
+	_, err := dtypeutils.ConvertToFloat(query, 64)
+	if err == nil {
+		// If yes, then add 0 + to the query, to convert it as a Binary Expr
+		query = fmt.Sprintf("0 + %s", query)
+	}
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myid)
 	if err != nil {
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err

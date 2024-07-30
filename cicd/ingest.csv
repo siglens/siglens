@@ -237,6 +237,10 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "* | eval newField=nullif(http_status, 200) | fields newField, http_status | fillnull value=FILLING | eval countVal=if(http_status=200 AND newField=""FILLING"", 1, 0) | stats count(http_status) as count, sum(countVal) as sum_count by newField | where count=sum_count",now-1d,now,*,countRecord:newField,eq,"FILLING",Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where http_status=200 | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where nullStatus=null() | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
+"| gentimes start=08/10/2022 end=08/11/2022 increment=5h | stats count",now-1d,now,*,countRecord:count(*):*,eq,5,Splunk QL
+"| gentimes start=04/04/2021 end=04/07/2021 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"| gentimes start=-30 end=-20 increment=7s | stats count",now-1d,now,*,countRecord:count(*):*,eq,"123,429",Splunk QL
+"| gentimes start=12/01/2021:16:11:56 end=12/05/2021:12:00:01 increment=3m | stats count",now-1d,now,*,countRecord:count(*):*,eq,"1,837",Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1h"")",now-1d,now,*,group:res:400,eq,1721734660000,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1d"")",now-1d,now,*,group:res:400,eq,1721651860000,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval res=relative_time(1721738260,""-1m"")",now-1d,now,*,group:res:400,eq,1721738200000,Splunk QL
@@ -305,3 +309,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | sort first_name, last_name | streamstats window=5 current=false range(eval(if(http_status > 302, http_status, latency))) as range by http_method | where first_name = ""Allan"" AND last_name = ""Sawayn"" | stats sum(range) as range_value",now-1d,now,*,countRecord:range_value:*,eq,"6,599,348",Splunk QL
 "city=Boston | stats count(http_status) as cnt by http_method, http_status | sort cnt, http_status, http_method | streamstats reset_after=(cnt = 27 AND http_method=""PUT"") current=false window=2 global=false avg(eval(http_status)) as avg by http_method | where http_status = 500 AND http_method=""DELETE"" AND cnt=34 | fields http_method, avg",now-1d,now,*,group:avg:DELETE,eq,402,Splunk QL
 "app_name=Bracecould | stats count(http_status) as cnt, max(http_status) as max_htp | streamstats min(eval(if(max_htp=500, 101, 1))) as max_htp by cnt",now-1d,now,*,group:max_htp:*,eq,101,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 2| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,8,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL

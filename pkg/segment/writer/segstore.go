@@ -656,19 +656,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
-			alreadyHandled, err := hook(segstore)
+			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
 				log.Errorf("checkAndRotateColFiles: failed to rotate segment %v, err=%v", segstore.SegmentKey, err)
 				return err
 			}
 
 			if alreadyHandled {
-				err := cleanupUnrotatedSegment(segstore, streamid, !forceRotate)
-				if err != nil {
-					log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
-					return err
-				}
-
 				return nil
 			}
 		}
@@ -751,7 +745,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 
-		err = cleanupUnrotatedSegment(segstore, streamid, !forceRotate)
+		err = CleanupUnrotatedSegment(segstore, streamid, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
@@ -760,12 +754,12 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	return nil
 }
 
-func cleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
+func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
 	removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
 
 	err := os.RemoveAll(segstore.segbaseDir)
 	if err != nil {
-		log.Errorf("cleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
+		log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
 		return err
 	}
 

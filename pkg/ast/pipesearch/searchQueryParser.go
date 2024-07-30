@@ -262,6 +262,12 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 		return nil, errors.New("searchPipeCommandsToASTnode: search pipe command node is nil ")
 	}
 	switch node.PipeCommandType {
+	case GenerateEventType:
+		pipeCommands, err = parseGenerateCmd(node.GenerateEvent, qid)
+		if err != nil {
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGenerateCmd error: %v", qid, err)
+			return nil, err
+		}
 	case OutputTransformType:
 		pipeCommands, err = parseColumnsCmd(node.OutputTransforms, qid)
 		if err != nil {
@@ -346,6 +352,20 @@ func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAg
 		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
 	}
+	return aggNode, nil
+}
+
+func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregators, error) {
+	aggNode := &QueryAggregators{}
+	aggNode.PipeCommandType = GenerateEventType
+	aggNode.GenerateEvent = &GenerateEvent{}
+	if node == nil {
+		return aggNode, nil
+	}
+	if node.GenTimes != nil {
+		aggNode.GenerateEvent.GenTimes = node.GenTimes
+	}
+
 	return aggNode, nil
 }
 
@@ -600,7 +620,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) && aggs.StreamStatsOptions == nil {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add

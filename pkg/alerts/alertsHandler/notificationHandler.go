@@ -30,6 +30,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -239,15 +240,49 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 	}
 
 	if alertDataMessage != "" {
-		attachment.Fields = []slack.AttachmentField{
-			{
-				Title: "Alert Details",
-				Value: alertDataMessage,
-			},
+		if utils.IsValidURL(alertDataMessage) {
+			attachment.Actions = []slack.AttachmentAction{
+				{
+					Name:  "view_results",
+					Text:  "View Results",
+					Type:  "button",
+					URL:   alertDataMessage,
+					Style: "primary",
+				},
+			}
+		} else {
+			attachment.Fields = []slack.AttachmentField{
+				{
+					Title: "Alert Details",
+					Value: alertDataMessage,
+				},
+			}
 		}
 	}
 
-	_, _, err := client.PostMessage(
+	// If the Message that a user has set while creating is a URL,
+	// then we will add a button to view the message
+	encodedURL, err := utils.EncodeURL(message)
+	if err != nil {
+		log.Errorf("sendSlack: Error encoding URL. Error=%v", err)
+	} else {
+		messageAttachment := slack.AttachmentAction{
+			Name:  "view_message_link",
+			Text:  "View Message",
+			Type:  "button",
+			URL:   encodedURL,
+			Style: "default",
+		}
+		if len(attachment.Actions) > 0 {
+			attachment.Actions = append(attachment.Actions, messageAttachment)
+		} else {
+			attachment.Actions = []slack.AttachmentAction{messageAttachment}
+		}
+
+		attachment.Text = ""
+	}
+
+	_, _, err = client.PostMessage(
 		channelID,
 		slack.MsgOptionAttachments(attachment),
 	)
