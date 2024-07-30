@@ -10332,3 +10332,283 @@ func Test_aggHasEval_ConditionalExpr(t *testing.T) {
 	query = []byte(`app_name=bracecould | stats sum(http_status), values(eval(if(http_status=500, http_method, 0)))`)
 	performCommon_aggEval_ConditionalExpr(t, query, utils.Values, `values(eval(if(http_status=500, http_method, 0)))`, "http_method", "0")
 }
+
+func Test_MVExpand_NoLimit(t *testing.T) {
+	query := `* | mvexpand batch`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_WithLimit(t *testing.T) {
+	query := `* | mvexpand app_name limit=5`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
+	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+}
+
+func Test_MVExpand_InvalidLimit(t *testing.T) {
+	query := `* | mvexpand batch limit=invalid`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_MVExpand_MissingField(t *testing.T) {
+	query := `* | mvexpand`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func getTimeAfterOffsetAndSnapDay(t *testing.T, offset int, currTime time.Time) (uint64, error) {
+	var err error
+
+	currTime, err = utils.ApplyOffsetToTime(int64(offset), utils.TMDay, currTime)
+	if err != nil {
+		return uint64(0), err
+	}
+
+	snapStr := fmt.Sprintf("%v", utils.TMDay)
+	currTime, err = utils.ApplySnap(snapStr, currTime)
+	if err != nil {
+		return uint64(0), err
+	}
+
+	return uint64(currTime.UnixMilli()), err
+}
+
+func Test_GenTimes(t *testing.T) {
+	query := `| gentimes start=1`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	currTime := time.Now()
+
+	expectedStartTime, err := getTimeAfterOffsetAndSnapDay(t, 1, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedStartTime, aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := getTimeAfterOffsetAndSnapDay(t, 0, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEndTime, aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_GenTimes_2(t *testing.T) {
+	query := `| gentimes start=-3 end=2`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	currTime := time.Now()
+
+	expectedStartTime, err := getTimeAfterOffsetAndSnapDay(t, -3, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedStartTime, aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := getTimeAfterOffsetAndSnapDay(t, 2, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEndTime, aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_GenTimes_3(t *testing.T) {
+	query := `| gentimes start=10/01/2022 end=12/03/2023:12:20:56`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_GenTimes_4(t *testing.T) {
+	query := `| gentimes start=10/01/2022 increment=3m end=-5`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := getTimeAfterOffsetAndSnapDay(t, -5, time.Now())
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEndTime, aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 3, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMMinute, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_GenTimes_5(t *testing.T) {
+	query := `| gentimes start=6 increment=-11h end=12/03/2023:23:11:56`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	expectedStartTime, err := getTimeAfterOffsetAndSnapDay(t, 6, time.Now())
+	assert.Nil(t, err)
+	assert.Equal(t, expectedStartTime, aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:23:11:56")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, -11, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMHour, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_GenTimes_6(t *testing.T) {
+	query := `| gentimes increment=-11h end=12/03/2023:23:11:56`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_GenTimes_7(t *testing.T) {
+	query := `| gentimes start=-3 end=2 | eval myField=replace(date, "^(\d{1,2})/(\d{1,2})/", "\2/\1/")`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	currTime := time.Now()
+
+	expectedStartTime, err := getTimeAfterOffsetAndSnapDay(t, -3, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedStartTime, aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := getTimeAfterOffsetAndSnapDay(t, 2, currTime)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEndTime, aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+
+	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.NewColName, "myField")
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "replace")
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "date")
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].RawString, `^(\d{1,2})/(\d{1,2})/`)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].RawString, `\2/\1/`)
+
+	assert.Nil(t, aggregator.Next.Next)
+}
+
+func Test_GenTimes_8(t *testing.T) {
+	query := `| gentimes start=10/01/2022 end=12/03/2023:12:20:56 increment=2`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
+
+	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
+
+	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
+
+	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
+	assert.Equal(t, 2, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, utils.TMSecond, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}

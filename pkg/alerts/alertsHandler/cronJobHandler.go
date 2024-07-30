@@ -286,7 +286,7 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 		return
 	}
 
-	alertDataMessage := fmt.Sprintf("View the Query Results: %v", getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange))
+	alertDataMessage := getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange)
 
 	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
 	if err != nil {
@@ -324,7 +324,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 		parsedJsonMap["start"] = start
 		parsedJsonMap["end"] = end
 
-		alertDataMessage = fmt.Sprintf("View the Query Results: %v", getMetricsQueryLinkForTheAlert(alertToEvaluate, parsedJsonMap))
+		alertDataMessage = getMetricsQueryLinkForTheAlert(alertToEvaluate, parsedJsonMap)
 	}
 
 	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)

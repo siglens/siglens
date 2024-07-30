@@ -113,6 +113,7 @@ $(document).ready(async function () {
         }
         setDataSourceHandler(alertType);
     });
+
     $('#cancel-alert-btn').on('click', function () {
         window.location.href = '../all-alerts.html';
         resetAddAlertForm();
@@ -149,7 +150,9 @@ $(document).ready(async function () {
             tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
         }
     });
+
     await getAlertId();
+
     if (window.location.href.includes('alert-details.html')) {
         alertDetailsFunctions();
         fetchAlertProperties();
@@ -163,21 +166,7 @@ $(document).ready(async function () {
         $('#contact-point-error').css('display', 'none'); // Hide error message when a contact point is selected
     });
 
-    $('#save-alert-btn').on('click', function (event) {
-        if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
-            event.preventDefault();
-            $('#contact-point-error').css('display', 'inline-block');
-        } else {
-            $('#contact-point-error').css('display', 'none'); // Hide error message if a valid contact point is selected
-        }
-    });
-
-    // Hide the error message if a contact point is selected again
-    $('#contact-points-dropdown').on('click', function () {
-        if ($('#contact-point-error').css('display') === 'inline-block') {
-            $('#contact-point-error').css('display', 'none');
-        }
-    });
+    handleFormValidationTooltip();
 
     $('#evaluate-for').tooltip({
         title: 'Evaluate For must be greater than or equal to Evaluate Interval',
@@ -211,6 +200,10 @@ $(document).ready(async function () {
 
     $('#evaluate-every').on('input', function () {
         checkEvaluateConditions();
+    });
+
+    $('#all-alerts-text').click(function () {
+        window.location.href = '../all-alerts.html';
     });
 });
 
@@ -426,10 +419,6 @@ function createNewAlertRule(alertData) {
             window.location.href = '../all-alerts.html';
         })
         .catch((err) => {
-            $('#metric-error').css('display', 'inline-block');
-            setTimeout(function () {
-                $('#metric-error').css('display', 'none');
-            }, 3000);
             showToast(err.responseJSON.error, 'error');
         });
 }
@@ -526,7 +515,7 @@ async function displayAlert(res) {
 
     if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         alertData.alert_id = res.alert_id;
-        $('.rulename').text(res.alert_name).css('display', 'block');
+        $('#alert-name').empty().text(res.alert_name);
     }
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
@@ -896,4 +885,66 @@ function alertChart(res) {
             myChart.resize();
         });
     }
+}
+
+function handleFormValidationTooltip() {
+    const metricError = $('<div id="metric-error" class="require-field-tooltip">Please select a metric.</div>');
+    $('.metrics-query .query-box .query-builder').append(metricError);
+
+    $('#save-alert-btn').on('click', function (event) {
+        let dataSource = $('#alert-data-source span').text();
+        let isLogsCodeMode = $('#custom-code-tab').tabs('option', 'active');
+        let isMetricsCodeMode = $('.raw-query-input').is(':visible');
+        if (dataSource === 'Logs' && !isLogsCodeMode) {
+            if (thirdBoxSet.size === 0 && secondBoxSet.size === 0 && firstBoxSet.size === 0) {
+                $('#logs-error').css('display', 'inline-block');
+                $('#metric-error').removeClass('visible');
+                $('#contact-point-error').css('display', 'none');
+                document.getElementById('logs-error').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+                event.preventDefault();
+                return;
+            }
+        } else if (dataSource === 'Metrics' && !isMetricsCodeMode) {
+            // First, check if the metric input is empty
+            if ($('#select-metric-input').val().trim() === '') {
+                $('#metric-error').css('display', 'inline-block');
+                $('#contact-point-error').css('display', 'none');
+                document.getElementById('select-metric-input').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+                event.preventDefault();
+                return;
+            }
+        }
+
+        // If metric input is not empty, check the contact point
+        if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
+            event.preventDefault(); // Prevent form submission
+            $('#contact-point-error').css('display', 'inline-block');
+            document.getElementById('contact-points-dropdown').scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+            return;
+        }
+
+        // If both metric input and contact point are valid, form submission will continue
+        // The browser will handle required fields with default tooltips
+    });
+
+    $('#select-metric-input').on('focus', function () {
+        $('#metric-error').css('display', 'none');
+    });
+
+    $(document).on('click', function (event) {
+        if (!$(event.target).closest('#select-metric-input, #save-alert-btn').length) {
+            $('#metric-error').css('display', 'none');
+            $('#logs-error').css('display', 'none');
+            $('#contact-point-error').css('display', 'none');
+        }
+    });
 }
