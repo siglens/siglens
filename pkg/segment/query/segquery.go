@@ -164,18 +164,20 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 		}
 	}
 
-	err := setTotalSegmentsToSearch(qid, 1)
-	if err != nil {
-		log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
-	}
-	SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
-	err = SetRawSearchFinished(qid)
-	if err != nil {
-		log.Errorf("qid=%d, Failed to set raw search finished! Error: %v", qid, err)
-	}
+	if aggs.HasGeneratedEventsWithNoSearch() {
+		err := setTotalSegmentsToSearch(qid, 1)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
+		}
+		SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
+		err = SetRawSearchFinished(qid)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to set raw search finished! Error: %v", qid, err)
+		}
 
-	// Call this to for processQueryUpdate to be called
-	IncrementNumFinishedSegments(1, qid, uint64(len(aggs.GenerateEvent.GeneratedRecords)), 0, "", false, nil)
+		// Call this to for processQueryUpdate to be called
+		IncrementNumFinishedSegments(1, qid, uint64(len(aggs.GenerateEvent.GeneratedRecords)), 0, "", false, nil)
+	}
 
 	return nodeRes
 }
@@ -243,10 +245,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 				bucketLimit = aggs.BucketLimit
 			}
 			aggs.BucketLimit = bucketLimit
-			if aggs.GenerateEvent != nil {
-				res := GenerateEvents(aggs, qid)
+			if aggs.HasGenerateEvent() {
+				nodeRes := GenerateEvents(aggs, qid)
 				if aggs.HasGeneratedEventsWithNoSearch() {
-					return res
+					return nodeRes
 				}
 			}
 		} else {

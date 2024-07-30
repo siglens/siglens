@@ -769,7 +769,7 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 			return false, fmt.Errorf("BoolExpr.Evaluate: left and right ValueExpr have different types")
 		}
 	} else { // IsTerminal is false
-		left, err := self.LeftBool.Evaluate(fieldToValue)
+		left, err := self.LeftBool.EvaluateForInputLookup(fieldToValue)
 		if err != nil {
 			return false, err
 		}
@@ -777,7 +777,7 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 		var right bool
 		if self.RightBool != nil {
 			var err error
-			right, err = self.RightBool.Evaluate(fieldToValue)
+			right, err = self.RightBool.EvaluateForInputLookup(fieldToValue)
 			if err != nil {
 				return false, err
 			}

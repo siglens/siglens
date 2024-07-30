@@ -178,7 +178,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 	switch agg.PipeCommandType {
 	case structs.GenerateEventType:
-		return performGenEvent(agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		return performGenEvent(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -261,7 +261,7 @@ func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal m
 	return currentOrder, nil
 }
 
-func performGenEvent(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+func performGenEvent(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	if agg.GenerateEvent == nil {
 		return nil
 	}
@@ -269,7 +269,7 @@ func performGenEvent(agg *structs.QueryAggregators, recs map[string]map[string]i
 		return performGenTimes(agg, recs, recordIndexInFinal, finalCols)
 	}
 	if agg.GenerateEvent.InputLookup != nil {
-		return performInputLookup(agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		return performInputLookup(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 	}
 
 	return nil
@@ -303,13 +303,27 @@ func performGenTimes(agg *structs.QueryAggregators, recs map[string]map[string]i
 	return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
 }
 
-func performInputLookup(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	if agg.GenerateEvent.InputLookup == nil {
 		return nil
 	}
+
+	if agg.GenerateEvent.GeneratedRecords == nil {
+		err := PerformInputLookup(agg)
+		if err != nil {
+			return fmt.Errorf("performInputLookup: %v", err)
+		}
+	}
+
+	if nodeResult.Histogram != nil {
+		return performInputLookupOnHistogram(nodeResult, agg)
+	}
+	// inputLookup for measure results is not supported
+
 	if recs == nil {
 		return nil
 	}
+
 	if !agg.GenerateEvent.InputLookup.HasPrevResults {
 		return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
 	}
@@ -341,6 +355,41 @@ func performInputLookup(agg *structs.QueryAggregators, recs map[string]map[strin
 
 	if finishesSegment {
 		agg.GenerateEvent.InputLookup.NumProcessedSegments++
+	}
+
+	return nil
+}
+
+func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.QueryAggregators) error {
+	for _, aggregationResult := range nodeResult.Histogram {
+		orderedRecs, err := GetOrderedRecs(agg.GenerateEvent.GeneratedRecords, agg.GenerateEvent.GeneratedRecordsIndex)
+		if err != nil {
+			return fmt.Errorf("performInputLookupOnMeasureResults: %v", err)
+		}
+
+		for _, recordKey := range orderedRecs {
+			record, exists := agg.GenerateEvent.GeneratedRecords[recordKey]
+			if !exists {
+				return fmt.Errorf("performInputLookupOnMeasureResults: Record not found for recordKey: %v", recordKey)
+			}
+
+			statRes := make(map[string]segutils.CValueEnclosure, 0)
+
+			for col, recordValue := range record {
+				statRes[col] = segutils.CValueEnclosure{
+					Dtype: segutils.SS_DT_STRING,
+					CVal:  fmt.Sprintf("%v", recordValue),
+				}
+			}
+
+			// Add the record to the measure results.
+			bucketRes := &structs.BucketResult{
+				StatRes: statRes,
+			}
+
+			aggregationResult.Results = append(aggregationResult.Results, bucketRes)
+		}
+		break
 	}
 
 	return nil

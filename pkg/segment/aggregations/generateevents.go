@@ -38,6 +38,9 @@ func InitGenEvent(aggs *structs.QueryAggregators) {
 	if aggs.GenerateEvent.GeneratedColsIndex == nil {
 		aggs.GenerateEvent.GeneratedColsIndex = make(map[string]int)
 	}
+	if aggs.GenerateEvent.GeneratedCols == nil {
+		aggs.GenerateEvent.GeneratedCols = make(map[string]bool)
+	}
 }
 
 func PerformGenTimes(aggs *structs.QueryAggregators) error {
