@@ -142,7 +142,7 @@ func updatePositionForGenEvents(aggs *QueryAggregators) {
 	node := aggs
 	position := 1
 	for node != nil {
-		if node.PipeCommandType == GenerateEventType {
+		if node.GenerateEvent != nil {
 			node.GenerateEvent.EventPosition = position
 			position++
 		}
