@@ -400,7 +400,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			numProcessedRecords = 1
 		}
 	} else {
-		if len(segmap) == 0 && (len(nodeRes.FinalColumns) > 0 || aggs.HasGeneratedEventsWithNoSearch()) {
+		if len(segmap) == 0 && (len(nodeRes.FinalColumns) > 0 || aggs.HasGeneratedEventsWithoutSearch()) {
 			// Even if there are no segments, we still need to call processSingleSegment
 			// so that we can do processing of any Aggregations that wait for all segments to be processed.
 			processSingleSegment("", "", nil, true)

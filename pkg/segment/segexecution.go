@@ -486,7 +486,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	}
 	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
-	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGeneratedEventsWithNoSearch()) {
+	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGeneratedEventsWithoutSearch()) {
 		err := query.SetFinalStatsForQid(qid, nodeRes)
 		if err != nil {
 			log.Errorf("executeQueryInternal: failed to set final stats: %v", err)

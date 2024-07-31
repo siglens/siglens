@@ -711,7 +711,7 @@ func (qa *QueryAggregators) HasGenerateEvent() bool {
 	return qa.GenerateEvent != nil
 }
 
-func (qa *QueryAggregators) HasGeneratedEventsWithNoSearch() bool {
+func (qa *QueryAggregators) HasGeneratedEventsWithoutSearch() bool {
 	if qa == nil || qa.GenerateEvent == nil {
 		return false
 	}

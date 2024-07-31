@@ -286,7 +286,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
 	queryC := query.GetQueryCountInfoForQid(qid)
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
-	if aggs.HasGeneratedEventsWithNoSearch() {
+	if aggs.HasGeneratedEventsWithoutSearch() {
 		queryC.TotalCount = uint64(len(aggs.GenerateEvent.GeneratedRecords))
 	}
 	if err != nil {

@@ -164,7 +164,7 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 		}
 	}
 
-	if aggs.HasGeneratedEventsWithNoSearch() {
+	if aggs.HasGeneratedEventsWithoutSearch() {
 		err := setTotalSegmentsToSearch(qid, 1)
 		if err != nil {
 			log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
@@ -247,7 +247,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 			aggs.BucketLimit = bucketLimit
 			if aggs.HasGenerateEvent() {
 				nodeRes := GenerateEvents(aggs, qid)
-				if aggs.HasGeneratedEventsWithNoSearch() {
+				if aggs.HasGeneratedEventsWithoutSearch() {
 					return nodeRes
 				}
 			}

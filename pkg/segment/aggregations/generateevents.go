@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
@@ -127,10 +128,9 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 	if err != nil {
 		return fmt.Errorf("PerformInputLookup: Error while getting current working directory, err: %v", err)
 	}
-	filepath := workingDir + "/lookups/" + filename
+	filepath := workingDir + "/" + config.GetLookupPath() + filename
 
 	file, err := os.Open(filepath)
-	_ = file
 	if err != nil {
 		return fmt.Errorf("PerformInputLookup: Error while opening file %v, err: %v", filepath, err)
 	}

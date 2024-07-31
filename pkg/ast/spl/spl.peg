@@ -5321,6 +5321,9 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
         inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
     }
     inputLookup.Filename = removeQuotes(filename.(string))
+    if inputLookup.Max == 0 {
+        inputLookup.Max = 1000000000
+    }
 
     return &structs.QueryAggregators{
         PipeCommandType: structs.GenerateEventType,
@@ -5334,6 +5337,9 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
     inputLookup.Filename = removeQuotes(filename.(string))
     if whereClause != nil {
         inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
+    }
+    if inputLookup.Max == 0 {
+        inputLookup.Max = 1000000000
     }
 
     return &structs.QueryAggregators{
