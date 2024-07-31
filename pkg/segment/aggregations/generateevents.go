@@ -78,7 +78,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	currTime := time.UnixMilli(int64(start))
 
 	for start < end {
-		recordKey := fmt.Sprintf("%v", key)
+		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
 
 		endTime, err := utils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
 		if err != nil {
@@ -172,7 +172,7 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 	count := 0
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	for count < int(aggs.GenerateEvent.InputLookup.Max) {
-		recordKey := fmt.Sprintf("key: %v", key)
+		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
 		csvRecord, err := reader.Read()
 		if err != nil {
 			// Check if we've reached the end of the file

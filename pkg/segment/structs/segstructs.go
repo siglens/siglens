@@ -173,6 +173,7 @@ type GenerateEvent struct {
 	GeneratedRecordsIndex map[string]int
 	GeneratedCols         map[string]bool
 	GeneratedColsIndex    map[string]int
+	EventPosition         int
 }
 
 type GenTimes struct {
