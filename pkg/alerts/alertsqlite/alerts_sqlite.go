@@ -656,10 +656,10 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 }
 
 // update last_sent_time and last_alert_state in notification_details table
-func updateLastSentTimeAndAlertState(tx *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
+func updateLastSentTimeAndAlertState(db *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
 
-	err := tx.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
+	err := db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"last_sent_time":   currentTime,
 			"last_alert_state": alertState,
@@ -673,8 +673,8 @@ func updateLastSentTimeAndAlertState(tx *gorm.DB, alert_id string, alertState al
 	return nil
 }
 
-func updateAlertStateAndIncrementNumEvaluations(tx *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
-	err := tx.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
+func updateAlertStateAndIncrementNumEvaluations(db *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
+	err := db.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"state":                 alertState,
 			"num_evaluations_count": gorm.Expr("num_evaluations_count + ?", 1),
