@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/valyala/fasthttp"
 )
 
 // used only by tests to reset tracked info
@@ -384,4 +385,110 @@ func Test_PostPqsClear(t *testing.T) {
 	clearPqsSummary = getPQSSummary()
 	assert.NotNil(t, clearPqsSummary)
 	assert.Equal(t, expected, clearPqsSummary, "the pqsinfo was supposed to be cleared")
+}
+
+func Test_fillAggPQS_ReturnsErrorWhenAggsAreEmpty(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	err := fillAggPQS(&ctx, "id")
+	assert.EqualError(t, err, "pqid id does not exist in aggs")
+}
+
+func Test_getAggPQSById(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	var st uint64 = 3
+	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: st}}
+	pqid := GetHashForAggs(qa)
+	tableName := []string{"test-1"}
+	assert.NotNil(t, tableName)
+	UpdateQTUsage(tableName, nil, qa)
+
+	aggPQS, err := getAggPQSById(pqid)
+	assert.Nil(t, err)
+	assert.Equal(t, pqid, aggPQS["pqid"])
+	assert.Equal(t, uint32(1), aggPQS["total_usage"])
+	restored_aggs := aggPQS["search_aggs"].(map[string]interface{})
+	restored_th := restored_aggs["TimeHistogram"].(map[string]interface{})
+	assert.Equal(t, float64(st), restored_th["StartTime"])
+}
+
+func Test_processPostAggs_NoErrorWhenEmptySliceOfStrings(t *testing.T) {
+	inputValueParam := []interface{}{}
+	_, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+}
+
+func Test_processPostAggs_NoErrorWhenSliceOfStrings(t *testing.T) {
+	key := "new_column"
+	inputValueParam := []interface{}{key}
+	got, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+	assert.Len(t, got, 1)
+	assert.True(t, got[key])
+}
+
+func Test_processPostAggs_ErrorWhenSliceOfNotStrings(t *testing.T) {
+	inputValueParam := []interface{}{1, 2, 8}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
+}
+
+func Test_processPostAggs_ErrorWhenNotSlice(t *testing.T) {
+	inputValueParam := map[int]string{}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
+}
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsntString(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": 1,
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[tableName] with value of type [int]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsWildcard(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": "*",
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: tableName can not be *")
+}
+
+func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
+	json := map[string]interface{}{
+		"groupByColumns": []interface{}{"col1", "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
+}
+
+func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{"col1", "col2"},
+		"measureColumns": []interface{}{"col1", "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.Nil(t, err)
+}
+
+func Test_parsePostPqsAggBody_ErrIfColsAreSlicesOfNotInterfaces(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []string{"col1", "col2"}, // should be []interfaces
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[groupByColumns] with value of type [[]string]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfColsAreNotSlicesOfStrings(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{1, "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "processPostAggs type = int not accepted")
 }
