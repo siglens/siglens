@@ -40,6 +40,7 @@ type Sqlite struct {
 }
 
 const maxRetries = 5
+const baseRetryDelay = 50 * time.Millisecond
 
 func (p *Sqlite) SetDB(dbConnection *gorm.DB) {
 	p.db = dbConnection
@@ -125,7 +126,7 @@ func retry(operation func(attemptCount int) error) error {
 		}
 		if strings.Contains(err.Error(), "database is locked") {
 			log.Warnf("retry: database is locked, retrying attempt %d. Error=%v", i+1, err)
-			time.Sleep(time.Duration(math.Pow(2, float64(i))) * time.Millisecond * 50)
+			time.Sleep(time.Duration(math.Pow(2, float64(i))) * baseRetryDelay)
 			continue
 		}
 		return err
@@ -658,11 +659,13 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 func updateLastSentTimeAndAlertState(tx *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
 
-	if err := tx.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
+	err := tx.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"last_sent_time":   currentTime,
 			"last_alert_state": alertState,
-		}).Error; err != nil {
+		}).Error
+
+	if err != nil {
 		err = fmt.Errorf("UpdateLastSentTimeAndAlertState: unable to update, AlertId=%v, Error=%+v", alert_id, err)
 		return err
 	}
@@ -671,11 +674,13 @@ func updateLastSentTimeAndAlertState(tx *gorm.DB, alert_id string, alertState al
 }
 
 func updateAlertStateAndIncrementNumEvaluations(tx *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
-	if err := tx.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
+	err := tx.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"state":                 alertState,
 			"num_evaluations_count": gorm.Expr("num_evaluations_count + ?", 1),
-		}).Error; err != nil {
+		}).Error
+
+	if err != nil {
 		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to update alert state and increment evaluations count with AlertId=%v, Error=%+v", alert_id, err)
 		return err
 	}
