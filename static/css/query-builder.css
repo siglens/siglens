@@ -533,6 +533,14 @@ textarea.form-control#filter-input{
     padding-top: 4px;
     background-color: var(--top-bar-bg-color-regular);
     color: var(--text-color) !important;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1; 
+    width: 100%;
+    height: 32px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s ease-in-out;
 }
 textarea.form-control:focus{
     box-shadow: none;
@@ -540,7 +548,11 @@ textarea.form-control:focus{
     border-bottom: 2px solid var(--purple-2) !important;
 }
 #filter-input.form-control.expanded, textarea.form-control.expanded {
+    -webkit-line-clamp: unset;
+    height: auto;
+    max-height: none;
     white-space: pre-wrap;
+    overflow: hidden;
 }
 .ui-widget{
     height: auto;

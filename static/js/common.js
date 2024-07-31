@@ -955,36 +955,64 @@ function initializeFilterInputEvents() {
         this.style.height = '32px';
     });
 
-    $('#filter-input').on('input', autoResizeTextarea);
     $('#filter-input').on('input', function () {
+        autoResizeTextarea.call(this);
         toggleClearButtonVisibility();
     });
+
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
     });
-    $('#filter-input').keydown(function (e) {
-        if (e.key === '|') {
-            let input = $(this);
-            let value = input.val();
-            let position = this.selectionStart;
-            input.val(value.substring(0, position) + '\n' + value.substring(position));
-            this.selectionStart = this.selectionEnd = position + 2;
-        }
-        toggleClearButtonVisibility();
-    });
-    document.getElementById('filter-input').addEventListener('paste', function (event) {
-        event.preventDefault();
-        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea.call(this);
-        toggleClearButtonVisibility();
-    });
 }
+
+function toggleClearButtonVisibility() {
+    if ($('#filter-input').val()) {
+        $('#clearInput').show();
+    } else {
+        $('#clearInput').hide();
+    }
+}
+
+$(document).ready(function () {
+    initializeFilterInputEvents();
+});
+
+
+function toggleClearButtonVisibility() {
+    if ($('#filter-input').val()) {
+        $('#clearInput').show();
+    } else {
+        $('#clearInput').hide();
+    }
+}
+
+$(document).ready(function () {
+    initializeFilterInputEvents();
+});
+
+
+function toggleClearButtonVisibility() {
+    if ($('#filter-input').val()) {
+        $('#clearInput').show();
+    } else {
+        $('#clearInput').hide();
+    }
+}
+
+$(document).ready(function () {
+    initializeFilterInputEvents();
+});
+
+
+function toggleClearButtonVisibility() {
+    if ($('#filter-input').val()) {
+        $('#clearInput').show();
+    } else {
+        $('#clearInput').hide();
+    }
+}
+
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {
