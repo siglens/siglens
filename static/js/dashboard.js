@@ -963,7 +963,6 @@ function addPanel(chartIndex) {
 
     editPanelInit(panelIndex);
     $('.panelEditor-container').css('display', 'flex');
-    $('.popupOverlay').addClass('active');
 
     handlePanelEdit();
     handlePanelRemove(idpanel);
@@ -1044,7 +1043,6 @@ function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
         $('#app-container').hide();
-        $('.popupOverlay').removeClass('active');
         editPanelFlag = true;
     } else {
         $('#app-container').hide();
