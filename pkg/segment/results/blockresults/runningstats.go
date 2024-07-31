@@ -278,44 +278,6 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e ut
 	return nil
 }
 
-func GetMinMaxString(str1 string, str2 string, isMin bool) string {
-	if isMin {
-		if str1 < str2 {
-			return str1
-		}
-		return str2
-	} else {
-		if str1 > str2 {
-			return str1
-		}
-		return str2
-	}
-}
-
-func ReduceMinMax(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
-	if e1.Dtype == e2.Dtype {
-		if e1.Dtype == utils.SS_DT_FLOAT {
-			if isMin {
-				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			} else {
-				return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			}
-		} else if e1.Dtype == utils.SS_DT_STRING {
-			return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
-		} else {
-			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtypes: %v, %v", e1.Dtype, e2.Dtype)
-		}
-	} else {
-		if e1.Dtype == utils.SS_DT_FLOAT {
-			return e1, nil
-		} else if e2.Dtype == utils.SS_DT_FLOAT {
-			return e2, nil
-		} else {
-			return utils.CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
-		}
-	}
-}
-
 func ReduceForEval(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, fun utils.AggregateFunctions) (utils.CValueEnclosure, error) {
 	if e1.Dtype == utils.SS_INVALID {
 		return e2, nil
@@ -330,9 +292,9 @@ func ReduceForEval(e1 utils.CValueEnclosure, e2 utils.CValueEnclosure, fun utils
 		}
 		return utils.CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
 	case utils.Min:
-		return ReduceMinMax(e1, e2, true)
+		return utils.ReduceMinMax(e1, e2, true)
 	case utils.Max:
-		return ReduceMinMax(e1, e2, false)
+		return utils.ReduceMinMax(e1, e2, false)
 	case utils.Count:
 		if e1.Dtype != e2.Dtype || e1.Dtype != utils.SS_DT_FLOAT {
 			return e1, fmt.Errorf("ReduceForEval: unsupported CVal Dtype: %v", e1.Dtype)

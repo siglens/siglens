@@ -202,3 +202,41 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 	}
 	return fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
 }
+
+func GetMinMaxString(str1 string, str2 string, isMin bool) string {
+	if isMin {
+		if str1 < str2 {
+			return str1
+		}
+		return str2
+	} else {
+		if str1 > str2 {
+			return str1
+		}
+		return str2
+	}
+}
+
+func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnclosure, error) {
+	if e1.Dtype == e2.Dtype {
+		if e1.Dtype == SS_DT_FLOAT {
+			if isMin {
+				return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			} else {
+				return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			}
+		} else if e1.Dtype == SS_DT_STRING {
+			return CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
+		} else {
+			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtypes: %v, %v", e1.Dtype, e2.Dtype)
+		}
+	} else {
+		if e1.Dtype == SS_DT_FLOAT {
+			return e1, nil
+		} else if e2.Dtype == SS_DT_FLOAT {
+			return e2, nil
+		} else {
+			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
+		}
+	}
+}

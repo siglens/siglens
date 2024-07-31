@@ -275,7 +275,7 @@ func performGenEvent(nodeResult *structs.NodeResult, agg *structs.QueryAggregato
 	return nil
 }
 
-func PopulateGeneratedRecords(genEvent *structs.GenerateEvent, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool) error {
+func PopulateGeneratedRecords(genEvent *structs.GenerateEvent, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, offset int) error {
 	for cols := range genEvent.GeneratedCols {
 		finalCols[cols] = true
 	}
@@ -286,7 +286,7 @@ func PopulateGeneratedRecords(genEvent *structs.GenerateEvent, recs map[string]m
 			return fmt.Errorf("PopulateGeneratedRecords: Record not found for recordKey: %v", recordKey)
 		}
 		recs[recordKey] = record
-		recordIndexInFinal[recordKey] = recIndex
+		recordIndexInFinal[recordKey] = offset + recIndex
 	}
 
 	return nil
@@ -300,7 +300,7 @@ func performGenTimes(agg *structs.QueryAggregators, recs map[string]map[string]i
 		return nil
 	}
 
-	return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
+	return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, 0)
 }
 
 func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
@@ -325,14 +325,7 @@ func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 
 	if !agg.GenerateEvent.InputLookup.HasPrevResults {
-		return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols)
-	}
-
-	for col := range agg.GenerateEvent.GeneratedCols {
-		_, exists := finalCols[col]
-		if !exists {
-			finalCols[col] = true
-		}
+		return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, 0)
 	}
 
 	// When the first block of the last segment arrives update the records and record index once
@@ -345,10 +338,11 @@ func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 		offset++
 
-		for genRecKey, genRecIndex := range agg.GenerateEvent.GeneratedRecordsIndex {
-			recs[genRecKey] = agg.GenerateEvent.GeneratedRecords[genRecKey]
-			recordIndexInFinal[genRecKey] = offset + genRecIndex
+		err := PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, offset)
+		if err != nil {
+			return fmt.Errorf("performInputLookup: Error while populating generated records, err: %v", err)
 		}
+
 		agg.GenerateEvent.InputLookup.UpdatedRecordIndex = true
 	}
 
@@ -2050,7 +2044,9 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 	mvColReq := letColReq.MultiValueColRequest
 
-	for _, rec := range recs {
+	newRecs := make(map[string]map[string]interface{})
+
+	for key, rec := range recs {
 		fieldValue, ok := rec[mvColReq.ColName]
 		if !ok {
 			continue
@@ -2065,12 +2061,47 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 		case "makemv":
 			finalValue := performMakeMV(fieldValueStr, mvColReq)
 			rec[mvColReq.ColName] = finalValue
+		case "mvexpand":
+			expandedRecs := performMVExpand(fieldValue)
+
+			// Apply limit if mvColReq.Limit is greater than 0
+			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
+				expandedRecs = expandedRecs[:mvColReq.Limit]
+			}
+			delete(recs, key)
+			for i, expandedValue := range expandedRecs {
+				newRec := make(map[string]interface{})
+				for k, v := range rec {
+					newRec[k] = v
+				}
+				newRec[mvColReq.ColName] = expandedValue
+				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
+			}
 		default:
 			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
 		}
 	}
-
+	if mvColReq.Command == "mvexpand" {
+		for k, v := range newRecs {
+			recs[k] = v
+		}
+	}
 	return nil
+}
+
+func performMVExpand(fieldValue interface{}) []interface{} {
+	var values []interface{}
+
+	isArrayOrSlice, v, _ := utils.IsArrayOrSlice(fieldValue)
+	if !isArrayOrSlice {
+		return nil
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		values = append(values, v.Index(i).Interface())
+	}
+
+	return values
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
