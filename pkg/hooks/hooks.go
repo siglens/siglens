@@ -125,6 +125,7 @@ type HtmlSnippets struct {
 	OrgSettingsExtras          string
 	OrgSLOs                    string
 	SLOCss                     string
+	EnterpriseEnabled          bool
 	Constants                  map[string]interface{}
 }
 
