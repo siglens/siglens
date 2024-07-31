@@ -369,7 +369,6 @@ function drawTotalStatsChart(res) {
             TotalVolumeChartMetrics = renderTotalCharts('Metrics', totalIncomingVolumeMetrics, totalStorageUsedMetrics);
         } else if (key === 'traceStats') {
             _.forEach(mvalue, (v, k) => {
-                console.log(v, k);
                 if (k === 'Trace Storage Saved') {
                     traceStorageSaved = v;
                 } else if (k === 'Total Trace Volume') {
