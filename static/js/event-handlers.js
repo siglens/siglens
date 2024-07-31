@@ -435,20 +435,6 @@ function runLiveTailBtnHandler(evt) {
 }
 
 function runFilterBtnHandler(evt) {
-    const runFilterBtn = $('#run-filter-btn');
-    const queryBuilderBtn = $('#query-builder-btn');
-
-    if (runFilterBtn.hasClass('cancel-search') || queryBuilderBtn.hasClass('cancel-search')) {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.close(1000); // Close WebSocket connection
-        }
-        wsState = 'cancel';
-        data = getSearchFilter(false, false);
-        initialSearchData = data;
-        doCancel(data);
-        return;
-    }
-
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
@@ -461,7 +447,14 @@ function runFilterBtnHandler(evt) {
         // index.html
         $('.popover').hide();
         evt.preventDefault();
-        if ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ') {
+        const runFilterBtn = $('#run-filter-btn');
+        const queryBuilderBtn = $('#query-builder-btn');
+        if (runFilterBtn.hasClass('cancel-search') || queryBuilderBtn.hasClass('cancel-search')) {
+            wsState = 'cancel';
+            data = getSearchFilter(false, false);
+            initialSearchData = data;
+            doCancel(data);
+        }else{
             resetDashboard();
             logsRowData = [];
             wsState = 'query';
@@ -469,11 +462,6 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             availColNames = [];
             doSearch(data);
-        } else {
-            wsState = 'cancel';
-            data = getSearchFilter(false, false);
-            initialSearchData = data;
-            doCancel(data);
         }
         $('#daterangepicker').hide();
     }
