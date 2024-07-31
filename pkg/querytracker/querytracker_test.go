@@ -492,3 +492,35 @@ func Test_parsePostPqsAggBody_ErrIfColsAreNotSlicesOfStrings(t *testing.T) {
 	err := parsePostPqsAggBody(json)
 	assert.EqualError(t, err, "processPostAggs type = int not accepted")
 }
+
+func Test_GetPQSById_400IfPQDoesNotExist(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	ctx.SetUserValue("pqid", 1)
+	GetPQSById(&ctx)
+	assert.Equal(t, 400, ctx.Response.Header.StatusCode())
+}
+
+func Test_GetPQSById_400IfPQIsNotSpecified(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	GetPQSById(&ctx)
+	assert.Equal(t, 400, ctx.Response.Header.StatusCode())
+}
+
+func Test_GetPQSById_200IfPQIsSpecified(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: 3}}
+	pqid := GetHashForAggs(qa)
+	tableName := []string{"test-1"}
+	UpdateQTUsage(tableName, nil, qa)
+
+	ctx := fasthttp.RequestCtx{}
+	ctx.SetUserValue("pqid", pqid)
+
+	GetPQSById(&ctx)
+	assert.Equal(t, 200, ctx.Response.Header.StatusCode())
+}
