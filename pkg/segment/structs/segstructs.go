@@ -199,7 +199,7 @@ type StreamStatsOptions struct {
 
 type RunningStreamStatsResults struct {
 	Window              *sutils.GobbableList
-	CurrResult          float64
+	CurrResult          utils.CValueEnclosure
 	NumProcessedRecords uint64               // kept for global stats where window = 0
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
@@ -210,7 +210,7 @@ type RunningStreamStatsResults struct {
 
 type RunningStreamStatsWindowElement struct {
 	Index       int
-	Value       interface{}
+	Value       utils.CValueEnclosure
 	TimeInMilli uint64
 }
 
