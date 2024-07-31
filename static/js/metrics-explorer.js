@@ -1653,7 +1653,7 @@ function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     if (isDashboardScreen) {
         // For dashboard page
-        if(currentPanel){
+        if (currentPanel) {
             const data = getMetricsQData();
             currentPanel.queryData = data;
         }
