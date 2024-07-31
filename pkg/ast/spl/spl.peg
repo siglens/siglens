@@ -5221,10 +5221,6 @@ MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
     return intValue, nil
 }
 
-WhereClause <- CMD_WHERE condition:BoolExpr {
-    return condition.(*structs.BoolExpr), nil
-}
-
 OptionalWhereClause <- SPACE CMD_WHERE condition:BoolExpr {
     return condition.(*structs.BoolExpr), nil
 }

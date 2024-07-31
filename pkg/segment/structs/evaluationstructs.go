@@ -712,6 +712,11 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	}
 }
 
+// This evaluation is specific for inputlookup command.
+// Only =, != , <, >, <=, >= operators are supported for strings and numbers.
+// Strings and numbers are compared as strings.
+// Strings are compared lexicographically and are case-insensitive.
+// Wildcards can be used to match a string with a pattern.
 func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
 	if self.IsTerminal {
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -734,7 +739,7 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 			case ">=":
 				return leftFloat >= rightFloat, nil
 			default:
-				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for floats", self.ValueOp)
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid ValueOp %v for floats", self.ValueOp)
 			}
 		} else if errLeftStr == nil && errRightStr == nil {
 			leftStr = strings.ToLower(leftStr)
@@ -749,24 +754,24 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 			case "!=":
 				return !match, nil
 			case "<":
-				return leftStr < rightStr, nil
+				return (leftStr < rightStr && !match), nil
 			case ">":
-				return leftStr > rightStr, nil
+				return (leftStr > rightStr && !match), nil
 			case "<=":
 				return (leftStr <= rightStr || match), nil
 			case ">=":
 				return (leftStr >= rightStr || match), nil
 			default:
-				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid ValueOp %v for strings", self.ValueOp)
 			}
 		} else {
 			if errLeftStr != nil && errLeftFloat != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: left cannot be evaluated to a string or float")
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left cannot be evaluated to a string or float")
 			}
 			if errRightStr != nil && errRightFloat != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: right cannot be evaluated to a string or float")
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: right cannot be evaluated to a string or float")
 			}
-			return false, fmt.Errorf("BoolExpr.Evaluate: left and right ValueExpr have different types")
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left and right ValueExpr have different types")
 		}
 	} else { // IsTerminal is false
 		left, err := self.LeftBool.EvaluateForInputLookup(fieldToValue)
@@ -791,7 +796,7 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 		case BoolOpOr:
 			return left || right, nil
 		default:
-			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid BoolOp: %v", self.BoolOp)
 		}
 	}
 }

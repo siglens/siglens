@@ -311,7 +311,7 @@ func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	if agg.GenerateEvent.GeneratedRecords == nil {
 		err := PerformInputLookup(agg)
 		if err != nil {
-			return fmt.Errorf("performInputLookup: %v", err)
+			return fmt.Errorf("performInputLookup: Error while performing input lookup, err: %v", err)
 		}
 	}
 
@@ -346,9 +346,8 @@ func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		offset++
 
 		for genRecKey, genRecIndex := range agg.GenerateEvent.GeneratedRecordsIndex {
-			finalIndex := offset + genRecIndex
 			recs[genRecKey] = agg.GenerateEvent.GeneratedRecords[genRecKey]
-			recordIndexInFinal[genRecKey] = finalIndex
+			recordIndexInFinal[genRecKey] = offset + genRecIndex
 		}
 		agg.GenerateEvent.InputLookup.UpdatedRecordIndex = true
 	}
@@ -364,13 +363,13 @@ func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.
 	for _, aggregationResult := range nodeResult.Histogram {
 		orderedRecs, err := GetOrderedRecs(agg.GenerateEvent.GeneratedRecords, agg.GenerateEvent.GeneratedRecordsIndex)
 		if err != nil {
-			return fmt.Errorf("performInputLookupOnMeasureResults: %v", err)
+			return fmt.Errorf("performInputLookupOnHistogram: Error while getting generated records order, err: %v", err)
 		}
 
 		for _, recordKey := range orderedRecs {
 			record, exists := agg.GenerateEvent.GeneratedRecords[recordKey]
 			if !exists {
-				return fmt.Errorf("performInputLookupOnMeasureResults: Record not found for recordKey: %v", recordKey)
+				return fmt.Errorf("performInputLookupOnHistogram: Generated record not found for recordKey: %v", recordKey)
 			}
 
 			statRes := make(map[string]segutils.CValueEnclosure, 0)
@@ -381,8 +380,7 @@ func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.
 					CVal:  fmt.Sprintf("%v", recordValue),
 				}
 			}
-
-			// Add the record to the measure results.
+			// Add the record as bucket result to aggregation results
 			bucketRes := &structs.BucketResult{
 				StatRes: statRes,
 			}
