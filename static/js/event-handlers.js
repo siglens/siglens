@@ -454,7 +454,7 @@ function runFilterBtnHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             doCancel(data);
-        }else{
+        } else {
             resetDashboard();
             logsRowData = [];
             wsState = 'query';
