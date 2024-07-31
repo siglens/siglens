@@ -540,6 +540,31 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 	return retVal, totalChecked, totalCount
 }
 
+func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) map[string]bool {
+	allColumns := make(map[string]bool)
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+	for _, usi := range AllUnrotatedSegmentInfo {
+		var foundIndex bool
+		for _, idxName := range indexNames {
+			if idxName == usi.TableName {
+				foundIndex = true
+				break
+			}
+		}
+		if !foundIndex {
+			continue
+		}
+		if !timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) || usi.orgid != orgid {
+			continue
+		}
+		for col := range usi.allColumns {
+			allColumns[col] = true
+		}
+	}
+	return allColumns
+}
+
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()

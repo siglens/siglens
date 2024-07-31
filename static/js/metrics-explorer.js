@@ -472,6 +472,10 @@ function validateFormula(formula, uniqueId) {
             return false; // Todo: if only numeric value is present in formula
         }
     }
+    if (!usedQueryNames.length) {
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue)) usedQueryNames = queryNames;
+    }
 
     // Nest the formula within the functions present in formulaDetails.functions
     let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
@@ -534,7 +538,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"> </button>
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -741,6 +745,15 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
         queryDetails.functions = previousQuery.functions.slice();
+        if (previousQuery.state === 'raw') {
+            queryDetails.state = previousQuery.state;
+            queryDetails.rawQueryInput = previousQuery.rawQueryInput;
+            queryDetails.rawQueryExecuted = previousQuery.rawQueryExecuted;
+        }
+    }
+
+    if (queryDetails.rawQueryExecuted && queryDetails.rawQueryInput) {
+        getQueryDetails(queryName, queryDetails);
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
@@ -1672,25 +1685,31 @@ function mergeGraphs(chartType, panelId = -1) {
         datasets: [],
     };
     var graphNames = [];
+    let colorIndex = 0;
 
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`Metrics query - ${queryName}`);
-            datasets.forEach(function (dataset) {
+            graphNames.push(`${datasets[0]?.label}`);
+
+            datasets.forEach(function (dataset, datasetIndex) {
+                // Calculate color for the dataset
+                let datasetColor = classic[(colorIndex + datasetIndex) % classic.length];
+
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
-                    borderColor: dataset.borderColor,
+                    borderColor: datasetColor,
                     borderWidth: dataset.borderWidth,
-                    backgroundColor: dataset.backgroundColor,
+                    backgroundColor: datasetColor + '70',
                     fill: chartType === 'Area chart' ? true : false,
                 });
             });
             // Update labels (same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
+            colorIndex++;
         }
     }
     $('.merged-graph-name').html(graphNames.join(', '));
@@ -1822,7 +1841,8 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
-
+            //eslint-disable-next-line no-useless-escape
+            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
             switch (calculatedInterval) {
@@ -1862,12 +1882,28 @@ async function convertDataForChart(data) {
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
                 if (series.values[formattedDate] === undefined) {
-                    series.values[formattedDate] = null;
+                    if (regexNumeric.test(data.series[i])) {
+                        if (data.values[i][data.timestamps.length - 1] >= 0) {
+                            series.values[formattedDate] = data.values[i][data.timestamps.length - 1];
+                        }
+                    } else {
+                        series.values[formattedDate] = null;
+                    }
                 }
-                chartStartTime = chartStartTime + calculatedInterval;
+                chartStartTime += calculatedInterval;
             }
             seriesArray.push(series);
         }
+    }
+    if (seriesArray.length === 0) {
+        const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
+        seriesArray.push({
+            seriesName: 'No Data',
+            values: labels.reduce((acc, label) => {
+                acc[label] = null;
+                return acc;
+            }, {}),
+        });
     }
 
     return seriesArray;
@@ -1897,8 +1933,8 @@ async function getMetricNames() {
     return res;
 }
 
-async function getMetricsData(queryName, metricName) {
-    const query = { name: queryName, query: `(${metricName})`, qlType: 'promql' };
+async function getMetricsData(queryName, metricName, state) {
+    const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
     const queries = [query];
     const formula = { formula: queryName };
     const formulas = [formula];
@@ -1921,7 +1957,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
-
+        let state = queryDetails.state;
         if (queryDetails.state === 'builder') {
             queryString = createQueryString(queryDetails);
         } else {
@@ -1932,6 +1968,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             name: queryName,
             query: queryString,
             qlType: 'promql',
+            state: state,
         };
         queriesData.push(query);
 
@@ -2026,12 +2063,13 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
+    let state = queryDetails.state;
     if (queryDetails.state === 'builder') {
         queryString = createQueryString(queryDetails);
     } else {
         queryString = queryDetails.rawQueryInput;
     }
-    await getMetricsData(queryName, queryString);
+    await getMetricsData(queryName, queryString, state);
     const chartData = await convertDataForChart(rawTimeSeriesData);
     if (isAlertScreen) {
         addVisualizationContainerToAlerts(queryName, chartData, queryString);
@@ -2200,14 +2238,22 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
 }
 
 // Parsing function to convert the query string to query object
-function parsePromQL(query) {
+function parsePromQL(queryDetails) {
     const parseObject = {
         metrics: '',
         everywhere: [],
         everything: [],
         aggFunction: 'avg by',
         functions: [],
+        state: queryDetails.state,
+        rawQueryInput: queryDetails.query,
+        rawQueryExecuted: false,
     };
+    let query = queryDetails.query;
+
+    if (queryDetails.state === 'raw') {
+        parseObject.rawQueryExecuted = true;
+    }
 
     // Step 1: Extract the functions
     const functionPattern = new RegExp(`(${functionsArray.join('|')})\\s*\\(`, 'g');
@@ -2291,28 +2337,34 @@ async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
-    // Set the metric
-    queryElement.find('.metrics').val(queryDetails.metrics);
+    if (queryDetails.state === 'raw') {
+        queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
+        queryElement.find('.query-builder').toggle();
+        queryElement.find('.raw-query').toggle();
+    } else {
+        // Set the metric
+        queryElement.find('.metrics').val(queryDetails.metrics);
 
-    // Add 'everywhere' tags
-    queryDetails.everywhere.forEach((tag) => {
-        addTag(queryElement, tag);
-    });
+        // Add 'everywhere' tags
+        queryDetails.everywhere.forEach((tag) => {
+            addTag(queryElement, tag);
+        });
 
-    // Add 'everything' values
-    queryDetails.everything.forEach((value) => {
-        addValue(queryElement, value);
-    });
+        // Add 'everything' values
+        queryDetails.everything.forEach((value) => {
+            addValue(queryElement, value);
+        });
 
-    // Set the aggregation function
-    if (queryDetails.aggFunction) {
-        queryElement.find('.agg-function').val(queryDetails.aggFunction);
+        // Set the aggregation function
+        if (queryDetails.aggFunction) {
+            queryElement.find('.agg-function').val(queryDetails.aggFunction);
+        }
+
+        // Add functions
+        queryDetails.functions.forEach((fn) => {
+            appendFunctionDiv(queryElement, fn);
+        });
     }
-
-    // Add functions
-    queryDetails.functions.forEach((fn) => {
-        appendFunctionDiv(queryElement, fn);
-    });
 }
 
 function appendFunctionDiv(queryElement, fnName) {
@@ -2419,8 +2471,6 @@ $('#alert-from-metrics-btn').click(function () {
             } else {
                 queryString = queryDetails.rawQueryInput;
             }
-            const formula = { formula: queryName };
-            mformulas.push(formula);
             const tquery = { name: queryName, query: `(${queryString})`, qlType: 'promql' };
             mqueries.push(tquery);
         });
@@ -2457,6 +2507,7 @@ $('#alert-from-metrics-btn').click(function () {
 
 async function populateMetricsQueryElement(metricsQueryParams) {
     const { start, end, queries, formulas } = metricsQueryParams;
+    $(`.ranges .inner-range .range-item`).removeClass('active');
     if (!isNaN(start)) {
         let stDate = Number(start);
         let endDate = Number(end);
@@ -2473,11 +2524,54 @@ async function populateMetricsQueryElement(metricsQueryParams) {
     }
 
     for (const query of queries) {
-        const parsedQueryObject = parsePromQL(query.query);
+        const parsedQueryObject = parsePromQL(query);
         await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
 
     if (queries.length >= 1) {
         await addAlertsFormulaElement(formulas[0].formula);
     }
+}
+function generateEmptyChartLabels(timeUnit, startTime, endTime) {
+    const labels = [];
+    let interval;
+
+    switch (timeUnit) {
+        case 'month':
+            interval = 30 * 24 * 60 * 60;
+            break;
+        case '7day':
+            interval = 7 * 24 * 60 * 60;
+            break;
+        case '2day':
+            interval = 2 * 24 * 60 * 60;
+            break;
+        case '12hour':
+            interval = 12 * 60 * 60;
+            break;
+        case '6hour':
+            interval = 6 * 60 * 60;
+            break;
+        case '3hour':
+            interval = 3 * 60 * 60;
+            break;
+        case '30minute':
+            interval = 30 * 60;
+            break;
+        case '15minute':
+            interval = 15 * 60;
+            break;
+        case '5minute':
+            interval = 5 * 60;
+            break;
+        default:
+            interval = 60;
+    }
+
+    while (startTime <= endTime) {
+        labels.push(moment(startTime * 1000).format('YYYY-MM-DDTHH:mm:ss'));
+        startTime += interval;
+    }
+
+    return labels;
 }

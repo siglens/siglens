@@ -83,43 +83,43 @@ const panelGridOptions = {
     suppressAnimationFrame: true,
     suppressFieldDotNotation: true,
     onBodyScroll(evt) {
-        if(panelID==-1 || panelID==null || panelID==undefined){
-        if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
-            let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
-            if (diff <= 1) {
-                let scrollingTrigger = true;
-                data = getQueryParamsData(scrollingTrigger); 
-                if (data.searchText !==  initialSearchDashboardData.searchText || data.indexName !==  initialSearchDashboardData.indexName || data.startEpoch !==  initialSearchDashboardData.startEpoch || data.endEpoch !==  initialSearchDashboardData.endEpoch || data.queryLanguage !==  initialSearchDashboardData.queryLanguage) {
-                    scrollingErrorPopup();
-                    return; // Prevent further scrolling
+        if (panelID == -1 || panelID == null || panelID == undefined) {
+            if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
+                let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
+                if (diff <= 1) {
+                    let scrollingTrigger = true;
+                    data = getQueryParamsData(scrollingTrigger);
+                    if (data.searchText !== initialSearchDashboardData.searchText || data.indexName !== initialSearchDashboardData.indexName || data.startEpoch !== initialSearchDashboardData.startEpoch || data.endEpoch !== initialSearchDashboardData.endEpoch || data.queryLanguage !== initialSearchDashboardData.queryLanguage) {
+                        scrollingErrorPopup();
+                        return; // Prevent further scrolling
+                    }
+
+                    isFetching = true;
+                    showLoadingIndicator();
+                    if (data && data.searchText == 'error') {
+                        alert('Error');
+                        hideLoadingIndicator(); // Hide loading indicator on error
+                        isFetching = false;
+                        return;
+                    }
+                    runPanelLogsQuery(data, panelID, currentPanel)
+                        .then(() => {
+                            isFetching = false;
+                        })
+                        .catch((error) => {
+                            console.warn('Error fetching data', error);
+                            isFetching = false;
+                        })
+                        .finally(() => {
+                            hideLoadingIndicator();
+                            isFetching = false;
+                        });
                 }
-               
-                isFetching = true;  
-                showLoadingIndicator();
-                if (data && data.searchText == 'error') {
-                    alert('Error');
-                    hideLoadingIndicator(); // Hide loading indicator on error
-                    isFetching = false;
-                    return;
-                }
-                runPanelLogsQuery(data,panelID,currentPanel)
-                .then(() => {
-                    isFetching = false;
-                })
-                .catch((error) => {
-                    console.warn("Error fetching data", error);
-                    isFetching = false;
-                })
-                .finally(() => {
-                    hideLoadingIndicator();
-                    isFetching = false;
-                });
             }
         }
-    }
     },
     overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
-}
+};
 function showLoadingIndicator() {
     panelGridOptions.api.showLoadingOverlay();
 }
@@ -128,17 +128,17 @@ function hideLoadingIndicator() {
     panelGridOptions.api.hideOverlay();
 }
 //eslint-disable-next-line no-unused-vars
-function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
-    panelID=panelId;
+function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
+    panelID = panelId;
     $(`.panelDisplay .big-number-display-container`).hide();
     let logLinesViewType = currentPanel.logLinesViewType;
 
-    if(panelId == -1 && panelGridDiv==null) // for panel on the editPanelScreen page
-    {
+    if (panelId == -1 && panelGridDiv == null) {
+        // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
-    if(panelId!=-1){
+    if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
@@ -283,10 +283,11 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
     colDefs.length = 0;
     colDefs = columnOrder.map((colName, index) => {
         let title = colName;
-        let resize = index + 1 == columnOrder.length ? false : true;
-        let maxWidth = Math.max(displayTextWidth(colName, 'italic 19pt  DINpro '), 200); //200 is approx width of 1trillion number
+        let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, ''); // Replace special characters and spaces
+        let resize = index + 1 !== columnOrder.length;
+        let maxWidth = Math.max(displayTextWidth(colName, 'italic 19pt DINpro'), 200); //200 is approx width of 1trillion number
         return {
-            field: title,
+            field: fieldId,
             headerName: title,
             resizable: resize,
             minWidth: maxWidth,
@@ -298,21 +299,22 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
     $.each(hits.measure, function (key, resMap) {
         newRow.set('id', 0);
         columnOrder.map((colName, _index) => {
+            let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, ''); // Replace special characters and spaces
             let ind = -1;
             if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);
             }
             //group by col
             if (ind != -1 && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind] != '*') {
-                newRow.set(colName, resMap.GroupByValues[ind]);
+                newRow.set(fieldId, resMap.GroupByValues[ind]);
             } else if (ind != -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] != '*') {
-                newRow.set(colName, resMap.GroupByValues[0]);
+                newRow.set(fieldId, resMap.GroupByValues[0]);
             } else {
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(colName, '0');
+                    newRow.set(fieldId, '0');
                 } else {
-                    newRow.set(colName, resMap.MeasureVal[colName]);
+                    newRow.set(fieldId, resMap.MeasureVal[colName]);
                 }
             }
         });
@@ -380,11 +382,11 @@ function toggleAllAvailableFieldsHandler(_evt) {
 
     updatedSelFieldList = true;
 }
-function scrollingErrorPopup(){
+function scrollingErrorPopup() {
     $('.popupOverlay').addClass('active');
     $('#error-popup.popupContent').addClass('active');
 
-    $('#okay-button').on('click', function(){
+    $('#okay-button').on('click', function () {
         $('.popupOverlay').removeClass('active');
         $('#error-popup.popupContent').removeClass('active');
     });

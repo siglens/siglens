@@ -24,7 +24,7 @@ let localPanels = [],
     dbId,
     allResultsDisplayed = 0;
 let panelIndex;
-let initialSearchDashboardData={};
+let initialSearchDashboardData = {};
 //eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
@@ -190,6 +190,7 @@ function saveJsonChanges() {
                 return false;
             });
     } catch (e) {
+        console.error(e);
         alert('Invalid JSON format. Please correct the JSON and try again.');
     }
 }
@@ -1161,6 +1162,7 @@ function saveDbSetting() {
     try {
         dbSettings = JSON.parse(jsonText); // Parse the JSON to ensure its validity
     } catch (e) {
+        console.error(e);
         alert('Invalid JSON format. Please correct the JSON and try again.');
         return;
     }

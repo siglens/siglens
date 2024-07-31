@@ -38,6 +38,7 @@ type QueryInformation struct {
 	colsToSearch       map[string]bool
 	indexInfo          *structs.TableInfo
 	sizeLimit          uint64
+	scrollFrom         int // The scroll from value for the query. This also means the number of records were already sent to the client and can be skipped
 	pqid               string
 	parallelismPerFile int64
 	dqs                DistributedQueryServiceInterface
@@ -83,6 +84,10 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) GetScrollFrom() int {
+	return qi.scrollFrom
+}
+
 func (qi *QueryInformation) GetPqid() string {
 	return qi.pqid
 }
@@ -124,7 +129,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs DistributedQueryServiceInterface, orgid uint64) (*QueryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
@@ -140,6 +145,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		colsToSearch:       colsToSearch,
 		indexInfo:          indexInfo,
 		sizeLimit:          sizeLimit,
+		scrollFrom:         scrollFrom,
 		pqid:               pqid,
 		parallelismPerFile: parallelismPerFile,
 		dqs:                dqs,
