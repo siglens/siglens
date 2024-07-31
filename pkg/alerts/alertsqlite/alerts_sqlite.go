@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ type Sqlite struct {
 	db  *gorm.DB
 	ctx context.Context
 }
+
+const maxRetries = 5
+const baseRetryDelay = 50 * time.Millisecond
 
 func (p *Sqlite) SetDB(dbConnection *gorm.DB) {
 	p.db = dbConnection
@@ -58,6 +62,16 @@ func (p *Sqlite) Connect() error {
 	})
 	if err != nil {
 		log.Errorf("Connect: error in opening sqlite connection, Error=%+v", err)
+		return err
+	}
+
+	if err := dbConnection.Exec("PRAGMA journal_mode=WAL;").Error; err != nil {
+		log.Errorf("Connect: error in setting journal mode, Error=%+v", err)
+		return err
+	}
+
+	if err := dbConnection.Exec("PRAGMA busy_timeout=5000;").Error; err != nil {
+		log.Errorf("Connect: error in setting busy timeout, Error=%+v", err)
 		return err
 	}
 
@@ -101,6 +115,23 @@ func (p *Sqlite) Connect() error {
 
 func isValid(str string) bool {
 	return str != "" && str != "*"
+}
+
+func retry(operation func(attemptCount int) error) error {
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		err = operation(i + 1)
+		if err == nil {
+			return nil
+		}
+		if strings.Contains(err.Error(), "database is locked") {
+			log.Warnf("retry: database is locked, retrying attempt %d. Error=%v", i+1, err)
+			time.Sleep(time.Duration(math.Pow(2, float64(i))) * baseRetryDelay)
+			continue
+		}
+		return err
+	}
+	return err
 }
 
 // checks whether the alert name exists
@@ -625,49 +656,77 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 }
 
 // update last_sent_time and last_alert_state in notification_details table
-func (p Sqlite) UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
+func updateLastSentTimeAndAlertState(db *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
 
-	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
+	err := db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"last_sent_time":   currentTime,
 			"last_alert_state": alertState,
-		}).Error; err != nil {
+		}).Error
+
+	if err != nil {
 		err = fmt.Errorf("UpdateLastSentTimeAndAlertState: unable to update, AlertId=%v, Error=%+v", alert_id, err)
-		log.Errorf(err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (p Sqlite) UpdateAlertStateAndIncrementNumEvaluations(alert_id string, alertState alertutils.AlertState) error {
+func updateAlertStateAndIncrementNumEvaluations(db *gorm.DB, alert_id string, alertState alertutils.AlertState) error {
+	err := db.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
+		Updates(map[string]interface{}{
+			"state":                 alertState,
+			"num_evaluations_count": gorm.Expr("num_evaluations_count + ?", 1),
+		}).Error
+
+	if err != nil {
+		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to update alert state and increment evaluations count with AlertId=%v, Error=%+v", alert_id, err)
+		return err
+	}
+	return nil
+}
+
+func (p Sqlite) UpdateAlertStateAndNotificationDetails(alert_id string, alertState alertutils.AlertState, updateNotificationState bool) error {
 	if !isValid(alert_id) {
-		err := fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: Data Validation Check Failed: AlertId=%v is not valid", alert_id)
+		err := fmt.Errorf("UpdateAlertStateAndNotificationDetails: Data Validation Check Failed: AlertId=%v is not valid", alert_id)
 		log.Error(err.Error())
 		return err
 	}
 	alertExists, _, err := p.verifyAlertExists(alert_id)
 	if err != nil {
-		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to verify if alert name exists, AlertId=%v, Error=%+v", alert_id, err)
+		err = fmt.Errorf("UpdateAlertStateAndNotificationDetails: unable to verify if alert name exists, AlertId=%v, Error=%+v", alert_id, err)
 		log.Error(err.Error())
 		return err
 	}
 	if !alertExists {
-		err := fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: alert does not exist, AlertId=%v", alert_id)
+		err := fmt.Errorf("UpdateAlertStateAndNotificationDetails: alert does not exist, AlertId=%v", alert_id)
 		log.Error(err.Error())
 		return err
 	}
 
-	if err := p.db.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).
-		Updates(map[string]interface{}{
-			"state":                 alertState,
-			"num_evaluations_count": gorm.Expr("num_evaluations_count + ?", 1),
-		}).Error; err != nil {
-		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to update alert state and increment evaluations count, with AlertId=%v, Error=%+v", alert_id, err)
+	err = retry(func(attemptCount int) error {
+		return p.db.Transaction(func(tx *gorm.DB) error {
+			if err := updateAlertStateAndIncrementNumEvaluations(tx, alert_id, alertState); err != nil {
+				return err
+			}
+
+			if updateNotificationState {
+				if err := updateLastSentTimeAndAlertState(tx, alert_id, alertState); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+	})
+
+	if err != nil {
+		err = fmt.Errorf("UpdateAlertStateAndNotificationDetails: unable to update alert state and notification details, with AlertId=%v, Error=%+v", alert_id, err)
 		log.Error(err.Error())
 		return err
 	}
+
 	return nil
 }
 

@@ -37,6 +37,13 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
+// Function to format time to human readable format
+// Format: Weekday Month Day Hour:Minute:Second Year (Timezone with UTC)
+// Example: 4 July 2024 12:00:00 PM in NYC Timezone => Thu Jul 4 12:00:00 2024 -0400
+func FormatToHumanReadableTime(t time.Time) string {
+	return t.Format("Mon Jan 2 15:04:05 2006 -0700")
+}
+
 // Function to truncate float64 to a given precision
 func ToFixed(num float64, precision int) float64 {
 	output := math.Pow(10, float64(precision))

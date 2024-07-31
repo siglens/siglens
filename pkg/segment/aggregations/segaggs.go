@@ -120,6 +120,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
+	if post.GenerateEvent != nil && len(recs) == 0 {
+		return nodeResult
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -177,6 +181,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment, timeSort, timeSortAsc)
 	}
 	switch agg.PipeCommandType {
+	case structs.GenerateEventType:
+		return nil
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -1916,7 +1922,9 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 	mvColReq := letColReq.MultiValueColRequest
 
-	for _, rec := range recs {
+	newRecs := make(map[string]map[string]interface{})
+
+	for key, rec := range recs {
 		fieldValue, ok := rec[mvColReq.ColName]
 		if !ok {
 			continue
@@ -1931,12 +1939,47 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 		case "makemv":
 			finalValue := performMakeMV(fieldValueStr, mvColReq)
 			rec[mvColReq.ColName] = finalValue
+		case "mvexpand":
+			expandedRecs := performMVExpand(fieldValue)
+
+			// Apply limit if mvColReq.Limit is greater than 0
+			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
+				expandedRecs = expandedRecs[:mvColReq.Limit]
+			}
+			delete(recs, key)
+			for i, expandedValue := range expandedRecs {
+				newRec := make(map[string]interface{})
+				for k, v := range rec {
+					newRec[k] = v
+				}
+				newRec[mvColReq.ColName] = expandedValue
+				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
+			}
 		default:
 			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
 		}
 	}
-
+	if mvColReq.Command == "mvexpand" {
+		for k, v := range newRecs {
+			recs[k] = v
+		}
+	}
 	return nil
+}
+
+func performMVExpand(fieldValue interface{}) []interface{} {
+	var values []interface{}
+
+	isArrayOrSlice, v, _ := utils.IsArrayOrSlice(fieldValue)
+	if !isArrayOrSlice {
+		return nil
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		values = append(values, v.Index(i).Interface())
+	}
+
+	return values
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
