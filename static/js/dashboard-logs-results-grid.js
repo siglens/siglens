@@ -383,11 +383,11 @@ function toggleAllAvailableFieldsHandler(_evt) {
     updatedSelFieldList = true;
 }
 function scrollingErrorPopup() {
-    $('.popupOverlay').addClass('active');
+    $('.mypopupOverlay').addClass('active');
     $('#error-popup.popupContent').addClass('active');
 
     $('#okay-button').on('click', function () {
-        $('.popupOverlay').removeClass('active');
+        $('.mypopupOverlay').removeClass('active');
         $('#error-popup.popupContent').removeClass('active');
     });
 }

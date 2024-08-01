@@ -1968,7 +1968,7 @@ div.dts div.dataTables_scrollBody table {
 }
 
 /* Delete confimation popup */
-.popupOverlay {
+.popupOverlay,.mypopupOverlay {
   visibility: hidden;
   position: fixed;
   top: 0;
@@ -2041,7 +2041,7 @@ div.dts div.dataTables_scrollBody table {
     margin-top: 24px;
 }
 
-.popupOverlay.active ,.popupContent.active,.delete-dialog.active{
+.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active{
   visibility: visible;
   position: fixed;
   overflow: hidden;
