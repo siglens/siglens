@@ -36,6 +36,7 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 )
@@ -708,6 +709,98 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			return left || right, nil
 		default:
 			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
+		}
+	}
+}
+
+// This evaluation is specific for inputlookup command.
+// Only =, != , <, >, <=, >= operators are supported for strings and numbers.
+// Strings and numbers are compared as strings.
+// Strings are compared lexicographically and are case-insensitive.
+// Wildcards can be used to match a string with a pattern. Only * is supported.
+func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	if self.IsTerminal {
+		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
+		rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
+		leftFloat, errLeftFloat := self.LeftValue.EvaluateToFloat(fieldToValue)
+		rightFloat, errRightFloat := self.RightValue.EvaluateToFloat(fieldToValue)
+
+		if errLeftFloat == nil && errRightFloat == nil {
+			switch self.ValueOp {
+			case "=":
+				return leftFloat == rightFloat, nil
+			case "!=":
+				return leftFloat != rightFloat, nil
+			case "<":
+				return leftFloat < rightFloat, nil
+			case ">":
+				return leftFloat > rightFloat, nil
+			case "<=":
+				return leftFloat <= rightFloat, nil
+			case ">=":
+				return leftFloat >= rightFloat, nil
+			default:
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid ValueOp %v for floats", self.ValueOp)
+			}
+		} else if errLeftStr == nil && errRightStr == nil {
+			leftStr = strings.ToLower(leftStr)
+			rightStr = strings.ToLower(rightStr)
+			pattern := dtypeutils.ReplaceWildcardStarWithRegex(rightStr)
+			compiledRegex, err := regexp.Compile(pattern)
+			if err != nil {
+				return false, fmt.Errorf("Error compiling regular expression, err:%v", err)
+			}
+			match := compiledRegex.MatchString(leftStr)
+
+			switch self.ValueOp {
+			case "=":
+				return match, nil
+			case "!=":
+				return !match, nil
+			case "<":
+				return (leftStr < rightStr && !match), nil
+			case ">":
+				return (leftStr > rightStr && !match), nil
+			case "<=":
+				return (leftStr <= rightStr || match), nil
+			case ">=":
+				return (leftStr >= rightStr || match), nil
+			default:
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid ValueOp %v for strings", self.ValueOp)
+			}
+		} else {
+			if errLeftStr != nil && errLeftFloat != nil {
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left cannot be evaluated to a string or float")
+			}
+			if errRightStr != nil && errRightFloat != nil {
+				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: right cannot be evaluated to a string or float")
+			}
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left and right ValueExpr have different types")
+		}
+	} else { // IsTerminal is false
+		left, err := self.LeftBool.EvaluateForInputLookup(fieldToValue)
+		if err != nil {
+			return false, err
+		}
+
+		var right bool
+		if self.RightBool != nil {
+			var err error
+			right, err = self.RightBool.EvaluateForInputLookup(fieldToValue)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		switch self.BoolOp {
+		case BoolOpNot:
+			return !left, nil
+		case BoolOpAnd:
+			return left && right, nil
+		case BoolOpOr:
+			return left || right, nil
+		default:
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid BoolOp: %v", self.BoolOp)
 		}
 	}
 }
