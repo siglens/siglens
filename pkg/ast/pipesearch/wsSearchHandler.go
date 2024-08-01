@@ -259,7 +259,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 	var wsResponse *PipeSearchWSUpdateResponse
 	if qscd.QueryUpdate == nil {
 		log.Errorf("qid=%d, processQueryUpdate: got nil query update!", qid)
-		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+		wErr := conn.WriteJSON(createErrorResponse("Got nil query update"))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
@@ -286,6 +286,9 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
 	queryC := query.GetQueryCountInfoForQid(qid)
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
+	if aggs.HasGenerateEvent() {
+		queryC.TotalCount = uint64(len(aggs.GenerateEvent.GeneratedRecords))
+	}
 	if err != nil {
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get total records searched, err: %+v", qid, err)
 	}

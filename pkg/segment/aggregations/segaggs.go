@@ -120,6 +120,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
+	if post.GenerateEvent != nil && len(recs) == 0 {
+		return nodeResult
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -177,6 +181,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		return PerformStreamStats(nodeResult, agg, recs, recordIndexInFinal, finalCols, finishesSegment, timeSort, timeSortAsc)
 	}
 	switch agg.PipeCommandType {
+	case structs.GenerateEventType:
+		return nil
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -184,7 +190,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 		colReq := agg.OutputTransforms.OutputColumns
 		if colReq != nil {
-			err := performColumnsRequest(nodeResult, colReq, agg, recs, finalCols)
+			err := performColumnsRequest(nodeResult, colReq, recs, finalCols)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -635,15 +641,8 @@ func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, 
 	return nil
 }
 
-func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
+func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
-
-	// Attach columns request to fill null expressions in the chain.
-	// This is to ensure that we do remove the columns that are not required from the All Search Columns
-	// which is used in the fillNull Expr.
-	if aggs != nil {
-		aggs.AttachColumnsRequestToFillNullExprInChain(colReq)
-	}
 
 	if colReq.RenameAggregationColumns != nil {
 		for oldCName, newCName := range colReq.RenameAggregationColumns {
@@ -717,13 +716,14 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 	return nil
 }
 
-func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
+func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
 	if recs != nil {
-		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, aggs, recs, finalCols); err != nil {
+		if err := performColumnsRequestWithoutGroupby(nodeResult, colReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performColumnsRequest: %v", err)
 		}
+		return nil
 	}
 
 	nodeResult.RenameColumns = colReq.RenameAggregationColumns
@@ -1922,7 +1922,9 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 	mvColReq := letColReq.MultiValueColRequest
 
-	for _, rec := range recs {
+	newRecs := make(map[string]map[string]interface{})
+
+	for key, rec := range recs {
 		fieldValue, ok := rec[mvColReq.ColName]
 		if !ok {
 			continue
@@ -1937,12 +1939,47 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 		case "makemv":
 			finalValue := performMakeMV(fieldValueStr, mvColReq)
 			rec[mvColReq.ColName] = finalValue
+		case "mvexpand":
+			expandedRecs := performMVExpand(fieldValue)
+
+			// Apply limit if mvColReq.Limit is greater than 0
+			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
+				expandedRecs = expandedRecs[:mvColReq.Limit]
+			}
+			delete(recs, key)
+			for i, expandedValue := range expandedRecs {
+				newRec := make(map[string]interface{})
+				for k, v := range rec {
+					newRec[k] = v
+				}
+				newRec[mvColReq.ColName] = expandedValue
+				newRecs[fmt.Sprintf("%s_%d", key, i)] = newRec
+			}
 		default:
 			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
 		}
 	}
-
+	if mvColReq.Command == "mvexpand" {
+		for k, v := range newRecs {
+			recs[k] = v
+		}
+	}
 	return nil
+}
+
+func performMVExpand(fieldValue interface{}) []interface{} {
+	var values []interface{}
+
+	isArrayOrSlice, v, _ := utils.IsArrayOrSlice(fieldValue)
+	if !isArrayOrSlice {
+		return nil
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		values = append(values, v.Index(i).Interface())
+	}
+
+	return values
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
@@ -2047,11 +2084,7 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 		if len(fillNullReq.FieldList) == 0 {
 			// No Fields are provided. This means fill null should be applied to all fields.
-			for field := range finalCols {
-				if _, exists := fillNullReq.FinalCols[field]; !exists {
-					fillNullReq.FinalCols[field] = true
-				}
-			}
+			utils.MergeMapsRetainingFirst(fillNullReq.FinalCols, finalCols)
 		}
 
 		return nil
@@ -2068,35 +2101,27 @@ func performFillNullRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 	} else {
-		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
-		for field := range finalCols {
-			if _, exists := colsToCheck[field]; !exists {
-				colsToCheck[field] = true
-			}
-		}
 
-		// Add any Columns that would be there in the previous search results but not in the current.
-		// This contains all the columns that are present in the given time range.
-		for field := range nodeResult.AllSearchColumnsByTimeRange {
-			if _, exists := colsToCheck[field]; !exists {
-				colsToCheck[field] = true
-			}
-		}
+		fillNullColReq := fillNullReq.ColumnsRequest
 
-		if fillNullReq.ColumnsRequest != nil {
+		for fillNullColReq != nil {
 			// Apply any Columns Transforms and deletions that are present in the previous search results.
-			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullReq.ColumnsRequest, nil, nil, colsToCheck)
+			err := performColumnsRequestWithoutGroupby(nodeResult, fillNullColReq, nil, nodeResult.AllSearchColumnsByTimeRange)
 			if err != nil {
 				log.Errorf("performFillNullRequestWithoutGroupby: error applying columns request: %v", err)
 			}
+
+			fillNullColReq = fillNullColReq.Next
 		}
 
+		// Add any Columns that would be there in the previous search results but not in the current.
+		utils.MergeMapsRetainingFirst(colsToCheck, nodeResult.AllSearchColumnsByTimeRange)
+
+		// Check And Add the fields to colsToCheck(fillNullReq.FinalCols) from the current Block Final Cols.
+		utils.MergeMapsRetainingFirst(colsToCheck, finalCols)
+
 		// Add all these columns to the finalCols List, so that they are not removed from the final result.
-		for field := range colsToCheck {
-			if _, exists := finalCols[field]; !exists {
-				finalCols[field] = true
-			}
-		}
+		utils.MergeMapsRetainingFirst(finalCols, colsToCheck)
 	}
 
 	for _, record := range recs {
