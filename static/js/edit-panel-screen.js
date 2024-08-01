@@ -1112,6 +1112,7 @@ function goToDashboard() {
     $('.popupOverlay').removeClass('active');
     $('#app-container').show();
     $('#viewPanel-container').hide();
+    $('#overview-button').removeClass('active');
     setTimePickerValue();
     displayPanels();
     if (dbRefresh) {
