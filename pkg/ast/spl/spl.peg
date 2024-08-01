@@ -3030,7 +3030,7 @@ NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExp
 }
 
 // Returns *structs.NumericExpr
-NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLevel1)* {
+NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv / OpMod) NumericExprLevel1)* {
     if rest == nil {
         return first, nil
     }
@@ -4580,6 +4580,10 @@ OpMul <- EMPTY_OR_SPACE "*" EMPTY_OR_SPACE {
 
 OpDiv <- EMPTY_OR_SPACE "/" EMPTY_OR_SPACE {
     return "/", nil
+}
+
+OpMod <- EMPTY_OR_SPACE "%" EMPTY_OR_SPACE {
+    return "%", nil
 }
 
 // Add Empty space here

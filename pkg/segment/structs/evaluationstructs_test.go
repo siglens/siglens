@@ -229,6 +229,43 @@ func Test_NumericExpr(t *testing.T) {
 
 }
 
+func Test_NumericExpr_Mod(t *testing.T) {
+	numericExpr := &NumericExpr{
+		IsTerminal:      true,
+		ValueIsField:    true,
+		Value:           "number",
+		NumericExprMode: NEMNumberField,
+	}
+
+	numericExpr2 := &NumericExpr{
+		IsTerminal:   true,
+		ValueIsField: false,
+		Value:        "5",
+	}
+
+	numericExpr3 := &NumericExpr{
+		IsTerminal: false,
+		Op:         "%",
+		Left:       numericExpr,
+		Right:      numericExpr2,
+	}
+
+	values := []float64{10, 12, 23, 39, 91}
+	expectedValues := []float64{0, 2, 3, 4, 1}
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	for i, value := range values {
+		fieldToValue["number"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_FLOAT,
+			CVal:  value,
+		}
+
+		result, err := numericExpr3.Evaluate(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedValues[i], result)
+	}
+}
+
 func Test_ValueExpr(t *testing.T) {
 	numericExpr := &NumericExpr{
 		IsTerminal: false,
