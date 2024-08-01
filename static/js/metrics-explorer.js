@@ -426,12 +426,11 @@ function extractFunctionsAndFormula(formulaInput) {
     return parseObject;
 }
 function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
-
     if (!Array.isArray(fnNames)) {
         throw new TypeError('fnNames should be an array');
     }
 
-    fnNames.forEach(fnName => {
+    fnNames.forEach((fnName) => {
         var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
         formulaElement.find('.all-selected-functions-formula').append(newDiv);
     });
@@ -466,7 +465,6 @@ async function addAlertsFormulaElement(formulaInput) {
     initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
-
 }
 
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
@@ -484,8 +482,7 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         $('#metrics-formula').append(formulaElement);
         appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
-    }
-    else {
+    } else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
     }
@@ -779,11 +776,9 @@ async function addQueryElement() {
                     formulaInput = `${func}(${formulaInput})`;
                 }
                 await addAlertsFormulaElement(formulaInput);
-            }
-            else{
+            } else {
                 await addAlertsFormulaElement();
             }
-
         }
     }
 
