@@ -26,11 +26,10 @@ function renderMeasuresGrid(columnOrder, hits) {
         new agGrid.Grid(eGridDiv, aggGridOptions);
     }
     // set the column headers from the data
-    let colDefs = aggGridOptions.api.getColumnDefs();
-    colDefs.length = 0;
-    colDefs = columnOrder.map((colName, index) => {
+    let colDefs = columnOrder.map((colName, index) => {
         let title = colName;
-        let resize = index + 1 == columnOrder.length ? false : true;
+        let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, ''); // Replace special characters and spaces
+        let resize = index + 1 !== columnOrder.length;
         let maxWidth = Math.max(displayTextWidth(colName, 'italic 19pt  DINpro '), 200); //200 is approx width of 1trillion number
         //preserving white space for every column
         let cellRenderer = (params) => {
@@ -40,7 +39,7 @@ function renderMeasuresGrid(columnOrder, hits) {
             return span;
         };
         return {
-            field: title,
+            field: fieldId,
             headerName: title,
             resizable: resize,
             minWidth: maxWidth,
@@ -53,21 +52,22 @@ function renderMeasuresGrid(columnOrder, hits) {
     $.each(hits.measure, function (_key, resMap) {
         newRow.set('id', 0);
         columnOrder.map((colName, _index) => {
+            let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, ''); // Replace special characters and spaces
             let ind = -1;
             if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);
             }
             //group by col
             if (ind != -1 && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind] != '*') {
-                newRow.set(colName, resMap.GroupByValues[ind]);
+                newRow.set(fieldId, resMap.GroupByValues[ind]);
             } else if (ind != -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] != '*') {
-                newRow.set(colName, resMap.GroupByValues[0]);
+                newRow.set(fieldId, resMap.GroupByValues[0]);
             } else {
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(colName, '0');
+                    newRow.set(fieldId, '0');
                 } else {
-                    newRow.set(colName, resMap.MeasureVal[colName]);
+                    newRow.set(fieldId, resMap.MeasureVal[colName]);
                 }
             }
         });

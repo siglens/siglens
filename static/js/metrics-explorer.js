@@ -471,7 +471,7 @@ async function addAlertsFormulaElement(formulaInput) {
 
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
     // For Dashboards
-    let formulaAndFunction,formulaElement;
+    let formulaAndFunction, formulaElement;
     if (formulaInput) {
         formulaAndFunction = extractFunctionsAndFormula(formulaInput);
         formulaDetailsMap[uniqueId] = formulaAndFunction;
@@ -485,11 +485,11 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
     }
-    else{
+    else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
     }
-    
+
     initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
@@ -773,11 +773,17 @@ async function addQueryElement() {
             if (!formulaInput) {
                 formulaInput = queryNames.join(' + ');
             }
-            const firstElementFunctions = Object.values(formulaDetailsMap)[0].functions;
-            for (let func of firstElementFunctions) {
-                formulaInput = `${func}(${formulaInput})`;
+            if (Object.values(formulaDetailsMap)[0].functions != undefined) {
+                const firstElementFunctions = Object.values(formulaDetailsMap)[0].functions;
+                for (let func of firstElementFunctions) {
+                    formulaInput = `${func}(${formulaInput})`;
+                }
+                await addAlertsFormulaElement(formulaInput);
             }
-            await addAlertsFormulaElement(formulaInput);
+            else{
+                await addAlertsFormulaElement();
+            }
+
         }
     }
 
