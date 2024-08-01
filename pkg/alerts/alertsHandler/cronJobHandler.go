@@ -99,8 +99,8 @@ func RemoveCronJob(alertId string) error {
 	return nil
 }
 
-func updateAlertStateAndCreateAlertHistory(alertDetails *alertutils.AlertDetails, alertState alertutils.AlertState, eventDesc string) error {
-	err := updateAlertState(alertDetails.AlertId, alertState)
+func updateAlertStateAndCreateAlertHistory(alertDetails *alertutils.AlertDetails, alertState alertutils.AlertState, eventDesc string, alertNotificationSent bool) error {
+	err := updateAlertState(alertDetails.AlertId, alertState, alertNotificationSent)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: updateAlertStateAndCreateAlertHistory: could not update the state to %v. Alert=%+v & err=%+v.", alertState, alertDetails.AlertName, err)
 		return err
@@ -182,45 +182,47 @@ func GetLatestAlertHistory(alertId string) (*alertutils.AlertHistoryDetails, err
 }
 
 func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertConditionMatched bool, alertDataMessage string) error {
-	if isAlertConditionMatched {
+	var newAlertState alertutils.AlertState
+	var eventDesc string
+	var alertNotificationSent bool
+	var err error
 
-		newAlertState := alertutils.Pending
-		eventDesc := alertutils.AlertPending
+	if isAlertConditionMatched {
+		newAlertState = alertutils.Pending
+		eventDesc = alertutils.AlertPending
 
 		if shouldUpdateAlertStateToFiring(alertToEvaluate, newAlertState) {
 			newAlertState = alertutils.Firing
 			eventDesc = alertutils.AlertFiring
 		}
 
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, newAlertState, eventDesc)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", newAlertState, alertToEvaluate.AlertName, err)
-		}
-
 		// If the Alert State is updated to Firing, then we should send the Alert Notification.
 		// If the previous state was Firing, then the cooldown period on the Notification Handler will decide if the notification should be sent.
 		if newAlertState == alertutils.Firing {
-			err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, newAlertState, alertDataMessage)
+			alertNotificationSent, err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, newAlertState, alertDataMessage)
 			if err != nil {
-				return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
+				log.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
 			}
 		}
 	} else {
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Normal, alertutils.AlertNormal)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", alertutils.Normal, alertToEvaluate.AlertName, err)
-		}
+		newAlertState = alertutils.Normal
+		eventDesc = alertutils.AlertNormal
 
 		// The Alert state is Normal, then we should send the Alert Notification.
 		// The cooldown period on the Notification Handler will decide if the notification should be sent. So that false positives are avoided.
 		// The Notification handler is expected to send the Normal State Notification, only if the previous Notification sent was Firing.
-		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, alertutils.Normal, "The Alert State has been updated to Normal.")
+		alertNotificationSent, err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, alertutils.Normal, "The Alert State has been updated to Normal.")
 		if err != nil {
-			return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
+			log.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
 		}
 	}
 
-	return nil
+	err = updateAlertStateAndCreateAlertHistory(alertToEvaluate, newAlertState, eventDesc, alertNotificationSent)
+	if err != nil {
+		log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", newAlertState, alertToEvaluate.AlertName, err)
+	}
+
+	return err
 }
 
 func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRange *dtypeutils.TimeRange) string {
@@ -334,8 +336,8 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 	}
 }
 
-func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateAlertStateAndIncrementNumEvaluations(alertId, alertState)
+func updateAlertState(alertId string, alertState alertutils.AlertState, alertNotificationSent bool) error {
+	err := databaseObj.UpdateAlertStateAndNotificationDetails(alertId, alertState, alertNotificationSent)
 	return err
 }
 
@@ -508,7 +510,7 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Firing, msToEvaluate.AlertName, err)
 		}
 
-		err = NotifyAlertHandlerRequest(msToEvaluate.AlertId, alertutils.Firing, "")
+		_, err = NotifyAlertHandlerRequest(msToEvaluate.AlertId, alertutils.Firing, "")
 		if err != nil {
 			log.Errorf("MinionSearch: evaluate: Could not send Alert Notification. found error = %v", err)
 			return

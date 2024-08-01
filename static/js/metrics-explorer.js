@@ -1653,6 +1653,10 @@ function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     if (isDashboardScreen) {
         // For dashboard page
+        if (currentPanel) {
+            const data = getMetricsQData();
+            currentPanel.queryData = data;
+        }
         var panelChartEl;
         if (panelId === -1) {
             panelChartEl = $(`.panelDisplay .panEdit-panel`);
@@ -1803,7 +1807,11 @@ function mergeGraphs(chartType, panelId = -1) {
 }
 
 const shouldShowLegend = (panelId, datasets) => {
-    return panelId === -1 || datasets.length < 5;
+    if ($('#overview-button').hasClass('active')) {
+        return true; // Show legends for panel overview
+    } else {
+        return panelId === -1 || datasets.length < 5; // Hide legends for panel with more than 5 legends
+    }
 };
 
 // Converting the response in form to use to create graphs
@@ -1841,8 +1849,8 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
-            const regexNumeric = /\d+(\.\d+)?[+\-*/%()]?\d?(\.\d+)?|\s+/g;
-
+            //eslint-disable-next-line no-useless-escape
+            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
             switch (calculatedInterval) {
