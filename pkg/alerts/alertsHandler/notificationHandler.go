@@ -255,29 +255,31 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 		}
 	}
 
-	// If the Message that a user has set while creating is a URL,
-	// then we will add a button to view the message
-	encodedURL, err := utils.EncodeURL(message)
-	if err != nil {
-		log.Errorf("sendSlack: Error encoding URL. Error=%v", err)
-	} else {
-		messageAttachment := slack.AttachmentAction{
-			Name:  "view_message_link",
-			Text:  "View Message",
-			Type:  "button",
-			URL:   encodedURL,
-			Style: "default",
-		}
-		if len(attachment.Actions) > 0 {
-			attachment.Actions = append(attachment.Actions, messageAttachment)
+	if utils.IsValidURL(message) {
+		// If the Message that a user has set while creating is a URL,
+		// then we will add a button to view the message
+		encodedURL, err := utils.EncodeURL(message)
+		if err != nil {
+			log.Errorf("sendSlack: Error encoding URL. Error=%v", err)
 		} else {
-			attachment.Actions = []slack.AttachmentAction{messageAttachment}
-		}
+			messageAttachment := slack.AttachmentAction{
+				Name:  "view_message_link",
+				Text:  "View Message",
+				Type:  "button",
+				URL:   encodedURL,
+				Style: "default",
+			}
+			if len(attachment.Actions) > 0 {
+				attachment.Actions = append(attachment.Actions, messageAttachment)
+			} else {
+				attachment.Actions = []slack.AttachmentAction{messageAttachment}
+			}
 
-		attachment.Text = ""
+			attachment.Text = ""
+		}
 	}
 
-	_, _, err = client.PostMessage(
+	_, _, err := client.PostMessage(
 		channelID,
 		slack.MsgOptionAttachments(attachment),
 	)
