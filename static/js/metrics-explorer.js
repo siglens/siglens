@@ -255,7 +255,8 @@ $('#add-query').on('click', addQueryElement);
 $('#add-formula').on('click', function () {
     if (isAlertScreen) {
         addAlertsFormulaElement();
-    } else {zz
+    } else {
+        zz;
         addMetricsFormulaElement();
     }
 });
