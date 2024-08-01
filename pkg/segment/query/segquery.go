@@ -638,8 +638,14 @@ func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time, orgid
 		return nil, 0, 0, 0, err
 	}
 
-	qsr, raw, pqs := filterUnrotatedSegKeysToQueryRequests(queryInfo, allUnrotatedKeys)
-	return qsr, raw, distCount, pqs, nil
+	qsrs, raw, pqs := filterUnrotatedSegKeysToQueryRequests(queryInfo, allUnrotatedKeys)
+	qsrs, err = applyQsrsFilterHook(qsrs, false)
+	if err != nil {
+		log.Errorf("getAllUnrotatedSegments: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
+		return nil, 0, 0, 0, err
+	}
+
+	return qsrs, raw, distCount, pqs, nil
 }
 
 // returns query segment requests, count of keys to raw search, and distributed query count
@@ -694,6 +700,12 @@ func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Qu
 	}
 
 	qsrs, rawSearch := FilterAggSegKeysToQueryResults(queryInfo, allUnrotatedKeys, aggs, structs.UNROTATED_SEGMENT_STATS_SEARCH)
+	qsrs, err = applyQsrsFilterHook(qsrs, false)
+	if err != nil {
+		log.Errorf("getAllUnrotatedSegmentsInAggs: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
+		return nil, 0, 0, err
+	}
+
 	return qsrs, rawSearch, distCount, nil
 }
 
@@ -706,7 +718,7 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 
 	qsrs, totalQsr := FilterAggSegKeysToQueryResults(queryInfo, allPossibleKeys, aggs, structs.SEGMENT_STATS_SEARCH)
 
-	qsrs, err := applyQsrsFilterHook(qsrs)
+	qsrs, err := applyQsrsFilterHook(qsrs, true)
 	if err != nil {
 		log.Errorf("getAllRotatedSegmentsInAggs: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, 0, err
@@ -847,7 +859,7 @@ func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, 
 		return nil, 0, 0, 0, err
 	}
 
-	qsrs, err = applyQsrsFilterHook(qsrs)
+	qsrs, err = applyQsrsFilterHook(qsrs, true)
 	if err != nil {
 		log.Errorf("getAllRotatedSegmentsInQuery: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, 0, 0, err
@@ -1201,9 +1213,9 @@ func checkAggTypes(aggs *structs.QueryAggregators) (bool, bool) {
 	return nonTime, timeAgg
 }
 
-func applyQsrsFilterHook(qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, error) {
+func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QuerySegmentRequest, error) {
 	if hook := hooks.GlobalHooks.FilterQsrsHook; hook != nil {
-		qsrsAsAny, err := hook(qsrs)
+		qsrsAsAny, err := hook(qsrs, isRotated)
 		if err != nil {
 			log.Errorf("applyQsrsFilterHook: failed to apply hook: %v", err)
 			return nil, err
