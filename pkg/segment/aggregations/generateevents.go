@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -104,38 +105,25 @@ func checkCSVFormat(filename string) bool {
 	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
 }
 
-// Ensure record and column lengths are valid before calling this function.
-func createRecord(columnNames []string, record []string) map[string]interface{} {
-	recordMap := make(map[string]interface{})
-	for i, col := range columnNames {
-		recordMap[col] = record[i]
-	}
-	return recordMap
-}
-
 func PerformInputLookup(aggs *structs.QueryAggregators) error {
-	var reader *csv.Reader
 	if aggs.GenerateEvent.InputLookup == nil {
 		return fmt.Errorf("PerformInputLookup: InputLookup is nil")
 	}
 	filename := aggs.GenerateEvent.InputLookup.Filename
 
 	if !checkCSVFormat(filename) {
-		return fmt.Errorf("PerformInputLookup: Only CSV format is currently supported")
+		return fmt.Errorf("PerformInputLookup: Only .csv and .csv.gz formats are currently supported")
 	}
 
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("PerformInputLookup: Error while getting current working directory, err: %v", err)
-	}
-	filepath := workingDir + "/" + config.GetLookupPath() + filename
+	filePath := filepath.Join(config.GetLookupPath(), filename)
 
-	file, err := os.Open(filepath)
+	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("PerformInputLookup: Error while opening file %v, err: %v", filepath, err)
+		return fmt.Errorf("PerformInputLookup: Error while opening file %v, err: %v", filePath, err)
 	}
 	defer file.Close()
 
+	var reader *csv.Reader
 	if strings.HasSuffix(filename, ".csv.gz") {
 		gzipReader, err := gzip.NewReader(file)
 		if err != nil {
@@ -172,6 +160,7 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 	count := 0
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	for count < int(aggs.GenerateEvent.InputLookup.Max) {
+		count++
 		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
 		csvRecord, err := reader.Read()
 		if err != nil {
@@ -182,12 +171,10 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 			return fmt.Errorf("PerformInputLookup: Error reading record, err: %v", err)
 		}
 
-		if len(csvRecord) != len(columnNames) {
-			return fmt.Errorf("PerformInputLookup: Error reading record, column count mismatch")
+		record, err := putils.CreateRecord(columnNames, csvRecord)
+		if err != nil {
+			return fmt.Errorf("PerformInputLookup: Error creating record, err: %v", err)
 		}
-
-		count++
-		record := createRecord(columnNames, csvRecord)
 		err = getRecordFieldValues(fieldToValue, columnNames, record)
 		if err != nil {
 			return fmt.Errorf("PerformInputLookup: Error getting field values, err: %v", err)

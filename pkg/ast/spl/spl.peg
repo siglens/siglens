@@ -4535,6 +4535,14 @@ PositiveIntegerAsString <- [0-9]+ {
     return string(c.text), nil
 }
 
+PositiveInteger <- intStr:PositiveIntegerAsString {
+    num, err := strconv.ParseUint(intStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid Positive Integer value: (%v): , err: %v", intStr.(string), err)
+    }
+    return num, nil
+}
+
 EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
     opStr, err := transferUint8ToString(op)
     if err != nil {
@@ -5221,7 +5229,7 @@ MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
     return intValue, nil
 }
 
-OptionalWhereClause <- SPACE CMD_WHERE condition:BoolExpr {
+WhereClause <- SPACE CMD_WHERE condition:BoolExpr {
     return condition.(*structs.BoolExpr), nil
 }
 
@@ -5243,15 +5251,7 @@ InputLookupOptionStrict <- "strict" EQUAL boolVal:Boolean {
     }, nil
 }
 
-GetPositiveInteger <- intStr:PositiveIntegerAsString {
-    num, err := strconv.ParseUint(intStr.(string), 10, 64)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: Invalid Positive Integer value: (%v): , err: %v", intStr.(string), err)
-    }
-    return num, nil
-}
-
-InputLookupOptionStart <- "start" EQUAL posInt:GetPositiveInteger {
+InputLookupOptionStart <- "start" EQUAL posInt:PositiveInteger {
     return &InputLookupOptionArgs{
         argOption: "start",
         inputLookupOption: &structs.InputLookup{
@@ -5260,7 +5260,7 @@ InputLookupOptionStart <- "start" EQUAL posInt:GetPositiveInteger {
     }, nil
 }
 
-InputLookupOptionMax <- "max" EQUAL posInt:GetPositiveInteger {
+InputLookupOptionMax <- "max" EQUAL posInt:PositiveInteger {
     return &InputLookupOptionArgs{
         argOption: "max",
         inputLookupOption: &structs.InputLookup{
@@ -5315,29 +5315,16 @@ InputLookupOptionList <- first: (InputLookupOption) rest:(SPACE InputLookupOptio
 
 
 
-InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionList) SPACE filename:(String) whereClause:(OptionalWhereClause)? {
-    inputLookup := inputLookupOption.(*structs.InputLookup)
+InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionList SPACE)? filename:(String) whereClause:(WhereClause)? {
+    inputLookup := &structs.InputLookup{}
+    if inputLookupOption != nil {
+        inputLookupOption := inputLookupOption.([]any)
+        inputLookup = inputLookupOption[0].(*structs.InputLookup)
+    }
     if whereClause != nil {
         inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
     }
     inputLookup.Filename = removeQuotes(filename.(string))
-    if inputLookup.Max == 0 {
-        inputLookup.Max = 1000000000
-    }
-
-    return &structs.QueryAggregators{
-        PipeCommandType: structs.GenerateEventType,
-        GenerateEvent: &structs.GenerateEvent{
-            InputLookup: inputLookup,
-        },
-    }, nil
-}
-/ PIPE CMD_INPUTLOOKUP filename:(String) whereClause:(OptionalWhereClause)? {
-    inputLookup:= &structs.InputLookup{}
-    inputLookup.Filename = removeQuotes(filename.(string))
-    if whereClause != nil {
-        inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
-    }
     if inputLookup.Max == 0 {
         inputLookup.Max = 1000000000
     }
@@ -5353,7 +5340,7 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
 InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
     inputLookup := inputLookupBlock.(*structs.QueryAggregators)
     if !inputLookup.GenerateEvent.InputLookup.Append {
-        return nil, fmt.Errorf("Inputlookup after search must have append as true")
+        return nil, fmt.Errorf("An Inputlookup command which is not the first command must have append as true")
     }
     inputLookup.GenerateEvent.InputLookup.HasPrevResults = true
     

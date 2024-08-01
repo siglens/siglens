@@ -36,6 +36,7 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 )
@@ -716,7 +717,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 // Only =, != , <, >, <=, >= operators are supported for strings and numbers.
 // Strings and numbers are compared as strings.
 // Strings are compared lexicographically and are case-insensitive.
-// Wildcards can be used to match a string with a pattern.
+// Wildcards can be used to match a string with a pattern. Only * is supported.
 func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
 	if self.IsTerminal {
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -744,10 +745,13 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 		} else if errLeftStr == nil && errRightStr == nil {
 			leftStr = strings.ToLower(leftStr)
 			rightStr = strings.ToLower(rightStr)
-			match, err := filepath.Match(rightStr, leftStr)
+			pattern := dtypeutils.ReplaceWildcardStarWithRegex(rightStr)
+			compiledRegex, err := regexp.Compile(pattern)
 			if err != nil {
-				return false, nil
+				return false, fmt.Errorf("Error compiling regular expression, err:%v", err)
 			}
+			match := compiledRegex.MatchString(leftStr)
+
 			switch self.ValueOp {
 			case "=":
 				return match, nil

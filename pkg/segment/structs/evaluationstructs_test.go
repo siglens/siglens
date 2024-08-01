@@ -564,6 +564,168 @@ func Test_BoolExpr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func EvaluateForInputLookup_Helper(t *testing.T, boolExpr *BoolExpr, colValues []string, expectedOutput []bool, valueOps []string, colName string) {
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+
+	for i, valueOp := range valueOps {
+		boolExpr.ValueOp = valueOp
+		fieldToValue[colName] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colValues[i],
+		}
+		value, err := boolExpr.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
+}
+
+func Test_EvaluateForInputLookup(t *testing.T) {
+	valueExprA := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:      true,
+			ValueIsField:    true,
+			Value:           "Test",
+			NumericExprMode: NEMNumberField,
+		},
+	}
+
+	valueExprB := &ValueExpr{
+		ValueExprMode: VEMStringExpr,
+		StringExpr: &StringExpr{
+			StringExprMode: SEMRawString,
+			RawString:      "test*",
+		},
+	}
+
+	valueExprC := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:   true,
+			ValueIsField: false,
+			Value:        "100",
+		},
+	}
+
+	valueExprD := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:      true,
+			ValueIsField:    true,
+			Value:           "Check",
+			NumericExprMode: NEMNumberField,
+		},
+	}
+
+	boolExprStr := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprA,
+		RightValue: valueExprB,
+	}
+
+	boolExprNum := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprA,
+		RightValue: valueExprC,
+	}
+
+	boolExprNum2 := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprD,
+		RightValue: valueExprC,
+	}
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	valueOps := []string{"=", "!=", ">", "<", ">=", "<="}
+
+	// Test String Comparisons
+	colStrValues := []string{"Testing", "test", "xyz", "tester", "sun", "Test"}
+	expectedOutput := []bool{true, false, true, false, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprStr, colStrValues, expectedOutput, valueOps, "Test")
+
+	// Test Numeric Comparisons
+	colNumValues := []string{"100", "100", "101", "0", "99", "100"}
+	expectedOutput = []bool{true, false, true, true, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprNum, colNumValues, expectedOutput, valueOps, "Test")
+
+	// Test String and Numeric Comparisons
+	colValues := []string{"Testing", "100", "sun", "12", "-10", "-3"}
+	expectedOutput = []bool{true, true, false, true, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprStr, colValues, expectedOutput, valueOps, "Test")
+
+	// Test Invalid ValueOp
+	boolExprStr.ValueOp = "invalid"
+	_, err := boolExprStr.EvaluateForInputLookup(fieldToValue)
+	assert.NotNil(t, err)
+
+	// Test AND
+	boolExprAnd := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpAnd,
+		LeftBool:   boolExprStr,
+		RightBool:  boolExprNum2,
+	}
+	expectedOutput = []bool{true, false, true, false, false, true}
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		boolExprNum2.ValueOp = valueOp
+		fieldToValue["Check"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colNumValues[i],
+		}
+		value, err := boolExprAnd.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
+
+	// Test OR
+	boolExprOr := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpOr,
+		LeftBool:   boolExprStr,
+		RightBool:  boolExprNum2,
+	}
+	expectedOutput = []bool{true, false, true, true, false, true}
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		boolExprNum2.ValueOp = valueOp
+		fieldToValue["Check"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colNumValues[i],
+		}
+		value, err := boolExprOr.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
+
+	// Test NOT
+	boolExprNot := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpNot,
+		LeftBool:   boolExprStr,
+	}
+	expectedOutput = []bool{false, true, false, true, true, false}
+
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		value, err := boolExprNot.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
+}
+
 func Test_ConditionExpr(t *testing.T) {
 
 	boolExpr :=
