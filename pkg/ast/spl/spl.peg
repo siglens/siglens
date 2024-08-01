@@ -1360,7 +1360,7 @@ BinOptionAlignTime <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
 
     return binOptionArgs, nil
 }
-/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp) {
+/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) {
     var epoch uint64 = 0
     var err error
     relTimeModifier := timestamp.(ast.TimeModifier)
@@ -4264,7 +4264,7 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) !. {
     var startEpoch int64 = 0
     var endEpoch int64 = 0
     var err error
@@ -4276,11 +4276,44 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
     if err != nil {
         return nil, err
+	}
+
+    for i := 0; i < len(earliestTimeModifier.ChainedOffsets) || i < len(earliestTimeModifier.ChainedSnaps); i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        if i < len(earliestTimeModifier.ChainedOffsets) {
+            relativeTimeModifier.RelativeTimeOffset = earliestTimeModifier.ChainedOffsets[i]
+        }
+
+        if i < len(earliestTimeModifier.ChainedSnaps) {
+            relativeTimeModifier.Snap = earliestTimeModifier.ChainedSnaps[i]
+        }
+
+        startEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(startEpoch))
+        if err != nil {
+            return nil, err
+        }
     }
 
     endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
     if err != nil {
         return nil, err
+    }
+    for i := 0; i < len(latestTimeModifier.ChainedOffsets) || i < len(latestTimeModifier.ChainedSnaps); i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        if i < len(latestTimeModifier.ChainedOffsets) {
+            relativeTimeModifier.RelativeTimeOffset = latestTimeModifier.ChainedOffsets[i]
+        }
+
+        if i < len(latestTimeModifier.ChainedSnaps) {
+            relativeTimeModifier.Snap = latestTimeModifier.ChainedSnaps[i]
+        }
+
+        endEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(endEpoch))
+        if err != nil {
+            return nil, err
+        }
     }
     
     // Create AST node
@@ -4295,7 +4328,7 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) !. {
     var startEpoch int64 = 0
     var err error
 
@@ -4304,6 +4337,23 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
     if err != nil {
         return nil, err
+    }
+    
+    for i := 0; i < len(earliestTimeModifier.ChainedOffsets) || i < len(earliestTimeModifier.ChainedSnaps); i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        if i < len(earliestTimeModifier.ChainedOffsets) {
+            relativeTimeModifier.RelativeTimeOffset = earliestTimeModifier.ChainedOffsets[i]
+        }
+
+        if i < len(earliestTimeModifier.ChainedSnaps) {
+            relativeTimeModifier.Snap = earliestTimeModifier.ChainedSnaps[i]
+        }
+
+        startEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(startEpoch))
+        if err != nil {
+            return nil, err
+        }
     }
 
     // Create AST node
@@ -4365,14 +4415,56 @@ Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
     return relTimeOffset, nil
 }
 
+ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
+    var offsets []ast.RelativeTimeOffset
+    var snaps []string
 
-// Reference Doc: https://docs.splunk.com/Documentation/Splunk/9.1.2/Search/Specifytimemodifiersinyoursearch 
-// TODO: Chained relative modifiers
-RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap)? {
+    // Append zero values to ensure corresponding offsets and snaps
+    // This ensures that each snap and offset correspond to the same index
+    appendZeroValues := func() {
+        if len(offsets) > len(snaps) {
+            snaps = append(snaps, "")
+        } else if len(snaps) > len(offsets) {
+            offsets = append(offsets, ast.RelativeTimeOffset{})
+        }
+    }
+
+    // Process the first element
+    if first != nil {
+        switch v := first.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            snaps = append(snaps, "") // Append zero value for Snap
+        case string:
+            snaps = append(snaps, v)
+            offsets = append(offsets, ast.RelativeTimeOffset{}) // Append zero value for Offset
+        }
+    }
+
+    // Process the rest of the elements
+    restSlice := rest.([]any)
+    for _, item := range restSlice {
+        switch v := item.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            appendZeroValues() // Ensure corresponding Snap
+        case string:
+            snaps = append(snaps, v)
+            appendZeroValues() // Ensure corresponding Offset
+        }
+    }
+
+    return ast.ChainedRelativeTimestamp{
+        Offsets: offsets,
+        Snaps: snaps,
+    }, nil
+}
+
+RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestamp)? {
 
     if defaultTime != nil {
-        if offset != nil || snapParam != nil {
-            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with offset or snap")
+        if chained != nil {
+            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with chained offsets/snaps")
         }
         defTime, err := transferUint8ToString(defaultTime)
         if err != nil {
@@ -4386,26 +4478,13 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
         return timeModifier, nil
     }
 
-    if offset == nil && snapParam == nil {
-        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    if chained == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need chained offsets or snaps")
     }
-
-    relTimeOffset := ast.RelativeTimeOffset{}
-    snap := ""
-    if snapParam != nil {
-        snap = snapParam.(string)
-    }
-
-    if offset != nil {
-        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
-        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
-    } 
 
     timeModifier := ast.TimeModifier{
-        RelativeTime: ast.RelativeTimeModifier{
-            RelativeTimeOffset: relTimeOffset,
-            Snap: snap,
-        },
+        ChainedOffsets: chained.(ast.ChainedRelativeTimestamp).Offsets,
+        ChainedSnaps: chained.(ast.ChainedRelativeTimestamp).Snaps,
     }
 
     return timeModifier, nil

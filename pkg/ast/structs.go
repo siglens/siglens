@@ -81,8 +81,10 @@ type ParseError struct {
 }
 
 type TimeModifier struct {
-	RelativeTime RelativeTimeModifier
-	AbsoluteTime string
+	RelativeTime   RelativeTimeModifier
+	AbsoluteTime   string
+	ChainedOffsets []RelativeTimeOffset
+	ChainedSnaps   []string
 }
 
 type RelativeTimeModifier struct {
@@ -93,6 +95,11 @@ type RelativeTimeModifier struct {
 type RelativeTimeOffset struct {
 	Offset   int64
 	TimeUnit utils.TimeUnit
+}
+
+type ChainedRelativeTimestamp struct {
+	Offsets []RelativeTimeOffset
+	Snaps   []string
 }
 
 func MakeValue(val interface{}) (interface{}, error) {
