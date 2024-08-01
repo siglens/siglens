@@ -253,7 +253,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </i>
                                     <textarea class="form-control expandable-textarea" id="filter-input"
                                         placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>
-                                    <span class="clear-icon" id="clearInput"></span>
+                                        <div class="search-handler" style="display:flex;flex-direction:row;gap:2px">
+                                        <span id="custom-ellipsis">...</span>
+                                        <span class="clear-icon" id="clearInput"></span>
+                                    </div>
                                 </div>
                                 <div class="text-end">
                                     <button class="btn run-filter-btn" id="run-filter-btn"></button>

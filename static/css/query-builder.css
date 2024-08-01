@@ -527,20 +527,22 @@ a:visited.ui-button,
 textarea.form-control#filter-input{
     min-height: 32px;
     box-sizing: border-box;
-    resize: none; 
-    overflow: hidden; 
-    transition: height 0.3s; 
+    resize: none;
+    overflow: hidden;
+    transition: height 0.3s;
     padding-top: 4px;
     background-color: var(--top-bar-bg-color-regular);
     color: var(--text-color) !important;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1; 
-    width: 100%;
-    height: 32px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: all 0.2s ease-in-out;
+    display: inline-block;
+}
+#custom-ellipsis {
+    position: absolute;
+    right: 55px; /* Adjust based on button size */
+    bottom: 8px; /* Adjust based on desired positioning */
+    display: none;
+    color: var(--text-color) !important;
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 28px;
 }
 textarea.form-control:focus{
     box-shadow: none;

@@ -945,6 +945,18 @@ function initializeFilterInputEvents() {
         this.style.height = this.scrollHeight + 'px';
     }
 
+    function checkOverflow() {
+        var $input = $('#filter-input');
+        var $ellipsis = $('#custom-ellipsis');
+    console.log($input[0].scrollHeight);
+        // Check if the content's height exceeds 32px
+        if ($input[0].scrollHeight > 50) {
+            $ellipsis.show();
+        } else {
+            $ellipsis.hide();
+        }
+    }
+
     $('#filter-input').on('focus', function () {
         $(this).addClass('expanded');
         autoResizeTextarea.call(this);
@@ -953,18 +965,25 @@ function initializeFilterInputEvents() {
     $('#filter-input').on('blur', function () {
         $(this).removeClass('expanded');
         this.style.height = '32px';
+        checkOverflow();
     });
 
     $('#filter-input').on('input', function () {
         autoResizeTextarea.call(this);
         toggleClearButtonVisibility();
+        checkOverflow();
     });
 
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
+        $('#custom-ellipsis').hide();
     });
 }
+
+// Initialize the events
+initializeFilterInputEvents();
+
 
 function toggleClearButtonVisibility() {
     if ($('#filter-input').val()) {
