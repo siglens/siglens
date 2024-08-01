@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-'use strict';
 let panelGridDiv = null;
 let panelID = null;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
@@ -142,10 +141,12 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     if (panelId == -1 && panelGridDiv == null) {
         // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
     if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
 

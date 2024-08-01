@@ -1214,6 +1214,7 @@ async function runQueryBtnHandler() {
         data = getQueryParamsData();
         currentPanel.queryData = data;
         $('.panelDisplay .panEdit-panel').hide();
+        //eslint-disable-next-line no-undef
         initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);
     }
@@ -1313,6 +1314,7 @@ function displayPanelView(panelIndex) {
             responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div><div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
+            //eslint-disable-next-line no-undef
             initialSearchDashboardData = localPanel.queryData;
             runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
             break;

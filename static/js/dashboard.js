@@ -24,6 +24,7 @@ let localPanels = [],
     dbId,
     allResultsDisplayed = 0;
 let panelIndex;
+//eslint-disable-next-line no-unused-vars
 let initialSearchDashboardData = {};
 //eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
