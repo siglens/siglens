@@ -84,34 +84,40 @@ const panelGridOptions = {
     suppressFieldDotNotation: true,
     onBodyScroll(evt) {
         if (panelID == -1 || panelID == null || panelID == undefined) {
+            //eslint-disable-next-line no-undef
             if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
                 let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
                 if (diff <= 1) {
                     let scrollingTrigger = true;
                     data = getQueryParamsData(scrollingTrigger);
+                    //eslint-disable-next-line no-undef
                     if (data.searchText !== initialSearchDashboardData.searchText || data.indexName !== initialSearchDashboardData.indexName || data.startEpoch !== initialSearchDashboardData.startEpoch || data.endEpoch !== initialSearchDashboardData.endEpoch || data.queryLanguage !== initialSearchDashboardData.queryLanguage) {
                         scrollingErrorPopup();
                         return; // Prevent further scrolling
                     }
-
+                    //eslint-disable-next-line no-undef
                     isFetching = true;
                     showLoadingIndicator();
                     if (data && data.searchText == 'error') {
                         alert('Error');
                         hideLoadingIndicator(); // Hide loading indicator on error
+                        //eslint-disable-next-line no-undef
                         isFetching = false;
                         return;
                     }
                     runPanelLogsQuery(data, panelID, currentPanel)
                         .then(() => {
+//eslint-disable-next-line no-undef
                             isFetching = false;
                         })
                         .catch((error) => {
                             console.warn('Error fetching data', error);
+                            //eslint-disable-next-line no-undef
                             isFetching = false;
                         })
                         .finally(() => {
                             hideLoadingIndicator();
+                            //eslint-disable-next-line no-undef
                             isFetching = false;
                         });
                 }
