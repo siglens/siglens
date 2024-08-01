@@ -1594,6 +1594,8 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			return left * right, nil
 		case "/":
 			return left / right, nil
+		case "%":
+			return math.Mod(left, right), nil
 		case "abs":
 			return math.Abs(left), nil
 		case "ceil":

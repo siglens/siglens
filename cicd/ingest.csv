@@ -345,3 +345,6 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 2| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,8,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
+"app_name=Bracecould | stats count AS Count BY latency | eval mod_value = latency%123",now-1d,now,*,group:mod_value:7330203,eq,18,Splunk QL
+"app_name=Bracecould | stats count AS Count BY latency | eval mod=(latency-8000000)%123",now-1d,now,*,group:mod:7330203,eq,-62,Splunk QL
+
