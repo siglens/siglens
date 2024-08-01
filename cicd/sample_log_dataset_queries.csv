@@ -109,8 +109,13 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY http_method | rename http_method AS ""test""",now-1d,now,*,group:Count:POST,eq,60,Splunk QL
 "city=Boston | stats count AS Count BY http_status, http_method | eval newField=(http_status - 1000) | rename newField AS http_method",now-1d,now,*,group:http_method:400,eq,-600,Splunk QL
 city=Boston | stats count AS Count BY http_method | eval newField=lower(http_method) | rename new* AS start*end,now-1d,now,*,group:startFieldend:PATCH,eq,patch,Splunk QL
-"city=Boston | stats max(latitude), range(eval(latitude >= 0)) AS range",now-1d,now,*,group:range:*,eq,66.417,Splunk QL
 "* | stats count(eval(latitude < 0)) AS count, dc(eval(lower(app_name)))",now-1d,now,*,group:count:*,eq,"19,300",Splunk QL
-"* | stats min(eval(latitude < 0)), max(eval(latitude < 0)) AS max, range(eval(latitude < 0)) BY weekday",now-1d,now,*,group:max:Monday,eq,-0.102292,Splunk QL
 "app_name=""Troutcut"" (Wednesday OR Friday)",now-1d,now,*,total,eq,20,Splunk QL
 "app_name=""Troutcut"" (Wednesday OR Friday) NOT asdfjklnvwer",now-1d,now,*,total,eq,20,Splunk QL
+"city=Boston | stats count(eval(http_status > 400)) as cnt",now-1d,now,*,group:cnt:*,eq,100,Splunk QL
+"batch=batch-275 | stats sum(eval(if(http_status > 300, 100, 1))) as sum",now-1d,now,*,group:sum:*,eq,"4,020",Splunk QL
+"batch=batch-275 | stats avg(eval(if(http_status > 300, 100, 1))) as avg",now-1d,now,*,group:avg:*,eq,67,Splunk QL
+"batch=batch-275 | stats min(eval(http_status+10)) as min",now-1d,now,*,group:min:*,eq,210,Splunk QL
+"batch=batch-275 | stats max(eval(if(http_status > 400, http_status, ""abc""))) as max",now-1d,now,*,group:max:*,eq,abc,Splunk QL
+"batch=batch-275 | stats range(eval(if(http_status > 400, latitude, longitude))) as range",now-1d,now,*,group:range:*,eq,239.477,Splunk QL
+"batch=batch-275 | stats dc(eval(http_status+10)) as dc",now-1d,now,*,group:dc:*,eq,3,Splunk QL
