@@ -773,14 +773,15 @@ async function addQueryElement() {
             if (!formulaInput) {
                 formulaInput = queryNames.join(' + ');
             }
-            if (Object.values(formulaDetailsMap)[0].functions != undefined) {
+            const firstValue = Object.values(formulaDetailsMap)[0];
+            if (firstValue && firstValue.functions !== undefined) {
                 const firstElementFunctions = Object.values(formulaDetailsMap)[0].functions;
                 for (let func of firstElementFunctions) {
                     formulaInput = `${func}(${formulaInput})`;
                 }
                 await addAlertsFormulaElement(formulaInput);
             }
-            else{
+            else {
                 await addAlertsFormulaElement();
             }
 
