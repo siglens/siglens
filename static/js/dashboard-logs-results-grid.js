@@ -107,7 +107,7 @@ const panelGridOptions = {
                     }
                     runPanelLogsQuery(data, panelID, currentPanel)
                         .then(() => {
-//eslint-disable-next-line no-undef
+                            //eslint-disable-next-line no-undef
                             isFetching = false;
                         })
                         .catch((error) => {
