@@ -32,24 +32,24 @@ import (
 // TraceEnter("")
 func TraceEnter(extraMessage string) {
 	// Get information about the function we're entering.
-	pc, file, line, ok := runtime.Caller(1)
+	programCounter, file, line, ok := runtime.Caller(1)
 	if !ok {
 		log.Warnf("TraceEnter: Unable to get caller information")
 		return
 	}
-	funcName := extractFuncName(runtime.FuncForPC(pc).Name())
+	funcName := extractFuncName(runtime.FuncForPC(programCounter).Name())
 	fileName := filepath.Base(file)
 
 	// Get information about the caller.
 	var message string
-	callerPc, callerFile, callerLine, callerOk := runtime.Caller(2)
+	callerProgramCounter, callerFile, callerLine, callerOk := runtime.Caller(2)
 	if callerOk {
-		callerFuncName := extractFuncName(runtime.FuncForPC(callerPc).Name())
+		callerFuncName := extractFuncName(runtime.FuncForPC(callerProgramCounter).Name())
 		callerFileName := filepath.Base(callerFile)
-		message = fmt.Sprintf("Entering %s at %s:%d from %s at %s:%d",
+		message = fmt.Sprintf("Entering %s (%s:%d) from %s at %s:%d",
 			funcName, fileName, line, callerFuncName, callerFileName, callerLine)
 	} else {
-		message = fmt.Sprintf("Entering %s at %s:%d (cannot determine caller)", funcName, fileName, line)
+		message = fmt.Sprintf("Entering %s (%s:%d) (cannot determine caller)", funcName, fileName, line)
 	}
 
 	if extraMessage != "" {
@@ -64,12 +64,12 @@ func TraceEnter(extraMessage string) {
 // OR
 // defer TraceExit(nil)
 func TraceExit(computeExtraMessage func() string) {
-	pc, file, line, ok := runtime.Caller(1)
+	programCounter, file, line, ok := runtime.Caller(1)
 	if !ok {
 		log.Warnf("TraceExit: Unable to get caller information")
 		return
 	}
-	funcName := extractFuncName(runtime.FuncForPC(pc).Name())
+	funcName := extractFuncName(runtime.FuncForPC(programCounter).Name())
 	fileName := filepath.Base(file)
 
 	message := fmt.Sprintf("Exiting %s at %s:%d", funcName, fileName, line)
