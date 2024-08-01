@@ -46,8 +46,8 @@ func ReadLocalSegmeta() []*structs.SegMeta {
 
 // returns all segmetas downloaded, including the current nodes segmeta and all global segmetas
 func ReadAllSegmetas() []*structs.SegMeta {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 
 	ingestDir := config.GetIngestNodeBaseDir()
 	files, err := os.ReadDir(ingestDir)

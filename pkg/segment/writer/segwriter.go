@@ -60,7 +60,7 @@ var maxSegFileSize uint64
 
 var KibanaInternalBaseDir string
 
-var smrLock sync.Mutex = sync.Mutex{}
+var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
 // Create a writer that caches compressors.
