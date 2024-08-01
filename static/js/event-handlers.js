@@ -447,7 +447,14 @@ function runFilterBtnHandler(evt) {
         // index.html
         $('.popover').hide();
         evt.preventDefault();
-        if ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ') {
+        const runFilterBtn = $('#run-filter-btn');
+        const queryBuilderBtn = $('#query-builder-btn');
+        if (runFilterBtn.hasClass('cancel-search') || queryBuilderBtn.hasClass('cancel-search')) {
+            wsState = 'cancel';
+            data = getSearchFilter(false, false);
+            initialSearchData = data;
+            doCancel(data);
+        } else {
             resetDashboard();
             logsRowData = [];
             wsState = 'query';
@@ -455,11 +462,6 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             availColNames = [];
             doSearch(data);
-        } else {
-            wsState = 'cancel';
-            data = getSearchFilter(false, false);
-            initialSearchData = data;
-            doCancel(data);
         }
         $('#daterangepicker').hide();
     }
