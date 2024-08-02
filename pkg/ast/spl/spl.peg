@@ -66,6 +66,29 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
     return epoch, nil
 }
 
+func applyTimeModifiers(initialEpoch int64, chainedOffsets []ast.RelativeTimeOffset, chainedSnaps []string) (int64, error) {
+    offsetsLen := len(chainedOffsets)
+    snapsLen := len(chainedSnaps)
+
+    if offsetsLen != snapsLen {
+        return 0, fmt.Errorf("chainedOffsets and chainedSnaps length not equal")
+    }
+
+    var err error
+    for i := 0; i < offsetsLen; i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        relativeTimeModifier.RelativeTimeOffset = chainedOffsets[i]
+        relativeTimeModifier.Snap = chainedSnaps[i]
+
+        initialEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(initialEpoch))
+        if err != nil {
+            return 0, err
+        }
+    }
+    return initialEpoch, nil
+}
+
 func getParseError(err error) error {
     switch ev := err.(type) {
     case errList:
@@ -1360,7 +1383,7 @@ BinOptionAlignTime <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
 
     return binOptionArgs, nil
 }
-/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) {
+/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp) {
     var epoch uint64 = 0
     var err error
     relTimeModifier := timestamp.(ast.TimeModifier)
@@ -4264,7 +4287,7 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) !. {
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
     var startEpoch int64 = 0
     var endEpoch int64 = 0
     var err error
@@ -4278,42 +4301,19 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
         return nil, err
 	}
 
-    for i := 0; i < len(earliestTimeModifier.ChainedOffsets) || i < len(earliestTimeModifier.ChainedSnaps); i++ {
-        var relativeTimeModifier ast.RelativeTimeModifier
-
-        if i < len(earliestTimeModifier.ChainedOffsets) {
-            relativeTimeModifier.RelativeTimeOffset = earliestTimeModifier.ChainedOffsets[i]
-        }
-
-        if i < len(earliestTimeModifier.ChainedSnaps) {
-            relativeTimeModifier.Snap = earliestTimeModifier.ChainedSnaps[i]
-        }
-
-        startEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(startEpoch))
-        if err != nil {
-            return nil, err
-        }
+    // Apply chained modifiers to the start epoch
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
     }
 
     endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
     if err != nil {
         return nil, err
     }
-    for i := 0; i < len(latestTimeModifier.ChainedOffsets) || i < len(latestTimeModifier.ChainedSnaps); i++ {
-        var relativeTimeModifier ast.RelativeTimeModifier
-
-        if i < len(latestTimeModifier.ChainedOffsets) {
-            relativeTimeModifier.RelativeTimeOffset = latestTimeModifier.ChainedOffsets[i]
-        }
-
-        if i < len(latestTimeModifier.ChainedSnaps) {
-            relativeTimeModifier.Snap = latestTimeModifier.ChainedSnaps[i]
-        }
-
-        endEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(endEpoch))
-        if err != nil {
-            return nil, err
-        }
+    endEpoch, err = applyTimeModifiers(endEpoch, latestTimeModifier.ChainedOffsets, latestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
     }
     
     // Create AST node
@@ -4328,7 +4328,7 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp / ChainedRelativeTimestamps) !. {
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
     var startEpoch int64 = 0
     var err error
 
@@ -4339,21 +4339,9 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
         return nil, err
     }
     
-    for i := 0; i < len(earliestTimeModifier.ChainedOffsets) || i < len(earliestTimeModifier.ChainedSnaps); i++ {
-        var relativeTimeModifier ast.RelativeTimeModifier
-
-        if i < len(earliestTimeModifier.ChainedOffsets) {
-            relativeTimeModifier.RelativeTimeOffset = earliestTimeModifier.ChainedOffsets[i]
-        }
-
-        if i < len(earliestTimeModifier.ChainedSnaps) {
-            relativeTimeModifier.Snap = earliestTimeModifier.ChainedSnaps[i]
-        }
-
-        startEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(startEpoch))
-        if err != nil {
-            return nil, err
-        }
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
     }
 
     // Create AST node
@@ -4421,7 +4409,7 @@ ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
 
     // Append zero values to ensure corresponding offsets and snaps
     // This ensures that each snap and offset correspond to the same index
-    appendZeroValues := func() {
+    appendDefaultValues := func() {
         if len(offsets) > len(snaps) {
             snaps = append(snaps, "")
         } else if len(snaps) > len(offsets) {
@@ -4434,10 +4422,10 @@ ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
         switch v := first.(type) {
         case ast.RelativeTimeOffset:
             offsets = append(offsets, v)
-            snaps = append(snaps, "") // Append zero value for Snap
+            snaps = append(snaps, "") // Append default value for Snap
         case string:
             snaps = append(snaps, v)
-            offsets = append(offsets, ast.RelativeTimeOffset{}) // Append zero value for Offset
+            offsets = append(offsets, ast.RelativeTimeOffset{}) // Append default value for Offset
         }
     }
 
@@ -4447,10 +4435,10 @@ ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
         switch v := item.(type) {
         case ast.RelativeTimeOffset:
             offsets = append(offsets, v)
-            appendZeroValues() // Ensure corresponding Snap
+            appendDefaultValues() // Ensure corresponding Snap
         case string:
             snaps = append(snaps, v)
-            appendZeroValues() // Ensure corresponding Offset
+            appendDefaultValues() // Ensure corresponding Offset
         }
     }
 
@@ -4464,7 +4452,7 @@ RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestam
 
     if defaultTime != nil {
         if chained != nil {
-            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with chained offsets/snaps")
+            return nil, fmt.Errorf("Invalid Relative timestamp, cannot combine default with chained offsets/snaps")
         }
         defTime, err := transferUint8ToString(defaultTime)
         if err != nil {
