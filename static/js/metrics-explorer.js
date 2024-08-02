@@ -229,7 +229,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
         // Get the updated formula and validate it
         let formula = formulaElement.find('.formula').val().trim();
         let validationResult = validateFormula(formula, uniqueId);
-        
+
         // If the validation passes, call the getMetricsDataForFormula with the updated details
         if (validationResult !== false) {
             await getMetricsDataForFormula(uniqueId, validationResult);
