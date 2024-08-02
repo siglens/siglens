@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let currentPanel;
 let selectedChartTypeIndex = -1,
     selectedDataSourceTypeIndex = -1;
 let selectedUnitTypeIndex = -1;
