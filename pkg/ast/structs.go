@@ -97,11 +97,6 @@ type RelativeTimeOffset struct {
 	TimeUnit utils.TimeUnit
 }
 
-type ChainedRelativeTimestamp struct {
-	Offsets []RelativeTimeOffset
-	Snaps   []string
-}
-
 func MakeValue(val interface{}) (interface{}, error) {
 	return val, nil
 }

@@ -4460,10 +4460,12 @@ ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
         }
     }
 
-    return ast.ChainedRelativeTimestamp{
-        Offsets: offsets,
-        Snaps: snaps,
-    }, nil
+    timeModifier := ast.TimeModifier{
+        ChainedOffsets: offsets,
+        ChainedSnaps: snaps,
+    }
+
+    return timeModifier, nil
 }
 
 RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestamp)? {
@@ -4488,12 +4490,7 @@ RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestam
         return nil, fmt.Errorf("Invalid Relative Time Format: Need chained offsets or snaps")
     }
 
-    timeModifier := ast.TimeModifier{
-        ChainedOffsets: chained.(ast.ChainedRelativeTimestamp).Offsets,
-        ChainedSnaps: chained.(ast.ChainedRelativeTimestamp).Snaps,
-    }
-
-    return timeModifier, nil
+    return chained, nil
 }
 
 RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
