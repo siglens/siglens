@@ -25,6 +25,8 @@ let localPanels = [],
     allResultsDisplayed = 0;
 let panelIndex;
 //eslint-disable-next-line no-unused-vars
+let initialSearchDashboardData = {};
+//eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
@@ -294,9 +296,9 @@ function handlePanelView() {
 
 function viewPanelInit() {
     $('.panelEditor-container').css('display', 'flex');
-    $('.popupOverlay').addClass('active');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
+    $('.popupOverlay').addClass('active');
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
 }
@@ -417,7 +419,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         <div id="empty-response"></div>`;
         panEl.append(responseDiv);
         $('#panelLogResultsGrid').show();
-
+        initialSearchDashboardData = localPanel.queryData;
         if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
     } else if (localPanel.chartType == 'Line Chart') {
@@ -694,6 +696,7 @@ async function displayPanels() {
             panEl.append(responseDiv);
 
             $('#panelLogResultsGrid').show();
+            initialSearchDashboardData = localPanel.queryData;
             if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
             else runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
         } else if (localPanel.chartType == 'Line Chart') {
@@ -964,7 +967,6 @@ function addPanel(chartIndex) {
     editPanelInit(panelIndex);
     $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
-
     handlePanelEdit();
     handlePanelRemove(idpanel);
     handlePanelDuplicate();
@@ -1044,8 +1046,8 @@ function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
         $('#app-container').hide();
-        $('.popupOverlay').removeClass('active');
         editPanelFlag = true;
+        $('.popupOverlay').addClass('active');
     } else {
         $('#app-container').hide();
     }
