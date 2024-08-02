@@ -34,6 +34,7 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
+let currentPanel={};
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
@@ -544,6 +545,7 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
 }
  
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
+    alert(JSON.stringify(currentPanel));
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
         // for panel on the editPanelScreen page
