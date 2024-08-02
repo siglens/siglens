@@ -1967,7 +1967,7 @@ div.dts div.dataTables_scrollBody table {
 }
 
 /* Delete confimation popup */
-.popupOverlay {
+.popupOverlay,.mypopupOverlay {
   visibility: hidden;
   position: fixed;
   top: 0;
@@ -2040,7 +2040,7 @@ div.dts div.dataTables_scrollBody table {
     margin-top: 24px;
 }
 
-.popupOverlay.active ,.popupContent.active,.delete-dialog.active{
+.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active{
   visibility: visible;
   position: fixed;
   overflow: hidden;
@@ -4399,7 +4399,9 @@ color: #C8C7CC;
     margin-top: 10px;
     margin-bottom: 10px;
 }
-
+#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr{
+    border: 1px solid var(--search-input-border) !important;
+}
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
     margin: 0;
     text-decoration: none;
