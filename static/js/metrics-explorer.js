@@ -1779,10 +1779,10 @@ function mergeGraphs(chartType, panelId = -1) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
             graphNames.push(`${datasets[0]?.label}`);
-          
+
             datasets.forEach(function (dataset) {
                 // Calculate color for the dataset
-                let datasetColor = colorPalette[selectedTheme][(colorIndex) % colorPalette[selectedTheme].length];
+                let datasetColor = colorPalette[selectedTheme][colorIndex % colorPalette[selectedTheme].length];
 
                 mergedData.datasets.push({
                     label: dataset.label,
