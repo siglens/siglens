@@ -104,6 +104,7 @@ type RunningQueryState struct {
 	totalRecsSearched        uint64
 	rawSearchIsFinished      bool
 	currentSearchResultCount int
+	nodeResult               *structs.NodeResult
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -305,6 +306,22 @@ func IsRawSearchFinished(qid uint64) (bool, error) {
 	return rQuery.rawSearchIsFinished, nil
 }
 
+func SetRawSearchFinished(qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
+		return fmt.Errorf("qid:%v does not exist", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	rQuery.rawSearchIsFinished = true
+	return nil
+}
+
 func SetCurrentSearchResultCount(qid uint64, count int) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -357,19 +374,37 @@ func GetSearchQueryInformation(qid uint64) ([]string, *dtu.TimeRange, uint64, er
 }
 
 // returns the total number of segments, the current number of search results, and if the raw search is finished
-func GetQuerySearchStateForQid(qid uint64) (uint64, int, bool, error) {
+func GetQuerySearchStateForQid(qid uint64) (uint64, uint64, int, bool, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		err := fmt.Errorf("GetQueryStateInfoForQid: qid %+v does not exist", qid)
 		log.Errorf(err.Error())
-		return 0, 0, false, err
+		return 0, 0, 0, false, err
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
-	return rQuery.totalSegments, rQuery.currentSearchResultCount, rQuery.rawSearchIsFinished, nil
+	return rQuery.totalSegments, rQuery.finishedSegments, rQuery.currentSearchResultCount, rQuery.rawSearchIsFinished, nil
+}
+
+func GetOrCreateQuerySearchNodeResult(qid uint64) (*structs.NodeResult, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		err := fmt.Errorf("GetOrCreateQuerySearchNodeResult: qid %+v does not exist", qid)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	if rQuery.nodeResult == nil {
+		rQuery.nodeResult = &structs.NodeResult{}
+	}
+	return rQuery.nodeResult, nil
 }
 
 func CancelQuery(qid uint64) {

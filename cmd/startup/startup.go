@@ -360,9 +360,9 @@ func startQueryServer(serverAddr string) {
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
 				},
-				"EntMsg": func(htmlContent string) htmltemplate.HTML {
-					emptyHtmlContent := "<div id=\"empty-response\">This feature is available in Enterprise version</div>"
-					return htmltemplate.HTML(emptyHtmlContent)
+				"EntMsg": func() string {
+					emptyHtmlContent := "This feature is available in Enterprise version"
+					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
 					return "0.0.1"

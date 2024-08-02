@@ -42,7 +42,6 @@ import (
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64,
 	aggs *structs.QueryAggregators, colsIndexMap map[string]int) (map[string]map[string]interface{}, map[string]bool, error) {
-
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {

@@ -467,6 +467,10 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 
 	rQuery.SetSearchQueryInformation(qid, qc.TableInfo, root.TimeRange, qc.Orgid)
 
+	if aggs != nil {
+		aggs.CheckForColRequestAndAttachToFillNullExprInChain()
+	}
+
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)
 	if aggs != nil {
@@ -482,7 +486,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	}
 	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
-	if rQuery.IsAsync() && aggs != nil && aggs.Next != nil {
+	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGeneratedEventsWithoutSearch()) {
 		err := query.SetFinalStatsForQid(qid, nodeRes)
 		if err != nil {
 			log.Errorf("executeQueryInternal: failed to set final stats: %v", err)

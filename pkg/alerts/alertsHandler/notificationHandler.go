@@ -30,40 +30,41 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState, alertDataMessage string) error {
+func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState, alertDataMessage string) (bool, error) {
 	if alertID == "" {
 		log.Errorf("NotifyAlertHandlerRequest: Missing alert_id")
-		return errors.New("alert ID is empty")
+		return false, errors.New("alert ID is empty")
 	}
 
 	alertDetails, err := processGetAlertDetailsRequest(alertID)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error getting alert details for alert id- %s, err=%v", alertID, err)
-		return err
+		return false, err
 	}
 
 	shouldSend, err := shouldSendNotification(alertID, alertDetails, alertState)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error checking if notification should be sent for alert id- %s, err=%v", alertID, err)
-		return err
+		return false, err
 	}
 	if !shouldSend {
-		return nil
+		return false, nil
 	}
 
 	contact_id, message, subject, err := processGetContactDetails(alertID)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error retrieving contact and message for alert id- %s, err=%v", alertID, err)
-		return err
+		return false, err
 	}
 	emailIDs, channelIDs, webhooks, err := processGetEmailAndChannelID(contact_id)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error retrieving emails or channelIds of slack for contact_id- %s and alert id- %s, err=%v", contact_id, alertID, err)
-		return err
+		return false, err
 	}
 	emailSent := false
 	slackSent := false
@@ -100,16 +101,11 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 
 	if !emailSent && !slackSent && !webhookSent {
-		return errors.New("neither emails or slack message or webhook sent for this notification")
+		return false, errors.New("neither emails or slack message or webhook sent for this notification")
 
 	}
 
-	err = processUpdateLastSentTimeAndAlertState(alertID, alertState)
-	if err != nil {
-		log.Errorf("NotifyAlertHandlerRequest:Error updating last sent time for alert_id- %s, err=%v", alertID, err)
-		return err
-	}
-	return nil
+	return true, nil
 }
 
 // shouldSendNotification checks if the notification should be sent based on the cooldown period and silence minutes
@@ -239,11 +235,47 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 	}
 
 	if alertDataMessage != "" {
-		attachment.Fields = []slack.AttachmentField{
-			{
-				Title: "Alert Details",
-				Value: alertDataMessage,
-			},
+		if utils.IsValidURL(alertDataMessage) {
+			attachment.Actions = []slack.AttachmentAction{
+				{
+					Name:  "view_results",
+					Text:  "View Results",
+					Type:  "button",
+					URL:   alertDataMessage,
+					Style: "primary",
+				},
+			}
+		} else {
+			attachment.Fields = []slack.AttachmentField{
+				{
+					Title: "Alert Details",
+					Value: alertDataMessage,
+				},
+			}
+		}
+	}
+
+	if utils.IsValidURL(message) {
+		// If the Message that a user has set while creating is a URL,
+		// then we will add a button to view the message
+		encodedURL, err := utils.EncodeURL(message)
+		if err != nil {
+			log.Errorf("sendSlack: Error encoding URL. Error=%v", err)
+		} else {
+			messageAttachment := slack.AttachmentAction{
+				Name:  "view_message_link",
+				Text:  "View Message",
+				Type:  "button",
+				URL:   encodedURL,
+				Style: "default",
+			}
+			if len(attachment.Actions) > 0 {
+				attachment.Actions = append(attachment.Actions, messageAttachment)
+			} else {
+				attachment.Actions = []slack.AttachmentAction{messageAttachment}
+			}
+
+			attachment.Text = ""
 		}
 	}
 
@@ -289,13 +321,4 @@ func processGetEmailAndChannelID(contact_id string) ([]string, []alertutils.Slac
 	}
 
 	return emails, slacks, webhook, nil
-}
-
-func processUpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateLastSentTimeAndAlertState(alert_id, alertState)
-	if err != nil {
-		log.Errorf("processUpdateLastSentTimeAndAlertState: Unable to update last_sent_time for alert_id- %s, err=%v", alert_id, err)
-		return err
-	}
-	return nil
 }

@@ -17,6 +17,8 @@
 
 package utils
 
+import "fmt"
+
 // If there are duplicate keys, values from the second map will overwrite those
 // from the first map.
 func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
@@ -41,4 +43,25 @@ func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	}
 
 	return set
+}
+
+// Appends the Second map to the First Map. If there are duplicate keys, the value from the first map will be retained.
+// The First Map will be modified in place and will have the values from the Second Map appended to it.
+func MergeMapsRetainingFirst[K comparable, V any](firstMap map[K]V, secondMap map[K]V) {
+	for k, v := range secondMap {
+		if _, ok := firstMap[k]; !ok {
+			firstMap[k] = v
+		}
+	}
+}
+
+func CreateRecord(columnNames []string, record []string) (map[string]interface{}, error) {
+	if len(columnNames) != len(record) {
+		return nil, fmt.Errorf("CreateRecord: Column and record lengths are not equal")
+	}
+	recordMap := make(map[string]interface{})
+	for i, col := range columnNames {
+		recordMap[col] = record[i]
+	}
+	return recordMap, nil
 }

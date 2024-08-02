@@ -154,11 +154,15 @@ function getUrlParameter(name) {
 }
 let formulaDetailsMap = {};
 async function initializeFormulaFunction(formulaElement, uniqueId) {
-    formulaDetailsMap[uniqueId] = {
-        formula: '',
-        queryNames: [],
-        functions: [],
-    };
+    if (!formulaDetailsMap[uniqueId] || !formulaDetailsMap[uniqueId].formula) {
+        // Initialize the formula details for the given uniqueId if it does not exist or is empty
+        formulaDetailsMap[uniqueId] = {
+            formula: '',
+            queryNames: [],
+            functions: [],
+        };
+        funcApplied = false;
+    }
 
     formulaElement
         .find('#functions-search-box-formula')
@@ -184,7 +188,8 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
                 }
 
                 formulaDetails.functions.push(selectedFunction.fn);
-                appendFormulaFunctionDiv(formulaElement, selectedFunction.fn);
+
+                appendFormulaFunctionDiv(formulaElement, selectedFunction.fn || formulaDetails.functions);
                 let formula = formulaElement.find('.formula').val().trim();
                 let validationResult = validateFormula(formula, uniqueId);
 
@@ -208,7 +213,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
             $(this).select();
         });
 
-    $('.all-selected-functions-formula').on('click', '.selected-function-formula .close', async function () {
+    formulaElement.on('click', '.selected-function-formula .close', async function () {
         var fnToRemove = $(this)
             .parent('.selected-function-formula')
             .contents()
@@ -235,6 +240,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
         }
     });
 }
+
 function appendFormulaFunctionDiv(formulaElement, fnName) {
     var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
     formulaElement.find('.all-selected-functions-formula').append(newDiv);
@@ -397,25 +403,64 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }, 500)
     ); // debounce delay
 }
+function extractFunctionsAndFormula(formulaInput) {
+    const parseObject = {
+        formula: '',
+        functions: [],
+    };
 
+    // Define a regular expression to match functions
+    const functionPattern = /\b(\w+)\s*\(([^()]*)\)/g;
+    let match;
+    const functionsFound = [];
+
+    // Capture functions in the order they appear
+    while ((match = functionPattern.exec(formulaInput)) !== null) {
+        functionsFound.push(match[1]);
+        // Replace the matched function with its content for further processing
+        formulaInput = formulaInput.replace(match[0], match[2]);
+        functionPattern.lastIndex = 0; // Reset the regex index after replacement
+    }
+
+    // Reverse to maintain the correct order of function execution
+    parseObject.functions = functionsFound;
+
+    // The remaining part of the formulaInput should be the innermost formula
+    parseObject.formula = formulaInput.trim();
+
+    return parseObject;
+}
+function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
+    if (!Array.isArray(fnNames)) {
+        throw new TypeError('fnNames should be an array');
+    }
+
+    fnNames.forEach((fnName) => {
+        var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
+        formulaElement.find('.all-selected-functions-formula').append(newDiv);
+    });
+}
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
     if (!formulaInput) {
         formulaInput = queryNames.join(' + ');
     }
-
-    let formulaElement = $('#metrics-formula .formula-box').length > 0 ? $('.formula').val(formulaInput).removeClass('error-border').siblings('.formula-error-message').hide() : createFormulaElementTemplate(uniqueId, formulaInput);
+    let formulaAndFunction = extractFunctionsAndFormula(formulaInput);
+    formulaDetailsMap[uniqueId] = formulaAndFunction;
+    let validationResult = validateFormula(formulaAndFunction.formula, uniqueId);
+    formulas[uniqueId] = validationResult;
+    formulaDetailsMap[uniqueId] = validationResult;
+    formulaDetailsMap[uniqueId].formula = formulaAndFunction.formula;
+    formulas[uniqueId].formula = formulaAndFunction.formula;
+    let formulaElement = $('#metrics-formula .formula-box').length > 0 ? $('.formula').val(formulaAndFunction.formula).removeClass('error-border').siblings('.formula-error-message').hide() : createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
 
     if ($('#metrics-formula .formula-box').length === 0) {
         $('#metrics-formula').append(formulaElement);
     }
-
-    let validationResult = validateFormula(formulaInput, uniqueId);
-    formulas[uniqueId] = validationResult;
-    formulaDetailsMap[uniqueId] = validationResult;
-    await getMetricsDataForFormula(uniqueId, validationResult);
-
+    appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+    funcApplied = false;
+    getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
     if (formulaElements.length > 0) {
@@ -429,15 +474,25 @@ async function addAlertsFormulaElement(formulaInput) {
 
 async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
     // For Dashboards
+    let formulaAndFunction, formulaElement;
     if (formulaInput) {
-        const validationResult = validateFormula(formulaInput, uniqueId);
+        formulaAndFunction = extractFunctionsAndFormula(formulaInput);
+        formulaDetailsMap[uniqueId] = formulaAndFunction;
+        let validationResult = validateFormula(formulaAndFunction.formula, uniqueId);
         formulas[uniqueId] = validationResult;
         formulaDetailsMap[uniqueId] = validationResult;
-        await getMetricsDataForFormula(uniqueId, validationResult);
+        formulaDetailsMap[uniqueId].formula = formulaAndFunction.formula;
+        formulas[uniqueId].formula = formulaAndFunction.formula;
+        formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
+        $('#metrics-formula').append(formulaElement);
+        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+        funcApplied = false;
+        getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+    } else {
+        formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
+        $('#metrics-formula').append(formulaElement);
     }
 
-    const formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
-    $('#metrics-formula').append(formulaElement);
     initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
@@ -475,6 +530,10 @@ function validateFormula(formula, uniqueId) {
         } else if (isNaN(part)) {
             return false; // Todo: if only numeric value is present in formula
         }
+    }
+    if (!usedQueryNames.length) {
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue)) usedQueryNames = queryNames;
     }
 
     // Nest the formula within the functions present in formulaDetails.functions
@@ -712,7 +771,21 @@ async function addQueryElement() {
         await initializeAutocomplete(queryElement, queries[lastQueryName]);
 
         if (isAlertScreen) {
-            await addAlertsFormulaElement();
+            let formulaInput;
+            let queryNames = Object.keys(queries);
+            if (!formulaInput) {
+                formulaInput = queryNames.join(' + ');
+            }
+            const firstValue = Object.values(formulaDetailsMap)[0];
+            if (firstValue && firstValue.functions !== undefined) {
+                const firstElementFunctions = Object.values(formulaDetailsMap)[0].functions;
+                for (let func of firstElementFunctions) {
+                    formulaInput = `${func}(${formulaInput})`;
+                }
+                await addAlertsFormulaElement(formulaInput);
+            } else {
+                await addAlertsFormulaElement();
+            }
         }
     }
 
@@ -1136,7 +1209,7 @@ function updateCloseIconVisibility() {
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
-function prepareChartData(seriesData, chartDataCollection, queryName) {
+function prepareChartData(seriesData, chartDataCollection, queryName, queryString) {
     var labels = [];
     var datasets = [];
 
@@ -1151,7 +1224,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: series.seriesName,
+                label: queryString,
                 data: series.values,
                 borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
                 backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
@@ -1663,6 +1736,10 @@ function mergeGraphs(chartType, panelId = -1) {
     var colorIndex = 0;
     if (isDashboardScreen) {
         // For dashboard page
+        if (currentPanel) {
+            const data = getMetricsQData();
+            currentPanel.queryData = data;
+        }
         var panelChartEl;
         if (panelId === -1) {
             panelChartEl = $(`.panelDisplay .panEdit-panel`);
@@ -1701,10 +1778,11 @@ function mergeGraphs(chartType, panelId = -1) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`${datasets[0].label}`);
+            graphNames.push(`${datasets[0]?.label}`);
+          
             datasets.forEach(function (dataset) {
                 // Calculate color for the dataset
-                let datasetColor = colorPalette.Classic[colorIndex % colorPalette.Classic.length];
+                let datasetColor = colorPalette[selectedTheme][(colorIndex) % colorPalette[selectedTheme].length];
 
                 mergedData.datasets.push({
                     label: dataset.label,
@@ -1813,7 +1891,11 @@ function mergeGraphs(chartType, panelId = -1) {
 }
 
 const shouldShowLegend = (panelId, datasets) => {
-    return panelId === -1 || datasets.length < 5;
+    if ($('#overview-button').hasClass('active')) {
+        return true; // Show legends for panel overview
+    } else {
+        return panelId === -1 || datasets.length < 5; // Hide legends for panel with more than 5 legends
+    }
 };
 
 // Converting the response in form to use to create graphs
@@ -1851,7 +1933,8 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {},
             };
-
+            //eslint-disable-next-line no-useless-escape
+            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
             let calculatedInterval = data.intervalSec;
             let oneDayInMilliseconds = 24 * 60 * 60;
             switch (calculatedInterval) {
@@ -1891,12 +1974,28 @@ async function convertDataForChart(data) {
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
                 if (series.values[formattedDate] === undefined) {
-                    series.values[formattedDate] = null;
+                    if (regexNumeric.test(data.series[i])) {
+                        if (data.values[i][data.timestamps.length - 1] >= 0) {
+                            series.values[formattedDate] = data.values[i][data.timestamps.length - 1];
+                        }
+                    } else {
+                        series.values[formattedDate] = null;
+                    }
                 }
-                chartStartTime = chartStartTime + calculatedInterval;
+                chartStartTime += calculatedInterval;
             }
             seriesArray.push(series);
         }
+    }
+    if (seriesArray.length === 0) {
+        const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
+        seriesArray.push({
+            seriesName: 'No Data',
+            values: labels.reduce((acc, label) => {
+                acc[label] = null;
+                return acc;
+            }, {}),
+        });
     }
 
     return seriesArray;
@@ -2464,8 +2563,6 @@ $('#alert-from-metrics-btn').click(function () {
             } else {
                 queryString = queryDetails.rawQueryInput;
             }
-            const formula = { formula: queryName };
-            mformulas.push(formula);
             const tquery = { name: queryName, query: `(${queryString})`, qlType: 'promql' };
             mqueries.push(tquery);
         });
@@ -2526,4 +2623,47 @@ async function populateMetricsQueryElement(metricsQueryParams) {
     if (queries.length >= 1) {
         await addAlertsFormulaElement(formulas[0].formula);
     }
+}
+function generateEmptyChartLabels(timeUnit, startTime, endTime) {
+    const labels = [];
+    let interval;
+
+    switch (timeUnit) {
+        case 'month':
+            interval = 30 * 24 * 60 * 60;
+            break;
+        case '7day':
+            interval = 7 * 24 * 60 * 60;
+            break;
+        case '2day':
+            interval = 2 * 24 * 60 * 60;
+            break;
+        case '12hour':
+            interval = 12 * 60 * 60;
+            break;
+        case '6hour':
+            interval = 6 * 60 * 60;
+            break;
+        case '3hour':
+            interval = 3 * 60 * 60;
+            break;
+        case '30minute':
+            interval = 30 * 60;
+            break;
+        case '15minute':
+            interval = 15 * 60;
+            break;
+        case '5minute':
+            interval = 5 * 60;
+            break;
+        default:
+            interval = 60;
+    }
+
+    while (startTime <= endTime) {
+        labels.push(moment(startTime * 1000).format('YYYY-MM-DDTHH:mm:ss'));
+        startTime += interval;
+    }
+
+    return labels;
 }
