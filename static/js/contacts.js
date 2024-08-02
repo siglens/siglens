@@ -54,8 +54,8 @@ const contactFormHTML = `
                     </div>
                 </div>
             </div>
-            <div class="button-container mb-0">
-                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+            <div class="button-container mb-0"  data-toggle="tooltip" title="Please fill all required fields.">
+                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button" disabled>
                     <div class="send-icon"></div>
                     <div class="mb-0">Test</div>
                 </button>
@@ -118,6 +118,7 @@ $(document).ready(function () {
     $(document).mouseup(function (e) {
         if ($(e.target).closest('.tooltip-inner').length === 0) {
             tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
+            $('.button-container').tooltip('hide');
         }
     });
 });
@@ -178,6 +179,36 @@ function initializeContactForm(contactId) {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
     });
+    updateTestButtonState();
+    $('#contact-form').on('input', function () {
+        updateTestButtonState();
+    });
+}
+function updateTestButtonState() {
+    $('.contact-container').each(function () {
+        const isSlack = $(this).find('#contact-types span').text() === 'Slack';
+        const channelId = $(this).find('#slack-channel-id').val();
+        const slackToken = $(this).find('#slack-token').val();
+        const webhookUrl = $(this).find('#webhook-id').val();
+
+        const isFormValid = isSlack 
+            ? channelId && slackToken 
+            : webhookUrl;
+
+        const $testButton = $(this).find('.test-contact-btn');
+        $testButton
+            .prop('disabled', !isFormValid)
+            .tooltip('dispose'); // Remove existing tooltip if any
+
+        if (!isFormValid) {
+            $testButton
+                .tooltip({
+                    title: 'Please fill all required fields.',
+                    delay: { show: 0, hide: 300 },
+                    trigger: 'hover'
+                });
+        }
+    });
 }
 
 function addNewContactTypeContainer() {
@@ -210,7 +241,7 @@ function setContactTypes() {
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
-
+    updateTestButtonState();
     // Remove invalid class from all inputs
     container.find('.slack-container input, .webhook-container input').removeClass('is-invalid').val('');
 
