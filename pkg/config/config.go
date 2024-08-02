@@ -172,6 +172,10 @@ func GetDataPath() string {
 	return runningConfig.DataPath
 }
 
+func GetLookupPath() string {
+	return runningConfig.DataPath + "lookups/"
+}
+
 // returns if tls is enabled
 func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
