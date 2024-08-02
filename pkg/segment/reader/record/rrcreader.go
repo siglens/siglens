@@ -224,6 +224,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		} else {
 			recs = make(map[string]map[string]interface{})
 			finalCols = nodeRes.FinalColumns
+			nodeRes.ColumnsOrder = colsIndexMap
 		}
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
