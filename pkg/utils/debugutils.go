@@ -27,14 +27,14 @@ import (
 )
 
 // Use this at the start of a function like this:
-// TraceEnter(fmt.Sprintf("parameter foo=%v", foo))
+// SigDebugEnter(fmt.Sprintf("parameter foo=%v", foo))
 // OR
-// TraceEnter("")
-func TraceEnter(extraMessage string) {
+// SigDebugEnter("")
+func SigDebugEnter(extraMessage string) {
 	// Get information about the function we're entering.
 	programCounter, file, line, ok := runtime.Caller(1)
 	if !ok {
-		log.Warnf("TraceEnter: Unable to get caller information")
+		log.Warnf("SigDebugEnter: Unable to get caller information")
 		return
 	}
 	funcName := extractFuncName(runtime.FuncForPC(programCounter).Name())
@@ -60,13 +60,17 @@ func TraceEnter(extraMessage string) {
 }
 
 // Use this at the start of a function like this:
-// defer TraceExit(func() string { return fmt.Sprintf("final foo=%v", foo) })
+// defer SigDebugExit(func() string { return fmt.Sprintf("final foo=%v", foo) })
 // OR
-// defer TraceExit(nil)
-func TraceExit(computeExtraMessage func() string) {
+// defer SigDebugExit(nil)
+//
+// Note: this uses a function to compute the extra message so that when it's
+// used with defer, the values captured are the values when the defer is
+// executed, not when the defer is declared.
+func SigDebugExit(computeExtraMessage func() string) {
 	programCounter, file, line, ok := runtime.Caller(1)
 	if !ok {
-		log.Warnf("TraceExit: Unable to get caller information")
+		log.Warnf("SigDebugExit: Unable to get caller information")
 		return
 	}
 	funcName := extractFuncName(runtime.FuncForPC(programCounter).Name())
