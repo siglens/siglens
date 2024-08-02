@@ -1435,7 +1435,7 @@ progress.hidden {
     margin-bottom: 12px;
     font-size: 18px;
     color: var(--cstats-header-text-color);
-    font-weight: var(--fw-500) !important;
+    font-weight: 600;
     font-family: "DINpro", Arial, sans-serif;
     font-style: normal;
 }
@@ -1505,10 +1505,9 @@ progress.hidden {
 }
 
 .index-stats-header {
-    
     font-size: 18px;
     color: var(--cstats-header-text-color);
-    font-weight: var(--fw-500) !important;
+    font-weight: 600;
     font-family: "DINpro", Arial, sans-serif;
     font-style: normal;
 }
@@ -1968,7 +1967,7 @@ div.dts div.dataTables_scrollBody table {
 }
 
 /* Delete confimation popup */
-.popupOverlay {
+.popupOverlay,.mypopupOverlay {
   visibility: hidden;
   position: fixed;
   top: 0;
@@ -2041,7 +2040,7 @@ div.dts div.dataTables_scrollBody table {
     margin-top: 24px;
 }
 
-.popupOverlay.active ,.popupContent.active,.delete-dialog.active{
+.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active{
   visibility: visible;
   position: fixed;
   overflow: hidden;
@@ -2473,6 +2472,13 @@ input[type="submit" i] {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     column-gap: 50px;
+}
+
+#cstats-app-container hr{
+    border: 1px solid; 
+    height: 3px; 
+    background: var(--alerting-table-line-color); 
+    margin: 30px 0; 
 }
 
 
@@ -4393,7 +4399,9 @@ color: #C8C7CC;
     margin-top: 10px;
     margin-bottom: 10px;
 }
-
+#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr{
+    border: 1px solid var(--search-input-border) !important;
+}
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
     margin: 0;
     text-decoration: none;

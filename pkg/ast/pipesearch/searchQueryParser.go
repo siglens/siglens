@@ -138,6 +138,18 @@ func createMatchAll(qid uint64) *ASTNode {
 	return rootNode
 }
 
+func updatePositionForGenEvents(aggs *QueryAggregators) {
+	node := aggs
+	position := 1
+	for node != nil {
+		if node.GenerateEvent != nil {
+			node.GenerateEvent.EventPosition = position
+			position++
+		}
+		node = node.Next
+	}
+}
+
 func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, error) {
 	var leafNode *ASTNode
 	var res interface{}
@@ -190,6 +202,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
 		return nil, nil, err
 	}
+
+	updatePositionForGenEvents(pipeCommands)
+
 	return boolNode, pipeCommands, nil
 }
 
@@ -364,6 +379,9 @@ func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregator
 	}
 	if node.GenTimes != nil {
 		aggNode.GenerateEvent.GenTimes = node.GenTimes
+	}
+	if node.InputLookup != nil {
+		aggNode.GenerateEvent.InputLookup = node.InputLookup
 	}
 
 	return aggNode, nil

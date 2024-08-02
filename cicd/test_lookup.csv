@@ -1,0 +1,11 @@
+Test,EmployeeID,FirstName,LastName,Department,Position,Salary,HireDate,PerformanceScore,Email,IsRemote
+-1,1001,John,Smith,Engineering,Senior Developer,85000,2019-03-15,4.2,john.smith@techco.com,TRUE
+100,1002,Emily,Johnson,Marketing,Marketing Manager,78000,2020-06-01,3.9,emily.johnson@techco.com,FALSE
+Def,1003,Michael,Lee,Sales,Account Executive,72000,2018-11-30,4.5,michael.lee@techco.com,TRUE
+-3,1004,Sarah,Williams,Human Resources,HR Specialist,65000,2021-01-10,3.7,sarah.williams@techco.com,FALSE
+ABC,1005,David,Brown,Finance,Financial Analyst,70000,2017-09-22,4.1,david.brown@techco.com,FALSE
+11,1006,Jessica,Davis,Engineering,QA Engineer,68000,2022-04-05,3.8,jessica.davis@techco.com,TRUE
+20,1007,Robert,Wilson,Product,Product Manager,92000,2016-07-18,4.7,robert.wilson@techco.com,FALSE
+DEF,1008,Lisa,Anderson,Customer Support,Support Lead,62000,2019-12-03,4.0,lisa.anderson@techco.com,TRUE
+abc,1009,Thomas,Taylor,Engineering,Junior Developer,60000,2023-02-14,3.5,thomas.taylor@techco.com,FALSE
+50,1010,Amanda,Martinez,Sales,Sales Representative,58000,2022-08-20,3.6,amanda.martinez@techco.com,TRUE
