@@ -314,7 +314,17 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "| gentimes start=04/04/2021 end=04/07/2021 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
 "| gentimes start=-30 end=-20 increment=7s | stats count",now-1d,now,*,countRecord:count(*):*,eq,"123,429",Splunk QL
 "| gentimes start=12/01/2021:16:11:56 end=12/05/2021:12:00:01 increment=3m | stats count",now-1d,now,*,countRecord:count(*):*,eq,"1,837",Splunk QL
+"| inputlookup test_lookup.csv | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
+"| inputlookup max=6 test_lookup.csv where Test > 0 | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"| inputlookup test_lookup.csv where Test < ""a*"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
+"| inputlookup test_lookup.csv.gz where Test = ""a*"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"| inputlookup start=1 max=5 test_lookup.csv where Test = ""abc"" | stats sum(Salary)",now-1d,now,*,countRecord:sum(Salary):*,eq,"70,000",Splunk QL
+"| inputlookup start=1 max=4 append=true test_lookup.csv where Test < 0 | stats sum(Test)",now-1d,now,*,countRecord:sum(Test):*,eq,-3,Splunk QL
+"app_name=Bracecould | inputlookup start=5 append=true test_lookup.csv where Test = ""abc"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,7,Splunk QL
+"app_name=Bracecould | inputlookup start=3 max=3 append=true test_lookup.csv where Test=""abc"" OR Department=""e*"" | inputlookup append=true test_lookup.csv.gz where Department=""s*"" AND Salary > 60000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,9,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 2| mvexpand names | stats count",now-1d,now,*,countRecord:count(*):*,eq,8,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 1| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
+"app_name=Bracecould | stats count AS Count BY latency | eval mod_value = latency%123",now-1d,now,*,group:mod_value:7330203,eq,18,Splunk QL
+"app_name=Bracecould | stats count AS Count BY latency | eval mod=(latency-8000000)%123",now-1d,now,*,group:mod:7330203,eq,-62,Splunk QL
