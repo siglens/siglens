@@ -10770,7 +10770,7 @@ func Test_ParseRelativeTimeModifier_Chained_5(t *testing.T) {
 
 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
-=======
+}
 func Test_InputLookup(t *testing.T) {
 	query := `| inputlookup mylookup.csv`
 	_, err := spl.Parse("", []byte(query))
