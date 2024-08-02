@@ -545,7 +545,6 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
 }
  
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
-    alert(JSON.stringify(currentPanel));
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
         // for panel on the editPanelScreen page
