@@ -19,66 +19,66 @@
 
 let navbarComponent = `
     <div>
-        <div class="nav-main-menu logo" title="">
+        <div class="nav-main-menu logo">
             <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
             </a>
         </div>
      
-        <div class="menu nav-search" title="Logs">
+        <div class="menu nav-search">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
         </div>
-        <div class="menu nav-traces tracing-dropdown-toggle" title="Tracing" style="display:flex;flex-direction:row">
+        <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
                 <span class="nav-link-text">Tracing</span>
             </a>
-            <ul class="traces-dropdown">
+            <ul class="traces-dropdown navbar-submenu">
                 <a href="./service-health.html"><li class="traces-link">Service Health</li></a>
-                <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
+                <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-        <div class="menu nav-metrics metrics-dropdown-toggle" title="Metrics" style="display:flex;flex-direction:row">
+        <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./metrics-explorer.html">
                 <span class="icon-metrics"></span>
                 <span class="nav-link-text">Metrics</span>
             </a>
-            <ul class="metrics-dropdown">
+            <ul class="metrics-dropdown navbar-submenu">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
                 <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinatlity</li></a>
+                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
             </ul>
         </div>
-        <div class="menu nav-slos" title="SLOs">
+        <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
         </div>
-        <div class="menu nav-alerts" title="Alerting">
+        <div class="menu nav-alerts">
             <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>
-        <div class="menu nav-ldb" title="Dashboards-home">
+        <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links">
                 <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
         </div>
-        <div class="menu nav-minion" title="Minion Searches">
+        <div class="menu nav-minion">
             <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
                     class="nav-link-text">Minion</span></a>
         </div>
-        <div class="menu nav-usq" title="Saved Queries">
+        <div class="menu nav-usq">
             <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
                     class="nav-link-text">Saved Queries</span></a>
         </div>
-        <div class="menu nav-myorg" title="My Org">
+        <div class="menu nav-myorg">
             <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
-        <div class="menu nav-ingest ingestion-dropdown-toggle" title="Ingestion" style="display:flex;flex-direction:row">
+        <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
             </a>
-            <ul class="ingestion-dropdown">
+            <ul class="ingestion-dropdown navbar-submenu">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
                 <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
@@ -87,7 +87,7 @@ let navbarComponent = `
     </div>
     <div>
         <div>
-            <div class="theme-btn-group" title="Theme Selector">
+            <div class="theme-btn-group">
                 <button class="btn theme-btn dark-theme" id="theme-btn">
                     <img class="theme-img light" src="./assets/light-mode-inactive.svg"
                         onmouseover="this.src='./assets/light-mode-active.svg';"
@@ -99,26 +99,26 @@ let navbarComponent = `
             </div>
         </div>
         <div class="position-relative mb-2">
-            <div class="nav-help" title="Help & Support">
+            <div class="menu nav-help">
                 <a href="#" class="help-links"><span class="icon-help">
                 </span><span class="nav-link-text">Help & Support</span></a>
             </div>
             <div class="help-options">
-                <div class="nav-docs" title="SigLens Documentation">
+                <div class="nav-docs">
                     <a href="https://www.siglens.com/siglens-docs/"  target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
                 </div>
-                <div class="nav-slack" title="Join Slack Community">
+                <div class="nav-slack">
                     <a href="https://www.siglens.com/slack.html"  target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
                 </div>
-                <div class="nav-linkedin" title="Share on LinkedIn">
+                <div class="nav-linkedin">
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
-                <div class="nav-twitter" title="Share on Twitter">
+                <div class="nav-twitter">
                     <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
                     target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
-                <div class="nav-feedback" title="Feedback">
+                <div class="nav-feedback">
                     <a href="https://docs.google.com/forms/d/e/1FAIpQLSfs_mxeX4LKbjAdX22cOknFaoi2TJcoOGD3OKj2RmZl7evD6A/viewform"
                         target="_blank" class="help-links">
                         <span class="icon-feedback"></span><span class="nav-link-text feedback">Feedback</span>
@@ -150,13 +150,7 @@ let alertsUpperNavTabs = [
 $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
     const currentUrl = window.location.href;
-    const navItems = ['.nav-search', '.nav-metrics', '.nav-ldb', '.nav-usq', '.nav-slos', '.nav-alerts', '.nav-myorg', '.nav-minion', '.nav-live', '.nav-traces', '.nav-ingest'];
-    function removeActiveClass() {
-        navItems.forEach((item) => $(item).removeClass('active'));
-    }
-    function setActiveClass(selector) {
-        $(selector).addClass('active');
-    }
+
 
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
@@ -180,7 +174,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes('all-slos.html')) {
         $('.nav-slos').addClass('active');
         $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
-    } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls }} ) {
+    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html') {{ .OrgUpperNavUrls }} ) {
         $('.nav-myorg').addClass('active');
         $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
     } else if (currentUrl.includes('minion-searches.html')) {
