@@ -34,6 +34,7 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
+let currentPanel={};
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
