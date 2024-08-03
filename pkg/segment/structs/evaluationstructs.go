@@ -146,6 +146,7 @@ type ValueExpr struct {
 	StringExpr    *StringExpr
 	ConditionExpr *ConditionExpr
 	BooleanExpr   *BoolExpr
+	MultiValueExpr *MultiValueExpr
 }
 
 type ConcatExpr struct {
@@ -156,6 +157,17 @@ type ConcatAtom struct {
 	IsField  bool
 	Value    string
 	TextExpr *TextExpr
+}
+
+type MultiValueExpr struct {
+	MultiValueExprMode MultiValueExprMode
+	Op          string
+	BoolExpr   *BoolExpr
+	NumericExprList []*NumericExpr
+	ValueExprList []*ValueExpr
+	StringExprList []*StringExpr
+	MultiValueExprList []*MultiValueExpr
+	FieldName string
 }
 
 type NumericExpr struct {
@@ -191,6 +203,7 @@ type TextExpr struct {
 	Param       *StringExpr
 	StrToRemove string
 	Delimiter   *StringExpr
+	MultiValueExpr *MultiValueExpr
 	ValueList   []*StringExpr
 	StartIndex  *NumericExpr
 	EndIndex    *NumericExpr
@@ -353,6 +366,7 @@ const (
 	VEMStringExpr           // Only StringExpr is valid
 	VEMConditionExpr        // Only ConditionExpr is valud
 	VEMBooleanExpr          // Only BooleanExpr is valid
+	VEMMultiValueExpr       // Only MultiValueExpr is valid
 )
 
 type StringExprMode uint8
@@ -374,6 +388,13 @@ const (
 	NEMNumberField        // only used when mode is Field (Field can be evaluated to a float)
 	NEMLenField           // only used when mode is Field (Field can not be evaluated to a float, used for len())
 	NEMNumericExpr        // only used when mode is a NumericExpr
+)
+
+type MultiValueExprMode uint8
+
+const (
+	MVEMMultiValueExpr = iota // only used when mode is a MultiValueExpr
+	MVEMField
 )
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
@@ -865,6 +886,60 @@ func (self *BoolExpr) GetFields() []string {
 	}
 }
 
+func (self *ValueExpr) EvaluateToMultiValue(fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	switch self.ValueExprMode {
+	case VEMMultiValueExpr:
+		return self.MultiValueExpr.Evaluate(fieldToValue)
+	default:
+		return utils.CValueEnclosure{}, fmt.Errorf("ValueExpr.EvaluateToMultiValue: cannot evaluate to multivalue")
+	}
+}
+
+func handleSplit(self *MultiValueExpr, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	if len(self.StringExprList) != 2 {
+		return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: split requires two arguments")
+	}
+	cellValueStr, err := self.StringExprList[0].Evaluate(fieldToValue)
+	if err != nil {
+		return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate input value as a string: %v", err)
+	}
+	delimiterStr, err := self.StringExprList[1].Evaluate(fieldToValue)
+	if err != nil {
+		return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate delimiter as a string: %v", err)
+	}
+	stringsList := strings.Split(cellValueStr, delimiterStr)
+
+	return utils.CValueEnclosure{CVal: stringsList, Dtype: utils.SS_DT_STRING_SLICE}, nil
+}
+
+
+func (self *MultiValueExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	if self == nil {
+		return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: self is nil")
+	}
+	if self.MultiValueExprMode == MVEMField {
+		fieldValue, exists := fieldToValue[self.FieldName]
+		if !exists {
+			return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: field %s not found", self.FieldName)
+		}
+		if fieldValue.Dtype != utils.SS_DT_STRING_SLICE {
+			value := fmt.Sprintf("%v", fieldValue.CVal)
+			return utils.CValueEnclosure{CVal: []string{value}, Dtype: utils.SS_DT_STRING_SLICE}, nil
+		}
+
+		return fieldValue, nil
+	}
+
+
+	switch self.Op {
+	case "split":
+		return handleSplit(self, fieldToValue)
+	default:
+		return utils.CValueEnclosure{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
+	}
+}
+
+
 // Try evaluating this ValueExpr to a string value, replacing each field in the
 // expression with the value specified by fieldToValue. Each field listed by
 // GetFields() must be in fieldToValue.
@@ -907,6 +982,12 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 			return "", err
 		}
 		return strconv.FormatBool(boolResult), nil
+	case VEMMultiValueExpr:
+		multiValue, err := self.MultiValueExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
+		}
+		return multiValue.GetString()
 	default:
 		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string, not a valid ValueExprMode")
 	}
@@ -977,9 +1058,32 @@ func (self *ValueExpr) GetFields() []string {
 		return self.ConditionExpr.GetFields()
 	case VEMBooleanExpr:
 		return self.BooleanExpr.GetFields()
+	case VEMMultiValueExpr:
+		return self.MultiValueExpr.GetFields()
 	default:
 		return []string{}
 	}
+}
+
+func (self *MultiValueExpr) GetFields() []string {
+	fields := make([]string, 0)
+	for _, stringExpr := range self.StringExprList {
+		fields = append(fields, stringExpr.GetFields()...)
+	}
+	for _, numericExpr := range self.NumericExprList {
+		fields = append(fields, numericExpr.GetFields()...)
+	}
+	if self.BoolExpr != nil {
+		fields = append(fields, self.BoolExpr.GetFields()...)
+	}
+	for _, valueExpr := range self.ValueExprList {
+		fields = append(fields, valueExpr.GetFields()...)
+	}
+	if self.MultiValueExprMode == MVEMField {
+		fields = append(fields, self.FieldName)
+	}
+
+	return fields
 }
 
 func (self *RexExpr) GetFields() []string {
@@ -1986,9 +2090,12 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 
 		return strings.Join(mvSlice[startIndex:endIndex+1], ","), nil
 	case "mvjoin":
-		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
+		value, err := self.MultiValueExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: %v", err)
+			return "", fmt.Errorf("TextExpr.EvaluateText: Error while evaluating multivalue expr, err: %v", err)
+		}
+		if value.Dtype != utils.SS_DT_STRING_SLICE {
+			return "", fmt.Errorf("TextExpr.EvaluateText: Expected string slice, got %v", value.Dtype)
 		}
 
 		if self.Delimiter == nil {
@@ -1996,7 +2103,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 		delimiter := self.Delimiter.RawString
 
-		return strings.Join(mvSlice, delimiter), nil
+		return strings.Join(value.CVal.([]string), delimiter), nil
 	case "mvcount":
 		mvSlice, err := self.validateAndExtractMultiValueFields(fieldToValue)
 		if err != nil {
@@ -2172,15 +2279,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			return "", fmt.Errorf("TextExpr.EvaluateText: failed to decode URL: %v", decodeErr)
 		}
 		return decodedStr, nil
-
-	case "split":
-		delimiterStr, err := self.Delimiter.Evaluate(fieldToValue)
-		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate delimiter as a string: %v", err)
-		}
-
-		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
-
 	case "substr":
 		baseString, err := self.Param.Evaluate(fieldToValue)
 		if err != nil {
@@ -2364,6 +2462,10 @@ func (self *TextExpr) GetFields() []string {
 		if self.LengthExpr != nil {
 			fields = append(fields, self.LengthExpr.GetFields()...)
 		}
+		if self.MultiValueExpr != nil {
+			fields = append(fields, self.MultiValueExpr.GetFields()...)
+		}
+
 		return fields
 	}
 	for _, expr := range self.ValueList {

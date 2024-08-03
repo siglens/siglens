@@ -2296,6 +2296,30 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
+MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+    }
+    node.StringExprList = make([]*structs.StringExpr, 2)
+    node.StringExprList[0] = stringExpr.(*structs.StringExpr)
+    node.StringExprList[1] = delim.(*structs.StringExpr)
+
+    return node, nil
+}
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+    expr := &structs.MultiValueExpr {
+        MultiValueExprMode: structs.MVEMField,
+        FieldName: field.(string),
+    }
+
+    return expr, nil
+}
+
+
 //TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
@@ -2332,14 +2356,14 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
-/ (opName:("split" / "mvjoin") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+/ (opName:("mvjoin") L_PAREN multiValueExpr:MultiValueExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Param: stringExpr.(*structs.StringExpr),
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
         Delimiter: delim.(*structs.StringExpr),
     }
     return node, nil
@@ -2935,6 +2959,15 @@ ValueExpr <- condition:ConditionExpr {
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolean.(*structs.BoolExpr),
+    }
+
+    return expr, nil
+}
+/ multiValue:MultiValueExpr {
+
+    expr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMMultiValueExpr,
+        MultiValueExpr: multiValue.(*structs.MultiValueExpr),
     }
 
     return expr, nil
