@@ -3465,12 +3465,12 @@ func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fie
 		}
 		return value, nil
 	case structs.VEMMultiValueExpr:
-		value, err := letColReq.ValueColRequest.EvaluateToMultiValue(fieldToValue)
+		mvSlice, err := letColReq.ValueColRequest.EvaluateToMultiValue(fieldToValue)
 		if err != nil {
 			log.Errorf("failed to evaluate multi value expr, err=%v", err)
 			return nil, err
 		}
-		return value.CVal, nil
+		return mvSlice, nil
 	default:
 		return nil, fmt.Errorf("unknown value expr mode %v", letColReq.ValueColRequest.ValueExprMode)
 	}

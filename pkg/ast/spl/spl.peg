@@ -2303,10 +2303,24 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     }
     node := &structs.MultiValueExpr {
         Op: opNameStr,
+        StringExprList: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
     }
-    node.StringExprList = make([]*structs.StringExpr, 2)
-    node.StringExprList[0] = stringExpr.(*structs.StringExpr)
-    node.StringExprList[1] = delim.(*structs.StringExpr)
+
+    return node, nil
+}
+/ (opName:("mvindex") L_PAREN multiValue:MultiValueExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        NumericExprList: []*structs.NumericExpr{startIndex.(*structs.NumericExpr)},
+        MultiValueExprList: []*structs.MultiValueExpr{multiValue.(*structs.MultiValueExpr)},
+    }
+    if endIndex != nil {
+        node.NumericExprList = append(node.NumericExprList, endIndex.(*structs.NumericExpr))
+    }
 
     return node, nil
 }
@@ -2322,7 +2336,7 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
 
 //TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
-TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
+TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -2356,6 +2370,17 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
+/ (opName:("mvcount") L_PAREN multiValueExpr:MultiValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+    }
+    return node, nil
+}
 / (opName:("mvjoin") L_PAREN multiValueExpr:MultiValueExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -2368,8 +2393,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
     return node, nil
 }
-
-/ (opName:("mvfind") L_PAREN stringExpr:StringExpr COMMA regexPattern:StringExpr R_PAREN) {
+/ (opName:("mvfind") L_PAREN multiValueExpr:MultiValueExpr COMMA regexPattern:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("spl peg: TextExpr: %v", err)
@@ -2387,7 +2411,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Param: stringExpr.(*structs.StringExpr),
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
         Regex: &gobRegex,
     }
     return node, nil
@@ -2528,22 +2552,6 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     node := &structs.TextExpr {
         Op: opNameStr,
         Condition: condition.(*structs.BoolExpr),
-    }
-
-    return node, nil
-}
-/ (opName:("mvindex") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        Param: stringExpr.(*structs.StringExpr),
-        StartIndex: startIndex.(*structs.NumericExpr),
-    }
-    if endIndex != nil {
-        node.EndIndex = endIndex.(*structs.NumericExpr)
     }
 
     return node, nil
