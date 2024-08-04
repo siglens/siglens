@@ -518,6 +518,14 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 			bucketHolder.MeasureVal[mfName] = humanize.Comma(aggVal.CVal.(int64))
 		case utils.SS_DT_STRING:
 			bucketHolder.MeasureVal[mfName] = aggVal.CVal
+		case utils.SS_DT_STRING_SLICE:
+			strVal, err := aggVal.GetString()
+			if err != nil {
+				log.Errorf("GetSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)
+				bucketHolder.MeasureVal[mfName] = ""
+			} else {
+				bucketHolder.MeasureVal[mfName] = strVal
+			}
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
