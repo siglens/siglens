@@ -761,8 +761,8 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 }
 
 func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 
 	segKeySet := make(map[string]struct{})
 	for _, segKey := range segmentKeys {
