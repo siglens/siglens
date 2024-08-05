@@ -81,8 +81,10 @@ type ParseError struct {
 }
 
 type TimeModifier struct {
-	RelativeTime RelativeTimeModifier
-	AbsoluteTime string
+	RelativeTime   RelativeTimeModifier
+	AbsoluteTime   string
+	ChainedOffsets []RelativeTimeOffset
+	ChainedSnaps   []string
 }
 
 type RelativeTimeModifier struct {

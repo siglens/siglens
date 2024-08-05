@@ -457,7 +457,7 @@ body {
 }
 
 .theme-btn-group {
-    width: 48px;
+    width: 60px;
     border-radius: 5px;
     padding: 4px;
     display: flex;
@@ -540,7 +540,7 @@ body {
 .icon-traces,
 .icon-ingest,
 .icon-help{
-    min-height: 42px;
+    min-height: 38px;
     min-width: 48px;
     background-origin: content-box;
     background-repeat: no-repeat;
@@ -567,7 +567,7 @@ body {
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
     margin-bottom: 2px;
-    margin-right: 8px;
+    padding-right: 8px;
 }
 #app-side-nav .nav-main-menu {
     min-height: 38px;
@@ -578,13 +578,17 @@ body {
     margin-right: 8px;
 }
 
-#app-side-nav .menu.active{
+#app-side-nav .menu:hover{
     border-left: 5px solid var(--side-nav-selected-border-color);
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
+    cursor: pointer;
 }
 
+/* #app-side-nav .menu:hover{
+    background-color: var(--side-nav-bg-color-selected);
+} */
 #app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
@@ -673,83 +677,94 @@ body {
 }
 
 .icon-search:hover,
-.menu.nav-search.active .icon-search {
+.menu.nav-search.active .icon-search,
+.menu.nav-search:hover .icon-search {
     background-image: url("../assets/search-icon-active.svg");
     height: 19px;
     width: 19px;
 }
 
 .icon-cstats:hover,
-.menu.nav-cstats.active .icon-cstats {
+.menu.nav-cstats.active .icon-cstats,
+.menu.nav-cstats:hover .icon-cstats {
     background-image: url("../assets/cluster-health-icon-active.svg");
     height: 23px;
     width: 18px;
 }
 
 .icon-usq:hover,
-.menu.nav-usq.active .icon-usq {
+.menu.nav-usq.active .icon-usq,
+.menu.nav-usq:hover .icon-usq {
     background-image: url("../assets/saved-queries-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
-.icon-feedback:hover,
-.menu.nav-feedback.active .icon-feedback {
+.nav-feedback:hover .icon-feedback {
     background-image: url("../assets/feedback-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
 .icon-launchdb:hover,
-.menu.nav-ldb.active .icon-launchdb {
+.menu.nav-ldb.active .icon-launchdb,
+.menu.nav-ldb:hover .icon-launchdb {
     background-image: url("../assets/dashboard-icon-active.svg");
     height: 18px;
     width: 18px;
 }
+
 .icon-metrics:hover,
-.menu.nav-metrics.active .icon-metrics {
+.menu.nav-metrics.active .icon-metrics,
+.menu.nav-metrics:hover .icon-metrics {
     background-image: url("../assets/metrics-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
 .icon-myorg:hover,
-.menu.nav-myorg.active .icon-myorg {
+.menu.nav-myorg.active .icon-myorg,
+.menu.nav-myorg:hover .icon-myorg {
     background-image: url("../assets/my-org-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
 .icon-ingest:hover,
-.menu.nav-ingest.active .icon-ingest {
+.menu.nav-ingest.active .icon-ingest,
+.menu.nav-ingest:hover .icon-ingest {
     background-image: url("../assets/ingestion-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
 .icon-alerts:hover,
-.menu.nav-alerts.active .icon-alerts{
+.menu.nav-alerts.active .icon-alerts,
+.menu.nav-alerts:hover .icon-alerts {
     background-image: url("../assets/alerting-icon-active.svg");
     height: 18px;
     width: 18px;
 }
 
 .icon-minion:hover,
-.menu.nav-minion.active .icon-minion{
+.menu.nav-minion.active .icon-minion,
+.menu.nav-minion:hover .icon-minion {
     background-image: url("../assets/minion-icon.svg");
     height: 24px;
     width: 24px;
 }
 
 .icon-live:hover,
-.menu.nav-live.active .icon-live {
+.menu.nav-slos.active .icon-live,
+.menu.nav-slos:hover .icon-live {
     background-image: url("../assets/live-tail-icon-active.svg");
     height: 24px;
     width: 24px;
 }
 
 .icon-traces:hover,
-.menu.nav-traces.active .icon-traces {
+.menu.nav-traces.active .icon-traces,
+.menu.nav-traces:hover .icon-traces {
     background-image: url("../assets/tracing-icon-active.svg");
     height: 24px;
     width: 24px;
@@ -3357,17 +3372,19 @@ float: right;
     z-index: 1;
 }
 
-.nav-links{
-      display: flex;
+.nav-links, .help-links{
+    display: flex;
       align-items: center;
       text-decoration: none !important;
       justify-content: flex-start;
 }
 .help-links{
-    display: flex;
-    align-items: center;
-    text-decoration: none !important;
-    justify-content: flex-start;
+    margin-bottom: 5px;
+    padding-right: 5px;
+}
+.nav-feedback .help-links {
+    margin-bottom: 0;
+    margin-top: 5px;
 }
 .nav-link-text{
       font-size: 14px;
@@ -3385,13 +3402,11 @@ float: right;
     text-decoration-line: underline;
 }
 
-.nav-link-text:hover {
-    color: var(--navbar-link-text-active);
-}
 
-
-
-#app-side-nav .menu.active .nav-link-text{
+#app-side-nav .menu.active .nav-link-text,
+#app-side-nav .menu:hover .nav-link-text,
+.nav-link-text:hover,
+.help-links:hover .nav-link-text{
     color: var(--navbar-link-text-active);
 }
 
@@ -5306,13 +5321,11 @@ input.form-control {
     display: none;
     position: absolute;
     background-color: var(--side-nav-bg-color);
-    min-width: 160px;
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
-    padding: 2px;
+    padding: 10px;
     z-index: 1;
     transition: opacity 0.3s ease-in-out;
-    bottom: 12px;
-    left: 158px;
+    bottom: 0px;
+    left: 157px;
     border: 1px solid var(--border-btn-color);
     border-radius: 5px;
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
@@ -5328,7 +5341,7 @@ input.form-control {
 .icon-twitter,
 .icon-linkedin,
 .icon-feedback{
-    min-height: 42px;
+    min-height: 32px;
     min-width: 38px;
     background-origin: content-box;
     background-repeat: no-repeat;
@@ -5346,7 +5359,8 @@ input.form-control {
     background-size: 18px;
 }
 .icon-help:hover,
-.menu.nav-help.active .icon-help {
+.menu.nav-help.active .icon-help,
+.menu.nav-help:hover .icon-help {
     background-image: url("../assets/help-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -5354,30 +5368,25 @@ input.form-control {
 .icon-slack {
     background-image: url("../assets/slack-icon-inactive.svg");
 }
-.icon-slack:hover,
-.menu.nav-slack.active .icon-slack {
+.nav-slack:hover .icon-slack {
     background-image: url("../assets/slack-icon-active.svg");
 }
-
 .icon-docs {
     background-image: url("../assets/docs-icon-inactive.svg");
 }
-.icon-docs:hover,
-.menu.nav-docs.active .icon-docs {
+.nav-docs:hover .icon-docs {
     background-image: url("../assets/docs-icon-active.svg");
 }
 .icon-twitter {
     background-image: url("../assets/twitter-icon-inactive.svg");
 }
-.icon-twitter:hover,
-.menu.nav-twitter.active .icon-twitter {
+.nav-twitter:hover .icon-twitter {
     background-image: url("../assets/twitter-icon-active.svg");
 }
 .icon-linkedin {
     background-image: url("../assets/linkedin-icon-inactive.svg");
 }
-.icon-linkedin:hover,
-.menu.nav-linkedin.active .icon-linkedin {
+.nav-linkedin:hover .icon-linkedin {
     background-image: url("../assets/linkedin-icon-active.svg");
 }
 #open-new-tab-icon{
@@ -5595,18 +5604,15 @@ input.form-control {
     border-radius: 5px;
 }
 
-
-
-
 #addrule-save-btn {
-    display: inline-flex; /* Use flexbox for alignment */
-    align-items: center; /* Center items vertically */
+    display: inline-flex;
+    align-items: center;
     background:var(--btn-regular-bg-color) ; 
     justify-content: center;
-    color: #ffffff; /* Text color */
+    color: #ffffff; 
     border: none;
-    padding: 8px 16px; /* Adjust padding as needed */
-    font-size: 16px; /* Adjust font size as needed */
+    padding: 8px 16px;
+    font-size: 16px; 
     cursor: pointer;
     text-align: center;
     width: 195px !important;
@@ -5614,7 +5620,7 @@ input.form-control {
     gap:5px;
     text-decoration: none;
     margin-left: 20px;
-    border-radius: 4px; /* Rounded corners */
+    border-radius: 4px;
     transition: background-color 0.3s ease;
 }
 .form-control.error-border{
@@ -5667,9 +5673,9 @@ input.form-control {
 .nav-metrics,.nav-traces,.nav-ingest {
     position: relative;
 }
-.metrics-dropdown,.ingestion-dropdown,.traces-dropdown{
+.navbar-submenu{
     list-style-type: none;
-    padding: 10% !important;
+    padding: 10px !important;
     margin: 0;
     background-color: var(--side-nav-bg-color-regular);
     position: absolute;
@@ -5678,11 +5684,8 @@ input.form-control {
     width: 180px;
     z-index: 1;
 }
-ul.metrics-dropdown li, ul.metrics-dropdown li a{
-    color:#6F6B7B;
-    text-decoration: none;
-}
-.metrics-dropdown,.ingestion-dropdown,.traces-dropdown {
+
+.navbar-submenu{
     display: none;
     color: var(--navbar-link-text) !important;
     text-decoration: none;
@@ -5694,30 +5697,28 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border: 1px solid var(--border-btn-color);
 }
-.metrics-dropdown a,.ingestion-dropdown a,.traces-dropdown a{
+.navbar-submenu a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
 } 
-.metrics-dropdown li::before ,.ingestion-dropdown li::before, .traces-dropdown li::before{
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: transparent; 
-}
 .metrics-dropdown-toggle,.ingestion-dropdown-toggle,.traces-dropdown-toggle{
     cursor:pointer;
 }
 
-.metrics-dropdown li:hover ,.ingestion-dropdown li:hover, .traces-dropdown li:hover{
-    background-color: var(--side-nav-bg-color-selected); 
+.navbar-submenu li:hover, .help-options .help-links:hover{
+    background-color: var(--purple-1);
     color:rgb(255, 255, 255);
-    border-radius: 12px;
+    border-radius: 5px;
 }
-.metrics-dropdown li, .ingestion-dropdown li, .traces-dropdown li {
-    padding: 10px;
+.navbar-submenu li {
+    margin-bottom: 5px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    font-weight: 600;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
 }
 
 .metric-summary {
@@ -5833,8 +5834,8 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     padding: 30px;
     height: 100%;
 }
-.ingest-inner-container  .ui-tabs-panel{
-    margin-top: 50px;
+.ingest-inner-container .ui-tabs-panel{
+    margin-top: 30px;
     border: none;
 }
 
