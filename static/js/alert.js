@@ -94,6 +94,9 @@ $(document).ready(async function () {
     setupEventHandlers();
     const urlParams = new URLSearchParams(window.location.search);
     $('#alert-rule-name').val(urlParams.get('alertRule_name'));
+    data = getInitialSearchFilter(false, false);
+    initialSearchData = data;
+    doSearch(data); 
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);

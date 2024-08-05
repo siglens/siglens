@@ -68,7 +68,7 @@ $(document).ready(function () {
         };
 
         var queryString = $.param(queryParams);
-        window.open('../alert.html' + queryString, '_blank');
+        window.open('../alert.html?' + queryString, '_blank');
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
