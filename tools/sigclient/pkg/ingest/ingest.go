@@ -216,7 +216,7 @@ func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64)
 	return retVal, nil
 }
 
-func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool, 
+func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int, eventsPerDayPerProcess int) {
 	defer wg.Done()
 	eventCounter := 0
@@ -359,8 +359,8 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
-func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool, 
-	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, 
+func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
+	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
