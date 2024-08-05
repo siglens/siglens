@@ -3678,7 +3678,10 @@ float: right;
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
     background-color: var(--timepicker-text-color) !important;
 }
-
+.test-contact-btn.disabled{
+    pointer-events: all;
+    cursor: not-allowed;
+}
 .myOrg-inner-container input[type="submit"] {
     height: 100%;
     background-size: cover;

@@ -54,8 +54,8 @@ const contactFormHTML = `
                     </div>
                 </div>
             </div>
-            <div class="button-container mb-0"  data-toggle="tooltip" title="Please fill all required fields.">
-                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button" disabled>
+            <div class="button-container mb-0">
+                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
                     <div class="send-icon"></div>
                     <div class="mb-0">Test</div>
                 </button>
@@ -196,20 +196,33 @@ function updateTestButtonState() {
             : webhookUrl;
 
         const $testButton = $(this).find('.test-contact-btn');
-        $testButton
-            .prop('disabled', !isFormValid)
-            .tooltip('dispose'); // Remove existing tooltip if any
+
+        // Add or remove the disabled class
+        if (isFormValid) {
+            $testButton.removeClass('disabled');
+        } else {
+            $testButton.addClass('disabled');
+        }
+
+        $testButton.tooltip('dispose'); // Remove existing tooltip if any
 
         if (!isFormValid) {
-            $testButton
-                .tooltip({
-                    title: 'Please fill all required fields.',
-                    delay: { show: 0, hide: 300 },
-                    trigger: 'hover'
-                });
+            if($testButton.hasClass('disabled')){
+            tippy($testButton[0], {
+                content: 'Please fill all required fields.',
+                delay: [0, 300],
+                trigger: 'mouseenter focus',
+            });
+        }
+        }
+        else{
+            if ($testButton[0]._tippy) {
+                $testButton[0]._tippy.destroy(); // Destroy the existing Tippy instance if any
+            }
         }
     });
 }
+
 
 function addNewContactTypeContainer() {
     let newContactContainer = $('.contact-container').first().clone();
