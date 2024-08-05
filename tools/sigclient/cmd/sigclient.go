@@ -57,6 +57,10 @@ var esBulkCmd = &cobra.Command{
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		if eventsPerDay > 0 && cmd.Flags().Changed("totalEvents") {
+			log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+			return
+		}
 		if eventsPerDay > 0 {
 			continuous = true
 		}
@@ -91,6 +95,10 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		if eventsPerDay > 0 && cmd.Flags().Changed("totalEvents") {
+			log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+			return
+		}
 		if eventsPerDay > 0 {
 			continuous = true
 		}
