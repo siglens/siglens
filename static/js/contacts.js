@@ -191,9 +191,7 @@ function updateTestButtonState() {
         const slackToken = $(this).find('#slack-token').val();
         const webhookUrl = $(this).find('#webhook-id').val();
 
-        const isFormValid = isSlack 
-            ? channelId && slackToken 
-            : webhookUrl;
+        const isFormValid = isSlack ? channelId && slackToken : webhookUrl;
 
         const $testButton = $(this).find('.test-contact-btn');
 
@@ -207,16 +205,15 @@ function updateTestButtonState() {
         $testButton.tooltip('dispose'); // Remove existing tooltip if any
 
         if (!isFormValid) {
-            if($testButton.hasClass('disabled')){
-            //eslint-disable-next-line no-undef
-            tippy($testButton[0], {
-                content: 'Please fill all required fields.',
-                delay: [0, 300],
-                trigger: 'mouseenter focus',
-            });
-        }
-        }
-        else{
+            if ($testButton.hasClass('disabled')) {
+                //eslint-disable-next-line no-undef
+                tippy($testButton[0], {
+                    content: 'Please fill all required fields.',
+                    delay: [0, 300],
+                    trigger: 'mouseenter focus',
+                });
+            }
+        } else {
             //eslint-disable-next-line no-undef
             if ($testButton[0]._tippy) {
                 //eslint-disable-next-line no-undef
@@ -225,7 +222,6 @@ function updateTestButtonState() {
         }
     });
 }
-
 
 function addNewContactTypeContainer() {
     let newContactContainer = $('.contact-container').first().clone();
