@@ -208,6 +208,7 @@ function updateTestButtonState() {
 
         if (!isFormValid) {
             if($testButton.hasClass('disabled')){
+            //eslint-disable-next-line no-undef
             tippy($testButton[0], {
                 content: 'Please fill all required fields.',
                 delay: [0, 300],
@@ -216,7 +217,9 @@ function updateTestButtonState() {
         }
         }
         else{
+            //eslint-disable-next-line no-undef
             if ($testButton[0]._tippy) {
+                //eslint-disable-next-line no-undef
                 $testButton[0]._tippy.destroy(); // Destroy the existing Tippy instance if any
             }
         }
