@@ -21,6 +21,7 @@ Options:
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -s, --timestamp            If set, adds "timestamp" to the static/dynamic generators
+  -e, --eventsPerDay         Number of events per day to ingest. If set, ingestion mode would be assumed to be continuous.
 
   -c  continuous             If true, ignores -t and will continuously send docs to the destination
 ```
@@ -46,6 +47,7 @@ Options:
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
+  -e, --eventsPerDay         Number of events per day to ingest. If set, ingestion mode would be assumed to be continuous.
 ```
 
 ## Query
