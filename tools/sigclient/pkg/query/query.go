@@ -732,7 +732,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						}
 						validated := verifyResults(actualValue, relation, expectedValue, rec[0])
 
-						if validated {	
+						if validated {
 							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
 						} else {
 							log.Fatalf("RunQueryFromFile: Error validating the query %v", rec[0])

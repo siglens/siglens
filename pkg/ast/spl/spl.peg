@@ -2296,6 +2296,44 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
+StringExprAsValueExprParams <- stringExpr:StringExpr {
+    strExpr := stringExpr.(*structs.StringExpr)
+    valueExpr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMStringExpr,
+        StringExpr: strExpr,
+    }
+    // Consider all fields as multi-value fields
+    if strExpr.StringExprMode == structs.SEMField {
+        valueExpr.ValueExprMode = structs.VEMMultiValueExpr
+        valueExpr.MultiValueExpr = &structs.MultiValueExpr {
+            MultiValueExprMode: structs.MVEMField,
+            FieldName: strExpr.FieldName,
+        }
+    }
+    
+    node := &structs.MultiValueExpr {
+        ValueExprParams: []*structs.ValueExpr{valueExpr},
+    }
+
+    return node, nil
+}
+
+MultiValueExprAsValueExprParams <- multiValueExpr:MultiValueExpr {
+    valueExpr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMMultiValueExpr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+    }
+    node := &structs.MultiValueExpr {
+        ValueExprParams: []*structs.ValueExpr{valueExpr},
+    }
+
+    return node, nil
+}
+
+StringOrMultiValueExpr <- strOrMVExpr:(StringExprAsMultiValueExpr / MultiValueExprAsValueExprParams) {
+    return strOrMVExpr.(*structs.MultiValueExpr), nil
+}
+
 MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -2303,23 +2341,136 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     }
     node := &structs.MultiValueExpr {
         Op: opNameStr,
-        StringExprList: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
+        StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
     }
 
     return node, nil
 }
-/ (opName:("mvindex") L_PAREN multiValue:MultiValueExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+/ (opName:("mvindex") L_PAREN multiValueExpr:MultiValueExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
     node := &structs.MultiValueExpr {
         Op: opNameStr,
-        NumericExprList: []*structs.NumericExpr{startIndex.(*structs.NumericExpr)},
-        MultiValueExprList: []*structs.MultiValueExpr{multiValue.(*structs.MultiValueExpr)},
+        NumericExprParams: []*structs.NumericExpr{startIndex.(*structs.NumericExpr)},
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
     }
     if endIndex != nil {
-        node.NumericExprList = append(node.NumericExprList, endIndex.(*structs.NumericExpr))
+        node.NumericExprParams = append(node.NumericExprParams, endIndex.(*structs.NumericExpr))
+    }
+
+    return node, nil
+}
+/ (opName:("mvdedup" / "mvsort") L_PAREN multiValueExpr:MultiValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
+    }
+
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        Condition: condition.(*structs.BoolExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvmap") L_PAREN multiValueExpr:MultiValueExpr COMMA expr:ValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+        ValueExprParams: []*structs.ValueExpr{expr.(*structs.ValueExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        NumericExprParams: []*structs.NumericExpr{startIndex.(*structs.NumericExpr), endIndex.(*structs.NumericExpr)},
+        StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvzip") L_PAREN mvLeft:MultiValueExpr COMMA mvRight:MultiValueExpr rest:(COMMA StringExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{mvLeft.(*structs.MultiValueExpr), mvRight.(*structs.MultiValueExpr)},
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        node.StringExprParams = []*structs.StringExpr{restSlice[1].(*structs.StringExpr)}
+    }
+
+    return node, nil
+}
+/ (opName:("mv_to_json_array") L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
+    }
+
+    return node, nil
+}
+/ (opName:("mvappend") L_PAREN firstVal:StringOrMultiValueExpr rest:(COMMA StringOrMultiValueExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        ValueExprParams: firstVal.(*structs.MultiValueExpr).ValueExprParams,
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        for i := range restSlice {
+            valueExprAtom := restSlice[i].([]any)
+            node.ValueExprParams = append(node.ValueExprParams, valueExprAtom[1].(*structs.MultiValueExpr).ValueExprParams...)
+        }
     }
 
     return node, nil
@@ -2336,7 +2487,7 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
 
 //TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
-TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
+TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -2348,7 +2499,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvdedup" / "mvsort") L_P
     }
     return node, nil
 }
-/ (opName:("max" / "min" / "mvappend") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -2542,94 +2693,6 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvdedup" / "mvsort") L_P
         Op: "tojson",
         Param: expr,
     }, nil
-}
-/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
-    }
-
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        Condition: condition.(*structs.BoolExpr),
-    }
-
-    return node, nil
-}
-/ (opName:("mvmap") L_PAREN stringExpr:StringExpr COMMA expr:ValueExpr R_PAREN) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        Val: expr.(*structs.ValueExpr),
-        Param: stringExpr.(*structs.StringExpr),
-    }
-
-    return node, nil
-}
-/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        StartIndex: startIndex.(*structs.NumericExpr),
-        EndIndex: endIndex.(*structs.NumericExpr),
-    }
-    if stringExpr != nil {
-        node.Param = stringExpr.(*structs.StringExpr)
-    }
-
-    return node, nil
-}
-/ (opName:("mvzip") L_PAREN mvLeft:StringExpr COMMA mvRight:StringExpr rest:(COMMA StringExpr)? R_PAREN ) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-    values := make([]*structs.StringExpr, 2)
-    values[0] = mvLeft.(*structs.StringExpr)
-    values[1] = mvRight.(*structs.StringExpr)
-
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        ValueList: values,
-    }
-
-    if rest != nil {
-        restSlice := rest.([]any)
-        node.Delimiter = restSlice[1].(*structs.StringExpr)
-    }
-
-    return node, nil
-}
-/ (opName:("mv_to_json_array") L_PAREN stringExpr:StringExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        Param: stringExpr.(*structs.StringExpr),
-        InferTypes: false, // default value
-    }
-
-    if rest != nil {
-        restSlice := rest.([]any)
-        inferTypes, err := transferUint8ToString(restSlice[1])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if inferTypes == "true" {
-            node.InferTypes = true
-        }
-    }
-
-    return node, nil
 }
 / "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
     textExpr := &structs.TextExpr {
@@ -2971,11 +3034,11 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/ multiValue:MultiValueExpr {
+/ multiValueExpr:MultiValueExpr {
 
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMMultiValueExpr,
-        MultiValueExpr: multiValue.(*structs.MultiValueExpr),
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
     }
 
     return expr, nil

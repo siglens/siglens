@@ -1530,34 +1530,6 @@ func Test_StringExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, "http://www.splunk.com/download?r=header")
 
-	strExpr1 :=
-		&StringExpr{
-			StringExprMode: SEMTextExpr,
-			TextExpr: &TextExpr{
-				IsTerminal: false,
-				Op:         "split",
-				Param: &StringExpr{
-					StringExprMode: SEMField,
-					FieldName:      "ident",
-				},
-				Delimiter: &StringExpr{
-					StringExprMode: SEMRawString,
-					RawString:      "-",
-				},
-			},
-		}
-	assert.Equal(t, strExpr1.GetFields(), []string{"ident"})
-
-	// Test Evaluate()
-	fieldToValue["ident"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
-		CVal:  "a111d29d-dd70-48b2-8987-a807b4b8bbae",
-	}
-
-	value, err = strExpr1.Evaluate(fieldToValue)
-	assert.Nil(t, err)
-	assert.Equal(t, value, "a111d29d&nbspdd70&nbsp48b2&nbsp8987&nbspa807b4b8bbae")
-
 	strMax :=
 		&StringExpr{
 			StringExprMode: SEMTextExpr,
