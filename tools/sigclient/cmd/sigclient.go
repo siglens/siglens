@@ -57,9 +57,8 @@ var esBulkCmd = &cobra.Command{
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
-		if eventsPerDay > 0 && !continuous {
-			log.Fatalf("eventsPerDay can only be used with continuous flag")
-			return
+		if eventsPerDay > 0 {
+			continuous = true
 		}
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -92,9 +91,8 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
-		if eventsPerDay > 0 && !continuous {
-			log.Fatalf("eventsPerDay can only be used with continuous flag")
-			return
+		if eventsPerDay > 0 {
+			continuous = true
 		}
 
 		log.Infof("processCount : %+v\n", processCount)
