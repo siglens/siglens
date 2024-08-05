@@ -213,7 +213,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				return
 			}
 			recs = _recs
-			nodeRes.ColumnsOrder = colsIndexMap
 			for cName := range cols {
 				finalCols[cName] = true
 			}
@@ -224,8 +223,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		} else {
 			recs = make(map[string]map[string]interface{})
 			finalCols = nodeRes.FinalColumns
-			nodeRes.ColumnsOrder = colsIndexMap
 		}
+
+		nodeRes.ColumnsOrder = colsIndexMap
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
 
