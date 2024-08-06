@@ -28,6 +28,7 @@ import (
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -90,7 +91,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
 	httpResp.QueryStats["Query Count Since Restart"] = queryCount
-	httpResp.QueryStats["Queries Count Since Install"] = queriesSinceInstall
+	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
 
 	if queryCount > 1 {
 		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
@@ -292,7 +293,9 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 
 		counts, ok := allVTableCounts[indexName]
 		if !ok {
-			continue
+			// We still want to check for unrotated data, so don't skip this
+			// loop iteration.
+			counts = &structs.VtableCounts{}
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
