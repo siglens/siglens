@@ -216,7 +216,8 @@ func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64)
 	return retVal, nil
 }
 
-func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int) {
+func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
+	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int, eventsPerDayPerProcess int) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -238,8 +239,12 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	var payload []byte
 	var err error
 	maxDuration := 2 * time.Hour
-	for continuous || eventCounter < totalEvents {
+	estimatedMilliSecsPerBatch := 0
+	if eventsPerDayPerProcess > 0 {
+		estimatedMilliSecsPerBatch = (batchSize * 24 * 60 * 60 * 1000) / eventsPerDayPerProcess
+	}
 
+	for continuous || eventCounter < totalEvents {
 		recsInBatch := batchSize
 		if !continuous && eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
@@ -275,7 +280,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 				break
 			}
 			sleepTime := time.Second * time.Duration(5*(retryCounter))
-			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", retryCounter, sleepTime.String())
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v s before retrying.", retryCounter, sleepTime.String())
 			retryCounter++
 			time.Sleep(sleepTime)
 		}
@@ -289,6 +294,16 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		}
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
+		if estimatedMilliSecsPerBatch > 0 {
+			timeTaken := int(time.Since(startTime).Milliseconds())
+			if timeTaken < estimatedMilliSecsPerBatch {
+				napTime := estimatedMilliSecsPerBatch - timeTaken
+				log.Debugf("ProcessId: %v finished early in %v ms. Sleeping for %+v ms before next batch", processNo, timeTaken, napTime)
+				time.Sleep(time.Duration(napTime) * time.Millisecond)
+			} else {
+				log.Warnf("ProcessId: %v finished late, took %v ms. Expected %v ms", processNo, timeTaken, estimatedMilliSecsPerBatch)
+			}
+		}
 	}
 }
 
@@ -346,7 +361,9 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
-func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool, batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string, cardinality uint64) {
+func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
+	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
@@ -357,6 +374,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	}
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
+	eventsPerDayPerProcess := int(eventsPerDay) / processCount
 
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
@@ -368,7 +386,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
 		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-			&totalSent, bearerToken, indexName, numIndices)
+			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess)
 	}
 
 	go func() {
