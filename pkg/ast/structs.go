@@ -58,14 +58,23 @@ func (n *Node) IsMatchAll() bool {
 
 // Potentially change the structure of the tree, but not the meaning.
 func (n *Node) Simplify() {
+	if n == nil {
+		return
+	}
+
+	n.Left.Simplify()
+	n.Right.Simplify()
+
 	if n.NodeType == NodeAnd {
 		if n.Left.IsMatchAll() {
 			*n = *n.Right
+			n.Simplify()
 			return
 		}
 
 		if n.Right.IsMatchAll() {
 			*n = *n.Left
+			n.Simplify()
 			return
 		}
 	}

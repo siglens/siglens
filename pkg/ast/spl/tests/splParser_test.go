@@ -11151,13 +11151,43 @@ func Test_InputLookup_11(t *testing.T) {
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
 
-func Test_RemoveRedundantSearch(t *testing.T) {
+func Test_RemoveRedundantSearches(t *testing.T) {
 	query := `* | search foo=bar`
 	astNode, aggregator := parseWithoutError(t, query)
 
 	equivalentQuery := `foo=bar`
 	expectedAstNode, expectedAggregator := parseWithoutError(t, equivalentQuery)
 
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `foo=bar | search * | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar | search * | search *`
+	astNode, aggregator = parseWithoutError(t, query)
 	assert.Equal(t, expectedAstNode, astNode)
 	assert.Equal(t, expectedAggregator, aggregator)
 }
