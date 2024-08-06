@@ -53,6 +53,10 @@ type Node struct {
 }
 
 func (n *Node) isMatchAll() bool {
+	if n == nil {
+		return false
+	}
+
 	return n.NodeType == NodeTerminal && n.Comparison.isMatchAll()
 }
 
@@ -95,6 +99,10 @@ type Comparison struct {
 }
 
 func (c *Comparison) isMatchAll() bool {
+	if c == nil {
+		return false
+	}
+
 	return c.Op == "=" && c.Field == "*" && c.Values == `"*"`
 }
 
