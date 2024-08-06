@@ -104,7 +104,7 @@ func (smi *SegmentMicroIndices) GetCMIsForBlock(blkNum uint16) (map[string]*stru
 		return nil, fmt.Errorf("no cmis are loaded")
 	}
 
-	if int(blkNum) >= len(smi.blockCmis)-1 {
+	if int(blkNum) >= len(smi.blockCmis) {
 		return nil, fmt.Errorf("blkNum %+v does not exist", blkNum)
 	}
 	cmis := smi.blockCmis[blkNum]
