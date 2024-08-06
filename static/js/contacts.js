@@ -210,7 +210,7 @@ function updateTestButtonState() {
                 });
             }
         }
-        
+
         $testButton.tooltip('dispose'); // Remove existing tooltip if any
     });
 }
