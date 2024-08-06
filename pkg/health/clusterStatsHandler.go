@@ -28,6 +28,7 @@ import (
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -292,7 +293,9 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 
 		counts, ok := allVTableCounts[indexName]
 		if !ok {
-			continue
+			// We still want to check for unrotated data, so don't skip this
+			// loop iteration.
+			counts = &structs.VtableCounts{}
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
