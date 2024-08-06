@@ -157,20 +157,27 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 		if err != nil {
 			log.Errorf("qid=%d, Failed to generate times! Error: %v", qid, err)
 		}
+	} else if aggs.GenerateEvent.InputLookup != nil {
+		err := aggregations.PerformInputLookup(aggs)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to perform input lookup! Error: %v", qid, err)
+		}
 	}
 
-	err := setTotalSegmentsToSearch(qid, 1)
-	if err != nil {
-		log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
-	}
-	SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
-	err = SetRawSearchFinished(qid)
-	if err != nil {
-		log.Errorf("qid=%d, Failed to set raw search finished! Error: %v", qid, err)
-	}
+	if aggs.HasGeneratedEventsWithoutSearch() {
+		err := setTotalSegmentsToSearch(qid, 1)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to set total segments to search! Error: %v", qid, err)
+		}
+		SetCurrentSearchResultCount(qid, len(aggs.GenerateEvent.GeneratedRecords))
+		err = SetRawSearchFinished(qid)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to set raw search finished! Error: %v", qid, err)
+		}
 
-	// Call this to for processQueryUpdate to be called
-	IncrementNumFinishedSegments(1, qid, uint64(len(aggs.GenerateEvent.GeneratedRecords)), 0, "", false, nil)
+		// Call this to for processQueryUpdate to be called
+		IncrementNumFinishedSegments(1, qid, uint64(len(aggs.GenerateEvent.GeneratedRecords)), 0, "", false, nil)
+	}
 
 	return nodeRes
 }
@@ -238,8 +245,11 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 				bucketLimit = aggs.BucketLimit
 			}
 			aggs.BucketLimit = bucketLimit
-			if aggs.GenerateEvent != nil {
-				return GenerateEvents(aggs, qid)
+			if aggs.HasGenerateEvent() {
+				nodeRes := GenerateEvents(aggs, qid)
+				if aggs.HasGeneratedEventsWithoutSearch() {
+					return nodeRes
+				}
 			}
 		} else {
 			aggs = structs.InitDefaultQueryAggregations()

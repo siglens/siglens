@@ -90,13 +90,13 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats["Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
-	httpResp.QueryStats["Query Count"] = queryCount
-	httpResp.QueryStats["Queries Since Install"] = queriesSinceInstall
+	httpResp.QueryStats["Query Count Since Restart"] = queryCount
+	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
 
 	if queryCount > 1 {
-		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
 	} else {
-		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
 	}
 	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
 	httpResp.TraceStats["Total Trace Volume"] = convertBytesToGB(float64(totalTraceBytes))

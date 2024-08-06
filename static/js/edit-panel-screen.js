@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let currentPanel;
 let selectedChartTypeIndex = -1,
     selectedDataSourceTypeIndex = -1;
 let selectedUnitTypeIndex = -1;
@@ -1112,6 +1111,7 @@ function goToDashboard() {
     $('.popupOverlay').removeClass('active');
     $('#app-container').show();
     $('#viewPanel-container').hide();
+    $('#overview-button').removeClass('active');
     setTimePickerValue();
     displayPanels();
     if (dbRefresh) {
@@ -1129,6 +1129,7 @@ function resetPanelTimeRanges() {
 
 function resetEditPanelScreen() {
     resetEditPanel();
+    panelGridDiv = null;
     $('.dropDown-dataSource span').html('Data Source');
     $('.dropDown-unit span').html('Unit');
     $('.dropDown-logLinesView span').html('Single line display view');
@@ -1196,6 +1197,7 @@ async function runQueryBtnHandler() {
     // reset the current panel's queryRes attribute
     delete currentPanel.queryRes;
     resetEditPanel();
+    panelGridDiv = null;
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
@@ -1212,6 +1214,8 @@ async function runQueryBtnHandler() {
         data = getQueryParamsData();
         currentPanel.queryData = data;
         $('.panelDisplay .panEdit-panel').hide();
+        //eslint-disable-next-line no-undef
+        initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);
     }
     toggleTableView();
@@ -1310,6 +1314,8 @@ function displayPanelView(panelIndex) {
             responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div><div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
+            //eslint-disable-next-line no-undef
+            initialSearchDashboardData = localPanel.queryData;
             runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
             break;
 
