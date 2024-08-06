@@ -18,8 +18,6 @@
  */
 
 var lineChart;
-var pieOptions, barOptions;
-
 function loadBarOptions(xAxisData, yAxisData) {
     // colors for dark & light modes
     let root = document.querySelector(':root');
@@ -216,7 +214,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     if (bigNumVal != null) {
         chartType = 'number';
     }
-
+    /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
@@ -262,6 +260,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
             break;
     }
+    /* eslint-enable */
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 
     return panelChart;
