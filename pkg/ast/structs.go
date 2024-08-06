@@ -52,6 +52,25 @@ type Node struct {
 	TimeModifiers *TimeModifiers
 }
 
+func (n *Node) IsMatchAll() bool {
+	return n.NodeType == NodeTerminal && n.Comparison.IsMatchAll()
+}
+
+// Potentially change the structure of the tree, but not the meaning.
+func (n *Node) Simplify() {
+	if n.NodeType == NodeAnd {
+		if n.Left.IsMatchAll() {
+			*n = *n.Right
+			return
+		}
+
+		if n.Right.IsMatchAll() {
+			*n = *n.Left
+			return
+		}
+	}
+}
+
 // TimeModifiers is a struct that holds the time modifiers for a query
 type TimeModifiers struct {
 	StartEpoch uint64
@@ -64,6 +83,10 @@ type Comparison struct {
 	Field        string
 	Values       interface{}
 	ValueIsRegex bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
+}
+
+func (c *Comparison) IsMatchAll() bool {
+	return c.Op == "=" && c.Field == "*" && c.Values == `"*"`
 }
 
 type GrepValue struct {

@@ -459,6 +459,8 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
         }
     }
 
+    q.SearchFilter.Simplify()
+
     if queryAggBlocks != nil {
         queryAggSlice := queryAggBlocks.([]any)
 
