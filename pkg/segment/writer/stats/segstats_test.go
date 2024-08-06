@@ -37,7 +37,7 @@ func Test_addSegStatsStr(t *testing.T) {
 	bb := bbp.Get()
 
 	for i := uint64(0); i < numRecs; i++ {
-		AddSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb, nil, false)
+		AddSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb, nil, false, false)
 	}
 
 	assert.Equal(t, numRecs, sst[cname].Count)
@@ -49,11 +49,11 @@ func Test_addSegStatsNums(t *testing.T) {
 	sst := make(map[string]*SegStats)
 	bb := bbp.Get()
 
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false, false)
 	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
 
-	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false)
+	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false, false)
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
 
@@ -73,17 +73,17 @@ func Test_addSegStatsNumsForEvalFunc(t *testing.T) {
 	aggColUsage["duration"] = WithEvalUsage
 	aggColUsage["latitude"] = NoEvalUsage
 
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(111), 0, "111", bb, aggColUsage, false)
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(333), 0, "333", bb, aggColUsage, false)
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(222), 0, "222", bb, aggColUsage, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(111), 0, "111", bb, aggColUsage, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(333), 0, "333", bb, aggColUsage, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(222), 0, "222", bb, aggColUsage, false, false)
 	assert.Len(t, sst[cname].Records, 3)
 	assert.Equal(t, int64(111), sst[cname].Records[0].CVal)
 	assert.Equal(t, int64(333), sst[cname].Records[1].CVal)
 	assert.Equal(t, int64(222), sst[cname].Records[2].CVal)
 
 	aggColUsage["latitude"] = NoEvalUsage
-	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, 40.7128, "40.7128", bb, aggColUsage, false)
-	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, -10.5218, "-10.5218", bb, aggColUsage, false)
+	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, 40.7128, "40.7128", bb, aggColUsage, false, false)
+	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, -10.5218, "-10.5218", bb, aggColUsage, false, false)
 	assert.Len(t, sst[cname2].Records, 0)
 }
 
@@ -94,13 +94,13 @@ func Test_addSegStatsStrForValuesFunc(t *testing.T) {
 
 	bb := bbp.Get()
 
-	AddSegStatsStr(sst, cname, "b", bb, nil, false)
-	AddSegStatsStr(sst, cname, "d", bb, nil, false)
+	AddSegStatsStr(sst, cname, "b", bb, nil, false, false)
+	AddSegStatsStr(sst, cname, "d", bb, nil, false, false)
 
 	assert.Nil(t, sst[cname].StringStats)
 
-	AddSegStatsStr(sst, cname, "a", bb, nil, true)
-	AddSegStatsStr(sst, cname, "c", bb, nil, true)
+	AddSegStatsStr(sst, cname, "a", bb, nil, true, false)
+	AddSegStatsStr(sst, cname, "c", bb, nil, true, false)
 
 	assert.NotNil(t, sst[cname].StringStats)
 	assert.NotNil(t, sst[cname].StringStats.StrSet)

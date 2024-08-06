@@ -31,7 +31,7 @@ import (
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool) {
+	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -67,7 +67,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	bb.Reset()
 	_, _ = bb.WriteString(numstr)
 	stats.Hll.Insert(bb.B)
-	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc)
+	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
 }
 
 func AddSegStatsCount(segstats map[string]*SegStats, cname string,
@@ -98,7 +98,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 }
 
 func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool) {
+	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
 
 	stats.Count++
 
@@ -118,6 +118,13 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		}
 	}
 
+	if hasListFunc {
+		if stats.StringStats == nil {
+			stats.StringStats = &StringStats{
+				StrList: make([]string, 0),
+			}
+		}
+	}
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
@@ -131,6 +138,10 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
+			}
+
+			if hasListFunc {
+				stats.StringStats.StrList = append(stats.StringStats.StrList, strconv.FormatFloat(fltVal, 'f', -1, 64))
 			}
 
 			if colUsage == BothUsage || colUsage == WithEvalUsage {
@@ -155,6 +166,9 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
 			}
 
+			if hasListFunc {
+				stats.StringStats.StrList = append(stats.StringStats.StrList, strconv.FormatFloat(fltVal, 'f', -1, 64))
+			}
 			if colUsage == BothUsage || colUsage == WithEvalUsage {
 				stats.Records = append(stats.Records, &CValueEnclosure{
 					Dtype: SS_DT_FLOAT,
@@ -174,6 +188,9 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
 			}
+			if hasListFunc {
+				stats.StringStats.StrList = append(stats.StringStats.StrList, strconv.FormatInt(inIntgrVal, 10))
+			}
 
 			if colUsage == BothUsage || colUsage == WithEvalUsage {
 				stats.Records = append(stats.Records, &CValueEnclosure{
@@ -192,6 +209,9 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
 			}
 
+			if hasListFunc {
+				stats.StringStats.StrList = append(stats.StringStats.StrList, strconv.FormatInt(inIntgrVal, 10))
+			}
 			if colUsage == BothUsage || colUsage == WithEvalUsage {
 				stats.Records = append(stats.Records, &CValueEnclosure{
 					Dtype: SS_DT_SIGNED_NUM,
@@ -204,7 +224,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 }
 
 func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool) {
+	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -235,14 +255,21 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		})
 	}
 
-	if hasValuesFunc {
+	if hasValuesFunc || hasListFunc {
 		if stats.StringStats == nil {
 			stats.StringStats = &StringStats{
-				StrSet: make(map[string]struct{}, 0),
+				StrSet:  make(map[string]struct{}, 0),
+				StrList: make([]string, 0),
 			}
 		}
 
-		stats.StringStats.StrSet[strVal] = struct{}{}
+		if hasValuesFunc {
+			stats.StringStats.StrSet[strVal] = struct{}{}
+		}
+
+		if hasListFunc {
+			stats.StringStats.StrList = append(stats.StringStats.StrList, strVal)
+		}
 	}
 
 	bb.Reset()

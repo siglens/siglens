@@ -240,3 +240,14 @@ func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnc
 		}
 	}
 }
+
+func AppendWithLimit(dest []string, src []string, limit int) []string {
+	remainingCapacity := limit - len(dest)
+	if remainingCapacity <= 0 {
+		return dest
+	}
+	if len(src) > remainingCapacity {
+		return append(dest, src[:remainingCapacity]...)
+	}
+	return append(dest, src...)
+}
