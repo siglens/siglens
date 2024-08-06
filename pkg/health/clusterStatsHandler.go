@@ -299,7 +299,11 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 	segmentCounts := make(map[string]int)
 	for _, segMeta := range allSegMetas {
 		indexName := segMeta.VirtualTableName
-		segmentCounts[indexName]++
+		if _, exists := segmentCounts[indexName]; exists {
+			segmentCounts[indexName]++
+		} else {
+			segmentCounts[indexName] = 1
+		}
 	}
 
 	for _, indexName := range indices {
