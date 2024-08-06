@@ -56,6 +56,15 @@ var esBulkCmd = &cobra.Command{
 		dataFile, _ := cmd.Flags().GetString("filePath")
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -66,8 +75,9 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay)
 	},
 }
 
@@ -85,6 +95,15 @@ var metricsIngestCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -93,7 +112,9 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay)
 	},
 }
 
@@ -315,6 +336,7 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.PersistentFlags().Uint64P("eventsPerDay", "e", 0, "Number of events per day")
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
