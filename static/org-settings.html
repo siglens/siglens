@@ -95,6 +95,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 {{ end }}
                             </tr>
                             <tr>
+                                <th>Deployment Type</th>
+                                {{ if .OrgDeploymentType }}
+                                    {{ .OrgDeploymentType | safeHTML }}
+                                {{ else }}
+                                    <td id="deployment-type">Single Node Deployment</td>
+                                {{ end }}
+                            </tr>
+                            <tr>
                                 <th>Persistent Queries</th>
                                 <td>
                                     <div class="dropdown">
