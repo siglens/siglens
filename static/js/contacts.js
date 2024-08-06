@@ -204,7 +204,7 @@ function updateTestButtonState() {
         } else {
             $testButton.addClass('disabled');
             if (!$testButton[0]._tippy) {
-		//eslint-disable-next-line no-undef
+                //eslint-disable-next-line no-undef
                 tippy($testButton[0], {
                     content: 'Please fill all required fields.',
                     delay: [0, 300],
