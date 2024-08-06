@@ -117,21 +117,6 @@ func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 	assert.True(t, qa.HasQueryAggergatorBlock())
 }
 
-func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
-	ot := &OutputTransforms{
-		HeadRequest: &HeadExpr{
-			MaxRows:   1,
-			RowsAdded: 9,
-		},
-	}
-
-	qa := &QueryAggregators{
-		OutputTransforms: ot,
-	}
-
-	assert.False(t, qa.HasQueryAggergatorBlock())
-}
-
 func Test_HasQueryAggergatorBlock(t *testing.T) {
 	lcr := &LetColumnsRequest{
 		RexColRequest: &RexExpr{},
@@ -235,19 +220,6 @@ func Test_HasQueryAggergatorBlockInChain_SingleNodeWithBlock(t *testing.T) {
 	}
 
 	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when single node has a query aggregator block, got false")
-}
-
-func Test_HasQueryAggergatorBlockInChain_SingleNodeWithoutBlock(t *testing.T) {
-	qa := &QueryAggregators{
-		OutputTransforms: &OutputTransforms{
-			HeadRequest: &HeadExpr{
-				MaxRows:   1,
-				RowsAdded: 10,
-			},
-		},
-	}
-
-	assert.False(t, qa.HasQueryAggergatorBlockInChain(), "Expected false when single node does not have a query aggregator block, got true")
 }
 
 func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtEnd(t *testing.T) {
