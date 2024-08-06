@@ -48,7 +48,6 @@ function getRetentionDataFromConfig() {
     });
 }
 
-
 function getPersistentQueriesSetting() {
     $.ajax({
         method: "GET",
