@@ -60,7 +60,7 @@ var maxSegFileSize uint64
 
 var KibanaInternalBaseDir string
 
-var smrLock sync.Mutex = sync.Mutex{}
+var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
 // Create a writer that caches compressors.
@@ -761,8 +761,8 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 }
 
 func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 
 	segKeySet := make(map[string]struct{})
 	for _, segKey := range segmentKeys {
