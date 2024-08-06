@@ -141,10 +141,9 @@ type JsSnippets struct {
 	CommonExtraFunctions string
 	Button1Function      string
 
-	SettingsExtraOnReadySetup       string
-	SettingsRetentionDataThenBlock  string
-	SettingsDeploymentTypeThenBlock string
-	SettingsExtraFunctions          string
+	SettingsExtraOnReadySetup      string
+	SettingsRetentionDataThenBlock string
+	SettingsExtraFunctions         string
 
 	TestDataSendData string
 
