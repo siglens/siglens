@@ -66,6 +66,29 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
     return epoch, nil
 }
 
+func applyTimeModifiers(initialEpoch int64, chainedOffsets []ast.RelativeTimeOffset, chainedSnaps []string) (int64, error) {
+    offsetsLen := len(chainedOffsets)
+    snapsLen := len(chainedSnaps)
+
+    if offsetsLen != snapsLen {
+        return 0, fmt.Errorf("chainedOffsets and chainedSnaps length not equal")
+    }
+
+    var err error
+    for i := 0; i < offsetsLen; i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        relativeTimeModifier.RelativeTimeOffset = chainedOffsets[i]
+        relativeTimeModifier.Snap = chainedSnaps[i]
+
+        initialEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(initialEpoch))
+        if err != nil {
+            return 0, err
+        }
+    }
+    return initialEpoch, nil
+}
+
 func getParseError(err error) error {
     switch ev := err.(type) {
     case errList:
@@ -373,6 +396,11 @@ type GenTimesOptionArgs struct {
     genTimesOption *structs.GenTimes
 }
 
+type InputLookupOptionArgs struct {
+    argOption string
+    inputLookupOption *structs.InputLookup
+}
+
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
@@ -455,6 +483,19 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
             GenTimes: genTimesOption.(*structs.GenTimes),
         },
     }
+
+    if queryAggBlocks != nil {
+        queryAggSlice := queryAggBlocks.([]any)
+        curQueryAgg := q.PipeCommands
+
+        chainAggregators(curQueryAgg, queryAggSlice)
+    }
+
+    return q, nil
+}
+/ SPACE? inputLookup:InputLookupBlock queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+    var q ast.QueryStruct
+    q.PipeCommands = inputLookup.(*structs.QueryAggregators)
 
     if queryAggBlocks != nil {
         queryAggSlice := queryAggBlocks.([]any)
@@ -627,7 +668,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3012,7 +3053,7 @@ NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExp
 }
 
 // Returns *structs.NumericExpr
-NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLevel1)* {
+NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv / OpMod) NumericExprLevel1)* {
     if rest == nil {
         return first, nil
     }
@@ -4276,9 +4317,19 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
     if err != nil {
         return nil, err
+	}
+
+    // Apply chained modifiers to the start epoch
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
     }
 
     endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
+    }
+    endEpoch, err = applyTimeModifiers(endEpoch, latestTimeModifier.ChainedOffsets, latestTimeModifier.ChainedSnaps)
     if err != nil {
         return nil, err
     }
@@ -4302,6 +4353,11 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
     earliestTimeModifier := earliestTime.(ast.TimeModifier)
 
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
+    if err != nil {
+        return nil, err
+    }
+    
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
     if err != nil {
         return nil, err
     }
@@ -4365,14 +4421,58 @@ Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
     return relTimeOffset, nil
 }
 
+ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
+    var offsets []ast.RelativeTimeOffset
+    var snaps []string
 
-// Reference Doc: https://docs.splunk.com/Documentation/Splunk/9.1.2/Search/Specifytimemodifiersinyoursearch 
-// TODO: Chained relative modifiers
-RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap)? {
+    // Append zero values to ensure corresponding offsets and snaps
+    // This ensures that each snap and offset correspond to the same index
+    appendDefaultValues := func() {
+        if len(offsets) > len(snaps) {
+            snaps = append(snaps, "")
+        } else if len(snaps) > len(offsets) {
+            offsets = append(offsets, ast.RelativeTimeOffset{})
+        }
+    }
+
+    // Process the first element
+    if first != nil {
+        switch v := first.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            snaps = append(snaps, "") // Append default value for Snap
+        case string:
+            snaps = append(snaps, v)
+            offsets = append(offsets, ast.RelativeTimeOffset{}) // Append default value for Offset
+        }
+    }
+
+    // Process the rest of the elements
+    restSlice := rest.([]any)
+    for _, item := range restSlice {
+        switch v := item.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            appendDefaultValues() // Ensure corresponding Snap
+        case string:
+            snaps = append(snaps, v)
+            appendDefaultValues() // Ensure corresponding Offset
+        }
+    }
+
+    timeModifier := ast.TimeModifier{
+        ChainedOffsets: offsets,
+        ChainedSnaps: snaps,
+    }
+
+    return timeModifier, nil
+}
+
+RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestamp)? {
 
     if defaultTime != nil {
-        if offset != nil || snapParam != nil {
-            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with offset or snap")
+        if chained != nil {
+            return nil, fmt.Errorf("Invalid Relative timestamp, cannot combine default with chained offsets/snaps")
         }
         defTime, err := transferUint8ToString(defaultTime)
         if err != nil {
@@ -4386,29 +4486,11 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
         return timeModifier, nil
     }
 
-    if offset == nil && snapParam == nil {
-        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    if chained == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need chained offsets or snaps")
     }
 
-    relTimeOffset := ast.RelativeTimeOffset{}
-    snap := ""
-    if snapParam != nil {
-        snap = snapParam.(string)
-    }
-
-    if offset != nil {
-        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
-        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
-    } 
-
-    timeModifier := ast.TimeModifier{
-        RelativeTime: ast.RelativeTimeModifier{
-            RelativeTimeOffset: relTimeOffset,
-            Snap: snap,
-        },
-    }
-
-    return timeModifier, nil
+    return chained, nil
 }
 
 RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
@@ -4517,6 +4599,14 @@ PositiveIntegerAsString <- [0-9]+ {
     return string(c.text), nil
 }
 
+PositiveInteger <- intStr:PositiveIntegerAsString {
+    num, err := strconv.ParseUint(intStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid Positive Integer value: (%v): , err: %v", intStr.(string), err)
+    }
+    return num, nil
+}
+
 EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
     opStr, err := transferUint8ToString(op)
     if err != nil {
@@ -4554,6 +4644,10 @@ OpMul <- EMPTY_OR_SPACE "*" EMPTY_OR_SPACE {
 
 OpDiv <- EMPTY_OR_SPACE "/" EMPTY_OR_SPACE {
     return "/", nil
+}
+
+OpMod <- EMPTY_OR_SPACE "%" EMPTY_OR_SPACE {
+    return "%", nil
 }
 
 // Add Empty space here
@@ -5203,8 +5297,127 @@ MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
     return intValue, nil
 }
 
+WhereClause <- SPACE CMD_WHERE condition:BoolExpr {
+    return condition.(*structs.BoolExpr), nil
+}
+
+InputLookupOptionAppend <- "append" EQUAL boolVal:Boolean {
+    return &InputLookupOptionArgs{
+        argOption: "append",
+        inputLookupOption: &structs.InputLookup{
+            Append: boolVal.(bool),
+        },
+    }, nil
+}
+
+InputLookupOptionStrict <- "strict" EQUAL boolVal:Boolean {
+    return &InputLookupOptionArgs{
+        argOption: "strict",
+        inputLookupOption: &structs.InputLookup{
+            Strict: boolVal.(bool),
+        },
+    }, nil
+}
+
+InputLookupOptionStart <- "start" EQUAL posInt:PositiveInteger {
+    return &InputLookupOptionArgs{
+        argOption: "start",
+        inputLookupOption: &structs.InputLookup{
+            Start: posInt.(uint64),
+        },
+    }, nil
+}
+
+InputLookupOptionMax <- "max" EQUAL posInt:PositiveInteger {
+    return &InputLookupOptionArgs{
+        argOption: "max",
+        inputLookupOption: &structs.InputLookup{
+            Max: posInt.(uint64),
+        },
+    }, nil
+}
+
+InputLookupOption <- inputLookupOption:(InputLookupOptionAppend / InputLookupOptionStrict / InputLookupOptionStart / InputLookupOptionMax) {
+    return inputLookupOption, nil
+}
+
+InputLookupOptionList <- first: (InputLookupOption) rest:(SPACE InputLookupOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]struct{})
+    numOptions := 1 + len(restSlice)
+
+    inputLookupOption := &structs.InputLookup{}
+
+    for i := 0; i < numOptions; i++ {
+        var inputLookupOptionArg *InputLookupOptionArgs
+        if i == 0 {
+            inputLookupOptionArg = first.(*InputLookupOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            inputLookupOptionArg = separator[1].(*InputLookupOptionArgs)
+        }
+
+        argOption := inputLookupOptionArg.argOption
+        _, exist := optionWasSpecified[argOption]
+        if exist {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = struct{}{}
+
+        switch argOption {
+            case "append":
+                inputLookupOption.Append = inputLookupOptionArg.inputLookupOption.Append
+            case "strict":
+                inputLookupOption.Strict = inputLookupOptionArg.inputLookupOption.Strict
+            case "start":
+                inputLookupOption.Start = inputLookupOptionArg.inputLookupOption.Start
+            case "max":
+                inputLookupOption.Max = inputLookupOptionArg.inputLookupOption.Max
+            default:
+                return nil, fmt.Errorf("Not a Valid InputLookup Option: %v", argOption)
+        }
+    }
+
+    return inputLookupOption, nil
+}
+
+
+
+InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionList SPACE)? filename:(String) whereClause:(WhereClause)? {
+    inputLookup := &structs.InputLookup{}
+    if inputLookupOption != nil {
+        inputLookupOption := inputLookupOption.([]any)
+        inputLookup = inputLookupOption[0].(*structs.InputLookup)
+    }
+    if whereClause != nil {
+        inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
+    }
+    inputLookup.Filename = removeQuotes(filename.(string))
+    if inputLookup.Max == 0 {
+        inputLookup.Max = 1000000000
+    }
+
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.GenerateEventType,
+        GenerateEvent: &structs.GenerateEvent{
+            InputLookup: inputLookup,
+        },
+    }, nil
+}
+
+InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
+    inputLookup := inputLookupBlock.(*structs.QueryAggregators)
+    if !inputLookup.GenerateEvent.InputLookup.Append {
+        return nil, fmt.Errorf("An Inputlookup command which is not the first command must have append as true")
+    }
+    inputLookup.GenerateEvent.InputLookup.HasPrevResults = true
+    
+    return inputLookup, nil
+}
+
+
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5235,6 +5448,7 @@ CMD_LATEST <- "latest"
 CMD_EVENTCOUNT <- "eventcount"
 CMD_FILLNULL <- "fillnull"
 CMD_GENTIMES <- "gentimes"
+CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 CMD_MVEXPAND <- "mvexpand"
 
