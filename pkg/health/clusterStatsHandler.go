@@ -90,7 +90,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
 	httpResp.QueryStats["Query Count Since Restart"] = queryCount
-	httpResp.QueryStats["Queries Count Since Install"] = queriesSinceInstall
+	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
 
 	if queryCount > 1 {
 		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
