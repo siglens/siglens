@@ -168,6 +168,7 @@ function initializeContactForm(contactId) {
 
     $('.add-new-contact-type').on('click', function () {
         addNewContactTypeContainer();
+        updateTestButtonState();
     });
 
     $('#main-container').on('click', '.del-contact-type', function () {
@@ -191,40 +192,29 @@ function updateTestButtonState() {
         const slackToken = $(this).find('#slack-token').val();
         const webhookUrl = $(this).find('#webhook-id').val();
 
-        const isFormValid = isSlack 
-            ? channelId && slackToken 
-            : webhookUrl;
+        const isFormValid = isSlack ? channelId && slackToken : webhookUrl;
 
         const $testButton = $(this).find('.test-contact-btn');
 
-        // Add or remove the disabled class
         if (isFormValid) {
             $testButton.removeClass('disabled');
+            if ($testButton[0]._tippy) {
+                $testButton[0]._tippy.destroy();
+            }
         } else {
             $testButton.addClass('disabled');
-        }
-
-        $testButton.tooltip('dispose'); // Remove existing tooltip if any
-
-        if (!isFormValid) {
-            if($testButton.hasClass('disabled')){
-            //eslint-disable-next-line no-undef
-            tippy($testButton[0], {
-                content: 'Please fill all required fields.',
-                delay: [0, 300],
-                trigger: 'mouseenter focus',
-            });
-        }
-        }
-        else{
-            //eslint-disable-next-line no-undef
-            if ($testButton[0]._tippy) {
-                //eslint-disable-next-line no-undef
-                $testButton[0]._tippy.destroy(); // Destroy the existing Tippy instance if any
+            if (!$testButton[0]._tippy) {
+                tippy($testButton[0], {
+                    content: 'Please fill all required fields.',
+                    delay: [0, 300],
+                });
             }
         }
+        
+        $testButton.tooltip('dispose'); // Remove existing tooltip if any
     });
 }
+
 
 
 function addNewContactTypeContainer() {
@@ -249,6 +239,7 @@ function addNewContactTypeContainer() {
 
     $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
     updateDeleteButtonVisibility();
+    updateTestButtonState();
 }
 
 function setContactTypes() {
@@ -280,6 +271,7 @@ function resetContactForm() {
     $('.contact-option').removeClass('active');
     $('.contact-options #option-0').addClass('active');
     contactData = {};
+    updateTestButtonState();
 }
 
 function setContactForm() {
@@ -311,6 +303,7 @@ function setContactForm() {
         }
     });
     contactData.pager_duty = '';
+    updateTestButtonState();
 }
 
 function submitAddContactPointForm(e) {
