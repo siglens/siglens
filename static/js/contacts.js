@@ -215,8 +215,6 @@ function updateTestButtonState() {
     });
 }
 
-
-
 function addNewContactTypeContainer() {
     let newContactContainer = $('.contact-container').first().clone();
     newContactContainer.find('.form-control').val('');
