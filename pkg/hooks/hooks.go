@@ -122,6 +122,7 @@ type HtmlSnippets struct {
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
+	OrgDeploymentType          string
 	OrgSettingsExtras          string
 	OrgSLOs                    string
 	SLOCss                     string
@@ -140,9 +141,10 @@ type JsSnippets struct {
 	CommonExtraFunctions string
 	Button1Function      string
 
-	SettingsExtraOnReadySetup      string
-	SettingsRetentionDataThenBlock string
-	SettingsExtraFunctions         string
+	SettingsExtraOnReadySetup       string
+	SettingsRetentionDataThenBlock  string
+	SettingsDeploymentTypeThenBlock string
+	SettingsExtraFunctions          string
 
 	TestDataSendData string
 

@@ -21,6 +21,7 @@ $(document).ready(function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
+    getDeploymentTypeFromConfig();
     getPersistentQueriesSetting();
     getSystemInfo();
     {{ .SettingsExtraOnReadySetup }}
@@ -41,6 +42,26 @@ function getRetentionDataFromConfig() {
         .then((res) => {
             let ret_days = res.RetentionHours / 24;
             $('#retention-days-value').html(`${ret_days} days`);
+        })
+    {{ end }}
+    .catch((err) => {
+        console.log(err)
+    });
+}
+
+function getDeploymentTypeFromConfig() {
+    $.ajax({
+        method: 'get',
+        url: 'api/config',
+        crossDomain: true,
+        dataType: 'json',
+        credentials: 'include'
+    })
+    {{ if .SettingsDeploymentTypeThenBlock }}
+        {{ .SettingsDeploymentTypeThenBlock }}
+    {{ else }}
+        .then((res) => {
+            $('#deployment-type').html('Single Node Deployment');
         })
     {{ end }}
     .catch((err) => {
