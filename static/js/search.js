@@ -33,6 +33,7 @@ function doCancel(data) {
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
     $('#progress-div').html(``);
+    $('#record-searched').html(``);
 }
 //eslint-disable-next-line no-unused-vars
 function doLiveTailCancel(_data) {
@@ -864,12 +865,14 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>`);
         } else {
             $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
 
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span> <b>${totalEventsSearched}</b> Records Searched</span> </div>`);
         }
         $('#progress-div').html(`
             <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
@@ -901,6 +904,7 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
         `);
         }
         $('#progress-div').html(``);
+        $('#record-searched').html(``);
     }
 }
 
