@@ -52,8 +52,8 @@ type Node struct {
 	TimeModifiers *TimeModifiers
 }
 
-func (n *Node) IsMatchAll() bool {
-	return n.NodeType == NodeTerminal && n.Comparison.IsMatchAll()
+func (n *Node) isMatchAll() bool {
+	return n.NodeType == NodeTerminal && n.Comparison.isMatchAll()
 }
 
 // Potentially change the structure of the tree, but not the meaning.
@@ -66,13 +66,13 @@ func (n *Node) Simplify() {
 	n.Right.Simplify()
 
 	if n.NodeType == NodeAnd {
-		if n.Left.IsMatchAll() {
+		if n.Left.isMatchAll() {
 			*n = *n.Right
 			n.Simplify()
 			return
 		}
 
-		if n.Right.IsMatchAll() {
+		if n.Right.isMatchAll() {
 			*n = *n.Left
 			n.Simplify()
 			return
@@ -94,7 +94,7 @@ type Comparison struct {
 	ValueIsRegex bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
 }
 
-func (c *Comparison) IsMatchAll() bool {
+func (c *Comparison) isMatchAll() bool {
 	return c.Op == "=" && c.Field == "*" && c.Values == `"*"`
 }
 
