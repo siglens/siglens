@@ -929,8 +929,10 @@ function toggleClearButtonVisibility() {
     var filterInputValue = $('#filter-input').val().trim();
     if (filterInputValue === '') {
         $('#clearInput').hide();
+        $('#formatInput').hide();
     } else {
         $('#clearInput').show();
+        $('#formatInput').show();
     }
 }
 //eslint-disable-next-line no-unused-vars
@@ -964,27 +966,23 @@ function initializeFilterInputEvents() {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
     });
-    $('#filter-input').keydown(function (e) {
-        if (e.key === '|') {
-            let input = $(this);
-            let value = input.val();
-            let position = this.selectionStart;
-            input.val(value.substring(0, position) + '\n' + value.substring(position));
-            this.selectionStart = this.selectionEnd = position + 2;
+    $('#formatInput').click(function(){
+        let input = $("#filter-input");
+        let value = input.val();
+        
+        // Format the input value by ensuring each '|' is preceded by a newline
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (value[i] === '|' && (i === 0 || value[i - 1] !== '\n')) {
+                formattedValue += '\n|';
+            } else {
+                formattedValue += value[i];
+            }
         }
+        
+        input.val(formattedValue);
         toggleClearButtonVisibility();
-    });
-    document.getElementById('filter-input').addEventListener('paste', function (event) {
-        event.preventDefault();
-        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea.call(this);
-        toggleClearButtonVisibility();
-    });
+    })
 }
 
 //eslint-disable-next-line no-unused-vars

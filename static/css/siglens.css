@@ -261,6 +261,7 @@
     --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
     --new-tab-icon: url("../assets/new-tab-icon-dark.svg");
     --copy-icon: url("../assets/copy-icon-dark-mode.svg");
+    --format-icon:url("../assets/format-icon-dark.svg");
     --top-setting-btn-bg-img: url("../assets/settings-icon.svg");
     --metrics-function-icon: url("../assets/function-icon-dark.svg");
     --selected-index-container: var(--black-1);
@@ -407,6 +408,7 @@
     --tab-active-background: #E8E3F9;
     --dashboard-tab-bg: var(--white-1);
     --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
+    --format-icon:url("../assets/format-icon.svg");
     --new-tab-icon: url("../assets/new-tab-icon-light.svg");
     --copy-icon: url("../assets/copy-icon.svg");
     --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
@@ -4722,7 +4724,16 @@ color: #C8C7CC;
     width: 11px;
     background-size: cover;
 }
-
+.format-icon {
+    position: absolute;
+    top: 8px;
+    right: 53px;
+    cursor: pointer;
+    background: var(--format-icon);
+    height: 16px;
+    width: 16.8px;
+    background-size: cover;
+}
 .dataTables_wrapper.no-footer .dataTables_scrollBody {
     border: none !important;
 }
