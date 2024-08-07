@@ -565,6 +565,7 @@ function renderLineChart(seriesData, panelId) {
     if (panelId === -1) {
         panelChartEl.append(`<div class="lineChartLegend"></div>`);
     }
+    
     return lineChart;
 }
 
