@@ -145,7 +145,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 }
 
 func Test_GetAllBlockBloomKeysToSearch_MatchPhrase(t *testing.T) {
-	matchFilter := &MatchFilter{
+	matchFilterNoWildcard := &MatchFilter{
 		MatchColumn:   "*",
 		MatchWords:    [][]byte{[]byte("foo"), []byte("bar"), STAR_BYTE},
 		MatchPhrase:   []byte("foo bar"),
@@ -153,10 +153,23 @@ func Test_GetAllBlockBloomKeysToSearch_MatchPhrase(t *testing.T) {
 		MatchType:     MATCH_PHRASE,
 	}
 
-	allKeys, wildcard, op := matchFilter.GetAllBlockBloomKeysToSearch()
+	allKeys, wildcard, op := matchFilterNoWildcard.GetAllBlockBloomKeysToSearch()
 	assert.Equal(t, 1, len(allKeys))
 	_, ok := allKeys["foo bar"]
 	assert.True(t, ok)
 	assert.False(t, wildcard)
+	assert.Equal(t, And, op)
+
+	matchFilterWithWildcard := &MatchFilter{
+		MatchColumn:   "*",
+		MatchWords:    [][]byte{[]byte("foo*"), []byte("bar"), STAR_BYTE},
+		MatchPhrase:   []byte("foo* bar"),
+		MatchOperator: And,
+		MatchType:     MATCH_PHRASE,
+	}
+
+	allKeys, wildcard, op = matchFilterWithWildcard.GetAllBlockBloomKeysToSearch()
+	assert.Equal(t, 0, len(allKeys))
+	assert.True(t, wildcard)
 	assert.Equal(t, And, op)
 }
