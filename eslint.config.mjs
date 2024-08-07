@@ -134,6 +134,7 @@ export default [
         "alertChart": true,
         "logsRowData": true,
         "hideError": true,
+        "hideCornerPopupError": true,
         "liveTailState": true,
         "initialSearchData": true,
         "total_liveTail_searched": true,

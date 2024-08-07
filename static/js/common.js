@@ -137,6 +137,10 @@ function showInfo(infoMsg) {
 }
 
 function hideError() {
+    $('#corner-popup').hide();
+}
+
+function hideCornerPopupError(){
     let message = $('.corner-text').text();
     $('#corner-popup').hide();
     $('#progress-div').html(``);
