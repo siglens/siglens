@@ -488,9 +488,9 @@ function processClusterStats(res) {
         }
     });
 
-    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', ''];
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', ''];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
-    let traceColumnOrder = ['Index Name', 'Incoming Volume', 'Span Count'];
+    let traceColumnOrder = ['Index Name', 'Incoming Volume', 'Span Count', 'Segment Count'];
 
     let indexDataTableColumns = indexColumnOrder.map((columnName, index) => {
         let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
@@ -556,6 +556,8 @@ function processClusterStats(res) {
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
+        let totalLogSegmentCount = 0;
+        let totalTraceSegmentCount = 0;
         let totalValRow = [];
         totalValRow[0] = `Total`;
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
@@ -569,10 +571,12 @@ function processClusterStats(res) {
                     let l = parseFloat(v.ingestVolume);
                     currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString('en-US') : l}`) + '  GB';
                     currRow[2] = `${v.eventCount}`;
-                    currRow[3] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
+                    currRow[3] = `${v.segmentCount}`;
+                    currRow[4] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
 
                     totalIngestVolume += parseFloat(`${v.ingestVolume}`);
                     totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',', ''));
+                    totalLogSegmentCount += parseInt(`${v.segmentCount}`.replaceAll(',', ''));
 
                     indexDataTable.row.add(currRow);
                 });
@@ -601,14 +605,17 @@ function processClusterStats(res) {
                     let l = parseFloat(v.traceVolume);
                     currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString('en-US') : l}`) + '  GB';
                     currRow[2] = `${v.traceSpanCount}`;
+                    currRow[3] = `${v.segmentCount}`;
+                    totalTraceSegmentCount += parseInt(v.segmentCount);
                     traceDataTable.row.add(currRow);
                 });
             });
         }
-
+        totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString(); 
         totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats['Log Incoming Volume']}`) * 1000) / 1000;
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
         totalValRow[2] = `${totalEventCount.toLocaleString()}`;
+        totalValRow[3] = `${totalLogSegmentCount.toLocaleString()}`;
         indexDataTable.draw();
         metricsDataTable.draw();
         traceDataTable.draw();

@@ -28,6 +28,8 @@ import (
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -90,7 +92,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
 	httpResp.QueryStats["Query Count Since Restart"] = queryCount
-	httpResp.QueryStats["Queries Count Since Install"] = queriesSinceInstall
+	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
 
 	if queryCount > 1 {
 		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
@@ -119,24 +121,25 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 	return storageSaved
 }
 
-func convertDataToSlice(data map[string]utils.ResultPerIndex, volumeField, countField string) []utils.ResultPerIndex {
+func convertDataToSlice(data map[string]utils.ResultPerIndex, volumeField, countField string, segmentCountField string) []utils.ResultPerIndex {
 	retVal := make([]utils.ResultPerIndex, 0, len(data))
 	for idx, v := range data {
 		nextVal := make(utils.ResultPerIndex)
 		nextVal[idx] = make(map[string]interface{})
 		nextVal[idx][volumeField] = convertBytesToGB(v[idx][volumeField].(float64))
 		nextVal[idx][countField] = humanize.Comma(int64(v[idx][countField].(uint64)))
+		nextVal[idx][segmentCountField] = humanize.Comma(int64(v[idx][segmentCountField].(int)))
 		retVal = append(retVal, nextVal)
 	}
 	return retVal
 }
 
 func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
-	return convertDataToSlice(indexData, "ingestVolume", "eventCount")
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount")
 }
 
 func convertTraceIndexDataToSlice(traceIndexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
-	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount")
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount")
 }
 
 func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
@@ -284,6 +287,21 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 
 	allVTableCounts := segwriter.GetVTableCountsForAll(myid)
 
+	// Read segment metadata file
+	smFile := writer.GetLocalSegmetaFName()
+	allSegMetas, err := writer.ReadSegmeta(smFile)
+	if err != nil {
+		log.Errorf("getStats: error when trying to read meta file=%+v. Error=%+v", smFile, err)
+		return nil, 0, 0, 0
+	}
+
+	// Create a map to store segment counts per index
+	segmentCounts := make(map[string]int)
+	for _, segMeta := range allSegMetas {
+		indexName := segMeta.VirtualTableName
+		segmentCounts[indexName]++
+	}
+
 	for _, indexName := range indices {
 		if indexName == "" {
 			log.Errorf("getStats: skipping an empty index name indexName=%v", indexName)
@@ -292,7 +310,9 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 
 		counts, ok := allVTableCounts[indexName]
 		if !ok {
-			continue
+			// We still want to check for unrotated data, so don't skip this
+			// loop iteration.
+			counts = &structs.VtableCounts{}
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
@@ -312,6 +332,8 @@ func getStats(myid uint64, filterFunc func(string) bool, volumeField, countField
 
 		perIndexStat[indexName][volumeField] = totalBytesReceivedForIndex
 		perIndexStat[indexName][countField] = totalEventsForIndex
+
+		perIndexStat[indexName]["segmentCount"] = segmentCounts[indexName]
 
 		stats[indexName] = perIndexStat
 	}

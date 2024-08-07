@@ -27,6 +27,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/valyala/fasthttp"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 
@@ -74,7 +75,7 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	diskInfo, err := disk.Usage("/")
+	diskInfo, err := disk.Usage(config.GetDataPath())
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		log.Errorf("GetSystemInfo: Failed to retrieve disk info: %v", err)
