@@ -2282,7 +2282,6 @@ async function refreshMetricsGraphs() {
 }
 
 function updateChartColorsBasedOnTheme() {
-    console.log("up mehu");
     const { gridLineColor, tickColor } = getGraphGridColors();
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
@@ -2312,7 +2311,6 @@ function getGraphGridColors() {
         isDarkTheme = !isDarkTheme;
     }
     initialCount++;
-    console.log(isDarkTheme);
     const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
