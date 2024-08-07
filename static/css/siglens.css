@@ -1497,15 +1497,15 @@ progress.hidden {
     color: var(--health-stats-value-text-color);
 }
 
-#system-info-table td{
+#system-info-table td, #dist-nodes-info-table td{
     width: 530px;
 }
 
-#system-info-table td div{
+#system-info-table td div, #dist-nodes-info-table td div{
     margin: 5px 0px !important;
 }
 
-#system-info-table td div b{
+#system-info-table td div b, #dist-nodes-info-table td div b{
     width: 75px;
     display: inline-block;
 }

@@ -124,6 +124,7 @@ type HtmlSnippets struct {
 	OrgSettingsRetentionPeriod string
 	OrgDeploymentType          string
 	OrgSettingsExtras          string
+	DistNodesExtras            string
 	OrgSLOs                    string
 	SLOCss                     string
 	EnterpriseEnabled          bool
