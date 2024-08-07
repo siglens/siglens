@@ -113,6 +113,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </td>
                             </tr>
                         </table>
+                        {{ .DistNodesExtras | safeHTML }}
                         <h6 class="mt-3">System Configuration</h6>
                         <table class="org-settings-table" id="system-info-table"></table>
                         {{ .OrgSettingsExtras | safeHTML }}
