@@ -566,6 +566,7 @@ function renderLineChart(seriesData, panelId) {
         panelChartEl.append(`<div class="lineChartLegend"></div>`);
     }
     return lineChart;
+    
 }
 
 window.addEventListener('resize', function (_event) {
