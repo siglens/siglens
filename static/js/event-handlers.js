@@ -30,7 +30,7 @@ function setupEventHandlers() {
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
-    $('#corner-popup').on('click', '.corner-btn-close', hideError);
+    $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
 
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
