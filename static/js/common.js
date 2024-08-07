@@ -34,7 +34,7 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
-let currentPanel={};
+let currentPanel = {};
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
@@ -505,8 +505,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             } else {
                 // for number, bar and pie charts
                 if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
-
-                panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
+                panelChart = renderBarChart(columnOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;

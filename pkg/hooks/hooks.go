@@ -122,6 +122,7 @@ type HtmlSnippets struct {
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
+	OrgDeploymentType          string
 	OrgSettingsExtras          string
 	OrgSLOs                    string
 	SLOCss                     string

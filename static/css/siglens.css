@@ -1011,6 +1011,10 @@ progress.hidden {
     transition-delay: .4s;
 }
 
+#record-searched{
+    text-align: center;
+}
+
 .hits-summary {
     font-size: 16px;
     display: flex;
@@ -1441,7 +1445,7 @@ progress.hidden {
 }
 
 .query-stats{
-    width: 40%;
+    width: 50%;
     margin-right: 30px;
 }
 

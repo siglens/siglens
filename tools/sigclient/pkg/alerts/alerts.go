@@ -51,7 +51,7 @@ const (
 	AlertMessagePrefix       = "Test Alert - "
 	LogsString               = "Logs"
 	MetricsString            = "Metrics"
-	MetricsQueryParamsString = "{\"start\": \"now-24h\", \"end\": \"now\", \"queries\": [{\"name\": \"a\", \"query\": \"avg by (car_type) (testmetric0{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}, {\"name\": \"b\", \"query\": \"avg by (car_type) (testmetric1{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}], \"formulas\": [{\"formula\": \"a+b\"}]}"
+	MetricsQueryParamsString = "{\"start\": \"now-1h\", \"end\": \"now\", \"queries\": [{\"name\": \"a\", \"query\": \"avg by (car_type) (testmetric0{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}, {\"name\": \"b\", \"query\": \"avg by (car_type) (testmetric1{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}], \"formulas\": [{\"formula\": \"a+b\"}]}"
 	LogsQueryText            = `app_name=Wheat* AND gender=male | stats count(app_name) by gender`
 	LogsQueryLanguage        = "Splunk QL"
 	LogsStartTime            = "now-1h"
