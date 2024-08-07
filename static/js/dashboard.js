@@ -55,7 +55,7 @@ $(document).ready(async function () {
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
 
-    $('.theme-btn').on('click', themePickerHandler,updateChartColorsBasedOnTheme);
+    $('.theme-btn').on('click', themePickerHandler, updateChartColorsBasedOnTheme);
     setupEventHandlers();
     dbId = getDashboardId();
     if (defaultDashboardIds.includes(dbId)) {
