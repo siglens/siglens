@@ -66,6 +66,16 @@ type IPAddressDetails struct {
 	Timezone  string  `json:"timezone"`
 }
 
+type IP2LocationIoDetails struct {
+	IP        string  `json:"ip"`
+	City      string  `json:"city_name"`
+	Region    string  `json:"region_name"`
+	Country   string  `json:"country_code"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Timezone  string  `json:"time_zone"`
+}
+
 type silentLogger struct {
 }
 
@@ -106,6 +116,22 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 	}
 	return details, nil
 }
+func FetchIP2LocationIoDetails() (IP2LocationIoDetails, error) {
+	var details IP2LocationIoDetails
+	resp, err := http.Get("https://api.ip2location.io")
+	if err != nil {
+		log.Errorf("FetchIP2LocationIoDetails: Failed to fetch IP address details: %v", err)
+		return details, err
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
+		log.Errorf("FetchIP2LocationIoDetails: Failed to decode IP address details: %v", err)
+		return details, err
+	}
+
+	return details, nil
+}
 func InitSsa() {
 
 	currClient, err := analytics.NewWithConfig(segmentKey,
@@ -121,10 +147,19 @@ func InitSsa() {
 	}
 	ipDetails, err := FetchIPAddressDetails()
 	if err != nil {
-		log.Errorf("InitSsa: Failed to fetch IP address details: %v", err)
+		ipDetails2, err := FetchIP2LocationIoDetails()
+		if err != nil {
+			log.Errorf("InitSsa: Failed to fetch IP address details: %v", err)
+		} else {
+			IPAddressInfo.IP = ipDetails2.IP
+			IPAddressInfo.City = ipDetails2.City
+			IPAddressInfo.Region = ipDetails2.Region
+			IPAddressInfo.Country = ipDetails2.Country
+		}
+	} else {
+		IPAddressInfo = ipDetails
 	}
 
-	IPAddressInfo = ipDetails
 	client = currClient
 
 	timestampFilePath := path.Join(config.GetDataPath(), "install_time.txt")
