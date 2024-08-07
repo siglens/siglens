@@ -58,6 +58,10 @@ app_name=Termitehad city=*on,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad city=*on*,now-90d,now,*,total,eq,6,Splunk QL
 app_name=Termitehad city=on*,now-90d,now,*,total,eq,0,Splunk QL
 app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
+"question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
+"NOT question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
+"""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
+"NOT ""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
 search app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 search Sunday,now-90d,now,*,total,gt,1,Splunk QL
 search http_status>400,now-1d,now,*,total,gt,0,Splunk QL
