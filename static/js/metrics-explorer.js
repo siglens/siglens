@@ -2284,7 +2284,7 @@ async function refreshMetricsGraphs() {
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-   if (mergedGraph) {
+    if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
