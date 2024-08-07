@@ -94,14 +94,14 @@ function updateDownloadButtons() {
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
-    if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
+    if (currentPage === '/alert.html' || currentPage === '/alert-details.html' || currentPage.startsWith("/alert.html")) {
         isAlertScreen = true;
     }
     filterStartDate = 'now-1h';
     filterEndDate = 'now';
     $('.inner-range #' + filterStartDate).addClass('active');
     datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-    if (currentPage === '/dashboard.html') {
+    if (currentPage === '/dashboard.html' || currentPage.startsWith('/dashboard.html')) {
         isDashboardScreen = true;
     }
 
@@ -111,7 +111,6 @@ $(document).ready(async function () {
     $('#metrics-container #time-end').on('change', getEndTimeHandler);
     $('#metrics-container #customrange-btn').on('click', customRangeHandlerMetrics);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
-
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
@@ -265,7 +264,8 @@ $('#add-query').on('click', addQueryElement);
 $('#add-formula').on('click', function () {
     if (isAlertScreen) {
         addAlertsFormulaElement();
-    } else {zz
+    } else {
+        zz
         addMetricsFormulaElement();
     }
 });
@@ -1365,6 +1365,12 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         // For dashboard page
         prepareChartData(seriesData, chartDataCollection, queryName, queryString);
         mergeGraphs(chartType, panelId);
+        const dashboardChart = initializeChart($('<canvas></canvas>'), seriesData, queryName, queryString, chartType);
+
+        if (!lineCharts[queryName]) {
+            lineCharts[queryName] = {};
+        }
+        lineCharts[queryName][panelId] = dashboardChart;
     } else {
         // For metrics explorer page
         var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
@@ -2276,29 +2282,37 @@ async function refreshMetricsGraphs() {
 }
 
 function updateChartColorsBasedOnTheme() {
+    console.log("up mehu");
     const { gridLineColor, tickColor } = getGraphGridColors();
-
-    for (const queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            const lineChart = lineCharts[queryName];
-            lineChart.options.scales.x.ticks.color = tickColor;
-            lineChart.options.scales.y.ticks.color = tickColor;
-            lineChart.options.scales.y.grid.color = gridLineColor;
-            lineChart.update();
-        }
-    }
-
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
-}
+    if(!isDashboardScreen) {
+        for (const queryName in chartDataCollection) {
+            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+                const lineChart = lineCharts[queryName];
 
+                lineChart.options.scales.x.ticks.color = tickColor;
+                lineChart.options.scales.y.ticks.color = tickColor;
+                lineChart.options.scales.y.grid.color = gridLineColor;
+                lineChart.update();
+            }
+        }
+    }
+
+}
+let initialCount = 0;
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
-    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isAlertScreen && initialCount > 1) {
+        isDarkTheme = !isDarkTheme;
+    }
+    initialCount++;
+    console.log(isDarkTheme);
     const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
@@ -2326,7 +2340,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     }
 
     var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
-    lineCharts[queryString] = lineChart;
+    lineCharts[queryName] = lineChart;
 }
 
 // Parsing function to convert the query string to query object

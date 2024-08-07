@@ -472,6 +472,7 @@ function createColorsArray() {
 
 //eslint-disable-next-line no-unused-vars
 function renderLineChart(seriesData, panelId) {
+    alert("tg");
     let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -565,7 +566,6 @@ function renderLineChart(seriesData, panelId) {
     if (panelId === -1) {
         panelChartEl.append(`<div class="lineChartLegend"></div>`);
     }
-
     return lineChart;
 }
 
