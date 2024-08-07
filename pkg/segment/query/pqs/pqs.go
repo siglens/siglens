@@ -111,6 +111,9 @@ func GetAllPersistentQueryResults(segKey string, pqid string) (*pqmr.SegmentPQMR
 // Returns if segKey, pqid combination exists
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
 
+	if !config.IsPQSEnabled() {
+		return false
+	}
 	_, err := getPQResults(segKey, pqid)
 	return err == nil
 }

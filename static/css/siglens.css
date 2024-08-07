@@ -1171,10 +1171,10 @@ progress.hidden {
     max-height: 200px;
     min-height: 50px;
     z-index: 9999;
-    position: relative;
-    top: 18vh;
-    /* bottom: 30px; */
-    right: 8px;
+    position: absolute;
+    top: 30%;
+    right: 50%;
+    transform: translate(50%, 50%);
     min-width: 300px;
     max-width: 95vw;
     padding: 38px 70px;
@@ -1497,15 +1497,15 @@ progress.hidden {
     color: var(--health-stats-value-text-color);
 }
 
-#system-info-table td{
+#system-info-table td, #dist-nodes-info-table td{
     width: 530px;
 }
 
-#system-info-table td div{
+#system-info-table td div, #dist-nodes-info-table td div{
     margin: 5px 0px !important;
 }
 
-#system-info-table td div b{
+#system-info-table td div b, #dist-nodes-info-table td div b{
     width: 75px;
     display: inline-block;
 }
@@ -4320,7 +4320,6 @@ color: #C8C7CC;
     display: flex;
     flex-direction: column;
     max-height: 100vh;
-    overflow-y: scroll;
     font-size: 14px;
 }
 
@@ -4371,12 +4370,7 @@ color: #C8C7CC;
 }
 
 #history-search-container {
-    display: grid;
-    grid-template-columns: 2fr auto auto;
-    column-gap: 15px;
     margin-top: 16px;
-    margin-left: 23px;
-    margin-right: 25px;
     height: 44px;
 }
 
@@ -4418,7 +4412,7 @@ color: #C8C7CC;
     margin-top: 10px;
     margin-bottom: 10px;
 }
-#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr{
+#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper-body.ag-layout-normal{
     border: 1px solid var(--search-input-border) !important;
 }
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
@@ -4989,7 +4983,15 @@ color: #C8C7CC;
     border-radius: 5px;
     height: 32px;
 }
-
+#alert-details{
+    height: 100%;
+    overflow: hidden;
+}
+#history-grid{
+    height: 100%;
+    display: none; 
+    padding-top: 20px;
+}
 #edit-alert-btn ,#delete-alert, #cancel-alert-details{
     height: 30px;
     border: 1px solid var(--search-input-border);
@@ -5004,9 +5006,6 @@ color: #C8C7CC;
     background-color: var(--alert-background);
 }
 
-#alert-details{
-    margin-top: 10px;
-}
 .alert-query{
     color: var(--text-color) !important;
     outline: none !important;
