@@ -94,7 +94,7 @@ function updateDownloadButtons() {
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
-    if (currentPage === '/alert.html' || currentPage === '/alert-details.html' || currentPage.startsWith("/alert.html")) {
+    if (currentPage === '/alert.html' || currentPage === '/alert-details.html' || currentPage.startsWith('/alert.html')) {
         isAlertScreen = true;
     }
     filterStartDate = 'now-1h';
@@ -265,7 +265,7 @@ $('#add-formula').on('click', function () {
     if (isAlertScreen) {
         addAlertsFormulaElement();
     } else {
-        zz
+        zz;
         addMetricsFormulaElement();
     }
 });
@@ -2289,7 +2289,7 @@ function updateChartColorsBasedOnTheme() {
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
-    if(!isDashboardScreen) {
+    if (!isDashboardScreen) {
         for (const queryName in chartDataCollection) {
             if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
                 const lineChart = lineCharts[queryName];
@@ -2301,7 +2301,6 @@ function updateChartColorsBasedOnTheme() {
             }
         }
     }
-
 }
 let initialCount = 0;
 function getGraphGridColors() {
