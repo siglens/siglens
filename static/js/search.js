@@ -692,7 +692,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
     $('body').css('cursor', 'default');
 }
 
-function processEmptyQueryResults() {
+function processEmptyQueryResults(message) {
     $('#logs-result-container').hide();
     $('#custom-chart-tab').hide();
     $('#agg-result-container').hide();
@@ -703,14 +703,14 @@ function processEmptyQueryResults() {
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
-    el.append('<span>Your query returned no data, adjust your query.</span>');
+    el.append(`<span>${message}</span>`);
 }
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value + logsRowData.length;
     if (res.totalMatched.value + logsRowData.length > 500) totalHits = 500;
     if (logsRowData.length == 0 && res.totalMatched.value === 0 && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measure) {
         if (res.groupByCols) {
@@ -752,7 +752,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measureFunctions && res.measureFunctions.length > 0) {
         measureFunctions = res.measureFunctions;
