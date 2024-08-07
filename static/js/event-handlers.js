@@ -152,32 +152,35 @@ function customRangeHandler(_evt) {
         $(this).removeClass('active');
     });
     datePickerHandler(filterStartDate, filterEndDate, 'custom');
-
-    if (currentPanel) {
-        if (currentPanel.queryData) {
-            if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                currentPanel.queryData.start = filterStartDate.toString();
-                currentPanel.queryData.end = filterEndDate.toString();
-            } else {
-                currentPanel.queryData.startEpoch = filterStartDate;
-                currentPanel.queryData.endEpoch = filterEndDate;
-            }
-        }
-    } else if (!currentPanel) {
-        // if user is on dashboard screen
-        localPanels.forEach((panel) => {
-            delete panel.queryRes;
-            if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                    panel.queryData.start = filterStartDate.toString();
-                    panel.queryData.end = filterEndDate.toString();
+    // For dashboards
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('dashboard.html')) {
+        if (currentPanel) {
+            if (currentPanel.queryData) {
+                if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
+                    currentPanel.queryData.start = filterStartDate.toString();
+                    currentPanel.queryData.end = filterEndDate.toString();
                 } else {
-                    panel.queryData.startEpoch = filterStartDate;
-                    panel.queryData.endEpoch = filterEndDate;
+                    currentPanel.queryData.startEpoch = filterStartDate;
+                    currentPanel.queryData.endEpoch = filterEndDate;
                 }
             }
-        });
-        displayPanels();
+        } else if (!currentPanel) {
+            // if user is on dashboard screen
+            localPanels.forEach((panel) => {
+                delete panel.queryRes;
+                if (panel.queryData) {
+                    if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                        panel.queryData.start = filterStartDate.toString();
+                        panel.queryData.end = filterEndDate.toString();
+                    } else {
+                        panel.queryData.startEpoch = filterStartDate;
+                        panel.queryData.endEpoch = filterEndDate;
+                    }
+                }
+            });
+            displayPanels();
+        }
     }
 }
 
