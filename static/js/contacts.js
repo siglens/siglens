@@ -684,10 +684,10 @@ function showContactFormForEdit(contactId) {
 }
 
 function getContactPointTestData(container) {
-    if(validateContactForm()){
+    if (validateContactForm()) {
         let contactData = {};
         let contactType = container.find('#contact-types span').text();
-    
+
         if (contactType === 'Slack') {
             let slackValue = container.find('#slack-channel-id').val();
             let slackToken = container.find('#slack-token').val();
@@ -712,7 +712,7 @@ function getContactPointTestData(container) {
             }
         }
         testContactPointHandler(contactData);
-    }    
+    }
 }
 
 function testContactPointHandler(testContactPointData) {
