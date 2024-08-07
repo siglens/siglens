@@ -54,7 +54,7 @@ $(document).ready(async function () {
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
-
+    //eslint-disable-next-line no-undef
     $('.theme-btn').on('click', themePickerHandler, updateChartColorsBasedOnTheme);
     setupEventHandlers();
     dbId = getDashboardId();
