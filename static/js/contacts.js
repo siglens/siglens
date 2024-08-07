@@ -683,33 +683,35 @@ function showContactFormForEdit(contactId) {
 }
 
 function getContactPointTestData(container) {
-    let contactData = {};
-    let contactType = container.find('#contact-types span').text();
-
-    if (contactType === 'Slack') {
-        let slackValue = container.find('#slack-channel-id').val();
-        let slackToken = container.find('#slack-token').val();
-        if (slackValue && slackToken) {
-            contactData = {
-                type: 'slack',
-                settings: {
-                    channel_id: slackValue,
-                    slack_token: slackToken,
-                },
-            };
+    if(validateContactForm()){
+        let contactData = {};
+        let contactType = container.find('#contact-types span').text();
+    
+        if (contactType === 'Slack') {
+            let slackValue = container.find('#slack-channel-id').val();
+            let slackToken = container.find('#slack-token').val();
+            if (slackValue && slackToken) {
+                contactData = {
+                    type: 'slack',
+                    settings: {
+                        channel_id: slackValue,
+                        slack_token: slackToken,
+                    },
+                };
+            }
+        } else if (contactType === 'Webhook') {
+            let webhookValue = container.find('#webhook-id').val();
+            if (webhookValue) {
+                contactData = {
+                    type: 'webhook',
+                    settings: {
+                        webhook: webhookValue,
+                    },
+                };
+            }
         }
-    } else if (contactType === 'Webhook') {
-        let webhookValue = container.find('#webhook-id').val();
-        if (webhookValue) {
-            contactData = {
-                type: 'webhook',
-                settings: {
-                    webhook: webhookValue,
-                },
-            };
-        }
-    }
-    testContactPointHandler(contactData);
+        testContactPointHandler(contactData);
+    }    
 }
 
 function testContactPointHandler(testContactPointData) {
