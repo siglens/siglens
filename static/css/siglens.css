@@ -1171,10 +1171,10 @@ progress.hidden {
     max-height: 200px;
     min-height: 50px;
     z-index: 9999;
-    position: relative;
-    top: 18vh;
-    /* bottom: 30px; */
-    right: 8px;
+    position: absolute;
+    top: 30%;
+    right: 50%;
+    transform: translate(50%, 50%);
     min-width: 300px;
     max-width: 95vw;
     padding: 38px 70px;

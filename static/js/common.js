@@ -139,6 +139,14 @@ function showInfo(infoMsg) {
 function hideError() {
     $('#corner-popup').hide();
 }
+
+function hideCornerPopupError(){
+    let message = $('.corner-text').text();
+    $('#corner-popup').hide();
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+    processEmptyQueryResults(message);
+}
 //eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
     let base64Payload = token.split('.')[1];
