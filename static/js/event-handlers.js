@@ -741,7 +741,6 @@ function processTableViewOption() {
 }
 //eslint-disable-next-line no-unused-vars
 function themePickerHandler(evt) {
-    console.log('ip');
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
     } else {
