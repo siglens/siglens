@@ -55,7 +55,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
-	queryCount, totalResponseTime, queriesSinceInstall := usageStats.GetQueryStats(myid)
+	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
 	traceIndexData, traceSpanCount, totalTraceBytes, totalTraceOnDiskBytes := GetTracesStats(myid)
@@ -64,7 +64,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
 		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
 			&metricsIncomingBytes, &metricsOnDiskBytes, &metricsDatapointsCount,
-			&queryCount, &totalResponseTime)
+			&queryCount, &totalResponseTimeSinceRestart)
 	}
 
 	httpResp.IngestionStats = make(map[string]interface{})
@@ -94,10 +94,16 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.QueryStats["Query Count Since Restart"] = queryCount
 	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
 
-	if queryCount > 1 {
-		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
+	if queriesSinceInstall > 1 {
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall/float64(queriesSinceInstall), 3)) + " ms"
 	} else {
-		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall, 3)) + " ms"
+	}
+
+	if queryCount > 1 {
+		httpResp.QueryStats["Average Query Latency (since restart)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart/float64(queryCount), 3)) + " ms"
+	} else {
+		httpResp.QueryStats["Average Query Latency (since restart)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart, 3)) + " ms"
 	}
 	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
 	httpResp.TraceStats["Total Trace Volume"] = convertBytesToGB(float64(totalTraceBytes))

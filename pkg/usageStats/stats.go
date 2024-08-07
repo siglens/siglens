@@ -67,9 +67,10 @@ var ustats = make(map[uint64]*Stats)
 var msgPrinter *message.Printer
 
 type QueryStats struct {
-	QueryCount          uint64
-	QueriesSinceInstall uint64
-	TotalRespTime       float64
+	QueryCount                uint64
+	QueriesSinceInstall       uint64
+	TotalRespTimeSinceRestart float64
+	TotalRespTimeSinceInstall float64
 }
 
 var QueryStatsMap = make(map[uint64]*QueryStats)
@@ -99,9 +100,10 @@ func StartUsageStats() {
 
 func GetQueryCount() {
 	QueryStatsMap[0] = &QueryStats{
-		QueryCount:          0,
-		QueriesSinceInstall: 0,
-		TotalRespTime:       0,
+		QueryCount:                0,
+		QueriesSinceInstall:       0,
+		TotalRespTimeSinceRestart: 0,
+		TotalRespTimeSinceInstall: 0,
 	}
 	err := ReadQueryStats(0)
 	if err != nil {
@@ -123,12 +125,28 @@ func ReadQueryStats(orgid uint64) error {
 		return err
 	}
 	if len(val) > 0 {
-		flushedQueriesSinceInstall, err := strconv.ParseUint(val[len(val)-1][0], 10, 64)
+		lastRecord := val[len(val)-1]
+		if len(lastRecord) < 1 {
+			return fmt.Errorf("readQueryStats: last record has insufficient fields %v", lastRecord)
+		}
+		flushedQueriesSinceInstall, err := strconv.ParseUint(lastRecord[0], 10, 64)
 		if err != nil {
 			return err
 		}
-		if QueryStatsMap[orgid] != nil {
-			QueryStatsMap[orgid].QueriesSinceInstall = flushedQueriesSinceInstall
+
+		flushedTotalRespTimeSinceInstall := 0.0
+		if len(lastRecord) > 1 {
+			flushedTotalRespTimeSinceInstall, err = strconv.ParseFloat(lastRecord[1], 64)
+			if err != nil {
+				return err
+			}
+		}
+		if QueryStatsMap == nil {
+			return fmt.Errorf("readQueryStats: QueryStatsMap is nil")
+		}
+		if qs, ok := QueryStatsMap[orgid]; ok {
+			qs.QueriesSinceInstall = flushedQueriesSinceInstall
+			qs.TotalRespTimeSinceInstall = flushedTotalRespTimeSinceInstall
 		}
 	}
 	return nil
@@ -312,7 +330,7 @@ func GetTotalLogLines(orgid uint64) uint64 {
 }
 
 func FlushStatsToFile(orgid uint64) error {
-	if _, ok := QueryStatsMap[orgid]; ok {
+	if qs, ok := QueryStatsMap[orgid]; ok {
 		filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 		fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
@@ -321,9 +339,10 @@ func FlushStatsToFile(orgid uint64) error {
 		defer fd.Close()
 		w := csv.NewWriter(fd)
 		var records [][]string
-		var record []string
-		queriesSinceInstallAsString := strconv.FormatUint(QueryStatsMap[orgid].QueriesSinceInstall, 10)
-		record = []string{queriesSinceInstallAsString}
+		record := []string{
+			strconv.FormatUint(qs.QueriesSinceInstall, 10),
+			strconv.FormatFloat(qs.TotalRespTimeSinceInstall, 'f', 6, 64),
+		}
 		records = append(records, record)
 		err = w.WriteAll(records)
 		if err != nil {
@@ -408,27 +427,30 @@ func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid 
 	atomic.AddUint64(&ustats[orgid].MetricsBytesCount, metricsBytesCount)
 }
 
-func GetQueryStats(orgid uint64) (uint64, float64, uint64) {
+func GetQueryStats(orgid uint64) (uint64, float64, float64, uint64) {
 	if _, ok := QueryStatsMap[orgid]; !ok {
-		return 0, 0, 0
+		return 0, 0, 0, 0
 	}
-	return QueryStatsMap[orgid].QueryCount, QueryStatsMap[orgid].TotalRespTime, QueryStatsMap[orgid].QueriesSinceInstall
+	return QueryStatsMap[orgid].QueryCount, QueryStatsMap[orgid].TotalRespTimeSinceRestart, QueryStatsMap[orgid].TotalRespTimeSinceInstall, QueryStatsMap[orgid].QueriesSinceInstall
 }
 
 func GetCurrentMetricsStats(orgid uint64) (uint64, uint64) {
 	return ustats[orgid].TotalBytesCount, ustats[orgid].TotalMetricsDatapointsCount
 }
 
-func UpdateQueryStats(queryCount uint64, totalRespTime float64, orgid uint64) {
+func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
 	if _, ok := QueryStatsMap[orgid]; !ok {
 		QueryStatsMap[orgid] = &QueryStats{
-			QueryCount:    0,
-			TotalRespTime: 0,
+			QueryCount:                0,
+			TotalRespTimeSinceRestart: 0,
+			TotalRespTimeSinceInstall: 0,
 		}
 	}
-	atomic.AddUint64(&QueryStatsMap[orgid].QueryCount, queryCount)
-	atomic.AddUint64(&QueryStatsMap[orgid].QueriesSinceInstall, queryCount)
-	QueryStatsMap[orgid].TotalRespTime += totalRespTime
+	qs := QueryStatsMap[orgid]
+	atomic.AddUint64(&qs.QueryCount, queryCount)
+	atomic.AddUint64(&qs.QueriesSinceInstall, queryCount)
+	qs.TotalRespTimeSinceRestart += respTime
+	qs.TotalRespTimeSinceInstall += respTime
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
