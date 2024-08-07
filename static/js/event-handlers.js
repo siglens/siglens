@@ -270,10 +270,6 @@ async function dashboardRangeItemHandler(evt) {
         });
 
         displayPanels();
-        // Don't update if its a default dashboard
-        if (!isDefaultDashboard) {
-            await updateDashboard();
-        }
     }
 }
 function resetCustomDateRange() {
