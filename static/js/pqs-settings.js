@@ -176,6 +176,7 @@ function createTable(data) {
     $('#ag-grid').empty();
 
     const eGridDiv = document.querySelector('#ag-grid');
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(eGridDiv, gridOptions);
 }
 
