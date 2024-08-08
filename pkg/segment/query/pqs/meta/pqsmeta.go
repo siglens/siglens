@@ -175,4 +175,3 @@ func DeletePQMetaDir() {
 		log.Errorf("DeleteAllPQMetaFiles: Error deleting directory at %v, Error=%v", dirName, err)
 	}
 }
-
