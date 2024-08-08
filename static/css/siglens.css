@@ -1011,6 +1011,10 @@ progress.hidden {
     transition-delay: .4s;
 }
 
+#record-searched{
+    text-align: center;
+}
+
 .hits-summary {
     font-size: 16px;
     display: flex;
@@ -1167,10 +1171,10 @@ progress.hidden {
     max-height: 200px;
     min-height: 50px;
     z-index: 9999;
-    position: relative;
-    top: 18vh;
-    /* bottom: 30px; */
-    right: 8px;
+    position: absolute;
+    top: 30%;
+    right: 50%;
+    transform: translate(50%, 50%);
     min-width: 300px;
     max-width: 95vw;
     padding: 38px 70px;
@@ -1441,7 +1445,7 @@ progress.hidden {
 }
 
 .query-stats{
-    width: 40%;
+    width: 50%;
     margin-right: 30px;
 }
 
@@ -1493,15 +1497,15 @@ progress.hidden {
     color: var(--health-stats-value-text-color);
 }
 
-#system-info-table td{
+#system-info-table td, #dist-nodes-info-table td{
     width: 530px;
 }
 
-#system-info-table td div{
+#system-info-table td div, #dist-nodes-info-table td div{
     margin: 5px 0px !important;
 }
 
-#system-info-table td div b{
+#system-info-table td div b, #dist-nodes-info-table td div b{
     width: 75px;
     display: inline-block;
 }
@@ -2012,8 +2016,9 @@ div.dts div.dataTables_scrollBody table {
     border: 1px solid var(--ui-widget-border-color);
     padding: 25px;
     position: absolute;
-    top:32%;
-    left:35%;
+    top:50%;
+    left:50%;
+    transform: translate(-50%, -50%);
     visibility: hidden;
     color: var(--text-color);
     font-size: 1em;
@@ -4316,7 +4321,6 @@ color: #C8C7CC;
     display: flex;
     flex-direction: column;
     max-height: 100vh;
-    overflow-y: scroll;
     font-size: 14px;
 }
 
@@ -4367,12 +4371,7 @@ color: #C8C7CC;
 }
 
 #history-search-container {
-    display: grid;
-    grid-template-columns: 2fr auto auto;
-    column-gap: 15px;
     margin-top: 16px;
-    margin-left: 23px;
-    margin-right: 25px;
     height: 44px;
 }
 
@@ -4414,7 +4413,7 @@ color: #C8C7CC;
     margin-top: 10px;
     margin-bottom: 10px;
 }
-#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr{
+#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper-body.ag-layout-normal{
     border: 1px solid var(--search-input-border) !important;
 }
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
@@ -4985,7 +4984,15 @@ color: #C8C7CC;
     border-radius: 5px;
     height: 32px;
 }
-
+#alert-details{
+    height: 100%;
+    overflow: hidden;
+}
+#history-grid{
+    height: 100%;
+    display: none; 
+    padding-top: 20px;
+}
 #edit-alert-btn ,#delete-alert, #cancel-alert-details{
     height: 30px;
     border: 1px solid var(--search-input-border);
@@ -5000,9 +5007,6 @@ color: #C8C7CC;
     background-color: var(--alert-background);
 }
 
-#alert-details{
-    margin-top: 10px;
-}
 .alert-query{
     color: var(--text-color) !important;
     outline: none !important;
@@ -5945,4 +5949,61 @@ input.form-control {
     font-size: 6rem;
     font-weight: 600;
     line-height: 7rem;
+}
+
+.json-body{
+    border: 1px solid var(--border-btn-color);
+    outline: none;
+    padding: 1rem 1.25rem;
+    width: 100%;
+    background: transparent;
+    border-radius: 5px;
+    height: 85%;
+    resize: none;
+    color: var(--text-color);
+    background: var(--bg-color);
+}
+
+.disable-dialog{
+    overflow: hidden;
+    height: 100%;
+}
+
+#pqs-id-details{
+    height: 80vh;
+}
+
+#clear-pqs-info, #close-popup, #delete-all-pqs-data{
+    width: fit-content !important;
+    padding: 0 20px;
+    margin: 0px !important;
+}
+
+#pqs-id-details .header{
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.myOrg-inner-container #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
+}
+
+.myOrg-inner-container .ag-theme-mycustomtheme .ag-center-cols-container {
+    background-color: var(--black1-to-white0) !important;
+}
+
+.myOrg-inner-container .ag-root-wrapper-body.ag-layout-normal {
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#pqs-id-details .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
+    margin-bottom: 10px;
 }

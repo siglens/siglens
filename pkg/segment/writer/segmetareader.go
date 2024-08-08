@@ -33,8 +33,8 @@ var SegmetaSuffix = "segmeta.json"
 
 // read only the current nodes segmeta
 func ReadLocalSegmeta() []*structs.SegMeta {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 
 	segMetaFilename := GetLocalSegmetaFName()
 	retVal, err := getAllSegmetas(segMetaFilename)
@@ -46,8 +46,8 @@ func ReadLocalSegmeta() []*structs.SegMeta {
 
 // returns all segmetas downloaded, including the current nodes segmeta and all global segmetas
 func ReadAllSegmetas() []*structs.SegMeta {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 
 	ingestDir := config.GetIngestNodeBaseDir()
 	files, err := os.ReadDir(ingestDir)
@@ -92,8 +92,8 @@ func ReadAllSegmetas() []*structs.SegMeta {
 }
 
 func ReadSegmeta(smFname string) ([]*structs.SegMeta, error) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+	smrLock.RLock()
+	defer smrLock.RUnlock()
 	retVal, err := getAllSegmetas(smFname)
 	if err != nil {
 		log.Errorf("ReadSegmeta: getsegmetas err=%v ", err)

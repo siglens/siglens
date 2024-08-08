@@ -99,6 +99,11 @@ func (smi *SegmentMicroIndices) clearMicroIndices() {
 
 // Returns all columnar cmis for a given block or any errors encountered
 func (smi *SegmentMicroIndices) GetCMIsForBlock(blkNum uint16) (map[string]*structs.CmiContainer, error) {
+	if len(smi.blockCmis) == 0 {
+		log.Errorf("GetCMIsForBlock: No block cmis are loaded. loadedMicroIndices: %+v", smi.loadedMicroIndices)
+		return nil, fmt.Errorf("no cmis are loaded")
+	}
+
 	if int(blkNum) >= len(smi.blockCmis) {
 		return nil, fmt.Errorf("blkNum %+v does not exist", blkNum)
 	}
@@ -114,7 +119,7 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 	}
 	retVal, ok := allCmis[cname]
 	if !ok {
-		return nil, fmt.Errorf("Failed to find column %+v in cmis for block %+v", cname, blkNum)
+		return nil, fmt.Errorf("failed to find column %+v in cmis for block %+v", cname, blkNum)
 	}
 	return retVal, nil
 }

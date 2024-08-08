@@ -33,6 +33,7 @@ function doCancel(data) {
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
     $('#progress-div').html(``);
+    $('#record-searched').html(``);
 }
 //eslint-disable-next-line no-unused-vars
 function doLiveTailCancel(_data) {
@@ -691,7 +692,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
     $('body').css('cursor', 'default');
 }
 
-function processEmptyQueryResults() {
+function processEmptyQueryResults(message) {
     $('#logs-result-container').hide();
     $('#custom-chart-tab').hide();
     $('#agg-result-container').hide();
@@ -702,14 +703,14 @@ function processEmptyQueryResults() {
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
-    el.append('<span>Your query returned no data, adjust your query.</span>');
+    el.append(`<span>${message}</span>`);
 }
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value + logsRowData.length;
     if (res.totalMatched.value + logsRowData.length > 500) totalHits = 500;
     if (logsRowData.length == 0 && res.totalMatched.value === 0 && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measure) {
         if (res.groupByCols) {
@@ -751,7 +752,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measureFunctions && res.measureFunctions.length > 0) {
         measureFunctions = res.measureFunctions;
@@ -864,12 +865,14 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>`);
         } else {
             $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
 
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span> <b>${totalEventsSearched}</b> Records Searched</span> </div>`);
         }
         $('#progress-div').html(`
             <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
@@ -901,6 +904,7 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
         `);
         }
         $('#progress-div').html(``);
+        $('#record-searched').html(``);
     }
 }
 

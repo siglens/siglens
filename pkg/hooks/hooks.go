@@ -52,7 +52,7 @@ type Hooks struct {
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
-	AddMultinodeStatsHook      func(indexData map[string]utils.ResultPerIndex, orgId uint64,
+	AddMultinodeStatsHook      func(indexData map[string]utils.AllIndexesStats, orgId uint64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTime *float64)
@@ -122,7 +122,9 @@ type HtmlSnippets struct {
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
+	OrgDeploymentType          string
 	OrgSettingsExtras          string
+	DistNodesExtras            string
 	OrgSLOs                    string
 	SLOCss                     string
 	EnterpriseEnabled          bool

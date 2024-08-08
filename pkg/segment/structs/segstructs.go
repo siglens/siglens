@@ -662,16 +662,8 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	if qa.OutputTransforms == nil {
 		return false
 	}
-	if qa.OutputTransforms.HeadRequest == nil {
-		return false
-	}
-	if qa.OutputTransforms.HeadRequest.BoolExpr != nil {
-		return true
-	}
-	if qa.OutputTransforms.HeadRequest.MaxRows > qa.OutputTransforms.HeadRequest.RowsAdded {
-		return true
-	}
-	return false
+
+	return qa.OutputTransforms.HeadRequest != nil
 }
 
 type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
@@ -741,7 +733,7 @@ func (qa *QueryAggregators) GetSortLimit() uint64 {
 	if qa.HasSortBlock() {
 		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
 	}
-	if qa.Next != nil {
+	if qa != nil && qa.Next != nil {
 		return qa.Next.GetSortLimit()
 	}
 	return math.MaxUint64
