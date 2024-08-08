@@ -199,8 +199,24 @@ function displayDetails(data) {
     const formattedJson = JSON.stringify(data, null, 2);
     $('#pqs-id-details .json-body').val(formattedJson);
     $('#pqs-id-details .json-body').scrollTop(0);
-}
 
-$('#close-popup').on('click', function () {
-    $('.popupOverlay, #pqs-id-details').removeClass('active');
-});
+    function closePopup() {
+        $('.popupOverlay, #pqs-id-details').removeClass('active');
+    }
+
+    $('#close-popup, .close-btn').on('click', closePopup);
+
+    // Close popup on Esc key press
+    $(document).on('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closePopup();
+        }
+    });
+
+    // Remove event listener when popup is closed
+    $(document).off('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closePopup();
+        }
+    });
+}

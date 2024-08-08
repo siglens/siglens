@@ -5958,7 +5958,7 @@ input.form-control {
     width: 100%;
     background: transparent;
     border-radius: 5px;
-    height: 87%;
+    height: 85%;
     resize: none;
     color: var(--text-color);
     background: var(--bg-color);
@@ -5997,4 +5997,13 @@ input.form-control {
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 5px;
+}
+
+#pqs-id-details .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
+    margin-bottom: 10px;
 }
