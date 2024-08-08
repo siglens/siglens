@@ -24,6 +24,8 @@ $(document).ready(function () {
     getPQSQueries();
 });
 
+$(document).on('click', '.contact-option', updatePQS);
+
 function getPersistentQueriesSetting() {
     $.ajax({
         method: 'GET',
@@ -43,6 +45,7 @@ function getPersistentQueriesSetting() {
         },
     });
 }
+
 function updatePersistentQueriesSetting(pqsEnabled) {
     $.ajax({
         method: 'POST',
@@ -62,8 +65,6 @@ function updatePersistentQueriesSetting(pqsEnabled) {
         },
     });
 }
-
-$(document).on('click', '.contact-option', updatePQS);
 
 function updatePQS() {
     var selectedOption = $(this).text();
@@ -118,6 +119,7 @@ $('#clear-pqs-info').on('click', function () {
         $('.popupOverlay, #clear-pqs-prompt').removeClass('active');
     });
 });
+
 function getPQSQueries() {
     $.ajax({
         url: '/api/pqs/',
@@ -153,7 +155,6 @@ function createTable(data) {
     // Add total_tracked_queries
     rowData.push({ category: 'Total Tracked Queries', id: '', count: data.total_tracked_queries });
 
-    // Create AG Grid
     const gridOptions = {
         columnDefs: columnDefs,
         rowData: rowData,
@@ -172,10 +173,8 @@ function createTable(data) {
         rowHeight: 42,
     };
 
-    // Clear previous grid container
     $('#ag-grid').empty();
 
-    // Initialize AG Grid
     const eGridDiv = document.querySelector('#ag-grid');
     new agGrid.Grid(eGridDiv, gridOptions);
 }
@@ -195,7 +194,7 @@ function fetchDetails(pqid) {
 
 function displayDetails(data) {
     $('.popupOverlay, #pqs-id-details').addClass('active');
-    $('.header').html(`PQ ID - ${data.pqid}`);
+    $('#pqs-id-details .header').html(`PQ ID - ${data.pqid}`);
     const formattedJson = JSON.stringify(data, null, 2);
     $('#pqs-id-details .json-body').val(formattedJson);
     $('#pqs-id-details .json-body').scrollTop(0);
