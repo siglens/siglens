@@ -857,3 +857,30 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         - limit: non-negative int (default 10; 0 means no limit)
     Outputs:
         - tagKeys: []{key: string, numValues: int}
+
+## ETCD Data API
+
+### Get ETCD Data
+    Endpoint: api/etcd-data
+    Method: GET
+
+    Example:
+     request: http://localhost:5122/api/etcd-data
+    body:
+        {
+            "startEpoch": "now-1h",
+            "endEpoch": "now",
+            "searchText": "trace_id=95db2d5796f8986dbeccec3d1582ee85"
+        }
+    Response:
+    - If Distributed Mode is Enabled:
+        {
+            "data": {
+                "key": "value",
+                "key": "value"
+            }
+        }
+    - If Distributed Mode is Not Enabled:
+        {
+            "data": "Distributed mode is not enabled"
+        }
