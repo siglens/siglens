@@ -445,8 +445,9 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	segsNotSent := int(0)
 	recsSearchedSinceLastUpdate := uint64(0)
 	allEmptySegsForPqid := map[string]bool{}
+	sortedQSRSliceLen := len(sortedQSRSlice)
 	var err error
-	if len(sortedQSRSlice) > 0 && queryInfo.persistentQuery {
+	if sortedQSRSliceLen > 0 && queryInfo.persistentQuery {
 		allEmptySegsForPqid, err = pqsmeta.GetAllEmptySegmentsForPqid(sortedQSRSlice[0].pqid)
 		if err != nil {
 			log.Errorf("qid=%d, Failed to get empty segments for pqid %+v! Error: %v", queryInfo.qid, sortedQSRSlice[0].pqid, err)
@@ -459,7 +460,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	}
 
 	for idx, segReq := range sortedQSRSlice {
-		if idx == len(sortedQSRSlice)-1 {
+		if idx == sortedQSRSliceLen-1 {
 			doBuckPull = true
 		}
 
@@ -560,7 +561,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	if !rrcsCompleted {
 		qs.SetRRCFinishTime()
 	}
-	if len(sortedQSRSlice) == 0 {
+	if sortedQSRSliceLen == 0 {
 		IncrementNumFinishedSegments(0, queryInfo.qid, recsSearchedSinceLastUpdate, 0, "", false, nil)
 	}
 }
