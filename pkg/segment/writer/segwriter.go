@@ -1080,7 +1080,7 @@ func GetPQMRDirFromSegKey(segKey string) string {
 	return filepath.Join(segKey, "pqmr")
 }
 
-func DeletePQSData() {
+func DeletePQSData() error {
 	smrLock.RLock()
 	defer smrLock.RUnlock()
 
@@ -1089,7 +1089,7 @@ func DeletePQSData() {
 	segmetaEntries, err := getAllSegmetas(segMetaFilename)
 	if err != nil {
 		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v", segMetaFilename, err)
-		return
+		return err
 	}
 
 	// Remove all PQS data
@@ -1101,7 +1101,7 @@ func DeletePQSData() {
 	err = WriteSegMeta(segMetaFilename, segmetaEntries)
 	if err != nil {
 		log.Errorf("DeletePQSData: failed to write segmeta data to %v, err: %v", segMetaFilename, err)
-		return
+		return err
 	}
 
 	// Remove all PQMR directories from segments
@@ -1110,9 +1110,10 @@ func DeletePQSData() {
 		err := os.RemoveAll(pqmrDir)
 		if err != nil {
 			log.Errorf("DeletePQSData: failed to remove pqmr dir %v, err: %v", pqmrDir, err)
+			return err
 		}
 	}
 
 	// Delete PQS meta directory
-	pqsmeta.DeletePQMetaDir()
+	return pqsmeta.DeletePQMetaDir()
 }

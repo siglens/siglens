@@ -168,10 +168,12 @@ func DeleteSegmentFromPqid(pqid string, segKey string) {
 	writeEmptyPqsMapToFile(pqFname, emptyPQS)
 }
 
-func DeletePQMetaDir() {
+func DeletePQMetaDir() error {
 	dirName := getPqmetaDirectory()
 	err := os.RemoveAll(dirName)
 	if err != nil {
 		log.Errorf("DeleteAllPQMetaFiles: Error deleting directory at %v, Error=%v", dirName, err)
+		return err
 	}
+	return nil
 }
