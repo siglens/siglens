@@ -524,6 +524,12 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch() (map[string]bool, bool,
 		allKeys[string(mKey)] = true
 		allKeys[mValStr] = true
 		return allKeys, wildcardExists, And
+	} else if match.MatchType == MATCH_PHRASE {
+		if strings.Contains(string(match.MatchPhrase), "*") {
+			wildcardExists = true
+		} else {
+			allKeys[string(match.MatchPhrase)] = true
+		}
 	} else {
 		for _, literal := range match.MatchWords {
 

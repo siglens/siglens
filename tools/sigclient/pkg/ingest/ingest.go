@@ -301,7 +301,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 				log.Debugf("ProcessId: %v finished early in %v ms. Sleeping for %+v ms before next batch", processNo, timeTaken, napTime)
 				time.Sleep(time.Duration(napTime) * time.Millisecond)
 			} else {
-				log.Warnf("ProcessId: %v finished late, took %v ms. Expected %v ms", processNo, timeTaken, estimatedMilliSecsPerBatch)
+				log.Debugf("ProcessId: %v finished late, took %v ms. Expected %v ms", processNo, timeTaken, estimatedMilliSecsPerBatch)
 			}
 		}
 	}
