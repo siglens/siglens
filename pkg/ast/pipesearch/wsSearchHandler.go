@@ -283,6 +283,20 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 	return numRrcsAdded
 }
 
+func LogGlobalErrors(qid uint64) {
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		log.Errorf("LogGlobalErrors: Error getting query search node result for qid: %v", qid)
+		return
+	}
+	for errMsg, errInfo := range nodeRes.GlobalErrors {
+		if errInfo == nil {
+			continue
+		}
+		log.Errorf("qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
+	}
+}
+
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
 	queryC := query.GetQueryCountInfoForQid(qid)
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
@@ -333,6 +347,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 			log.Errorf("qid=%d, processCompleteUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 	}
+	LogGlobalErrors(qid)
 }
 
 func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {

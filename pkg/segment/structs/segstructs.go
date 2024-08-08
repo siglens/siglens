@@ -439,6 +439,7 @@ type NodeResult struct {
 	CurrentSearchResultCount    int
 	AllSearchColumnsByTimeRange map[string]bool
 	FinalColumns                map[string]bool
+	GlobalErrors                map[string]*ErrorInfo // maps global error from error message -> error stats
 }
 
 type SegStats struct {
@@ -459,6 +460,10 @@ type NumericStats struct {
 
 type StringStats struct {
 	StrSet map[string]struct{}
+}
+
+type ErrorInfo struct {
+	Count int
 }
 
 // json exportable struct for segstats
@@ -1188,4 +1193,16 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
 	return qa.HasInChain(statsAggPresentInCur)
+}
+
+func (nodeRes *NodeResult) StoreGlobalError(errMsg string) {
+	if nodeRes.GlobalErrors == nil {
+		nodeRes.GlobalErrors = make(map[string]*ErrorInfo)
+	}
+	
+	if globalErr, ok := nodeRes.GlobalErrors[errMsg]; !ok {
+		nodeRes.GlobalErrors[errMsg] = &ErrorInfo{Count: 1}
+	} else {
+		globalErr.Count++
+	}
 }
