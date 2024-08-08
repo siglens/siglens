@@ -810,7 +810,7 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 }
 
 // Determine if cols used by eval statements or not
-func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool) {
+func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {
 		for _, field := range measureAgg.ValueColRequest.GetFields() {
 			aggCols[field] = true
@@ -832,6 +832,8 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 		aggCols[measureAgg.MeasureCol] = true
 		if measureAgg.MeasureFunc == utils.Values {
 			valuesUsage[measureAgg.MeasureCol] = true
+		} else if measureAgg.MeasureFunc == utils.List {
+			listUsage[measureAgg.MeasureCol] = true
 		}
 
 		colUsage, exists := aggColUsage[measureAgg.MeasureCol]
