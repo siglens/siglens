@@ -367,10 +367,10 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				uniqueStrings = append(uniqueStrings, str)
 			}
 			sort.Strings(uniqueStrings)
-			strVal := strings.Join(uniqueStrings, "&nbsp")
+			
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  strVal,
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  uniqueStrings,
 			}
 			continue
 		default:
