@@ -390,8 +390,7 @@ func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		err := writer.DeletePQSData()
 		if err != nil {
-			log.Errorf("postPqsDeleteHandler: failed to delete PQS data: %v", err)
-			utils.SetBadMsg(ctx, "Error while deleting PQS data")
+			utils.SetInternalError(ctx, "Error while deleting PQS data")
 			return
 		}
 		querytracker.PostPqsClear(ctx)
