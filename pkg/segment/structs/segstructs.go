@@ -1199,7 +1199,7 @@ func (nodeRes *NodeResult) StoreGlobalError(errMsg string) {
 	if nodeRes.GlobalErrors == nil {
 		nodeRes.GlobalErrors = make(map[string]*ErrorInfo)
 	}
-	
+
 	if globalErr, ok := nodeRes.GlobalErrors[errMsg]; !ok {
 		nodeRes.GlobalErrors[errMsg] = &ErrorInfo{Count: 1}
 	} else {
