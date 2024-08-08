@@ -1047,7 +1047,6 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 	err = WriteSegMeta(localSegmetaFname, preservedSmEntries)
 	if err != nil {
 		log.Errorf("BackFillPQSSegmetaEntry: failed to write Segmeta: err=%v", err)
-		return
 	}
 }
 
@@ -1114,6 +1113,6 @@ func DeletePQSData() {
 		}
 	}
 
-	// Remove all PQSMeta files
+	// Delete PQS meta directory
 	pqsmeta.DeletePQMetaDir()
 }
