@@ -960,6 +960,9 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosu
 		if !exists {
 			return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: field %s not found", self.FieldName)
 		}
+		if fieldValue.CVal == nil || fieldValue.CVal == "" {
+			return []string{}, nil
+		}
 		if fieldValue.Dtype != utils.SS_DT_STRING_SLICE {
 			value := fmt.Sprintf("%v", fieldValue.CVal)
 			return []string{value}, nil

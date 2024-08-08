@@ -2296,42 +2296,27 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-StringExprAsValueExprParams <- stringExpr:StringExpr {
+StringExprAsValueExpr <- stringExpr:StringExpr {
     strExpr := stringExpr.(*structs.StringExpr)
     valueExpr := &structs.ValueExpr{
         ValueExprMode: structs.VEMStringExpr,
         StringExpr: strExpr,
     }
-    // Consider all fields as multi-value fields
-    if strExpr.StringExprMode == structs.SEMField {
-        valueExpr.ValueExprMode = structs.VEMMultiValueExpr
-        valueExpr.MultiValueExpr = &structs.MultiValueExpr {
-            MultiValueExprMode: structs.MVEMField,
-            FieldName: strExpr.FieldName,
-        }
-    }
-    
-    node := &structs.MultiValueExpr {
-        ValueExprParams: []*structs.ValueExpr{valueExpr},
-    }
 
-    return node, nil
+    return valueExpr, nil
 }
 
-MultiValueExprAsValueExprParams <- multiValueExpr:MultiValueExpr {
+MultiValueExprAsValueExpr <- multiValueExpr:MultiValueExpr {
     valueExpr := &structs.ValueExpr{
         ValueExprMode: structs.VEMMultiValueExpr,
         MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
     }
-    node := &structs.MultiValueExpr {
-        ValueExprParams: []*structs.ValueExpr{valueExpr},
-    }
 
-    return node, nil
+    return valueExpr, nil
 }
 
-StringOrMultiValueExpr <- strOrMVExpr:(StringExprAsValueExprParams / MultiValueExprAsValueExprParams) {
-    return strOrMVExpr.(*structs.MultiValueExpr), nil
+StringOrMultiValueExpr <- strOrMVExpr:(MultiValueExprAsValueExpr / StringExprAsValueExpr) {
+    return strOrMVExpr.(*structs.ValueExpr), nil
 }
 
 MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
@@ -2462,20 +2447,20 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     }
     node := &structs.MultiValueExpr {
         Op: opNameStr,
-        ValueExprParams: firstVal.(*structs.MultiValueExpr).ValueExprParams,
+        ValueExprParams: []*structs.ValueExpr{firstVal.(*structs.ValueExpr)},
     }
 
     if rest != nil {
         restSlice := rest.([]any)
         for i := range restSlice {
             valueExprAtom := restSlice[i].([]any)
-            node.ValueExprParams = append(node.ValueExprParams, valueExprAtom[1].(*structs.MultiValueExpr).ValueExprParams...)
+            node.ValueExprParams = append(node.ValueExprParams, valueExprAtom[1].(*structs.ValueExpr))
         }
     }
 
     return node, nil
 }
-/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
     expr := &structs.MultiValueExpr {
         MultiValueExprMode: structs.MVEMField,
         FieldName: field.(string),
@@ -3060,7 +3045,7 @@ StringExpr <- text:TextExpr !(EVAL_CONCAT) {
 
     return expr, nil
 }
-/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
     expr := &structs.StringExpr {
         StringExprMode: structs.SEMField,
         FieldName: field.(string),
@@ -3393,7 +3378,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
 
     return node, nil
 }
-/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
 
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
