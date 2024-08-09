@@ -391,10 +391,10 @@ function toggleAllAvailableFieldsHandler(_evt) {
 }
 function scrollingErrorPopup() {
     $('.mypopupOverlay').addClass('active');
-    $('#error-popup.popupContent').addClass('active');
+    $('#error-popup.mypopupContent').addClass('active');
 
     $('#okay-button').on('click', function () {
         $('.mypopupOverlay').removeClass('active');
-        $('#error-popup.popupContent').removeClass('active');
+        $('#error-popup.mypopupContent').removeClass('active');
     });
 }
