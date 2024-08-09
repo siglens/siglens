@@ -194,6 +194,8 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		boolNode = createMatchAll(qid)
 	}
 
+	searchNode, aggs = optimizeQuery(searchNode, aggs)
+
 	err = SearchQueryToASTnode(searchNode, boolNode, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
@@ -213,6 +215,143 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	updatePositionForGenEvents(pipeCommands)
 
 	return boolNode, pipeCommands, nil
+}
+
+func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs
+	}
+
+	searchNode, aggs = optimizeStatsEvalQueries(searchNode, aggs)
+
+	return searchNode, aggs
+
+}
+
+// Optimize queries like:
+// "* | stats count(eval(foo=bar))" to "foo=bar | stats count(eval(foo=bar))"
+func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs
+	}
+
+	if aggs.PipeCommandType != MeasureAggsType {
+		return searchNode, aggs
+	}
+
+	extraSearchNodes := make([]*ast.Node, 0) // These will be merged with the searchNode at the end.
+	for _, measureAgg := range aggs.MeasureOperations {
+		if measureAgg.ValueColRequest == nil {
+			return searchNode, aggs
+		}
+
+		if measureAgg.ValueColRequest.ValueExprMode != VEMBooleanExpr {
+			return searchNode, aggs
+		}
+
+		boolExpr := measureAgg.ValueColRequest.BooleanExpr
+		if boolExpr == nil {
+			return searchNode, aggs
+		}
+
+		if !boolExpr.IsTerminal {
+			// TODO: we can actually handle this case.
+			return searchNode, aggs
+		}
+
+		extraSearchNode := &ast.Node{}
+		extraSearchNode.NodeType = ast.NodeTerminal
+		extraSearchNode.Comparison.Op = boolExpr.ValueOp
+
+		fieldWasSet := false
+		valueWasSet := false
+
+		if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
+			return searchNode, aggs
+		}
+
+		for _, valueExpr := range []*ValueExpr{boolExpr.LeftValue, boolExpr.RightValue} {
+			switch valueExpr.ValueExprMode {
+			case VEMNumericExpr:
+				numericExpr := valueExpr.NumericExpr
+				if numericExpr == nil {
+					return searchNode, aggs
+				}
+
+				if !numericExpr.IsTerminal {
+					// TODO: we can actually handle this case.
+					return searchNode, aggs
+				}
+				if numericExpr.ValueIsField {
+					extraSearchNode.Comparison.Field = numericExpr.Value
+					fieldWasSet = true
+				} else {
+					extraSearchNode.Comparison.Values = numericExpr.Value
+					valueWasSet = true
+				}
+			case VEMStringExpr:
+				stringExpr := valueExpr.StringExpr
+				if stringExpr == nil {
+					return searchNode, aggs
+				}
+
+				switch stringExpr.StringExprMode {
+				case SEMField:
+					extraSearchNode.Comparison.Field = stringExpr.FieldName
+					fieldWasSet = true
+				case SEMRawString:
+					extraSearchNode.Comparison.Values = stringExpr.RawString
+					valueWasSet = true
+				case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
+					// TODO: we can handle at least some of these.
+				default:
+					log.Errorf("optimizeStatsEvalQueries: unknown stringExpr.StringExprMode: %v", stringExpr.StringExprMode)
+					return searchNode, aggs
+				}
+			case VEMConditionExpr, VEMBooleanExpr:
+				// TODO: can these cases be handled?
+				return searchNode, aggs
+			default:
+				log.Errorf("optimizeStatsEvalQueries: unknown valueExpr.ValueExprMode: %v", valueExpr.ValueExprMode)
+				return searchNode, aggs
+			}
+		}
+
+		if !fieldWasSet || !valueWasSet {
+			return searchNode, aggs
+		}
+
+		extraSearchNodes = append(extraSearchNodes, extraSearchNode)
+	}
+
+	joinedExtraSearchNode := joinNodes(extraSearchNodes, ast.NodeOr)
+	searchNode = joinNodes([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
+
+	return searchNode, aggs
+}
+
+func joinNodes(nodes []*ast.Node, operation ast.NodeType) *ast.Node {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	if len(nodes) == 1 {
+		return nodes[0]
+	}
+
+	if len(nodes) == 2 {
+		return &ast.Node{
+			NodeType: operation,
+			Left:     nodes[0],
+			Right:    nodes[1],
+		}
+	}
+
+	return &ast.Node{
+		NodeType: operation,
+		Left:     nodes[0],
+		Right:    joinNodes(nodes[1:], operation),
+	}
 }
 
 func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
