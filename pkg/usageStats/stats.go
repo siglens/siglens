@@ -26,6 +26,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,6 +40,8 @@ import (
 )
 
 type UsageStatsGranularity uint8
+
+var mu sync.Mutex
 
 const MIN_IN_MS = 60_000
 
@@ -72,6 +75,7 @@ type QueryStats struct {
 	QueriesSinceInstall       uint64
 	TotalRespTimeSinceRestart float64
 	TotalRespTimeSinceInstall float64
+	mu                        sync.Mutex
 }
 
 var QueryStatsMap = make(map[uint64]*QueryStats)
@@ -439,6 +443,7 @@ func GetCurrentMetricsStats(orgid uint64) (uint64, uint64) {
 }
 
 func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
+	mu.Lock()
 	if _, ok := QueryStatsMap[orgid]; !ok {
 		QueryStatsMap[orgid] = &QueryStats{
 			QueryCount:                0,
@@ -446,11 +451,15 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
 			TotalRespTimeSinceInstall: 0,
 		}
 	}
+	mu.Unlock()
+
 	qs := QueryStatsMap[orgid]
 	atomic.AddUint64(&qs.QueryCount, queryCount)
 	atomic.AddUint64(&qs.QueriesSinceInstall, queryCount)
+	qs.mu.Lock()
 	qs.TotalRespTimeSinceRestart += respTime
 	qs.TotalRespTimeSinceInstall += respTime
+	qs.mu.Unlock()
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
