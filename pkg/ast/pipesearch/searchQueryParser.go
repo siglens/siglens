@@ -286,7 +286,7 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 					extraSearchNode.Comparison.Field = numericExpr.Value
 					fieldWasSet = true
 				} else {
-					extraSearchNode.Comparison.Values = numericExpr.Value
+					extraSearchNode.Comparison.Values = json.Number(numericExpr.Value)
 					valueWasSet = true
 				}
 			case VEMStringExpr:
