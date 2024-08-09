@@ -367,7 +367,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				uniqueStrings = append(uniqueStrings, str)
 			}
 			sort.Strings(uniqueStrings)
-			
+
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING_SLICE,
 				CVal:  uniqueStrings,
