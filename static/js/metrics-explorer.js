@@ -2307,10 +2307,6 @@ let initialCount = 0;
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isAlertScreen && initialCount > 1) {
-        isDarkTheme = !isDarkTheme;
-    }
-    initialCount++;
     const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
