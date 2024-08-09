@@ -738,3 +738,108 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		}
 	}
 }
+
+func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryResultFile string) {
+	webSocketURL := dest + "/api/search/ws"
+	if queryResultFile == "" {
+		queryResultFile = "./query_results.csv"
+	}
+
+	log.Infof("Using Websocket URL %+s", webSocketURL)
+	log.Infof("Using query result file %+s", queryResultFile)
+
+	csvFile, err := os.Open(filepath)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to open query file: %v", err)
+	}
+	defer csvFile.Close()
+
+	reader := csv.NewReader(csvFile)
+	records, err := reader.ReadAll()
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to read query file: %v", err)
+	}
+
+	outputCSVFile, err := os.Create(queryResultFile)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to create CSV file: %v", err)
+	}
+	defer outputCSVFile.Close()
+
+	writer := csv.NewWriter(outputCSVFile)
+	defer writer.Flush()
+
+	// Write header to the output CSV
+	err = writer.Write([]string{"Query", "Response Time (ms)"})
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to write header to CSV file: %v", err)
+	}
+
+	for index, record := range records {
+
+		qid := index + 1
+
+		query := record[0]
+		// Default values
+		startEpoch := "now-1h"
+		endEpoch := "now"
+		queryLanguage := "Splunk QL"
+
+		// Update values if provided in the CSV
+		if len(record) > 1 && record[1] != "" {
+			startEpoch = record[1]
+		}
+		if len(record) > 2 && record[2] != "" {
+			endEpoch = record[2]
+		}
+		if len(record) > 3 && record[3] != "" {
+			queryLanguage = record[3]
+		}
+
+		data := map[string]interface{}{
+			"state":         "query",
+			"searchText":    query,
+			"startEpoch":    startEpoch,
+			"endEpoch":      endEpoch,
+			"indexName":     "*",
+			"queryLanguage": queryLanguage,
+		}
+
+		log.Infof("qid=%v, Running query=%v", qid, query)
+		conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error connecting to WebSocket server: %v", qid, err)
+			return
+		}
+		defer conn.Close()
+
+		startTime := time.Now()
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error sending query to server: %v", qid, err)
+			break
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if err != nil {
+				log.Infof("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error reading response from server for query. Error=%v", qid, err)
+				break
+			}
+			if state, ok := readEvent["state"]; ok && state == "COMPLETE" {
+				break
+			}
+		}
+		responseTime := time.Since(startTime).Milliseconds()
+		log.Infof("RunQueryFromFileAndCheckResponseTimes: qid=%v, Query=%v,Response Time: %vms", qid, query, responseTime)
+
+		// Write query and response time to output CSV
+		err = writer.Write([]string{query, strconv.FormatInt(responseTime, 10)})
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to write query result to CSV file: %v", err)
+		}
+	}
+
+	log.Infof("RunQueryFromFileAndCheckResponseTimes: Query results written to CSV file: %v", queryResultFile)
+}
