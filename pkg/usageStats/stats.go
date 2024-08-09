@@ -511,7 +511,9 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		filename := getStatsFilename(statsFile)
 		fd, err := os.OpenFile(filename, os.O_RDONLY, 0666)
 		if err != nil {
-			log.Errorf("GetUsageStats: error opening stats file = %v, err= %v", filename, err)
+			if !os.IsNotExist(err) {
+				log.Errorf("GetUsageStats: error opening stats file = %v, err= %v", filename, err)
+			}
 			continue
 		}
 		defer fd.Close()
