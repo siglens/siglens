@@ -20,6 +20,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"time"
 
@@ -194,7 +195,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		containsKibana = true
 	}
 	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs)
-	parallelismPerFile := int64(1)
+	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
+	if parallelismPerFile < 1 {
+		parallelismPerFile = 1
+	}
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
