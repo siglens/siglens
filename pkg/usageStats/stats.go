@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -115,34 +116,33 @@ func ReadQueryStats(orgid uint64) error {
 	filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return err
+		return utils.TeeErrorf("readQueryStats: failed to open file, err=%v filename=%v", err, filename)
 	}
 	defer fd.Close()
 	r := csv.NewReader(fd)
 	val, err := r.ReadAll()
 	if err != nil {
-		log.Errorf("readQueryStats: read records failed, err=%v", err)
-		return err
+		return utils.TeeErrorf("readQueryStats: read records failed, err=%v", err)
 	}
 	if len(val) > 0 {
 		lastRecord := val[len(val)-1]
 		if len(lastRecord) < 1 {
-			return fmt.Errorf("readQueryStats: last record has insufficient fields %v", lastRecord)
+			return utils.TeeErrorf("readQueryStats: last record has insufficient fields %v", lastRecord)
 		}
 		flushedQueriesSinceInstall, err := strconv.ParseUint(lastRecord[0], 10, 64)
 		if err != nil {
-			return err
+			return utils.TeeErrorf("readQueryStats: failed to parse flushedQueriesSinceInstall(lastRecord[0]), err=%v lastRecord=%v", err, lastRecord)
 		}
 
 		flushedTotalRespTimeSinceInstall := 0.0
 		if len(lastRecord) > 1 {
 			flushedTotalRespTimeSinceInstall, err = strconv.ParseFloat(lastRecord[1], 64)
 			if err != nil {
-				return err
+				return utils.TeeErrorf("readQueryStats: failed to parse flushedTotalRespTimeSinceInstall(lastRecord[1]), err=%v lastRecord=%v", err, lastRecord)
 			}
 		}
 		if QueryStatsMap == nil {
-			return fmt.Errorf("readQueryStats: QueryStatsMap is nil")
+			return utils.TeeErrorf("readQueryStats: QueryStatsMap is nil")
 		}
 		if qs, ok := QueryStatsMap[orgid]; ok {
 			qs.QueriesSinceInstall = flushedQueriesSinceInstall
