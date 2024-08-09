@@ -263,8 +263,8 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 		extraSearchNodes = append(extraSearchNodes, extraSearchNode)
 	}
 
-	joinedExtraSearchNode := ast.JoinNodesRightAssociative(extraSearchNodes, ast.NodeOr)
-	searchNode = ast.JoinNodesRightAssociative([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
+	joinedExtraSearchNode := ast.JoinNodes(extraSearchNodes, ast.NodeOr)
+	searchNode = ast.JoinNodes([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
 
 	return searchNode, aggs
 }

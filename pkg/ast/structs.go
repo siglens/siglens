@@ -84,7 +84,7 @@ func (n *Node) Simplify() {
 	}
 }
 
-func JoinNodesRightAssociative(nodes []*Node, operation NodeType) *Node {
+func JoinNodes(nodes []*Node, operation NodeType) *Node {
 	if len(nodes) == 0 {
 		return nil
 	}
@@ -104,7 +104,7 @@ func JoinNodesRightAssociative(nodes []*Node, operation NodeType) *Node {
 	return &Node{
 		NodeType: operation,
 		Left:     nodes[0],
-		Right:    JoinNodesRightAssociative(nodes[1:], operation),
+		Right:    JoinNodes(nodes[1:], operation),
 	}
 }
 
