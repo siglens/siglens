@@ -81,28 +81,49 @@ func getPqmetaFilename(pqid string) string {
 	return fileName
 }
 
-func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
-	dirName := getPqmetaDirectory()
-	if _, err := os.Stat(dirName); os.IsNotExist(err) {
-		err := os.MkdirAll(dirName, os.FileMode(0764))
-		if err != nil {
-			log.Errorf("AddEmptyResults: Failed to create directory at %s: Error=%v", dirName, err)
+func addorDeletePqidFromEmptyPQSMeta(pqid string, segKey string, add bool) {
+	if add {
+		dirName := getPqmetaDirectory()
+		if _, err := os.Stat(dirName); os.IsNotExist(err) {
+			err := os.MkdirAll(dirName, os.FileMode(0764))
+			if err != nil {
+				log.Errorf("addorDeletePqidFromEmptyPQSMeta: Failed to create directory at %s: Error=%v", dirName, err)
+			}
 		}
 	}
+
 	fileName := getPqmetaFilename(pqid)
+
+	allEmptyPersistentQueryResultsLock.Lock()
+	defer allEmptyPersistentQueryResultsLock.Unlock()
+
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
-		log.Errorf("AddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
+		log.Errorf("addorDeletePqidFromEmptyPQSMeta: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
 	}
-	if emptyPQS != nil {
-		emptyPQS[segKey] = true
-		writeEmptyPqsMapToFile(fileName, emptyPQS)
+
+	if add {
+		if emptyPQS != nil {
+			emptyPQS[segKey] = true
+		}
+	} else {
+		delete(emptyPQS, segKey)
+		if len(emptyPQS) == 0 {
+			err := removePqmrFilesAndDirectory(pqid)
+			if err != nil {
+				log.Errorf("addorDeletePqidFromEmptyPQSMeta: Error removing segKey %v from %v pqid, Error=%v", segKey, pqid, err)
+			}
+			return
+		}
 	}
+	writeEmptyPqsMapToFile(fileName, emptyPQS)
+}
+
+func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
+	addorDeletePqidFromEmptyPQSMeta(pqid, segKey, true)
 }
 
 func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {
-	allEmptyPersistentQueryResultsLock.Lock()
-	defer allEmptyPersistentQueryResultsLock.Unlock()
 	fd, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0764)
 	if err != nil {
 		log.Errorf("WriteEmptyPQS: Error opening file at fname=%v, err=%v", fileName, err)
@@ -152,18 +173,5 @@ func removePqmrFilesAndDirectory(pqid string) error {
 }
 
 func DeleteSegmentFromPqid(pqid string, segKey string) {
-	pqFname := getPqmetaFilename(pqid)
-	emptyPQS, err := getAllEmptyPQSToMap(pqFname)
-	if err != nil {
-		log.Errorf("DeleteSegmentFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
-	}
-	delete(emptyPQS, segKey)
-	if len(emptyPQS) == 0 {
-		err := removePqmrFilesAndDirectory(pqid)
-		if err != nil {
-			log.Errorf("DeleteSegmentFromPqid: Error removing segKey %v from %v pqid, Error=%v", segKey, pqid, err)
-		}
-		return
-	}
-	writeEmptyPqsMapToFile(pqFname, emptyPQS)
+	addorDeletePqidFromEmptyPQSMeta(pqid, segKey, false)
 }
