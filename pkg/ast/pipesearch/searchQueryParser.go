@@ -327,7 +327,7 @@ func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
 				extraSearchNode.Comparison.Field = stringExpr.FieldName
 				fieldWasSet = true
 			case SEMRawString:
-				extraSearchNode.Comparison.Values = stringExpr.RawString
+				extraSearchNode.Comparison.Values = "\"" + stringExpr.RawString + "\""
 				valueWasSet = true
 			case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
 				// TODO: we can handle at least some of these.

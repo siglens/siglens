@@ -36,7 +36,7 @@ func splToUnoptimizedNodes(t *testing.T, query string) (*ast.Node, *structs.Quer
 	return queryStruct.SearchFilter, queryStruct.PipeCommands
 }
 
-func verifyEquivalentQueries(t *testing.T,
+func verifyEquivalentSplQueries(t *testing.T,
 	optimizationFunction func(*ast.Node, *structs.QueryAggregators) (*ast.Node, *structs.QueryAggregators),
 	unoptomizedQuery string, optimizedQuery string) {
 
@@ -50,8 +50,16 @@ func verifyEquivalentQueries(t *testing.T,
 }
 
 func Test_optimizeStatsEvalQueries(t *testing.T) {
-	verifyEquivalentQueries(t, optimizeStatsEvalQueries,
+	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
 		`* | stats count(eval(foo=42))`,
 		`* AND foo=42 | stats count(eval(foo=42))`,
+	)
+	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
+		`* | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
+		`* AND (foo=42 OR bar="baz") | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
+	)
+	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
+		`A=1 OR NOT B=2 | stats count(eval(foo=42))`,
+		`(A=1 OR NOT B=2) AND foo=42 | stats count(eval(foo=42))`,
 	)
 }
