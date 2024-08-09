@@ -40,12 +40,12 @@ import (
 )
 
 func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, error) {
-	var parsingError error
+	var err error
 	var queryAggs *QueryAggregators
 	var boolNode *ASTNode
-	boolNode, queryAggs, parsingError = ParseQuery(searchText, qid, queryLanguageType)
-	if parsingError != nil {
-		return nil, nil, parsingError
+	boolNode, queryAggs, err = ParseQuery(searchText, qid, queryLanguageType)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if boolNode == nil && queryAggs == nil {
