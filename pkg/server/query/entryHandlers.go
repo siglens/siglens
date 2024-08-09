@@ -39,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
+	writer "github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	systemconfig "github.com/siglens/siglens/pkg/systemConfig"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
@@ -381,6 +382,17 @@ func SearchUserSavedQueryHandler() func(ctx *fasthttp.RequestCtx) {
 
 func postPqsClearHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		querytracker.PostPqsClear(ctx)
+	}
+}
+
+func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		err := writer.DeletePQSData()
+		if err != nil {
+			utils.SendInternalError(ctx, "Error while deleting PQS data", "", err)
+			return
+		}
 		querytracker.PostPqsClear(ctx)
 	}
 }
