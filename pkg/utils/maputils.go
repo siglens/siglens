@@ -71,16 +71,16 @@ func SetDifference[T1, T2 any](newSet map[string]T2, oldSet map[string]T1) ([]st
 	var added, removed []string
 	change := false
 
-	for k := range oldSet {
-		if _, ok := newSet[k]; !ok {
-			removed = append(removed, k)
+	for key := range oldSet {
+		if _, exists := newSet[key]; !exists {
+			removed = append(removed, key)
 			change = true
 		}
 	}
 
-	for k := range newSet {
-		added = append(added, k)
-		if _, ok := oldSet[k]; !ok {
+	for key := range newSet {
+		added = append(added, key)
+		if _, exists := oldSet[key]; !exists {
 			change = true
 		}
 	}
