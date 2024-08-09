@@ -456,17 +456,6 @@ func SetBadMsg(ctx *fasthttp.RequestCtx, msg string) {
 	WriteResponse(ctx, httpResp)
 }
 
-func SetInternalError(ctx *fasthttp.RequestCtx, msg string) {
-	if len(msg) == 0 {
-		msg = "Internal Server Error"
-	}
-	var httpResp HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-	httpResp.Message = msg
-	httpResp.StatusCode = fasthttp.StatusInternalServerError
-	WriteResponse(ctx, httpResp)
-}
-
 func ExtractParamAsString(_interface interface{}) string {
 	switch intfc := _interface.(type) {
 	case string:

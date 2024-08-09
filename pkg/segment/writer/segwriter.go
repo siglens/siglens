@@ -1044,13 +1044,14 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 			continue
 		}
 	}
-	err = WriteSegMeta(localSegmetaFname, preservedSmEntries)
+	err = WriteOverSegMeta(localSegmetaFname, preservedSmEntries)
 	if err != nil {
 		log.Errorf("BackFillPQSSegmetaEntry: failed to write Segmeta: err=%v", err)
+		return
 	}
 }
 
-func WriteSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
+func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
 	wfd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
@@ -1061,7 +1062,7 @@ func WriteSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error 
 
 		segmetajson, err := json.Marshal(*smentry)
 		if err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v", segmetaFname, err)
+			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
 		}
 
 		if _, err := wfd.Write(segmetajson); err != nil {
@@ -1098,7 +1099,7 @@ func DeletePQSData() error {
 	}
 
 	// Write back the segmeta data
-	err = WriteSegMeta(segMetaFilename, segmetaEntries)
+	err = WriteOverSegMeta(segMetaFilename, segmetaEntries)
 	if err != nil {
 		log.Errorf("DeletePQSData: failed to write segmeta data to %v, err: %v", segMetaFilename, err)
 		return err
