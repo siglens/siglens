@@ -106,3 +106,24 @@ func Test_addSegStatsStrForValuesFunc(t *testing.T) {
 	assert.NotNil(t, sst[cname].StringStats.StrSet)
 	assert.Equal(t, map[string]struct{}{"a": {}, "c": {}}, sst[cname].StringStats.StrSet)
 }
+
+func Test_mergeSegStats(t *testing.T) {
+	map1 := make(map[string]*SegStats)
+	map2 := make(map[string]*SegStats)
+
+	map1["col1"] = &SegStats{IsNumeric: true, Count: 1}
+	map2["col1"] = &SegStats{IsNumeric: true, Count: 2}
+	expectedCol1 := &SegStats{IsNumeric: true, Count: 3}
+
+	map1["col2"] = &SegStats{IsNumeric: true, Count: 42}
+	expectedCol2 := &SegStats{IsNumeric: true, Count: 42}
+
+	map2["col3"] = &SegStats{IsNumeric: true, Count: 10}
+	expectedCol3 := &SegStats{IsNumeric: true, Count: 10}
+
+	mergedMap := MergeSegStats(map1, map2)
+	assert.Equal(t, 3, len(mergedMap))
+	assert.Equal(t, expectedCol1, mergedMap["col1"])
+	assert.Equal(t, expectedCol2, mergedMap["col2"])
+	assert.Equal(t, expectedCol3, mergedMap["col3"])
+}
