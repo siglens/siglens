@@ -34,7 +34,7 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
-let currentPanel = {};
+let currentPanel;
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
@@ -138,6 +138,14 @@ function showInfo(infoMsg) {
 
 function hideError() {
     $('#corner-popup').hide();
+}
+
+function hideCornerPopupError(){
+    let message = $('.corner-text').text();
+    $('#corner-popup').hide();
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+    processEmptyQueryResults(message);
 }
 //eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
@@ -814,7 +822,7 @@ function showToast(msg, type = 'error') {
     $('body').prepend(toast);
 
     if (type === 'success') {
-        setTimeout(removeToast, 5000);
+        setTimeout(removeToast, 3000);
     }
     $('.toast-close').on('click', removeToast);
     $('.toast-ok').on('click', removeToast);
