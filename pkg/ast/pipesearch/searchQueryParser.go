@@ -138,6 +138,18 @@ func createMatchAll(qid uint64) *ASTNode {
 	return rootNode
 }
 
+func updatePositionForGenEvents(aggs *QueryAggregators) {
+	node := aggs
+	position := 1
+	for node != nil {
+		if node.GenerateEvent != nil {
+			node.GenerateEvent.EventPosition = position
+			position++
+		}
+		node = node.Next
+	}
+}
+
 func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, error) {
 	var leafNode *ASTNode
 	var res interface{}
@@ -190,6 +202,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
 		return nil, nil, err
 	}
+
+	updatePositionForGenEvents(pipeCommands)
+
 	return boolNode, pipeCommands, nil
 }
 
@@ -364,6 +379,9 @@ func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregator
 	}
 	if node.GenTimes != nil {
 		aggNode.GenerateEvent.GenTimes = node.GenTimes
+	}
+	if node.InputLookup != nil {
+		aggNode.GenerateEvent.InputLookup = node.InputLookup
 	}
 
 	return aggNode, nil
@@ -620,7 +638,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) && aggs.StreamStatsOptions == nil {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasGroupByOrMeasureAggsInChain() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add

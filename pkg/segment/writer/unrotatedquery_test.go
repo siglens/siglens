@@ -62,7 +62,7 @@ func Test_writePQSFiles(t *testing.T) {
 	}
 	node.AddQueryInfoForNode()
 
-	querytracker.UpdateQTUsage([]string{"test"}, node, nil)
+	querytracker.UpdateQTUsage([]string{"test"}, node, nil, "batch=batch-0")
 
 	for batch := 0; batch < numBatch; batch++ {
 		for rec := 0; rec < numRec; rec++ {

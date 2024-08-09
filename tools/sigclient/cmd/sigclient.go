@@ -56,6 +56,15 @@ var esBulkCmd = &cobra.Command{
 		dataFile, _ := cmd.Flags().GetString("filePath")
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -66,8 +75,9 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay)
 	},
 }
 
@@ -85,6 +95,15 @@ var metricsIngestCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -93,7 +112,9 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay)
 	},
 }
 
@@ -109,6 +130,8 @@ var esQueryCmd = &cobra.Command{
 		filepath, _ := cmd.Flags().GetString("filePath")
 		randomQueries, _ := cmd.Flags().GetBool("randomQueries")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		outputFile, _ := cmd.Flags().GetString("outputFile")
+		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -119,7 +142,11 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		if filepath != "" {
-			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			if runResponseTime {
+				query.RunQueryFromFileAndOutputResponseTimes(dest, filepath, outputFile)
+			} else {
+				query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			}
 		} else {
 			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, randomQueries, bearerToken)
 		}
@@ -315,6 +342,7 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.PersistentFlags().Uint64P("eventsPerDay", "e", 0, "Number of events per day")
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
@@ -332,6 +360,8 @@ func init() {
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
+	queryCmd.PersistentFlags().StringP("outputFile", "o", "", "The filePath to output the Response time of Queries in csv format, When runResponseTime is set to True.")
+	queryCmd.PersistentFlags().BoolP("runResponseTime", "t", false, "Runs the given Queries and outputs the response time into a file in CSV format.")
 
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")

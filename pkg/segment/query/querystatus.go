@@ -164,6 +164,7 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
+	LogGlobalSearchErrors(qid)
 	arqMapLock.Lock()
 	delete(allRunningQueries, qid)
 	arqMapLock.Unlock()
@@ -408,6 +409,7 @@ func GetOrCreateQuerySearchNodeResult(qid uint64) (*structs.NodeResult, error) {
 }
 
 func CancelQuery(qid uint64) {
+	LogGlobalSearchErrors(qid)
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -766,4 +768,18 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 	}
 	return colsArr
 
+}
+
+func LogGlobalSearchErrors(qid uint64) {
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid: %v", qid)
+		return
+	}
+	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {
+		if errInfo == nil {
+			continue
+		}
+		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
+	}
 }

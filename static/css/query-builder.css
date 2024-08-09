@@ -86,9 +86,7 @@
     height: 100vh;
     padding: 10px 20px;
 }
-.save-query-div{
-    margin-bottom: 10px;
-}
+
 input.form-control {
     background: var(--code-input-box-color) !important;
 }
@@ -593,10 +591,10 @@ textarea.form-control:focus{
 }
 .download-all-logs-btn{
     background-image: var(--download-btn-img);
+    margin-right: 10px;
 }
 .show-record-intro-btn{
     background-image: var(--show-record-btn-img);
-    margin-left: 10px;
     position: relative;
     border-radius: 5px;
     height: 40px;
@@ -694,28 +692,25 @@ div.show-record-popup {
 }
 .tab-chart-list{
     height: 30px;
-    top: 5px;
     border-radius: 5px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     width: 150px;
-    position: absolute;
+    margin-right: 10px !important;
     background-color: var(--myOrg-input);
     margin-left: -5px !important; 
 }
 #logs-view-controls {
-    position: absolute;
     left: 155px;
     display: flex;
     justify-content: space-between;
     flex-direction: row;
-    width: calc(100% - 130px);
 }
 #tabs-chart,
 #showTable{
     display: none;
-    margin: 50px 0 0 0;
+    margin: 10px 0 0 0;
 }
 .tab-content-size{
     height: 100%;

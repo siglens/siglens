@@ -172,6 +172,10 @@ func GetDataPath() string {
 	return runningConfig.DataPath
 }
 
+func GetLookupPath() string {
+	return runningConfig.DataPath + "lookups/"
+}
+
 // returns if tls is enabled
 func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
@@ -595,13 +599,13 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.PQSEnabled) <= 0 {
-		config.PQSEnabled = "false"
+		config.PQSEnabled = "true"
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
 		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
-		pqsEnabled = false
-		config.PQSEnabled = "false"
+		pqsEnabled = true
+		config.PQSEnabled = "true"
 	}
 	config.PQSEnabledConverted = pqsEnabled
 

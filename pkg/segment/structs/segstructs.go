@@ -168,16 +168,30 @@ type QueryAggregators struct {
 
 type GenerateEvent struct {
 	GenTimes              *GenTimes
+	InputLookup           *InputLookup
 	GeneratedRecords      map[string]map[string]interface{}
 	GeneratedRecordsIndex map[string]int
 	GeneratedCols         map[string]bool
 	GeneratedColsIndex    map[string]int
+	EventPosition         int
 }
 
 type GenTimes struct {
 	StartTime uint64
 	EndTime   uint64
 	Interval  *SpanLength
+}
+
+type InputLookup struct {
+	Filename             string
+	Append               bool
+	Start                uint64
+	Strict               bool
+	Max                  uint64
+	WhereExpr            *BoolExpr
+	HasPrevResults       bool
+	NumProcessedSegments uint64
+	UpdatedRecordIndex   bool
 }
 
 type StreamStatsOptions struct {
@@ -199,7 +213,7 @@ type StreamStatsOptions struct {
 
 type RunningStreamStatsResults struct {
 	Window              *sutils.GobbableList
-	CurrResult          float64
+	CurrResult          utils.CValueEnclosure
 	NumProcessedRecords uint64               // kept for global stats where window = 0
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
@@ -210,7 +224,7 @@ type RunningStreamStatsResults struct {
 
 type RunningStreamStatsWindowElement struct {
 	Index       int
-	Value       interface{}
+	Value       utils.CValueEnclosure
 	TimeInMilli uint64
 }
 
@@ -397,7 +411,8 @@ type QueryCount struct {
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
 	AllRecords                  []*utils.RecordResultContainer
-	ErrList                     []error
+	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
+	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info
 	Histogram                   map[string]*AggregationResult
 	TotalResults                *QueryCount
 	VectorResultValue           float64
@@ -445,6 +460,11 @@ type NumericStats struct {
 
 type StringStats struct {
 	StrSet map[string]struct{}
+}
+
+type SearchErrorInfo struct {
+	Count    int
+	LogLevel log.Level
 }
 
 // json exportable struct for segstats
@@ -648,16 +668,8 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	if qa.OutputTransforms == nil {
 		return false
 	}
-	if qa.OutputTransforms.HeadRequest == nil {
-		return false
-	}
-	if qa.OutputTransforms.HeadRequest.BoolExpr != nil {
-		return true
-	}
-	if qa.OutputTransforms.HeadRequest.MaxRows > qa.OutputTransforms.HeadRequest.RowsAdded {
-		return true
-	}
-	return false
+
+	return qa.OutputTransforms.HeadRequest != nil
 }
 
 type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
@@ -697,6 +709,16 @@ func (qa *QueryAggregators) HasGenerateEvent() bool {
 	return qa.GenerateEvent != nil
 }
 
+func (qa *QueryAggregators) HasGeneratedEventsWithoutSearch() bool {
+	if qa == nil || qa.GenerateEvent == nil {
+		return false
+	}
+	if qa.GenerateEvent.InputLookup != nil && qa.GenerateEvent.InputLookup.HasPrevResults {
+		return false
+	}
+	return true
+}
+
 func (qa *QueryAggregators) HasDedupBlock() bool {
 	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
 		letColumns := qa.OutputTransforms.LetColumns
@@ -717,7 +739,7 @@ func (qa *QueryAggregators) GetSortLimit() uint64 {
 	if qa.HasSortBlock() {
 		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
 	}
-	if qa.Next != nil {
+	if qa != nil && qa.Next != nil {
 		return qa.Next.GetSortLimit()
 	}
 	return math.MaxUint64
@@ -1172,4 +1194,16 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
 	return qa.HasInChain(statsAggPresentInCur)
+}
+
+func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level) {
+	if nodeRes.GlobalSearchErrors == nil {
+		nodeRes.GlobalSearchErrors = make(map[string]*SearchErrorInfo)
+	}
+
+	if globalErr, ok := nodeRes.GlobalSearchErrors[errMsg]; !ok {
+		nodeRes.GlobalSearchErrors[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel}
+	} else {
+		globalErr.Count++
+	}
 }

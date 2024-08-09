@@ -34,6 +34,9 @@ jobs:
           command: |
             cd tools/sigclient
             go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 100_000
+            mkdir -p ../../data/lookups
+            cp ../../cicd/test_lookup.csv ../../data/lookups/test_lookup.csv
+            gzip -k ../../data/lookups/test_lookup.csv
             go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 1 -b 10_000 -g benchmark
             sleep 40
             go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv

@@ -21,8 +21,11 @@ Options:
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -s, --timestamp            If set, adds "timestamp" to the static/dynamic generators
+  -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
 
   -c  continuous             If true, ignores -t and will continuously send docs to the destination
+  -o  --outputFile           filepath to output the query response Time results in csv format.
+  -t  --runResponseTime      If true, then the queries will be run and the response time will be recorded in the given/default outputFile in CSV Format.
 ```
 
 Different Types of Readers:
@@ -46,6 +49,7 @@ Options:
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
+  -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
 ```
 
 ## Query

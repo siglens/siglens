@@ -25,6 +25,8 @@ let localPanels = [],
     allResultsDisplayed = 0;
 let panelIndex;
 //eslint-disable-next-line no-unused-vars
+let initialSearchDashboardData = {};
+//eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
@@ -294,9 +296,9 @@ function handlePanelView() {
 
 function viewPanelInit() {
     $('.panelEditor-container').css('display', 'flex');
-    $('.popupOverlay').addClass('active');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
+    $('.popupOverlay').addClass('active');
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
 }
@@ -417,7 +419,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         <div id="empty-response"></div>`;
         panEl.append(responseDiv);
         $('#panelLogResultsGrid').show();
-
+        initialSearchDashboardData = localPanel.queryData;
         if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
     } else if (localPanel.chartType == 'Line Chart') {
@@ -474,15 +476,6 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
-
-        if (!(localPanels.length > 0)) {
-            $('.default-item').addClass('active');
-            $('#add-widget-options').toggle();
-            $('.add-icon').toggleClass('rotate-icon');
-            $('#add-panel-btn').toggleClass('active');
-            $('.default-item').find('.text').text('Select the panel type');
-            $('.plus-icon').hide();
-        }
     }
 }
 
@@ -694,6 +687,7 @@ async function displayPanels() {
             panEl.append(responseDiv);
 
             $('#panelLogResultsGrid').show();
+            initialSearchDashboardData = localPanel.queryData;
             if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
             else runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
         } else if (localPanel.chartType == 'Line Chart') {
@@ -754,6 +748,21 @@ async function displayPanels() {
     // Remove the Add Panel Widgets from the default dashboards
     if (!isDefaultDashboard) {
         addDefaultPanel();
+    }
+    // Show the Add Panel Widget if there is no panel
+    if (localPanels.length === 0) {
+        $('.default-item').addClass('active').find('.text').text('Select the panel type');
+        $('#add-widget-options').show();
+        $('.add-icon').addClass('rotate-icon');
+        $('#add-panel-btn').addClass('active');
+        $('.plus-icon').hide();
+    } else {
+        $('.default-item').removeClass('active');
+        $('#add-widget-options').hide();
+        $('.add-icon').removeClass('rotate-icon');
+        $('#add-panel-btn').removeClass('active');
+        $('.add-panel-div .text').text('Add Panel');
+        $('.add-panel-div .plus-icon').show();
     }
 }
 
@@ -964,7 +973,6 @@ function addPanel(chartIndex) {
     editPanelInit(panelIndex);
     $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
-
     handlePanelEdit();
     handlePanelRemove(idpanel);
     handlePanelDuplicate();
@@ -1044,8 +1052,8 @@ function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
         $('#app-container').hide();
-        $('.popupOverlay').removeClass('active');
         editPanelFlag = true;
+        $('.popupOverlay').addClass('active');
     } else {
         $('#app-container').hide();
     }
@@ -1097,7 +1105,7 @@ function handleDbSettings() {
     if (isDefaultDashboard) {
         $('.dbSet-dbName').prop('readonly', true);
         $('.dbSet-dbDescr').prop('readonly', true);
-
+        $('#dbSet-edit-json').hide();
         $('#dbSet-discard,#dbSet-save').hide();
     }
 

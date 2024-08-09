@@ -18,8 +18,6 @@
  */
 
 var lineChart;
-var pieOptions, barOptions;
-
 function loadBarOptions(xAxisData, yAxisData) {
     // colors for dark & light modes
     let root = document.querySelector(':root');
@@ -29,19 +27,69 @@ function loadBarOptions(xAxisData, yAxisData) {
     let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
     let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
-    barOptions = {
+    let legendData = [];
+    let seriesData = [];
+    let colorList = ['#6347D9', '#FF8700'];
+
+    yAxisData.forEach((dataset, index) => {
+        legendData.push(dataset.name); // Add dataset names to legend
+        seriesData.push({
+            name: dataset.name,
+            type: 'bar',
+            data: dataset.data,
+            barWidth: 10,
+            itemStyle: {
+                color: colorList[index % colorList.length],
+            },
+            barCategoryGap: '10%', // space between bars
+            barGap: '15%',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                },
+                formatter: function (params) {
+                    return params[0].name + ': ' + params[0].value;
+                },
+            },
+            emphasis: {
+                itemStyle: {
+                    color: colorList[index % colorList.length],
+                },
+                label: {
+                    show: false,
+                    position: 'top',
+                    formatter: function (params) {
+                        return params.value;
+                    },
+                },
+            },
+        });
+    });
+
+    let barOptions = {
+        legend: {
+            data: legendData,
+            textStyle: {
+                color: function () {
+                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+                },
+            },
+        },
         xAxis: {
             type: 'category',
             data: xAxisData,
             axisLine: {
                 lineStyle: {
-                    color: gridLineDarkThemeColor,
+                    color: function () {
+                        return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+                    },
                 },
             },
             axisLabel: {
-                interval: 0, // Set this to 0 to display all labels
-                rotate: 45, // You can adjust this value to rotate the labels
-                margin: 10, // You can adjust this value to add or reduce spacing between the labels and the axis line
+                interval: 0,
+                rotate: 45,
+                margin: 10,
                 color: function () {
                     return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
                 },
@@ -56,50 +104,13 @@ function loadBarOptions(xAxisData, yAxisData) {
             },
             splitLine: {
                 lineStyle: {
-                    color: gridLineDarkThemeColor,
+                    lineStyle: {
+                        color: gridLineDarkThemeColor,
+                    },
                 },
             },
         },
-        series: [
-            {
-                data: yAxisData,
-                type: 'bar',
-                barWidth: 10,
-                itemStyle: {
-                    // color: '#6347D9' // You can set any color code here
-                    color: function (params) {
-                        var colorList = ['#6347D9', '#FF8700']; // Define an array of colors
-                        return colorList[params.dataIndex % colorList.length]; // Use the modulus operator to alternate between colors
-                    },
-                },
-                barCategoryGap: '10%', // You can adjust this value to add space between bars
-                barGap: '15%',
-                tooltip: {
-                    trigger: 'axis', // Set the trigger type for the tooltip
-                    axisPointer: {
-                        // Set the type of pointer that shows up when hovering over the bars
-                        type: 'shadow', // 'line' or 'shadow' for vertical or horizontal lines, respectively
-                    },
-                    formatter: function (params) {
-                        // Add a formatter function to show the value of the bar in the tooltip
-                        return params[0].name + ': ' + params[0].value;
-                    },
-                },
-                emphasis: {
-                    itemStyle: {
-                        color: '#FFC107', // Set the color of the bars when hovering over them
-                    },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: function (params) {
-                            // Add a formatter function to show the value of the bar on hover
-                            return params.value;
-                        },
-                    },
-                },
-            },
-        ],
+        series: seriesData,
     };
     if ($('html').attr('data-theme') == 'dark') {
         barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
@@ -126,10 +137,7 @@ function loadPieOptions(xAxisData, yAxisData) {
     let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
     let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
-    pieOptions = {
-        xAxis: {
-            show: false,
-        },
+    let pieOptions = {
         tooltip: {
             trigger: 'item',
             formatter: '{a} <br/>{b} : {c} ({d}%)',
@@ -163,6 +171,7 @@ function loadPieOptions(xAxisData, yAxisData) {
             },
         ],
     };
+
     if ($('html').attr('data-theme') == 'dark') {
         pieOptions.series[0].label.color = labelDarkThemeColor;
         pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
@@ -172,9 +181,12 @@ function loadPieOptions(xAxisData, yAxisData) {
         pieOptions.legend.textStyle.color = labelLightThemeColor;
         pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
     }
+
+    return pieOptions;
 }
+
 //eslint-disable-next-line no-unused-vars
-function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex) {
+function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) {
     $('.panelDisplay #panelLogResultsGrid').hide();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #corner-popup').hide();
@@ -182,24 +194,11 @@ function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex)
     $(`.panelDisplay .big-number-display-container`).empty();
     $(`.panelDisplay .big-number-display-container`).hide();
     $('.panelDisplay .panEdit-panel').empty();
-    let bigNumVal = null;
-    let xAxisData = [];
-    let yAxisData = [];
 
+    let bigNumVal = null;
+    let hits = res.measure;
     if (columns.length == 1) {
         bigNumVal = hits[0].MeasureVal[columns[0]];
-    }
-
-    // loop through the hits and create the data for the bar chart
-    for (let i = 0; i < hits.length; i++) {
-        let hit = hits[i];
-
-        let xAxisValue = hit.GroupByValues[0];
-        let yAxisValue;
-        let measureVal = hit.MeasureVal;
-        yAxisValue = measureVal[columns[1]];
-        xAxisData.push(xAxisValue);
-        yAxisData.push(yAxisValue);
     }
 
     let panelChart;
@@ -215,25 +214,72 @@ function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex)
     if (bigNumVal != null) {
         chartType = 'number';
     }
-
+    /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
-            loadBarOptions(xAxisData, yAxisData);
+
+            // Determine if multiple group by values are used
+            var multipleGroupBy = hits[0].GroupByValues.length > 1;
+            let measureFunctions = res.measureFunctions;
+
+            // Prepare series data for the bar chart
+            var seriesData = measureFunctions.map(function (measureFunction) {
+                return {
+                    name: measureFunction,
+                    data: hits.map(function (item) {
+                        return item.MeasureVal[measureFunction] || 0;
+                    }),
+                };
+            });
+
+            let xData = hits.map((item) => {
+                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
+
+                // If groupByValue is null, set it to "NULL" or any other default label
+                if (groupByValue === null || groupByValue === undefined || groupByValue === '') {
+                    groupByValue = 'NULL'; // or "Unknown", "N/A", etc.
+                }
+
+                return groupByValue;
+            });
+            var barOptions = loadBarOptions(xData, seriesData);
             panelChart.setOption(barOptions);
             break;
         case 'Pie Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
-            loadPieOptions(xAxisData, yAxisData);
+
+            let xAxisData = [];
+            let yAxisData = [];
+            // loop through the hits and create the data for the bar chart
+            for (let i = 0; i < hits.length; i++) {
+                let hit = hits[i];
+                let xAxisValue = hit.GroupByValues[0];
+                let yAxisValue;
+                let measureVal = hit.MeasureVal;
+                yAxisValue = measureVal[columns[1]];
+
+                if (xAxisValue === null || xAxisValue === undefined || xAxisValue === '') {
+                    xAxisValue = 'NULL'; // or "Unknown", "N/A", etc.
+                }
+
+                xAxisData.push(xAxisValue);
+                yAxisData.push(yAxisValue);
+            }
+
+            var pieOptions = loadPieOptions(xAxisData, yAxisData);
             panelChart.setOption(pieOptions);
             break;
         case 'number':
             displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
+            break;
     }
+    /* eslint-enable */
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 
     return panelChart;
 }
+
 let mapIndexToAbbrev = new Map([
     ['', ''],
     ['none', ''],

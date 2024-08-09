@@ -34,6 +34,7 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
+let currentPanel;
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
@@ -97,11 +98,13 @@ function showError(errorMsg) {
     $('#initial-response').hide();
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
-        $('#logs-view-controls').show();
+        $('#save-query-div').children().show();
+        $('#views-container').show();
     } else {
-        $('#logs-view-controls').hide();
+        $('#save-query-div').children().hide();
+        $('#views-container').show();
     }
-    $('#custom-chart-tab').show();
+    $('#custom-chart-tab').show().css({'height': '100%'});
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
@@ -137,6 +140,14 @@ function showInfo(infoMsg) {
 
 function hideError() {
     $('#corner-popup').hide();
+}
+
+function hideCornerPopupError(){
+    let message = $('.corner-text').text();
+    $('#corner-popup').hide();
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+    processEmptyQueryResults(message);
 }
 //eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
@@ -504,8 +515,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             } else {
                 // for number, bar and pie charts
                 if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
-
-                panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
+                panelChart = renderBarChart(columnOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;
@@ -814,7 +824,7 @@ function showToast(msg, type = 'error') {
     $('body').prepend(toast);
 
     if (type === 'success') {
-        setTimeout(removeToast, 5000);
+        setTimeout(removeToast, 3000);
     }
     $('.toast-close').on('click', removeToast);
     $('.toast-ok').on('click', removeToast);
@@ -1039,10 +1049,15 @@ function getMetricsQData() {
                     qlType: 'promql',
                 };
             });
-
+            let functionsArray = formulaDetailsMap[key].functions || [];
+            // Update the formula by wrapping it with each function in the functionsArray
+            let formula = formulas[key].formula;
+            for (let func of functionsArray) {
+                formula = `${func}(${formula})`;
+            }
             formulasData.push({
                 end: endDate,
-                formulas: [{ formula: formulaDetails.formula }],
+                formulas: [{ formula: formula }],
                 queries: queriesInFormula,
                 start: stDate,
             });

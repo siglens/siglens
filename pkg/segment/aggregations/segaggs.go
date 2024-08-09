@@ -120,10 +120,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		return nodeResult
 	}
 
-	if post.GenerateEvent != nil && len(recs) == 0 {
-		return nodeResult
-	}
-
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -145,7 +141,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
-		} else if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
+		} else if nodeResult.PerformAggsOnRecs && recs != nil {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
@@ -182,7 +178,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	}
 	switch agg.PipeCommandType {
 	case structs.GenerateEventType:
-		return nil
+		return performGenEvent(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
 			return errors.New("performAggOnResult: expected non-nil OutputTransforms")
@@ -263,6 +259,132 @@ func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal m
 	}
 
 	return currentOrder, nil
+}
+
+func performGenEvent(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if agg.GenerateEvent == nil {
+		return nil
+	}
+	if agg.GenerateEvent.GenTimes != nil {
+		return performGenTimes(agg, recs, recordIndexInFinal, finalCols)
+	}
+	if agg.GenerateEvent.InputLookup != nil {
+		return performInputLookup(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+	}
+
+	return nil
+}
+
+func PopulateGeneratedRecords(genEvent *structs.GenerateEvent, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, offset int) error {
+	for cols := range genEvent.GeneratedCols {
+		finalCols[cols] = true
+	}
+
+	for recordKey, recIndex := range genEvent.GeneratedRecordsIndex {
+		record, exists := genEvent.GeneratedRecords[recordKey]
+		if !exists {
+			return fmt.Errorf("PopulateGeneratedRecords: Record not found for recordKey: %v", recordKey)
+		}
+		recs[recordKey] = record
+		recordIndexInFinal[recordKey] = offset + recIndex
+	}
+
+	return nil
+}
+
+func performGenTimes(agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool) error {
+	if agg.GenerateEvent.GenTimes == nil {
+		return nil
+	}
+	if recs == nil {
+		return nil
+	}
+
+	return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, 0)
+}
+
+func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	if agg.GenerateEvent.InputLookup == nil {
+		return nil
+	}
+
+	if agg.GenerateEvent.GeneratedRecords == nil {
+		err := PerformInputLookup(agg)
+		if err != nil {
+			return fmt.Errorf("performInputLookup: Error while performing input lookup, err: %v", err)
+		}
+	}
+
+	if nodeResult.Histogram != nil {
+		return performInputLookupOnHistogram(nodeResult, agg)
+	}
+	// inputLookup for measure results is not supported
+
+	if recs == nil {
+		return nil
+	}
+
+	if !agg.GenerateEvent.InputLookup.HasPrevResults {
+		return PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, 0)
+	}
+
+	// When the first block of the last segment arrives update the records and record index once
+	if !agg.GenerateEvent.InputLookup.UpdatedRecordIndex && agg.GenerateEvent.InputLookup.NumProcessedSegments == numTotalSegments-1 {
+		offset := -1
+		for _, recIndex := range recordIndexInFinal {
+			if recIndex > offset {
+				offset = recIndex
+			}
+		}
+		offset++
+
+		err := PopulateGeneratedRecords(agg.GenerateEvent, recs, recordIndexInFinal, finalCols, offset)
+		if err != nil {
+			return fmt.Errorf("performInputLookup: Error while populating generated records, err: %v", err)
+		}
+
+		agg.GenerateEvent.InputLookup.UpdatedRecordIndex = true
+	}
+
+	if finishesSegment {
+		agg.GenerateEvent.InputLookup.NumProcessedSegments++
+	}
+
+	return nil
+}
+
+func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.QueryAggregators) error {
+	for _, aggregationResult := range nodeResult.Histogram {
+		orderedRecs, err := GetOrderedRecs(agg.GenerateEvent.GeneratedRecords, agg.GenerateEvent.GeneratedRecordsIndex)
+		if err != nil {
+			return fmt.Errorf("performInputLookupOnHistogram: Error while getting generated records order, err: %v", err)
+		}
+
+		for _, recordKey := range orderedRecs {
+			record, exists := agg.GenerateEvent.GeneratedRecords[recordKey]
+			if !exists {
+				return fmt.Errorf("performInputLookupOnHistogram: Generated record not found for recordKey: %v", recordKey)
+			}
+
+			statRes := make(map[string]segutils.CValueEnclosure, 0)
+
+			for col, recordValue := range record {
+				statRes[col] = segutils.CValueEnclosure{
+					Dtype: segutils.SS_DT_STRING,
+					CVal:  fmt.Sprintf("%v", recordValue),
+				}
+			}
+			// Add the record as bucket result to aggregation results
+			bucketRes := &structs.BucketResult{
+				StatRes: statRes,
+			}
+
+			aggregationResult.Results = append(aggregationResult.Results, bucketRes)
+		}
+		break
+	}
+
+	return nil
 }
 
 func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {

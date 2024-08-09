@@ -40,6 +40,16 @@ import (
 
 // Helper functions
 
+func parseWithoutError(t *testing.T, query string) (*structs.ASTNode, *structs.QueryAggregators) {
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+
+	return astNode, aggregator
+}
+
 func extractMatchFilter(t *testing.T, node *ast.Node) *structs.MatchFilter {
 	astNode := &structs.ASTNode{}
 	err := pipesearch.SearchQueryToASTnode(node, astNode, 0)
@@ -10611,4 +10621,573 @@ func Test_GenTimes_8(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 2, aggregator.GenerateEvent.GenTimes.Interval.Num)
 	assert.Equal(t, utils.TMSecond, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+}
+
+func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
+	query := `* | earliest=-mon@mon latest=+mon@mon+7d`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	// Get the current time in the local time zone
+	now := time.Now().In(time.Local)
+
+	// Calculate the expected earliest time: one month ago, snapped to the first of the month at midnight
+	firstOfLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
+	expectedEarliestTime := firstOfLastMonth
+
+	// Calculate the expected latest time: one month from now, snapped to the first of the month at midnight, plus 7 days
+	firstOfNextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local)
+	expectedLatestTime := firstOfNextMonth.AddDate(0, 0, 7)
+
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
+
+	// Compare the expected and actual times
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
+
+func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
+	query := `* | earliest=@d-1d+12h latest=@d-1s`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	// Get the current time in the local time zone
+	now := time.Now().In(time.Local)
+
+	// Calculate the expected earliest time: yesterday at noon
+	yesterdayNoon := time.Date(now.Year(), now.Month(), now.Day()-1, 12, 0, 0, 0, time.Local)
+	expectedEarliestTime := yesterdayNoon
+
+	// Calculate the expected latest time: end of yesterday
+	endOfYesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 23, 59, 59, 0, time.Local)
+	expectedLatestTime := endOfYesterday
+
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
+
+	// Compare the expected and actual times
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
+
+func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
+	query := `* | earliest=@w1-7d+9h latest=@w1-7d+17h`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	// Get the current time in the local time zone
+	now := time.Now().In(time.Local)
+
+	// Calculate the expected earliest time: last week's Monday at 9 AM
+	lastMonday9AM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 9, 0, 0, 0, time.Local)
+	expectedEarliestTime := lastMonday9AM
+
+	// Calculate the expected latest time: last week's Monday at 5 PM
+	lastMonday5PM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 17, 0, 0, 0, time.Local)
+	expectedLatestTime := lastMonday5PM
+
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
+
+	// Compare the expected and actual times
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
+
+func Test_ParseRelativeTimeModifier_Chained_4(t *testing.T) {
+	query := `* | earliest=-26h@h latest=-2h@h`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	// Get the current time in the local time zone
+	now := time.Now().In(time.Local)
+
+	// Manually floor the time to the start of the hour
+	floorToHour := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+	}
+
+	// Calculate the expected earliest time: 26 hours ago, floored to the start of the hour
+	expectedEarliestTime := floorToHour(now.Add(-26 * time.Hour))
+
+	// Calculate the expected latest time: 2 hours ago, floored to the start of the hour
+	expectedLatestTime := floorToHour(now.Add(-2 * time.Hour))
+
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
+
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
+
+func Test_ParseRelativeTimeModifier_Chained_5(t *testing.T) {
+	query := `* | earliest=-1h@h latest=-45m@m`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	// Get the current time in the local time zone
+	now := time.Now().In(time.Local)
+
+	// Manually floor the time to the start of the hour
+	floorToHour := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+	}
+
+	// Manually floor the time to the start of the minute
+	floorToMinute := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location())
+	}
+
+	// Calculate the expected earliest time: 1 hour ago, floored to the start of the hour
+	expectedEarliestTime := floorToHour(now.Add(-1 * time.Hour))
+
+	// Calculate the expected latest time: 45 minutes ago, floored to the start of the minute
+	expectedLatestTime := floorToMinute(now.Add(-45 * time.Minute))
+
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
+
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
+func Test_InputLookup(t *testing.T) {
+	query := `| inputlookup mylookup.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "mylookup.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_InputLookup_2(t *testing.T) {
+	query := `| inputlookup start=3 abc.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "abc.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_InputLookup_3(t *testing.T) {
+	query := `| inputlookup start=5 strict=true max=3 append=true abc.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "abc.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(5), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_InputLookup_4(t *testing.T) {
+	query := `| inputlookup max=3 append=true abc.csv where a="text" OR b>2 AND c<=3`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "abc.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
+	assert.Equal(t, structs.BoolOpOr, aggregator.GenerateEvent.InputLookup.WhereExpr.BoolOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "=", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr)
+	assert.Equal(t, "text", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr.RawString)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftValue)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool)
+
+	assert.Equal(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.BoolOp, structs.BoolOpAnd)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, ">", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "2", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "<=", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr)
+	assert.Equal(t, "3", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.IsTerminal)
+}
+
+func Test_InputLookup_5(t *testing.T) {
+	query := `| inputlookup max=3 abc.csv where a="text" OR b>2 AND c<=3 | eval myField=replace(date, "^(\d{1,2})/(\d{1,2})/", "\2/\1/")`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "abc.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
+	assert.Equal(t, structs.BoolOpOr, aggregator.GenerateEvent.InputLookup.WhereExpr.BoolOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "=", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr)
+	assert.Equal(t, "text", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr.RawString)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftValue)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool)
+
+	assert.Equal(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.BoolOp, structs.BoolOpAnd)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, ">", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "2", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "<=", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr)
+	assert.Equal(t, "3", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.NewColName, "myField")
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "replace")
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "date")
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].RawString, `^(\d{1,2})/(\d{1,2})/`)
+	assert.Equal(t, aggregator.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].RawString, `\2/\1/`)
+
+	assert.Nil(t, aggregator.Next.Next)
+}
+
+func Test_InputLookup_6(t *testing.T) {
+	query := `city=Boston | inputlookup max=3 append=true abc.csv where a="text" OR b>2 AND c<=3`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "abc.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
+	assert.Equal(t, structs.BoolOpOr, aggregator.GenerateEvent.InputLookup.WhereExpr.BoolOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "=", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr)
+	assert.Equal(t, "text", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool.RightValue.StringExpr.RawString)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftValue)
+	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool)
+
+	assert.Equal(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.BoolOp, structs.BoolOpAnd)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, ">", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr)
+	assert.Equal(t, "2", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.LeftBool.RightValue.NumericExpr.IsTerminal)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr)
+	assert.Equal(t, "c", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.LeftValue.NumericExpr.IsTerminal)
+
+	assert.Equal(t, "<=", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.ValueOp)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr)
+	assert.Equal(t, "3", aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightBool.RightBool.RightValue.NumericExpr.IsTerminal)
+}
+
+func Test_InputLookup_7(t *testing.T) {
+	query := `city=Boston | inputlookup max=3 abc.csv where a="text" OR b>2 AND c<=3`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_InputLookup_8(t *testing.T) {
+	query := `| inputlookup max=-1 abc.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_InputLookup_9(t *testing.T) {
+	query := `| inputlookup start=-1 abc.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_InputLookup_10(t *testing.T) {
+	query := `| inputlookup myfile where (a=b)`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "myfile", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftValue.NumericExpr)
+	assert.Equal(t, "a", aggregator.GenerateEvent.InputLookup.WhereExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, "=", aggregator.GenerateEvent.InputLookup.WhereExpr.ValueOp)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightValue)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.RightValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.GenerateEvent.InputLookup.WhereExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.WhereExpr.RightValue.NumericExpr.IsTerminal)
+}
+
+func Test_InputLookup_11(t *testing.T) {
+	query := `| inputlookup myfile.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "myfile.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_RemoveRedundantSearches(t *testing.T) {
+	query := `* | search foo=bar`
+	astNode, aggregator := parseWithoutError(t, query)
+
+	equivalentQuery := `foo=bar`
+	expectedAstNode, expectedAggregator := parseWithoutError(t, equivalentQuery)
+
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `foo=bar | search * | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
+
+	query = `* | search * | search foo=bar | search * | search *`
+	astNode, aggregator = parseWithoutError(t, query)
+	assert.Equal(t, expectedAstNode, astNode)
+	assert.Equal(t, expectedAggregator, aggregator)
 }
