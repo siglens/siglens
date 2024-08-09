@@ -29,15 +29,15 @@ Main function exported to check colWips against persistent queries during ingest
 
 Internally, updates the bitset with recNum for all queries that matched
 */
-func applyStreamingSearchToRecord(wipBlock WipBlock, psNode map[string]*structs.SearchNode,
+func applyStreamingSearchToRecord(segStore *SegStore, psNode map[string]*structs.SearchNode,
 	recNum uint16) {
 
 	holderDte := &utils.DtypeEnclosure{}
 	tsKey := config.GetTimeStampKey()
 	for pqid, sNode := range psNode {
 		holderDte.Reset()
-		if applySearchSingleNode(wipBlock.colWips, sNode, holderDte, tsKey) {
-			wipBlock.addRecordToMatchedResults(recNum, pqid)
+		if applySearchSingleNode(segStore.wipBlock.colWips, sNode, holderDte, tsKey) {
+			segStore.addRecordToMatchedResults(recNum, pqid)
 		}
 	}
 }
@@ -199,8 +199,8 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 /*
 Adds recNum as a matched record in the current bitset based on pqid
 */
-func (wipBlock *WipBlock) addRecordToMatchedResults(recNum uint16, pqid string) {
-	pqMatch, ok := wipBlock.pqMatches[pqid]
+func (segStore *SegStore) addRecordToMatchedResults(recNum uint16, pqid string) {
+	pqMatch, ok := segStore.pqMatches[pqid]
 	if !ok {
 		log.Errorf("addRecordToMatchedResults: tried to match a record for a pqid that does not exist")
 		return

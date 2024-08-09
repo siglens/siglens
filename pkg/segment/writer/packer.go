@@ -854,7 +854,6 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			columnBlooms:       columnBlooms,
 			columnRangeIndexes: columnRangeIndexes,
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     mapCol,
 			tomRollup:          make(map[uint64]*RolledRecs),
 			tohRollup:          make(map[uint64]*RolledRecs),
@@ -867,6 +866,8 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			SegmentKey:     segkey,
 			AllSeenColumns: allCols,
 			pqTracker:      initPQTracker(),
+			pqMatches:      make(map[string]*pqmr.PQMatchResults),
+			LastSegPqids:   make(map[string]struct{}),
 			AllSst:         segstats,
 			numBlocks:      currBlockUint,
 		}
@@ -957,7 +958,6 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			columnBlooms:       columnBlooms,
 			columnRangeIndexes: columnRangeIndexes,
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     mapCol,
 			tomRollup:          make(map[uint64]*RolledRecs),
 			tohRollup:          make(map[uint64]*RolledRecs),
@@ -970,6 +970,8 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			SegmentKey:     segkey,
 			AllSeenColumns: allCols,
 			pqTracker:      initPQTracker(),
+			pqMatches:      make(map[string]*pqmr.PQMatchResults),
+			LastSegPqids:   make(map[string]struct{}),
 			AllSst:         segstats,
 			numBlocks:      currBlockUint,
 		}

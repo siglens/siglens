@@ -65,3 +65,25 @@ func CreateRecord(columnNames []string, record []string) (map[string]interface{}
 	}
 	return recordMap, nil
 }
+
+// SetDifference returns the added and removed elements between two sets.
+func SetDifference[T1, T2 any](newSet map[string]T2, oldSet map[string]T1) ([]string, []string, bool) {
+	var added, removed []string
+	change := false
+
+	for k := range oldSet {
+		if _, ok := newSet[k]; !ok {
+			removed = append(removed, k)
+			change = true
+		}
+	}
+
+	for k := range newSet {
+		added = append(added, k)
+		if _, ok := oldSet[k]; !ok {
+			change = true
+		}
+	}
+
+	return added, removed, change
+}
