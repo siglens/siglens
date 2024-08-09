@@ -171,6 +171,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			}
 			if !ok {
 				log.Errorf("qid=%v, ProcessPipeSearchWebsocket: Got non ok, state: %v", qid, qscd.StateName)
+				query.LogGlobalSearchErrors(qid)
 				return
 			}
 		case readMsg := <-websocketR:
