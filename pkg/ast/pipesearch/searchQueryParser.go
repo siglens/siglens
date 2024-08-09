@@ -229,28 +229,31 @@ func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *Qu
 }
 
 // Optimize queries like:
-// "* | stats count(eval(foo=bar))" to "foo=bar | stats count(eval(foo=bar))"
+// weekday=Monday | stats count(eval(foo=bar)) avg(eval(latency>1000))
+// to:
+// weekday=Monday AND (foo=bar OR latency>1000) | stats count(eval(foo=bar)) avg(eval(latency>1000))
 func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
 	if searchNode == nil || aggs == nil {
-		return searchNode, aggs
+		return searchNode, aggs // This optimization doesn't apply.
 	}
 
 	if aggs.PipeCommandType != MeasureAggsType {
-		return searchNode, aggs
+		return searchNode, aggs // This optimization doesn't apply.
 	}
 
 	extraSearchNodes := make([]*ast.Node, 0) // These will be merged with the searchNode at the end.
 	for _, measureAgg := range aggs.MeasureOperations {
 		if measureAgg.ValueColRequest == nil {
-			return searchNode, aggs
+			return searchNode, aggs // This optimization doesn't apply.
 		}
 
 		if measureAgg.ValueColRequest.ValueExprMode != VEMBooleanExpr {
-			return searchNode, aggs
+			return searchNode, aggs // This optimization doesn't apply.
 		}
 
 		boolExpr := measureAgg.ValueColRequest.BooleanExpr
 		if boolExpr == nil {
+			log.Errorf("optimizeStatsEvalQueries: boolExpr is nil")
 			return searchNode, aggs
 		}
 
@@ -267,6 +270,8 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 		valueWasSet := false
 
 		if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
+			log.Errorf("optimizeStatsEvalQueries: boolExpr is terminal but left (%v) or right (%v) is nil",
+				boolExpr.LeftValue, boolExpr.RightValue)
 			return searchNode, aggs
 		}
 
@@ -275,6 +280,7 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 			case VEMNumericExpr:
 				numericExpr := valueExpr.NumericExpr
 				if numericExpr == nil {
+					log.Errorf("optimizeStatsEvalQueries: numericExpr is nil")
 					return searchNode, aggs
 				}
 
@@ -292,6 +298,7 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 			case VEMStringExpr:
 				stringExpr := valueExpr.StringExpr
 				if stringExpr == nil {
+					log.Errorf("optimizeStatsEvalQueries: stringExpr is nil")
 					return searchNode, aggs
 				}
 
@@ -318,40 +325,17 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 		}
 
 		if !fieldWasSet || !valueWasSet {
+			log.Errorf("optimizeStatsEvalQueries: fieldWasSet=%v, valueWasSet=%v; expected both to be true", fieldWasSet, valueWasSet)
 			return searchNode, aggs
 		}
 
 		extraSearchNodes = append(extraSearchNodes, extraSearchNode)
 	}
 
-	joinedExtraSearchNode := joinNodes(extraSearchNodes, ast.NodeOr)
-	searchNode = joinNodes([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
+	joinedExtraSearchNode := ast.JoinNodesRightAssociative(extraSearchNodes, ast.NodeOr)
+	searchNode = ast.JoinNodesRightAssociative([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
 
 	return searchNode, aggs
-}
-
-func joinNodes(nodes []*ast.Node, operation ast.NodeType) *ast.Node {
-	if len(nodes) == 0 {
-		return nil
-	}
-
-	if len(nodes) == 1 {
-		return nodes[0]
-	}
-
-	if len(nodes) == 2 {
-		return &ast.Node{
-			NodeType: operation,
-			Left:     nodes[0],
-			Right:    nodes[1],
-		}
-	}
-
-	return &ast.Node{
-		NodeType: operation,
-		Left:     nodes[0],
-		Right:    joinNodes(nodes[1:], operation),
-	}
 }
 
 func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {

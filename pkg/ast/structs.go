@@ -84,6 +84,30 @@ func (n *Node) Simplify() {
 	}
 }
 
+func JoinNodesRightAssociative(nodes []*Node, operation NodeType) *Node {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	if len(nodes) == 1 {
+		return nodes[0]
+	}
+
+	if len(nodes) == 2 {
+		return &Node{
+			NodeType: operation,
+			Left:     nodes[0],
+			Right:    nodes[1],
+		}
+	}
+
+	return &Node{
+		NodeType: operation,
+		Left:     nodes[0],
+		Right:    JoinNodesRightAssociative(nodes[1:], operation),
+	}
+}
+
 // TimeModifiers is a struct that holds the time modifiers for a query
 type TimeModifiers struct {
 	StartEpoch uint64
