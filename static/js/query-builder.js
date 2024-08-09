@@ -20,7 +20,7 @@
 $(function () {
     $('#custom-code-tab').tabs();
     $('#custom-chart-tab').tabs();
-    $('#logs-view-controls').hide();
+    $('#save-query-div').children().show();
 });
 $('#custom-code-tab').tabs({
     activate: function (_event, _ui) {
@@ -55,9 +55,12 @@ $('#custom-chart-tab').tabs({
     activate: function (_event, _ui) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
-            $('#logs-view-controls').show();
+            $('#save-query-div').children().show();
+            $('#views-container').show();
         } else {
-            $('#logs-view-controls').hide();
+            $('#save-query-div').children().hide();
+            $('#views-container').hide();
+
             timeChart();
         }
     },

@@ -46,12 +46,15 @@ function doLiveTailCancel(_data) {
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
         $('#empty-response, #initial-response').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
+        $('.tab-chart-list').show();
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
-            $('#logs-view-controls').show();
+            $('#save-query-div').children().show();
+            $('#views-container').show();
         } else {
-            $('#logs-view-controls').hide();
+            $('#save-query-div').children().hide();
+            $('#views-container').hide();
         }
         $('#agg-result-container').hide();
         $('#data-row-container').hide();
@@ -694,17 +697,20 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 
 function processEmptyQueryResults(message) {
     $('#logs-result-container').hide();
-    $('#custom-chart-tab').hide();
+    $('#custom-chart-tab').show().css({ height: 'auto' });
+    $('.tab-chart-list, #views-container').hide();
     $('#agg-result-container').hide();
     $('#data-row-container').hide();
     $('#corner-popup').hide();
     $('#empty-response').show();
-    $('#logs-view-controls').hide();
+    $('#save-query-div').children().hide();
+    $('#show-record-intro-btn').show();
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
     el.append(`<span>${message}</span>`);
 }
+
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value + logsRowData.length;
@@ -721,7 +727,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
         resetDashboard();
         $('#logs-result-container').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
         $('#agg-result-container').show();
         aggsColumnDefs = [];
         segStatsRowData = [];
@@ -771,7 +777,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         }
         resetDashboard();
         $('#logs-result-container').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
         $('#agg-result-container').show();
         aggsColumnDefs = [];
         segStatsRowData = [];
@@ -828,7 +834,8 @@ function showErrorResponse(errorMsg, res) {
     $('#corner-popup').hide();
     $('#empty-response').show();
     $('#initial-response').hide();
-    $('#logs-view-controls').hide();
+    $('#save-query-div').children().hide();
+    $('#views-container').hide();
     $('#custom-chart-tab').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
