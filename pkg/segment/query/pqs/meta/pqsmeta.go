@@ -100,11 +100,15 @@ func addorDeletePqidFromEmptyPQSMeta(pqid string, segKey string, add bool) {
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
 		log.Errorf("addorDeletePqidFromEmptyPQSMeta: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
+		return
 	}
 
 	if add {
 		if emptyPQS != nil {
 			emptyPQS[segKey] = true
+		} else {
+			log.Errorf("addorDeletePqidFromEmptyPQSMeta: emptyPQS is nil for pqid=%v", pqid)
+			return
 		}
 	} else {
 		delete(emptyPQS, segKey)
