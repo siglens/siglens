@@ -57,6 +57,7 @@ type Hooks struct {
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTime *float64)
 
+	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// Retention
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
