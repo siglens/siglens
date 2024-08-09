@@ -1055,7 +1055,6 @@ progress.hidden {
 #save-query-div {
     display: flex;
     justify-content: flex-start;
-    margin-top: 5px;
     position: relative;
 }
 
@@ -1154,10 +1153,9 @@ progress.hidden {
     display: flex;
     justify-content: flex-end;
     column-gap: 15px;
-    margin-top: 5px;
     margin-left: 23px;
-    margin-right: 25px;
     border-radius: 5px;
+    width: 100%;
 }
 
 .details-control {
