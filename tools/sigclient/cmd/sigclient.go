@@ -143,7 +143,7 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		if filepath != "" {
 			if runResponseTime {
-				query.RunQueryFromFileAndCheckResponseTimes(dest, filepath, outputFile)
+				query.RunQueryFromFileAndOutputResponseTimes(dest, filepath, outputFile)
 			} else {
 				query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
 			}

@@ -739,7 +739,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 	}
 }
 
-func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryResultFile string) {
+func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryResultFile string) {
 	webSocketURL := dest + "/api/search/ws"
 	if queryResultFile == "" {
 		queryResultFile = "./query_results.csv"
@@ -750,19 +750,19 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 
 	csvFile, err := os.Open(filepath)
 	if err != nil {
-		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to open query file: %v", err)
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to open query file: %v", err)
 	}
 	defer csvFile.Close()
 
 	reader := csv.NewReader(csvFile)
 	records, err := reader.ReadAll()
 	if err != nil {
-		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to read query file: %v", err)
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to read query file: %v", err)
 	}
 
 	outputCSVFile, err := os.Create(queryResultFile)
 	if err != nil {
-		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to create CSV file: %v", err)
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to create CSV file: %v", err)
 	}
 	defer outputCSVFile.Close()
 
@@ -772,7 +772,7 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 	// Write header to the output CSV
 	err = writer.Write([]string{"Query", "Response Time (ms)"})
 	if err != nil {
-		log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to write header to CSV file: %v", err)
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write header to CSV file: %v", err)
 	}
 
 	for index, record := range records {
@@ -808,7 +808,7 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 		log.Infof("qid=%v, Running query=%v", qid, query)
 		conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
 		if err != nil {
-			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error connecting to WebSocket server: %v", qid, err)
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error connecting to WebSocket server: %v", qid, err)
 			return
 		}
 		defer conn.Close()
@@ -816,7 +816,7 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 		startTime := time.Now()
 		err = conn.WriteJSON(data)
 		if err != nil {
-			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error sending query to server: %v", qid, err)
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error sending query to server: %v", qid, err)
 			break
 		}
 
@@ -824,7 +824,7 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 		for {
 			err = conn.ReadJSON(&readEvent)
 			if err != nil {
-				log.Infof("RunQueryFromFileAndCheckResponseTimes: qid=%v, Error reading response from server for query. Error=%v", qid, err)
+				log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error reading response from server for query. Error=%v", qid, err)
 				break
 			}
 			if state, ok := readEvent["state"]; ok && state == "COMPLETE" {
@@ -832,14 +832,14 @@ func RunQueryFromFileAndCheckResponseTimes(dest string, filepath string, queryRe
 			}
 		}
 		responseTime := time.Since(startTime).Milliseconds()
-		log.Infof("RunQueryFromFileAndCheckResponseTimes: qid=%v, Query=%v,Response Time: %vms", qid, query, responseTime)
+		log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Query=%v,Response Time: %vms", qid, query, responseTime)
 
 		// Write query and response time to output CSV
 		err = writer.Write([]string{query, strconv.FormatInt(responseTime, 10)})
 		if err != nil {
-			log.Fatalf("RunQueryFromFileAndCheckResponseTimes: Failed to write query result to CSV file: %v", err)
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write query result to CSV file: %v", err)
 		}
 	}
 
-	log.Infof("RunQueryFromFileAndCheckResponseTimes: Query results written to CSV file: %v", queryResultFile)
+	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
