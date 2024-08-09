@@ -98,11 +98,13 @@ function showError(errorMsg) {
     $('#initial-response').hide();
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
-        $('#logs-view-controls').show();
+        $('#save-query-div').children().show();
+        $('#views-container').show();
     } else {
-        $('#logs-view-controls').hide();
+        $('#save-query-div').children().hide();
+        $('#views-container').show();
     }
-    $('#custom-chart-tab').show();
+    $('#custom-chart-tab').show().css({'height': '100%'});
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
