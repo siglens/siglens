@@ -218,6 +218,8 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 }
 
 func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	searchNode.Simplify()
+
 	if searchNode == nil || aggs == nil {
 		return searchNode, aggs
 	}
