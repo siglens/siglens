@@ -553,6 +553,8 @@ waitForWebhooks:
 		}
 	}
 
+	time.Sleep(5 * time.Second) // Wait for the alerthistory to be updated
+
 	// Get Alert History to verify the notifications
 	err = verifyAlertHistory(host, alerts)
 	if err != nil {
