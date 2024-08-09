@@ -3464,6 +3464,13 @@ func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fie
 			return nil, err
 		}
 		return value, nil
+	case structs.VEMMultiValueExpr:
+		mvSlice, err := letColReq.ValueColRequest.EvaluateToMultiValue(fieldToValue)
+		if err != nil {
+			log.Errorf("failed to evaluate multi value expr, err=%v", err)
+			return nil, err
+		}
+		return mvSlice, nil
 	default:
 		return nil, fmt.Errorf("unknown value expr mode %v", letColReq.ValueColRequest.ValueExprMode)
 	}
@@ -3489,6 +3496,7 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 			//Firstly, try to evaluate it as a float, if it fail. Try to evaluate it as a str
 			var cellValueStr string
 			var cellValueFloat float64
+			var cellValueSlice []string
 			switch letColReq.ValueColRequest.ValueExprMode {
 			case structs.VEMConditionExpr:
 				err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
@@ -3518,6 +3526,11 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				if err != nil {
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
 				}
+			case structs.VEMMultiValueExpr:
+				cellValueSlice, err = letColReq.ValueColRequest.EvaluateToMultiValue(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("failed to evaluate multi value expr, err: %v", err)
+				}
 			}
 
 			if err != nil {
@@ -3532,7 +3545,11 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 					}
 
 					if len(cellValueStr) == 0 {
-						cellValueStr = fmt.Sprintf("%v", cellValueFloat)
+						if len(cellValueSlice) > 0 {
+							cellValueStr = fmt.Sprintf("%v", cellValueSlice)
+						} else {
+							cellValueStr = fmt.Sprintf("%v", cellValueFloat)
+						}
 					}
 
 					// Set the appropriate element of BucketKey to cellValueStr.
@@ -3550,7 +3567,12 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 					}
 				}
 			} else {
-				if len(cellValueStr) > 0 {
+				if len(cellValueSlice) > 0 {
+					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
+						Dtype: segutils.SS_DT_STRING_SLICE,
+						CVal:  cellValueSlice,
+					}
+				} else if len(cellValueStr) > 0 {
 					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
 						Dtype: segutils.SS_DT_STRING,
 						CVal:  cellValueStr,
