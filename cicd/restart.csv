@@ -332,3 +332,8 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
 "app_name=Bracecould | stats count AS Count BY latency | eval mod_value = latency%123",now-1d,now,*,group:mod_value:7330203,eq,18,Splunk QL
 "app_name=Bracecould | stats count AS Count BY latency | eval mod=(latency-8000000)%123",now-1d,now,*,group:mod:7330203,eq,-62,Splunk QL
+"app_name=Bracecould | eval split_n = mvjoin(split(""a:bc:123"", "":""), ""?"") | stats count by split_n",now-1d,now,*,countRecord:split_n:*,eq,a?bc?123,Splunk QL
+"app_name=Bracecould | eval mvcount = mvcount(split(""a:bc:123"", "":"")) | stats count by mvcount",now-1d,now,*,countRecord:mvcount:*,eq,3,Splunk QL
+"app_name=Bracecould | eval mvindex = mvindex(split(""a:bc:123"", "":""), -2, 2) | stats count by mvindex",now-1d,now,*,countRecord:mvindex:*,eq,"bc,123",Splunk QL
+"app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""jim*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,2,Splunk QL
+"app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""abc*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,"",Splunk QL
