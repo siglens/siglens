@@ -29,13 +29,13 @@ import (
 	"github.com/siglens/siglens/pkg/ast/sql"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-
-	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -182,22 +182,29 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
 	}
 
-	queryJson := res.(ast.QueryStruct).SearchFilter
-	pipeCommandsJson := res.(ast.QueryStruct).PipeCommands
+	queryStruct, ok := res.(ast.QueryStruct)
+	if !ok {
+		return nil, nil, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+	}
+
+	searchNode := queryStruct.SearchFilter
+	aggs := queryStruct.PipeCommands
 	boolNode := &ASTNode{}
-	if queryJson == nil {
+	if searchNode == nil {
 		boolNode = createMatchAll(qid)
 	}
-	err = SearchQueryToASTnode(queryJson, boolNode, qid)
+
+	err = SearchQueryToASTnode(searchNode, boolNode, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
 		return nil, nil, err
 	}
-	if pipeCommandsJson == nil {
+
+	if aggs == nil {
 		return boolNode, nil, nil
 	}
-	pipeCommands, err := searchPipeCommandsToASTnode(pipeCommandsJson, qid)
 
+	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
 		return nil, nil, err
