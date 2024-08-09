@@ -346,7 +346,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// it's an async query we're running this function with
 				// len(segmap)=1 because we try to process the data as the
 				// searched complete.
-				nodeRes.StoreGlobalError("GetJsonFromAllRrc: Did not find index for record identifier")
+				nodeRes.StoreGlobalSearchError("GetJsonFromAllRrc: Did not find index for record identifier", log.ErrorLevel)
 				unknownIndex = true
 			}
 			if logfmtRequest {

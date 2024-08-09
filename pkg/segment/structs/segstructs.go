@@ -411,7 +411,8 @@ type QueryCount struct {
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
 	AllRecords                  []*utils.RecordResultContainer
-	ErrList                     []error
+	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
+	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info
 	Histogram                   map[string]*AggregationResult
 	TotalResults                *QueryCount
 	VectorResultValue           float64
@@ -439,7 +440,6 @@ type NodeResult struct {
 	CurrentSearchResultCount    int
 	AllSearchColumnsByTimeRange map[string]bool
 	FinalColumns                map[string]bool
-	GlobalErrors                map[string]*ErrorInfo // maps global error from error message -> error stats
 }
 
 type SegStats struct {
@@ -462,8 +462,9 @@ type StringStats struct {
 	StrSet map[string]struct{}
 }
 
-type ErrorInfo struct {
-	Count int
+type SearchErrorInfo struct {
+	Count    int
+	LogLevel log.Level
 }
 
 // json exportable struct for segstats
@@ -1195,13 +1196,13 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
-func (nodeRes *NodeResult) StoreGlobalError(errMsg string) {
-	if nodeRes.GlobalErrors == nil {
-		nodeRes.GlobalErrors = make(map[string]*ErrorInfo)
+func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level) {
+	if nodeRes.GlobalSearchErrors == nil {
+		nodeRes.GlobalSearchErrors = make(map[string]*SearchErrorInfo)
 	}
 
-	if globalErr, ok := nodeRes.GlobalErrors[errMsg]; !ok {
-		nodeRes.GlobalErrors[errMsg] = &ErrorInfo{Count: 1}
+	if globalErr, ok := nodeRes.GlobalSearchErrors[errMsg]; !ok {
+		nodeRes.GlobalSearchErrors[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel}
 	} else {
 		globalErr.Count++
 	}
