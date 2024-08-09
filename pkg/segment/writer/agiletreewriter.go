@@ -168,7 +168,8 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 
 	// Now we know the size of the metadata, so we can write it. The value we
 	// write doesn't include the 4 bytes we use to store the value.
-	_, err = strMFd.WriteAt(utils.Uint32ToBytesLittleEndian(metadataSize-4), 0)
+	// We need to write from the 2nd byte, since the first byte is the file type.
+	_, err = strMFd.WriteAt(utils.Uint32ToBytesLittleEndian(metadataSize-4), 1)
 	if err != nil {
 		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write metadata length; err=%v", err)
 		return 0, err

@@ -1055,7 +1055,6 @@ progress.hidden {
 #save-query-div {
     display: flex;
     justify-content: flex-start;
-    margin-top: 5px;
     position: relative;
 }
 
@@ -1154,10 +1153,9 @@ progress.hidden {
     display: flex;
     justify-content: flex-end;
     column-gap: 15px;
-    margin-top: 5px;
     margin-left: 23px;
-    margin-right: 25px;
     border-radius: 5px;
+    width: 100%;
 }
 
 .details-control {
@@ -2016,8 +2014,9 @@ div.dts div.dataTables_scrollBody table {
     border: 1px solid var(--ui-widget-border-color);
     padding: 25px;
     position: absolute;
-    top:32%;
-    left:35%;
+    top:50%;
+    left:50%;
+    transform: translate(-50%, -50%);
     visibility: hidden;
     color: var(--text-color);
     font-size: 1em;
@@ -3682,7 +3681,10 @@ float: right;
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
     background-color: var(--timepicker-text-color) !important;
 }
-
+.test-contact-btn.disabled{
+    pointer-events: all;
+    cursor: not-allowed;
+}
 .myOrg-inner-container input[type="submit"] {
     height: 100%;
     background-size: cover;
@@ -4613,26 +4615,6 @@ color: #C8C7CC;
     padding-bottom: 0;
     margin-top: 5px;
     float: right;
-}
-
-.test-contact-btn {
-    background-color: var(--purple-2);
-    height: 30px;
-    margin-bottom: 0px;
-    color: var(--white-0) !important;
-    float: right;
-    cursor: pointer;
-    margin-left: 12px;
-}
-
-.test-contact-btn .send-icon{
-    background-image: url(../assets/send-icon.svg);
-    height: 15px;
-    background-size: 100%;
-    width: 15px;
-    background-repeat: no-repeat;
-    margin-bottom: 0px;
-    margin-right: 6px;
 }
 
 .test-contact-btn {
@@ -5948,4 +5930,61 @@ input.form-control {
     font-size: 6rem;
     font-weight: 600;
     line-height: 7rem;
+}
+
+.json-body{
+    border: 1px solid var(--border-btn-color);
+    outline: none;
+    padding: 1rem 1.25rem;
+    width: 100%;
+    background: transparent;
+    border-radius: 5px;
+    height: 85%;
+    resize: none;
+    color: var(--text-color);
+    background: var(--bg-color);
+}
+
+.disable-dialog{
+    overflow: hidden;
+    height: 100%;
+}
+
+#pqs-id-details{
+    height: 80vh;
+}
+
+#clear-pqs-info, #close-popup, #delete-all-pqs-data{
+    width: fit-content !important;
+    padding: 0 20px;
+    margin: 0px !important;
+}
+
+#pqs-id-details .header{
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.myOrg-inner-container #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
+}
+
+.myOrg-inner-container .ag-theme-mycustomtheme .ag-center-cols-container {
+    background-color: var(--black1-to-white0) !important;
+}
+
+.myOrg-inner-container .ag-root-wrapper-body.ag-layout-normal {
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#pqs-id-details .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
+    margin-bottom: 10px;
 }
