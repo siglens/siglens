@@ -235,12 +235,12 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
             let xData = hits.map((item) => {
                 let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
-        
+
                 // If groupByValue is null, set it to "NULL" or any other default label
-                if (groupByValue === null || groupByValue === undefined || groupByValue === "") {
-                    groupByValue = "NULL"; // or "Unknown", "N/A", etc.
+                if (groupByValue === null || groupByValue === undefined || groupByValue === '') {
+                    groupByValue = 'NULL'; // or "Unknown", "N/A", etc.
                 }
-        
+
                 return groupByValue;
             });
             var barOptions = loadBarOptions(xData, seriesData);
@@ -259,10 +259,10 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
                 let measureVal = hit.MeasureVal;
                 yAxisValue = measureVal[columns[1]];
 
-                if (xAxisValue === null || xAxisValue === undefined || xAxisValue === "") {
-                    xAxisValue = "NULL"; // or "Unknown", "N/A", etc.
+                if (xAxisValue === null || xAxisValue === undefined || xAxisValue === '') {
+                    xAxisValue = 'NULL'; // or "Unknown", "N/A", etc.
                 }
-                
+
                 xAxisData.push(xAxisValue);
                 yAxisData.push(yAxisValue);
             }
