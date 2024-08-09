@@ -194,7 +194,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	if len(kibanaIndices) != 0 {
 		containsKibana = true
 	}
-	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs)
+	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs, qc.RawQuery)
 	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
 	if parallelismPerFile < 1 {
 		parallelismPerFile = 1

@@ -139,6 +139,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
+	qc.RawQuery = searchText
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query, err: %v", qid, err)

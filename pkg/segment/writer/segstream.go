@@ -114,7 +114,6 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord())
 		if err != nil {
-			log.Errorf("applySearchSingleQuery: failed to apply match words search! error: %v", err)
 			return false
 		}
 		return retVal
@@ -136,7 +135,6 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), false, holderDte)
 		if err != nil {
-			log.Errorf("applySearchSingleQuery: failed to apply simple expression search! error: %v", err)
 			return false
 		}
 		return retVal
@@ -147,7 +145,6 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), true, holderDte)
 		if err != nil {
-			log.Errorf("applySearchSingleQuery: failed to apply wildcard expression search! error: %v", err)
 			return false
 		}
 		return retVal
@@ -180,7 +177,6 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, rawVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, true, holderDte)
 		if err != nil {
-			log.Errorf("ApplySearchToDictArrayFilter: failed to apply wildcard expression search! error: %v", err)
 			return false
 		}
 		return retVal
@@ -196,7 +192,6 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		return false
 	default:
-		log.Errorf("applySearchSingleQuery: unsupported query type! %+v", sQuery.SearchType)
 		return false
 	}
 }

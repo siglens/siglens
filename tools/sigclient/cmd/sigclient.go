@@ -130,6 +130,8 @@ var esQueryCmd = &cobra.Command{
 		filepath, _ := cmd.Flags().GetString("filePath")
 		randomQueries, _ := cmd.Flags().GetBool("randomQueries")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		outputFile, _ := cmd.Flags().GetString("outputFile")
+		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -140,7 +142,11 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		if filepath != "" {
-			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			if runResponseTime {
+				query.RunQueryFromFileAndOutputResponseTimes(dest, filepath, outputFile)
+			} else {
+				query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			}
 		} else {
 			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, randomQueries, bearerToken)
 		}
@@ -354,6 +360,8 @@ func init() {
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
+	queryCmd.PersistentFlags().StringP("outputFile", "o", "", "The filePath to output the Response time of Queries in csv format, When runResponseTime is set to True.")
+	queryCmd.PersistentFlags().BoolP("runResponseTime", "t", false, "Runs the given Queries and outputs the response time into a file in CSV format.")
 
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
