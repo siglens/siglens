@@ -30,7 +30,7 @@ function setupEventHandlers() {
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
-    $('#corner-popup').on('click', '.corner-btn-close', hideError);
+    $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
 
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
@@ -152,32 +152,35 @@ function customRangeHandler(_evt) {
         $(this).removeClass('active');
     });
     datePickerHandler(filterStartDate, filterEndDate, 'custom');
-
-    if (currentPanel) {
-        if (currentPanel.queryData) {
-            if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                currentPanel.queryData.start = filterStartDate.toString();
-                currentPanel.queryData.end = filterEndDate.toString();
-            } else {
-                currentPanel.queryData.startEpoch = filterStartDate;
-                currentPanel.queryData.endEpoch = filterEndDate;
-            }
-        }
-    } else if (!currentPanel) {
-        // if user is on dashboard screen
-        localPanels.forEach((panel) => {
-            delete panel.queryRes;
-            if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                    panel.queryData.start = filterStartDate.toString();
-                    panel.queryData.end = filterEndDate.toString();
+    // For dashboards
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('dashboard.html')) {
+        if (currentPanel) {
+            if (currentPanel.queryData) {
+                if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
+                    currentPanel.queryData.start = filterStartDate.toString();
+                    currentPanel.queryData.end = filterEndDate.toString();
                 } else {
-                    panel.queryData.startEpoch = filterStartDate;
-                    panel.queryData.endEpoch = filterEndDate;
+                    currentPanel.queryData.startEpoch = filterStartDate;
+                    currentPanel.queryData.endEpoch = filterEndDate;
                 }
             }
-        });
-        displayPanels();
+        } else if (!currentPanel) {
+            // if user is on dashboard screen
+            localPanels.forEach((panel) => {
+                delete panel.queryRes;
+                if (panel.queryData) {
+                    if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                        panel.queryData.start = filterStartDate.toString();
+                        panel.queryData.end = filterEndDate.toString();
+                    } else {
+                        panel.queryData.startEpoch = filterStartDate;
+                        panel.queryData.endEpoch = filterEndDate;
+                    }
+                }
+            });
+            displayPanels();
+        }
     }
 }
 
@@ -270,10 +273,6 @@ async function dashboardRangeItemHandler(evt) {
         });
 
         displayPanels();
-        // Don't update if its a default dashboard
-        if (!isDefaultDashboard) {
-            await updateDashboard();
-        }
     }
 }
 function resetCustomDateRange() {

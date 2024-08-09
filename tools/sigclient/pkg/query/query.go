@@ -588,6 +588,8 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		relation := rec[5]
 		expectedValue := rec[6]
 
+		log.Infof("RunQueryFromFile: Running query: %v", rec[0])
+
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
 		if err != nil {
