@@ -58,6 +58,10 @@ app_name=Termitehad city=*on,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad city=*on*,now-90d,now,*,total,eq,6,Splunk QL
 app_name=Termitehad city=on*,now-90d,now,*,total,eq,0,Splunk QL
 app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
+"question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
+"NOT question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
+"""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
+"NOT ""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
 search app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 search Sunday,now-90d,now,*,total,gt,1,Splunk QL
 search http_status>400,now-1d,now,*,total,gt,0,Splunk QL
@@ -158,8 +162,8 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "* | head 2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "* | head | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
 "city=Boston | head limit=3 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
-"app_name = Bracecould | head gender=""female"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
-"app_name = Bracecould | head gender=""female"" keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"app_name = Bracecould | sort gender | head gender=""female"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"app_name = Bracecould | sort gender | head gender=""female"" keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
 "app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "app_name = Bracecould | sort http_status | head http_status < 400 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
@@ -246,8 +250,8 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats values(eval(if(http_status > 302, ""Error"", http_status))) as values BY http_method",now-1d,now,*,group:values:POST,eq,"301&nbspError",Splunk QL
 "app_name=Companywill | stats dc(eval(if(http_status > 310, ""Error"", http_status))) as dc by http_method",now-1d,now,*,group:dc:DELETE,eq,2,Splunk QL
 "* | eval newField=nullif(http_status, 200) | fields newField, http_status | fillnull value=FILLING | eval countVal=if(http_status=200 AND newField=""FILLING"", 1, 0) | stats count(http_status) as count, sum(countVal) as sum_count by newField | where count=sum_count",now-1d,now,*,countRecord:newField,eq,"FILLING",Splunk QL
-"city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where http_status=200 | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
-"city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where nullStatus=null() | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,14,Splunk QL
+"city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where http_status=200 | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,167,Splunk QL
+"city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where nullStatus=null() | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,167,Splunk QL
 "city=Boston | sort first_name, last_name | streamstats window=3 count(http_status) as cnt | where first_name=""Abdiel"" AND last_name=""Paucek"" | stats sum(cnt) as cnt_value",now-1d,now,*,countRecord:cnt_value:*,eq,3,Splunk QL
 "city=Boston | sort first_name, last_name | streamstats window=3 avg(http_status) as avg | where first_name=""Abel"" AND last_name=""White"" | stats sum(avg) as avg_value",now-1d,now,*,countRecord:avg_value:*,eq,368,Splunk QL
 "city=Boston | sort first_name, last_name | streamstats window=3 sum(http_status) as sum | where first_name=""Abel"" AND last_name=""White"" | stats sum(sum) as sum_value",now-1d,now,*,countRecord:sum_value:*,eq,"1,104",Splunk QL

@@ -824,7 +824,7 @@ function showToast(msg, type = 'error') {
     $('body').prepend(toast);
 
     if (type === 'success') {
-        setTimeout(removeToast, 5000);
+        setTimeout(removeToast, 3000);
     }
     $('.toast-close').on('click', removeToast);
     $('.toast-ok').on('click', removeToast);
