@@ -251,81 +251,12 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 			return searchNode, aggs // This optimization doesn't apply.
 		}
 
-		boolExpr := measureAgg.ValueColRequest.BooleanExpr
-		if boolExpr == nil {
-			log.Errorf("optimizeStatsEvalQueries: boolExpr is nil")
-			return searchNode, aggs
-		}
-
-		if !boolExpr.IsTerminal {
-			// TODO: we can actually handle this case.
-			return searchNode, aggs
-		}
-
-		extraSearchNode := &ast.Node{}
-		extraSearchNode.NodeType = ast.NodeTerminal
-		extraSearchNode.Comparison.Op = boolExpr.ValueOp
-
-		fieldWasSet := false
-		valueWasSet := false
-
-		if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
-			log.Errorf("optimizeStatsEvalQueries: boolExpr is terminal but left (%v) or right (%v) is nil",
-				boolExpr.LeftValue, boolExpr.RightValue)
-			return searchNode, aggs
-		}
-
-		for _, valueExpr := range []*ValueExpr{boolExpr.LeftValue, boolExpr.RightValue} {
-			switch valueExpr.ValueExprMode {
-			case VEMNumericExpr:
-				numericExpr := valueExpr.NumericExpr
-				if numericExpr == nil {
-					log.Errorf("optimizeStatsEvalQueries: numericExpr is nil")
-					return searchNode, aggs
-				}
-
-				if !numericExpr.IsTerminal {
-					// TODO: we can actually handle this case.
-					return searchNode, aggs
-				}
-				if numericExpr.ValueIsField {
-					extraSearchNode.Comparison.Field = numericExpr.Value
-					fieldWasSet = true
-				} else {
-					extraSearchNode.Comparison.Values = json.Number(numericExpr.Value)
-					valueWasSet = true
-				}
-			case VEMStringExpr:
-				stringExpr := valueExpr.StringExpr
-				if stringExpr == nil {
-					log.Errorf("optimizeStatsEvalQueries: stringExpr is nil")
-					return searchNode, aggs
-				}
-
-				switch stringExpr.StringExprMode {
-				case SEMField:
-					extraSearchNode.Comparison.Field = stringExpr.FieldName
-					fieldWasSet = true
-				case SEMRawString:
-					extraSearchNode.Comparison.Values = stringExpr.RawString
-					valueWasSet = true
-				case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
-					// TODO: we can handle at least some of these.
-				default:
-					log.Errorf("optimizeStatsEvalQueries: unknown stringExpr.StringExprMode: %v", stringExpr.StringExprMode)
-					return searchNode, aggs
-				}
-			case VEMConditionExpr, VEMBooleanExpr:
-				// TODO: can these cases be handled?
-				return searchNode, aggs
-			default:
-				log.Errorf("optimizeStatsEvalQueries: unknown valueExpr.ValueExprMode: %v", valueExpr.ValueExprMode)
-				return searchNode, aggs
-			}
-		}
-
-		if !fieldWasSet || !valueWasSet {
-			log.Errorf("optimizeStatsEvalQueries: fieldWasSet=%v, valueWasSet=%v; expected both to be true", fieldWasSet, valueWasSet)
+		extraSearchNode := extractSearchNodeFromBooleanExpr(measureAgg.ValueColRequest.BooleanExpr)
+		if extraSearchNode == nil {
+			// We can't do this optimization for one of these reasons:
+			// - There was an issue extracting the search node
+			// - We can optimize this query, but we haven't implemented the optimization yet
+			// - We can't optimize this query
 			return searchNode, aggs
 		}
 
@@ -336,6 +267,89 @@ func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*as
 	searchNode = ast.JoinNodesRightAssociative([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
 
 	return searchNode, aggs
+}
+
+func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
+	if boolExpr == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is nil")
+		return nil
+	}
+
+	if !boolExpr.IsTerminal {
+		// TODO: we can actually handle this case.
+		return nil
+	}
+
+	extraSearchNode := &ast.Node{}
+	extraSearchNode.NodeType = ast.NodeTerminal
+	extraSearchNode.Comparison.Op = boolExpr.ValueOp
+
+	fieldWasSet := false
+	valueWasSet := false
+
+	if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is terminal but left (%v) or right (%v) is nil",
+			boolExpr.LeftValue, boolExpr.RightValue)
+		return nil
+	}
+
+	for _, valueExpr := range []*ValueExpr{boolExpr.LeftValue, boolExpr.RightValue} {
+		switch valueExpr.ValueExprMode {
+		case VEMNumericExpr:
+			numericExpr := valueExpr.NumericExpr
+			if numericExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: numericExpr is nil")
+				return nil
+			}
+
+			if !numericExpr.IsTerminal {
+				// TODO: we can actually handle this case.
+				return nil
+			}
+			if numericExpr.ValueIsField {
+				extraSearchNode.Comparison.Field = numericExpr.Value
+				fieldWasSet = true
+			} else {
+				extraSearchNode.Comparison.Values = json.Number(numericExpr.Value)
+				valueWasSet = true
+			}
+		case VEMStringExpr:
+			stringExpr := valueExpr.StringExpr
+			if stringExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: stringExpr is nil")
+				return nil
+			}
+
+			switch stringExpr.StringExprMode {
+			case SEMField:
+				extraSearchNode.Comparison.Field = stringExpr.FieldName
+				fieldWasSet = true
+			case SEMRawString:
+				extraSearchNode.Comparison.Values = stringExpr.RawString
+				valueWasSet = true
+			case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
+				// TODO: we can handle at least some of these.
+			default:
+				log.Errorf("extractSearchNodeFromBooleanExpr: unknown stringExpr.StringExprMode: %v",
+					stringExpr.StringExprMode)
+				return nil
+			}
+		case VEMConditionExpr, VEMBooleanExpr:
+			// TODO: can these cases be handled?
+			return nil
+		default:
+			log.Errorf("extractSearchNodeFromBooleanExpr: unknown valueExpr.ValueExprMode: %v", valueExpr.ValueExprMode)
+			return nil
+		}
+	}
+
+	if !fieldWasSet || !valueWasSet {
+		log.Errorf("extractSearchNodeFromBooleanExpr: fieldWasSet=%v, valueWasSet=%v; expected both to be true",
+			fieldWasSet, valueWasSet)
+		return nil
+	}
+
+	return extraSearchNode
 }
 
 func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
