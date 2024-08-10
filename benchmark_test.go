@@ -75,7 +75,7 @@ var upgrader = websocket.FastHTTPUpgrader{
 func websocketHandler(ctx *fasthttp.RequestCtx) {
 	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 		defer conn.Close()
-		// Call your WebSocket handler
+
 		pipesearch.ProcessPipeSearchWebsocket(conn, 0, ctx)
 	})
 
@@ -85,10 +85,8 @@ func websocketHandler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-// Start the WebSocket server
 func startServer() {
-	// Use the websocketHandler to handle requests to /ws
-	fasthttp.ListenAndServe(":8080", websocketHandler)
+	_ = fasthttp.ListenAndServe(":8080", websocketHandler)
 }
 
 func Benchmark_EndToEnd(b *testing.B) {
