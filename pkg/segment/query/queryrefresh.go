@@ -78,6 +78,13 @@ func PopulateMetricsMetadataForTheFile_TestOnly(mFileName string) error {
 	return populateMetricsMetadata(mFileName)
 }
 
+func PopulateSegmentMetadataForTheFile_TestOnly(smrFileName string) error {
+	metaFileLastModifiedLock.Lock()
+	metaFileLastModified[smrFileName] = 0
+	metaFileLastModifiedLock.Unlock()
+	return populateMicroIndices(smrFileName)
+}
+
 func initMetadataRefresh() {
 	initSegmentMetaRefresh()
 	initMetricsMetaRefresh()
