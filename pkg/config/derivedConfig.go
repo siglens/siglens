@@ -155,6 +155,10 @@ func setNodeIdentifier(nodeIdentifier string) {
 	hostID = fmt.Sprintf("%s.%s", hostName, nodeIdentifier)
 }
 
+func SetHostIDForTestOnly(id string) {
+	hostID = id
+}
+
 // Returns the hostname with no unique identifier
 // This should be used if server restarts make no difference
 func GetHostname() string {
