@@ -134,7 +134,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 
 	websocketURL := "ws://localhost:8080/ws"
 	queryLanguage := "Splunk QL"
-	start := "now-10h"
+	start := "now-1h"
 	end := "now"
 	index := "*"
 
@@ -150,7 +150,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	// Wait for the server to start
 	time.Sleep(1 * time.Second)
 
-	count := 1
+	count := 10
 	allTimes := make(map[int][]time.Duration, len(logQueries)) // map of query index to time taken at each iteration
 	timeSum := float64(0)
 	b.ResetTimer()
