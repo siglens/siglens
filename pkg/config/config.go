@@ -508,7 +508,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 
 func InitializeTestingConfig(dataPath string) {
 	InitializeDefaultConfig(dataPath)
-	SetDebugMode(true)
+	SetDebugMode(false)
 }
 
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
