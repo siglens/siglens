@@ -181,10 +181,44 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	}
 
 	if doRecLevelSearch {
+
+		// find the mcr colKeyIndex, so that we avoid map lookups per
+		// record inside ApplyColumnarSearchQuery function
+		cmiPassedNonDictColKeyIndices := make(map[int]struct{})
+		for cname := range cmiPassedCnames {
+			if cname == config.GetTimeStampKey() {
+				continue
+			}
+			cKeyidx, ok := multiColReader.GetColKeyIndex(cname)
+			if ok {
+				cmiPassedNonDictColKeyIndices[cKeyidx] = struct{}{}
+			}
+		}
+
+		allColKeyIndices := make(map[int]struct{})
+		// only create the allColKeyIndices only if it is dictarrayallcols search type
+		if query.SearchType == structs.MatchDictArrayAllColumns {
+			for _, colInfo := range multiColReader.AllColums {
+				if colInfo.ColumnName == config.GetTimeStampKey() {
+					continue
+				}
+				cKeyidx, ok := multiColReader.GetColKeyIndex(colInfo.ColumnName)
+				if ok {
+					allColKeyIndices[cKeyidx] = struct{}{}
+				}
+			}
+		}
+		var queryInfoColKeyIndex int
+		cKeyidx, ok := multiColReader.GetColKeyIndex(query.QueryInfo.ColName)
+		if ok {
+			queryInfoColKeyIndex = cKeyidx
+		}
+
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
-					qid, deCnames, searchReq, cmiPassedCnames)
+					qid, searchReq, cmiPassedNonDictColKeyIndices,
+					queryInfoColKeyIndex, allColKeyIndices)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break
