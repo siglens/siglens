@@ -31,8 +31,7 @@ import (
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
 	searchReq *SegmentSearchRequest,
-	cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int,
-	allColKeyIndices map[int]struct{}) (bool, error) {
+	cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int) (bool, error) {
 
 	switch query.SearchType {
 	case MatchAll:
@@ -136,7 +135,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case MatchDictArrayAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
-		for colKeyIndex := range allColKeyIndices {
+		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
 			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
 			if err != nil {

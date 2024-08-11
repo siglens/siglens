@@ -254,8 +254,6 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 
 			if cname == config.GetTimeStampKey() {
 				isTsCol = true
-			} else {
-				isTsCol = false
 			}
 
 			cValEnc, err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
