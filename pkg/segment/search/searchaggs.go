@@ -192,8 +192,6 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 		if timeHistogram.Timechart.ByField == config.GetTimeStampKey() {
 			isTsCol = true
-		} else {
-			isTsCol = false
 		}
 	} else {
 		for _, col := range grpReq.GroupByColumns {
@@ -204,11 +202,11 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 	}
 
-	measColKeyIdxAndIndices := make(map[int][]int)
+	measureColKeyIdxAndIndices := make(map[int][]int)
 	for cName, indices := range measureInfo {
 		cKeyidx, ok := multiColReader.GetColKeyIndex(cName)
 		if ok {
-			measColKeyIdxAndIndices[cKeyidx] = indices
+			measureColKeyIdxAndIndices[cKeyidx] = indices
 		}
 	}
 
@@ -275,7 +273,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 		}
 
-		for colKeyIdx, indices := range measColKeyIdxAndIndices {
+		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
 			rawVal, err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, false)
 			if err != nil {
