@@ -26,13 +26,12 @@ func (o *Option[T]) Get() (T, bool) {
 	return o.value, o.hasValue
 }
 
-func (o *Option[T]) isNone() bool {
-	value := reflect.ValueOf(o.value)
-
-	switch value.Kind() {
+func isNil(value interface{}) bool {
+	reflectValue := reflect.ValueOf(value)
+	switch reflectValue.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan:
-		return value.IsNil()
+		return reflectValue.IsNil()
 	default:
-		return !o.hasValue
+		return false
 	}
 }
