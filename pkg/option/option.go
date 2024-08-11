@@ -6,19 +6,33 @@ import (
 
 type Option[T any] struct {
 	value    T
-	hasValue bool
+	hasValue bool // This will never be true if `value` is nil.
 }
 
-func NewOption[T any]() Option[T] {
+func NewUnsetOption[T any]() Option[T] {
 	return Option[T]{hasValue: false}
 }
 
+func NewOptionWithValue[T any](value T) Option[T] {
+	option := NewUnsetOption[T]()
+	option.Set(value)
+
+	return option
+}
+
 func (o *Option[T]) Set(value T) {
+	if isNil(value) {
+		o.Clear()
+		return
+	}
+
 	o.value = value
 	o.hasValue = true
 }
 
-func (o *Option[T]) SetNone() {
+func (o *Option[T]) Clear() {
+	var defaultValue T
+	o.value = defaultValue
 	o.hasValue = false
 }
 
