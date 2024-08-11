@@ -1,98 +1,40 @@
 package option
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_isNone_int(t *testing.T) {
-	option := NewOption[int]()
+func verifyIsNone[T any](t *testing.T, nonNilValues []T, nilValues []T) {
+	option := NewOption[T]()
 	assert.True(t, option.isNone())
 
-	option.Set(42)
-	assert.False(t, option.isNone())
-}
-
-func Test_isNone_map(t *testing.T) {
-	option := NewOption[map[string]int]()
-	assert.True(t, option.isNone())
-
-	option.Set(map[string]int{"foo": 42})
-	assert.False(t, option.isNone())
-
-	option.Set(nil)
-	assert.True(t, option.isNone())
-}
-
-func Test_isNone_slice(t *testing.T) {
-	option := NewOption[[]int]()
-	assert.True(t, option.isNone())
-
-	option.Set([]int{42})
-	assert.False(t, option.isNone())
-
-	option.Set(nil)
-	assert.True(t, option.isNone())
-}
-
-func Test_isNone_func(t *testing.T) {
-	option := NewOption[func() int]()
-	assert.True(t, option.isNone())
-
-	option.Set(func() int { return 42 })
-	assert.False(t, option.isNone())
-
-	option.Set(nil)
-	assert.True(t, option.isNone())
-}
-
-func Test_isNone_chan(t *testing.T) {
-	option := NewOption[chan int]()
-	assert.True(t, option.isNone())
-
-	option.Set(make(chan int))
-	assert.False(t, option.isNone())
-
-	option.Set(nil)
-	assert.True(t, option.isNone())
-}
-
-func Test_isNone_pointer(t *testing.T) {
-	option := NewOption[*int]()
-	assert.True(t, option.isNone())
-
-	i := 42
-	option.Set(&i)
-	assert.False(t, option.isNone())
-
-	option.Set(nil)
-	assert.True(t, option.isNone())
-}
-
-func Test_isNone_struct(t *testing.T) {
-	type Foo struct {
-		Value int
+	for _, value := range nonNilValues {
+		option.Set(value)
+		assert.False(t, option.isNone(), fmt.Sprintf("value %v should not be None", value))
 	}
 
-	option := NewOption[Foo]()
-	assert.True(t, option.isNone())
-
-	option.Set(Foo{Value: 42})
-	assert.False(t, option.isNone())
-
-	// A zero-value struct is not None.
-	option.Set(Foo{})
-	assert.False(t, option.isNone())
+	for _, value := range nilValues {
+		option.Set(value)
+		assert.True(t, option.isNone(), fmt.Sprintf("value %v should be None", value))
+	}
 }
 
-func Test_isNone_string(t *testing.T) {
-	option := NewOption[string]()
-	assert.True(t, option.isNone())
+func Test_isNone(t *testing.T) {
+	// Non-nilable types.
+	verifyIsNone(t, []int{0, 42}, nil)
+	verifyIsNone(t, []string{"", "foo"}, nil)
+	verifyIsNone(t, []bool{false, true}, nil)
+	verifyIsNone(t, []float64{0.0, 42.0}, nil)
 
-	option.Set("foo")
-	assert.False(t, option.isNone())
-
-	option.Set("")
-	assert.False(t, option.isNone())
+	// Nilable types.
+	verifyIsNone(t, []map[string]int{{}, {"foo": 42}}, []map[string]int{nil})
+	verifyIsNone(t, [][]int{{}, {42}}, [][]int{nil})
+	verifyIsNone(t, []func() int{func() int { return 42 }}, []func() int{nil})
+	verifyIsNone(t, []func(x, y float32) float32{func(x, y float32) float32 { return 42 }}, []func(x, y float32) float32{nil})
+	verifyIsNone(t, []chan int{make(chan int)}, []chan int{nil})
+	verifyIsNone(t, []*int{new(int)}, []*int{nil})
+	verifyIsNone(t, []struct{ Value int }{{}, {42}}, []struct{ Value int }{})
 }
