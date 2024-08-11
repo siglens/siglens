@@ -49,13 +49,6 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		var finalErr error
 		for cname := range cmiPassedCnames {
 
-			// we skip rawsearching for columns that are dict encoded,
-			// since we already search for them in the prior call to applyColumnarSearchUsingDictEnc
-			_, ok := dictEncColNames[cname]
-			if ok {
-				continue
-			}
-
 			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(cname, blockNum, recordNum, qid)
 			if err != nil {
 				finalErr = err
