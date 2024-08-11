@@ -195,19 +195,6 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			}
 		}
 
-		allColKeyIndices := make(map[int]struct{})
-		// only create the allColKeyIndices only if it is dictarrayallcols search type
-		if query.SearchType == structs.MatchDictArrayAllColumns {
-			for _, colInfo := range multiColReader.AllColums {
-				if colInfo.ColumnName == config.GetTimeStampKey() {
-					continue
-				}
-				cKeyidx, ok := multiColReader.GetColKeyIndex(colInfo.ColumnName)
-				if ok {
-					allColKeyIndices[cKeyidx] = struct{}{}
-				}
-			}
-		}
 		var queryInfoColKeyIndex int
 		cKeyidx, ok := multiColReader.GetColKeyIndex(query.QueryInfo.ColName)
 		if ok {
@@ -218,7 +205,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex, allColKeyIndices)
+					queryInfoColKeyIndex)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break
