@@ -174,6 +174,12 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 		}
 	}
 
+	// we skip rawsearching for columns that are dict encoded,
+	// since we already search for them in the above call to applyColumnarSearchUsingDictEnc
+	for dcname := range deCnames {
+		delete(cmiPassedCnames, dcname)
+	}
+
 	if doRecLevelSearch {
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
