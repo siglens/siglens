@@ -952,46 +952,47 @@ function initializeFilterInputEvents() {
 
     function autoResizeTextarea() {
         this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
+        this.style.height = Math.max(this.scrollHeight, 32) + 'px';
     }
-
+    
     $('#filter-input').on('focus', function () {
         $(this).addClass('expanded');
         autoResizeTextarea.call(this);
     });
-
+    
     $('#filter-input').on('blur', function () {
-        $(this).removeClass('expanded');
-        this.style.height = '32px';
+        const minHeight = 32;
+        const maxHeight = 160; // 5 lines
+    
+        // Calculate total height based on content lines
+        const lines = this.value.split('\n').length;
+        const contentHeight = lines * minHeight;
+        console.log(contentHeight);
+        // If content height exceeds maxHeight, maintain expanded state
+        if (contentHeight <= maxHeight) {
+            $(this).addClass('expanded');
+            if(lines !== 1 ){
+                this.style.height = Math.max(this.scrollHeight, 32) + 'px';
+            } else {
+                this.style.height = minHeight + 'px'; 
+            }
+        } else {
+            $(this).removeClass('expanded');
+            this.style.height = minHeight + 'px';
+        }
     });
-
-    $('#filter-input').on('input', autoResizeTextarea);
+    
     $('#filter-input').on('input', function () {
+        autoResizeTextarea.call(this);
         toggleClearButtonVisibility();
     });
+
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
     });
+
     $('#filter-input').keydown(function (e) {
-        if (e.key === '|') {
-            let input = $(this);
-            let value = input.val();
-            let position = this.selectionStart;
-            input.val(value.substring(0, position) + '\n' + value.substring(position));
-            this.selectionStart = this.selectionEnd = position + 2;
-        }
-        toggleClearButtonVisibility();
-    });
-    document.getElementById('filter-input').addEventListener('paste', function (event) {
-        event.preventDefault();
-        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea.call(this);
         toggleClearButtonVisibility();
     });
 }
