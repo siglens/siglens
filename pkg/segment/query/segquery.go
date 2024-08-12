@@ -273,6 +273,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
 	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary) *structs.NodeResult {
+
 	applyFopAllRequests(sortedQSRSlice, queryInfo, allSegFileResults, querySummary)
 	err := queryInfo.Wait(querySummary)
 	if err != nil {
@@ -998,6 +999,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func applyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+
 	for _, req := range allSegRequests {
 		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs)
 	}
