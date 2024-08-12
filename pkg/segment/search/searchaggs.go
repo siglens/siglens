@@ -273,9 +273,9 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 			// resize the working buf if we cannot accomodate the max value of any
 			// column's record
-			if len(aggsKeyWorkingBuf) < len(groupbyColKeyIndices) * 65_000 {
+			if len(aggsKeyWorkingBuf) < len(groupbyColKeyIndices)*65_000 {
 				aggsKeyWorkingBuf = toputils.ResizeSlice(aggsKeyWorkingBuf,
-					len(groupbyColKeyIndices) * 65_000)
+					len(groupbyColKeyIndices)*65_000)
 			}
 			for _, colKeyIndex := range groupbyColKeyIndices {
 				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)

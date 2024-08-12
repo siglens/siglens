@@ -377,7 +377,6 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 	}
 
-
 	// start off with 256 bytes and caller will resize it and return back the new resized buf
 	aggsKeyWorkingBuf := make([]byte, 256)
 
