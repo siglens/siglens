@@ -238,7 +238,66 @@ func MaxUint16(a1 uint16, b1 uint16) uint16 {
 }
 
 // converts the input byte slice to a string representation of all read values
-func ConvertGroupByKey(rec []byte) (string, error) {
+// returns array of strings with groupBy values
+func ConvertGroupByKey(rec []byte) ([]string, error) {
+	var strArr []string
+	idx := 0
+	for idx < len(rec) {
+		var str strings.Builder
+		switch rec[idx] {
+		case VALTYPE_ENC_SMALL_STRING[0]:
+			idx += 1
+			len := int(toputils.BytesToUint16LittleEndian(rec[idx:]))
+			idx += 2
+			str.WriteString(string(rec[idx : idx+len]))
+			idx += len
+		case VALTYPE_ENC_BOOL[0]:
+			str.WriteString(fmt.Sprintf("%+v", rec[idx+1]))
+			idx += 2
+		case VALTYPE_ENC_INT8[0]:
+			str.WriteString(fmt.Sprintf("%+v", int8(rec[idx+1:][0])))
+			idx += 2
+		case VALTYPE_ENC_INT16[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt16LittleEndian(rec[idx+1:])))
+			idx += 3
+		case VALTYPE_ENC_INT32[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt32LittleEndian(rec[idx+1:])))
+			idx += 5
+		case VALTYPE_ENC_INT64[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt64LittleEndian(rec[idx+1:])))
+			idx += 9
+		case VALTYPE_ENC_UINT8[0]:
+			str.WriteString(fmt.Sprintf("%+v", uint8((rec[idx+1:])[0])))
+			idx += 2
+		case VALTYPE_ENC_UINT16[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint16LittleEndian(rec[idx+1:])))
+			idx += 3
+		case VALTYPE_ENC_UINT32[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint32LittleEndian(rec[idx+1:])))
+			idx += 5
+		case VALTYPE_ENC_UINT64[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint64LittleEndian(rec[idx+1:])))
+			idx += 9
+		case VALTYPE_ENC_FLOAT64[0]:
+			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToFloat64LittleEndian(rec[idx+1:])))
+			idx += 9
+		case VALTYPE_ENC_BACKFILL[0]:
+			str.WriteString("")
+			idx += 1
+		default:
+			log.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v", rec[idx], idx)
+			return nil, fmt.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v",
+				rec[idx], idx)
+		}
+
+		strArr = append(strArr, str.String())
+
+	}
+	return strArr, nil
+}
+
+// converts the input byte slice to a string representation of all read values
+func ConvertGroupByKeyForSingleRec(rec []byte) (string, error) {
 
 	idx := 0
 	var str strings.Builder

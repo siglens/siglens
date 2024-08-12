@@ -253,7 +253,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				if err != nil {
 					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", byField, err)
 				} else {
-					strs, err := utils.ConvertGroupByKey(rawVal)
+					strs, err := utils.ConvertGroupByKeyForSingleRec(rawVal)
 					if err != nil {
 						log.Errorf("addRecordToAggregations: failed to extract raw key: %v", err)
 					}
