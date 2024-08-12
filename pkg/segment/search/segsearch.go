@@ -377,6 +377,10 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 	}
 
+
+	// start off with 256 bytes and caller will resize it and return back the new resized buf
+	aggsKeyWorkingBuf := make([]byte, 256)
+
 	for blockNum := range filterBlockRequestsChan {
 		if req.SearchMetadata == nil || int(blockNum) >= len(req.SearchMetadata.BlockSummaries) {
 			log.Errorf("qid=%d, rawSearchSingleSPQMR unable to extract block summary for block %d, segkey=%v", qid, blockNum, req.SegmentKey)
@@ -454,8 +458,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		if aggs != nil && aggs.GroupByRequest != nil {
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
-			addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops),
-				multiReader, blockNum, recIT, blkResults, qid)
+			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
+				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
+				qid, aggsKeyWorkingBuf)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 

@@ -121,6 +121,9 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 	}
 	defer wg.Done()
 
+	// start off with 256 bytes and caller will resize it and return back the new resized buf
+	aggsKeyWorkingBuf := make([]byte, 256)
+
 	for blockStatus := range blockChan {
 		if !blockStatus.hasAnyMatched {
 			continue
@@ -165,13 +168,16 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 				queryMetrics.IncrementNumBlocksWithMatch(1)
 			}
 		}
-		doAggs(aggs, multiReader, blockStatus, recIT, blkResults, isBlkFullyEncosed, qid)
+		aggsKeyWorkingBuf = doAggs(aggs, multiReader, blockStatus, recIT, blkResults,
+			isBlkFullyEncosed, qid, aggsKeyWorkingBuf)
 	}
 	allSearchResults.AddBlockResults(blkResults)
 }
 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int, multiColReader *segread.MultiColSegmentReader,
-	blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults, qid uint64) {
+	blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
+	qid uint64, aggsKeyWorkingBuf []byte) []byte {
+
 	measureResults := make([]utils.CValueEnclosure, numMFuncs)
 	usedByTimechart := (timeHistogram != nil && timeHistogram.Timechart != nil)
 	hasLimitOption := false
@@ -217,7 +223,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			continue
 		}
 
-		var currKey bytes.Buffer
+		aggsKeyBufIdx := int(0)
 		groupByColVal := ""
 
 		if usedByTimechart {
@@ -232,10 +238,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 			timePoint := aggregations.FindTimeRangeBucket(timeRangeBuckets, ts, timeHistogram.IntervalMillis)
 
-			retVal := make([]byte, 9)
-			copy(retVal[0:], utils.VALTYPE_ENC_UINT64[:])
-			copy(retVal[1:], toputils.Uint64ToBytesLittleEndian(timePoint))
-			currKey.Write(retVal)
+			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
+			aggsKeyBufIdx += 1
+			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], toputils.Uint64ToBytesLittleEndian(timePoint))
+			aggsKeyBufIdx += 8
 
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
 			if byFieldCnameKeyIdx != -1 {
@@ -264,13 +270,22 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				}
 			}
 		} else {
+
+			// resize the working buf if we cannot accomodate the max value of any
+			// column's record
+			if len(aggsKeyWorkingBuf) < len(groupbyColKeyIndices) * 65_000 {
+				aggsKeyWorkingBuf = toputils.ResizeSlice(aggsKeyWorkingBuf,
+					len(groupbyColKeyIndices) * 65_000)
+			}
 			for _, colKeyIndex := range groupbyColKeyIndices {
 				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)
 				if err != nil {
 					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", colKeyIndex, err)
-					currKey.Write(utils.VALTYPE_ENC_BACKFILL)
+					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
+					aggsKeyBufIdx += 1
 				} else {
-					currKey.Write(rawVal)
+					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], rawVal)
+					aggsKeyBufIdx += len(rawVal)
 				}
 			}
 		}
@@ -286,7 +301,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				measureResults[idx] = *rawVal
 			}
 		}
-		blockRes.AddMeasureResultsToKey(currKey, measureResults, groupByColVal, usedByTimechart, qid)
+		keyCopy := make([]byte, aggsKeyBufIdx)
+		copy(keyCopy, aggsKeyWorkingBuf[0:aggsKeyBufIdx])
+		blockRes.AddMeasureResultsToKey(keyCopy, measureResults,
+			groupByColVal, usedByTimechart, qid)
 	}
 
 	if usedByTimechart && len(timeHistogram.Timechart.ByField) > 0 {
@@ -296,6 +314,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			blockRes.GroupByAggregation.GroupByColValCnt = groupByColValCnt
 		}
 	}
+	return aggsKeyWorkingBuf
 }
 
 func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
@@ -397,7 +416,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			}
 		}
 
-		blockRes.AddMeasureResultsToKey(currKey, measureResults, "", false, qid)
+		blockRes.AddMeasureResultsToKey(currKey.Bytes(), measureResults, "", false, qid)
 	}
 
 	if nodeResult.RecsAggsBlockResults == nil {
@@ -987,16 +1006,15 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 
 func doAggs(aggs *structs.QueryAggregators, mcr *segread.MultiColSegmentReader,
 	bss *BlockSearchStatus, recIT *BlockRecordIterator, blkResults *blockresults.BlockResults,
-	isBlkFullyEncosed bool, qid uint64) {
+	isBlkFullyEncosed bool, qid uint64, aggsKeyWorkingBuf []byte) []byte {
 
 	if aggs == nil || aggs.GroupByRequest == nil {
-		return // nothing to do
+		return aggsKeyWorkingBuf // nothing to do
 	}
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
-	addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops), mcr,
-		bss.BlockNum, recIT, blkResults, qid)
-
+	return addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops), mcr,
+		bss.BlockNum, recIT, blkResults, qid, aggsKeyWorkingBuf)
 }
 
 func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,

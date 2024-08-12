@@ -18,7 +18,6 @@
 package blockresults
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"sort"
@@ -371,12 +370,12 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
 
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.UnsafeByteSliceToString(currKey.Bytes())
+	bKey := toputils.UnsafeByteSliceToString(currKey)
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults
