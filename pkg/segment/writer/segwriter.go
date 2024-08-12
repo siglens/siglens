@@ -231,9 +231,6 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
-// This is the only function that needs to be exported from this package, since this is the only
-// place where we play with the locks
-
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
 
