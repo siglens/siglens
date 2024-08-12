@@ -65,3 +65,12 @@ func CreateRecord(columnNames []string, record []string) (map[string]interface{}
 	}
 	return recordMap, nil
 }
+
+func GetMapKeys[K comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+
+	return keys
+}

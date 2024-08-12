@@ -26,6 +26,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -83,6 +84,8 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	dictColsToValues   map[string]map[string]struct{} // keys: dict encoded columns; values: unique values in the column
+	dictColsLock       sync.Mutex                     // Controls access to the first map, but not the nested map
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -281,6 +284,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqTracker = initPQTracker()
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.wipBlock.clearPQMatchInfo()
+	segstore.dictColsToValues = make(map[string]map[string]struct{})
 
 	err = segstore.resetWipBlock(false)
 	if err != nil {
@@ -593,6 +597,10 @@ func (segstore *SegStore) flushSingleColumnOfBlock(cname string, colWip *ColWip,
 		_ = segstore.writeWipTsRollups(cname)
 	} else if colWip.deCount > 0 && colWip.deCount < wipCardLimit {
 		encType = utils.ZSTD_DICTIONARY_BLOCK
+		err := segstore.updateDictionaryEntries(cname, colWip)
+		if err != nil {
+			return toputils.TeeErrorf("flushSingleColumnOfBlock: failed to update dictionary entries for colname=%v, err=%v", cname, err)
+		}
 	} else {
 		encType = utils.ZSTD_COMLUNAR_BLOCK
 	}
@@ -622,6 +630,30 @@ func (segstore *SegStore) flushSingleColumnOfBlock(cname string, colWip *ColWip,
 			atomic.AddUint64(totalBytesWritten, writtenBytes)
 			atomic.AddUint64(totalMetadata, writtenBytes)
 		}
+	}
+
+	return nil
+}
+
+func (segstore *SegStore) updateDictionaryEntries(colName string, colWip *ColWip) error {
+	if colWip == nil {
+		return toputils.TeeErrorf("updateDictionaryEntries: colWip is nil for colname=%v", colName)
+	}
+
+	if segstore.dictColsToValues == nil {
+		segstore.dictColsToValues = make(map[string]map[string]struct{})
+	}
+
+	segstore.dictColsLock.Lock()
+	valuesInColumn, ok := segstore.dictColsToValues[colName]
+	if !ok {
+		valuesInColumn = make(map[string]struct{})
+		segstore.dictColsToValues[colName] = valuesInColumn
+	}
+	segstore.dictColsLock.Unlock()
+
+	for dword := range colWip.deMap {
+		valuesInColumn[dword] = struct{}{}
 	}
 
 	return nil
@@ -726,7 +758,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 		}
 
-		allColsSizes := segstore.getAllColsSizes()
+		allColsInfo := segstore.getAllColsSizes()
 
 		// move the whole dir in one shot
 		err = os.Rename(activeBasedir, finalBasedir)
@@ -751,7 +783,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			LatestEpochMS: segstore.latest_millis, VirtualTableName: segstore.VirtualTableName,
 			RecordCount: segstore.RecordCount, SegbaseDir: finalBasedir,
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
-			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
+			ColumnNames: allColsInfo, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
 		AddNewRotatedSegment(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
@@ -1436,9 +1468,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	return idx, nil
 }
 
-func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
+func (ss *SegStore) getAllColsSizes() map[string]*structs.ColInfo {
 
-	allColsSizes := make(map[string]*structs.ColSizeInfo)
+	allColsSizes := make(map[string]*structs.ColInfo)
 
 	for cname := range ss.AllSeenColumns {
 
@@ -1466,10 +1498,29 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 			log.Errorf("getAllColsSizes: csg cname: %v, fname: %+v not on local disk", cname, fname)
 		}
 
-		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
+		csinfo := structs.ColInfo{
+			CmiSize:        cmiSize,
+			CsgSize:        csgSize,
+			DictValuesHash: ss.getDictValuesHash(cname),
+		}
 		allColsSizes[cname] = &csinfo
 	}
 	return allColsSizes
+}
+
+func (ss *SegStore) getDictValuesHash(cname string) uint64 {
+	ss.dictColsLock.Lock()
+	dictValues, ok := ss.dictColsToValues[cname]
+	ss.dictColsLock.Unlock()
+
+	if !ok {
+		return 0
+	}
+
+	sortedValues := toputils.GetMapKeys(dictValues)
+	sort.Strings(sortedValues)
+
+	return xxhash.Sum64String(strings.Join(sortedValues, ""))
 }
 
 func (ss *SegStore) DestroyWipBlock() {

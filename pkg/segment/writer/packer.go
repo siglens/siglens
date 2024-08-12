@@ -826,7 +826,7 @@ func GetCvalFromRec(rec []byte, qid uint64) (CValueEnclosure, uint16, error) {
 
 func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
 	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
-	map[string]*ColSizeInfo) {
+	map[string]*ColInfo) {
 
 	allBlockBlooms := make([]map[string]*BloomIndex, numBlocks)
 	allBlockRangeIdx := make([]map[string]*RangeIndex, numBlocks)
@@ -918,13 +918,13 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 		}
 	}
 
-	allColsSizes := make(map[string]*ColSizeInfo)
+	allColsSizes := make(map[string]*ColInfo)
 	for cname := range mapCol {
 		fnamecmi := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
 		cmiSize, _ := ssutils.GetFileSizeFromDisk(fnamecmi)
 		fnamecsg := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
 		csgSize, _ := ssutils.GetFileSizeFromDisk(fnamecsg)
-		allColsSizes[cname] = &ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
+		allColsSizes[cname] = &ColInfo{CmiSize: cmiSize, CsgSize: csgSize}
 	}
 
 	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets, allColsSizes

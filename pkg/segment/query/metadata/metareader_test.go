@@ -73,8 +73,8 @@ func Test_readEmptyColumnMicroIndices(t *testing.T) {
 	}
 	_ = localstorage.InitLocalStorage()
 
-	cnames := make(map[string]*structs.ColSizeInfo)
-	cnames["clickid"] = &structs.ColSizeInfo{CmiSize: 0, CsgSize: 0}
+	cnames := make(map[string]*structs.ColInfo)
+	cnames["clickid"] = &structs.ColInfo{CmiSize: 0, CsgSize: 0}
 	bMicro := &SegmentMicroIndex{
 		SegMeta: structs.SegMeta{
 			SegmentKey:       "test-key",
