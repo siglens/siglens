@@ -13,6 +13,7 @@ func Test_isNil(t *testing.T) {
 	verifyValidOrNil(t, []string{"", "foo"}, nil)
 	verifyValidOrNil(t, []bool{false, true}, nil)
 	verifyValidOrNil(t, []float64{0.0, 42.0}, nil)
+	verifyValidOrNil(t, []struct{ Value int }{{}, {42}}, nil)
 
 	// Nilable types.
 	verifyValidOrNil(t, []map[string]int{{}, {"foo": 42}}, []map[string]int{nil})
@@ -21,7 +22,6 @@ func Test_isNil(t *testing.T) {
 	verifyValidOrNil(t, []func(x, y float32) float32{func(x, y float32) float32 { return 42 }}, []func(x, y float32) float32{nil})
 	verifyValidOrNil(t, []chan int{make(chan int)}, []chan int{nil})
 	verifyValidOrNil(t, []*int{new(int)}, []*int{nil})
-	verifyValidOrNil(t, []struct{ Value int }{{}, {42}}, []struct{ Value int }{})
 }
 
 func verifyValidOrNil[U any](t *testing.T, nonNilValues []U, nilValues []U) {
