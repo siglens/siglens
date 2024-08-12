@@ -182,6 +182,8 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	var isTsCol bool
 	groupbyColKeyIndices := make([]int, 0)
 	var byField string
+	colIndexLookup := make(map[int]struct{})
+
 	if usedByTimechart {
 		byField = timeHistogram.Timechart.ByField
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(timeHistogram)
@@ -189,6 +191,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		cKeyidx, ok := multiColReader.GetColKeyIndex(byField)
 		if ok {
 			byFieldCnameKeyIdx = cKeyidx
+			colIndexLookup[cKeyidx] = struct{}{}
 		}
 		if timeHistogram.Timechart.ByField == config.GetTimeStampKey() {
 			isTsCol = true
@@ -198,6 +201,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			cKeyidx, ok := multiColReader.GetColKeyIndex(col)
 			if ok {
 				groupbyColKeyIndices = append(groupbyColKeyIndices, cKeyidx)
+				colIndexLookup[cKeyidx] = struct{}{}
 			} else {
 				log.Errorf("addRecordToAggregations: failed to find keyIdx in mcr for groupby cname: %v", col)
 			}
@@ -209,7 +213,15 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		cKeyidx, ok := multiColReader.GetColKeyIndex(cName)
 		if ok {
 			measureColKeyIdxAndIndices[cKeyidx] = indices
+			colIndexLookup[cKeyidx] = struct{}{}
 		}
+	}
+
+
+	err := multiColReader.ValidateAndReadBlock(colIndexLookup, blockNum)
+	if err != nil {
+		log.Errorf("addRecordToAggregations: failed to validate column file for block %v: %v", blockNum, err)
+		return
 	}
 
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
@@ -811,6 +823,16 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			}
 		}
 
+		searchCols := make(map[int]struct{})
+		for colIndex := range nonDeColsKeyIndices {
+			searchCols[colIndex] = struct{}{}
+		}
+		err = multiReader.ValidateAndReadBlock(searchCols, blockStatus.BlockNum)
+		if err != nil {
+			log.Errorf("qid=%d, segmentStatsWorker: failed to validate column file for block %v: %v", qid, blockStatus.BlockNum, err)
+			continue
+		}
+
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
 				val, err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum, recNum, qid, false)
@@ -936,11 +958,19 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 	allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest, qid uint64) {
 
 	var aggsSortColKeyIdx int
+	colLookup := make(map[int]struct{})
 	if aggs != nil && aggs.Sort != nil {
 		colKeyIdx, ok := mcr.GetColKeyIndex(aggs.Sort.ColName)
 		if ok {
 			aggsSortColKeyIdx = colKeyIdx
+			colLookup[colKeyIdx] = struct{}{}
 		}
+	}
+
+	err := mcr.ValidateAndReadBlock(colLookup, blockStatus.BlockNum)
+	if err != nil {
+		log.Errorf("qid=%d, iterRecsAddRrc: failed to validate sort column %v for block %d, err: %v", qid, aggs.Sort.ColName, blockStatus.BlockNum, err)
+		return
 	}
 
 	numRecsMatched := uint16(0)

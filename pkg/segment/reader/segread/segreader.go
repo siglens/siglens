@@ -171,21 +171,31 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	}
 }
 
+func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
+	for keyIndex := range colsIndexMap {
+		if keyIndex >= len(mcsr.allFileReaders) {
+			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: keyIndex %v is out of bounds, len of allFileReaders: %v", keyIndex, len(mcsr.allFileReaders))
+		}
+
+		sfr := mcsr.allFileReaders[keyIndex]
+		if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
+			valid, err := sfr.readBlock(blockNum)
+			if !valid {
+				return err
+			}
+			if err != nil {
+				return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // returns the raw bytes of the blockNum:recordNum combination in the current segfile
 // optimized for subsequent calls to have the same blockNum
 // returns : encodedVal, error
 func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uint16) ([]byte, error) {
-
-	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
-		valid, err := sfr.readBlock(blockNum)
-		if !valid {
-			return nil, err
-		}
-		if err != nil {
-			log.Errorf("SegmentFileReader.ReadRecordFromBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
-			return nil, err
-		}
-	}
 
 	// if dict encoding, we use the dictmapping
 	if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
