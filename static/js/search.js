@@ -175,6 +175,8 @@ function doSearch(data) {
                 reject(errorMessages);
             }
             console.timeEnd(timerName);
+            const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
+            $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
         };
 
         socket.addEventListener('error', (event) => {
@@ -893,20 +895,23 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
         if (qtype == 'aggs-query' || qtype === 'segstats-query') {
             let bucketGrammer = totalHits == 1 ? 'bucket was' : 'buckets were';
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else if (totalHits > 0) {
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else {
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
-            <div><span><b> ${totalEventsSearched} </b>Records Searched</span></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
+            <div>Records Searched: <span><b> ${totalEventsSearched} </b></span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         }
