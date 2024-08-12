@@ -196,7 +196,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
 		return
 	} else if searchReq == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: received a nil search request for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, RawSearchSegmentFile: received a nil search request", qid)
 		allSearchResults.AddError(errors.New("nil search request"))
 		return
 	} else if searchReq.SearchMetadata == nil {
