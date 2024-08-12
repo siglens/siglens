@@ -1033,6 +1033,10 @@ progress.hidden {
     vertical-align: middle;
 }
 
+.final-res-time span{
+    font-weight: 600;
+}
+
 [data-theme='light'] #hits-summary {
     color: var(--hits-summary-regular-text-color);
     font-weight: var(--fw-400);
@@ -1272,6 +1276,7 @@ progress.hidden {
 .ui-dialog .ui-dialog-buttonpane button {
     margin: .5em .4em .5em 0;
     cursor: pointer;
+    outline: none;
 }
 
 .ui-draggable .ui-dialog-titlebar {
