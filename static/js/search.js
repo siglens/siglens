@@ -175,7 +175,7 @@ function doSearch(data) {
                 reject(errorMessages);
             }
             console.timeEnd(timerName);
-            const finalResultResponseTime = new Date().getTime() - startQueryTime;
+            const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
         };
 
