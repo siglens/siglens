@@ -248,7 +248,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
 	aggs *structs.QueryAggregators) uint64 {
 	searchPercent := qscd.PercentComplete
-	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
+	totalEventsSearched, err := query.GetTotalRecsToBeSearchedForQid(qid)
 	if err != nil {
 		log.Errorf("qid=%d, processQueryUpdate: failed to get total records searched: %+v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))

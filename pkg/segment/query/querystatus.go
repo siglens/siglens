@@ -105,6 +105,7 @@ type RunningQueryState struct {
 	rawSearchIsFinished      bool
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
+	totalRecsToBeSearched    uint64
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -696,6 +697,21 @@ func GetTotalsRecsSearchedForQid(qid uint64) (uint64, error) {
 	return rQuery.totalRecsSearched, nil
 }
 
+func GetTotalRecsToBeSearchedForQid(qid uint64) (uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetTotalsRecsSreachedForQid: qid %+v does not exist!", qid)
+		return 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	return rQuery.totalRecsToBeSearched, nil
+}
+
 // returns the length of rrcs that exist in *search.SearchResults
 // this will be used to determine if more scrolling can be done
 func GetNumMatchedRRCs(qid uint64) (uint64, error) {
@@ -782,4 +798,19 @@ func LogGlobalSearchErrors(qid uint64) {
 		}
 		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
 	}
+}
+
+func setTotalRecordsToBeSearched(qid uint64, totalRecs uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return fmt.Errorf("setTotalRecordsToBeSearched: qid=%v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.totalRecsToBeSearched = totalRecs
+	rQuery.rqsLock.Unlock()
+
+	return nil
 }
