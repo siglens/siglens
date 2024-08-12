@@ -254,11 +254,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 					if err != nil {
 						log.Errorf("addRecordToAggregations: failed to extract raw key: %v", err)
 					}
-					if len(strs) == 1 {
-						groupByColVal = strs[0]
-					} else {
-						log.Errorf("addRecordToAggregations: invalid length of groupByColVal")
-					}
+					groupByColVal = strs
 				}
 				if hasLimitOption {
 					cnt, exists := groupByColValCnt[groupByColVal]

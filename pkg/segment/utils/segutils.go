@@ -238,12 +238,11 @@ func MaxUint16(a1 uint16, b1 uint16) uint16 {
 }
 
 // converts the input byte slice to a string representation of all read values
-// returns array of strings with groupBy values
-func ConvertGroupByKey(rec []byte) ([]string, error) {
-	var strArr []string
+func ConvertGroupByKey(rec []byte) (string, error) {
+
 	idx := 0
+	var str strings.Builder
 	for idx < len(rec) {
-		var str strings.Builder
 		switch rec[idx] {
 		case VALTYPE_ENC_SMALL_STRING[0]:
 			idx += 1
@@ -286,12 +285,15 @@ func ConvertGroupByKey(rec []byte) ([]string, error) {
 			idx += 1
 		default:
 			log.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v", rec[idx], idx)
-			return nil, fmt.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v",
+			return "", fmt.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v",
 				rec[idx], idx)
 		}
 
-		strArr = append(strArr, str.String())
-
+		if len(rec) > idx {
+			log.Errorf("ConvertRowEncodingToString: received multiple recs in creating grpby key len(rec)=%v, idx: %v", len(rec), idx)
+			return "", fmt.Errorf("ConvertRowEncodingToString: received multiple recs in creating grpby key len(rec)=%v, idx: %v", len(rec), idx)
+		}
 	}
-	return strArr, nil
+
+	return str.String(), nil
 }
