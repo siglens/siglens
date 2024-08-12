@@ -21,6 +21,10 @@ func NewOptionWithValue[T any](value T) Option[T] {
 }
 
 func (o *Option[T]) Set(value T) {
+	if o == nil {
+		return
+	}
+
 	if isNil(value) {
 		o.Clear()
 		return
@@ -31,12 +35,21 @@ func (o *Option[T]) Set(value T) {
 }
 
 func (o *Option[T]) Clear() {
+	if o == nil {
+		return
+	}
+
 	var defaultValue T
 	o.value = defaultValue
 	o.hasValue = false
 }
 
 func (o *Option[T]) Get() (T, bool) {
+	if o == nil {
+		var defaultValue T
+		return defaultValue, false
+	}
+
 	return o.value, o.hasValue
 }
 

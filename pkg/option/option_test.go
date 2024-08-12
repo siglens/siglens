@@ -113,3 +113,17 @@ func verifyValueIsNone[U any](t *testing.T, nilValue U) {
 	_, ok := option.Get()
 	assert.False(t, ok)
 }
+
+func Test_NilOptionStruct(t *testing.T) {
+	optionPtr := (*Option[int])(nil)
+	_, ok := optionPtr.Get()
+	assert.False(t, ok)
+
+	optionPtr.Set(42)
+	_, ok = optionPtr.Get()
+	assert.False(t, ok)
+
+	optionPtr.Clear()
+	_, ok = optionPtr.Get()
+	assert.False(t, ok)
+}
