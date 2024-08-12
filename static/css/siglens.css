@@ -5970,7 +5970,7 @@ input.form-control {
     margin-bottom: 8px;
 }
 
-.myOrg-inner-container #ag-grid .ag-row:hover {
+.myOrg-inner-container .pqs-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
 }
