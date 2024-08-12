@@ -48,16 +48,31 @@ func Test_multiSegReader(t *testing.T) {
 	var cVal *utils.CValueEnclosure
 	var err error
 	var cKeyidx int
+
+	colIndexLookup := make(map[int]struct{})
+	for colName := range cols {
+		if colName == config.GetTimeStampKey() {
+			continue
+		}
+
+		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
+		assert.True(t, exists)
+		colIndexLookup[cKeyidx] = struct{}{}
+	}
+
+	// invalid block
+	err = multiReader.ValidateAndReadBlock(colIndexLookup, uint16(numBlocks))
+	assert.NotNil(t, err)
+
+	err = multiReader.ValidateAndReadBlock(colIndexLookup, 0)
+	assert.Nil(t, err)
+
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
 		}
 
 		cKeyidx, _ = multiReader.GetColKeyIndex(colName)
-
-		// invalid block
-		_, err = multiReader.ExtractValueFromColumnFile(cKeyidx, uint16(numBlocks), 0, 0, false)
-		assert.NotNil(t, err)
 
 		// correct block, incorrect recordNum
 		_, err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0, false)

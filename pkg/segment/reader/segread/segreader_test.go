@@ -46,44 +46,41 @@ func Test_segReader(t *testing.T) {
 
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
-	
+
 	colIndexLookup := make(map[int]struct{})
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 	multiReader := sharedReader.MultiColReaders[0]
-	
+
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
 		}
 
-		cKeyidx, exists := multiReader.GetColKeyIndex(colName) 
+		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
 		assert.True(t, exists)
 		colIndexLookup[cKeyidx] = struct{}{}
 	}
 
+	// invalid block
 	err := multiReader.ValidateAndReadBlock(colIndexLookup, uint16(numBlocks))
 	assert.NotNil(t, err)
+
+	err = multiReader.ValidateAndReadBlock(colIndexLookup, 0)
+	assert.Nil(t, err)
 
 	// test across multiple columns types
 	for queryCol = range cols {
 		if queryCol == config.GetTimeStampKey() {
 			continue // ingore ts
 		}
-		fileName := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(queryCol))
 
-		log.Infof("testing with %s", fileName)
-		
-		assert.NoError(t, err)
 		colKeyIndex, exists := multiReader.GetColKeyIndex(queryCol)
 		assert.True(t, exists)
 		sfr := multiReader.allFileReaders[colKeyIndex]
 
-		// invalid block
-		_, err = sfr.ReadRecordFromBlock(uint16(numBlocks), uint16(numEntriesInBlock))
-		assert.NotNil(t, err)
 		// correct block, incorrect recordNum
 		_, err = sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock))
 		assert.NotNil(t, err, "col %s should not have %+v entries", queryCol, numEntriesInBlock+1)

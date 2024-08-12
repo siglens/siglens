@@ -217,7 +217,6 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 	}
 
-
 	err := multiColReader.ValidateAndReadBlock(colIndexLookup, blockNum)
 	if err != nil {
 		log.Errorf("addRecordToAggregations: failed to validate column file for block %v: %v", blockNum, err)
