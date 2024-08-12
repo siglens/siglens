@@ -49,7 +49,7 @@ func Test_multiSegReader(t *testing.T) {
 	var err error
 	var cKeyidx int
 
-	colIndexLookup := make(map[int]struct{})
+	colsToReadIndices := make(map[int]struct{})
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
@@ -57,14 +57,14 @@ func Test_multiSegReader(t *testing.T) {
 
 		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
 		assert.True(t, exists)
-		colIndexLookup[cKeyidx] = struct{}{}
+		colsToReadIndices[cKeyidx] = struct{}{}
 	}
 
 	// invalid block
-	err = multiReader.ValidateAndReadBlock(colIndexLookup, uint16(numBlocks))
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
 	assert.NotNil(t, err)
 
-	err = multiReader.ValidateAndReadBlock(colIndexLookup, 0)
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
 	assert.Nil(t, err)
 
 	for colName := range cols {

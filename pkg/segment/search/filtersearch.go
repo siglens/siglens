@@ -201,16 +201,16 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			queryInfoColKeyIndex = cKeyidx
 		}
 
-		requiredSearchCols, err := GetRequiredColsForSearchQuery(multiColReader, query, cmiPassedNonDictColKeyIndices, queryInfoColKeyIndex)
+		colsToReadIndices, err := GetRequiredColsForSearchQuery(multiColReader, query, cmiPassedNonDictColKeyIndices, queryInfoColKeyIndex)
 		if err != nil {
-			log.Errorf("qid=%d, ApplyColumnarSearchQuery: failed to get required cols for search query. err: %v", qid, err)
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to get required cols for search query. err: %v", qid, err)
 			allSearchResults.AddError(err)
 			return
 		}
 
-		err = multiColReader.ValidateAndReadBlock(requiredSearchCols, blockNum)
+		err = multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 		if err != nil {
-			log.Errorf("qid=%d, ApplyColumnarSearchQuery: failed to validate and read block: %v err: %v", qid, blockNum, err)
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to validate and read block: %d, err: %v", qid, blockNum, err)
 			allSearchResults.AddError(err)
 			return
 		}

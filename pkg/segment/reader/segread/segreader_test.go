@@ -47,7 +47,7 @@ func Test_segReader(t *testing.T) {
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
 
-	colIndexLookup := make(map[int]struct{})
+	colsToReadIndices := make(map[int]struct{})
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
@@ -61,14 +61,14 @@ func Test_segReader(t *testing.T) {
 
 		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
 		assert.True(t, exists)
-		colIndexLookup[cKeyidx] = struct{}{}
+		colsToReadIndices[cKeyidx] = struct{}{}
 	}
 
 	// invalid block
-	err := multiReader.ValidateAndReadBlock(colIndexLookup, uint16(numBlocks))
+	err := multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
 	assert.NotNil(t, err)
 
-	err = multiReader.ValidateAndReadBlock(colIndexLookup, 0)
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
 	assert.Nil(t, err)
 
 	// test across multiple columns types

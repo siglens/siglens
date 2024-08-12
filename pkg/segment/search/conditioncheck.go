@@ -29,21 +29,21 @@ import (
 )
 
 func GetRequiredColsForSearchQuery(multiColReader *segread.MultiColSegmentReader, sq *SearchQuery, cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int) (map[int]struct{}, error) {
-	colIndexLookup := make(map[int]struct{})
+	colsToReadIndices := make(map[int]struct{})
 
 	switch sq.SearchType {
 	case MatchAll:
-		return colIndexLookup, nil
+		return colsToReadIndices, nil
 	case MatchWords, SimpleExpression, RegexExpression, MatchDictArraySingleColumn:
-		colIndexLookup[queryInfoColKeyIndex] = struct{}{}
+		colsToReadIndices[queryInfoColKeyIndex] = struct{}{}
 	case MatchWordsAllColumns, SimpleExpressionAllColumns, RegexExpressionAllColumns, MatchDictArrayAllColumns:
 		for colIndex := range cmiPassedNonDictColKeyIndices {
-			colIndexLookup[colIndex] = struct{}{}
+			colsToReadIndices[colIndex] = struct{}{}
 		}
 	default:
 		return nil, fmt.Errorf("getRequiredColsForSearchQuery: unsupported query type! %+v", sq.SearchType)
 	}
-	return colIndexLookup, nil
+	return colsToReadIndices, nil
 }
 
 // TODO: support for complex expressions
