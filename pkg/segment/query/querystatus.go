@@ -25,6 +25,7 @@ import (
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/query/queryinfo"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -159,6 +160,9 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 		isAsync:   async,
 	}
 	allRunningQueries[qid] = runningState
+
+	queryinfo.AddQueryInfo(qid)
+
 	return runningState, nil
 }
 
@@ -168,6 +172,8 @@ func DeleteQuery(qid uint64) {
 	arqMapLock.Lock()
 	delete(allRunningQueries, qid)
 	arqMapLock.Unlock()
+
+	queryinfo.DeleteQueryInfo(qid)
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
