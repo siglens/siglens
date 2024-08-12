@@ -105,6 +105,7 @@ type RunningQueryState struct {
 	rawSearchIsFinished      bool
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
+	totalRecsToBeSearched    uint64
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -694,6 +695,53 @@ func GetTotalsRecsSearchedForQid(qid uint64) (uint64, error) {
 	defer rQuery.rqsLock.Unlock()
 
 	return rQuery.totalRecsSearched, nil
+}
+
+func setTotalRecordsToBeSearched(qid uint64, totalRecs uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return fmt.Errorf("setTotalRecordsToBeSearched: qid=%v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.totalRecsToBeSearched = totalRecs
+	rQuery.rqsLock.Unlock()
+
+	return nil
+}
+
+func GetTotalRecsToBeSearchedForQid(qid uint64) (uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetTotalRecsToBeSearchedForQid: qid %+v does not exist!", qid)
+		return 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	return rQuery.totalRecsToBeSearched, nil
+}
+
+// Common function to retrieve these 2 parameters for a given qid
+// Returns totalEventsSearched, totalPossibleEvents, error respectively
+func GetTotalSearchedAndPossibleEventsForQid(qid uint64) (uint64, uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetTotalSearchedAndPossibleEventsForQid: qid %+v does not exist!", qid)
+		return 0, 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	return rQuery.totalRecsSearched, rQuery.totalRecsToBeSearched, nil
 }
 
 // returns the length of rrcs that exist in *search.SearchResults
