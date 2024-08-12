@@ -41,6 +41,10 @@ func (o *Option[T]) Get() (T, bool) {
 }
 
 func isNil(value interface{}) bool {
+	if value == nil {
+		return true
+	}
+
 	reflectValue := reflect.ValueOf(value)
 	switch reflectValue.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan:

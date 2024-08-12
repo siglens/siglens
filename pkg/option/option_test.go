@@ -22,6 +22,7 @@ func Test_isNil(t *testing.T) {
 	verifyValidOrNil(t, []func(x, y float32) float32{func(x, y float32) float32 { return 42 }}, []func(x, y float32) float32{nil})
 	verifyValidOrNil(t, []chan int{make(chan int)}, []chan int{nil})
 	verifyValidOrNil(t, []*int{new(int)}, []*int{nil})
+	verifyValidOrNil(t, []interface{}{42, "foo"}, []interface{}{nil})
 }
 
 func verifyValidOrNil[U any](t *testing.T, nonNilValues []U, nilValues []U) {
@@ -103,6 +104,7 @@ func Test_Set_NilValue(t *testing.T) {
 	verifyValueIsNone[func()](t, nil)
 	verifyValueIsNone[func(x, y float32) float32](t, nil)
 	verifyValueIsNone[chan int](t, nil)
+	verifyValueIsNone[interface{}](t, nil)
 }
 
 func verifyValueIsNone[U any](t *testing.T, nilValue U) {
