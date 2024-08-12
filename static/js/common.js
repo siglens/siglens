@@ -960,41 +960,32 @@ function initializeFilterInputEvents() {
         autoResizeTextarea.call(this);
     });
 
-    $('#filter-input').on('blur', function () {
-        $(this).removeClass('expanded');
-        this.style.height = '32px';
+    $('#filter-input').on('blur', function () {        
+        const currentHeight = parseInt(this.style.height, 10);
+        if (currentHeight > 115) {
+            $(this).addClass('expanded');
+        } else {
+            $(this).removeClass('expanded');
+            this.style.height = '32px';
+        }        
     });
 
-    $('#filter-input').on('input', autoResizeTextarea);
     $('#filter-input').on('input', function () {
+        const currentHeight = parseInt(this.style.height, 10);
+        if (currentHeight > 115) {
+            $(this).addClass('expanded');
+        } else {
+            this.style.height = '32px';
+        }     
         toggleClearButtonVisibility();
     });
+
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
     });
-    $('#filter-input').keydown(function (e) {
-        if (e.key === '|') {
-            let input = $(this);
-            let value = input.val();
-            let position = this.selectionStart;
-            input.val(value.substring(0, position) + '\n' + value.substring(position));
-            this.selectionStart = this.selectionEnd = position + 2;
-        }
-        toggleClearButtonVisibility();
-    });
-    document.getElementById('filter-input').addEventListener('paste', function (event) {
-        event.preventDefault();
-        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea.call(this);
-        toggleClearButtonVisibility();
-    });
 }
+
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {
