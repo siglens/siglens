@@ -491,46 +491,11 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				allColsToFlush.Add(1)
 				go func(cname string, colWip *ColWip) {
 					defer allColsToFlush.Done()
-					var encType []byte
-					if cname == config.GetTimeStampKey() {
-						encType, err = segstore.wipBlock.encodeTimestamps()
-						if err != nil {
-							log.Errorf("AppendWipToSegfile: failed to encode timestamps err=%v", err)
-							return
-						}
-						_ = segstore.writeWipTsRollups(cname)
-					} else if colWip.deCount > 0 && colWip.deCount < wipCardLimit {
-						encType = utils.ZSTD_DICTIONARY_BLOCK
-					} else {
-						encType = utils.ZSTD_COMLUNAR_BLOCK
-					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType)
+					err := segstore.flushSingleColumnOfBlock(cname, colWip, &wipBlockLock, wipBlockMetadata,
+						isKibana, &totalBytesWritten, &totalMetadata)
 					if err != nil {
-						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
-						return
-					}
-
-					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
-					wipBlockLock.Lock()
-					wipBlockMetadata.ColumnBlockOffset[cname] = blkOffset
-					wipBlockMetadata.ColumnBlockLen[cname] = blkLen
-					wipBlockLock.Unlock()
-
-					if !isKibana {
-						// if bloomIndex present then flush it
-						bi, ok := segstore.wipBlock.columnBlooms[cname]
-						if ok {
-							writtenBytes := segstore.flushBloomIndex(cname, bi)
-							atomic.AddUint64(&totalBytesWritten, writtenBytes)
-							atomic.AddUint64(&totalMetadata, writtenBytes)
-						}
-						ri, ok := segstore.wipBlock.columnRangeIndexes[cname]
-						if ok {
-							writtenBytes := segstore.flushBlockRangeIndex(cname, ri)
-							atomic.AddUint64(&totalBytesWritten, writtenBytes)
-							atomic.AddUint64(&totalMetadata, writtenBytes)
-						}
+						log.Errorf("AppendWipToSegfile: failed to flush column %v, err=%v", cname, err)
 					}
 				}(colName, colInfo)
 			}
@@ -600,6 +565,65 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			return err
 		}
 	}
+	return nil
+}
+
+func (segstore *SegStore) flushSingleColumnOfBlock(cname string, colWip *ColWip, blockLock *sync.Mutex,
+	blockMetadata *structs.BlockMetadataHolder, isKibana bool, totalBytesWritten *uint64, totalMetadata *uint64) error {
+
+	if colWip == nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: colWip is nil for colname=%v", cname)
+	} else if blockLock == nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: blockLock is nil for colname=%v", cname)
+	} else if blockMetadata == nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: blockMetadata is nil for colname=%v", cname)
+	} else if totalBytesWritten == nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: totalBytesWritten is nil for colname=%v", cname)
+	} else if totalMetadata == nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: totalMetadata is nil for colname=%v", cname)
+	}
+
+	var encType []byte
+	var err error
+	if cname == config.GetTimeStampKey() {
+		encType, err = segstore.wipBlock.encodeTimestamps()
+		if err != nil {
+			return toputils.TeeErrorf("flushSingleColumnOfBlock: failed to encode timestamps err=%v", err)
+		}
+		_ = segstore.writeWipTsRollups(cname)
+	} else if colWip.deCount > 0 && colWip.deCount < wipCardLimit {
+		encType = utils.ZSTD_DICTIONARY_BLOCK
+	} else {
+		encType = utils.ZSTD_COMLUNAR_BLOCK
+	}
+
+	blkLen, blkOffset, err := writeWip(colWip, encType)
+	if err != nil {
+		return toputils.TeeErrorf("flushSingleColumnOfBlock: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
+	}
+
+	atomic.AddUint64(totalBytesWritten, uint64(blkLen))
+	blockLock.Lock()
+	blockMetadata.ColumnBlockOffset[cname] = blkOffset
+	blockMetadata.ColumnBlockLen[cname] = blkLen
+	blockLock.Unlock()
+
+	if !isKibana {
+		// if bloomIndex present then flush it
+		bi, ok := segstore.wipBlock.columnBlooms[cname]
+		if ok {
+			writtenBytes := segstore.flushBloomIndex(cname, bi)
+			atomic.AddUint64(totalBytesWritten, writtenBytes)
+			atomic.AddUint64(totalMetadata, writtenBytes)
+		}
+		ri, ok := segstore.wipBlock.columnRangeIndexes[cname]
+		if ok {
+			writtenBytes := segstore.flushBlockRangeIndex(cname, ri)
+			atomic.AddUint64(totalBytesWritten, writtenBytes)
+			atomic.AddUint64(totalMetadata, writtenBytes)
+		}
+	}
+
 	return nil
 }
 
