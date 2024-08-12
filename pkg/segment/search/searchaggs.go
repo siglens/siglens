@@ -180,7 +180,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 	byFieldCnameKeyIdx := int(-1)
 	var isTsCol bool
-	groupbyColKeyIndices := make(map[int]struct{})
+	groupbyColKeyIndices := make([]int, 0)
 	var byField string
 	if usedByTimechart {
 		byField = timeHistogram.Timechart.ByField
@@ -197,7 +197,9 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		for _, col := range grpReq.GroupByColumns {
 			cKeyidx, ok := multiColReader.GetColKeyIndex(col)
 			if ok {
-				groupbyColKeyIndices[cKeyidx] = struct{}{}
+				groupbyColKeyIndices = append(groupbyColKeyIndices, cKeyidx)
+			} else {
+				log.Errorf("addRecordToAggregations: failed to find keyIdx in mcr for groupby cname: %v", col)
 			}
 		}
 	}
@@ -262,7 +264,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				}
 			}
 		} else {
-			for colKeyIndex := range groupbyColKeyIndices {
+			for _, colKeyIndex := range groupbyColKeyIndices {
 				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)
 				if err != nil {
 					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", colKeyIndex, err)
