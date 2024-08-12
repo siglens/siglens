@@ -30,6 +30,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
@@ -379,6 +380,10 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 
 	// start off with 256 bytes and caller will resize it and return back the new resized buf
 	aggsKeyWorkingBuf := make([]byte, 256)
+	var timeRangeBuckets []uint64
+	if aggs != nil && aggs.TimeHistogram != nil {
+		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
+	}
 
 	for blockNum := range filterBlockRequestsChan {
 		if req.SearchMetadata == nil || int(blockNum) >= len(req.SearchMetadata.BlockSummaries) {
@@ -459,7 +464,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
 			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
 				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
-				qid, aggsKeyWorkingBuf)
+				qid, aggsKeyWorkingBuf, timeRangeBuckets)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 
