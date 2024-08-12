@@ -301,9 +301,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				measureResults[idx] = *rawVal
 			}
 		}
-		keyCopy := make([]byte, aggsKeyBufIdx)
-		copy(keyCopy, aggsKeyWorkingBuf[0:aggsKeyBufIdx])
-		blockRes.AddMeasureResultsToKey(keyCopy, measureResults,
+		blockRes.AddMeasureResultsToKey(aggsKeyWorkingBuf[:aggsKeyBufIdx], measureResults,
 			groupByColVal, usedByTimechart, qid)
 	}
 

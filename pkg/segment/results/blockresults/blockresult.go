@@ -386,7 +386,11 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 		}
 		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
-		b.GroupByAggregation.StringBucketIdx[bKey] = nBuckets
+		// only make a copy if this is the first time we are inserting it
+		// so that the caller may free up the backing space for this currKey/bKey
+		keyCopy := make([]byte, len(bKey))
+		copy(keyCopy, bKey)
+		b.GroupByAggregation.StringBucketIdx[toputils.UnsafeByteSliceToString(keyCopy)] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
