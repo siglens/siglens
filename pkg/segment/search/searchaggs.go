@@ -177,10 +177,41 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	hasLimitOption := false
 	groupByColValCnt := make(map[string]int, 0)
 	var timeRangeBuckets []uint64
+
+	byFieldCnameKeyIdx := int(-1)
+	var isTsCol bool
+	groupbyColKeyIndices := make([]int, 0)
+	var byField string
 	if usedByTimechart {
+		byField = timeHistogram.Timechart.ByField
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(timeHistogram)
 		hasLimitOption = timeHistogram.Timechart.LimitExpr != nil
+		cKeyidx, ok := multiColReader.GetColKeyIndex(byField)
+		if ok {
+			byFieldCnameKeyIdx = cKeyidx
+		}
+		if timeHistogram.Timechart.ByField == config.GetTimeStampKey() {
+			isTsCol = true
+		}
+	} else {
+		for _, col := range grpReq.GroupByColumns {
+			cKeyidx, ok := multiColReader.GetColKeyIndex(col)
+			if ok {
+				groupbyColKeyIndices = append(groupbyColKeyIndices, cKeyidx)
+			} else {
+				log.Errorf("addRecordToAggregations: failed to find keyIdx in mcr for groupby cname: %v", col)
+			}
+		}
 	}
+
+	measureColKeyIdxAndIndices := make(map[int][]int)
+	for cName, indices := range measureInfo {
+		cKeyidx, ok := multiColReader.GetColKeyIndex(cName)
+		if ok {
+			measureColKeyIdxAndIndices[cKeyidx] = indices
+		}
+	}
+
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
 			continue
@@ -207,9 +238,9 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			currKey.Write(retVal)
 
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
-			byField := timeHistogram.Timechart.ByField
-			if len(byField) > 0 {
-				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(byField, blockNum, recNum, qid)
+			if byFieldCnameKeyIdx != -1 {
+				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(byFieldCnameKeyIdx,
+					blockNum, recNum, qid, isTsCol)
 				if err != nil {
 					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", byField, err)
 				} else {
@@ -233,10 +264,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				}
 			}
 		} else {
-			for _, col := range grpReq.GroupByColumns {
-				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(col, blockNum, recNum, qid)
+			for _, colKeyIndex := range groupbyColKeyIndices {
+				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)
 				if err != nil {
-					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", col, err)
+					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", colKeyIndex, err)
 					currKey.Write(utils.VALTYPE_ENC_BACKFILL)
 				} else {
 					currKey.Write(rawVal)
@@ -244,10 +275,11 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 		}
 
-		for cName, indices := range measureInfo {
-			rawVal, err := multiColReader.ExtractValueFromColumnFile(cName, blockNum, recNum, qid)
+		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
+			rawVal, err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
+				qid, false)
 			if err != nil {
-				log.Errorf("addRecordToAggregations: Failed to extract measure value from column %+v: %v", cName, err)
+				log.Errorf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %+v: %v", colKeyIdx, err)
 				rawVal = &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
 			}
 			for _, idx := range indices {
@@ -770,15 +802,24 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		}
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
 		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
+
+		nonDeColsKeyIndices := make(map[int]string)
+		for cname := range nonDeCols {
+			cKeyidx, ok := multiReader.GetColKeyIndex(cname)
+			if ok {
+				nonDeColsKeyIndices[cKeyidx] = cname
+			}
+		}
+
 		for _, recNum := range sortedMatchedRecs {
-			for colName := range nonDeCols {
-				val, err := multiReader.ExtractValueFromColumnFile(colName, blockStatus.BlockNum, recNum, qid)
+			for colKeyIdx, cname := range nonDeColsKeyIndices {
+				val, err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum, recNum, qid, false)
 				if err != nil {
-					log.Errorf("qid=%d, segmentStatsWorker failed to extract value for column %+v. Err: %v", qid, colName, err)
+					log.Errorf("qid=%d, segmentStatsWorker failed to extract value for cname %+v. Err: %v", qid, cname, err)
 					continue
 				}
 
-				hasValuesFunc, exists := valuesUsage[colName]
+				hasValuesFunc, exists := valuesUsage[cname]
 				if !exists {
 					hasValuesFunc = false
 				}
@@ -786,17 +827,17 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				if val.Dtype == utils.SS_DT_STRING {
 					str, err := val.GetString()
 					if err != nil {
-						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, colName, err)
+						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, cname, err)
 						continue
 					}
-					stats.AddSegStatsStr(localStats, colName, str, bb, aggColUsage, hasValuesFunc)
+					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc)
 				} else {
 					fVal, err := val.GetFloatValue()
 					if err != nil {
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for type %+v. Err: %v", qid, val.Dtype, err)
 						continue
 					}
-					stats.AddSegStatsNums(localStats, colName, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc)
+					stats.AddSegStatsNums(localStats, cname, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc)
 				}
 			}
 		}
@@ -894,6 +935,14 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 	queryMetrics *structs.QueryProcessingMetrics,
 	allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest, qid uint64) {
 
+	var aggsSortColKeyIdx int
+	if aggs != nil && aggs.Sort != nil {
+		colKeyIdx, ok := mcr.GetColKeyIndex(aggs.Sort.ColName)
+		if ok {
+			aggsSortColKeyIdx = colKeyIdx
+		}
+	}
+
 	numRecsMatched := uint16(0)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
 		if !recIT.ShouldProcessRecord(recNum) {
@@ -913,7 +962,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 		if blkResults.ShouldAddMore() {
-			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid)
+			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx)
 			if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 				rrc := &utils.RecordResultContainer{
 					SegKeyInfo: utils.SegKeyInfo{
