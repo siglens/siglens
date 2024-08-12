@@ -248,19 +248,9 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
 	aggs *structs.QueryAggregators) uint64 {
 	searchPercent := qscd.PercentComplete
-	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
+	totalEventsSearched, err := query.GetTotalRecsToBeSearchedForQid(qid)
 	if err != nil {
 		log.Errorf("qid=%d, processQueryUpdate: failed to get total records searched: %+v", qid, err)
-		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
-		if wErr != nil {
-			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
-		}
-		return 0
-	}
-
-	totalPossibleEvents, err := query.GetTotalRecsToBeSearchedForQid(qid)
-	if err != nil {
-		log.Errorf("qid=%d, processQueryUpdate: failed to get total records going to be searched: %+v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
@@ -278,7 +268,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		return 0
 	}
 
-	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
+	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
@@ -360,14 +350,13 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*PipeSearchWSUpdateResponse, uint64, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators) (*PipeSearchWSUpdateResponse, uint64, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
 		Completion:               searchPercent,
 		State:                    query.QUERY_UPDATE.String(),
 		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
-		TotalPossibleEvents:      humanize.Comma(int64(totalPossibleEvents)),
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}

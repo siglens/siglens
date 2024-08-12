@@ -53,7 +53,6 @@ type PipeSearchWSUpdateResponse struct {
 	Completion               float64                 `json:"percent_complete"`
 	State                    string                  `json:"state,omitempty"`
 	TotalEventsSearched      interface{}             `json:"total_events_searched,omitempty"`
-	TotalPossibleEvents      interface{}             `json:"total_possible_events,omitempty"`
 	MeasureFunctions         []string                `json:"measureFunctions,omitempty"`
 	MeasureResults           []*structs.BucketHolder `json:"measure,omitempty"`
 	GroupByCols              []string                `json:"groupByCols,omitempty"`
