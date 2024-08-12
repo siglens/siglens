@@ -118,7 +118,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	}
 
 	var missingBlockCMI bool
-	if len(timeFilteredBlocks) > 0 && !isMatchAll && !segMicroIndex.loadedMicroIndices {
+	if len(timeFilteredBlocks) > 0 && !isMatchAll && !segMicroIndex.loadedMicroIndices && !wildCardValue {
 		totalRequestedMemory += int64(segMicroIndex.MicroIndexSize)
 		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(segMicroIndex.MicroIndexSize), 10, segkey)
 		if err != nil {
