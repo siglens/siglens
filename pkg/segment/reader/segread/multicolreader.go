@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/queryinfo"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -363,7 +364,7 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[uint16
 	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFile(results, blockNum, orderedRecNums)
 }
 
-func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
+func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(qid uint64, match *structs.MatchFilter,
 	bsh *structs.BlockSearchHelper, cname string) (bool, error) {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
@@ -371,7 +372,52 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *struct
 		return false, errors.New("could not find sfr for cname")
 	}
 
+	// Check if this column can be skipped because nothing will match.
+	columnInfo, ok := mcsr.allColInfoReverseIndex[cname]
+	if ok && columnInfo != nil {
+		if !someRecordMightMatch(qid, columnInfo.ColumnName, mcsr.segKey) {
+			return false, nil
+		}
+	}
+
 	return mcsr.allFileReaders[keyIndex].ApplySearchToMatchFilterDictCsg(match, bsh)
+}
+
+func someRecordMightMatch(qid uint64, colName string, segKey string) bool {
+	segMetas, err := writer.GetSegMetas([]string{segKey})
+	if err != nil {
+		log.Errorf("someRecordMightMatch: failed to get segMetas for segKey %s. Error: %v", segKey, err)
+		return true
+	}
+
+	if len(segMetas) > 1 {
+		log.Errorf("someRecordMightMatch: expected only one segMeta for segKey %s, got %v", segKey, segMetas)
+		return true
+	}
+
+	var colValuesHash uint64
+	for _, segMeta := range segMetas {
+		columnInfo, ok := segMeta.ColumnNames[colName]
+		if !ok || columnInfo == nil {
+			return true
+		}
+
+		colValuesHash = columnInfo.DictValuesHash
+	}
+
+	if colValuesHash == 0 {
+		return true
+	}
+
+	// Find the hashes that indicate no records will match.
+	hashesYieldingNoResults, err := queryinfo.GetDictValuesHashGivingNoResults(qid, colName)
+	if err != nil {
+		log.Errorf("someRecordMightMatch: failed to get hashes yielding no results for colName %s. Error: %v", colName, err)
+		return true
+	}
+
+	_, ok := hashesYieldingNoResults[colValuesHash]
+	return !ok
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,

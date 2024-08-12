@@ -191,7 +191,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			return true, dictEncColNames, nil
 		}
 
-		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName)
+		found, err := mcr.ApplySearchToMatchFilterDictCsg(qid, sq.MatchFilter, bsh, sq.QueryInfo.ColName)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: matchwords dict search failed, err=%v", err)
 			return false, dictEncColNames, err
@@ -211,7 +211,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			}
 
 			dictEncColNames[cname] = true
-			found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, cname)
+			found, err := mcr.ApplySearchToMatchFilterDictCsg(qid, sq.MatchFilter, bsh, cname)
 			if err != nil {
 				continue
 			}
