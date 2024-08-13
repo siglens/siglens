@@ -534,8 +534,9 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 		return sortVal, invalidAggsCol
 	}
 
-	colVal, err := multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
-		qid, false)
+	var colVal utils.CValueEnclosure
+	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
+		qid, false, &colVal)
 	if err != nil {
 		invalidAggsCol = true
 		return sortVal, invalidAggsCol
