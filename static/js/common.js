@@ -998,8 +998,6 @@ function initializeFilterInputEvents() {
         const lines = Math.ceil((contentHeight - PADDING) / LINE_HEIGHT);
         const isFocused = $textarea.is(':focus');
 
-        console.log('Calculated lines:', lines);
-
         let newHeight;
         if (isFocused || lines <= MAX_VISIBLE_LINES) {
             newHeight = contentHeight + PADDING;
