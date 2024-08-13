@@ -288,7 +288,7 @@ func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq 
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
 		err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
 		if err != nil {
-			log.Errorf(" qid:%d, Failed to write pqmr file.  Error: %v", qid, err)
+			log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
 		}
 	}
 }
