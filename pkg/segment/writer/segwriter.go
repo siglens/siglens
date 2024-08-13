@@ -769,7 +769,7 @@ func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
 	}
 
 	segMetas := make(map[string]*structs.SegMeta)
-	err := fileutils.ReadLineByLine(localSegmetaFname, func(line []byte) error {
+	err := fileutils.ReadLineByLine(GetLocalSegmetaFName(), func(line []byte) error {
 		segMeta := structs.SegMeta{}
 		err := json.Unmarshal(line, &segMeta)
 		if err != nil {
@@ -784,7 +784,7 @@ func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
 		return nil
 	})
 	if err != nil {
-		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", localSegmetaFname, err)
+		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", GetLocalSegmetaFName(), err)
 		return nil, err
 	}
 
