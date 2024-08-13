@@ -4729,6 +4729,7 @@ color: #C8C7CC;
     top: 8px;
     right: 53px;
     cursor: pointer;
+    display: none;
     background: var(--format-icon);
     height: 16px;
     width: 16.8px;
