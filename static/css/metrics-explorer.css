@@ -253,7 +253,7 @@ input:checked + .slider:before {
 
 .metrics-query .metrics{
     min-width: 230px;
-    width: auto !important;
+    width: auto;
     background-color: var(--selected-filter-yellow) !important;
 }
 .metrics-query .metrics:focus{
