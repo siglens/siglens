@@ -329,7 +329,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			strSet := make(map[string]struct{}, 0)
 			valuesStrSetVal, exists := sr.runningEvalStats[measureAgg.String()]
 			if !exists {
-				sr.runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
+				sr.runningEvalStats[measureAgg.String()] = strSet
 			} else {
 				strSet, ok = valuesStrSetVal.(map[string]struct{})
 				if !ok {

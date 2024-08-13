@@ -141,7 +141,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
-		} else if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
+		} else if nodeResult.PerformAggsOnRecs && recs != nil {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
@@ -330,7 +330,7 @@ func performInputLookup(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 	// When the first block of the last segment arrives update the records and record index once
 	if !agg.GenerateEvent.InputLookup.UpdatedRecordIndex && agg.GenerateEvent.InputLookup.NumProcessedSegments == numTotalSegments-1 {
-		offset := 0
+		offset := -1
 		for _, recIndex := range recordIndexInFinal {
 			if recIndex > offset {
 				offset = recIndex

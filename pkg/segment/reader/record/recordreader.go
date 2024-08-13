@@ -205,6 +205,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 	results := make(map[uint16]map[string]interface{})
 
 	dictEncCols := make(map[string]bool)
+	allColKeyIndices := make(map[int]string)
 	for _, colInfo := range segReader.AllColums {
 		col := colInfo.ColumnName
 		if !esQuery && (col == "_type" || col == "_id") {
@@ -220,6 +221,10 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			dictEncCols[col] = true
 			allMatchedColumns[col] = true
 		}
+		cKeyidx, ok := segReader.GetColKeyIndex(col)
+		if ok {
+			allColKeyIndices[cKeyidx] = col
+		}
 	}
 
 	var mathColMap map[string]int
@@ -233,42 +238,49 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 		mathColMap = make(map[string]int)
 	}
 
+	var isTsCol bool
 	for _, recNum := range orderedRecNums {
 		_, ok := results[recNum]
 		if !ok {
 			results[recNum] = make(map[string]interface{})
 		}
 
-		for _, colInfo := range segReader.AllColums {
-			col := colInfo.ColumnName
+		for colKeyIdx, cname := range allColKeyIndices {
 
-			_, ok := dictEncCols[col]
+			_, ok := dictEncCols[cname]
 			if ok {
 				continue
 			}
 
-			cValEnc, err := segReader.ExtractValueFromColumnFile(col, blockIdx, recNum, qid)
+			if cname == config.GetTimeStampKey() {
+				isTsCol = true
+			}
+
+			var cValEnc utils.CValueEnclosure
+
+			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
+				qid, isTsCol, &cValEnc)
 			if err != nil {
 				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
 			} else {
 
 				if mathColOpsPresent {
-					colIndex, exists := mathColMap[col]
+					colIndex, exists := mathColMap[cname]
 					if exists {
 						mathOp := aggs.MathOperations[colIndex]
 						fieldToValue := make(map[string]utils.CValueEnclosure)
-						fieldToValue[mathOp.MathCol] = *cValEnc
+						fieldToValue[mathOp.MathCol] = cValEnc
 						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
 						if err != nil {
-							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, col, err)
+							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
 						} else {
 							cValEnc.CVal = valueFloat
 						}
 					}
 				}
 
-				results[recNum][col] = cValEnc.CVal
-				allMatchedColumns[col] = true
+				results[recNum][cname] = cValEnc.CVal
+				allMatchedColumns[cname] = true
 			}
 		}
 

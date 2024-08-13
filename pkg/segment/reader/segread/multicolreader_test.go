@@ -45,24 +45,32 @@ func Test_multiSegReader(t *testing.T) {
 	assert.Equal(t, 3, sharedReader.numReaders)
 
 	multiReader := sharedReader.MultiColReaders[0]
-	var cVal *utils.CValueEnclosure
 	var err error
+	var cKeyidx int
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
 		}
+
+		cKeyidx, _ = multiReader.GetColKeyIndex(colName)
+
+		var cValEnc utils.CValueEnclosure
+
 		// invalid block
-		_, err = multiReader.ExtractValueFromColumnFile(colName, uint16(numBlocks), 0, 0)
+		err = multiReader.ExtractValueFromColumnFile(cKeyidx, uint16(numBlocks), 0, 0, false,
+			&cValEnc)
 		assert.NotNil(t, err)
 
 		// correct block, incorrect recordNum
-		_, err = multiReader.ExtractValueFromColumnFile(colName, 0, uint16(numEntriesInBlock), 0)
+		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,
+			false, &cValEnc)
 		assert.NotNil(t, err)
 
-		cVal, err = multiReader.ExtractValueFromColumnFile(colName, 0, uint16(numEntriesInBlock-3), 0)
+		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock-3), 0,
+			false, &cValEnc)
 		assert.Nil(t, err)
-		assert.NotNil(t, cVal)
-		log.Infof("ExtractValueFromColumnFile: %+v for column %s", cVal, colName)
+		assert.NotNil(t, cValEnc)
+		log.Infof("ExtractValueFromColumnFile: %+v for column %s", cValEnc, colName)
 	}
 
 	for blkNum := 0; blkNum < numBlocks; blkNum++ {

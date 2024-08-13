@@ -370,16 +370,24 @@ type DeleteIndexErrorResponseInfo struct {
 	Index        string `json:"index"`
 }
 
-type ResultPerIndex map[string]map[string]interface{} // maps index name to index stats
+type AllIndexesStats struct {
+	IndexToStats map[string]IndexStats
+}
+
+type IndexStats struct {
+	NumBytesIngested uint64
+	NumRecords       uint64
+	NumSegments      uint64
+}
 
 type ClusterStatsResponseInfo struct {
-	IngestionStats  map[string]interface{}            `json:"ingestionStats"`
-	QueryStats      map[string]interface{}            `json:"queryStats"`
-	MetricsStats    map[string]interface{}            `json:"metricsStats"`
-	IndexStats      []ResultPerIndex                  `json:"indexStats"`
-	TraceIndexStats []ResultPerIndex                  `json:"traceIndexStats"`
-	ChartStats      map[string]map[string]interface{} `json:"chartStats"`
-	TraceStats      map[string]interface{}            `json:"traceStats"`
+	IngestionStats  map[string]interface{}              `json:"ingestionStats"`
+	QueryStats      map[string]interface{}              `json:"queryStats"`
+	MetricsStats    map[string]interface{}              `json:"metricsStats"`
+	IndexStats      []map[string]map[string]interface{} `json:"indexStats"`
+	TraceIndexStats []map[string]map[string]interface{} `json:"traceIndexStats"`
+	ChartStats      map[string]map[string]interface{}   `json:"chartStats"`
+	TraceStats      map[string]interface{}              `json:"traceStats"`
 }
 
 type MetricsStatsResponseInfo struct {

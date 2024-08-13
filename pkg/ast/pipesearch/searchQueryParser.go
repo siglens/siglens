@@ -29,23 +29,23 @@ import (
 	"github.com/siglens/siglens/pkg/ast/sql"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-
-	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, error) {
-	var parsingError error
+	var err error
 	var queryAggs *QueryAggregators
 	var boolNode *ASTNode
-	boolNode, queryAggs, parsingError = ParseQuery(searchText, qid, queryLanguageType)
-	if parsingError != nil {
-		return nil, nil, parsingError
+	boolNode, queryAggs, err = ParseQuery(searchText, qid, queryLanguageType)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if boolNode == nil && queryAggs == nil {
@@ -182,22 +182,31 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
 	}
 
-	queryJson := res.(ast.QueryStruct).SearchFilter
-	pipeCommandsJson := res.(ast.QueryStruct).PipeCommands
+	queryStruct, ok := res.(ast.QueryStruct)
+	if !ok {
+		return nil, nil, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+	}
+
+	searchNode := queryStruct.SearchFilter
+	aggs := queryStruct.PipeCommands
 	boolNode := &ASTNode{}
-	if queryJson == nil {
+	if searchNode == nil {
 		boolNode = createMatchAll(qid)
 	}
-	err = SearchQueryToASTnode(queryJson, boolNode, qid)
+
+	searchNode, aggs = optimizeQuery(searchNode, aggs)
+
+	err = SearchQueryToASTnode(searchNode, boolNode, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
 		return nil, nil, err
 	}
-	if pipeCommandsJson == nil {
+
+	if aggs == nil {
 		return boolNode, nil, nil
 	}
-	pipeCommands, err := searchPipeCommandsToASTnode(pipeCommandsJson, qid)
 
+	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
 		return nil, nil, err
@@ -206,6 +215,143 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	updatePositionForGenEvents(pipeCommands)
 
 	return boolNode, pipeCommands, nil
+}
+
+func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	searchNode.Simplify()
+
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs
+	}
+
+	searchNode, aggs = optimizeStatsEvalQueries(searchNode, aggs)
+
+	return searchNode, aggs
+
+}
+
+// Optimize queries like:
+// weekday=Monday | stats count(eval(foo=bar)) avg(eval(latency>1000))
+// to:
+// weekday=Monday AND (foo=bar OR latency>1000) | stats count(eval(foo=bar)) avg(eval(latency>1000))
+func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs // This optimization doesn't apply.
+	}
+
+	if aggs.PipeCommandType != MeasureAggsType {
+		return searchNode, aggs // This optimization doesn't apply.
+	}
+
+	extraSearchNodes := make([]*ast.Node, 0) // These will be merged with the searchNode at the end.
+	for _, measureAgg := range aggs.MeasureOperations {
+		if measureAgg.ValueColRequest == nil {
+			return searchNode, aggs // This optimization doesn't apply.
+		}
+
+		if measureAgg.ValueColRequest.ValueExprMode != VEMBooleanExpr {
+			return searchNode, aggs // This optimization doesn't apply.
+		}
+
+		extraSearchNode := extractSearchNodeFromBooleanExpr(measureAgg.ValueColRequest.BooleanExpr)
+		if extraSearchNode == nil {
+			// We can't do this optimization for one of these reasons:
+			// - There was an issue extracting the search node
+			// - We can optimize this query, but we haven't implemented the optimization yet
+			// - We can't optimize this query
+			return searchNode, aggs
+		}
+
+		extraSearchNodes = append(extraSearchNodes, extraSearchNode)
+	}
+
+	joinedExtraSearchNode := ast.JoinNodes(extraSearchNodes, ast.NodeOr)
+	searchNode = ast.JoinNodes([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
+
+	return searchNode, aggs
+}
+
+func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
+	if boolExpr == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is nil")
+		return nil
+	}
+
+	if !boolExpr.IsTerminal {
+		// TODO: we can actually handle this case.
+		return nil
+	}
+
+	extraSearchNode := &ast.Node{}
+	extraSearchNode.NodeType = ast.NodeTerminal
+	extraSearchNode.Comparison.Op = boolExpr.ValueOp
+
+	fieldWasSet := false
+	valueWasSet := false
+
+	if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is terminal but left (%v) or right (%v) is nil",
+			boolExpr.LeftValue, boolExpr.RightValue)
+		return nil
+	}
+
+	for _, valueExpr := range []*ValueExpr{boolExpr.LeftValue, boolExpr.RightValue} {
+		switch valueExpr.ValueExprMode {
+		case VEMNumericExpr:
+			numericExpr := valueExpr.NumericExpr
+			if numericExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: numericExpr is nil")
+				return nil
+			}
+
+			if !numericExpr.IsTerminal {
+				// TODO: we can actually handle this case.
+				return nil
+			}
+			if numericExpr.ValueIsField {
+				extraSearchNode.Comparison.Field = numericExpr.Value
+				fieldWasSet = true
+			} else {
+				extraSearchNode.Comparison.Values = json.Number(numericExpr.Value)
+				valueWasSet = true
+			}
+		case VEMStringExpr:
+			stringExpr := valueExpr.StringExpr
+			if stringExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: stringExpr is nil")
+				return nil
+			}
+
+			switch stringExpr.StringExprMode {
+			case SEMField:
+				extraSearchNode.Comparison.Field = stringExpr.FieldName
+				fieldWasSet = true
+			case SEMRawString:
+				extraSearchNode.Comparison.Values = "\"" + stringExpr.RawString + "\""
+				valueWasSet = true
+			case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
+				// TODO: we can handle at least some of these.
+			default:
+				log.Errorf("extractSearchNodeFromBooleanExpr: unknown stringExpr.StringExprMode: %v",
+					stringExpr.StringExprMode)
+				return nil
+			}
+		case VEMConditionExpr, VEMBooleanExpr:
+			// TODO: can these cases be handled?
+			return nil
+		default:
+			log.Errorf("extractSearchNodeFromBooleanExpr: unknown valueExpr.ValueExprMode: %v", valueExpr.ValueExprMode)
+			return nil
+		}
+	}
+
+	if !fieldWasSet || !valueWasSet {
+		log.Errorf("extractSearchNodeFromBooleanExpr: fieldWasSet=%v, valueWasSet=%v; expected both to be true",
+			fieldWasSet, valueWasSet)
+		return nil
+	}
+
+	return extraSearchNode
 }
 
 func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
@@ -638,7 +784,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) && aggs.StreamStatsOptions == nil {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasGroupByOrMeasureAggsInChain() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add

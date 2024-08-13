@@ -118,6 +118,7 @@ $(document).ready(function () {
     $(document).mouseup(function (e) {
         if ($(e.target).closest('.tooltip-inner').length === 0) {
             tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
+            $('.button-container').tooltip('hide');
         }
     });
 });
@@ -167,6 +168,7 @@ function initializeContactForm(contactId) {
 
     $('.add-new-contact-type').on('click', function () {
         addNewContactTypeContainer();
+        updateTestButtonState();
     });
 
     $('#main-container').on('click', '.del-contact-type', function () {
@@ -177,6 +179,40 @@ function initializeContactForm(contactId) {
     $('#main-container').on('click', '.test-contact-btn', function () {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
+    });
+    updateTestButtonState();
+    $('#contact-form').on('input', function () {
+        updateTestButtonState();
+    });
+}
+function updateTestButtonState() {
+    $('.contact-container').each(function () {
+        const isSlack = $(this).find('#contact-types span').text() === 'Slack';
+        const channelId = $(this).find('#slack-channel-id').val();
+        const slackToken = $(this).find('#slack-token').val();
+        const webhookUrl = $(this).find('#webhook-id').val();
+
+        const isFormValid = isSlack ? channelId && slackToken : webhookUrl;
+
+        const $testButton = $(this).find('.test-contact-btn');
+
+        if (isFormValid) {
+            $testButton.removeClass('disabled');
+            if ($testButton[0]._tippy) {
+                $testButton[0]._tippy.destroy();
+            }
+        } else {
+            $testButton.addClass('disabled');
+            if (!$testButton[0]._tippy) {
+                //eslint-disable-next-line no-undef
+                tippy($testButton[0], {
+                    content: 'Please fill all required fields.',
+                    delay: [0, 300],
+                });
+            }
+        }
+
+        $testButton.tooltip('dispose'); // Remove existing tooltip if any
     });
 }
 
@@ -202,6 +238,7 @@ function addNewContactTypeContainer() {
 
     $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
     updateDeleteButtonVisibility();
+    updateTestButtonState();
 }
 
 function setContactTypes() {
@@ -210,7 +247,7 @@ function setContactTypes() {
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
-
+    updateTestButtonState();
     // Remove invalid class from all inputs
     container.find('.slack-container input, .webhook-container input').removeClass('is-invalid').val('');
 
@@ -233,6 +270,7 @@ function resetContactForm() {
     $('.contact-option').removeClass('active');
     $('.contact-options #option-0').addClass('active');
     contactData = {};
+    updateTestButtonState();
 }
 
 function setContactForm() {
@@ -264,6 +302,7 @@ function setContactForm() {
         }
     });
     contactData.pager_duty = '';
+    updateTestButtonState();
 }
 
 function submitAddContactPointForm(e) {
@@ -645,33 +684,35 @@ function showContactFormForEdit(contactId) {
 }
 
 function getContactPointTestData(container) {
-    let contactData = {};
-    let contactType = container.find('#contact-types span').text();
+    if (validateContactForm()) {
+        let contactData = {};
+        let contactType = container.find('#contact-types span').text();
 
-    if (contactType === 'Slack') {
-        let slackValue = container.find('#slack-channel-id').val();
-        let slackToken = container.find('#slack-token').val();
-        if (slackValue && slackToken) {
-            contactData = {
-                type: 'slack',
-                settings: {
-                    channel_id: slackValue,
-                    slack_token: slackToken,
-                },
-            };
+        if (contactType === 'Slack') {
+            let slackValue = container.find('#slack-channel-id').val();
+            let slackToken = container.find('#slack-token').val();
+            if (slackValue && slackToken) {
+                contactData = {
+                    type: 'slack',
+                    settings: {
+                        channel_id: slackValue,
+                        slack_token: slackToken,
+                    },
+                };
+            }
+        } else if (contactType === 'Webhook') {
+            let webhookValue = container.find('#webhook-id').val();
+            if (webhookValue) {
+                contactData = {
+                    type: 'webhook',
+                    settings: {
+                        webhook: webhookValue,
+                    },
+                };
+            }
         }
-    } else if (contactType === 'Webhook') {
-        let webhookValue = container.find('#webhook-id').val();
-        if (webhookValue) {
-            contactData = {
-                type: 'webhook',
-                settings: {
-                    webhook: webhookValue,
-                },
-            };
-        }
+        testContactPointHandler(contactData);
     }
-    testContactPointHandler(contactData);
 }
 
 function testContactPointHandler(testContactPointData) {

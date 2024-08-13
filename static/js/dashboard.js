@@ -476,15 +476,6 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
-
-        if (!(localPanels.length > 0)) {
-            $('.default-item').addClass('active');
-            $('#add-widget-options').toggle();
-            $('.add-icon').toggleClass('rotate-icon');
-            $('#add-panel-btn').toggleClass('active');
-            $('.default-item').find('.text').text('Select the panel type');
-            $('.plus-icon').hide();
-        }
     }
 }
 
@@ -757,6 +748,21 @@ async function displayPanels() {
     // Remove the Add Panel Widgets from the default dashboards
     if (!isDefaultDashboard) {
         addDefaultPanel();
+    }
+    // Show the Add Panel Widget if there is no panel
+    if (localPanels.length === 0) {
+        $('.default-item').addClass('active').find('.text').text('Select the panel type');
+        $('#add-widget-options').show();
+        $('.add-icon').addClass('rotate-icon');
+        $('#add-panel-btn').addClass('active');
+        $('.plus-icon').hide();
+    } else {
+        $('.default-item').removeClass('active');
+        $('#add-widget-options').hide();
+        $('.add-icon').removeClass('rotate-icon');
+        $('#add-panel-btn').removeClass('active');
+        $('.add-panel-div .text').text('Add Panel');
+        $('.add-panel-div .plus-icon').show();
     }
 }
 
@@ -1099,7 +1105,7 @@ function handleDbSettings() {
     if (isDefaultDashboard) {
         $('.dbSet-dbName').prop('readonly', true);
         $('.dbSet-dbDescr').prop('readonly', true);
-
+        $('#dbSet-edit-json').hide();
         $('#dbSet-discard,#dbSet-save').hide();
     }
 

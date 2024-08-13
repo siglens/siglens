@@ -279,13 +279,13 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 // adds all elements of m2 to m1 and returns m1
 func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
-	for k, v := range m2 {
-		other, ok := m1[k]
+	for k, segStat2 := range m2 {
+		segStat1, ok := m1[k]
 		if !ok {
-			m1[k] = v
+			m1[k] = segStat2
 			continue
 		}
-		m1[k].Merge(other)
+		segStat1.Merge(segStat2)
 	}
 	return m1
 }

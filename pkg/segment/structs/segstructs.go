@@ -411,7 +411,8 @@ type QueryCount struct {
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
 	AllRecords                  []*utils.RecordResultContainer
-	ErrList                     []error
+	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
+	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info
 	Histogram                   map[string]*AggregationResult
 	TotalResults                *QueryCount
 	VectorResultValue           float64
@@ -460,6 +461,11 @@ type NumericStats struct {
 type StringStats struct {
 	StrSet  map[string]struct{}
 	StrList []string
+}
+
+type SearchErrorInfo struct {
+	Count    int
+	LogLevel log.Level
 }
 
 // json exportable struct for segstats
@@ -663,16 +669,8 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	if qa.OutputTransforms == nil {
 		return false
 	}
-	if qa.OutputTransforms.HeadRequest == nil {
-		return false
-	}
-	if qa.OutputTransforms.HeadRequest.BoolExpr != nil {
-		return true
-	}
-	if qa.OutputTransforms.HeadRequest.MaxRows > qa.OutputTransforms.HeadRequest.RowsAdded {
-		return true
-	}
-	return false
+
+	return qa.OutputTransforms.HeadRequest != nil
 }
 
 type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
@@ -742,7 +740,7 @@ func (qa *QueryAggregators) GetSortLimit() uint64 {
 	if qa.HasSortBlock() {
 		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
 	}
-	if qa.Next != nil {
+	if qa != nil && qa.Next != nil {
 		return qa.Next.GetSortLimit()
 	}
 	return math.MaxUint64
@@ -1206,4 +1204,16 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
 	return qa.HasInChain(statsAggPresentInCur)
+}
+
+func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level) {
+	if nodeRes.GlobalSearchErrors == nil {
+		nodeRes.GlobalSearchErrors = make(map[string]*SearchErrorInfo)
+	}
+
+	if globalErr, ok := nodeRes.GlobalSearchErrors[errMsg]; !ok {
+		nodeRes.GlobalSearchErrors[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel}
+	} else {
+		globalErr.Count++
+	}
 }
