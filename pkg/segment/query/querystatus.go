@@ -105,6 +105,7 @@ type RunningQueryState struct {
 	rawSearchIsFinished      bool
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
+	totalRecsToBeSearched    uint64
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -146,7 +147,7 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 			arqMapLock.RUnlock()
 
 			if ok {
-				log.Infof("qid: %v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
 			}
@@ -263,7 +264,7 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return 0, fmt.Errorf("qid: %v does not exist", qid)
+		return 0, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -299,7 +300,7 @@ func IsRawSearchFinished(qid uint64) (bool, error) {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return false, fmt.Errorf("qid:%v does not exist", qid)
+		return false, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -313,7 +314,7 @@ func SetRawSearchFinished(qid uint64) error {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return fmt.Errorf("qid:%v does not exist", qid)
+		return fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -696,6 +697,53 @@ func GetTotalsRecsSearchedForQid(qid uint64) (uint64, error) {
 	return rQuery.totalRecsSearched, nil
 }
 
+func setTotalRecordsToBeSearched(qid uint64, totalRecs uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return fmt.Errorf("setTotalRecordsToBeSearched: qid=%v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.totalRecsToBeSearched = totalRecs
+	rQuery.rqsLock.Unlock()
+
+	return nil
+}
+
+func GetTotalRecsToBeSearchedForQid(qid uint64) (uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetTotalRecsToBeSearchedForQid: qid %+v does not exist!", qid)
+		return 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	return rQuery.totalRecsToBeSearched, nil
+}
+
+// Common function to retrieve these 2 parameters for a given qid
+// Returns totalEventsSearched, totalPossibleEvents, error respectively
+func GetTotalSearchedAndPossibleEventsForQid(qid uint64) (uint64, uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetTotalSearchedAndPossibleEventsForQid: qid %+v does not exist!", qid)
+		return 0, 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	return rQuery.totalRecsSearched, rQuery.totalRecsToBeSearched, nil
+}
+
 // returns the length of rrcs that exist in *search.SearchResults
 // this will be used to determine if more scrolling can be done
 func GetNumMatchedRRCs(qid uint64) (uint64, error) {
@@ -773,7 +821,7 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 func LogGlobalSearchErrors(qid uint64) {
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
-		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid: %v", qid)
+		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
 		return
 	}
 	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {

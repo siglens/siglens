@@ -383,7 +383,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if query != "" {
 		astNode, aggNode, err = pipesearch.ParseRequest(query, timeRange.StartEpochMs, timeRange.EndEpochMs, qid, "Log QL", indexName)
 		if err != nil {
-			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid: %v, QUERY: %v", qid, query), err)
+			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid=%v, QUERY: %v", qid, query), err)
 			return
 		}
 	}

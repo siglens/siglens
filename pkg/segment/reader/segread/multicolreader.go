@@ -48,6 +48,7 @@ type MultiColSegmentReader struct {
 
 	AllColums              []*ColumnInfo
 	allColInfoReverseIndex map[string]*ColumnInfo
+	maxColIdx              int
 }
 
 type ColumnInfo struct {
@@ -89,6 +90,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 		allColsReverseIndex: colRevserseIndex,
 		timeStampKey:        tsKey,
 		segKey:              segKey,
+		maxColIdx:           -1,
 	}
 
 	for colName, colFD := range colFDs {
@@ -123,6 +125,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 
 	retVal.allFileReaders = retVal.allFileReaders[:idx]
 	retVal.AllColums = readCols[:idx]
+	retVal.maxColIdx = idx
 	retVal.allColInfoReverseIndex = readColsReverseIndex
 	return retVal, nil
 }
@@ -243,9 +246,9 @@ func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]
 }
 
 // Reads the raw value and returns the []byte in TLV format (type-[length]-value encoding)
-func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(col string, blockNum uint16, recordNum uint16, qid uint64) ([]byte, error) {
+func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, blockNum uint16, recordNum uint16, qid uint64, isTsCol bool) ([]byte, error) {
 
-	if col == mcsr.timeStampKey {
+	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
 			return nil, err
@@ -255,41 +258,40 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(col string, block
 		copy(retVal[1:], toputils.Uint64ToBytesLittleEndian(ts))
 		return retVal, nil
 	}
-	keyIndex, ok := mcsr.allColsReverseIndex[col]
-	if !ok {
+
+	if colKeyIndex == -1 || colKeyIndex >= mcsr.maxColIdx {
 		// Debug to avoid log flood for when the column does not exist
-		log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find column %s in multi col reader. All cols: %+v", col, mcsr.allColsReverseIndex)
+		log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
 		return nil, errors.New("column not found in MultipleColumnSegmentReader")
 	}
 
-	return mcsr.allFileReaders[keyIndex].ReadRecordFromBlock(blockNum, recordNum)
+	return mcsr.allFileReaders[colKeyIndex].ReadRecordFromBlock(blockNum, recordNum)
 }
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
-func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(col string, blockNum uint16, recordNum uint16,
-	qid uint64) (*utils.CValueEnclosure, error) {
-	if col == mcsr.timeStampKey {
+func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure) error {
+	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
-			return &utils.CValueEnclosure{}, err
+			return err
 		}
+		retCVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		retCVal.CVal = ts
 
-		return &utils.CValueEnclosure{
-			Dtype: utils.SS_DT_UNSIGNED_NUM,
-			CVal:  ts,
-		}, nil
+		return nil
 	}
 
-	rawVal, err := mcsr.ReadRawRecordFromColumnFile(col, blockNum, recordNum, qid)
+	rawVal, err := mcsr.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, isTsCol)
 	if err != nil {
-		return &utils.CValueEnclosure{
-			Dtype: utils.SS_DT_BACKFILL,
-			CVal:  nil,
-		}, err
+		retCVal.Dtype = utils.SS_DT_BACKFILL
+		retCVal.CVal = nil
+
+		return err
 	}
 
-	cval, _, err := writer.GetCvalFromRec(rawVal, qid)
-	return &cval, err
+	_, err = writer.GetCvalFromRec(rawVal, qid, retCVal)
+	return err
 }
 
 func (mcsr *MultiColSegmentReader) returnBuffers() {
@@ -306,8 +308,12 @@ func (mcsr *MultiColSegmentReader) returnBuffers() {
 	}
 }
 
-func (mcsr *MultiColSegmentReader) IncrementColumnUsage(colName string) {
+func (mcsr *MultiColSegmentReader) IncrementColumnUsageByName(colName string) {
 	mcsr.allColInfoReverseIndex[colName].count++
+}
+
+func (mcsr *MultiColSegmentReader) IncrementColumnUsageByIdx(colKeyIndex int) {
+	mcsr.AllColums[colKeyIndex].count++
 }
 
 // reorders mcsr.AllColumns to be ordered on usage
@@ -383,4 +389,9 @@ func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte 
 func (mcsr *MultiColSegmentReader) IsColPresent(cname string) bool {
 	_, ok := mcsr.allColsReverseIndex[cname]
 	return ok
+}
+
+func (mcsr *MultiColSegmentReader) GetColKeyIndex(cname string) (int, bool) {
+	idx, ok := mcsr.allColsReverseIndex[cname]
+	return idx, ok
 }

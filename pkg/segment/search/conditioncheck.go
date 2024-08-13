@@ -30,16 +30,16 @@ import (
 // TODO: support for complex expressions
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
-	dictEncColNames map[string]bool, searchReq *SegmentSearchRequest,
-	cmiPassedCnames map[string]bool) (bool, error) {
+	searchReq *SegmentSearchRequest,
+	cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int) (bool, error) {
 
 	switch query.SearchType {
 	case MatchAll:
 		// ts should have already been checked
 		return true, nil
 	case MatchWords:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName,
-			blockNum, recordNum, qid)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex,
+			blockNum, recordNum, qid, false)
 		if err != nil {
 			return false, err
 		}
@@ -47,16 +47,9 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case MatchWordsAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
-		for cname := range cmiPassedCnames {
+		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			// we skip rawsearching for columns that are dict encoded,
-			// since we already search for them in the prior call to applyColumnarSearchUsingDictEnc
-			_, ok := dictEncColNames[cname]
-			if ok {
-				continue
-			}
-
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(cname, blockNum, recordNum, qid)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
 			if err != nil {
 				finalErr = err
 				continue
@@ -65,7 +58,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			}
 			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal)
 			if retVal {
-				multiColReader.IncrementColumnUsage(cname)
+				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
 			}
 		}
@@ -75,31 +68,24 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			return false, finalErr
 		}
 	case SimpleExpression:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName, blockNum, recordNum, qid)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
 		if err != nil {
 			return false, err
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte)
 	case RegexExpression:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName, blockNum, recordNum, qid)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
 		if err != nil {
-			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid: %v, err: %v", query.QueryInfo.ColName, qid, err)
+			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid=%v, err: %v", query.QueryInfo.ColName, qid, err)
 			return false, nil
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
 	case RegexExpressionAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
-		for cname := range cmiPassedCnames {
+		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			// we skip rawsearching for columns that are dict encoded,
-			// since we already search for them in the prior call to applyColumnarSearchUsingDictEnc
-			_, ok := dictEncColNames[cname]
-			if ok {
-				continue
-			}
-
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(cname, blockNum, recordNum, qid)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
 			if err != nil {
 				finalErr = err
 				continue
@@ -108,7 +94,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			}
 			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
 			if retVal {
-				multiColReader.IncrementColumnUsage(cname)
+				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
 			}
 		}
@@ -120,16 +106,9 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case SimpleExpressionAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
-		for cname := range cmiPassedCnames {
+		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			// we skip rawsearching for columns that are dict encoded,
-			// since we already search for them in the prior call to applyColumnarSearchUsingDictEnc
-			_, ok := dictEncColNames[cname]
-			if ok {
-				continue
-			}
-
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(cname, blockNum, recordNum, qid)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
 			if err != nil {
 				finalErr = err
 				continue
@@ -138,7 +117,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			}
 			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte)
 			if retVal {
-				multiColReader.IncrementColumnUsage(cname)
+				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
 			}
 		}
@@ -148,7 +127,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			return false, finalErr
 		}
 	case MatchDictArraySingleColumn:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName, blockNum, recordNum, qid)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
 		if err != nil {
 			return false, err
 		}
@@ -156,16 +135,9 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case MatchDictArrayAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
-		for _, colInfo := range multiColReader.AllColums {
+		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			// we skip rawsearching for columns that are dict encoded,
-			// since we already search for them in the prior call to applyColumnarSearchUsingDictEnc
-			_, ok := dictEncColNames[colInfo.ColumnName]
-			if ok {
-				continue
-			}
-
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colInfo.ColumnName, blockNum, recordNum, qid)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
 			if err != nil {
 				finalErr = err
 				continue
@@ -174,7 +146,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			}
 			retVal, _ := writer.ApplySearchToDictArrayFilter(query.QueryInfo.KValDte, query.QueryInfo.QValDte, rawColVal, query.ExpressionFilter.FilterOp, true, holderDte)
 			if retVal {
-				multiColReader.IncrementColumnUsage(colInfo.ColumnName)
+				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
 			}
 		}
@@ -244,7 +216,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 				continue
 			}
 			if found {
-				mcr.IncrementColumnUsage(cname)
+				mcr.IncrementColumnUsageByName(cname)
 			}
 		}
 		return true, dictEncColNames, nil
@@ -289,7 +261,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 				continue
 			}
 			if found {
-				mcr.IncrementColumnUsage(cname)
+				mcr.IncrementColumnUsageByName(cname)
 			}
 		}
 		return true, dictEncColNames, nil
@@ -313,7 +285,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 				continue
 			}
 			if found {
-				mcr.IncrementColumnUsage(cname)
+				mcr.IncrementColumnUsageByName(cname)
 			}
 		}
 		return true, dictEncColNames, nil

@@ -174,11 +174,38 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 		}
 	}
 
+	// we skip rawsearching for columns that are dict encoded,
+	// since we already search for them in the above call to applyColumnarSearchUsingDictEnc
+	for dcname := range deCnames {
+		delete(cmiPassedCnames, dcname)
+	}
+
 	if doRecLevelSearch {
+
+		// find the mcr colKeyIndex, so that we avoid map lookups per
+		// record inside ApplyColumnarSearchQuery function
+		cmiPassedNonDictColKeyIndices := make(map[int]struct{})
+		for cname := range cmiPassedCnames {
+			if cname == config.GetTimeStampKey() {
+				continue
+			}
+			cKeyidx, ok := multiColReader.GetColKeyIndex(cname)
+			if ok {
+				cmiPassedNonDictColKeyIndices[cKeyidx] = struct{}{}
+			}
+		}
+
+		var queryInfoColKeyIndex int
+		cKeyidx, ok := multiColReader.GetColKeyIndex(query.QueryInfo.ColName)
+		if ok {
+			queryInfoColKeyIndex = cKeyidx
+		}
+
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
-					qid, deCnames, searchReq, cmiPassedCnames)
+					qid, searchReq, cmiPassedNonDictColKeyIndices,
+					queryInfoColKeyIndex)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break

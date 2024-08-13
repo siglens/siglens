@@ -1033,6 +1033,10 @@ progress.hidden {
     vertical-align: middle;
 }
 
+.final-res-time span{
+    font-weight: 600;
+}
+
 [data-theme='light'] #hits-summary {
     color: var(--hits-summary-regular-text-color);
     font-weight: var(--fw-400);
@@ -1272,6 +1276,7 @@ progress.hidden {
 .ui-dialog .ui-dialog-buttonpane button {
     margin: .5em .4em .5em 0;
     cursor: pointer;
+    outline: none;
 }
 
 .ui-draggable .ui-dialog-titlebar {
@@ -2702,11 +2707,12 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     left: auto;
     right: 10px;
     position: absolute !important;
+    z-index: 1;
 }
 
 #filter-input{
     padding-left: 1rem;
-    padding-right: 3rem;
+    padding-right: 3.2rem;
 }
 
 .tooltip{
@@ -5965,7 +5971,7 @@ input.form-control {
     margin-bottom: 8px;
 }
 
-.myOrg-inner-container #ag-grid .ag-row:hover {
+.myOrg-inner-container .pqs-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
 }
@@ -5987,4 +5993,9 @@ input.form-control {
     background-size: cover;
     cursor: pointer;
     margin-bottom: 10px;
+}
+
+.pqs-tables h3{
+    font-weight: 600;
+    font-size: 16px;
 }
