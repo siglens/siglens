@@ -610,7 +610,7 @@ function setShowColumnInfoDialog() {
         buttons: {
             Cancel: {
                 class: 'cancelqButton cancel-record-btn',
-                text: 'Cancel',
+                text: 'OK',
                 click: function () {
                     $('#show-record-popup').dialog('close');
                 },
