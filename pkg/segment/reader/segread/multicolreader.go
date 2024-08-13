@@ -394,7 +394,7 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(qid uint64, m
 		return false, err
 	}
 
-	if !foundMatch && segMeta != nil {
+	if !foundMatch && segMeta != nil && colValuesHash != 0 {
 		queryinfo.IncrementBlocksGivingNoResults(qid, cname, colValuesHash, uint64(segMeta.NumBlocks))
 	}
 
