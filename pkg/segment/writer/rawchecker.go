@@ -32,9 +32,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Fast is a flag to indicate if we should use the fast path for regex matching
-// If fast is true it assumes that the regexp is already compiled
-func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, regexp *regexp.Regexp, fast bool) (bool, error) {
+func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp) (bool, error) {
 	var err error
 
 	if len(match.MatchWords) == 0 {
@@ -65,16 +63,16 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, regexp *rege
 	if match.MatchOperator == And {
 		var foundQword bool = true
 		if match.MatchType == MATCH_PHRASE {
-			if !fast {
-				regexp, err = match.GetRegexp()
+			if compiledRegex == nil {
+				compiledRegex, err = match.GetRegexp()
 				if err != nil {
 					log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
 					return false, err
 				}
 			}
 
-			if regexp != nil {
-				foundQword = regexp.Match(asciiBytes)
+			if compiledRegex != nil {
+				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
 				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase)
 			}

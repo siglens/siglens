@@ -32,7 +32,7 @@ import (
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
 	searchReq *SegmentSearchRequest, cmiPassedNonDictColKeyIndices map[int]struct{},
-	queryInfoColKeyIndex int, regexp *regexp.Regexp, fast bool) (bool, error) {
+	queryInfoColKeyIndex int, compiledRegex *regexp.Regexp) (bool, error) {
 
 	switch query.SearchType {
 	case MatchAll:
@@ -44,7 +44,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		if err != nil {
 			return false, err
 		}
-		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, regexp, fast)
+		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 	case MatchWordsAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
@@ -57,7 +57,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, regexp, fast)
+			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil

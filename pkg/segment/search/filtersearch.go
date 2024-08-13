@@ -137,7 +137,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
 	checkAllCols := false
-	var regexp *regexp.Regexp
+	var compiledRegex *regexp.Regexp
 	var err error
 
 	if query.SearchType == structs.MatchWordsAllColumns ||
@@ -205,10 +205,10 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			queryInfoColKeyIndex = cKeyidx
 		}
 
-		if query.MatchFilter != nil && query.MatchFilter.MatchType == structs.MATCH_PHRASE && query.MatchFilter.MatchOperator == utils.And {
-			regexp, err = query.MatchFilter.GetRegexp()
+		if query.MatchFilter != nil && query.MatchFilter.MatchType == structs.MATCH_PHRASE {
+			compiledRegex, err = query.MatchFilter.GetRegexp()
 			if err != nil {
-				log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
+				log.Errorf("filterRecordsFromSearchQuery: error getting match regex: %v", err)
 				return
 			}
 		}
@@ -217,7 +217,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex, regexp, true)
+					queryInfoColKeyIndex, compiledRegex)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break
