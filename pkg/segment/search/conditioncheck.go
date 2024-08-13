@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -182,6 +183,10 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		return false, dictEncColNames, nil
 
 	case MatchWords:
+		if canSkip(qid, mcr.SegMeta, sq.QueryInfo.ColName) {
+			return false, dictEncColNames, nil
+		}
+
 		isDict, err := mcr.IsBlkDictEncoded(sq.QueryInfo.ColName, blockNum)
 		if err != nil {
 			return true, dictEncColNames, err
@@ -200,6 +205,9 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 	case MatchWordsAllColumns:
 		for cname := range cmiPassedCnames {
+			if canSkip(qid, mcr.SegMeta, cname) {
+				continue
+			}
 
 			isDict, err := mcr.IsBlkDictEncoded(cname, blockNum)
 			if err != nil {
@@ -222,6 +230,9 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		return true, dictEncColNames, nil
 
 	case SimpleExpression, RegexExpression:
+		if canSkip(qid, mcr.SegMeta, sq.QueryInfo.ColName) {
+			return false, dictEncColNames, nil
+		}
 
 		isDict, err := mcr.IsBlkDictEncoded(sq.QueryInfo.ColName, blockNum)
 		// Like other switch cases, we do not return the error. When an error occurs, stop executing the subsequent logic.
@@ -244,6 +255,9 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 	case RegexExpressionAllColumns:
 		for cname := range cmiPassedCnames {
+			if canSkip(qid, mcr.SegMeta, cname) {
+				continue
+			}
 
 			isDict, err := mcr.IsBlkDictEncoded(cname, blockNum)
 			if err != nil {
@@ -268,6 +282,9 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 	case SimpleExpressionAllColumns:
 		for cname := range cmiPassedCnames {
+			if canSkip(qid, mcr.SegMeta, cname) {
+				continue
+			}
 
 			isDict, err := mcr.IsBlkDictEncoded(cname, blockNum)
 			if err != nil {
@@ -297,4 +314,13 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		log.Errorf("qid=%d, applyColumnarSearchUsingDictEnc: unsupported query type! %+v", qid, sq.SearchType)
 		return true, dictEncColNames, errors.New("unsupported query type")
 	}
+}
+
+func canSkip(qid uint64, segMeta *structs.SegMeta, colName string) bool {
+	colValuesHash := segread.GetColumnValuesHash(segMeta, colName)
+
+	// Check if this column can be skipped because nothing will match.
+	canSkip := !segread.SomeRecordMightMatch(qid, colName, colValuesHash)
+
+	return canSkip
 }

@@ -45,6 +45,7 @@ type MultiColSegmentReader struct {
 	allColsReverseIndex map[string]int
 	timeStampKey        string // timestamp key
 	segKey              string // segment key
+	SegMeta             *structs.SegMeta
 	timeReader          *TimeRangeReader
 
 	AllColums              []*ColumnInfo
@@ -79,6 +80,17 @@ Can also be used to get the timestamp for any arbitrary record in the Segment
 func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMetadata map[uint16]*structs.BlockMetadataHolder,
 	blockSummaries []*structs.BlockSummary, qid uint64) (*MultiColSegmentReader, error) {
 
+	segMetas, err := writer.GetSegMetas([]string{segKey})
+	if err != nil {
+		log.Errorf("qid=%d, initNewMultiColumnReader: failed to get segMeta for segKey %s. Error: %v", qid, segKey, err)
+		return nil, err
+	}
+
+	var segMeta *structs.SegMeta
+	if len(segMetas) == 1 {
+		segMeta = segMetas[segKey]
+	}
+
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
 	colRevserseIndex := make(map[string]int)
@@ -91,6 +103,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 		allColsReverseIndex: colRevserseIndex,
 		timeStampKey:        tsKey,
 		segKey:              segKey,
+		SegMeta:             segMeta,
 		maxColIdx:           -1,
 	}
 
@@ -372,18 +385,12 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(qid uint64, m
 		return false, errors.New("could not find sfr for cname")
 	}
 
-	segMeta, err := getSegmeta(mcsr.segKey)
-	if err != nil {
-		log.Errorf("qid=%d, mcsr.ApplySearchToMatchFilterDictCsg: failed to get segMeta for segKey %s; err=%v",
-			qid, mcsr.segKey, err)
-	}
-
-	colValuesHash := getColumnValuesHash(segMeta, cname)
+	colValuesHash := GetColumnValuesHash(mcsr.SegMeta, cname)
 
 	// Check if this column can be skipped because nothing will match.
 	columnInfo, ok := mcsr.allColInfoReverseIndex[cname]
 	if ok && columnInfo != nil {
-		if !someRecordMightMatch(qid, columnInfo.ColumnName, colValuesHash) {
+		if !SomeRecordMightMatch(qid, columnInfo.ColumnName, colValuesHash) {
 			return false, nil
 		}
 	}
@@ -394,29 +401,14 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(qid uint64, m
 		return false, err
 	}
 
-	if !foundMatch && segMeta != nil && colValuesHash != 0 {
-		queryinfo.IncrementBlocksGivingNoResults(qid, cname, colValuesHash, uint64(segMeta.NumBlocks))
+	if !foundMatch && mcsr.SegMeta != nil && colValuesHash != 0 {
+		queryinfo.IncrementBlocksGivingNoResults(qid, cname, colValuesHash, uint64(mcsr.SegMeta.NumBlocks))
 	}
 
 	return foundMatch, nil
 }
 
-func getSegmeta(segKey string) (*structs.SegMeta, error) {
-	segMetas, err := writer.GetSegMetas([]string{segKey})
-	if err != nil {
-		log.Errorf("getSegmeta: failed to get segMeta for segKey %s. Error: %v", segKey, err)
-		return nil, err
-	}
-
-	if len(segMetas) > 1 {
-		return nil, toputils.TeeErrorf("getSegmeta: expected only one segMeta for segKey %s, got %v", segKey, len(segMetas))
-	}
-
-	segMeta, _ := segMetas[segKey]
-	return segMeta, nil
-}
-
-func getColumnValuesHash(segMeta *structs.SegMeta, colName string) uint64 {
+func GetColumnValuesHash(segMeta *structs.SegMeta, colName string) uint64 {
 	const invalidHash = 0
 
 	if segMeta == nil {
@@ -431,7 +423,7 @@ func getColumnValuesHash(segMeta *structs.SegMeta, colName string) uint64 {
 	return columnInfo.DictValuesHash
 }
 
-func someRecordMightMatch(qid uint64, colName string, colValuesHash uint64) bool {
+func SomeRecordMightMatch(qid uint64, colName string, colValuesHash uint64) bool {
 	if colValuesHash == 0 {
 		return true
 	}
