@@ -256,8 +256,10 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 				isTsCol = true
 			}
 
-			cValEnc, err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
-				qid, isTsCol)
+			var cValEnc utils.CValueEnclosure
+
+			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
+				qid, isTsCol, &cValEnc)
 			if err != nil {
 				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
 			} else {
@@ -267,7 +269,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 					if exists {
 						mathOp := aggs.MathOperations[colIndex]
 						fieldToValue := make(map[string]utils.CValueEnclosure)
-						fieldToValue[mathOp.MathCol] = *cValEnc
+						fieldToValue[mathOp.MathCol] = cValEnc
 						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
 						if err != nil {
 							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)

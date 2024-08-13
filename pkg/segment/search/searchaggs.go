@@ -183,6 +183,8 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets []uint64) []byte {
 
 	measureResults := make([]utils.CValueEnclosure, numMFuncs)
+	var retCVal utils.CValueEnclosure
+
 	usedByTimechart := (timeHistogram != nil && timeHistogram.Timechart != nil)
 	hasLimitOption := false
 	groupByColValCnt := make(map[string]int, 0)
@@ -293,14 +295,16 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 
 		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
-			rawVal, err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
-				qid, false)
+			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
+				qid, false, &retCVal)
 			if err != nil {
 				log.Errorf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %+v: %v", colKeyIdx, err)
-				rawVal = &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
+
+				retCVal.Dtype = utils.SS_DT_BACKFILL
+				retCVal.CVal = nil
 			}
 			for _, idx := range indices {
-				measureResults[idx] = *rawVal
+				measureResults[idx] = retCVal
 			}
 		}
 		blockRes.AddMeasureResultsToKey(aggsKeyWorkingBuf[:aggsKeyBufIdx], measureResults,
@@ -787,6 +791,8 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 	bb := bbp.Get()
 	defer bbp.Put(bb)
 
+	var cValEnc utils.CValueEnclosure
+
 	localStats := make(map[string]*structs.SegStats)
 	for blockStatus := range blockChan {
 		isBlkFullyEncosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockStatus.BlockNum].LowTs,
@@ -832,7 +838,8 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
-				val, err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum, recNum, qid, false)
+				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
+					recNum, qid, false, &cValEnc)
 				if err != nil {
 					log.Errorf("qid=%d, segmentStatsWorker failed to extract value for cname %+v. Err: %v", qid, cname, err)
 					continue
@@ -843,17 +850,17 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					hasValuesFunc = false
 				}
 
-				if val.Dtype == utils.SS_DT_STRING {
-					str, err := val.GetString()
+				if cValEnc.Dtype == utils.SS_DT_STRING {
+					str, err := cValEnc.GetString()
 					if err != nil {
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, cname, err)
 						continue
 					}
 					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc)
 				} else {
-					fVal, err := val.GetFloatValue()
+					fVal, err := cValEnc.GetFloatValue()
 					if err != nil {
-						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for type %+v. Err: %v", qid, val.Dtype, err)
+						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for type %+v. Err: %v", qid, cValEnc.Dtype, err)
 						continue
 					}
 					stats.AddSegStatsNums(localStats, cname, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc)

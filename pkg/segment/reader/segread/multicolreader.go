@@ -269,30 +269,29 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 }
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
-func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16, recordNum uint16,
-	qid uint64, isTsCol bool) (*utils.CValueEnclosure, error) {
+func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
-			return &utils.CValueEnclosure{}, err
+			return err
 		}
+		retCVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		retCVal.CVal = ts
 
-		return &utils.CValueEnclosure{
-			Dtype: utils.SS_DT_UNSIGNED_NUM,
-			CVal:  ts,
-		}, nil
+		return nil
 	}
 
 	rawVal, err := mcsr.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, isTsCol)
 	if err != nil {
-		return &utils.CValueEnclosure{
-			Dtype: utils.SS_DT_BACKFILL,
-			CVal:  nil,
-		}, err
+		retCVal.Dtype = utils.SS_DT_BACKFILL
+		retCVal.CVal = nil
+
+		return err
 	}
 
-	cval, _, err := writer.GetCvalFromRec(rawVal, qid)
-	return &cval, err
+	_, err = writer.GetCvalFromRec(rawVal, qid, retCVal)
+	return err
 }
 
 func (mcsr *MultiColSegmentReader) returnBuffers() {

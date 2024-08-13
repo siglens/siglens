@@ -450,7 +450,8 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 	if cwip.deCount < wipCardLimit {
 		for dword, recNumsArr := range cwip.deMap {
 			if toputils.BinarySearchUint16(recNum, recNumsArr) {
-				mcVal, _, err := GetCvalFromRec([]byte(dword)[0:], 0)
+				var mcVal utils.CValueEnclosure
+				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
@@ -462,7 +463,8 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 		return utils.CValueEnclosure{}, fmt.Errorf("could not find recNum: %v", recNum)
 	}
 
-	cVal, endIdx, err := GetCvalFromRec(cwip.cbuf[cIdx[colNum]:], 0) // todo pass qid
+	var cVal utils.CValueEnclosure
+	endIdx, err := GetCvalFromRec(cwip.cbuf[cIdx[colNum]:], 0, &cVal) // todo pass qid
 	if err != nil {
 		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
