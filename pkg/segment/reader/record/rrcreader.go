@@ -213,7 +213,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				return
 			}
 			recs = _recs
-			nodeRes.ColumnsOrder = colsIndexMap
 			for cName := range cols {
 				finalCols[cName] = true
 			}
@@ -225,6 +224,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			recs = make(map[string]map[string]interface{})
 			finalCols = nodeRes.FinalColumns
 		}
+
+		nodeRes.ColumnsOrder = colsIndexMap
 
 		if hasQueryAggergatorBlock || transactionArgsExist {
 
@@ -345,7 +346,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// it's an async query we're running this function with
 				// len(segmap)=1 because we try to process the data as the
 				// searched complete.
-				log.Infof("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
+				nodeRes.StoreGlobalSearchError("GetJsonFromAllRrc: Did not find index for record identifier", log.ErrorLevel)
 				unknownIndex = true
 			}
 			if logfmtRequest {

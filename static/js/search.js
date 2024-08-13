@@ -33,6 +33,7 @@ function doCancel(data) {
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
     $('#progress-div').html(``);
+    $('#record-searched').html(``);
 }
 //eslint-disable-next-line no-unused-vars
 function doLiveTailCancel(_data) {
@@ -45,12 +46,15 @@ function doLiveTailCancel(_data) {
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
         $('#empty-response, #initial-response').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
+        $('.tab-chart-list').show();
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
-            $('#logs-view-controls').show();
+            $('#save-query-div').children().show();
+            $('#views-container').show();
         } else {
-            $('#logs-view-controls').hide();
+            $('#save-query-div').children().hide();
+            $('#views-container').hide();
         }
         $('#agg-result-container').hide();
         $('#data-row-container').hide();
@@ -171,6 +175,8 @@ function doSearch(data) {
                 reject(errorMessages);
             }
             console.timeEnd(timerName);
+            const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
+            $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
         };
 
         socket.addEventListener('error', (event) => {
@@ -691,25 +697,28 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
     $('body').css('cursor', 'default');
 }
 
-function processEmptyQueryResults() {
+function processEmptyQueryResults(message) {
     $('#logs-result-container').hide();
-    $('#custom-chart-tab').hide();
+    $('#custom-chart-tab').show().css({ height: 'auto' });
+    $('.tab-chart-list, #views-container').hide();
     $('#agg-result-container').hide();
     $('#data-row-container').hide();
     $('#corner-popup').hide();
     $('#empty-response').show();
-    $('#logs-view-controls').hide();
+    $('#save-query-div').children().hide();
+    $('#show-record-intro-btn').show();
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
-    el.append('<span>Your query returned no data, adjust your query.</span>');
+    el.append(`<span>${message}</span>`);
 }
+
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value + logsRowData.length;
     if (res.totalMatched.value + logsRowData.length > 500) totalHits = 500;
     if (logsRowData.length == 0 && res.totalMatched.value === 0 && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measure) {
         if (res.groupByCols) {
@@ -720,7 +729,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
         resetDashboard();
         $('#logs-result-container').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
         $('#agg-result-container').show();
         aggsColumnDefs = [];
         segStatsRowData = [];
@@ -751,7 +760,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
-        processEmptyQueryResults();
+        processEmptyQueryResults('Your query returned no data, adjust your query.');
     }
     if (res.measureFunctions && res.measureFunctions.length > 0) {
         measureFunctions = res.measureFunctions;
@@ -770,7 +779,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         }
         resetDashboard();
         $('#logs-result-container').hide();
-        $('#custom-chart-tab').show();
+        $('#custom-chart-tab').show().css({ height: '100%' });
         $('#agg-result-container').show();
         aggsColumnDefs = [];
         segStatsRowData = [];
@@ -827,7 +836,8 @@ function showErrorResponse(errorMsg, res) {
     $('#corner-popup').hide();
     $('#empty-response').show();
     $('#initial-response').hide();
-    $('#logs-view-controls').hide();
+    $('#save-query-div').children().hide();
+    $('#views-container').hide();
     $('#custom-chart-tab').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
@@ -864,12 +874,14 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>`);
         } else {
             $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
 
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
+            $('#record-searched').html(`<div><span> <b>${totalEventsSearched}</b> Records Searched</span> </div>`);
         }
         $('#progress-div').html(`
             <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
@@ -883,24 +895,28 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
         if (qtype == 'aggs-query' || qtype === 'segstats-query') {
             let bucketGrammer = totalHits == 1 ? 'bucket was' : 'buckets were';
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else if (totalHits > 0) {
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else {
             $('#hits-summary').html(`
-            <div><b>Response: ${timeToFirstByte} ms</b></div>
-            <div><span><b> ${totalEventsSearched} </b>Records Searched</span></div>
+            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
+            <div>Records Searched: <span><b> ${totalEventsSearched} </b></span></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         }
         $('#progress-div').html(``);
+        $('#record-searched').html(``);
     }
 }
 

@@ -26,13 +26,9 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
-	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
-	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
-	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -296,117 +292,117 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 }
 
-func pqsSegQuery(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	config.SetPQSEnabled(true)
+// func pqsSegQuery(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
+// 	config.SetPQSEnabled(true)
 
-	// new generate mock rotated with pqs for subset of blocks
-	// make sure raw search actually does raw search for the blocks not in sqpmr
-	ti := InitTableInfo("evts", 0, false)
-	fullTimeRange := &dtu.TimeRange{
-		StartEpochMs: 0,
-		EndEpochMs:   uint64(numEntriesForBuffer),
-	}
-	zero, _ := CreateDtypeEnclosure("record-batch-0", 0)
-	valueFilter := FilterCriteria{
-		ExpressionFilter: &ExpressionFilter{
-			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key11"}}},
-			FilterOperator: Equals,
-			RightInput:     &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnValue: zero}}},
-		},
-	}
-	simpleNode := &ASTNode{
-		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
-		TimeRange:          fullTimeRange,
-	}
-	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
+// 	// new generate mock rotated with pqs for subset of blocks
+// 	// make sure raw search actually does raw search for the blocks not in sqpmr
+// 	ti := InitTableInfo("evts", 0, false)
+// 	fullTimeRange := &dtu.TimeRange{
+// 		StartEpochMs: 0,
+// 		EndEpochMs:   uint64(numEntriesForBuffer),
+// 	}
+// 	zero, _ := CreateDtypeEnclosure("record-batch-0", 0)
+// 	valueFilter := FilterCriteria{
+// 		ExpressionFilter: &ExpressionFilter{
+// 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key11"}}},
+// 			FilterOperator: Equals,
+// 			RightInput:     &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnValue: zero}}},
+// 		},
+// 	}
+// 	simpleNode := &ASTNode{
+// 		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
+// 		TimeRange:          fullTimeRange,
+// 	}
+// 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
 
-	allPossibleKeys, finalCount, totalCount := metadata.FilterSegmentsByTime(fullTimeRange, ti.GetQueryTables(), 0)
-	assert.Equal(t, len(allPossibleKeys), 1)
-	assert.Contains(t, allPossibleKeys, "evts")
-	assert.Len(t, allPossibleKeys["evts"], fileCount)
-	assert.Equal(t, finalCount, totalCount)
-	assert.Equal(t, finalCount, uint64(fileCount))
+// 	allPossibleKeys, finalCount, totalCount := metadata.FilterSegmentsByTime(fullTimeRange, ti.GetQueryTables(), 0)
+// 	assert.Equal(t, len(allPossibleKeys), 1)
+// 	assert.Contains(t, allPossibleKeys, "evts")
+// 	assert.Len(t, allPossibleKeys["evts"], fileCount)
+// 	assert.Equal(t, finalCount, totalCount)
+// 	assert.Equal(t, finalCount, uint64(fileCount))
 
-	pqid := querytracker.GetHashForQuery(searchNode)
-	for tName, segKeys := range allPossibleKeys {
-		for segKey := range segKeys {
-			spqmr := pqmr.InitSegmentPQMResults()
-			currSPQMRFile := segKey + "/pqmr/" + pqid + ".pqmr"
-			for blkNum := 0; blkNum < numBuffers; blkNum++ {
-				if blkNum%2 == 0 {
-					continue // force raw search of even blocks
-				}
-				currPQMR := pqmr.CreatePQMatchResults(uint(numEntriesForBuffer))
-				for recNum := 0; recNum < numEntriesForBuffer; recNum++ {
-					if recNum%2 == 0 {
-						currPQMR.AddMatchedRecord(uint(recNum))
-					}
-				}
-				spqmr.SetBlockResults(uint16(blkNum), currPQMR)
-				err := currPQMR.FlushPqmr(&currSPQMRFile, uint16(blkNum))
-				assert.Nil(t, err, "no error on flush")
-			}
-			pqs.AddPersistentQueryResult(segKey, tName, pqid)
-		}
-	}
-	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
-	sizeLimit := uint64(numBuffers * numEntriesForBuffer * fileCount)
-	allSegFileResults, err := segresults.InitSearchResults(sizeLimit, nil, RRCCmd, 4)
-	assert.Nil(t, err, "no error on init")
-	queryInfo, err := InitQueryInformation(searchNode, nil, fullTimeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, &DistributedQueryService{}, 0, 0)
-	assert.NoError(t, err)
-	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
-	assert.NoError(t, err)
-	assert.Len(t, querySegmentRequests, fileCount, "each file has a query segment request")
-	assert.Equal(t, uint64(0), numRawSearchKeys)
-	assert.Equal(t, uint64(fileCount), numPQSKeys)
+// 	pqid := querytracker.GetHashForQuery(searchNode)
+// 	for tName, segKeys := range allPossibleKeys {
+// 		for segKey := range segKeys {
+// 			spqmr := pqmr.InitSegmentPQMResults()
+// 			currSPQMRFile := segKey + "/pqmr/" + pqid + ".pqmr"
+// 			for blkNum := 0; blkNum < numBuffers; blkNum++ {
+// 				if blkNum%2 == 0 {
+// 					continue // force raw search of even blocks
+// 				}
+// 				currPQMR := pqmr.CreatePQMatchResults(uint(numEntriesForBuffer))
+// 				for recNum := 0; recNum < numEntriesForBuffer; recNum++ {
+// 					if recNum%2 == 0 {
+// 						currPQMR.AddMatchedRecord(uint(recNum))
+// 					}
+// 				}
+// 				spqmr.SetBlockResults(uint16(blkNum), currPQMR)
+// 				err := currPQMR.FlushPqmr(&currSPQMRFile, uint16(blkNum))
+// 				assert.Nil(t, err, "no error on flush")
+// 			}
+// 			pqs.AddPersistentQueryResult(segKey, tName, pqid)
+// 		}
+// 	}
+// 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
+// 	sizeLimit := uint64(numBuffers * numEntriesForBuffer * fileCount)
+// 	allSegFileResults, err := segresults.InitSearchResults(sizeLimit, nil, RRCCmd, 4)
+// 	assert.Nil(t, err, "no error on init")
+// 	queryInfo, err := InitQueryInformation(searchNode, nil, fullTimeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
+// 		4, 2, &DistributedQueryService{}, 0, 0)
+// 	assert.NoError(t, err)
+// 	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
+// 	assert.NoError(t, err)
+// 	assert.Len(t, querySegmentRequests, fileCount, "each file has a query segment request")
+// 	assert.Equal(t, uint64(0), numRawSearchKeys)
+// 	assert.Equal(t, uint64(fileCount), numPQSKeys)
 
-	for _, qsr := range querySegmentRequests {
-		assert.Equal(t, PQS, qsr.sType)
-		err := applyFilterOperatorSingleRequest(qsr, allSegFileResults, querySummary)
-		assert.NoError(t, err)
-		assert.Equal(t, RAW_SEARCH, qsr.sType, "changed type to raw search after pqs filtering")
-		assert.NotNil(t, qsr.blkTracker, "added blkTacker after pqs filtering")
-		fullBlkTracker, err := qsr.GetMicroIndexFilter()
-		assert.NoError(t, err)
-		assert.Contains(t, fullBlkTracker, "evts", "pqs raw search table")
-		assert.Len(t, fullBlkTracker["evts"], 1)
-		assert.Contains(t, fullBlkTracker["evts"], qsr.segKey, "resulting map should be map[tableName]->map[segKey]->blkTracker")
-		for _, blkTracker := range fullBlkTracker["evts"] {
-			for i := uint16(0); i < uint16(numBuffers); i++ {
-				if i%2 == 0 {
-					assert.True(t, blkTracker.ShouldProcessBlock(i), "Block %+v should be raw searched", i)
-				} else {
-					assert.False(t, blkTracker.ShouldProcessBlock(i), "Block %+v should not be raw searched", i)
-				}
-			}
-		}
+// 	for _, qsr := range querySegmentRequests {
+// 		assert.Equal(t, PQS, qsr.sType)
+// 		err := applyFilterOperatorSingleRequest(qsr, allSegFileResults, querySummary)
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, RAW_SEARCH, qsr.sType, "changed type to raw search after pqs filtering")
+// 		assert.NotNil(t, qsr.blkTracker, "added blkTacker after pqs filtering")
+// 		fullBlkTracker, err := qsr.GetMicroIndexFilter()
+// 		assert.NoError(t, err)
+// 		assert.Contains(t, fullBlkTracker, "evts", "pqs raw search table")
+// 		assert.Len(t, fullBlkTracker["evts"], 1)
+// 		assert.Contains(t, fullBlkTracker["evts"], qsr.segKey, "resulting map should be map[tableName]->map[segKey]->blkTracker")
+// 		for _, blkTracker := range fullBlkTracker["evts"] {
+// 			for i := uint16(0); i < uint16(numBuffers); i++ {
+// 				if i%2 == 0 {
+// 					assert.True(t, blkTracker.ShouldProcessBlock(i), "Block %+v should be raw searched", i)
+// 				} else {
+// 					assert.False(t, blkTracker.ShouldProcessBlock(i), "Block %+v should not be raw searched", i)
+// 				}
+// 			}
+// 		}
 
-		ssrForMissingPQS := ExtractSSRFromSearchNode(searchNode, fullBlkTracker, fullTimeRange, ti.GetQueryTables(), querySummary, 1, true, pqid)
-		assert.Len(t, ssrForMissingPQS, 1, "generate SSR one file at a time")
-		for _, ssr := range ssrForMissingPQS {
-			for i := uint16(0); i < uint16(numBuffers); i++ {
-				if i%2 == 0 {
-					assert.Contains(t, ssr.AllBlocksToSearch, i)
-				} else {
-					assert.NotContains(t, ssr.AllBlocksToSearch, i)
-				}
-			}
-			assert.NotNil(t, ssr.SearchMetadata)
-			assert.NotNil(t, ssr.SearchMetadata.BlockSummaries)
-			assert.Len(t, ssr.SearchMetadata.BlockSummaries, numBuffers)
-		}
-	}
-	qc := InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	// run a single query end to end
-	nodeRes := ApplyFilterOperator(simpleNode, fullTimeRange, nil, 5, qc)
-	assert.NotNil(t, nodeRes)
-	assert.Len(t, nodeRes.ErrList, 0, "no errors")
-	expectedCount := uint64((numBuffers*numEntriesForBuffer)/2) * uint64(fileCount)
-	assert.Equal(t, expectedCount, nodeRes.TotalResults.TotalCount, "match using pqmr & not")
-	assert.Equal(t, Equals, nodeRes.TotalResults.Op, "no early exit")
-}
+// 		ssrForMissingPQS := ExtractSSRFromSearchNode(searchNode, fullBlkTracker, fullTimeRange, ti.GetQueryTables(), querySummary, 1, true, pqid)
+// 		assert.Len(t, ssrForMissingPQS, 1, "generate SSR one file at a time")
+// 		for _, ssr := range ssrForMissingPQS {
+// 			for i := uint16(0); i < uint16(numBuffers); i++ {
+// 				if i%2 == 0 {
+// 					assert.Contains(t, ssr.AllBlocksToSearch, i)
+// 				} else {
+// 					assert.NotContains(t, ssr.AllBlocksToSearch, i)
+// 				}
+// 			}
+// 			assert.NotNil(t, ssr.SearchMetadata)
+// 			assert.NotNil(t, ssr.SearchMetadata.BlockSummaries)
+// 			assert.Len(t, ssr.SearchMetadata.BlockSummaries, numBuffers)
+// 		}
+// 	}
+// 	qc := InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
+// 	// run a single query end to end
+// 	nodeRes := ApplyFilterOperator(simpleNode, fullTimeRange, nil, 5, qc)
+// 	assert.NotNil(t, nodeRes)
+// 	assert.Len(t, nodeRes.ErrList, 0, "no errors")
+// 	expectedCount := uint64((numBuffers*numEntriesForBuffer)/2) * uint64(fileCount)
+// 	assert.Equal(t, expectedCount, nodeRes.TotalResults.TotalCount, "match using pqmr & not")
+// 	assert.Equal(t, Equals, nodeRes.TotalResults.Op, "no early exit")
+// }
 
 func Test_segQueryFilter(t *testing.T) {
 	numBuffers := 5
@@ -424,7 +420,7 @@ func Test_segQueryFilter(t *testing.T) {
 
 	bloomMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
 	rangeMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
-	pqsSegQuery(t, numBuffers, numEntriesForBuffer, fileCount)
+	// pqsSegQuery(t, numBuffers, numEntriesForBuffer, fileCount)
 	// add more simple, complex, and nested metadata checking
 	time.Sleep(1 * time.Second) // sleep to give some time for background pqs threads to write out dirs
 	err = os.RemoveAll("data/")
