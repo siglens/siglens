@@ -182,7 +182,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
-		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, searchText), err)
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
 	if len(metricQueryRequest) == 0 {
@@ -258,7 +258,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
-		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, searchText), err)
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
 
@@ -497,7 +497,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	result, err := metricsResult.GetSeriesByLabel()
 	if err != nil {
-		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid: %v, Matches: %+v", qid, matches), err)
+		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid=%v, Matches: %+v", qid, matches), err)
 		return
 	}
 
@@ -686,7 +686,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid=%v", metricName, qid), err)
 		return
 	}
 
@@ -698,7 +698,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	uniqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid=%v", metricName, qid), err)
 		return
 	}
 
@@ -723,12 +723,12 @@ func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map
 
 	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
 	if err != nil {
-		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid: %v, queryForumlaMap: %v, formulas: %v", qid, queryFormulaMap, formulas[0]["formula"]), fmt.Errorf("error building metrics query: %v", err)
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid=%v, queryForumlaMap: %v, formulas: %v", qid, queryFormulaMap, formulas[0]["formula"]), fmt.Errorf("error building metrics query: %v", err)
 	}
 
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(finalSearchText, startTime, endTime, myid)
 	if err != nil {
-		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid: %v, SearchText: %v", qid, finalSearchText), fmt.Errorf("error parsing promql query: %v", err)
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid=%v, SearchText: %v", qid, finalSearchText), fmt.Errorf("error parsing promql query: %v", err)
 	}
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
@@ -756,7 +756,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	start, end, queries, formulas, errorLog, _, err := ParseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
-		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid=%v, Error: %+v", qid, errorLog), err)
 		return
 	}
 
@@ -772,7 +772,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			errorMessages = append(errorMessages, err.Error())
 		}
 		allErrors := strings.Join(errorMessages, "; ")
-		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid=%v", qid), fmt.Errorf(allErrors))
 		return
 	}
 
@@ -785,7 +785,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		mQResponse, err = res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	}
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v, finalSearchText=%v", qid, extraMsgToLog), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid=%v, finalSearchText=%v", qid, extraMsgToLog), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
