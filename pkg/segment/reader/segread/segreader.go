@@ -288,6 +288,27 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 }
 
 func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
+	if sfr.ColName == "state" ||
+		sfr.ColName == "hobby" ||
+		sfr.ColName == "country" ||
+		sfr.ColName == "job_level" ||
+		sfr.ColName == "job_company" ||
+		sfr.ColName == "http_method" ||
+		sfr.ColName == "job_title" ||
+		sfr.ColName == "city" ||
+		sfr.ColName == "weekday" ||
+		sfr.ColName == "http_status" ||
+		sfr.ColName == "gender" ||
+		sfr.ColName == "batch" ||
+		sfr.ColName == "user_color" ||
+		sfr.ColName == "group" ||
+		sfr.ColName == "job_description" ||
+		sfr.ColName == "last_name" {
+
+		return true, nil
+	}
+
+	return false, nil
 
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 		valid, err := sfr.readBlock(blockNum)
