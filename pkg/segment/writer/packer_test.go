@@ -159,7 +159,8 @@ func TestRecordEncodeDecode(t *testing.T) {
 		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
-			val, _, _ := GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29)
+			var val CValueEnclosure
+			_, _ = GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}
@@ -198,54 +199,54 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 				"type": "int64",
 				"value": "1"
 			}
-			
+
 			],
 		"logs": [
-    {
-      "timestamp": 1670445474307949,
-      "fields": [
-        {
-          "key": "event",
-          "type": "string",
-          "value": "Searching for nearby drivers"
-        },
-        {
-          "key": "level",
-          "type": "string",
-          "value": "info"
-        },
-        {
-          "key": "location",
-          "type": "string",
-          "value": "577,322"
-        }
-      ]
-    },
-    {
-      "timestamp": 1670445474370633,
-      "fields": [
-        {
-          "key": "event",
-          "type": "string",
-          "value": "Retrying GetDriver after error"
-        },
-        {
-          "key": "level",
-          "type": "string",
-          "value": "error"
-        },
-        {
-          "key": "retry_no",
-          "type": "int64",
-          "value": "1"
-        },
-        {
-          "key": "error",
-          "type": "string",
-          "value": "redis timeout"
-        }
+	{
+	  "timestamp": 1670445474307949,
+	  "fields": [
+		{
+		  "key": "event",
+		  "type": "string",
+		  "value": "Searching for nearby drivers"
+		},
+		{
+		  "key": "level",
+		  "type": "string",
+		  "value": "info"
+		},
+		{
+		  "key": "location",
+		  "type": "string",
+		  "value": "577,322"
+		}
+	  ]
+	},
+	{
+	  "timestamp": 1670445474370633,
+	  "fields": [
+		{
+		  "key": "event",
+		  "type": "string",
+		  "value": "Retrying GetDriver after error"
+		},
+		{
+		  "key": "level",
+		  "type": "string",
+		  "value": "error"
+		},
+		{
+		  "key": "retry_no",
+		  "type": "int64",
+		  "value": "1"
+		},
+		{
+		  "key": "error",
+		  "type": "string",
+		  "value": "redis timeout"
+		}
 
-      
+
 		]
 	}],
 		}`,
@@ -268,7 +269,8 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
-			val, _, _ := GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29)
+			var val CValueEnclosure
+			_, _ = GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}

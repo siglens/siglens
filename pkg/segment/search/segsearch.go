@@ -30,6 +30,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
@@ -368,6 +369,22 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
+
+	aggsSortColKeyIdx := int(-1)
+	if aggs != nil && aggs.Sort != nil {
+		colKeyIdx, ok := multiReader.GetColKeyIndex(aggs.Sort.ColName)
+		if ok {
+			aggsSortColKeyIdx = colKeyIdx
+		}
+	}
+
+	// start off with 256 bytes and caller will resize it and return back the new resized buf
+	aggsKeyWorkingBuf := make([]byte, 256)
+	var timeRangeBuckets []uint64
+	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
+		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
+	}
+
 	for blockNum := range filterBlockRequestsChan {
 		if req.SearchMetadata == nil || int(blockNum) >= len(req.SearchMetadata.BlockSummaries) {
 			log.Errorf("qid=%d, rawSearchSingleSPQMR unable to extract block summary for block %d, segkey=%v", qid, blockNum, req.SegmentKey)
@@ -414,7 +431,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						continue
 					}
 					if blkResults.ShouldAddMore() {
-						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid)
+						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx)
 						if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
@@ -445,8 +462,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		if aggs != nil && aggs.GroupByRequest != nil {
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
-			addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops),
-				multiReader, blockNum, recIT, blkResults, qid)
+			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
+				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
+				qid, aggsKeyWorkingBuf, timeRangeBuckets)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 
@@ -501,7 +519,7 @@ func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *struct
 }
 
 func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.MultiColSegmentReader, blkNum uint16,
-	recNum uint16, recTs uint64, qid uint64) (float64, bool) {
+	recNum uint16, recTs uint64, qid uint64, aggsSortColKeyIdx int) (float64, bool) {
 
 	var sortVal float64
 	var err error
@@ -516,7 +534,9 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 		return sortVal, invalidAggsCol
 	}
 
-	colVal, err := multiColReader.ExtractValueFromColumnFile(aggs.Sort.ColName, blkNum, recNum, qid)
+	var colVal utils.CValueEnclosure
+	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
+		qid, false, &colVal)
 	if err != nil {
 		invalidAggsCol = true
 		return sortVal, invalidAggsCol

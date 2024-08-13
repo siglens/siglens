@@ -105,7 +105,7 @@ $('#clear-pqs-info').on('click', function () {
             url: '/api/pqs/clear',
             method: 'GET',
             success: function () {
-                $('#ag-grid').empty();
+                $('.pqs-grid').empty();
                 showToast('PQS Info cleared successfully', 'success');
             },
             error: function () {
@@ -122,7 +122,7 @@ $('#clear-pqs-info').on('click', function () {
 
 function getPQSQueries() {
     $.ajax({
-        url: '/api/pqs/',
+        url: '/api/pqs',
         method: 'GET',
         success: function (response) {
             createTable(response);
@@ -140,24 +140,14 @@ function createTable(data) {
         { headerName: 'Count', field: 'count', sortable: true, filter: true },
     ];
 
-    const rowData = [];
-
-    // Add promoted_aggregations
+    const aggregationRowData = [];
     for (const [id, count] of Object.entries(data.promoted_aggregations)) {
-        rowData.push({ category: 'Promoted Aggregations', id: id, count: count });
+        aggregationRowData.push({ category: 'Promoted Aggregations', id: id, count: count });
     }
 
-    // Add promoted_searches
-    for (const [id, count] of Object.entries(data.promoted_searches)) {
-        rowData.push({ category: 'Promoted Searches', id: id, count: count });
-    }
-
-    // Add total_tracked_queries
-    rowData.push({ category: 'Total Tracked Queries', id: '', count: data.total_tracked_queries });
-
-    const gridOptions = {
+    const aggregationGridOptions = {
         columnDefs: columnDefs,
-        rowData: rowData,
+        rowData: aggregationRowData,
         onRowClicked: function (event) {
             if (event.data.id) {
                 fetchDetails(event.data.id);
@@ -173,11 +163,52 @@ function createTable(data) {
         rowHeight: 42,
     };
 
-    $('#ag-grid').empty();
+    const searchRowData = [];
+    for (const [id, count] of Object.entries(data.promoted_searches)) {
+        searchRowData.push({ category: 'Promoted Searches', id: id, count: count });
+    }
 
-    const eGridDiv = document.querySelector('#ag-grid');
+    // Add the total tracked queries
+    const totalTrackedQueriesRow = { category: 'Total Tracked Queries', id: '', count: data.total_tracked_queries, specialRow: true };
+    searchRowData.push(totalTrackedQueriesRow);
+
+    const searchGridOptions = {
+        columnDefs: columnDefs,
+        rowData: searchRowData,
+        postSortRows: function (params) {
+            // Stick the Total Tracked Queries row at the bottom of the table
+            let rowNodes = params.nodes;
+            let specialRowIndex = rowNodes.findIndex((node) => node.data.specialRow);
+            if (specialRowIndex > -1) {
+                let specialRow = rowNodes.splice(specialRowIndex, 1)[0];
+                rowNodes.push(specialRow);
+            }
+        },
+        onRowClicked: function (event) {
+            if (event.data.id) {
+                fetchDetails(event.data.id);
+            }
+        },
+        defaultColDef: {
+            flex: 1,
+            minWidth: 100,
+            resizable: true,
+            cellClass: 'align-center-grid',
+        },
+        headerHeight: 32,
+        rowHeight: 42,
+    };
+
+    $('#ag-grid-promoted-aggregations').empty();
+    $('#ag-grid-promoted-searches').empty();
+
+    const aggregationGridDiv = document.querySelector('#ag-grid-promoted-aggregations');
     //eslint-disable-next-line no-undef
-    new agGrid.Grid(eGridDiv, gridOptions);
+    new agGrid.Grid(aggregationGridDiv, aggregationGridOptions);
+
+    const searchGridDiv = document.querySelector('#ag-grid-promoted-searches');
+    //eslint-disable-next-line no-undef
+    new agGrid.Grid(searchGridDiv, searchGridOptions);
 }
 
 function fetchDetails(pqid) {

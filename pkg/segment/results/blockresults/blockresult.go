@@ -18,7 +18,6 @@
 package blockresults
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"sort"
@@ -371,12 +370,12 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
 
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.UnsafeByteSliceToString(currKey.Bytes())
+	bKey := toputils.UnsafeByteSliceToString(currKey)
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults
@@ -387,7 +386,11 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResul
 		}
 		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
-		b.GroupByAggregation.StringBucketIdx[bKey] = nBuckets
+		// only make a copy if this is the first time we are inserting it
+		// so that the caller may free up the backing space for this currKey/bKey
+		keyCopy := make([]byte, len(bKey))
+		copy(keyCopy, bKey)
+		b.GroupByAggregation.StringBucketIdx[toputils.UnsafeByteSliceToString(keyCopy)] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
