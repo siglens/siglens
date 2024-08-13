@@ -5994,3 +5994,8 @@ input.form-control {
     cursor: pointer;
     margin-bottom: 10px;
 }
+
+.pqs-tables h3{
+    font-weight: 600;
+    font-size: 16px;
+}
