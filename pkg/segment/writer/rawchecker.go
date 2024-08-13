@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -31,7 +32,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error) {
+// Fast is a flag to indicate if we should use the fast path for regex matching
+// If fast is true it assumes that the regexp is already compiled
+func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, regexp *regexp.Regexp, fast bool) (bool, error) {
+	var err error
 
 	if len(match.MatchWords) == 0 {
 		return true, nil
@@ -61,10 +65,12 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == And {
 		var foundQword bool = true
 		if match.MatchType == MATCH_PHRASE {
-			regexp, err := match.GetRegexp()
-			if err != nil {
-				log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
-				return false, err
+			if !fast {
+				regexp, err = match.GetRegexp()
+				if err != nil {
+					log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
+					return false, err
+				}
 			}
 
 			if regexp != nil {
