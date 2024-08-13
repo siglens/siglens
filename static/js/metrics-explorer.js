@@ -2013,7 +2013,7 @@ async function getMetricNames() {
     };
     const res = await $.ajax({
         method: 'post',
-        url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/metric_names',
+        url: 'metrics-explorer/api/v1/metric_names',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
