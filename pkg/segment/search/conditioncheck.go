@@ -204,8 +204,11 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		return found, dictEncColNames, err
 
 	case MatchWordsAllColumns:
+		numSkipped := 0
+		numDictEnc := 0
 		for cname := range cmiPassedCnames {
 			if canSkip(qid, mcr.SegMeta, cname) {
+				numSkipped++
 				continue
 			}
 
@@ -217,6 +220,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			if !isDict {
 				continue
 			}
+			numDictEnc++
 
 			dictEncColNames[cname] = true
 			found, err := mcr.ApplySearchToMatchFilterDictCsg(qid, sq.MatchFilter, bsh, cname)
@@ -227,6 +231,8 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 				mcr.IncrementColumnUsageByName(cname)
 			}
 		}
+
+		log.Errorf("andrew skipped %v of %v columns; %v dict encoded", numSkipped, len(cmiPassedCnames), numDictEnc)
 		return true, dictEncColNames, nil
 
 	case SimpleExpression, RegexExpression:
