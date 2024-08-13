@@ -830,7 +830,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
-    const input=queryElement.find('.metrics');
+    const input = queryElement.find('.metrics');
     adjustInputWidth(input[0]);
     if (currentMetricsValue) {
         queryDetails.metrics = currentMetricsValue;
@@ -868,7 +868,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
                 $(this).blur();
                 adjustInputWidth(this);
-                
             },
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
@@ -2677,6 +2676,6 @@ function adjustInputWidth(input) {
     const minWidth = 230;
     const charWidth = 8;
     const padding = 5;
-    const width = Math.max(minWidth, (input.value.length * charWidth) + padding);
+    const width = Math.max(minWidth, input.value.length * charWidth + padding);
     input.style.width = width + 'px';
 }
