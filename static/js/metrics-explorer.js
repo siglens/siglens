@@ -266,7 +266,6 @@ $('#add-formula').on('click', function () {
     if (isAlertScreen) {
         addAlertsFormulaElement();
     } else {
-        zz;
         addMetricsFormulaElement();
     }
 });
