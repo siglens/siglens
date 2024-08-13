@@ -2707,11 +2707,12 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     left: auto;
     right: 10px;
     position: absolute !important;
+    z-index: 1;
 }
 
 #filter-input{
     padding-left: 1rem;
-    padding-right: 3rem;
+    padding-right: 3.2rem;
 }
 
 .tooltip{
