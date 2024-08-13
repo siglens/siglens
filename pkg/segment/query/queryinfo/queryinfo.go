@@ -25,8 +25,9 @@ import (
 )
 
 type queryInfo struct {
-	lock                     sync.RWMutex
-	dictColsToNoResultHashes map[string]map[uint64]struct{}
+	lock                                       sync.RWMutex
+	dictColsToNoResultHashes                   map[string]map[uint64]struct{}
+	segmentDictColsToNoResultHashesBlocksCount map[string]map[uint64]uint64
 }
 
 var qidToQueryInfo = make(map[uint64]*queryInfo)
@@ -37,7 +38,8 @@ func AddQueryInfo(qid uint64) {
 	defer mapLock.Unlock()
 
 	qidToQueryInfo[qid] = &queryInfo{
-		dictColsToNoResultHashes: make(map[string]map[uint64]struct{}),
+		dictColsToNoResultHashes:                   make(map[string]map[uint64]struct{}),
+		segmentDictColsToNoResultHashesBlocksCount: make(map[string]map[uint64]uint64),
 	}
 }
 
@@ -86,4 +88,35 @@ func GetDictValuesHashGivingNoResults(qid uint64, colName string) (map[uint64]st
 	}
 
 	return queryInfo.dictColsToNoResultHashes[colName], nil
+}
+
+func IncrementBlocksGivingNoResults(qid uint64, colName string, hash uint64, threshold uint64) {
+	queryInfo := getQueryInfo(qid)
+	if queryInfo == nil {
+		log.Errorf("IncrementBlocksGivingNoResults: qid %+v does not exist!", qid)
+		return
+	}
+
+	queryInfo.lock.Lock()
+	defer queryInfo.lock.Unlock()
+
+	if _, ok := queryInfo.segmentDictColsToNoResultHashesBlocksCount[colName]; !ok {
+		queryInfo.segmentDictColsToNoResultHashesBlocksCount[colName] = make(map[uint64]uint64)
+	}
+
+	blockCount, ok := queryInfo.segmentDictColsToNoResultHashesBlocksCount[colName][hash]
+	if !ok {
+		blockCount = 0
+	}
+
+	blockCount += 1
+	queryInfo.segmentDictColsToNoResultHashesBlocksCount[colName][hash] = blockCount
+
+	if blockCount >= threshold {
+		if _, ok := queryInfo.dictColsToNoResultHashes[colName]; !ok {
+			queryInfo.dictColsToNoResultHashes[colName] = make(map[uint64]struct{})
+		}
+
+		queryInfo.dictColsToNoResultHashes[colName][hash] = struct{}{}
+	}
 }

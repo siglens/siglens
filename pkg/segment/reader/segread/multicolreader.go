@@ -372,39 +372,66 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(qid uint64, m
 		return false, errors.New("could not find sfr for cname")
 	}
 
+	segMeta, err := getSegmeta(mcsr.segKey)
+	if err != nil {
+		log.Errorf("qid=%d, mcsr.ApplySearchToMatchFilterDictCsg: failed to get segMeta for segKey %s; err=%v",
+			qid, mcsr.segKey, err)
+	}
+
+	colValuesHash := getColumnValuesHash(segMeta, cname)
+
 	// Check if this column can be skipped because nothing will match.
 	columnInfo, ok := mcsr.allColInfoReverseIndex[cname]
 	if ok && columnInfo != nil {
-		if !someRecordMightMatch(qid, columnInfo.ColumnName, mcsr.segKey) {
+		if !someRecordMightMatch(qid, columnInfo.ColumnName, colValuesHash) {
 			return false, nil
 		}
 	}
 
-	return mcsr.allFileReaders[keyIndex].ApplySearchToMatchFilterDictCsg(match, bsh)
+	foundMatch, err := mcsr.allFileReaders[keyIndex].ApplySearchToMatchFilterDictCsg(match, bsh)
+	if err != nil {
+		log.Errorf("qid=%d, mcsr.ApplySearchToMatchFilterDictCsg: failed to search column %s; err=%v", qid, cname, err)
+		return false, err
+	}
+
+	if !foundMatch && segMeta != nil {
+		queryinfo.IncrementBlocksGivingNoResults(qid, cname, colValuesHash, uint64(segMeta.NumBlocks))
+	}
+
+	return foundMatch, nil
 }
 
-func someRecordMightMatch(qid uint64, colName string, segKey string) bool {
+func getSegmeta(segKey string) (*structs.SegMeta, error) {
 	segMetas, err := writer.GetSegMetas([]string{segKey})
 	if err != nil {
-		log.Errorf("someRecordMightMatch: failed to get segMetas for segKey %s. Error: %v", segKey, err)
-		return true
+		log.Errorf("getSegmeta: failed to get segMeta for segKey %s. Error: %v", segKey, err)
+		return nil, err
 	}
 
 	if len(segMetas) > 1 {
-		log.Errorf("someRecordMightMatch: expected only one segMeta for segKey %s, got %v", segKey, segMetas)
-		return true
+		return nil, toputils.TeeErrorf("getSegmeta: expected only one segMeta for segKey %s, got %v", segKey, len(segMetas))
 	}
 
-	var colValuesHash uint64
-	for _, segMeta := range segMetas {
-		columnInfo, ok := segMeta.ColumnNames[colName]
-		if !ok || columnInfo == nil {
-			return true
-		}
+	segMeta, _ := segMetas[segKey]
+	return segMeta, nil
+}
 
-		colValuesHash = columnInfo.DictValuesHash
+func getColumnValuesHash(segMeta *structs.SegMeta, colName string) uint64 {
+	const invalidHash = 0
+
+	if segMeta == nil {
+		return invalidHash
 	}
 
+	columnInfo, ok := segMeta.ColumnNames[colName]
+	if !ok || columnInfo == nil {
+		return invalidHash
+	}
+
+	return columnInfo.DictValuesHash
+}
+
+func someRecordMightMatch(qid uint64, colName string, colValuesHash uint64) bool {
 	if colValuesHash == 0 {
 		return true
 	}
