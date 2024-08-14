@@ -207,7 +207,28 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+function updateChartColorsBasedOnTheme() {
+    const { gridLineColor, tickColor } = getGraphGridColors();
 
+    if (mergedGraph) {
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        mergedGraph.update();
+    }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+
+}
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
