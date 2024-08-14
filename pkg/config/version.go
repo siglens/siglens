@@ -22,3 +22,4 @@
 package config
 
 const SigLensVersion = "0.2.28.1"
+
