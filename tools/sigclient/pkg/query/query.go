@@ -541,17 +541,6 @@ func runContinuousQueries(client *http.Client, requestStr string, bearerToken st
 	}
 }
 
-func createString(value []interface{}) string {
-	var str string
-	for i, v := range value {
-		str += fmt.Sprintf("%v", v)
-		if i != len(value)-1 {
-			str += ","
-		}
-	}
-	return str
-}
-
 func verifyResults(value interface{}, relation, expectedValue string, query string) bool {
 	var ok bool
 	var err error
@@ -568,7 +557,12 @@ func verifyResults(value interface{}, relation, expectedValue string, query stri
 			ok, err = utils.VerifyInequalityForStr(value, relation, expectedValue)
 		}
 	case []interface{}:
-		strValue := createString(value)
+		valueStrings := make([]string, 0, len(value))
+		for _, item := range value {
+			valueStrings = append(valueStrings, fmt.Sprintf("%v", item))
+		}
+		strValue := strings.Join(valueStrings, ",")
+
 		ok, err = utils.VerifyInequalityForStr(strValue, relation, expectedValue)
 	default:
 		err = fmt.Errorf("unexpected type: %T for value: %v", value, value)
