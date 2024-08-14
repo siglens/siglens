@@ -778,7 +778,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 	gcols, inMesCols := querytracker.GetTopPersistentAggs(segstore.VirtualTableName)
 	sortedGrpCols := make([]string, 0)
 	gcMap := make(map[string]uint32) // use it to sort based on cardinality
-	for _, cname := range gcols {
+	for cname := range gcols {
 
 		// verify if cname exist in wip
 		_, ok := segstore.wipBlock.colWips[cname]
