@@ -830,7 +830,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
-
+    const input = queryElement.find('.metrics');
+    adjustInputWidth(input[0]);
     if (currentMetricsValue) {
         queryDetails.metrics = currentMetricsValue;
 
@@ -866,6 +867,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
                 $(this).blur();
+                adjustInputWidth(this);
             },
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
@@ -886,6 +888,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
             }
+            adjustInputWidth(this);
         })
         .on('keydown', function (event) {
             if (event.keyCode === 27) {
@@ -899,6 +902,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                     queryDetails.metrics = selectedValue;
                 }
                 $(this).blur();
+                adjustInputWidth(this);
             }
         })
         .on('change', function () {
@@ -909,6 +913,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryDetails.metrics = selectedValue;
             }
             $(this).blur();
+            adjustInputWidth(this);
         });
 
     // Everywhere input (tag:value)
@@ -2667,4 +2672,11 @@ function generateEmptyChartLabels(timeUnit, startTime, endTime) {
     }
 
     return labels;
+}
+function adjustInputWidth(input) {
+    const minWidth = 230;
+    const charWidth = 8;
+    const padding = 5;
+    const width = Math.max(minWidth, input.value.length * charWidth + padding);
+    input.style.width = width + 'px';
 }

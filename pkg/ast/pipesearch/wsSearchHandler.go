@@ -139,6 +139,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
+	qc.RawQuery = searchText
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query, err: %v", qid, err)
@@ -171,6 +172,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			}
 			if !ok {
 				log.Errorf("qid=%v, ProcessPipeSearchWebsocket: Got non ok, state: %v", qid, qscd.StateName)
+				query.LogGlobalSearchErrors(qid)
 				return
 			}
 		case readMsg := <-websocketR:
@@ -246,9 +248,10 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
 	aggs *structs.QueryAggregators) uint64 {
 	searchPercent := qscd.PercentComplete
-	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
+
+	totalEventsSearched, totalPossibleEvents, err := query.GetTotalSearchedAndPossibleEventsForQid(qid)
 	if err != nil {
-		log.Errorf("qid=%d, processQueryUpdate: failed to get total records searched: %+v", qid, err)
+		log.Errorf("qid=%d, processQueryUpdate: failed to get total searched and possible records: %+v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
@@ -266,7 +269,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		return 0
 	}
 
-	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs)
+	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
@@ -348,13 +351,14 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators) (*PipeSearchWSUpdateResponse, uint64, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*PipeSearchWSUpdateResponse, uint64, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
 		Completion:               searchPercent,
 		State:                    query.QUERY_UPDATE.String(),
 		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		TotalPossibleEvents:      humanize.Comma(int64(totalPossibleEvents)),
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}

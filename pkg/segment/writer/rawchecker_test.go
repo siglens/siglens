@@ -79,7 +79,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 
 		var found bool
 		for _, colWip := range colWips {
-			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf[:])
+			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf[:], nil)
 			assert.Nil(t, err)
 			found = result
 			if found {
@@ -96,7 +96,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:])
+		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for val2 in column-a worked")
@@ -107,7 +107,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:])
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for val2 in column-d worked (should not be found)")
@@ -118,7 +118,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:])
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for two values in column-a worked (should not be found)")
@@ -129,7 +129,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:])
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for multiple values in column-a worked (all should be found)")

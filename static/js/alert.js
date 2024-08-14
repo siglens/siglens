@@ -58,12 +58,15 @@ const propertiesGridOptions = {
         { headerName: 'Config Variable Value', field: 'value', sortable: true, filter: true, cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, autoHeight: true },
     ],
     defaultColDef: {
+        cellClass: 'align-center-grid',
         resizable: true,
         flex: 1,
         minWidth: 150,
     },
     rowData: [],
     domLayout: 'autoHeight',
+    headerHeight: 32,
+    rowHeight: 42,
 };
 
 const historyGridOptions = {
@@ -73,12 +76,14 @@ const historyGridOptions = {
         { headerName: 'State', field: 'state', sortable: true, filter: true },
     ],
     defaultColDef: {
+        cellClass: 'align-center-grid',
         resizable: true,
         flex: 1,
         minWidth: 150,
     },
     rowData: [],
-    domLayout: 'autoHeight',
+    headerHeight: 32,
+    rowHeight: 42,
 };
 
 let originalIndexValues;
@@ -238,7 +243,6 @@ async function getAlertId() {
             originalIndexValues = indexes.map((item) => item.index);
             indexValues = [...originalIndexValues];
         }
-        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -352,6 +356,7 @@ if (propertiesBtn) {
         propertiesBtn.classList.add('active');
         historyBtn.classList.remove('active');
         fetchAlertProperties();
+        $('#alert-details .btn-container').show();
     });
 }
 
@@ -363,6 +368,7 @@ if (historyBtn) {
         historyBtn.classList.add('active');
         propertiesBtn.classList.remove('active');
         displayHistoryData();
+        $('#alert-details .btn-container').hide();
     });
 }
 
@@ -500,6 +506,7 @@ async function displayAlert(res) {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
+        initializeFilterInputEvents();
         let data = {
             state: wsState,
             searchText: queryText,

@@ -72,8 +72,6 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	fName := segKey + ".strm"
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("qid=%d, InitNewAgileTreeReader: failed to open STR %s for Error: %v.",
-			qid, fName, err)
 		return nil, err
 	}
 

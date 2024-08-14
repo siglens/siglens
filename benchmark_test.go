@@ -23,19 +23,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment"
+	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastrand"
 
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
@@ -62,75 +66,30 @@ func getMyIds() []uint64 {
 	return myids
 }
 
+var upgrader = websocket.FastHTTPUpgrader{
+	CheckOrigin:     func(r *fasthttp.RequestCtx) bool { return true },
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+}
+
+func websocketHandler(ctx *fasthttp.RequestCtx) {
+	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		pipesearch.ProcessPipeSearchWebsocket(conn, 0, ctx)
+	})
+
+	if err != nil {
+		log.Printf("Upgrade error: %v", err)
+		return
+	}
+}
+
+func startServer() {
+	_ = fasthttp.ListenAndServe(":8080", websocketHandler)
+}
+
 func Benchmark_EndToEnd(b *testing.B) {
-	config.InitializeTestingConfig(b.TempDir())
-	_ = localstorage.InitLocalStorage()
-	currTime := utils.GetCurrentTimeMillis()
-	startTime := uint64(0)
-	tRange := &dtu.TimeRange{
-		StartEpochMs: startTime,
-		EndEpochMs:   currTime,
-	}
-	sizeLimit := uint64(100)
-
-	smbasedir := "/Users/ssubramanian/Desktop/SigLens/siglens/data/ingestnodes/Sris-MBP.lan/smr/"
-	config.SetSmrBaseDirForTestOnly(smbasedir)
-
-	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
-	if err != nil {
-		b.Fatalf("Failed to initialize query node: %v", err)
-	}
-	colVal, err := utils.CreateDtypeEnclosure("batch-101", 1)
-	// colVal, err := utils.CreateDtypeEnclosure("*", 1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	valueFilter := structs.FilterCriteria{
-		ExpressionFilter: &structs.ExpressionFilter{
-			LeftInput:      &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: utils.Equals,
-			RightInput:     &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnValue: colVal}}},
-		},
-	}
-	queryNode := &structs.ASTNode{
-		AndFilterCondition: &structs.Condition{FilterCriteria: []*structs.FilterCriteria{&valueFilter}},
-		TimeRange:          tRange,
-	}
-	if err != nil {
-		log.Errorf("Benchmark_LoadMicroIndices: failed to load microindex,err=%v", err)
-	}
-	count := 10
-	allTimes := make([]time.Duration, count)
-	timeSum := float64(0)
-	twoMins := 2 * 60 * 1000
-
-	simpleValueHistogram := &structs.QueryAggregators{
-		TimeHistogram: &structs.TimeBucket{
-			StartTime:      tRange.StartEpochMs,
-			EndTime:        tRange.EndEpochMs,
-			IntervalMillis: uint64(twoMins),
-			AggName:        "testValue",
-		},
-		Sort: &structs.SortRequest{
-			ColName:   "timestamp",
-			Ascending: false,
-		},
-	}
-	qc := structs.InitQueryContext("ind-v1", sizeLimit, 0, 0, false)
-	b.ResetTimer()
-	for i := 0; i < count; i++ {
-		sTime := time.Now()
-		res := segment.ExecuteQuery(queryNode, simpleValueHistogram, uint64(i), qc)
-		log.Infof("query %v result has %v total matches", i, res.TotalResults)
-		esquery.GetQueryResponseJson(res, "ind-v1", sTime, sizeLimit, uint64(i), simpleValueHistogram)
-		elapTime := time.Since(sTime)
-		allTimes[i] = elapTime
-		if i != 0 {
-			timeSum += elapTime.Seconds()
-		}
-	}
-	log.Infof("Finished benchmark: allTimes: %v", allTimes)
-	log.Infof("Average time: %v", timeSum/float64(count-1))
 
 	/*
 	   go test -run=Bench -bench=Benchmark_EndToEnd  -cpuprofile cpuprofile.out -o rawsearch_cpu
@@ -141,6 +100,120 @@ func Benchmark_EndToEnd(b *testing.B) {
 	   go tool pprof ./rawsearch_mem memprofile.out
 
 	*/
+
+	dataPath := "data"
+	config.InitializeTestingConfig(dataPath + "/")
+
+	hostId := "sigsingle.LMRYyW5hy8mZMG642Lxo93"
+	config.SetHostIDForTestOnly(hostId)
+
+	smbasedir := fmt.Sprintf("%v/ingestnodes/%v/", dataPath, hostId)
+	config.SetSmrBaseDirForTestOnly(smbasedir)
+
+	limit.InitMemoryLimiter()
+
+	err := vtable.InitVTable()
+	if err != nil {
+		b.Fatalf("Failed to initialize vtable: %v", err)
+	}
+
+	_ = localstorage.InitLocalStorage()
+
+	smFile := writer.GetLocalSegmetaFName()
+	err = query.PopulateSegmentMetadataForTheFile_TestOnly(smFile)
+	if err != nil {
+		b.Fatalf("Failed to load segment metadata: %v", err)
+	}
+
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	if err != nil {
+		b.Fatalf("Failed to initialize query node: %v", err)
+	}
+
+	websocketURL := "ws://localhost:8080/ws"
+	queryLanguage := "Splunk QL"
+	start := "now-1h"
+	end := "now"
+	index := "*"
+
+	logQueries := []string{
+		"* | stats count",
+		"* | stats sum(http_status) by app_name",
+		"* | head 131239 | stats count",
+	}
+
+	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
+	go startServer()
+
+	// Wait for the server to start
+	time.Sleep(1 * time.Second)
+
+	count := 10
+	allTimes := make(map[int][]time.Duration, len(logQueries)) // map of query index to time taken at each iteration
+	timeSum := float64(0)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < count; i++ {
+		for ind, query := range logQueries {
+			bqid := ind + 1
+			log.Infof("Benchmark_EndToEnd: bqid=%v, Query=%v", bqid, query)
+
+			bqidDurations, ok := allTimes[bqid]
+			if !ok {
+				bqidDurations = make([]time.Duration, count)
+				allTimes[bqid] = bqidDurations
+			}
+
+			sTime := time.Now()
+
+			queryMessage := map[string]interface{}{
+				"state":         "query",
+				"startEpoch":    start,
+				"endEpoch":      end,
+				"indexName":     index,
+				"queryLanguage": queryLanguage,
+				"searchText":    query,
+			}
+
+			// Connect to the WebSocket server
+			conn, _, err := websocket.DefaultDialer.Dial(websocketURL, nil)
+			if err != nil {
+				b.Fatalf("Failed to connect to WebSocket server: %v", err)
+			}
+
+			// Send the query message
+			err = conn.WriteJSON(queryMessage)
+			if err != nil {
+				b.Fatalf("Failed to write JSON: %v", err)
+			}
+
+			readEvent := make(map[string]interface{})
+			for {
+				err = conn.ReadJSON(&readEvent)
+				if err != nil {
+					log.Errorf("Benchmark_EndToEnd: query=%v, Error reading response from server for query. Error=%v", query, err)
+					break
+				}
+				if state, ok := readEvent["state"]; ok && state == "COMPLETE" {
+					break
+				}
+			}
+
+			elapsedTime := time.Since(sTime)
+			bqidDurations[i] = elapsedTime
+			timeSum += elapsedTime.Seconds()
+
+			log.Infof("Benchmark_EndToEnd: iteration=%v, bqid=%v, Finished reading response from server for query. total_rrc_count=%v, total_events_searched=%v", i+1, bqid, readEvent["total_rrc_count"], readEvent["total_events_searched"])
+
+			// Close the connection
+			err = conn.Close()
+			if err != nil {
+				b.Fatalf("Failed to close connection: %v", err)
+			}
+		}
+	}
+	log.Infof("Finished benchmark: allTimes: %v", allTimes)
+	log.Infof("Average time: %v", timeSum/float64(len(logQueries)*count))
 
 }
 
