@@ -1041,7 +1041,6 @@ func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,
 	// init agileTreeader
 	str, err := segread.InitNewAgileTreeReader(segKey, qid)
 	if err != nil {
-		log.Errorf("qid=%v, CanDoStarTree: failed to init agileTreereader, err: %v", qid, err)
 		return false, nil
 	}
 

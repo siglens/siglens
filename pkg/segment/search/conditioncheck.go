@@ -19,6 +19,7 @@ package search
 
 import (
 	"errors"
+	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -30,8 +31,8 @@ import (
 // TODO: support for complex expressions
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
-	searchReq *SegmentSearchRequest,
-	cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int) (bool, error) {
+	searchReq *SegmentSearchRequest, cmiPassedNonDictColKeyIndices map[int]struct{},
+	queryInfoColKeyIndex int, compiledRegex *regexp.Regexp) (bool, error) {
 
 	switch query.SearchType {
 	case MatchAll:
@@ -43,7 +44,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		if err != nil {
 			return false, err
 		}
-		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal)
+		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 	case MatchWordsAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
@@ -56,7 +57,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal)
+			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
@@ -76,7 +77,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case RegexExpression:
 		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
 		if err != nil {
-			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid: %v, err: %v", query.QueryInfo.ColName, qid, err)
+			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid=%v, err: %v", query.QueryInfo.ColName, qid, err)
 			return false, nil
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)

@@ -104,7 +104,7 @@ function showError(errorMsg) {
         $('#save-query-div').children().hide();
         $('#views-container').show();
     }
-    $('#custom-chart-tab').show().css({'height': '100%'});
+    $('#custom-chart-tab').show().css({ height: '100%' });
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
@@ -142,7 +142,7 @@ function hideError() {
     $('#corner-popup').hide();
 }
 
-function hideCornerPopupError(){
+function hideCornerPopupError() {
     let message = $('.corner-text').text();
     $('#corner-popup').hide();
     $('#progress-div').html(``);
@@ -552,7 +552,7 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
             });
     }
 }
- 
+
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
@@ -950,48 +950,87 @@ function initializeFilterInputEvents() {
         }
     });
 
-    function autoResizeTextarea() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
+    const LINE_HEIGHT = 21;
+    const MAX_VISIBLE_LINES = 5;
+    const PADDING = 8;
+
+    function createTextAreaClone($textarea) {
+        const $clone = $('<div id="textarea-clone"></div>')
+            .css({
+                position: 'absolute',
+                top: -9999,
+                left: -9999,
+                width: $textarea.width(),
+                height: 'auto',
+                wordWrap: 'break-word',
+                whiteSpace: 'pre-wrap',
+                visibility: 'hidden',
+            })
+            .appendTo('body');
+
+        const stylesToCopy = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing', 'padding'];
+        stylesToCopy.forEach((style) => {
+            $clone.css(style, $textarea.css(style));
+        });
+
+        return $clone;
     }
 
-    $('#filter-input').on('focus', function () {
-        $(this).addClass('expanded');
-        autoResizeTextarea.call(this);
-    });
+    function updateTextarea() {
+        const $textarea = $('#filter-input');
+        const $clone = $('#textarea-clone');
+        let $ellipsis = $('#textarea-ellipsis');
 
-    $('#filter-input').on('blur', function () {
-        $(this).removeClass('expanded');
-        this.style.height = '32px';
-    });
+        if (!$clone.length) {
+            createTextAreaClone($textarea);
+        }
 
-    $('#filter-input').on('input', autoResizeTextarea);
+        if (!$ellipsis.length) {
+            $ellipsis = $('<div id="textarea-ellipsis">...</div>');
+            $textarea.parent().append($ellipsis);
+        }
+
+        $('#textarea-clone')
+            .width($textarea.width())
+            .text($textarea.val() + ' ');
+
+        const contentHeight = $('#textarea-clone').height();
+        const lines = Math.ceil((contentHeight - PADDING) / LINE_HEIGHT);
+        const isFocused = $textarea.is(':focus');
+
+        let newHeight;
+        if (isFocused || lines <= MAX_VISIBLE_LINES) {
+            newHeight = contentHeight + PADDING;
+        } else {
+            newHeight = MAX_VISIBLE_LINES * LINE_HEIGHT + PADDING;
+        }
+
+        $textarea.css('height', newHeight + 'px');
+
+        // Show/hide ellipsis (...)
+        if (lines > MAX_VISIBLE_LINES && !isFocused) {
+            $ellipsis.show();
+        } else {
+            $ellipsis.hide();
+        }
+    }
+
+    $('#filter-input').on('focus blur input', updateTextarea);
+    $(window).on('resize', updateTextarea);
+
+    // Initial setup
+    updateTextarea();
+
     $('#filter-input').on('input', function () {
         toggleClearButtonVisibility();
     });
+
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
         toggleClearButtonVisibility();
     });
+
     $('#filter-input').keydown(function (e) {
-        if (e.key === '|') {
-            let input = $(this);
-            let value = input.val();
-            let position = this.selectionStart;
-            input.val(value.substring(0, position) + '\n' + value.substring(position));
-            this.selectionStart = this.selectionEnd = position + 2;
-        }
-        toggleClearButtonVisibility();
-    });
-    document.getElementById('filter-input').addEventListener('paste', function (event) {
-        event.preventDefault();
-        let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea.call(this);
         toggleClearButtonVisibility();
     });
 }
