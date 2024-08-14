@@ -215,12 +215,14 @@ type colUsage struct {
 }
 
 // returns a sorted slice of most used group by columns, and all measure columns.
-func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
+func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 	groupByColsUsage := make(map[string]int)
 	measureInfoUsage := make(map[string]bool)
 
+	finalGrpCols := make(map[string]struct{})
+
 	if !config.IsPQSEnabled() {
-		return []string{}, measureInfoUsage
+		return finalGrpCols, measureInfoUsage
 	}
 	overrideGroupByCols := make([]string, 0)
 	persistentInfoLock.Lock()
@@ -274,21 +276,27 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].usage > ss[j].usage
 	})
-	var finalCols []string
-	if len(overrideGroupByCols) >= MAX_NUM_GROUPBY_COLS {
-		finalCols = make([]string, MAX_NUM_GROUPBY_COLS)
-		finalCols = append(finalCols, overrideGroupByCols[:MAX_NUM_GROUPBY_COLS]...)
-	} else {
-		finalCols = append(finalCols, overrideGroupByCols[:]...)
-		for _, s := range ss {
-			if len(finalCols) <= MAX_NUM_GROUPBY_COLS {
-				finalCols = append(finalCols, s.col)
-			} else {
-				break
-			}
+
+	// First pick from the override upto MAX_NUM_GROUPBY_COLS
+	i := 0
+	for _, cname := range overrideGroupByCols {
+		finalGrpCols[cname] = struct{}{}
+		i++
+		if i > MAX_NUM_GROUPBY_COLS {
+			break
 		}
 	}
-	return finalCols, measureInfoUsage
+
+	// now pick based on usage
+	for _, s := range ss {
+		if len(finalGrpCols) <= MAX_NUM_GROUPBY_COLS {
+			finalGrpCols[s.col] = struct{}{}
+		} else {
+			break
+		}
+	}
+
+	return finalGrpCols, measureInfoUsage
 }
 
 func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators, searchText string) {
