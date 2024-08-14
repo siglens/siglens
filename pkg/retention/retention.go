@@ -68,7 +68,7 @@ func internalRetentionCleaner() {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
 			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
-			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 4000, deletionWarningCounter)
+			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 60000, deletionWarningCounter)
 		}
 		if deletionWarningCounter <= MAXIMUM_WARNINGS_COUNT {
 			deletionWarningCounter++
