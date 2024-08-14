@@ -2295,7 +2295,6 @@ function updateChartColorsBasedOnTheme() {
             lineChart.update();
         }
     }
-
 }
 
 function getGraphGridColors() {

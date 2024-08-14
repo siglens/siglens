@@ -228,7 +228,6 @@ function updateChartColorsBasedOnTheme() {
             lineChart.update();
         }
     }
-
 }
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
