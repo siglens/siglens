@@ -899,10 +899,18 @@ function findColumnIndex(columnsMap, columnName) {
 }
 //eslint-disable-next-line no-unused-vars
 function setIndexDisplayValue(selectedSearchIndex) {
+    let isAlertScreen=false;
+    var currentPage = window.location.pathname;
+    if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
+        isAlertScreen = true;
+    }
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
         $('.index-container .selected-index').remove();
         const selectedIndexes = selectedSearchIndex.split(',');
+        if(isAlertScreen){
+            indexValues=selectedIndexes;
+        }
         selectedIndexes.forEach(function (index) {
             addSelectedIndex(index);
             // Remove the selectedSearchIndex from indexValues

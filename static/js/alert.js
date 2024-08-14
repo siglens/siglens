@@ -98,7 +98,8 @@ $(document).ready(async function () {
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
     const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(urlParams.get('alertRule_name'));
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+    data = getInitialSearchFilter(true, true);
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);

@@ -63,12 +63,13 @@ $(document).ready(function () {
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
             startEpoch: data.startEpoch,
+            indexName:data.indexName,
             endEpoch: data.endEpoch,
             alertRule_name: encodedRuleName,
         };
 
         var queryString = $.param(queryParams);
-        window.open('../alert.html' + queryString, '_blank');
+        window.open('../alert.html?' + queryString, '_blank');
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
