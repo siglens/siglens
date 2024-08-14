@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	lookupsDir     = "data/lookups"
-	allowedExtCSV  = ".csv"
-	allowedExtGzip = ".gz"
+	lookupsDir      = "lookups"
+	allowedExtCSV   = ".csv"
+	allowedExtCSVGZ = ".csv.gz"
 )
 
 func UploadLookupFile(ctx *fasthttp.RequestCtx) {
@@ -51,15 +51,24 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ext := filepath.Ext(fileHeader.Filename)
-	if ext != allowedExtCSV && ext != allowedExtGzip {
-		log.Errorf("UploadLookupFile: Invalid file type: %s", ext)
-		ctx.Error(fmt.Sprintf("Invalid file type. Only %s and %s%s files are allowed", allowedExtCSV, allowedExtCSV, allowedExtGzip), fasthttp.StatusBadRequest)
+	// Check for .csv and .csv.gz extensions
+	lowerFileName := strings.ToLower(fileHeader.Filename)
+	isCSV := strings.HasSuffix(lowerFileName, allowedExtCSV)
+	isCSVGZ := strings.HasSuffix(lowerFileName, allowedExtCSVGZ)
+
+	if !isCSV && !isCSVGZ {
+		log.Errorf("UploadLookupFile: Invalid file type: %s", filepath.Ext(fileHeader.Filename))
+		ctx.Error(fmt.Sprintf("Invalid file type. Only %s and %s files are allowed", allowedExtCSV, allowedExtCSVGZ), fasthttp.StatusBadRequest)
 		return
 	}
 
-	if !strings.HasSuffix(fileName, ext) {
-		fileName += ext
+	if !strings.HasSuffix(strings.ToLower(fileName), allowedExtCSV) &&
+		!strings.HasSuffix(strings.ToLower(fileName), allowedExtCSVGZ) {
+		if isCSVGZ {
+			fileName += allowedExtCSVGZ
+		} else {
+			fileName += allowedExtCSV
+		}
 	}
 
 	fullLookupsDir := filepath.Join(config.GetDataPath(), lookupsDir)
