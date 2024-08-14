@@ -176,7 +176,7 @@ func getVectorArithmeticResponse(queryResult *structs.NodeResult) map[string]int
 //		  }
 //		]
 //	}
-func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
 		if alreadyHandled {
