@@ -87,6 +87,7 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+    //eslint-disable-next-line no-undef
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';

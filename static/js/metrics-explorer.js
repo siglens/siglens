@@ -2297,7 +2297,7 @@ function updateChartColorsBasedOnTheme() {
     }
 
 }
-let initialCount = 0;
+
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
