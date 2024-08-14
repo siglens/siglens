@@ -268,7 +268,11 @@ function handlePanelPosition(existingDashboard, newPanel) {
     const maxY = existingDashboard.panels.reduce((max, panel) => {
         return Math.max(max, panel.gridpos.y + panel.gridpos.h);
     }, 0);
+    const maxX = existingDashboard.panels.reduce((max, panel) => {
+        return Math.max(max, panel.gridpos.x + panel.gridpos.w);
+    });
     newPanel.gridpos.y = maxY + 20;
+    newPanel.gridpos.x = maxX + 20;
     existingDashboard.panels.push(newPanel);
     return existingDashboard;
 }

@@ -61,7 +61,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 	sNodeHash := GetHashForQuery(sNode)
 	tableName := []string{"ind-tab-v1"}
 	for i := 0; i < 90; i++ {
-		UpdateQTUsage(tableName, sNode, nil)
+		UpdateQTUsage(tableName, sNode, nil, "os=iOS")
 	}
 
 	us, err := GetQTUsageInfo(tableName, sNode)
@@ -102,7 +102,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 		NodeType: MatchAllQuery,
 	}
 
-	UpdateQTUsage(tableName, matchAllOne, nil)
+	UpdateQTUsage(tableName, matchAllOne, nil, "*")
 
 	_, err = GetQTUsageInfo(tableName, matchAllOne)
 	assert.NotNil(t, err, "match all should not be added to query tracker")
@@ -161,7 +161,7 @@ func Test_ReadWriteQTUsage(t *testing.T) {
 		},
 	}
 	aggsHash := GetHashForAggs(aggs)
-	UpdateQTUsage(tableName, sNode, aggs)
+	UpdateQTUsage(tableName, sNode, aggs, "batch=batch-101")
 
 	flushPQueriesToDisk()
 	resetInternalQTInfo()
@@ -188,7 +188,7 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 		},
 	}
 	tableName := []string{"test-1"}
-	UpdateQTUsage(tableName, nil, aggs)
+	UpdateQTUsage(tableName, nil, aggs, "*")
 	grpCols, measure := GetTopPersistentAggs("test-2")
 	assert.Len(t, grpCols, 0)
 	assert.Len(t, measure, 0)
@@ -219,7 +219,7 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 			GroupByColumns: []string{"col3", "col2"},
 		},
 	}
-	UpdateQTUsage(tableName, nil, aggs2)
+	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("test-1")
 	assert.Len(t, grpCols, 3)
 	assert.Equal(t, "col2", grpCols[0], "only col2 exists in both usages, so it should be first")
@@ -251,7 +251,7 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 		},
 	}
 	tableName := []string{"jaeger-1"}
-	UpdateQTUsage(tableName, nil, aggs)
+	UpdateQTUsage(tableName, nil, aggs, "*")
 
 	grpCols, measure := GetTopPersistentAggs("jaeger-1")
 	assert.Len(t, grpCols, 5)
@@ -282,7 +282,7 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 			GroupByColumns: []string{"col3", "col2"},
 		},
 	}
-	UpdateQTUsage(tableName, nil, aggs2)
+	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("jaeger-1")
 	assert.Len(t, grpCols, 6)
 	assert.Equal(t, "traceID", grpCols[0], "traceID exists in both usages, so it should be first")
@@ -363,7 +363,7 @@ func Test_PostPqsClear(t *testing.T) {
 	pqid := GetHashForQuery(sNode)
 	tableName := []string{"test-1"}
 	assert.NotNil(t, tableName)
-	UpdateQTUsage(tableName, sNode, nil)
+	UpdateQTUsage(tableName, sNode, nil, "os=iOS")
 
 	expected := map[string]interface{}{
 		"promoted_aggregations": make(map[string]int),
@@ -403,7 +403,7 @@ func Test_getAggPQSById(t *testing.T) {
 	pqid := GetHashForAggs(qa)
 	tableName := []string{"test-1"}
 	assert.NotNil(t, tableName)
-	UpdateQTUsage(tableName, nil, qa)
+	UpdateQTUsage(tableName, nil, qa, "TimeHistogramStartTime=3")
 
 	aggPQS, err := getAggPQSById(pqid)
 	assert.Nil(t, err)
@@ -516,7 +516,7 @@ func Test_GetPQSById_200IfPQIsSpecified(t *testing.T) {
 	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: 3}}
 	pqid := GetHashForAggs(qa)
 	tableName := []string{"test-1"}
-	UpdateQTUsage(tableName, nil, qa)
+	UpdateQTUsage(tableName, nil, qa, "")
 
 	ctx := fasthttp.RequestCtx{}
 	ctx.SetUserValue("pqid", pqid)

@@ -376,7 +376,7 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 }
 
 func populateQuerySsa(m map[string]interface{}) {
-	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(0)
+	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, querieSinceInstall := usageStats.GetQueryStats(0)
 	m["num_queries"] = queryCount
 	m["queries_since_install"] = querieSinceInstall
 	m["ip"] = IPAddressInfo.IP
@@ -384,9 +384,14 @@ func populateQuerySsa(m map[string]interface{}) {
 	m["region"] = IPAddressInfo.Region
 	m["country"] = IPAddressInfo.Country
 	if queryCount > 1 {
-		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
+		m["avg_query_latency_ms_since_last_restart"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart/float64(queryCount), 3)) + " ms"
 	} else {
-		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
+		m["avg_query_latency_ms_since_last_restart"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart, 3)) + " ms"
+	}
+	if querieSinceInstall > 1 {
+		m["avg_query_latency_ms_since_installation"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall/float64(querieSinceInstall), 3)) + " ms"
+	} else {
+		m["avg_query_latency_ms_since_installation"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall, 3)) + " ms"
 	}
 }
 

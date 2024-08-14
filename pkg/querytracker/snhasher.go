@@ -148,13 +148,27 @@ func getHashForMatchFilter(mf *structs.MatchFilter) uint64 {
 
 	sort.Strings(mwords)
 
-	val := fmt.Sprintf("%v:%v:%v:%v:%v",
+	val := fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v:%v",
 		mf.MatchColumn,
 		mwords,
 		mf.MatchOperator,
 		mf.MatchPhrase,
-		mf.MatchType)
+		mf.MatchType,
+		mf.NegateMatch,
+		mf.RegexpString,
+		getHashForMatchDictArray(mf.MatchDictArray),
+	)
 
+	return xxhash.Sum64String(val)
+}
+
+func getHashForMatchDictArray(mda *structs.MatchDictArrayRequest) uint64 {
+
+	if mda == nil {
+		return 0
+	}
+
+	val := fmt.Sprintf("%v:%v", mda.MatchKey, getHashForDtypeEnclosure(mda.MatchValue))
 	return xxhash.Sum64String(val)
 }
 

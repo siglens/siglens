@@ -39,6 +39,7 @@ type QueryContext struct {
 	SizeLimit uint64
 	Scroll    int
 	Orgid     uint64
+	RawQuery  string
 }
 
 // Input for filter operator can either be the result of a ASTNode or an expression

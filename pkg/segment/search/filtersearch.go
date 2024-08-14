@@ -18,6 +18,7 @@
 package search
 
 import (
+	"regexp"
 	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -136,6 +137,9 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
 	checkAllCols := false
+	var compiledRegex *regexp.Regexp
+	var err error
+
 	if query.SearchType == structs.MatchWordsAllColumns ||
 		query.SearchType == structs.RegexExpressionAllColumns ||
 		query.SearchType == structs.MatchDictArrayAllColumns {
@@ -174,11 +178,46 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 		}
 	}
 
+	// we skip rawsearching for columns that are dict encoded,
+	// since we already search for them in the above call to applyColumnarSearchUsingDictEnc
+	for dcname := range deCnames {
+		delete(cmiPassedCnames, dcname)
+	}
+
 	if doRecLevelSearch {
+
+		// find the mcr colKeyIndex, so that we avoid map lookups per
+		// record inside ApplyColumnarSearchQuery function
+		cmiPassedNonDictColKeyIndices := make(map[int]struct{})
+		for cname := range cmiPassedCnames {
+			if cname == config.GetTimeStampKey() {
+				continue
+			}
+			cKeyidx, ok := multiColReader.GetColKeyIndex(cname)
+			if ok {
+				cmiPassedNonDictColKeyIndices[cKeyidx] = struct{}{}
+			}
+		}
+
+		var queryInfoColKeyIndex int
+		cKeyidx, ok := multiColReader.GetColKeyIndex(query.QueryInfo.ColName)
+		if ok {
+			queryInfoColKeyIndex = cKeyidx
+		}
+
+		if query.MatchFilter != nil && query.MatchFilter.MatchType == structs.MATCH_PHRASE {
+			compiledRegex, err = query.MatchFilter.GetRegexp()
+			if err != nil {
+				log.Errorf("filterRecordsFromSearchQuery: error getting match regex: %v", err)
+				return
+			}
+		}
+
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
-					qid, deCnames, searchReq, cmiPassedCnames)
+					qid, searchReq, cmiPassedNonDictColKeyIndices,
+					queryInfoColKeyIndex, compiledRegex)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break
