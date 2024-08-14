@@ -67,13 +67,14 @@ type SegmentFileReader struct {
 	currUncompressedBlockLen uint32
 	currRecLen               uint32
 
-	isBlockLoaded      bool
-	currFileBuffer     []byte   // buffer re-used for file reads values
-	currRawBlockBuffer []byte   // raw uncompressed block
-	encType            uint8    // encoding type for this block
-	deTlv              [][]byte // deTlv[dWordIdx] --> []byte (the TLV byte slice)
-	deRecToTlv         []uint16 // deRecToTlv[recNum] --> dWordIdx
-	blockSummaries     []*structs.BlockSummary
+	isBlockLoaded        bool
+	currFileBuffer       []byte   // buffer re-used for file reads values
+	currUncompressBuffer []byte   // buffer for zstd uncompress
+	currRawBlockBuffer   []byte   // raw uncompressed block
+	encType              uint8    // encoding type for this block
+	deTlv                [][]byte // deTlv[dWordIdx] --> []byte (the TLV byte slice)
+	deRecToTlv           []uint16 // deRecToTlv[recNum] --> dWordIdx
+	blockSummaries       []*structs.BlockSummary
 }
 
 // returns a new SegmentFileReader and any errors encountered
@@ -81,18 +82,18 @@ type SegmentFileReader struct {
 func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
 	qid uint64, blockSummaries []*structs.BlockSummary) (*SegmentFileReader, error) {
 	return &SegmentFileReader{
-		ColName:            colName,
-		fileName:           fd.Name(),
-		currFD:             fd,
-		blockMetadata:      blockMetadata,
-		currOffset:         0,
-		currFileBuffer:     *fileReadBufferPool.Get().(*[]byte),
-		currRawBlockBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
-		isBlockLoaded:      false,
-		encType:            255,
-		blockSummaries:     blockSummaries,
-		deTlv:              make([][]byte, 0),
-		deRecToTlv:         make([]uint16, 0),
+		ColName:              colName,
+		fileName:             fd.Name(),
+		currFD:               fd,
+		blockMetadata:        blockMetadata,
+		currOffset:           0,
+		currFileBuffer:       *fileReadBufferPool.Get().(*[]byte),
+		currUncompressBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
+		isBlockLoaded:        false,
+		encType:              255,
+		blockSummaries:       blockSummaries,
+		deTlv:                make([][]byte, 0),
+		deRecToTlv:           make([]uint16, 0),
 	}, nil
 }
 
@@ -352,12 +353,12 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 }
 
 func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
-	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currRawBlockBuffer[:0])
+
+	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currUncompressBuffer[:0])
 	if err != nil {
 		log.Errorf("SegmentFileReader.unpackRawCsg: decompress error: %+v", err)
 		return err
 	}
-
 	sfr.currRawBlockBuffer = uncompressed
 	sfr.currOffset = 0
 
