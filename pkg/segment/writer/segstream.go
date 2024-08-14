@@ -112,7 +112,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		if !ok {
 			return false
 		}
-		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord(), nil)
+		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord())
 		if err != nil {
 			return false
 		}
@@ -122,7 +122,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 			if cname == tsKey {
 				continue
 			}
-			retVal, _ := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, colVal.getLastRecord(), nil)
+			retVal, _ := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, colVal.getLastRecord())
 			if retVal {
 				return true
 			}
