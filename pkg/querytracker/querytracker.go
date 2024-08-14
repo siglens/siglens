@@ -62,11 +62,13 @@ var localGroupByOverride = map[string]*PersistentGroupBy{}
 type PersistentSearchNode struct {
 	SearchNode *structs.SearchNode
 	PersistentInfo
+	SearchText string
 }
 
 type PersistentAggregation struct {
 	QueryAggs *structs.QueryAggregators
 	PersistentInfo
+	SearchText string
 }
 
 type PersistentGroupBy struct {
@@ -289,7 +291,7 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 	return finalCols, measureInfoUsage
 }
 
-func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators) {
+func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators, searchText string) {
 
 	if len(tableName) == 0 {
 		return
@@ -297,11 +299,11 @@ func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.Que
 
 	persistentInfoLock.Lock()
 	defer persistentInfoLock.Unlock()
-	updateSearchNodeUsage(tableName, sn)
-	updateAggsUsage(tableName, aggs)
+	updateSearchNodeUsage(tableName, sn, searchText)
+	updateAggsUsage(tableName, aggs, searchText)
 }
 
-func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
+func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchText string) {
 
 	if sn == nil {
 		return
@@ -321,9 +323,15 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
 			delete(localPersistentQueries, allNodesPQsSorted[len(allNodesPQsSorted)-1].Pqid)
 			allNodesPQsSorted = allNodesPQsSorted[:len(allNodesPQsSorted)-1]
 		}
-		pInfo := PersistentInfo{AllTables: make(map[string]bool), Pqid: pqid}
-		pqinfo = &PersistentSearchNode{SearchNode: sn}
-		pqinfo.PersistentInfo = pInfo
+		pInfo := PersistentInfo{
+			AllTables: make(map[string]bool),
+			Pqid:      pqid,
+		}
+		pqinfo = &PersistentSearchNode{
+			SearchNode:     sn,
+			PersistentInfo: pInfo,
+			SearchText:     searchText,
+		}
 		localPersistentQueries[pqid] = pqinfo
 		allNodesPQsSorted = append(allNodesPQsSorted, pqinfo)
 		log.Infof("updateSearchNodeUsage: added pqid %v, total=%v, tableName=%v",
@@ -343,7 +351,7 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
 	})
 }
 
-func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators) {
+func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchText string) {
 
 	if aggs == nil || aggs.IsAggsEmpty() {
 		return
@@ -360,9 +368,15 @@ func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators) {
 			delete(localPersistentAggs, allPersistentAggsSorted[len(allPersistentAggsSorted)-1].Pqid)
 			allPersistentAggsSorted = allPersistentAggsSorted[:len(allPersistentAggsSorted)-1]
 		}
-		pInfo := PersistentInfo{AllTables: make(map[string]bool), Pqid: pqid}
-		pqinfo = &PersistentAggregation{QueryAggs: aggs}
-		pqinfo.PersistentInfo = pInfo
+		pInfo := PersistentInfo{
+			AllTables: make(map[string]bool),
+			Pqid:      pqid,
+		}
+		pqinfo = &PersistentAggregation{
+			QueryAggs:      aggs,
+			PersistentInfo: pInfo,
+			SearchText:     searchText,
+		}
 		localPersistentAggs[pqid] = pqinfo
 		allPersistentAggsSorted = append(allPersistentAggsSorted, pqinfo)
 		log.Infof("updateAggsUsage: added pqid %v, total=%v, tableName=%v",
@@ -669,6 +683,7 @@ func getPqsById(pqid string) map[string]interface{} {
 
 		finalResult = make(map[string]interface{})
 		finalResult["pqid"] = pqinfo.Pqid
+		finalResult["search_text"] = pqinfo.SearchText
 		finalResult["last_used_epoch"] = pqinfo.LastUsedEpoch
 		finalResult["total_usage"] = pqinfo.TotalUsage
 		finalResult["virtual_tables"] = pqinfo.AllTables
@@ -705,6 +720,7 @@ func getAggPQSById(pqid string) (map[string]interface{}, error) {
 
 	finalResult := make(map[string]interface{})
 	finalResult["pqid"] = pqinfo.Pqid
+	finalResult["search_text"] = pqinfo.SearchText
 	finalResult["last_used_epoch"] = pqinfo.LastUsedEpoch
 	finalResult["total_usage"] = pqinfo.TotalUsage
 	finalResult["virtual_tables"] = pqinfo.AllTables

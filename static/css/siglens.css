@@ -1033,6 +1033,10 @@ progress.hidden {
     vertical-align: middle;
 }
 
+.final-res-time span{
+    font-weight: 600;
+}
+
 [data-theme='light'] #hits-summary {
     color: var(--hits-summary-regular-text-color);
     font-weight: var(--fw-400);
@@ -1055,7 +1059,6 @@ progress.hidden {
 #save-query-div {
     display: flex;
     justify-content: flex-start;
-    margin-top: 5px;
     position: relative;
 }
 
@@ -1154,10 +1157,9 @@ progress.hidden {
     display: flex;
     justify-content: flex-end;
     column-gap: 15px;
-    margin-top: 5px;
     margin-left: 23px;
-    margin-right: 25px;
     border-radius: 5px;
+    width: 100%;
 }
 
 .details-control {
@@ -1274,6 +1276,7 @@ progress.hidden {
 .ui-dialog .ui-dialog-buttonpane button {
     margin: .5em .4em .5em 0;
     cursor: pointer;
+    outline: none;
 }
 
 .ui-draggable .ui-dialog-titlebar {
@@ -2704,11 +2707,12 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     left: auto;
     right: 10px;
     position: absolute !important;
+    z-index: 1;
 }
 
 #filter-input{
     padding-left: 1rem;
-    padding-right: 3rem;
+    padding-right: 3.2rem;
 }
 
 .tooltip{
@@ -3683,7 +3687,10 @@ float: right;
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
     background-color: var(--timepicker-text-color) !important;
 }
-
+.test-contact-btn.disabled{
+    pointer-events: all;
+    cursor: not-allowed;
+}
 .myOrg-inner-container input[type="submit"] {
     height: 100%;
     background-size: cover;
@@ -4614,26 +4621,6 @@ color: #C8C7CC;
     padding-bottom: 0;
     margin-top: 5px;
     float: right;
-}
-
-.test-contact-btn {
-    background-color: var(--purple-2);
-    height: 30px;
-    margin-bottom: 0px;
-    color: var(--white-0) !important;
-    float: right;
-    cursor: pointer;
-    margin-left: 12px;
-}
-
-.test-contact-btn .send-icon{
-    background-image: url(../assets/send-icon.svg);
-    height: 15px;
-    background-size: 100%;
-    width: 15px;
-    background-repeat: no-repeat;
-    margin-bottom: 0px;
-    margin-right: 6px;
 }
 
 .test-contact-btn {
@@ -5984,7 +5971,7 @@ input.form-control {
     margin-bottom: 8px;
 }
 
-.myOrg-inner-container #ag-grid .ag-row:hover {
+.myOrg-inner-container .pqs-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
 }
@@ -6006,4 +5993,9 @@ input.form-control {
     background-size: cover;
     cursor: pointer;
     margin-bottom: 10px;
+}
+
+.pqs-tables h3{
+    font-weight: 600;
+    font-size: 16px;
 }

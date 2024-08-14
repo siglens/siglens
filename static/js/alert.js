@@ -221,7 +221,6 @@ async function getAlertId() {
             originalIndexValues = indexes.map((item) => item.index);
             indexValues = [...originalIndexValues];
         }
-        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -485,6 +484,7 @@ async function displayAlert(res) {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
+        initializeFilterInputEvents();
         let data = {
             state: wsState,
             searchText: queryText,
