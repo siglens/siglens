@@ -1124,6 +1124,9 @@ func (self *MultiValueExpr) GetFields() []string {
 	for _, multiValueExpr := range self.MultiValueExprParams {
 		fields = append(fields, multiValueExpr.GetFields()...)
 	}
+	for _, valueExpr := range self.ValueExprParams {
+		fields = append(fields, valueExpr.GetFields()...)
+	}
 	if self.Condition != nil {
 		fields = append(fields, self.Condition.GetFields()...)
 	}
