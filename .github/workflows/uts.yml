@@ -42,7 +42,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           working-directory: ./
-          version: latest
+          version: v1.59.1
           skip-pkg-cache: true
           skip-build-cache: true
   ESLint:
