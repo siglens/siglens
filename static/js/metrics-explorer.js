@@ -2577,7 +2577,7 @@ $('#alert-from-metrics-btn').click(function () {
         Object.keys(formulas).forEach(function (formulaId) {
             let formulaDetails = formulaDetailsMap[formulaId];
             let functionsArray = formulaDetails?.functions || [];
-            let formulaWithFunc=formulaDetails.formula;
+            let formulaWithFunc = formulaDetails.formula;
             for (let func of functionsArray) {
                 formulaWithFunc = `${func}(${formulaWithFunc})`;
             }
