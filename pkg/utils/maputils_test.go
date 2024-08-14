@@ -43,3 +43,37 @@ func Test_MapToSet(t *testing.T) {
 	_, ok = set["key3"]
 	assert.True(t, ok)
 }
+
+func Test_SetDifference(t *testing.T) {
+	set1 := map[string]struct{}{
+		"key1": {},
+		"key2": {},
+	}
+
+	set2 := map[string]struct{}{}
+
+	newEntries, removedEntries, newAdded := SetDifference(set1, set2)
+	assert.Equal(t, 2, len(newEntries))
+	assert.Equal(t, 0, len(removedEntries))
+	assert.True(t, newAdded)
+
+	set1["key3"] = struct{}{}
+	set2["key1"] = struct{}{}
+	set2["key2"] = struct{}{}
+
+	newEntries, removedEntries, newAdded = SetDifference(set1, set2)
+	assert.Equal(t, 3, len(newEntries))
+	assert.Equal(t, 0, len(removedEntries))
+	assert.True(t, newAdded)
+
+	newEntries, removedEntries, newAdded = SetDifference(set2, set1)
+	assert.Equal(t, 2, len(newEntries))
+	assert.Equal(t, 1, len(removedEntries))
+	assert.False(t, newAdded)
+
+	set1 = map[string]struct{}{}
+	newEntries, removedEntries, newAdded = SetDifference(set1, set2)
+	assert.Equal(t, 0, len(newEntries))
+	assert.Equal(t, 2, len(removedEntries))
+	assert.False(t, newAdded)
+}

@@ -301,9 +301,12 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		segstore.pqTracker.addSearchNode(pqid, pNode)
 	}
 
-	promoted, demoted, change := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
-	if change {
-		log.Infof("resetSegStore: PQIDs Promoted: %v, Demoted: %v", promoted, demoted)
+	promoted, demoted, newEntries := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
+	if newEntries {
+		log.Infof("resetSegStore: PQIDs Promoted: %v", promoted)
+	}
+	if len(demoted) > 0 {
+		log.Infof("resetSegStore: PQIDs Demoted: %v", demoted)
 	}
 
 	err = segstore.resetWipBlock(false)
