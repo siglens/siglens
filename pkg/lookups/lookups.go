@@ -145,5 +145,9 @@ func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
 	log.Infof("GetAllLookupFiles: Successfully retrieved %d files", len(fileNames))
 	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	ctx.Write(jsonResponse)
+	if _, err := ctx.Write(jsonResponse); err != nil {
+		log.Errorf("GetAllLookupFiles: Error writing response: %v", err)
+		ctx.Error("Error writing response", fasthttp.StatusInternalServerError)
+		return
+	}
 }
