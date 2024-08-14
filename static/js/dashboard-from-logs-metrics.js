@@ -63,7 +63,7 @@ $(document).ready(function () {
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
             startEpoch: data.startEpoch,
-            indexName:data.indexName,
+            indexName: data.indexName,
             endEpoch: data.endEpoch,
             alertRule_name: encodedRuleName,
         };
