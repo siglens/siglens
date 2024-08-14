@@ -54,6 +54,7 @@ const gridOptions = {
     },
 };
 let eGridDiv = $('#ag-grid')[0];
+//eslint-disable-next-line no-undef
 new agGrid.Grid(eGridDiv, gridOptions);
 
 function displayLookupFiles(data) {
@@ -92,7 +93,7 @@ $('#upload-btn').on('click', function () {
         data: formData,
         processData: false,
         contentType: false,
-        success: function (response) {
+        success: function () {
             showToast('File uploaded successfully.', 'success');
             $('.popupOverlay, #upload-lookup-file').removeClass('active');
             $('#db-name').val('');
@@ -101,7 +102,7 @@ $('#upload-btn').on('click', function () {
             // Re-fetch the updated list of lookup files
             fetchLookupFiles();
         },
-        error: function (xhr, status, error) {
+        error: function (xhr) {
             showToast(`Error uploading file: ${xhr.responseText}`);
         },
     });
