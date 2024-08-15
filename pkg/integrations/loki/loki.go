@@ -285,7 +285,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-// LokiLogStream represents log entry in format acceptable for Loki HTTP API
+// LokiLogStream represents log entry in format acceptable for Loki HTTP API: https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
 // Acceptable json example:
 //
 //	{
@@ -370,13 +370,13 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			}
 
 			// Marshal the map to JSON
-			test, err := json.Marshal(allIngestData)
+			allIngestDataBytes, err := json.Marshal(allIngestData)
 			if err != nil {
 				utils.SendError(ctx, "Unable to marshal json", fmt.Sprintf("allIngestData: %v", allIngestData), err)
 				return
 			}
 
-			err = writer.ProcessIndexRequest(test, tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0)
+			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0)
 			if err != nil {
 				utils.SendError(ctx, "Failed to ingest record", "", err)
 				return
