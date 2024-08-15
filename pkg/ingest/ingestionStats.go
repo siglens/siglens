@@ -33,7 +33,7 @@ func InitIngestionMetrics() {
 
 func ingestionMetricsLooper() {
 	for {
-		time.Sleep(100 * time.Minute)
+		time.Sleep(1 * time.Minute)
 
 		currentEventCount := int64(0)
 		currentBytesReceived := int64(0)
