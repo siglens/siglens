@@ -273,9 +273,14 @@ func TestStarTree(t *testing.T) {
 	groupByCols := []string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+	}
+
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols, mColNames)
+		builder.ResetSegTree(&ss.wipBlock, groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -360,10 +365,15 @@ func TestStarTreeMedium(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+	}
+
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -450,9 +460,14 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+	}
+
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -537,10 +552,15 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+	}
+
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
