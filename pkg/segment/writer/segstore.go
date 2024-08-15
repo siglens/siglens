@@ -57,6 +57,11 @@ import (
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
+const MaxConcurrentAgileTrees = 5
+
+var currentAgileTreeCount uint16
+var atreeCounterLock sync.Mutex = sync.Mutex{}
+
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -838,6 +843,22 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.usingSegTree = false
 			return
 		}
+
+		hasTreeSpace := false
+		atreeCounterLock.Lock()
+		if currentAgileTreeCount < MaxConcurrentAgileTrees {
+			// for now the first 5 segstores will get to AgileTree but
+			// we should add some smart logic on how we can rotate this
+			// amongst other indices
+			currentAgileTreeCount++
+			hasTreeSpace = true
+		}
+		atreeCounterLock.Unlock()
+		if !hasTreeSpace {
+			segstore.usingSegTree = false
+			return
+		}
+
 		segstore.usingSegTree = true
 		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
 		if sizeToAdd > 0 {
