@@ -142,6 +142,6 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(loki.ProcessLokiLogsIngestRequest, ctx)
+		serverutils.CallWithOrgId(loki.ProcessLokiApiIngestRequest, ctx)
 	}
 }
