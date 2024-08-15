@@ -154,13 +154,14 @@ func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, e
 	segStore.SegmentErrors = structs.StoreError(segStore.SegmentErrors, errMsg, logLevel, err)
 }
 
-func (segStore *SegStore) LogSegmentErrors() {
+func (segStore *SegStore) LogAndFlushErrors() {
 	if segStore.SegmentErrors == nil {
 		return
 	}
 	for errMsg, errInfo := range segStore.SegmentErrors {
 		toputils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
 	}
+	segStore.SegmentErrors = nil
 }
 
 func (segstore *SegStore) initWipBlock() {
@@ -295,11 +296,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqTracker = initPQTracker()
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.wipBlock.clearPQMatchInfo()
-
-	if segstore.SegmentErrors != nil {
-		segstore.LogSegmentErrors()
-		segstore.SegmentErrors = nil
-	}
+	segstore.LogAndFlushErrors()
 
 	err = segstore.resetWipBlock(false)
 	if err != nil {

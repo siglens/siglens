@@ -465,7 +465,7 @@ type StringStats struct {
 type SearchErrorInfo struct {
 	Count    int
 	LogLevel log.Level
-	Error    error // extra information about the error
+	Error    error
 }
 
 // json exportable struct for segstats
