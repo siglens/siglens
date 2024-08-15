@@ -130,22 +130,28 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 	return storageSaved
 }
 
-func convertDataToSlice(indexToAllIndexStats map[string]utils.AllIndexesStats, volumeField, countField,
+func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
 	segmentCountField string) []map[string]map[string]interface{} {
 
+	indices := make([]string, 0)
+	for index := range allIndexStats.IndexToStats {
+		indices = append(indices, index)
+	}
+	sort.Strings(indices)
+
 	retVal := make([]map[string]map[string]interface{}, 0)
-	for idx, allIndexStats := range indexToAllIndexStats {
-		indexStats, ok := allIndexStats.IndexToStats[idx]
+	for _, index := range indices {
+		indexStats, ok := allIndexStats.IndexToStats[index]
 		if !ok {
-			log.Errorf("convertDataToSlice: indexStats not found for index=%v", idx)
+			log.Errorf("convertDataToSlice: indexStats not found for index=%v", index)
 			continue
 		}
 
 		nextVal := make(map[string]map[string]interface{})
-		nextVal[idx] = make(map[string]interface{})
-		nextVal[idx][volumeField] = convertBytesToGB(float64(indexStats.NumBytesIngested))
-		nextVal[idx][countField] = humanize.Comma(int64(indexStats.NumRecords))
-		nextVal[idx][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
+		nextVal[index] = make(map[string]interface{})
+		nextVal[index][volumeField] = convertBytesToGB(float64(indexStats.NumBytesIngested))
+		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
+		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
 
 		retVal = append(retVal, nextVal)
 	}
@@ -153,11 +159,11 @@ func convertDataToSlice(indexToAllIndexStats map[string]utils.AllIndexesStats, v
 	return retVal
 }
 
-func convertIndexDataToSlice(indexData map[string]utils.AllIndexesStats) []map[string]map[string]interface{} {
+func convertIndexDataToSlice(indexData utils.AllIndexesStats) []map[string]map[string]interface{} {
 	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount")
 }
 
-func convertTraceIndexDataToSlice(traceIndexData map[string]utils.AllIndexesStats) []map[string]map[string]interface{} {
+func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[string]map[string]interface{} {
 	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount")
 }
 
@@ -284,12 +290,14 @@ func isTraceRelatedIndex(indexName string) bool {
 	return false
 }
 
-func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64) {
 	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
 
-	stats := make(map[string]utils.AllIndexesStats)
+	var stats utils.AllIndexesStats
+	stats.IndexToStats = make(map[string]utils.IndexStats)
+
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
 		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
@@ -301,7 +309,6 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			indices = append(indices, k)
 		}
 	}
-	sort.Strings(indices)
 
 	allVTableCounts := segwriter.GetVTableCountsForAll(myid, allSegMetas)
 
@@ -336,26 +343,24 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		totalOnDiskBytesCountForIndex := uint64(counts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
 		totalOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
 
-		var perIndexStats utils.AllIndexesStats
-		perIndexStats.IndexToStats = make(map[string]utils.IndexStats)
-		perIndexStats.IndexToStats[indexName] = utils.IndexStats{
+		indexStats := utils.IndexStats{
 			NumBytesIngested: uint64(totalBytesReceivedForIndex),
 			NumRecords:       totalEventsForIndex,
 			NumSegments:      uint64(segmentCounts[indexName]),
 		}
 
-		stats[indexName] = perIndexStats
+		stats.IndexToStats[indexName] = indexStats
 	}
 	return stats, totalEventCount, totalBytes, totalOnDiskBytes
 }
 
-func getIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+func getIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64) {
 	return getStats(myid, func(indexName string) bool {
 		return !isTraceRelatedIndex(indexName)
 	}, allSegMetas)
 }
 
-func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64) {
 	return getStats(myid, isTraceRelatedIndex, allSegMetas)
 }
 
