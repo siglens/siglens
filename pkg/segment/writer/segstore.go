@@ -157,8 +157,8 @@ func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, e
 func (segStore *SegStore) LogAndFlushErrors() {
 	for errMsg, errInfo := range segStore.SegmentErrors {
 		toputils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
+		delete(segStore.SegmentErrors, errMsg)
 	}
-	segStore.SegmentErrors = nil
 }
 
 func (segstore *SegStore) initWipBlock() {
