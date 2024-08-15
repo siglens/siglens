@@ -315,6 +315,12 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
 	for _, segMeta := range allSegMetas {
+		if segMeta == nil {
+			continue
+		}
+		if segMeta.OrgId != myid && myid != 10618270676840840323 { //orgid for siglens
+			continue
+		}
 		indexName := segMeta.VirtualTableName
 		segmentCounts[indexName]++
 	}
