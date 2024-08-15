@@ -661,7 +661,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if config.IsAggregationsEnabled() && segstore.usingSegTree {
 			nc := segstore.sbuilder.GetNodeCount()
 			cnc := segstore.sbuilder.GetEachColNodeCount()
-			log.Debugf("checkAndRotateColFiles: stree nc: %v , Each Col NodeCount: %v", nc, cnc)
+			log.Infof("checkAndRotateColFiles: stree nc: %v , Each Col NodeCount: %v", nc, cnc)
 		}
 
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
@@ -786,7 +786,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 
 	gcols, inMesCols := querytracker.GetTopPersistentAggs(segstore.VirtualTableName)
 	sortedGrpCols := make([]string, 0)
-	gcMap := make(map[string]uint32) // use it to sort based on cardinality
+	grpColsCardinality := make(map[string]uint32) // use it to sort based on cardinality
 	for cname := range gcols {
 
 		// verify if cname exist in wip
@@ -801,12 +801,19 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 		}
 
 		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
-		gcMap[cname] = cest
+
+		// skip columns if card is above threshold
+		if cest > uint32(wipCardLimit) {
+			continue
+		}
+
+		grpColsCardinality[cname] = cest
 		sortedGrpCols = append(sortedGrpCols, cname)
 	}
 
+
 	sort.Slice(sortedGrpCols, func(i, j int) bool {
-		return gcMap[sortedGrpCols[i]] < gcMap[sortedGrpCols[j]]
+		return grpColsCardinality[sortedGrpCols[i]] < grpColsCardinality[sortedGrpCols[j]]
 	})
 
 	mCols := make([]string, 0)
