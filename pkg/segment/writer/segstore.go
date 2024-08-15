@@ -57,6 +57,7 @@ import (
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
+
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -803,7 +804,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
 
 		// skip columns if card is above threshold
-		if cest > uint32(wipCardLimit) {
+		if cest > uint32(wipCardLimit*2) {
 			continue
 		}
 
@@ -846,9 +847,9 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.stbDictEncWorkBuf = append(segstore.stbDictEncWorkBuf, newArr...)
 		}
 		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
-			if len(segstore.stbDictEncWorkBuf[colNum]) < MaxAgileTreeNodeCount {
+			if len(segstore.stbDictEncWorkBuf[colNum]) < ATreeDictEncNodeCount {
 				// we know each stree col won't have more encodings than max stree node limit
-				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
 			}
 		}
 
