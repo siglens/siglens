@@ -44,7 +44,8 @@ import (
 const MAX_QUERIES_TO_TRACK = 100     // this limits how many PQS searches we are doing
 const MAX_CANDIDATE_QUERIES = 10_000 // this limits how many unique queries we use in our stats calculations
 
-const STALE_QUERIES_EXPIRY_SECS = 21600 // queries will get booted out if they have not been seen in 6 hours
+// queries will get booted out if they have not been seen for below time
+const STALE_QUERIES_EXPIRY_SECS = 3 * 24 * 60 * 60
 const STALE_SLEEP_SECS = 1800
 
 const FLUSH_SLEEP_SECS = 120
