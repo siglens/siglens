@@ -83,6 +83,7 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	stbDictEncWorkBuf  [][]string
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -120,6 +121,7 @@ func InitSegStore(
 		usingSegTree:      usingSegTree,
 		OrgId:             orgId,
 		firstTime:         true,
+		stbDictEncWorkBuf: make([][]string, 0),
 	}
 
 	ss.initWipBlock()
@@ -655,6 +657,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
+
+		if config.IsAggregationsEnabled() && segstore.usingSegTree {
+			nc := segstore.sbuilder.GetNodeCount()
+			cnc := segstore.sbuilder.GetEachColNodeCount()
+			log.Debugf("checkAndRotateColFiles: stree nc: %v , Each Col NodeCount: %v", nc, cnc)
+		}
+
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
@@ -824,7 +833,20 @@ func (segstore *SegStore) computeStarTree() {
 			return
 		}
 		segstore.usingSegTree = true
-		segstore.sbuilder.ResetSegTree(&segstore.wipBlock, sortedGrpCols, mCols)
+		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
+		if sizeToAdd > 0 {
+			newArr := make([][]string, sizeToAdd)
+			segstore.stbDictEncWorkBuf = append(segstore.stbDictEncWorkBuf, newArr...)
+		}
+		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
+			if len(segstore.stbDictEncWorkBuf[colNum]) < MaxAgileTreeNodeCount {
+				// we know each stree col won't have more encodings than max stree node limit
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+			}
+		}
+
+		segstore.sbuilder.ResetSegTree(&segstore.wipBlock, sortedGrpCols, mCols,
+			segstore.stbDictEncWorkBuf)
 	}
 
 	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it

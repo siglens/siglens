@@ -87,6 +87,14 @@ func (stb *StarTreeBuilder) GetNodeCount() int {
 	return stb.nodeCount
 }
 
+func (stb *StarTreeBuilder) GetEachColNodeCount() map[string]uint32 {
+	res := make(map[string]uint32)
+	for colIdx, lastNum := range stb.segDictLastNum {
+		res[stb.groupByKeys[colIdx]] = lastNum
+	}
+	return res
+}
+
 /*
 ResetSegTree
 
@@ -107,7 +115,8 @@ parameters:
 
 returns:
 */
-func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string, mColNames []string) {
+func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string,
+	mColNames []string, stbDictEncWorkBuf [][]string) {
 
 	stb.groupByKeys = groupByKeys
 	numGroupByCols := uint16(len(groupByKeys))
@@ -137,8 +146,7 @@ func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string, 
 
 	for colNum := uint16(0); colNum < numGroupByCols; colNum++ {
 		if stb.segDictEncRev[colNum] == nil {
-			// we know each col won't have more encodings than max node limit
-			stb.segDictEncRev[colNum] = make([]string, MaxAgileTreeNodeCount)
+			stb.segDictEncRev[colNum] = stbDictEncWorkBuf[colNum]
 		}
 		if stb.segDictMap[colNum] == nil {
 			stb.segDictMap[colNum] = make(map[string]uint32)
