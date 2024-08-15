@@ -301,8 +301,8 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		segstore.pqTracker.addSearchNode(pqid, pNode)
 	}
 
-	promoted, demoted, newEntries := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
-	if newEntries {
+	promoted, demoted := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
+	if len(promoted) > 0 {
 		log.Infof("resetSegStore: PQIDs Promoted: %v", promoted)
 	}
 	if len(demoted) > 0 {
