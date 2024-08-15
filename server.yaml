@@ -45,3 +45,5 @@ tls:
 
 # SigLens server hostname
 queryHostname: ""
+
+Debug: true

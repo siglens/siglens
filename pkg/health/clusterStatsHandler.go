@@ -301,15 +301,17 @@ func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIn
 		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
 	}
 
-	allVTableCounts := segwriter.GetVTableCountsForAll(myid)
+	allSegMetas := writer.ReadAllSegmetas()
 
-	// Read segment metadata file
-	smFile := writer.GetLocalSegmetaFName()
-	allSegMetas, err := writer.ReadSegmeta(smFile)
-	if err != nil {
-		log.Errorf("getStats: error when trying to read meta file=%+v. Error=%+v", smFile, err)
-		return nil, 0, 0, 0
-	}
+	allVTableCounts := segwriter.GetVTableCountsForAll(myid, allSegMetas)
+
+	// // Read segment metadata file
+	// smFile := writer.GetLocalSegmetaFName()
+	// allSegMetas, err := writer.ReadSegmeta(smFile)
+	// if err != nil {
+	// 	log.Errorf("getStats: error when trying to read meta file=%+v. Error=%+v", smFile, err)
+	// 	return nil, 0, 0, 0
+	// }
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
@@ -317,6 +319,8 @@ func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIn
 		indexName := segMeta.VirtualTableName
 		segmentCounts[indexName]++
 	}
+	a := segmentCounts
+	_ = a
 
 	for _, indexName := range indices {
 		if indexName == "" {
