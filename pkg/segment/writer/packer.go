@@ -47,6 +47,7 @@ import (
 )
 
 var wipCardLimit uint16 = 1001
+
 // this shoud be 3 x of wipCardLimit
 const ATreeDictEncNodeCount = 3003
 

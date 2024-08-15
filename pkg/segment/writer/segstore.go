@@ -57,7 +57,6 @@ import (
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
-
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -811,7 +810,6 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 		grpColsCardinality[cname] = cest
 		sortedGrpCols = append(sortedGrpCols, cname)
 	}
-
 
 	sort.Slice(sortedGrpCols, func(i, j int) bool {
 		return grpColsCardinality[sortedGrpCols[i]] < grpColsCardinality[sortedGrpCols[j]]
