@@ -54,11 +54,14 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 	}
-	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
+
+	allSegMetas := writer.ReadAllSegmetas()
+
+	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
-	traceIndexData, traceSpanCount, totalTraceBytes, totalTraceOnDiskBytes := GetTracesStats(myid)
+	traceIndexData, traceSpanCount, totalTraceBytes, totalTraceOnDiskBytes := GetTracesStats(myid, allSegMetas)
 	metricsInMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
@@ -281,15 +284,18 @@ func isTraceRelatedIndex(indexName string) bool {
 	return false
 }
 
-func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
 	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
 
 	stats := make(map[string]utils.AllIndexesStats)
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	indices := make([]string, 0)
+	if err != nil {
+		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
+	}
 
+	indices := make([]string, 0)
 	for k := range allVirtualTableNames {
 		if filterFunc(k) {
 			indices = append(indices, k)
@@ -297,21 +303,7 @@ func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIn
 	}
 	sort.Strings(indices)
 
-	if err != nil {
-		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
-	}
-
-	allSegMetas := writer.ReadAllSegmetas()
-
 	allVTableCounts := segwriter.GetVTableCountsForAll(myid, allSegMetas)
-
-	// // Read segment metadata file
-	// smFile := writer.GetLocalSegmetaFName()
-	// allSegMetas, err := writer.ReadSegmeta(smFile)
-	// if err != nil {
-	// 	log.Errorf("getStats: error when trying to read meta file=%+v. Error=%+v", smFile, err)
-	// 	return nil, 0, 0, 0
-	// }
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
@@ -319,8 +311,6 @@ func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIn
 		indexName := segMeta.VirtualTableName
 		segmentCounts[indexName]++
 	}
-	a := segmentCounts
-	_ = a
 
 	for _, indexName := range indices {
 		if indexName == "" {
@@ -359,14 +349,14 @@ func getStats(myid uint64, filterFunc func(string) bool) (map[string]utils.AllIn
 	return stats, totalEventCount, totalBytes, totalOnDiskBytes
 }
 
-func getIngestionStats(myid uint64) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+func getIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
 	return getStats(myid, func(indexName string) bool {
 		return !isTraceRelatedIndex(indexName)
-	})
+	}, allSegMetas)
 }
 
-func GetTracesStats(myid uint64) (map[string]utils.AllIndexesStats, int64, float64, float64) {
-	return getStats(myid, isTraceRelatedIndex)
+func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (map[string]utils.AllIndexesStats, int64, float64, float64) {
+	return getStats(myid, isTraceRelatedIndex, allSegMetas)
 }
 
 func convertBytesToGB(bytes float64) string {
