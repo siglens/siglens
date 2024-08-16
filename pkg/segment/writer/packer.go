@@ -370,6 +370,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 	if aErr != nil {
 		finalErr = aErr
 	}
+	ss.updateColValueSizeInAllSeenColumns(arraykey, uint32(colWip.cbufidx-s))
 	return maxIdx, matchedCol, finalErr
 }
 
@@ -427,6 +428,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte, maxIdx uint3
 	colWip.cbufidx += 2
 	copy(colWip.cbuf[colWip.cbufidx:], value)
 	colWip.cbufidx += uint32(n)
+	ss.updateColValueSizeInAllSeenColumns(key, uint32(3+n))
 
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
@@ -457,6 +459,8 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 	}
 	s := colWip.cbufidx
 	colWip.WriteSingleString(value)
+	recLen := colWip.cbufidx - s
+	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(value))
@@ -494,6 +498,7 @@ func (ss *SegStore) encodeSingleBool(key string, val bool, maxIdx uint32,
 	colWip.cbufidx += 1
 	copy(colWip.cbuf[colWip.cbufidx:], utils.BoolToBytesLittleEndian(val))
 	colWip.cbufidx += 1
+	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strconv.FormatBool(val)))
@@ -513,6 +518,7 @@ func (ss *SegStore) encodeSingleNull(key string, maxIdx uint32,
 	colWip, _, matchedCol = ss.initAndBackFillColumn(key, nil, matchedCol)
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 	colWip.cbufidx += 1
+	ss.updateColValueSizeInAllSeenColumns(key, 1)
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
 	}
@@ -532,6 +538,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	retLen := encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
 		ss.wipBlock.bb, colWip)
 	colWip.cbufidx += retLen
+	ss.updateColValueSizeInAllSeenColumns(key, retLen)
 
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
@@ -550,7 +557,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{}, matched
 	if !ok {
 		colWip = InitColWip(ss.SegmentKey, key)
 		allColWip[key] = colWip
-		ss.AllSeenColumns[key] = true
+		// ss.AllSeenColumns[key] = true
 	}
 	_, ok = allColsInBlock[key]
 	if !ok {
@@ -670,6 +677,38 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 	}
 
 	return valSize
+}
+
+func (ss *SegStore) updateColValueSizeInAllSeenColumns(colName string, size uint32) {
+	currentSize, ok := ss.AllSeenColumns[colName]
+	if !ok {
+		if ss.RecordCount > 0 {
+			// Not the first record in the segment, so the col value size is not consistent.
+			ss.AllSeenColumns[colName] = -1
+			currentSize = -1
+		} else {
+			ss.AllSeenColumns[colName] = 0
+			currentSize = 0
+		}
+	}
+
+	if currentSize == -1 {
+		return
+	}
+
+	if size > math.MaxInt8 {
+		ss.AllSeenColumns[colName] = -1
+		return
+	}
+
+	if currentSize == 0 {
+		ss.AllSeenColumns[colName] = int8(size)
+		return
+	}
+
+	if currentSize != int8(size) {
+		ss.AllSeenColumns[colName] = -1
+	}
 }
 
 /*
@@ -842,7 +881,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 	}
 
 	tsKey := config.GetTimeStampKey()
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	// set up entries
 	for j := 0; j < numBlocks; j++ {
 		currBlockUint := uint16(j)
@@ -945,7 +984,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 	mapCol["timestamp"] = true
 
 	tsKey := config.GetTimeStampKey()
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	// set up entries
 	for j := 0; j < numBlocks; j++ {
 		currBlockUint := uint16(j)
@@ -1154,7 +1193,7 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
 	if !ok {
 		tsWip = InitColWip(ss.SegmentKey, *tsKey)
 		allColWip[*tsKey] = tsWip
-		ss.AllSeenColumns[*tsKey] = true
+		ss.AllSeenColumns[*tsKey] = -1
 	}
 	// we will never need to backfill a ts key
 	allColsInBlock[*tsKey] = true

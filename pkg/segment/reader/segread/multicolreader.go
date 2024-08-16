@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -76,7 +77,7 @@ Caller is responsible for calling .CloseAll() to close all the fds.
 Can also be used to get the timestamp for any arbitrary record in the Segment
 */
 func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, qid uint64) (*MultiColSegmentReader, error) {
+	blockSummaries []*structs.BlockSummary, allColumnsRecSize map[string]int8, qid uint64) (*MultiColSegmentReader, error) {
 
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
@@ -109,7 +110,12 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 			continue
 		}
 
-		segReader, err := InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries)
+		colRecSize := int8(-1)
+		if allColumnsRecSize != nil {
+			colRecSize = allColumnsRecSize[colName]
+		}
+
+		segReader, err := InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries, colRecSize)
 		if err != nil {
 			log.Errorf("qid=%d, initNewMultiColumnReader: failed initialize segfile reader for column %s Using file %s. Error: %v",
 				qid, colName, colFD.Name(), err)
@@ -190,8 +196,14 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		allInUseSegSetFiles = append(allInUseSegSetFiles, fName)
 	}
 
+	var allColumnsRecSize map[string]int8
+	smi, exist := metadata.GetMicroIndexForSegKey(segKey)
+	if exist {
+		allColumnsRecSize = smi.GetAllColumnsRecSize()
+	}
+
 	for i := 0; i < numReaders; i++ {
-		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, qid)
+		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, allColumnsRecSize, qid)
 		if err != nil {
 			sharedReader.Close()
 			err := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)

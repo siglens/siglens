@@ -155,7 +155,7 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 	}
 
 	for _, test := range cases {
-		allCols := make(map[string]bool)
+		allCols := make(map[string]int8)
 		segstats := make(map[string]*SegStats)
 
 		var blockSummary BlockSummary

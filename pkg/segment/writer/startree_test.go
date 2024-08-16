@@ -239,7 +239,7 @@ func TestStarTree(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	ss := &SegStore{
 		wipBlock:       wipBlock,
 		SegmentKey:     "test-segkey1",
@@ -325,7 +325,7 @@ func TestStarTreeMedium(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	ss := &SegStore{
 		wipBlock:       wipBlock,
 		SegmentKey:     "test-segkey2",
@@ -413,7 +413,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	segstats := make(map[string]*SegStats)
 	ss := &SegStore{
 		wipBlock:       wipBlock,
@@ -502,7 +502,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]int8)
 	ss := &SegStore{
 		wipBlock:       wipBlock,
 		SegmentKey:     "test-segkey4",

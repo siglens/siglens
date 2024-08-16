@@ -24,8 +24,9 @@ import (
 const MAX_SEGMETA_FSIZE = 10_000_000 // 10 MB
 
 type ColSizeInfo struct {
-	CmiSize uint64 `json:"cmiSize"`
-	CsgSize uint64 `json:"csgSize"`
+	CmiSize  uint64 `json:"cmiSize"`
+	CsgSize  uint64 `json:"csgSize"`
+	CValSize int8   `json:"cValSize"`
 }
 
 type VtableCounts struct {

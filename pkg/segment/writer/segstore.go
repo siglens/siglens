@@ -71,7 +71,7 @@ type SegStore struct {
 	lastUpdated        time.Time
 	VirtualTableName   string
 	RecordCount        int
-	AllSeenColumns     map[string]bool
+	AllSeenColumns     map[string]int8 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
 	pqTracker          *PQTracker
 	numBlocks          uint16
 	BytesReceivedCount uint64
@@ -112,7 +112,7 @@ func InitSegStore(
 		suffix:            suffix,
 		lastUpdated:       now,
 		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]bool),
+		AllSeenColumns:    make(map[string]int8),
 		pqTracker:         initPQTracker(),
 		skipDe:            skipDe,
 		timeCreated:       now,
@@ -136,7 +136,7 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 		segbaseDir:        baseDir,
 		suffix:            suffix,
 		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]bool),
+		AllSeenColumns:    make(map[string]int8),
 		pqTracker:         initPQTracker(),
 		timeCreated:       time.Now(),
 		AllSst:            make(map[string]*structs.SegStats),
@@ -270,7 +270,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.BytesReceivedCount = 0
 	segstore.OnDiskBytes = 0
 
-	segstore.AllSeenColumns = make(map[string]bool)
+	segstore.AllSeenColumns = make(map[string]int8)
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	segstore.usingSegTree = false
@@ -1416,7 +1416,7 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 
 	allColsSizes := make(map[string]*structs.ColSizeInfo)
 
-	for cname := range ss.AllSeenColumns {
+	for cname, colValueLen := range ss.AllSeenColumns {
 
 		if cname == config.GetTimeStampKey() {
 			continue
@@ -1441,8 +1441,12 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		if !onlocal {
 			log.Errorf("getAllColsSizes: csg cname: %v, fname: %+v not on local disk", cname, fname)
 		}
+		if colValueLen == 0 {
+			log.Errorf("getAllColsSizes: colValueLen is 0 for cname: %v. This should not happen.", cname)
+			colValueLen = -1
+		}
 
-		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
+		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, CValSize: colValueLen}
 		allColsSizes[cname] = &csinfo
 	}
 	return allColsSizes
