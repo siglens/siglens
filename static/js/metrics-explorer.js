@@ -94,7 +94,7 @@ function updateDownloadButtons() {
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
-    if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
+    if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
         isAlertScreen = true;
     }
     if (currentPage === '/metrics-explorer.html') {
@@ -104,7 +104,7 @@ $(document).ready(async function () {
     filterEndDate = 'now';
     $('.inner-range #' + filterStartDate).addClass('active');
     datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-    if (currentPage === '/dashboard.html') {
+    if (currentPage.startsWith('/dashboard.html')) {
         isDashboardScreen = true;
     }
 
@@ -2286,27 +2286,28 @@ async function refreshMetricsGraphs() {
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-    for (const queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            const lineChart = lineCharts[queryName];
-            lineChart.options.scales.x.ticks.color = tickColor;
-            lineChart.options.scales.y.ticks.color = tickColor;
-            lineChart.options.scales.y.grid.color = gridLineColor;
-            lineChart.update();
-        }
-    }
-
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
 }
 
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
-    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
     const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
@@ -2334,7 +2335,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     }
 
     var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
-    lineCharts[queryString] = lineChart;
+    lineCharts[queryName] = lineChart;
 }
 
 // Parsing function to convert the query string to query object
