@@ -262,14 +262,14 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 						strs, err = utils.ConvertGroupByKey(rawVal)
 						if err != nil {
 							log.Errorf("addRecordToAggregations: failed to extract raw key: %v", err)
+						} else {
+							// I'm pretty sure we need to actually copy the string
+							// here to insert it into the map, since we made the
+							// string previously with an unsafe conversion from a
+							// []byte, and that []byte will change later.
+							rawValStr = string(rawVal)
+							groupByCache[rawValStr] = strs
 						}
-
-						// I'm pretty sure we need to actually copy the string
-						// here to insert it into the map, since we made the
-						// string previously with an unsafe conversion from a
-						// []byte, and that []byte will change later.
-						rawValStr = string(rawVal)
-						groupByCache[rawValStr] = strs
 					}
 					if len(strs) == 1 {
 						groupByColVal = strs[0]
