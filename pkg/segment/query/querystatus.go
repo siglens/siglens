@@ -585,31 +585,31 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 }
 
 // returns the rrcs, query counts, map of segkey encoding, and errors
-func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, error) {
+func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, map[string]struct{}, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("GetRawRecordInforForQid: qid %+v does not exist!", qid)
-		return nil, 0, nil, fmt.Errorf("qid does not exist")
+		return nil, 0, nil, nil, fmt.Errorf("qid does not exist")
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 
 	if len(rQuery.rawRecords) <= scroll {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 	skCopy := make(map[uint16]string, len(rQuery.searchRes.SegEncToKey))
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
-	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, nil
+	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, rQuery.AllColsInAggs, nil
 }
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors

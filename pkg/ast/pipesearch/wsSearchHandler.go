@@ -395,7 +395,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			useAnySegKey = true
 		}
 
-		inrrcs, qc, segencmap, err := query.GetRawRecordInfoForQid(scrollFrom, qid)
+		inrrcs, qc, segencmap, allColsInAggs, err := query.GetRawRecordInfoForQid(scrollFrom, qid)
 		if err != nil {
 			log.Errorf("qid=%d, createRecsWsResp: failed to get rrcs, err: %v", qid, err)
 			return nil, 0, err
@@ -413,7 +413,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			}
 		} else {
 			// handle local
-			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid)
+			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns, err: %+v", qid, err)
 				return nil, 0, err
@@ -439,7 +439,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
-	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64) ([]map[string]interface{}, []string, error) {
+	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
 	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {
@@ -449,7 +449,7 @@ func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16
 		}
 	}
 	rrcs = rrcs[:found]
-	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs)
+	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs, allColsInAggs)
 	if err != nil {
 		log.Errorf("qid=%d, getRawLogsAndColumns: failed to convert rrcs to json, err: %+v", qid, err)
 		return nil, nil, err

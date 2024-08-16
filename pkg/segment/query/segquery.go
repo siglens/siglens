@@ -264,7 +264,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		if len(allColsInAggs) > 0 {
 			SetAllColsInAggsForQid(qid, allColsInAggs)
 		}
-		return GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, true, true, qc.Orgid)
+		nodeRes := GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, true, true, qc.Orgid)
+		nodeRes.AllColumnsInAggs = allColsInAggs
+
+		return nodeRes
 	default:
 		err := errors.New("unsupported query type")
 		log.Errorf("qid=%d Failed to apply search! error %+v", qid, err)

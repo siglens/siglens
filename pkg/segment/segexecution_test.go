@@ -1314,13 +1314,13 @@ func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileC
 		case query.RUNNING:
 			sawRunning = true
 		case query.QUERY_UPDATE:
-			rrcs, qc, _, err = query.GetRawRecordInfoForQid(scroll, qid)
+			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
 			assert.Nil(t, err)
 			buckets, _ = query.GetBucketsForQid(qid)
 			sawQueryUpdate = true
 		case query.COMPLETE:
 			sawRRCComplete = true
-			rrcs, qc, _, err = query.GetRawRecordInfoForQid(scroll, qid)
+			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
 			buckets, _ = query.GetBucketsForQid(qid)
 			assert.Nil(t, err)
 			sawExit = true

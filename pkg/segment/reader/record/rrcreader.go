@@ -52,21 +52,6 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
-func GetAllColumnsInAggsForQid(qid uint64) map[string]struct{} {
-	allColsInAggs, err := query.GetAllColsInAggsForQid(qid)
-	if err != nil {
-		// For synchronous queries, the query is deleted by this
-		// point, but segmap has all the segments that the query
-		// searched.
-		// For async queries, the segmap has just one segment
-		// because we process them as the search completes, but the
-		// query isn't deleted until all segments get processed, so
-		// we shouldn't get to this block for async queries.
-		return nil
-	}
-	return allColsInAggs
-}
-
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
@@ -200,7 +185,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+	segEncToKey map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
 	nodeRes := GetOrCreateNodeRes(qid)
@@ -211,7 +196,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	colsIndexMap := make(map[string]int)
 	numProcessedRecords := 0
-	allColsInAggs := GetAllColumnsInAggsForQid(qid)
 
 	var resultRecMap map[string]bool
 

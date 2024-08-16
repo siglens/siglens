@@ -443,6 +443,7 @@ type NodeResult struct {
 	CurrentSearchResultCount    int
 	AllSearchColumnsByTimeRange map[string]bool
 	FinalColumns                map[string]bool
+	AllColumnsInAggs            map[string]struct{}
 }
 
 type SegStats struct {
