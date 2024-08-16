@@ -57,7 +57,8 @@ import (
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
-const MaxConcurrentAgileTrees = 5
+const MaxConcurrentAgileTrees = 3
+const ATreeDictEncNodeCount = 20_000 // max recs that could fit in one block
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
