@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
@@ -763,10 +762,9 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 			sort.Strings(uniqueStrings)
 
-			strVal := strings.Join(uniqueStrings, "&nbsp")
 			eVal = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  strVal,
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  uniqueStrings,
 			}
 
 			idx++

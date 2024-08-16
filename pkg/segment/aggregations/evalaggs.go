@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -686,10 +685,9 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 	sort.Strings(uniqueStrings)
 
-	strVal := strings.Join(uniqueStrings, "&nbsp")
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  strVal,
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  uniqueStrings,
 	}
 
 	return nil
