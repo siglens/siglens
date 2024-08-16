@@ -877,7 +877,7 @@ function alertChart(res) {
             });
 
             xAxisData = hits.map((item) => {
-                ////eslint-disable-next-line no-undef
+                //eslint-disable-next-line no-undef
                 let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
                 return groupByValue || 'NULL';
             });
