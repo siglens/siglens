@@ -43,18 +43,22 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	if e1.Dtype == SS_DT_FLOAT && e2.Dtype != SS_DT_FLOAT {
 		switch e2.Dtype {
 		case SS_DT_UNSIGNED_NUM:
-			e2 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e2.CVal.(uint64))}
+			e2.Dtype = SS_DT_FLOAT
+			e2.CVal = float64(e2.CVal.(uint64))
 		case SS_DT_SIGNED_NUM:
-			e2 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e2.CVal.(int64))}
+			e2.Dtype = SS_DT_FLOAT
+			e2.CVal = float64(e2.CVal.(int64))
 		}
 	}
 
 	if e2.Dtype == SS_DT_FLOAT && e1.Dtype != SS_DT_FLOAT {
 		switch e1.Dtype {
 		case SS_DT_UNSIGNED_NUM:
-			e1 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e1.CVal.(uint64))}
+			e1.Dtype = SS_DT_FLOAT
+			e1.CVal = float64(e1.CVal.(uint64))
 		case SS_DT_SIGNED_NUM:
-			e1 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e1.CVal.(int64))}
+			e1.Dtype = SS_DT_FLOAT
+			e1.CVal = float64(e1.CVal.(int64))
 		}
 	}
 
@@ -63,36 +67,39 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	switch e1.Dtype {
 	case SS_DT_UNSIGNED_NUM:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(uint64) + e2.CVal.(uint64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))}, nil
+			e1.CVal = MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(uint64) + e2.CVal.(uint64)}, nil
+			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			return e1, nil
 		}
 	case SS_DT_SIGNED_NUM:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(int64) + e2.CVal.(int64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MinInt64(e1.CVal.(int64), e2.CVal.(int64))}, nil
+			e1.CVal = MinInt64(e1.CVal.(int64), e2.CVal.(int64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MaxInt64(e1.CVal.(int64), e2.CVal.(int64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(int64) + e2.CVal.(int64)}, nil
+			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
+			return e1, nil
 		}
 	case SS_DT_FLOAT:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(float64) + e2.CVal.(float64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			e1.CVal = math.Min(e1.CVal.(float64), e2.CVal.(float64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
+			return e1, nil
 		}
 	case SS_DT_STRING_SET:
 		{
@@ -105,7 +112,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				for str := range set2 {
 					set1[str] = struct{}{}
 				}
-				return CValueEnclosure{Dtype: e1.Dtype, CVal: set1}, nil
+				return e1, nil
 			}
 			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 		}
