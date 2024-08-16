@@ -1021,8 +1021,12 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func applyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		return fmt.Errorf("applyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)
+	}
 	for _, req := range allSegRequests {
-		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs)
+		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs, nodeRes)
 	}
 
 	return nil
@@ -1170,7 +1174,11 @@ func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 			SearchTotalMemory: uint64(len(blkSummaries) * 16), // TODO: add bitset size here
 		},
 	}
-	search.RawSearchPQMResults(req, qsr.parallelismPerFile, qsr.queryRange, qsr.aggs, qsr.sizeLimit, spqmr, allSearchResults, qsr.qid, qs)
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qsr.qid)
+	if err != nil {
+		return fmt.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get or create query search node result! Error: %v", qsr.qid, err)
+	}
+	search.RawSearchPQMResults(req, qsr.parallelismPerFile, qsr.queryRange, qsr.aggs, qsr.sizeLimit, spqmr, allSearchResults, qsr.qid, qs, nodeRes)
 
 	if req.HasMatchedRrc {
 		qsr.HasMatchedRrc = true

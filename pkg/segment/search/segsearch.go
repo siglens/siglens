@@ -67,7 +67,7 @@ const BLOCK_BATCH_SIZE = 100
 
 func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismPerFile int64,
 	searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
-	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary) {
+	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary, nodeRes *structs.NodeResult) {
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
 	if err != nil {
 		log.Errorf("qid=%d Failed to Acquire resources for raw search! error %+v", qid, err)
@@ -91,7 +91,7 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 	}
 
 	if !shouldChunk {
-		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs)
+		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs, nodeRes)
 		return
 	}
 	// if not match_all then do search in N chunk of blocks
@@ -189,7 +189,7 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 
 func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *structs.SearchNode, timeRange *dtu.TimeRange,
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
-	querySummary *summary.QuerySummary) {
+	querySummary *summary.QuerySummary, nodeRes *structs.NodeResult) {
 	if fileParallelism <= 0 {
 		log.Errorf("qid=%d, RawSearchSegmentFile: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
@@ -294,7 +294,8 @@ func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq 
 }
 
 func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int64, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
-	sizeLimit uint64, spqmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults, qid uint64, querySummary *summary.QuerySummary) {
+	sizeLimit uint64, spqmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults, qid uint64, querySummary *summary.QuerySummary,
+	nodeRes *structs.NodeResult) {
 	sTime := time.Now()
 
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
@@ -339,7 +340,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 		runningBlockManagers.Add(1)
 		go rawSearchSingleSPQMR(sharedReader.MultiColReaders[i], req, aggs, runningBlockManagers,
 			filterBlockRequestsChan, spqmr, allSearchResults, allTimestamps, timeRange, sizeLimit, queryMetrics,
-			allBlocksToXRollup, aggsHasTimeHt, qid)
+			allBlocksToXRollup, aggsHasTimeHt, qid, nodeRes)
 	}
 
 	sortedAllBlks := spqmr.GetAllBlocks()
@@ -364,7 +365,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *structs.SegmentSearchRequest, aggs *structs.QueryAggregators,
 	runningWG *sync.WaitGroup, filterBlockRequestsChan chan uint16, sqpmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults,
 	allTimestamps map[uint16][]uint64, tRange *dtu.TimeRange, sizeLimit uint64, queryMetrics *structs.QueryProcessingMetrics,
-	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64) {
+	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64, nodeRes *structs.NodeResult) {
 	defer runningWG.Done()
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
@@ -464,7 +465,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
 			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
 				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
-				qid, aggsKeyWorkingBuf, timeRangeBuckets)
+				qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 
