@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	lookupsDir      = "lookups"
 	allowedExtCSV   = ".csv"
 	allowedExtCSVGZ = ".csv.gz"
 )
@@ -71,7 +70,7 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	fullLookupsDir := filepath.Join(config.GetDataPath(), lookupsDir)
+	fullLookupsDir := config.GetLookupPath()
 	if err := os.MkdirAll(fullLookupsDir, os.ModePerm); err != nil {
 		log.Errorf("UploadLookupFile: Error creating lookups directory: %v", err)
 		ctx.Error("Error creating lookups directory", fasthttp.StatusInternalServerError)
@@ -113,7 +112,7 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 }
 
 func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
-	fullLookupsDir := filepath.Join(config.GetDataPath(), lookupsDir)
+	fullLookupsDir := config.GetLookupPath()
 
 	if err := os.MkdirAll(fullLookupsDir, os.ModePerm); err != nil {
 		log.Errorf("GetAllLookupFiles: Error creating lookups directory: %v", err)
