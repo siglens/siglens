@@ -256,6 +256,7 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 	if sfr.colValueRecLen > 0 {
 		return uint32(sfr.colValueRecLen), nil
 	}
+	fmt.Println("getCurrentRecordLength. sfr.ColValueRecLen: ", sfr.colValueRecLen, " sfr.ColName: ", sfr.ColName)
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {
 	case utils.VALTYPE_ENC_SMALL_STRING[0]:
