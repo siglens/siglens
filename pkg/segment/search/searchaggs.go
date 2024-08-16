@@ -852,25 +852,25 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					hasValuesFunc = false
 				}
 
-				hasListFunc, exists := listUsage[colName]
+				hasListFunc, exists := listUsage[cname]
 				if !exists {
 					hasListFunc = false
 				}
 
-				if val.Dtype == utils.SS_DT_STRING {
-					str, err := val.GetString()
+				if cValEnc.Dtype == utils.SS_DT_STRING {
+					str, err := cValEnc.GetString()
 					if err != nil {
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, cname, err)
 						continue
 					}
-					stats.AddSegStatsStr(localStats, colName, str, bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc, hasListFunc)
 				} else {
 					fVal, err := cValEnc.GetFloatValue()
 					if err != nil {
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for type %+v. Err: %v", qid, cValEnc.Dtype, err)
 						continue
 					}
-					stats.AddSegStatsNums(localStats, colName, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(localStats, cname, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				}
 			}
 		}

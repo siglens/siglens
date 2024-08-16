@@ -384,13 +384,9 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, 100)
 			}
 
-			sort.Strings(strList)
-
-			strVal := strings.Join(strList, " ")
-
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  strVal,
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  strList,
 			}
 			continue
 		default:

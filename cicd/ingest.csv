@@ -88,6 +88,8 @@ city=Boston | stats range(latitude),now-1d,now,*,group:range(latitude):*,eq,179.
 city=Boston | stats avg(latitude),now-1d,now,*,group:avg(latitude):*,eq,0.403,Splunk QL
 city=Boston | stats sum(latitude),now-1d,now,*,group:sum(latitude):*,eq,416.553,Splunk QL
 city=Boston | stats values(gender),now-1d,now,*,group:values(gender):*,eq,"[female male]",Splunk QL
+"first_name=Lavern AND last_name=Douglas | stats list(gender)",now-1d,now,*,group:list(gender):*,eq,"[female]",Splunk QL
+"latency > 9999900 | stats list(latency)", now-1d,now,*,group:list(latency):*,eq,"[9999944]",Splunk QL
 "batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,eq,89.228,Splunk QL
 batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):St. Louis,eq,2,Splunk QL
 "batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):St. Louis:200,eq,1,Splunk QL
