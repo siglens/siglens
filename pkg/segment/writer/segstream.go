@@ -31,8 +31,8 @@ Main function exported to check colWips against persistent queries during ingest
 
 Internally, updates the bitset with recNum for all queries that matched
 */
-func applyStreamingSearchToRecord(wipBlock WipBlock, psNode map[string]*structs.SearchNode,
-	recNum uint16, segStore *SegStore) {
+func applyStreamingSearchToRecord(segStore *SegStore, psNode map[string]*structs.SearchNode,
+	recNum uint16) {
 
 	holderDte := &utils.DtypeEnclosure{}
 	tsKey := config.GetTimeStampKey()

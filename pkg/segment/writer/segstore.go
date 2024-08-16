@@ -954,7 +954,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, si
 	}
 
 	if matchedPCols {
-		applyStreamingSearchToRecord(segstore.wipBlock, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount, segstore)
+		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
 	segstore.wipBlock.maxIdx = maxIdx
