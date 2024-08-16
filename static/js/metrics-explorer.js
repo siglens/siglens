@@ -97,6 +97,9 @@ $(document).ready(async function () {
     if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
         isAlertScreen = true;
     }
+    if (currentPage === '/metrics-explorer.html') {
+        isMetricsScreen = true;
+    }
     filterStartDate = 'now-1h';
     filterEndDate = 'now';
     $('.inner-range #' + filterStartDate).addClass('active');
@@ -2603,9 +2606,15 @@ $('#alert-from-metrics-btn').click(function () {
     };
     let jsonString = JSON.stringify(queryParams);
     queryString = encodeURIComponent(jsonString);
-    var newTab = window.open('../alert.html?queryString=' + queryString, '_blank');
+    isMetricsURL = true;
+    isMetricsScreen = true;
+
+    // Build the URL with the additional parameters
+    var urlParams = `queryString=${queryString}&isMetricsURL=${isMetricsURL}&isMetricsScreen=${isMetricsScreen}`;
+    var newTab = window.open(`../alert.html?${urlParams}`, '_blank');
     newTab.focus();
 });
+
 
 async function populateMetricsQueryElement(metricsQueryParams) {
     const { start, end, queries, formulas } = metricsQueryParams;
