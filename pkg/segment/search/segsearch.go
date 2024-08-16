@@ -30,6 +30,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
@@ -287,7 +288,7 @@ func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq 
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
 		err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
 		if err != nil {
-			log.Errorf(" qid:%d, Failed to write pqmr file.  Error: %v", qid, err)
+			log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
 		}
 	}
 }
@@ -379,6 +380,13 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 	}
 
+	// start off with 256 bytes and caller will resize it and return back the new resized buf
+	aggsKeyWorkingBuf := make([]byte, 256)
+	var timeRangeBuckets []uint64
+	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
+		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
+	}
+
 	for blockNum := range filterBlockRequestsChan {
 		if req.SearchMetadata == nil || int(blockNum) >= len(req.SearchMetadata.BlockSummaries) {
 			log.Errorf("qid=%d, rawSearchSingleSPQMR unable to extract block summary for block %d, segkey=%v", qid, blockNum, req.SegmentKey)
@@ -462,8 +470,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		if aggs != nil && aggs.GroupByRequest != nil {
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
-			addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops),
-				multiReader, blockNum, recIT, blkResults, qid)
+			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
+				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
+				qid, aggsKeyWorkingBuf, timeRangeBuckets)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 
@@ -533,8 +542,9 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 		return sortVal, invalidAggsCol
 	}
 
-	colVal, err := multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
-		qid, false)
+	var colVal utils.CValueEnclosure
+	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
+		qid, false, &colVal)
 	if err != nil {
 		invalidAggsCol = true
 		return sortVal, invalidAggsCol

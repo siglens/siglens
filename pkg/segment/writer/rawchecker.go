@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -31,7 +32,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error) {
+func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp) (bool, error) {
+	var err error
 
 	if len(match.MatchWords) == 0 {
 		return true, nil
@@ -61,14 +63,16 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == And {
 		var foundQword bool = true
 		if match.MatchType == MATCH_PHRASE {
-			regexp, err := match.GetRegexp()
-			if err != nil {
-				log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
-				return false, err
+			if compiledRegex == nil {
+				compiledRegex, err = match.GetRegexp()
+				if err != nil {
+					log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
+					return false, err
+				}
 			}
 
-			if regexp != nil {
-				foundQword = regexp.Match(asciiBytes)
+			if compiledRegex != nil {
+				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
 				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase)
 			}

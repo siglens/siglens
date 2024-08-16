@@ -94,14 +94,14 @@ function updateDownloadButtons() {
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
-    if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
+    if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
         isAlertScreen = true;
     }
     filterStartDate = 'now-1h';
     filterEndDate = 'now';
     $('.inner-range #' + filterStartDate).addClass('active');
     datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-    if (currentPage === '/dashboard.html') {
+    if (currentPage.startsWith('/dashboard.html')) {
         isDashboardScreen = true;
     }
 
@@ -191,8 +191,8 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
 
                 appendFormulaFunctionDiv(formulaElement, selectedFunction.fn || formulaDetails.functions);
                 let formula = formulaElement.find('.formula').val().trim();
+                formulaDetailsMap[uniqueId].formula = formula;
                 let validationResult = validateFormula(formula, uniqueId);
-
                 if (validationResult !== false) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
                 }
@@ -830,7 +830,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
-
+    const input = queryElement.find('.metrics');
+    adjustInputWidth(input[0]);
     if (currentMetricsValue) {
         queryDetails.metrics = currentMetricsValue;
 
@@ -866,6 +867,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
                 $(this).blur();
+                adjustInputWidth(this);
             },
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
@@ -886,6 +888,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
             }
+            adjustInputWidth(this);
         })
         .on('keydown', function (event) {
             if (event.keyCode === 27) {
@@ -899,6 +902,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                     queryDetails.metrics = selectedValue;
                 }
                 $(this).blur();
+                adjustInputWidth(this);
             }
         })
         .on('change', function () {
@@ -909,6 +913,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryDetails.metrics = selectedValue;
             }
             $(this).blur();
+            adjustInputWidth(this);
         });
 
     // Everywhere input (tag:value)
@@ -2278,27 +2283,28 @@ async function refreshMetricsGraphs() {
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-    for (const queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            const lineChart = lineCharts[queryName];
-            lineChart.options.scales.x.ticks.color = tickColor;
-            lineChart.options.scales.y.ticks.color = tickColor;
-            lineChart.options.scales.y.grid.color = gridLineColor;
-            lineChart.update();
-        }
-    }
-
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
 }
 
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
-    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
     const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
@@ -2326,7 +2332,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     }
 
     var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
-    lineCharts[queryString] = lineChart;
+    lineCharts[queryName] = lineChart;
 }
 
 // Parsing function to convert the query string to query object
@@ -2570,9 +2576,14 @@ $('#alert-from-metrics-btn').click(function () {
     if (Object.keys(formulas).length > 0) {
         mformulas = [];
         Object.keys(formulas).forEach(function (formulaId) {
-            let formulaDetails = formulas[formulaId];
+            let formulaDetails = formulaDetailsMap[formulaId];
+            let functionsArray = formulaDetails?.functions || [];
+            let formulaWithFunc = formulaDetails.formula;
+            for (let func of functionsArray) {
+                formulaWithFunc = `${func}(${formulaWithFunc})`;
+            }
             const formula = {
-                formula: formulaDetails.formula,
+                formula: formulaWithFunc,
             };
             mformulas.push(formula);
         });
@@ -2666,4 +2677,11 @@ function generateEmptyChartLabels(timeUnit, startTime, endTime) {
     }
 
     return labels;
+}
+function adjustInputWidth(input) {
+    const minWidth = 230;
+    const charWidth = 8;
+    const padding = 5;
+    const width = Math.max(minWidth, input.value.length * charWidth + padding);
+    input.style.width = width + 'px';
 }

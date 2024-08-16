@@ -18,6 +18,7 @@
 package search
 
 import (
+	"regexp"
 	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -136,6 +137,9 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
 	checkAllCols := false
+	var compiledRegex *regexp.Regexp
+	var err error
+
 	if query.SearchType == structs.MatchWordsAllColumns ||
 		query.SearchType == structs.RegexExpressionAllColumns ||
 		query.SearchType == structs.MatchDictArrayAllColumns {
@@ -201,6 +205,14 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			queryInfoColKeyIndex = cKeyidx
 		}
 
+		if query.MatchFilter != nil && query.MatchFilter.MatchType == structs.MATCH_PHRASE {
+			compiledRegex, err = query.MatchFilter.GetRegexp()
+			if err != nil {
+				log.Errorf("filterRecordsFromSearchQuery: error getting match regex: %v", err)
+				return
+			}
+		}
+
 		colsToReadIndices, err := GetRequiredColsForSearchQuery(multiColReader, query, cmiPassedNonDictColKeyIndices, queryInfoColKeyIndex)
 		if err != nil {
 			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to get required cols for search query. err: %v", qid, err)
@@ -219,7 +231,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex)
+					queryInfoColKeyIndex, compiledRegex)
 				if err != nil {
 					allSearchResults.AddError(err)
 					break

@@ -18,11 +18,9 @@
 package blockresults
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
@@ -371,12 +369,12 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
 
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.UnsafeByteSliceToString(currKey.Bytes())
+	bKey := toputils.UnsafeByteSliceToString(currKey)
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults
@@ -387,7 +385,11 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResul
 		}
 		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
-		b.GroupByAggregation.StringBucketIdx[bKey] = nBuckets
+		// only make a copy if this is the first time we are inserting it
+		// so that the caller may free up the backing space for this currKey/bKey
+		keyCopy := make([]byte, len(bKey))
+		copy(keyCopy, bKey)
+		b.GroupByAggregation.StringBucketIdx[toputils.UnsafeByteSliceToString(keyCopy)] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
@@ -760,10 +762,9 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 			sort.Strings(uniqueStrings)
 
-			strVal := strings.Join(uniqueStrings, "&nbsp")
 			eVal = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  strVal,
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  uniqueStrings,
 			}
 
 			idx++

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -686,10 +685,9 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 	sort.Strings(uniqueStrings)
 
-	strVal := strings.Join(uniqueStrings, "&nbsp")
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  strVal,
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  uniqueStrings,
 	}
 
 	return nil
@@ -810,7 +808,7 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 }
 
 // Determine if cols used by eval statements or not
-func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool) {
+func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {
 		for _, field := range measureAgg.ValueColRequest.GetFields() {
 			aggCols[field] = true
@@ -832,6 +830,8 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 		aggCols[measureAgg.MeasureCol] = true
 		if measureAgg.MeasureFunc == utils.Values {
 			valuesUsage[measureAgg.MeasureCol] = true
+		} else if measureAgg.MeasureFunc == utils.List {
+			listUsage[measureAgg.MeasureCol] = true
 		}
 
 		colUsage, exists := aggColUsage[measureAgg.MeasureCol]

@@ -147,7 +147,7 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 			arqMapLock.RUnlock()
 
 			if ok {
-				log.Infof("qid: %v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
 			}
@@ -264,7 +264,7 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return 0, fmt.Errorf("qid: %v does not exist", qid)
+		return 0, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -300,7 +300,7 @@ func IsRawSearchFinished(qid uint64) (bool, error) {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return false, fmt.Errorf("qid:%v does not exist", qid)
+		return false, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -314,7 +314,7 @@ func SetRawSearchFinished(qid uint64) error {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return fmt.Errorf("qid:%v does not exist", qid)
+		return fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -821,13 +821,13 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 func LogGlobalSearchErrors(qid uint64) {
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
-		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid: %v", qid)
+		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
 		return
 	}
 	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {
 		if errInfo == nil {
 			continue
 		}
-		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
+		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
 	}
 }

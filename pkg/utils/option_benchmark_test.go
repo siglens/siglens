@@ -15,10 +15,37 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import "testing"
 
-const SigLensVersion = "0.2.30d"
+func BenchmarkIntOption(b *testing.B) {
+	option := NewUnsetOption[int]()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		option.Set(i)
+		value, ok := option.Get()
+		if !ok {
+			panic("value should be set")
+		}
+		if value != i {
+			panic("incorrect value")
+		}
+	}
+}
+
+func BenchmarkIntPointer(b *testing.B) {
+	var value int
+	var valuePtr *int
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		value = i
+		valuePtr = &value
+
+		if *valuePtr != i {
+			panic("incorrect value")
+		}
+	}
+}

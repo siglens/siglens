@@ -89,7 +89,9 @@ func Test_segReader(t *testing.T) {
 		arr, err := sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock-3))
 		assert.Nil(t, err)
 		assert.NotNil(t, arr)
-		cVal, _, err := writer.GetCvalFromRec(arr, 23)
+
+		var cVal segutils.CValueEnclosure
+		_, err = writer.GetCvalFromRec(arr, 23, &cVal)
 		assert.Nil(t, err)
 		assert.NotNil(t, cVal)
 		log.Infof("GetCvalFromRec: %+v for column %s", cVal, queryCol)

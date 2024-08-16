@@ -92,6 +92,8 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+    //eslint-disable-next-line no-undef
+    $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
@@ -211,7 +213,6 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
-
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
@@ -221,7 +222,6 @@ async function getAlertId() {
             originalIndexValues = indexes.map((item) => item.index);
             indexValues = [...originalIndexValues];
         }
-        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -485,6 +485,7 @@ async function displayAlert(res) {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
+        initializeFilterInputEvents();
         let data = {
             state: wsState,
             searchText: queryText,
