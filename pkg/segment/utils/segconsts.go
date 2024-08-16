@@ -282,7 +282,8 @@ const (
 type AggregateFunctions int
 
 const (
-	Count AggregateFunctions = iota + 1
+	Invalid AggregateFunctions = iota
+	Count
 	Avg
 	Min
 	Max
@@ -300,6 +301,7 @@ const (
 	Estdc
 	EstdcError
 	ExactPerc
+	Mean
 	Median
 	Mode
 	Perc

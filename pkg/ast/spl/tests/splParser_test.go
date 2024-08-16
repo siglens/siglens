@@ -1917,6 +1917,7 @@ func Test_unimplementedAgg(t *testing.T) {
 	testSingleAggregateFunction(t, utils.Estdc, "latency")
 	testSingleAggregateFunction(t, utils.EstdcError, "latency")
 	testSingleAggregateFunction(t, utils.Median, "latency")
+	testSingleAggregateFunction(t, utils.Mean, "latency")
 	testSingleAggregateFunction(t, utils.Mode, "latency")
 	testSingleAggregateFunction(t, utils.Stdev, "latency")
 	testSingleAggregateFunction(t, utils.Stdevp, "latency")
