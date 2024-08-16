@@ -98,6 +98,7 @@ $(document).ready(async function () {
         isAlertScreen = true;
     }
     if (currentPage === '/metrics-explorer.html') {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
     filterStartDate = 'now-1h';
@@ -2607,9 +2608,11 @@ $('#alert-from-metrics-btn').click(function () {
     let jsonString = JSON.stringify(queryParams);
     queryString = encodeURIComponent(jsonString);
     isMetricsURL = true;
+    //eslint-disable-next-line no-undef
     isMetricsScreen = true;
 
     // Build the URL with the additional parameters
+    //eslint-disable-next-line no-undef
     var urlParams = `queryString=${queryString}&isMetricsURL=${isMetricsURL}&isMetricsScreen=${isMetricsScreen}`;
     var newTab = window.open(`../alert.html?${urlParams}`, '_blank');
     newTab.focus();
