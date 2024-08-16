@@ -18,6 +18,8 @@
 package writer
 
 import (
+	"fmt"
+
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -29,23 +31,23 @@ Main function exported to check colWips against persistent queries during ingest
 
 Internally, updates the bitset with recNum for all queries that matched
 */
-func applyStreamingSearchToRecord(wipBlock WipBlock, psNode map[string]*structs.SearchNode,
+func applyStreamingSearchToRecord(segStore *SegStore, psNode map[string]*structs.SearchNode,
 	recNum uint16) {
 
 	holderDte := &utils.DtypeEnclosure{}
 	tsKey := config.GetTimeStampKey()
 	for pqid, sNode := range psNode {
 		holderDte.Reset()
-		if applySearchSingleNode(wipBlock.colWips, sNode, holderDte, tsKey) {
-			wipBlock.addRecordToMatchedResults(recNum, pqid)
+		if applySearchSingleNode(segStore.wipBlock.colWips, sNode, holderDte, tsKey, segStore) {
+			segStore.addRecordToMatchedResults(recNum, pqid)
 		}
 	}
 }
 
-func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode, holderDte *utils.DtypeEnclosure, tsKey string) bool {
+func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode, holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	retVal := false
 	if sNode.AndSearchConditions != nil {
-		andConditions := applySearchSingleCondition(colWips, sNode.AndSearchConditions, utils.And, holderDte, tsKey)
+		andConditions := applySearchSingleCondition(colWips, sNode.AndSearchConditions, utils.And, holderDte, tsKey, segStore)
 		if !andConditions {
 			return false
 		}
@@ -54,7 +56,7 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 
 	// at least one must pass. If and conditions are defined, then this is a noop check
 	if sNode.OrSearchConditions != nil {
-		orConditions := applySearchSingleCondition(colWips, sNode.OrSearchConditions, utils.Or, holderDte, tsKey)
+		orConditions := applySearchSingleCondition(colWips, sNode.OrSearchConditions, utils.Or, holderDte, tsKey, segStore)
 		retVal = retVal || orConditions
 	}
 
@@ -63,7 +65,7 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 	}
 	// all must fail
 	if sNode.ExclusionSearchConditions != nil {
-		exclusionConditions := applySearchSingleCondition(colWips, sNode.ExclusionSearchConditions, utils.Exclusion, holderDte, tsKey)
+		exclusionConditions := applySearchSingleCondition(colWips, sNode.ExclusionSearchConditions, utils.Exclusion, holderDte, tsKey, segStore)
 		if exclusionConditions {
 			return false
 		}
@@ -72,11 +74,11 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 }
 
 func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.SearchCondition, op utils.LogicalOperator,
-	holderDte *utils.DtypeEnclosure, tsKey string) bool {
+	holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	orMatch := false
 	if sCond.SearchNode != nil {
 		for _, sNode := range sCond.SearchNode {
-			retVal := applySearchSingleNode(colWips, sNode, holderDte, tsKey)
+			retVal := applySearchSingleNode(colWips, sNode, holderDte, tsKey, segStore)
 			if !retVal && op == utils.And {
 				return retVal
 			} else {
@@ -86,7 +88,7 @@ func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.Searc
 	}
 	if sCond.SearchQueries != nil {
 		for _, query := range sCond.SearchQueries {
-			retVal := applySearchSingleQuery(colWips, query, op, holderDte, tsKey)
+			retVal := applySearchSingleQuery(colWips, query, op, holderDte, tsKey, segStore)
 			if !retVal && op == utils.And {
 				return retVal
 			} else {
@@ -103,7 +105,7 @@ func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.Searc
 }
 
 func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQuery, op utils.LogicalOperator,
-	holderDte *utils.DtypeEnclosure, tsKey string) bool {
+	holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	switch sQuery.SearchType {
 	case structs.MatchAll:
 		return true
@@ -114,6 +116,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord(), nil)
 		if err != nil {
+			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply match words search", log.ErrorLevel, err)
 			return false
 		}
 		return retVal
@@ -135,6 +138,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), false, holderDte)
 		if err != nil {
+			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply simple expression search", log.ErrorLevel, err)
 			return false
 		}
 		return retVal
@@ -145,6 +149,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), true, holderDte)
 		if err != nil {
+			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply wildcard expression search on RegexExpression", log.ErrorLevel, err)
 			return false
 		}
 		return retVal
@@ -177,6 +182,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		retVal, err := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, rawVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, true, holderDte)
 		if err != nil {
+			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply wildcard expression search on MatchDictArraySingleColumn", log.ErrorLevel, err)
 			return false
 		}
 		return retVal
@@ -192,6 +198,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		}
 		return false
 	default:
+		segStore.StoreSegmentError(fmt.Sprintf("applySearchSingleQuery: unsupported query type %v", sQuery.SearchType), log.ErrorLevel, nil)
 		return false
 	}
 }
@@ -199,8 +206,8 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 /*
 Adds recNum as a matched record in the current bitset based on pqid
 */
-func (wipBlock *WipBlock) addRecordToMatchedResults(recNum uint16, pqid string) {
-	pqMatch, ok := wipBlock.pqMatches[pqid]
+func (segStore *SegStore) addRecordToMatchedResults(recNum uint16, pqid string) {
+	pqMatch, ok := segStore.pqMatches[pqid]
 	if !ok {
 		log.Errorf("addRecordToMatchedResults: tried to match a record for a pqid that does not exist")
 		return

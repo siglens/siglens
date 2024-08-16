@@ -463,12 +463,14 @@ type NumericStats struct {
 }
 
 type StringStats struct {
-	StrSet map[string]struct{}
+	StrSet  map[string]struct{}
+	StrList []string
 }
 
 type SearchErrorInfo struct {
 	Count    int
 	LogLevel log.Level
+	Error    error
 }
 
 // json exportable struct for segstats
@@ -915,6 +917,15 @@ func (qa *QueryAggregators) HasValueColRequest() bool {
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
 		if agg.MeasureFunc == utils.Values {
+			return true
+		}
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasListFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == utils.List {
 			return true
 		}
 	}
@@ -1403,14 +1414,20 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
-func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level) {
-	if nodeRes.GlobalSearchErrors == nil {
-		nodeRes.GlobalSearchErrors = make(map[string]*SearchErrorInfo)
+func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
+	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)
+}
+
+func StoreError(errorStore map[string]*SearchErrorInfo, errMsg string, logLevel log.Level, err error) map[string]*SearchErrorInfo {
+	if errorStore == nil {
+		errorStore = make(map[string]*SearchErrorInfo)
 	}
 
-	if globalErr, ok := nodeRes.GlobalSearchErrors[errMsg]; !ok {
-		nodeRes.GlobalSearchErrors[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel}
+	if globalErr, ok := errorStore[errMsg]; !ok {
+		errorStore[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel, Error: err}
 	} else {
 		globalErr.Count++
 	}
+
+	return errorStore
 }

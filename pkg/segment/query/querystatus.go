@@ -859,6 +859,6 @@ func LogGlobalSearchErrors(qid uint64) {
 		if errInfo == nil {
 			continue
 		}
-		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
+		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
 	}
 }

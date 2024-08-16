@@ -68,6 +68,25 @@ func CreateRecord(columnNames []string, record []string) (map[string]interface{}
 	return recordMap, nil
 }
 
+// SetDifference returns the added and removed elements between two sets.
+func SetDifference[K comparable, T1, T2 any](newSet map[K]T2, oldSet map[K]T1) ([]K, []K) {
+	var added, removed []K
+
+	for key := range oldSet {
+		if _, exists := newSet[key]; !exists {
+			removed = append(removed, key)
+		}
+	}
+
+	for key := range newSet {
+		if _, exists := oldSet[key]; !exists {
+			added = append(added, key)
+		}
+	}
+
+	return added, removed
+}
+
 // ConvertToSetFromMap converts a map to a set. The set is represented as a map with the key as the element of the set
 func ConvertToSetFromMap[K comparable, V any](set map[K]struct{}, source map[K]V) {
 	for k := range source {
