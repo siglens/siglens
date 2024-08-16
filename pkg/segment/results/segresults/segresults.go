@@ -374,6 +374,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			continue
 		case utils.List:
+			// Splunk documentation specifies that if more than 100 values are in the field, only the first 100 are returned.
 			strList := make([]string, 0, 100)
 
 			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrList != nil {
