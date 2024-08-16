@@ -1118,7 +1118,9 @@ func AddAllColumnsInMeasureAggs(cols map[string]struct{}, measureAggs []*Measure
 	}
 
 	for _, measureAgg := range measureAggs {
-		sutils.AddToSet(cols, measureAgg.MeasureCol)
+		if measureAgg.MeasureCol != "" && measureAgg.MeasureCol != "*" {
+			sutils.AddToSet(cols, measureAgg.MeasureCol)
+		}
 		AddAllColumnsInExpr(cols, measureAgg.ValueColRequest)
 	}
 }
