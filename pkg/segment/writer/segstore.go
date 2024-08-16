@@ -83,6 +83,7 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	SegmentErrors      map[string]*structs.SearchErrorInfo
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -147,6 +148,17 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 	segstore.initWipBlock()
 
 	return segstore
+}
+
+func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, err error) {
+	segStore.SegmentErrors = structs.StoreError(segStore.SegmentErrors, errMsg, logLevel, err)
+}
+
+func (segStore *SegStore) LogAndFlushErrors() {
+	for errMsg, errInfo := range segStore.SegmentErrors {
+		toputils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
+		delete(segStore.SegmentErrors, errMsg)
+	}
 }
 
 func (segstore *SegStore) initWipBlock() {
@@ -281,6 +293,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqTracker = initPQTracker()
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.wipBlock.clearPQMatchInfo()
+	segstore.LogAndFlushErrors()
 
 	err = segstore.resetWipBlock(false)
 	if err != nil {
@@ -914,7 +927,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, si
 	}
 
 	if matchedPCols {
-		applyStreamingSearchToRecord(segstore.wipBlock, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
+		applyStreamingSearchToRecord(segstore.wipBlock, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount, segstore)
 	}
 
 	segstore.wipBlock.maxIdx = maxIdx
