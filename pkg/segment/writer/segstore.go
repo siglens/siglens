@@ -59,7 +59,7 @@ const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const MaxConcurrentAgileTrees = 5
 
-var currentAgileTreeCount uint16
+var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 // SegStore Individual stream buffer
@@ -667,6 +667,11 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			nc := segstore.sbuilder.GetNodeCount()
 			cnc := segstore.sbuilder.GetEachColNodeCount()
 			log.Infof("checkAndRotateColFiles: stree nc: %v , Each Col NodeCount: %v", nc, cnc)
+
+			// give back the tree
+			atreeCounterLock.Lock()
+			currentAgileTreeCount--
+			atreeCounterLock.Unlock()
 		}
 
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
