@@ -440,6 +440,8 @@ func (e AggregateFunctions) String() string {
 		return "estdc_error"
 	case ExactPerc:
 		return "exactperc"
+	case Mean:
+		return "mean"
 	case Median:
 		return "median"
 	case Mode:

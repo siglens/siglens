@@ -170,6 +170,12 @@ func GetAggregateFunction(funcName string) utils.AggregateFunctions {
         return utils.LatestTime
     case "rate":
         return utils.StatsRate
+    case "perc":
+        return utils.Perc
+    case "exactperc":
+        return utils.ExactPerc
+    case "upperperc":
+        return utils.UpperPerc
     default:
         return utils.Invalid
     }
@@ -3682,13 +3688,17 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggExactPerc / AggPerc / AggUpperPerc / AggCommon) {
+AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
 // TODO Processing Logic: varp, var, sumsq, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
-CommonAggString <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "mean" / "median" / "max" / 
+CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
+    return string(c.text), nil
+}
+
+CommonPercAggName <- ("upperperc" / "exactperc" / "perc") {
     return string(c.text), nil
 }
 
@@ -3732,7 +3742,7 @@ AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     return agg, nil
 }
 
-AggCommon <- aggName:CommonAggString L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == utils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3747,7 +3757,7 @@ AggCommon <- aggName:CommonAggString L_PAREN "eval" valueExpr:ValueExpr R_PAREN 
 
     return agg, nil
 }
-/ aggName:CommonAggString L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonAggName L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == utils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3761,82 +3771,44 @@ AggCommon <- aggName:CommonAggString L_PAREN "eval" valueExpr:ValueExpr R_PAREN 
     return agg, nil
 }
 
-// Todo: implement the processing logic
-AggExactPerc <- "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
+    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
+    }
+    if floatVal < 0 || floatVal > 100 {
+        return nil, fmt.Errorf("Invalid percentage value must be between 0 and 100: %v", numStr.(string))
+    }
+
+    return numStr.(string), nil
+}
+
+AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
-        MeasureFunc: utils.ExactPerc,
+        MeasureFunc: measureFunc,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-        Param: numStr.(string),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: percentileStr.(string),
     }
 
     return agg, nil
 }
-/ "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
-        MeasureFunc: utils.ExactPerc,
-        Param: numStr.(string),
-    }
-
-    return agg, nil
-}
-
-// Todo: implement the processing logic
-AggPerc <- "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Perc,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-        Param: numStr.(string),
-    }
-
-    return agg, nil
-}
-/ "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Perc,
-        Param: numStr.(string),
-    }
-
-    return agg, nil
-}
-
-// Todo: implement the processing logic
-AggUpperPerc <- "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.UpperPerc,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-        Param: numStr.(string),
-    }
-
-    return agg, nil
-}
-/ "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.UpperPerc,
-        Param: numStr.(string),
+        MeasureFunc: measureFunc,
+        Param: percentileStr.(string),
     }
 
     return agg, nil
