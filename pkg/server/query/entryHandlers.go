@@ -36,9 +36,11 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	prom "github.com/siglens/siglens/pkg/integrations/prometheus/promql"
+	lookups "github.com/siglens/siglens/pkg/lookups"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
+	writer "github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	systemconfig "github.com/siglens/siglens/pkg/systemConfig"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
@@ -385,6 +387,17 @@ func postPqsClearHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		err := writer.DeletePQSData()
+		if err != nil {
+			utils.SendInternalError(ctx, "Error while deleting PQS data", "", err)
+			return
+		}
+		querytracker.PostPqsClear(ctx)
+	}
+}
+
 func postPqsAggColsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		querytracker.PostPqsAggCols(ctx)
@@ -669,5 +682,17 @@ func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		systemconfig.GetSystemInfo(ctx)
+	}
+}
+
+func uploadLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.UploadLookupFile(ctx)
+	}
+}
+
+func getAllLookupFilesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.GetAllLookupFiles(ctx)
 	}
 }

@@ -194,7 +194,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	if len(kibanaIndices) != 0 {
 		containsKibana = true
 	}
-	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs)
+	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs, qc.RawQuery)
 	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
 	if parallelismPerFile < 1 {
 		parallelismPerFile = 1
@@ -310,21 +310,39 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 	}
 }
 
+func getTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
+	var totalRecsToSearch uint64
+	for _, qsr := range qsrs {
+		if qsr.sType == structs.RAW_SEARCH || qsr.sType == structs.PQS || qsr.sType == structs.SEGMENT_STATS_SEARCH {
+			totalRecsToSearch += metadata.GetNumOfSearchedRecordsRotated(qsr.segKey)
+		} else {
+			totalRecsToSearch += writer.GetNumOfSearchedRecordsUnRotated(qsr.segKey)
+		}
+	}
+
+	return totalRecsToSearch
+}
+
 func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
 	querySummary *summary.QuerySummary, getUnrotated bool, getRotated bool, orgid uint64) *structs.NodeResult {
 
 	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, getUnrotated, getRotated, sTime, orgid)
 	if err != nil {
-		log.Errorf("qid=%d Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
 			ErrList: []error{err},
 		}
 	}
-	log.Infof("qid=%d, Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
+	log.Infof("qid=%d, GetNodeResultsForRRCCmd: Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numPQS, distributedQueries, time.Since(sTime))
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numPQS+distributedQueries)
 	if err != nil {
-		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
+	}
+	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
+	if err != nil {
+		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
 	}
 	querySummary.UpdateRemainingDistributedQueries(distributedQueries)
 	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
@@ -336,7 +354,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, getUnrotated, getRotated, sTime, orgid)
 	if err != nil {
-		log.Errorf("GetNodeResultsForSegmentStatsCmd: qid=%d Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
 			ErrList: []error{err},
 		}
@@ -344,14 +362,19 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numDistributed)
 	if err != nil {
-		log.Errorf("GetNodeResultsForSegmentStatsCmd: qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
 			ErrList: []error{err},
 		}
 	}
+	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
+	if err != nil {
+		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
+	}
 
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
-	log.Infof("qid=%d, Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
+	log.Infof("qid=%d, GetNodeResultsForSegmentStatsCmd: Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
@@ -756,8 +779,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
 		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
+		aggHasListFunc := segReq.aggs.HasListFunc()
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc {
+		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

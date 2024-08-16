@@ -191,7 +191,7 @@ func Benchmark_MetricsEndToEnd_PROMQL(b *testing.B) {
 	limit.InitMemoryLimiter()
 	metrics.InitTestingConfig()
 
-	baseDir := "/Users/mgaddam/Development/SigScalr/sigDup/siglens/data/ingestnodes/sigsingle.A7nWQjn5xKWrRjkqLAXQQx/"
+	baseDir := "/Users/mgaddam/Development/SigScalr/siglens/data/ingestnodes/sigsingle.LMRYyW5hy8mZMG642Lxo93/"
 	config.SetSmrBaseDirForTestOnly(baseDir)
 
 	err := meta.InitMetricsMeta()

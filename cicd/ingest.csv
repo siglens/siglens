@@ -87,7 +87,9 @@ city=Boston | stats max(latitude),now-1d,now,*,group:max(latitude):*,eq,89.982,S
 city=Boston | stats range(latitude),now-1d,now,*,group:range(latitude):*,eq,179.884,Splunk QL
 city=Boston | stats avg(latitude),now-1d,now,*,group:avg(latitude):*,eq,0.403,Splunk QL
 city=Boston | stats sum(latitude),now-1d,now,*,group:sum(latitude):*,eq,416.553,Splunk QL
-city=Boston | stats values(gender),now-1d,now,*,group:values(gender):*,eq,"female&nbspmale",Splunk QL
+city=Boston | stats values(gender),now-1d,now,*,group:values(gender):*,eq,"[female male]",Splunk QL
+"first_name=Lavern AND last_name=Douglas | stats list(gender)",now-1d,now,*,group:list(gender):*,eq,"[female]",Splunk QL
+"latency > 9999900 | stats list(latency)", now-1d,now,*,group:list(latency):*,eq,"[9999944]",Splunk QL
 "batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,eq,89.228,Splunk QL
 batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):St. Louis,eq,2,Splunk QL
 "batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):St. Louis:200,eq,1,Splunk QL
@@ -118,7 +120,7 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY city | eval result=if(isbool(city), ""This is a boolean value"", ""This is not a boolean value"")",now-1d,now,*,group:result:Boston,eq,This is not a boolean value,Splunk QL
 "city=Boston | stats count AS Count BY state | eval result=if(isnull(state), ""This is a null value"", ""This is not a null value"")",now-1d,now,*,group:result:Maine,eq,This is not a null value,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=urldecode(""http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader"")",now-1d,now,*,group:result:500,eq,"http://www.splunk.com/download?r=header",Splunk QL
-"city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")",now-1d,now,*,group:result:ae0f4f93-5789-43c9-92a2-e7d7b4cbc31e,eq,ae0f4f93&nbsp5789&nbsp43c9&nbsp92a2&nbspe7d7b4cbc31e,Splunk QL
+"city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")",now-1d,now,*,group:result:ae0f4f93-5789-43c9-92a2-e7d7b4cbc31e,eq,"ae0f4f93,5789,43c9,92a2,e7d7b4cbc31e",Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=max(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,450,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=min(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,1,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=exact(3.14 * http_status)",now-1d,now,*,group:result:200,eq,628,Splunk QL
@@ -249,19 +251,23 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats dc(eval(http_status+10)) as dc",now-1d,now,*,group:dc:*,eq,4,Splunk QL
 "app_name=Bracecould | stats dc(eval(if(http_status > 400, http_status, ""abc""))) as dc",now-1d,now,*,group:dc:*,eq,2,Splunk QL
 "app_name=Bracecould | stats dc(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as dc",now-1d,now,*,group:dc:*,eq,3,Splunk QL
-"app_name=Bracecould | stats values(eval(http_status > 400)) as values",now-1d,now,*,group:values:*,eq,1,Splunk QL
-"app_name=Bracecould | stats values(eval(""abc"")) as values",now-1d,now,*,group:values:*,eq,"abc",Splunk QL
-"app_name=Bracecould | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"311&nbsp312&nbsp410&nbsp510",Splunk QL
-"app_name=Bracecould | stats values(eval(if(http_status > 400, 100, ""abc""))) as values",now-1d,now,*,group:values:*,eq,"100&nbspabc",Splunk QL
-"app_name=Bracecould | stats values(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as values",now-1d,now,*,group:values:*,eq,"HEAD&nbspPATCH&nbspPUT",Splunk QL
+"app_name=Bracecould | stats values(eval(http_status > 400)) as values",now-1d,now,*,group:values:*,eq,[1],Splunk QL
+"app_name=Bracecould | stats values(eval(""abc"")) as values",now-1d,now,*,group:values:*,eq,"[abc]",Splunk QL
+"app_name=Bracecould | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
+"app_name=Bracecould | stats values(eval(if(http_status > 400, 100, ""abc""))) as values",now-1d,now,*,group:values:*,eq,"[100 abc]",Splunk QL
+"app_name=Bracecould | stats values(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as values",now-1d,now,*,group:values:*,eq,"[HEAD PATCH PUT]",Splunk QL
 "city=Boston | stats avg(eval(if(http_status > 400, ""100"", ""10""))) as avg BY http_method",now-1d,now,*,group:avg:GET,eq,44.5,Splunk QL
 "city=Boston | stats sum(eval(if(http_status > 400, ""100"", ""10""))) as sum BY http_method",now-1d,now,*,group:sum:POST,eq,7510,Splunk QL
 "app_name=Bracecould | stats min(eval(if(http_status > 400, ""abc"", ""ABC""))) as min BY http_method",now-1d,now,*,group:min:HEAD,eq,"ABC",Splunk QL
 "app_name=Bracecould | stats max(eval(if(http_status > 400, ""abc"", ""ABC""))) as max BY http_method",now-1d,now,*,group:max:HEAD,eq,"abc",Splunk QL
 "city=Boston | stats range(eval(if(http_status > 400, latitude, longitude))) as range BY http_method",now-1d,now,*,group:range:PATCH,eq,357.742052,Splunk QL
 "app_name=Bracecould | stats count(eval(http_status > 300 AND http_method=""PATCH"")) as count BY http_method",now-1d,now,*,group:count:PATCH,eq,1,Splunk QL
-"app_name=Bracecould | stats values(eval(if(http_status > 302, ""Error"", http_status))) as values BY http_method",now-1d,now,*,group:values:POST,eq,"301&nbspError",Splunk QL
+"app_name=Bracecould | stats values(eval(if(http_status > 302, ""Error"", http_status))) as values BY http_method",now-1d,now,*,group:values:POST,eq,"301,Error",Splunk QL
 "app_name=Companywill | stats dc(eval(if(http_status > 310, ""Error"", http_status))) as dc by http_method",now-1d,now,*,group:dc:DELETE,eq,2,Splunk QL
+"* | stats count(eval(http_status=500)) as count",now-1d,now,*,group:count:*,eq,"16,711",Splunk QL
+"* | stats count(eval(http_status=500)) as badCount, count(eval(http_status=200)) as goodCount",now-1d,now,*,group:goodCount:*,eq,"16,763",Splunk QL
+"http_status > 200 | stats count(eval(http_status<400)) as count",now-1d,now,*,group:count:*,eq,"33,361",Splunk QL
+"http_status > 200 | eval http_status=200 | stats count(eval(http_status=200))",now-1d,now,*,group:count:*,eq,"83,237",Splunk QL
 "* | eval newField=nullif(http_status, 200) | fields newField, http_status | fillnull value=FILLING | eval countVal=if(http_status=200 AND newField=""FILLING"", 1, 0) | stats count(http_status) as count, sum(countVal) as sum_count by newField | where count=sum_count",now-1d,now,*,countRecord:newField,eq,"FILLING",Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where http_status=200 | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,167,Splunk QL
 "city=Boston | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus | where nullStatus=null() | stats count(*)",now-1d,now,*,countRecord:count(*):*,eq,167,Splunk QL
@@ -351,4 +357,8 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | eval names=""Frank,Grace,Heidi,Ivan""| makemv delim="","" names | head 3| mvexpand names limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
 "app_name=Bracecould | stats count AS Count BY latency | eval mod_value = latency%123",now-1d,now,*,group:mod_value:7330203,eq,18,Splunk QL
 "app_name=Bracecould | stats count AS Count BY latency | eval mod=(latency-8000000)%123",now-1d,now,*,group:mod:7330203,eq,-62,Splunk QL
-
+"app_name=Bracecould | eval split_n = mvjoin(split(""a:bc:123"", "":""), ""?"") | stats count by split_n",now-1d,now,*,countRecord:split_n:*,eq,a?bc?123,Splunk QL
+"app_name=Bracecould | eval mvcount = mvcount(split(""a:bc:123"", "":"")) | stats count by mvcount",now-1d,now,*,countRecord:mvcount:*,eq,3,Splunk QL
+"app_name=Bracecould | eval mvindex = mvindex(split(""a:bc:123"", "":""), -2, 2) | stats count by mvindex",now-1d,now,*,countRecord:mvindex:*,eq,"bc,123",Splunk QL
+"app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""jim*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,2,Splunk QL
+"app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""abc*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,"",Splunk QL

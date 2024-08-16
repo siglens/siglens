@@ -107,7 +107,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	assert.Equal(t, true, os.IsNotExist(err))
 
 	// make query persistent
-	querytracker.UpdateQTUsage([]string{searchReq.VirtualTableName}, node, nil)
+	querytracker.UpdateQTUsage([]string{searchReq.VirtualTableName}, node, nil, "*")
 
 	// Call rawSearchColumnar
 	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary)

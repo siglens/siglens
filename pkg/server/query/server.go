@@ -204,7 +204,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/getall", tracing.TraceMiddleware(hs.Recovery(getUserSavedQueriesAllHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", tracing.TraceMiddleware(hs.Recovery(deleteUserSavedQueryHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", tracing.TraceMiddleware(hs.Recovery(SearchUserSavedQueryHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", tracing.TraceMiddleware(hs.Recovery(postPqsClearHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/clear", tracing.TraceMiddleware(hs.Recovery(postPqsClearHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/delete", tracing.TraceMiddleware(hs.Recovery(postPqsDeleteHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", tracing.TraceMiddleware(hs.Recovery(getPqsEnabledHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", tracing.TraceMiddleware(hs.Recovery(postPqsAggColsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", tracing.TraceMiddleware(hs.Recovery(postPqsHandler())))
@@ -247,6 +248,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
+
+	hs.Router.POST(server_utils.API_PREFIX+"/lookup-upload", hs.Recovery(uploadLookupFileHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/lookup-files", hs.Recovery(getAllLookupFilesHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
 	if config.IsDebugMode() {

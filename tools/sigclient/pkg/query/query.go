@@ -541,6 +541,44 @@ func runContinuousQueries(client *http.Client, requestStr string, bearerToken st
 	}
 }
 
+func verifyResults(value interface{}, relation, expectedValue string, query string) bool {
+	var ok bool
+	var err error
+	var floatVal float64
+
+	switch value := value.(type) {
+	case float64:
+		ok, err = utils.VerifyInequality(value, relation, expectedValue)
+	case string:
+		floatVal, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			ok, err = utils.VerifyInequality(floatVal, relation, expectedValue)
+		} else {
+			ok, err = utils.VerifyInequalityForStr(value, relation, expectedValue)
+		}
+	case []interface{}:
+		valueStrings := make([]string, 0, len(value))
+		for _, item := range value {
+			valueStrings = append(valueStrings, fmt.Sprintf("%v", item))
+		}
+		strValue := strings.Join(valueStrings, ",")
+
+		ok, err = utils.VerifyInequalityForStr(strValue, relation, expectedValue)
+	default:
+		err = fmt.Errorf("unexpected type: %T for value: %v", value, value)
+	}
+
+	if err != nil {
+		log.Fatalf("RunQueryFromFile: Error in verifying aggregation/record: %v for query %v", err, query)
+		return false
+	} else if !ok {
+		log.Fatalf("RunQueryFromFile: Actual aggregate/record value: %v is not [%s %v] for query %v", value, expectedValue, relation, query)
+		return false
+	}
+
+	return true
+}
+
 // Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName,
 // evaluationType, relation, count, and queryLanguage in each row
 // relation is one of "eq", "gt", "lt"
@@ -659,37 +697,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 
 							if reflect.DeepEqual(groupByValuesStrs, groupData[2:]) {
 								measureVal := groupMap["MeasureVal"].(map[string]interface{})
-								actualValue, ok := measureVal[groupData[1]].(float64)
-								actualValueIsNumber := true
-								if !ok {
-									// Try converting it to a string and then a float.
-									actualValueStr, ok := measureVal[groupData[1]].(string)
-									if !ok {
-										log.Fatalf("RunQueryFromFile: Returned aggregate is not a string: %v", measureVal[groupData[1]])
-									}
-
-									var err error
-									actualValue, err = strconv.ParseFloat(actualValueStr, 64)
-
-									if err != nil {
-										actualValueIsNumber = false
-									}
-								}
-
-								if actualValueIsNumber {
-									ok, err = utils.VerifyInequality(actualValue, relation, expectedValue)
-								} else {
-									ok, err = utils.VerifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
-								}
-
-								if err != nil {
-									log.Fatalf("RunQueryFromFile: Error in verifying aggregation: %v", err)
-								} else if !ok {
-									log.Fatalf("RunQueryFromFile: Actual aggregate value: %v is not [%s %v] for query: %v",
-										actualValue, expectedValue, relation, rec[0])
-								} else {
-									validated = true
-								}
+								validated = verifyResults(measureVal[groupData[1]], relation, expectedValue, rec[0])
 							}
 						}
 
@@ -718,17 +726,12 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						if !ok {
 							log.Fatalf("RunQueryFromFile: Expected col %v is not in the data record", col)
 						}
-						actualValueStr, ok := actualValue.(string)
-						if !ok {
-							log.Fatalf("RunQueryFromFile: Expected value is not a string: %v", actualValue)
-						}
-						ok, err = utils.VerifyInequalityForStr(actualValueStr, relation, expectedValue)
-						if err != nil {
-							log.Fatalf("RunQueryFromFile: Error in verifying special count: %v", err)
-						} else if !ok {
-							log.Fatalf("RunQueryFromFile: Actual value: %v is not [%s %v] for query: %v", actualValueStr, expectedValue, relation, rec[0])
-						} else {
+						validated := verifyResults(actualValue, relation, expectedValue, rec[0])
+
+						if validated {
 							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						} else {
+							log.Fatalf("RunQueryFromFile: Error validating the query %v", rec[0])
 						}
 					}
 				}
@@ -737,4 +740,109 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			}
 		}
 	}
+}
+
+func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryResultFile string) {
+	webSocketURL := dest + "/api/search/ws"
+	if queryResultFile == "" {
+		queryResultFile = "./query_results.csv"
+	}
+
+	log.Infof("Using Websocket URL %+s", webSocketURL)
+	log.Infof("Using query result file %+s", queryResultFile)
+
+	csvFile, err := os.Open(filepath)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to open query file: %v", err)
+	}
+	defer csvFile.Close()
+
+	reader := csv.NewReader(csvFile)
+	records, err := reader.ReadAll()
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to read query file: %v", err)
+	}
+
+	outputCSVFile, err := os.Create(queryResultFile)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to create CSV file: %v", err)
+	}
+	defer outputCSVFile.Close()
+
+	writer := csv.NewWriter(outputCSVFile)
+	defer writer.Flush()
+
+	// Write header to the output CSV
+	err = writer.Write([]string{"Query", "Response Time (ms)"})
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write header to CSV file: %v", err)
+	}
+
+	for index, record := range records {
+
+		qid := index + 1
+
+		query := record[0]
+		// Default values
+		startEpoch := "now-1h"
+		endEpoch := "now"
+		queryLanguage := "Splunk QL"
+
+		// Update values if provided in the CSV
+		if len(record) > 1 && record[1] != "" {
+			startEpoch = record[1]
+		}
+		if len(record) > 2 && record[2] != "" {
+			endEpoch = record[2]
+		}
+		if len(record) > 3 && record[3] != "" {
+			queryLanguage = record[3]
+		}
+
+		data := map[string]interface{}{
+			"state":         "query",
+			"searchText":    query,
+			"startEpoch":    startEpoch,
+			"endEpoch":      endEpoch,
+			"indexName":     "*",
+			"queryLanguage": queryLanguage,
+		}
+
+		log.Infof("qid=%v, Running query=%v", qid, query)
+		conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error connecting to WebSocket server: %v", qid, err)
+			return
+		}
+		defer conn.Close()
+
+		startTime := time.Now()
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error sending query to server: %v", qid, err)
+			break
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if err != nil {
+				log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error reading response from server for query. Error=%v", qid, err)
+				break
+			}
+			if state, ok := readEvent["state"]; ok && state == "COMPLETE" {
+				break
+			}
+		}
+		responseTime := time.Since(startTime).Milliseconds()
+		log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Query=%v,Response Time: %vms", qid, query, responseTime)
+
+		// Write query and response time to output CSV
+		err = writer.Write([]string{query, strconv.FormatInt(responseTime, 10)})
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write query result to CSV file: %v", err)
+		}
+	}
+
+	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }

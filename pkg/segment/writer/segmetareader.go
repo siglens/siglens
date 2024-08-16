@@ -183,11 +183,9 @@ func GetVTableCounts(vtableName string, orgid uint64) (uint64, int, uint64) {
 	return bytesCount, recordCount, onDiskBytesCount
 }
 
-func GetVTableCountsForAll(orgid uint64) map[string]*structs.VtableCounts {
+func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
 
 	allvtables := make(map[string]*structs.VtableCounts)
-
-	allSegmetas := ReadAllSegmetas()
 
 	var ok bool
 	var cnts *structs.VtableCounts
