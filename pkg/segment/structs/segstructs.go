@@ -146,6 +146,8 @@ type TransactionGroupState struct {
 	Timestamp uint64
 }
 
+// Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
+// This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
 	PipeCommandType      PipeCommandType
 	OutputTransforms     *OutputTransforms
@@ -979,6 +981,8 @@ func (qa *QueryAggregators) HasStatsBlockInChain() bool {
 	return false
 }
 
+// returns all columns in the query aggregators if stats are present.
+// Update this function whenever a new struct or an is added to the query aggregators.
 func (qa *QueryAggregators) GetAllColsInAggsIfStatsPresent() map[string]struct{} {
 	if qa == nil {
 		return nil
