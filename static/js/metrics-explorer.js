@@ -191,8 +191,8 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
 
                 appendFormulaFunctionDiv(formulaElement, selectedFunction.fn || formulaDetails.functions);
                 let formula = formulaElement.find('.formula').val().trim();
+                formulaDetailsMap[uniqueId].formula = formula;
                 let validationResult = validateFormula(formula, uniqueId);
-
                 if (validationResult !== false) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
                 }
@@ -2576,9 +2576,14 @@ $('#alert-from-metrics-btn').click(function () {
     if (Object.keys(formulas).length > 0) {
         mformulas = [];
         Object.keys(formulas).forEach(function (formulaId) {
-            let formulaDetails = formulas[formulaId];
+            let formulaDetails = formulaDetailsMap[formulaId];
+            let functionsArray = formulaDetails?.functions || [];
+            let formulaWithFunc = formulaDetails.formula;
+            for (let func of functionsArray) {
+                formulaWithFunc = `${func}(${formulaWithFunc})`;
+            }
             const formula = {
-                formula: formulaDetails.formula,
+                formula: formulaWithFunc,
             };
             mformulas.push(formula);
         });

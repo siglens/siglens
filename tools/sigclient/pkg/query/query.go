@@ -541,6 +541,44 @@ func runContinuousQueries(client *http.Client, requestStr string, bearerToken st
 	}
 }
 
+func verifyResults(value interface{}, relation, expectedValue string, query string) bool {
+	var ok bool
+	var err error
+	var floatVal float64
+
+	switch value := value.(type) {
+	case float64:
+		ok, err = utils.VerifyInequality(value, relation, expectedValue)
+	case string:
+		floatVal, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			ok, err = utils.VerifyInequality(floatVal, relation, expectedValue)
+		} else {
+			ok, err = utils.VerifyInequalityForStr(value, relation, expectedValue)
+		}
+	case []interface{}:
+		valueStrings := make([]string, 0, len(value))
+		for _, item := range value {
+			valueStrings = append(valueStrings, fmt.Sprintf("%v", item))
+		}
+		strValue := strings.Join(valueStrings, ",")
+
+		ok, err = utils.VerifyInequalityForStr(strValue, relation, expectedValue)
+	default:
+		err = fmt.Errorf("unexpected type: %T for value: %v", value, value)
+	}
+
+	if err != nil {
+		log.Fatalf("RunQueryFromFile: Error in verifying aggregation/record: %v for query %v", err, query)
+		return false
+	} else if !ok {
+		log.Fatalf("RunQueryFromFile: Actual aggregate/record value: %v is not [%s %v] for query %v", value, expectedValue, relation, query)
+		return false
+	}
+
+	return true
+}
+
 // Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName,
 // evaluationType, relation, count, and queryLanguage in each row
 // relation is one of "eq", "gt", "lt"
@@ -659,37 +697,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 
 							if reflect.DeepEqual(groupByValuesStrs, groupData[2:]) {
 								measureVal := groupMap["MeasureVal"].(map[string]interface{})
-								actualValue, ok := measureVal[groupData[1]].(float64)
-								actualValueIsNumber := true
-								if !ok {
-									// Try converting it to a string and then a float.
-									actualValueStr, ok := measureVal[groupData[1]].(string)
-									if !ok {
-										log.Fatalf("RunQueryFromFile: Returned aggregate is not a string: %v", measureVal[groupData[1]])
-									}
-
-									var err error
-									actualValue, err = strconv.ParseFloat(actualValueStr, 64)
-
-									if err != nil {
-										actualValueIsNumber = false
-									}
-								}
-
-								if actualValueIsNumber {
-									ok, err = utils.VerifyInequality(actualValue, relation, expectedValue)
-								} else {
-									ok, err = utils.VerifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
-								}
-
-								if err != nil {
-									log.Fatalf("RunQueryFromFile: Error in verifying aggregation: %v", err)
-								} else if !ok {
-									log.Fatalf("RunQueryFromFile: Actual aggregate value: %v is not [%s %v] for query: %v",
-										actualValue, expectedValue, relation, rec[0])
-								} else {
-									validated = true
-								}
+								validated = verifyResults(measureVal[groupData[1]], relation, expectedValue, rec[0])
 							}
 						}
 
@@ -718,17 +726,12 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						if !ok {
 							log.Fatalf("RunQueryFromFile: Expected col %v is not in the data record", col)
 						}
-						actualValueStr, ok := actualValue.(string)
-						if !ok {
-							log.Fatalf("RunQueryFromFile: Expected value is not a string: %v", actualValue)
-						}
-						ok, err = utils.VerifyInequalityForStr(actualValueStr, relation, expectedValue)
-						if err != nil {
-							log.Fatalf("RunQueryFromFile: Error in verifying special count: %v", err)
-						} else if !ok {
-							log.Fatalf("RunQueryFromFile: Actual value: %v is not [%s %v] for query: %v", actualValueStr, expectedValue, relation, rec[0])
-						} else {
+						validated := verifyResults(actualValue, relation, expectedValue, rec[0])
+
+						if validated {
 							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						} else {
+							log.Fatalf("RunQueryFromFile: Error validating the query %v", rec[0])
 						}
 					}
 				}

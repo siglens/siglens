@@ -213,7 +213,37 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+<<<<<<< HEAD
 
+=======
+function updateChartColorsBasedOnTheme() {
+    //eslint-disable-next-line no-undef
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    //eslint-disable-next-line no-undef
+    if (mergedGraph) {
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.update();
+    }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            //eslint-disable-next-line no-undef
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+}
+>>>>>>> 31d55a7504647fb4157f150a52f556fc8d875285
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
