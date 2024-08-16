@@ -275,7 +275,7 @@ func TestStarTree(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 	}
 
 	var builder StarTreeBuilder
@@ -367,7 +367,7 @@ func TestStarTreeMedium(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 	}
 
 	var builder StarTreeBuilder
@@ -462,7 +462,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 	}
 
 	var builder StarTreeBuilder
@@ -554,7 +554,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 	}
 
 	var builder StarTreeBuilder

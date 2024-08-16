@@ -58,7 +58,6 @@ const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const MaxConcurrentAgileTrees = 3
-const ATreeDictEncNodeCount = 20_000 // max recs that could fit in one block
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
@@ -872,9 +871,9 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.stbDictEncWorkBuf = append(segstore.stbDictEncWorkBuf, newArr...)
 		}
 		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
-			if len(segstore.stbDictEncWorkBuf[colNum]) < ATreeDictEncNodeCount {
+			if len(segstore.stbDictEncWorkBuf[colNum]) < MaxAgileTreeNodeCount {
 				// we know each stree col won't have more encodings than max stree node limit
-				segstore.stbDictEncWorkBuf[colNum] = make([]string, ATreeDictEncNodeCount)
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 			}
 		}
 
