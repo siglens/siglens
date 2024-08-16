@@ -852,9 +852,9 @@ func (segstore *SegStore) computeStarTree() {
 		hasTreeSpace := false
 		atreeCounterLock.Lock()
 		if currentAgileTreeCount < MaxConcurrentAgileTrees {
-			// for now the first 5 segstores will get to AgileTree but
+			// for now the first MaxConcurrentAgileTrees segstores will get to AgileTree but
 			// we should add some smart logic on how we can rotate this
-			// amongst other indices
+			// amongst other indices/segstores
 			currentAgileTreeCount++
 			hasTreeSpace = true
 		}
