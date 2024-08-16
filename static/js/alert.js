@@ -826,10 +826,10 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';
-    logsExplorer.innerHTML = ''; 
+    logsExplorer.innerHTML = '';
 
     if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
-        alert("This query does not support bar graph visualization.");
+        alert('This query does not support bar graph visualization.');
         $('#logs-explorer').hide();
         return;
     }
@@ -892,7 +892,6 @@ function alertChart(res) {
             window.addEventListener('resize', () => {
                 myChart.resize();
             });
-
         } else if (columnOrder.length === 1) {
             // Handle cases with only one column
             let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
