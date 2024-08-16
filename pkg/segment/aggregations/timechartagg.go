@@ -20,7 +20,6 @@ package aggregations
 import (
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -350,10 +349,9 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 			uniqueStrings = append(uniqueStrings, str)
 		}
 		sort.Strings(uniqueStrings)
-		strVal := strings.Join(uniqueStrings, "&nbsp")
 
-		eVal.CVal = strVal
-		eVal.Dtype = utils.SS_DT_STRING
+		eVal.CVal = uniqueStrings
+		eVal.Dtype = utils.SS_DT_STRING_SLICE
 		return
 	}
 
