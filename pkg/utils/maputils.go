@@ -17,7 +17,9 @@
 
 package utils
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // If there are duplicate keys, values from the second map will overwrite those
 // from the first map.
@@ -64,4 +66,38 @@ func CreateRecord(columnNames []string, record []string) (map[string]interface{}
 		recordMap[col] = record[i]
 	}
 	return recordMap, nil
+}
+
+// ConvertToSetFromMap converts a map to a set. The set is represented as a map with the key as the element of the set
+func ConvertToSetFromMap[K comparable, V any](set map[K]struct{}, source map[K]V) {
+	for k := range source {
+		set[k] = struct{}{}
+	}
+}
+
+// ConvertToSetFromSlice converts a slice to a set. The set is represented as a map with the key as the element of the set
+func ConvertToSetFromSlice[K comparable](set map[K]struct{}, source []K) {
+	for _, k := range source {
+		set[k] = struct{}{}
+	}
+}
+
+func AddToSet[K comparable](set map[K]struct{}, key K) {
+	if _, ok := set[key]; !ok {
+		set[key] = struct{}{}
+	}
+}
+
+// IntersectionWithFirstMapValues returns a map containing the intersection of the keys of the two maps.
+// The values of the first map are retained.
+func IntersectionWithFirstMapValues[K comparable, V1 any, V2 any](map1 map[K]V1, map2 map[K]V2) map[K]V1 {
+	intersection := make(map[K]V1)
+
+	for k, v := range map1 {
+		if _, exists := map2[k]; exists {
+			intersection[k] = v
+		}
+	}
+
+	return intersection
 }

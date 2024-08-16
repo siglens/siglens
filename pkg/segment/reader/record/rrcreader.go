@@ -52,6 +52,21 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
+func GetAllColumnsInAggsForQid(qid uint64) map[string]struct{} {
+	allColsInAggs, err := query.GetAllColsInAggsForQid(qid)
+	if err != nil {
+		// For synchronous queries, the query is deleted by this
+		// point, but segmap has all the segments that the query
+		// searched.
+		// For async queries, the segmap has just one segment
+		// because we process them as the search completes, but the
+		// query isn't deleted until all segments get processed, so
+		// we shouldn't get to this block for async queries.
+		return nil
+	}
+	return allColsInAggs
+}
+
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
@@ -196,6 +211,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	colsIndexMap := make(map[string]int)
 	numProcessedRecords := 0
+	allColsInAggs := GetAllColumnsInAggsForQid(qid)
 
 	var resultRecMap map[string]bool
 
@@ -207,7 +223,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
 			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
+				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap, allColsInAggs)
 			if err != nil {
 				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return

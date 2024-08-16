@@ -260,6 +260,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 			aggs.BucketLimit = bucketLimit
 			queryInfo.aggs = aggs
 		}
+		allColsInAggs := aggs.GetAllColsInAggsIfStatsPresent()
+		if len(allColsInAggs) > 0 {
+			SetAllColsInAggsForQid(qid, allColsInAggs)
+		}
 		return GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, true, true, qc.Orgid)
 	default:
 		err := errors.New("unsupported query type")

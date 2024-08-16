@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -490,6 +491,10 @@ type AvgStat struct {
 	Sum   float64
 }
 
+type FieldGetter interface {
+	GetFields() []string
+}
+
 // init SegStats from raw bytes of SegStatsJSON
 func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
@@ -923,6 +928,10 @@ func (qa *QueryAggregators) CanLimitBuckets() bool {
 	return qa.Sort == nil && qa.Next == nil
 }
 
+func (fillNullExpr *FillNullExpr) GetFields() []string {
+	return fillNullExpr.FieldList
+}
+
 // Init default query aggregators.
 // By default, a descending sort is added
 func InitDefaultQueryAggregations() *QueryAggregators {
@@ -948,6 +957,197 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+func (qa *QueryAggregators) HasStatsBlock() bool {
+	return qa != nil && !qa.HasStreamStats() && qa.HasGroupByOrMeasureAggsInBlock()
+}
+
+func (qa *QueryAggregators) HasStatsBlockInChain() bool {
+	if qa == nil {
+		return false
+	}
+
+	if qa.HasStatsBlock() {
+		return true
+	}
+
+	if qa.Next != nil {
+		return qa.Next.HasStatsBlockInChain()
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) GetAllColsInAggsIfStatsPresent() map[string]struct{} {
+	if qa == nil {
+		return nil
+	}
+
+	if !qa.HasStatsBlockInChain() {
+		return nil
+	}
+
+	cols := make(map[string]struct{})
+
+	qa.GetAllColsInAggsChainUntilStatsBlock(cols)
+
+	return cols
+}
+
+func (qa *QueryAggregators) GetAllColsInAggsChainUntilStatsBlock(cols map[string]struct{}) {
+	if qa == nil {
+		return
+	}
+
+	AddAllColumnsInOutputTransforms(cols, qa.OutputTransforms)
+	AddAllColumnsInMeasureAggs(cols, qa.MeasureOperations)
+	AddAllColumnsInGroupByRequest(cols, qa.GroupByRequest)
+	AddAllColumnsInTransactionArguments(cols, qa.TransactionArguments)
+	AddAllColumnsInStreamStatsOptions(cols, qa.StreamStatsOptions)
+
+	if qa.HasStatsBlock() {
+		// We want to stop at the first stats block
+		return
+	}
+
+	if qa.Next != nil {
+		qa.Next.GetAllColsInAggsChainUntilStatsBlock(cols)
+	}
+}
+
+func AddAllColumnsInOutputTransforms(cols map[string]struct{}, outputTransforms *OutputTransforms) {
+	if outputTransforms == nil {
+		return
+	}
+
+	if outputTransforms.HarcodedCol != nil {
+		sutils.ConvertToSetFromSlice(cols, outputTransforms.HarcodedCol)
+	}
+
+	if outputTransforms.RenameHardcodedColumns != nil {
+		sutils.ConvertToSetFromMap(cols, outputTransforms.RenameHardcodedColumns)
+	}
+
+	AddAllColumnsInColumnsRequest(cols, outputTransforms.OutputColumns)
+	AddAllColumnsInLetColumnsRequest(cols, outputTransforms.LetColumns)
+	AddAllColumnsInExpr(cols, outputTransforms.FilterRows)
+
+	if outputTransforms.HeadRequest != nil {
+		AddAllColumnsInExpr(cols, outputTransforms.HeadRequest.BoolExpr)
+	}
+}
+
+func AddAllColumnsInColumnsRequest(cols map[string]struct{}, columnsRequest *ColumnsRequest) {
+	if columnsRequest == nil {
+		return
+	}
+
+	if columnsRequest.RenameColumns != nil {
+		sutils.ConvertToSetFromMap(cols, columnsRequest.RenameColumns)
+	}
+
+	if columnsRequest.ExcludeColumns != nil {
+		sutils.ConvertToSetFromSlice(cols, columnsRequest.ExcludeColumns)
+	}
+
+	if columnsRequest.IncludeColumns != nil {
+		sutils.ConvertToSetFromSlice(cols, columnsRequest.IncludeColumns)
+	}
+
+	if columnsRequest.IncludeValues != nil {
+		for _, includeValue := range columnsRequest.IncludeValues {
+			cols[includeValue.ColName] = struct{}{}
+		}
+	}
+
+	if columnsRequest.Next != nil {
+		AddAllColumnsInColumnsRequest(cols, columnsRequest.Next)
+	}
+}
+
+func AddAllColumnsInLetColumnsRequest(cols map[string]struct{}, letColumnsRequest *LetColumnsRequest) {
+	if letColumnsRequest == nil {
+		return
+	}
+
+	if letColumnsRequest.MultiColsRequest != nil {
+		cols[letColumnsRequest.MultiColsRequest.LeftCName] = struct{}{}
+		cols[letColumnsRequest.MultiColsRequest.RightCName] = struct{}{}
+	}
+
+	if letColumnsRequest.SingleColRequest != nil {
+		cols[letColumnsRequest.SingleColRequest.CName] = struct{}{}
+	}
+
+	AddAllColumnsInExpr(cols, letColumnsRequest.ValueColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.RexColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.StatisticColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.RenameColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.DedupColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.SortColRequest)
+
+	if letColumnsRequest.MultiValueColRequest != nil && letColumnsRequest.MultiValueColRequest.ColName != "" {
+		cols[letColumnsRequest.MultiValueColRequest.ColName] = struct{}{}
+	}
+
+	if letColumnsRequest.BinRequest != nil {
+		cols[letColumnsRequest.BinRequest.Field] = struct{}{}
+	}
+
+	AddAllColumnsInExpr(cols, letColumnsRequest.FillNullRequest)
+}
+
+func AddAllColumnsInExpr(cols map[string]struct{}, expr FieldGetter) {
+	if expr == nil || reflect.ValueOf(expr).IsNil() {
+		return
+	}
+
+	fields := expr.GetFields()
+
+	sutils.ConvertToSetFromSlice(cols, fields)
+}
+
+func AddAllColumnsInMeasureAggs(cols map[string]struct{}, measureAggs []*MeasureAggregator) {
+	if measureAggs == nil {
+		return
+	}
+
+	for _, measureAgg := range measureAggs {
+		sutils.AddToSet(cols, measureAgg.MeasureCol)
+		AddAllColumnsInExpr(cols, measureAgg.ValueColRequest)
+	}
+}
+
+func AddAllColumnsInGroupByRequest(cols map[string]struct{}, groupByRequest *GroupByRequest) {
+	if groupByRequest == nil {
+		return
+	}
+
+	if groupByRequest.GroupByColumns != nil {
+		sutils.ConvertToSetFromSlice(cols, groupByRequest.GroupByColumns)
+	}
+
+	AddAllColumnsInMeasureAggs(cols, groupByRequest.MeasureOperations)
+}
+
+func AddAllColumnsInTransactionArguments(cols map[string]struct{}, transactionArguments *TransactionArguments) {
+	if transactionArguments == nil {
+		return
+	}
+
+	if transactionArguments.Fields != nil {
+		sutils.ConvertToSetFromSlice(cols, transactionArguments.Fields)
+	}
+}
+
+func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOptions *StreamStatsOptions) {
+	if streamStatsOptions == nil {
+		return
+	}
+
+	AddAllColumnsInExpr(cols, streamStatsOptions.ResetBefore)
+	AddAllColumnsInExpr(cols, streamStatsOptions.ResetAfter)
 }
 
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{

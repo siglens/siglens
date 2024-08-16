@@ -106,6 +106,7 @@ type RunningQueryState struct {
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
+	AllColsInAggs            map[string]struct{}
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -449,6 +450,36 @@ func SetFinalStatsForQid(qid uint64, nodeResult *structs.NodeResult) error {
 	}
 
 	return rQuery.searchRes.SetFinalStatsFromNodeResult(nodeResult)
+}
+
+func SetAllColsInAggsForQid(qid uint64, allCols map[string]struct{}) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("SetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.AllColsInAggs = allCols
+	rQuery.rqsLock.Unlock()
+}
+
+func GetAllColsInAggsForQid(qid uint64) (map[string]struct{}, error) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("GetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return nil, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.AllColsInAggs, nil
 }
 
 // gets the measure results for the running query.
