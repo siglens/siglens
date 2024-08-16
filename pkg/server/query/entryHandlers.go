@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	prom "github.com/siglens/siglens/pkg/integrations/prometheus/promql"
+	lookups "github.com/siglens/siglens/pkg/lookups"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
@@ -681,5 +682,17 @@ func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		systemconfig.GetSystemInfo(ctx)
+	}
+}
+
+func uploadLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.UploadLookupFile(ctx)
+	}
+}
+
+func getAllLookupFilesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.GetAllLookupFiles(ctx)
 	}
 }
