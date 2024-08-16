@@ -234,7 +234,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	}
 
 	groupByCache := make(map[string][]string)
-  
+
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
 			continue
