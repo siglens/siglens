@@ -233,6 +233,8 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		return []byte{}
 	}
 
+	groupByCache := make(map[string][]string)
+
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
 			continue
@@ -265,9 +267,20 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				if err != nil {
 					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", byField, err)
 				} else {
-					strs, err := utils.ConvertGroupByKey(rawVal)
-					if err != nil {
-						log.Errorf("addRecordToAggregations: failed to extract raw key: %v", err)
+					rawValStr := toputils.UnsafeByteSliceToString(rawVal) // Zero copy, if we get a cache hit.
+					strs, exists := groupByCache[rawValStr]
+					if !exists {
+						strs, err = utils.ConvertGroupByKey(rawVal)
+						if err != nil {
+							log.Errorf("addRecordToAggregations: failed to extract raw key: %v", err)
+						} else {
+							// I'm pretty sure we need to actually copy the string
+							// here to insert it into the map, since we made the
+							// string previously with an unsafe conversion from a
+							// []byte, and that []byte will change later.
+							rawValStr = string(rawVal)
+							groupByCache[rawValStr] = strs
+						}
 					}
 					if len(strs) == 1 {
 						groupByColVal = strs[0]
