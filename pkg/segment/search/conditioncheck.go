@@ -19,6 +19,7 @@ package search
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -159,8 +160,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	// case ComplexExpression:
 	//	return // match complex exp
 	default:
-		log.Errorf("qid=%d, ApplySearchQuery: unsupported query type! %+v", qid, query.SearchType)
-		return false, errors.New("unsupported query type")
+		return false, fmt.Errorf("ApplyColumnarSearchQuery: unsupported query type %v", query.SearchType)
 	}
 }
 

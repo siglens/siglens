@@ -162,7 +162,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			blockSummaries[blockStatus.BlockNum].LowTs,
 			blockSummaries[blockStatus.BlockNum].HighTs, addedTimeHt) {
 			iterRecsAddRrc(recIT, multiReader, blockStatus, queryRange, aggs, aggsHasTimeHt,
-				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid)
+				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid, nodeRes)
 		} else {
 			// we did not iterate the records so now we need to just update the counts, so that early-exit
 			// as well as hit.total has somewhat accurate value
@@ -178,7 +178,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int, 
+func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int,
 	multiColReader *segread.MultiColSegmentReader, blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
 	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets []uint64, nodeRes *structs.NodeResult) []byte {
 
@@ -730,7 +730,7 @@ func applyAggregationsToSingleBlockFastPath(aggs *structs.QueryAggregators,
 
 func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSearchRecords *SegmentSearchStatus,
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
-	fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64) (map[string]*structs.SegStats, error) {
+	fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64, nodeRes *structs.NodeResult) (map[string]*structs.SegStats, error) {
 
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
@@ -750,7 +750,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
 		go segmentStatsWorker(statRes, measureColAndTS, aggColUsage, valuesUsage, listUsage, sharedReader.MultiColReaders[i], allBlocksChan,
-			searchReq, blockSummaries, queryRange, &blkWG, queryMetrics, qid)
+			searchReq, blockSummaries, queryRange, &blkWG, queryMetrics, qid, nodeRes)
 	}
 
 	absKeys := make([]uint16, 0, len(segmentSearchRecords.AllBlockStatus))
@@ -787,7 +787,7 @@ func getSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, 
 
 func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
 	multiReader *segread.MultiColSegmentReader, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary,
-	queryRange *dtu.TimeRange, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics, qid uint64) {
+	queryRange *dtu.TimeRange, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics, qid uint64, nodeRes *structs.NodeResult) {
 
 	defer wg.Done()
 	bb := bbp.Get()
@@ -816,8 +816,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			if !isBlkFullyEncosed {
 				recTs, err := multiReader.GetTimeStampForRecord(blockStatus.BlockNum, recNum16, qid)
 				if err != nil {
-					log.Errorf("qid=%d, segmentStatsWorker failed to initialize time reader for block %+v. Err: %v", qid,
-						blockStatus.BlockNum, err)
+					nodeRes.StoreGlobalSearchError("segmentStatsWorker: Failed to extract timestamp from record", log.ErrorLevel, err)
 					continue
 				}
 				if !queryRange.CheckInRange(recTs) {
@@ -843,7 +842,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
 					recNum, qid, false, &cValEnc)
 				if err != nil {
-					log.Errorf("qid=%d, segmentStatsWorker failed to extract value for cname %+v. Err: %v", qid, cname, err)
+					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
 				}
 
@@ -968,8 +967,8 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentReader,
 	blockStatus *BlockSearchStatus, queryRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	aggsHasTimeHt bool, addedTimeHt bool, blkResults *blockresults.BlockResults,
-	queryMetrics *structs.QueryProcessingMetrics,
-	allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest, qid uint64) {
+	queryMetrics *structs.QueryProcessingMetrics, allSearchResults *segresults.SearchResults,
+	searchReq *structs.SegmentSearchRequest, qid uint64, nodeRes *structs.NodeResult) {
 
 	var aggsSortColKeyIdx int
 	if aggs != nil && aggs.Sort != nil {
@@ -987,6 +986,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		recNumUint16 := uint16(recNum)
 		recTs, err := mcr.GetTimeStampForRecord(blockStatus.BlockNum, recNumUint16, qid)
 		if err != nil {
+			nodeRes.StoreGlobalSearchError("iterRecsAddRrc: Failed to extract timestamp from record", log.ErrorLevel, err)
 			break
 		}
 		if !queryRange.CheckInRange(recTs) {
