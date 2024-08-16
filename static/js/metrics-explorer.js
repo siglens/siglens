@@ -2615,7 +2615,6 @@ $('#alert-from-metrics-btn').click(function () {
     newTab.focus();
 });
 
-
 async function populateMetricsQueryElement(metricsQueryParams) {
     const { start, end, queries, formulas } = metricsQueryParams;
     $(`.ranges .inner-range .range-item`).removeClass('active');
