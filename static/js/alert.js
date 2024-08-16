@@ -863,7 +863,6 @@ function alertChart(res) {
         }
 
         let xAxisData = [];
-        let yAxisData = [];
         let multipleGroupBy = hits[0].GroupByValues.length > 1;
 
         if (columnOrder.length > 1) {
@@ -878,6 +877,7 @@ function alertChart(res) {
             });
 
             xAxisData = hits.map((item) => {
+                ////eslint-disable-next-line no-undef
                 let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
                 return groupByValue || 'NULL';
             });
