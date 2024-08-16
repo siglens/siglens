@@ -857,3 +857,33 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         - limit: non-negative int (default 10; 0 means no limit)
     Outputs:
         - tagKeys: []{key: string, numValues: int}
+
+## Lookup APIs
+
+### Upload Lookup File
+    endpoint: api/lookup-upload
+    method: POST
+
+    Example:
+    request: http://localhost:5122/api/lookup-upload
+    body: 
+        - Form data:
+            - name: [filename]
+            - file: [file content]
+
+    response: 
+        File uploaded successfully: [filename]
+
+### Get All Lookup Files
+
+    endpoint: api/lookup-files
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/lookup-files
+    response: 
+        [
+            "file1.csv",
+            "file2.csv",
+            "file3.csv.gz"
+        ]

@@ -459,7 +459,8 @@ type NumericStats struct {
 }
 
 type StringStats struct {
-	StrSet map[string]struct{}
+	StrSet  map[string]struct{}
+	StrList []string
 }
 
 type SearchErrorInfo struct {
@@ -908,6 +909,15 @@ func (qa *QueryAggregators) HasValueColRequest() bool {
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
 		if agg.MeasureFunc == utils.Values {
+			return true
+		}
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasListFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == utils.List {
 			return true
 		}
 	}

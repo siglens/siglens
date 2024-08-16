@@ -631,7 +631,8 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     }
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype);
+    let totalPossibleEvents = res.total_possible_events;
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
@@ -693,7 +694,8 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
     timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype);
+    let totalPossibleEvents = res.total_possible_events;
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
 
@@ -744,7 +746,8 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
     }
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype);
+    let totalPossibleEvents = res.total_possible_events;
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
     $('#run-filter-btn').html(' ');
     $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
@@ -799,7 +802,8 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
     }
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype);
+    let totalPossibleEvents = res.total_possible_events;
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
     $('#run-filter-btn').html(' ');
     $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
@@ -858,7 +862,7 @@ function showErrorResponse(errorMsg, res) {
     wsState = 'query';
 }
 
-function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype) {
+function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents) {
     //update chart title
     console.log(`rendering total hits: ${totalHits}. elapedTimeMS: ${elapedTimeMS}`);
     let startDate = displayStart;
@@ -874,14 +878,14 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
-            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>`);
+            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched (out of <b>${totalPossibleEvents}</b> Possible Records)</span> </div>`);
         } else {
             $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
 
             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
             <div class="text-end">Response: ${timeToFirstByte} ms</div>
         `);
-            $('#record-searched').html(`<div><span> <b>${totalEventsSearched}</b> Records Searched</span> </div>`);
+            $('#record-searched').html(`<div><span><b>${totalEventsSearched}</b></span> of <span><b>${totalPossibleEvents}</b> Records Searched</span> </div>`);
         }
         $('#progress-div').html(`
             <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
