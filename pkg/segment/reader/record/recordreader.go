@@ -238,6 +238,21 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 		mathColMap = make(map[string]int)
 	}
 
+	colsToReadIndices := make(map[int]struct{})
+	for colKeyIdx, cname := range allColKeyIndices {
+		_, exists := dictEncCols[cname]
+		if exists {
+			continue
+		}
+		colsToReadIndices[colKeyIdx] = struct{}{}
+	}
+
+	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockIdx)
+	if err != nil {
+		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockIdx, err)
+		return results
+	}
+
 	var isTsCol bool
 	for _, recNum := range orderedRecNums {
 		_, ok := results[recNum]
