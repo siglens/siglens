@@ -92,6 +92,8 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+    //eslint-disable-next-line no-undef
+    $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
@@ -101,9 +103,9 @@ $(document).ready(async function () {
     $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
     const isMetricsScreen = urlParams.get('isMetricsScreen') === 'true';
     const isMetricsURL = urlParams.get('isMetricsURL') === 'true';
-    if(!isMetricsScreen && !isMetricsURL){
+    if (!isMetricsScreen && !isMetricsURL) {
         data = getInitialSearchFilter(true, true);
-    }    
+    }
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -216,7 +218,6 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
-
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index

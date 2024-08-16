@@ -49,15 +49,15 @@ $(document).ready(function () {
     });
     $('#addrule-save-btn').click(function () {
         var ruleName = $('#rule-name').val().trim(); // Trim whitespace
-    
+
         if (!ruleName) {
             $('.rule-name-error').addClass('active').text('Rule name cannot be empty!');
             return;
         }
         $('.rule-name-error').removeClass('active').text(''); // Clear error message if ruleName is not empty
-    
+
         var encodedRuleName = encodeURIComponent(ruleName);
-    
+
         // Assuming you have the `data` object available
         var queryParams = {
             queryLanguage: data.queryLanguage,
@@ -67,28 +67,28 @@ $(document).ready(function () {
             endEpoch: data.endEpoch,
             alertRule_name: encodedRuleName,
         };
-    
+
         // Extract `alertRule_name` from `queryParams`
         var alertRuleName = queryParams.alertRule_name;
-    
+
         // Get the current URL and replace `/index.html` or `/` with `/alert.html`
         var currentPage = window.location.href;
         var newUrl = currentPage.replace(/\/index\.html|\/$/, '/alert.html');
-    
+
         // Construct the new query string with the extracted `alertRule_name`
         var queryString = new URLSearchParams({
-            alertRule_name: alertRuleName
+            alertRule_name: alertRuleName,
         }).toString();
-    
+
         // Construct the final URL
         var finalUrl = newUrl + (queryString ? '&' + queryString : '');
-    
+
         console.log(finalUrl);
-        
+
         // Open the new URL in a new tab
         window.open(finalUrl, '_blank');
     });
-    
+
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
         isMetricsScreen = true;
