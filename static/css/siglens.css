@@ -2021,7 +2021,7 @@ div.dts div.dataTables_scrollBody table {
     font-size: 13px;
     margin-bottom: 4px;
 }
-.popupContent,.delete-dialog {
+.popupContent,.delete-dialog ,.mypopupContent{
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
     border: 1px solid var(--ui-widget-border-color);
@@ -2042,7 +2042,7 @@ div.dts div.dataTables_scrollBody table {
     left: 30%;
 }
 
-.usage-stats .popupContent {
+.usage-stats .popupContent{
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
     border: 1px solid var(--ui-widget-border-color);
@@ -2058,7 +2058,7 @@ div.dts div.dataTables_scrollBody table {
     z-index: 12;
 }
 
-.popupContent .header,.delete-dialog .header {
+.popupContent .header,.delete-dialog .header ,.mypopupContent .header{
   color: var(--text-color);
   margin-bottom: 25px;
   font-weight: bold;
@@ -2071,7 +2071,7 @@ div.dts div.dataTables_scrollBody table {
     margin-top: 24px;
 }
 
-.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active{
+.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active,.mypopupContent.active{
   visibility: visible;
   position: fixed;
   overflow: hidden;
@@ -2110,7 +2110,7 @@ div.dts div.dataTables_scrollBody table {
   background: var(--btn-regular-bg-color);
 }
 
-[data-theme='dark'] .popupContent {
+[data-theme='dark'] .popupContent, [data-theme='dark'] .mypopupContent {
   background: var(--ui-widget-bg-color);
   border: 1px solid var(--ui-widget-border-color);
   color: var(--text-color);
