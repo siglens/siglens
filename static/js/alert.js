@@ -857,7 +857,6 @@ function alertChart(res) {
 
         let hits = res.measure;
         if (!hits || hits.length === 0) {
-            console.error('No data available for rendering.');
             $('#logs-explorer').hide();
             return;
         }
@@ -899,11 +898,9 @@ function alertChart(res) {
             if (singleMeasure != null) {
                 displayBigNumber(singleMeasure, -1, 'dataType', 0);
             } else {
-                console.error('Invalid measure value.');
                 $('#logs-explorer').hide();
             }
         } else {
-            console.error('Invalid column order or missing data.');
             $('#logs-explorer').hide();
         }
     }
