@@ -73,6 +73,10 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
+        <div class="menu nav-lookups">
+            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
+                    class="nav-link-text">Lookups</span></a>
+        </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>
@@ -197,7 +201,9 @@ $(document).ready(function () {
         setTimeout(function () {
             $('.nav-ingest').removeClass('disable-hover');
         }, 500);
-    }
+    } else if (currentUrl.includes('lookups.html')) {
+        $('.nav-lookups').addClass('active');
+    } 
 
     // Hover event handlers updated to respect disable-hover class
     $('.metrics-dropdown-toggle').hover(
