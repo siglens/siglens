@@ -382,6 +382,8 @@ func Benchmark_logSummarySegKey(b *testing.B) {
 func Benchmark_agileTreeIngest(b *testing.B) {
 	config.InitializeDefaultConfig(b.TempDir())
 	config.SetAggregationsFlag(true)
+	config.SetPQSEnabled(true)
+
 	_ = vtable.InitVTable()
 
 	measureInfoUsage := make(map[string]bool)
