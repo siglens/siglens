@@ -581,7 +581,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 
 	if len(queryResult.MeasureResults) > 0 {
 		lokiMetricsResponse := getMetricsResponse(queryResult)
@@ -671,7 +671,7 @@ func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qc := structs.InitQueryContextWithTableInfo(ti, rutils.DefaultBucketCount, 0, myid, false)
 
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		writeEmptyIndexStatsResponse(ctx)
 		return
@@ -729,7 +729,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, DefaultLimit, 0, myid, false)
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get matching records", "", err)
 		return
