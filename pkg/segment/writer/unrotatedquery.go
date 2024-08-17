@@ -134,7 +134,8 @@ func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
 	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockIdx uint16,
-	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64) {
+	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64,
+	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()
 
@@ -164,7 +165,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 	var pqidSize uint64
 	if AllUnrotatedSegmentInfo[segkey].isCmiLoaded {
 		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockIdx, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
-		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, wipBlock.pqMatches)
+		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, pqMatches)
 	}
 
 	blkSumSize := blkSumCpy.GetSize()

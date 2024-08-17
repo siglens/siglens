@@ -36,6 +36,7 @@ import (
 
 func Test_segReader(t *testing.T) {
 
+	config.InitializeTestingConfig(t.TempDir())
 	segDir := "data/"
 	_ = os.MkdirAll(segDir, 0755)
 	segKey := segDir + "test"
@@ -46,28 +47,46 @@ func Test_segReader(t *testing.T) {
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
 
+	colsToReadIndices := make(map[int]struct{})
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, 9)
+	assert.Nil(t, foundErr)
+	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
+	assert.Equal(t, 3, sharedReader.numReaders)
+	multiReader := sharedReader.MultiColReaders[0]
+
+	for colName := range cols {
+		if colName == config.GetTimeStampKey() {
+			continue
+		}
+
+		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
+		assert.True(t, exists)
+		colsToReadIndices[cKeyidx] = struct{}{}
+	}
+
+	// invalid block
+	err := multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	assert.NotNil(t, err)
+
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
+	assert.Nil(t, err)
+
 	// test across multiple columns types
 	for queryCol = range cols {
 		if queryCol == config.GetTimeStampKey() {
 			continue // ingore ts
 		}
-		fileName := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(queryCol))
 
-		log.Infof("testing with %s", fileName)
-		fd, err := os.Open(fileName)
-		assert.NoError(t, err)
-		sReader, err := InitNewSegFileReader(fd, queryCol, blockmeta, 0, bsm, segutils.INCONSISTENT_CVAL_SIZE)
-		assert.Nil(t, err)
+		colKeyIndex, exists := multiReader.GetColKeyIndex(queryCol)
+		assert.True(t, exists)
+		sfr := multiReader.allFileReaders[colKeyIndex]
 
-		// invalid block
-		_, err = sReader.ReadRecordFromBlock(uint16(numBlocks), uint16(numEntriesInBlock))
-		assert.NotNil(t, err)
 		// correct block, incorrect recordNum
-		_, err = sReader.ReadRecordFromBlock(0, uint16(numEntriesInBlock))
+		_, err = sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock))
 		assert.NotNil(t, err, "col %s should not have %+v entries", queryCol, numEntriesInBlock+1)
 
 		// correct block, correct recordNum
-		arr, err := sReader.ReadRecordFromBlock(0, uint16(numEntriesInBlock-3))
+		arr, err := sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock-3))
 		assert.Nil(t, err)
 		assert.NotNil(t, arr)
 
@@ -77,7 +96,7 @@ func Test_segReader(t *testing.T) {
 		assert.NotNil(t, cVal)
 		log.Infof("GetCvalFromRec: %+v for column %s", cVal, queryCol)
 
-		err = sReader.Close()
+		err = sfr.Close()
 		assert.Nil(t, err)
 	}
 

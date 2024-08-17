@@ -73,6 +73,8 @@ type SegStore struct {
 	RecordCount        int
 	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
 	pqTracker          *PQTracker
+	pqMatches          map[string]*pqmr.PQMatchResults
+	LastSegPqids       map[string]struct{}
 	numBlocks          uint16
 	BytesReceivedCount uint64
 	OnDiskBytes        uint64 // running sum of cmi/csg/bsu file sizes
@@ -83,6 +85,7 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	SegmentErrors      map[string]*structs.SearchErrorInfo
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -114,6 +117,8 @@ func InitSegStore(
 		VirtualTableName:   virtualTableName,
 		AllSeenColumnSizes: make(map[string]uint32),
 		pqTracker:          initPQTracker(),
+		pqMatches:          make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:       make(map[string]struct{}),
 		skipDe:             skipDe,
 		timeCreated:        now,
 		AllSst:             make(map[string]*structs.SegStats),
@@ -138,6 +143,8 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 		VirtualTableName:   virtualTableName,
 		AllSeenColumnSizes: make(map[string]uint32),
 		pqTracker:          initPQTracker(),
+		pqMatches:          make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:       make(map[string]struct{}),
 		timeCreated:        time.Now(),
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
@@ -149,19 +156,37 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 	return segstore
 }
 
+func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, err error) {
+	segStore.SegmentErrors = structs.StoreError(segStore.SegmentErrors, errMsg, logLevel, err)
+}
+
+func (segStore *SegStore) LogAndFlushErrors() {
+	for errMsg, errInfo := range segStore.SegmentErrors {
+		toputils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
+		delete(segStore.SegmentErrors, errMsg)
+	}
+}
+
 func (segstore *SegStore) initWipBlock() {
 
 	segstore.wipBlock = WipBlock{
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		columnsInBlock:     make(map[string]bool),
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		colWips:            make(map[string]*ColWip),
 		bb:                 bbp.Get(),
 	}
 	segstore.wipBlock.tomRollup = make(map[uint64]*RolledRecs)
 	segstore.wipBlock.tohRollup = make(map[uint64]*RolledRecs)
 	segstore.wipBlock.todRollup = make(map[uint64]*RolledRecs)
+}
+
+func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
+	size := uint64(0)
+	for _, v := range segStore.pqMatches {
+		size += v.GetInMemSize()
+	}
+	return size
 }
 
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
@@ -197,7 +222,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
-	numPrevRec := segstore.wipBlock.blockSummary.RecCount
 	segstore.wipBlock.blockSummary.RecCount = 0
 
 	// delete keys from map to keep underlying storage
@@ -205,29 +229,16 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		delete(segstore.wipBlock.columnsInBlock, col)
 	}
 
-	for pqid := range segstore.wipBlock.pqMatches {
-		segstore.wipBlock.pqMatches[pqid].ResetAll()
+	// Reset PQBitmaps
+	for pqid := range segstore.pqMatches {
+		segstore.pqMatches[pqid].ResetAll()
 	}
 
 	// don't update pqids if no more blocks will be created
 	if forceRotate {
 		return nil
 	}
-	persistentQueries, err := querytracker.GetTopNPersistentSearches(segstore.VirtualTableName, segstore.OrgId)
-	if err != nil {
-		log.Errorf("resetWipBlock: error getting persistent queries: %v", err)
-		return err
-	}
-	for pqid, pNode := range persistentQueries {
-		if _, ok := segstore.wipBlock.pqMatches[pqid]; !ok {
-			mrSize := utils.PQMR_SIZE
-			if segstore.numBlocks > 0 || numPrevRec == 0 {
-				mrSize = uint(numPrevRec)
-			}
-			segstore.wipBlock.pqMatches[pqid] = pqmr.CreatePQMatchResults(mrSize)
-		}
-		segstore.pqTracker.addSearchNode(pqid, pNode)
-	}
+
 	clearTRollups(segstore.wipBlock.tomRollup)
 	clearTRollups(segstore.wipBlock.tohRollup)
 	clearTRollups(segstore.wipBlock.todRollup)
@@ -271,6 +282,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.OnDiskBytes = 0
 
 	segstore.AllSeenColumnSizes = make(map[string]uint32)
+	segstore.LastSegPqids = make(map[string]struct{})
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	segstore.usingSegTree = false
@@ -280,7 +292,35 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
-	segstore.wipBlock.clearPQMatchInfo()
+	segstore.clearPQMatchInfo()
+	segstore.LogAndFlushErrors()
+
+	// Get New PQIDs
+	persistentQueries, err := querytracker.GetTopNPersistentSearches(segstore.VirtualTableName, segstore.OrgId)
+	if err != nil {
+		log.Errorf("resetSegStore: error getting persistent queries: %v", err)
+		return err
+	}
+
+	numPrevRec := segstore.wipBlock.blockSummary.RecCount
+	for pqid, pNode := range persistentQueries {
+		if _, ok := segstore.pqMatches[pqid]; !ok {
+			mrSize := utils.PQMR_SIZE
+			if segstore.numBlocks > 0 || numPrevRec == 0 {
+				mrSize = uint(numPrevRec)
+			}
+			segstore.pqMatches[pqid] = pqmr.CreatePQMatchResults(mrSize)
+		}
+		segstore.pqTracker.addSearchNode(pqid, pNode)
+	}
+
+	promoted, demoted := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
+	if len(promoted) > 0 {
+		log.Infof("resetSegStore: PQIDs Promoted: %v", promoted)
+	}
+	if len(demoted) > 0 {
+		log.Infof("resetSegStore: PQIDs Demoted: %v", demoted)
+	}
 
 	err = segstore.resetWipBlock(false)
 	if err != nil {
@@ -545,14 +585,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
 				wipBlockMetadata, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
-				segstore.latest_millis, segstore.RecordCount, segstore.OrgId)
+				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.pqMatches)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
 
 		segstore.OnDiskBytes += totalBytesWritten
 
 		allPQIDs := make(map[string]bool)
-		for pqid := range segstore.wipBlock.pqMatches {
+		for pqid := range segstore.pqMatches {
 			allPQIDs[pqid] = true
 		}
 
@@ -577,7 +617,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			return err
 		}
 
-		for pqid, pqResults := range segstore.wipBlock.pqMatches {
+		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
 			pqidFname := fmt.Sprintf("%v/pqmr/%v.pqmr", segstore.SegmentKey, pqid)
 			err := pqResults.FlushPqmr(&pqidFname, segstore.numBlocks)
@@ -718,8 +758,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", err)
 		}
 
-		allPqids := make(map[string]bool, len(segstore.wipBlock.pqMatches))
-		for pqid := range segstore.wipBlock.pqMatches {
+		allPqids := make(map[string]bool, len(segstore.pqMatches))
+		for pqid := range segstore.pqMatches {
 			allPqids[pqid] = true
 		}
 
@@ -914,7 +954,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, si
 	}
 
 	if matchedPCols {
-		applyStreamingSearchToRecord(segstore.wipBlock, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
+		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
 	segstore.wipBlock.maxIdx = maxIdx
@@ -1084,9 +1124,10 @@ func (pct *PQTracker) isColumnInPQuery(col string) bool {
 	return ok
 }
 
-func (wip *WipBlock) clearPQMatchInfo() {
-	for pqid := range wip.pqMatches {
-		delete(wip.pqMatches, pqid)
+func (segStore *SegStore) clearPQMatchInfo() {
+	for pqid := range segStore.pqMatches {
+		segStore.LastSegPqids[pqid] = struct{}{}
+		delete(segStore.pqMatches, pqid)
 	}
 }
 
