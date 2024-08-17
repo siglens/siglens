@@ -978,23 +978,11 @@ func (qa *QueryAggregators) HasStatsBlock() bool {
 }
 
 func (qa *QueryAggregators) HasStatsBlockInChain() bool {
-	if qa == nil {
-		return false
-	}
-
-	if qa.HasStatsBlock() {
-		return true
-	}
-
-	if qa.Next != nil {
-		return qa.Next.HasStatsBlockInChain()
-	}
-
-	return false
+	return qa.HasInChain((*QueryAggregators).HasStatsBlock)
 }
 
 // returns all columns in the query aggregators if stats are present.
-// Update this function whenever a new struct or an is added to the query aggregators.
+// Update this function whenever a new struct or a new Column Field is added to the query aggregators.
 func (qa *QueryAggregators) GetAllColsInAggsIfStatsPresent() map[string]struct{} {
 	if qa == nil {
 		return nil
@@ -1006,12 +994,12 @@ func (qa *QueryAggregators) GetAllColsInAggsIfStatsPresent() map[string]struct{}
 
 	cols := make(map[string]struct{})
 
-	qa.GetAllColsInAggsChainUntilStatsBlock(cols)
+	qa.GetAllColsInChainUpToFirstStatsBlock(cols)
 
 	return cols
 }
 
-func (qa *QueryAggregators) GetAllColsInAggsChainUntilStatsBlock(cols map[string]struct{}) {
+func (qa *QueryAggregators) GetAllColsInChainUpToFirstStatsBlock(cols map[string]struct{}) {
 	if qa == nil {
 		return
 	}
@@ -1023,12 +1011,12 @@ func (qa *QueryAggregators) GetAllColsInAggsChainUntilStatsBlock(cols map[string
 	AddAllColumnsInStreamStatsOptions(cols, qa.StreamStatsOptions)
 
 	if qa.HasStatsBlock() {
-		// We want to stop at the first stats block
+		// We want to stop after processing the first stats block
 		return
 	}
 
 	if qa.Next != nil {
-		qa.Next.GetAllColsInAggsChainUntilStatsBlock(cols)
+		qa.Next.GetAllColsInChainUpToFirstStatsBlock(cols)
 	}
 }
 
@@ -1038,11 +1026,11 @@ func AddAllColumnsInOutputTransforms(cols map[string]struct{}, outputTransforms 
 	}
 
 	if outputTransforms.HarcodedCol != nil {
-		sutils.ConvertToSetFromSlice(cols, outputTransforms.HarcodedCol)
+		sutils.AddSliceToSet(cols, outputTransforms.HarcodedCol)
 	}
 
 	if outputTransforms.RenameHardcodedColumns != nil {
-		sutils.ConvertToSetFromMap(cols, outputTransforms.RenameHardcodedColumns)
+		sutils.AddMapKeysToSet(cols, outputTransforms.RenameHardcodedColumns)
 	}
 
 	AddAllColumnsInColumnsRequest(cols, outputTransforms.OutputColumns)
@@ -1060,15 +1048,15 @@ func AddAllColumnsInColumnsRequest(cols map[string]struct{}, columnsRequest *Col
 	}
 
 	if columnsRequest.RenameColumns != nil {
-		sutils.ConvertToSetFromMap(cols, columnsRequest.RenameColumns)
+		sutils.AddMapKeysToSet(cols, columnsRequest.RenameColumns)
 	}
 
 	if columnsRequest.ExcludeColumns != nil {
-		sutils.ConvertToSetFromSlice(cols, columnsRequest.ExcludeColumns)
+		sutils.AddSliceToSet(cols, columnsRequest.ExcludeColumns)
 	}
 
 	if columnsRequest.IncludeColumns != nil {
-		sutils.ConvertToSetFromSlice(cols, columnsRequest.IncludeColumns)
+		sutils.AddSliceToSet(cols, columnsRequest.IncludeColumns)
 	}
 
 	if columnsRequest.IncludeValues != nil {
@@ -1121,7 +1109,7 @@ func AddAllColumnsInExpr(cols map[string]struct{}, expr FieldGetter) {
 
 	fields := expr.GetFields()
 
-	sutils.ConvertToSetFromSlice(cols, fields)
+	sutils.AddSliceToSet(cols, fields)
 }
 
 func AddAllColumnsInMeasureAggs(cols map[string]struct{}, measureAggs []*MeasureAggregator) {
@@ -1143,7 +1131,7 @@ func AddAllColumnsInGroupByRequest(cols map[string]struct{}, groupByRequest *Gro
 	}
 
 	if groupByRequest.GroupByColumns != nil {
-		sutils.ConvertToSetFromSlice(cols, groupByRequest.GroupByColumns)
+		sutils.AddSliceToSet(cols, groupByRequest.GroupByColumns)
 	}
 
 	AddAllColumnsInMeasureAggs(cols, groupByRequest.MeasureOperations)
@@ -1155,7 +1143,7 @@ func AddAllColumnsInTransactionArguments(cols map[string]struct{}, transactionAr
 	}
 
 	if transactionArguments.Fields != nil {
-		sutils.ConvertToSetFromSlice(cols, transactionArguments.Fields)
+		sutils.AddSliceToSet(cols, transactionArguments.Fields)
 	}
 }
 

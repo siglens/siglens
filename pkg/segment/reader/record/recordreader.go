@@ -58,8 +58,11 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 		}
 	}
 
+	// if len(allColsInAggs) > 0, then we need to intersect the allCols with allColsInAggs
+	// this is because we only need to read the columns that are present in the aggregators.
+	// if len(allColsInAggs) == 0, then we ignore this step, as this would mean that the
+	// query does not have a stats block, and we need to read all columns.
 	if len(allColsInAggs) > 0 {
-		// Filter out columns that are not in the aggs
 		allCols = toputils.IntersectionWithFirstMapValues(allCols, allColsInAggs)
 	}
 	allCols = applyColNameTransform(allCols, aggs, colsIndexMap, qid)

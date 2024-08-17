@@ -54,7 +54,7 @@ func Test_ConvertToSetFromMap(t *testing.T) {
 		"c": 3,
 	}
 
-	ConvertToSetFromMap(set, sourceMap)
+	AddMapKeysToSet(set, sourceMap)
 
 	expectedSet := map[string]struct{}{
 		"a": {},
@@ -71,7 +71,7 @@ func Test_ConvertToSetFromSlice(t *testing.T) {
 	set := make(map[string]struct{})
 	sourceSlice := []string{"x", "y", "z"}
 
-	ConvertToSetFromSlice(set, sourceSlice)
+	AddSliceToSet(set, sourceSlice)
 
 	expectedSet := map[string]struct{}{
 		"x": {},
