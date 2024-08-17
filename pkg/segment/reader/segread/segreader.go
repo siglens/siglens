@@ -264,7 +264,7 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 	// at segment level. If the value is +ve and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
 	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
 	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != utils.INCONSISTENT_CVAL_SIZE {
-		return uint32(sfr.consistentColValueLen), nil
+		return sfr.consistentColValueLen, nil
 	}
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {
