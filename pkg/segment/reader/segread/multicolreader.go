@@ -77,7 +77,7 @@ Caller is responsible for calling .CloseAll() to close all the fds.
 Can also be used to get the timestamp for any arbitrary record in the Segment
 */
 func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, allColumnsRecSize map[string]int8, qid uint64) (*MultiColSegmentReader, error) {
+	blockSummaries []*structs.BlockSummary, allColumnsRecSize map[string]uint32, qid uint64) (*MultiColSegmentReader, error) {
 
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
@@ -110,9 +110,11 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 			continue
 		}
 
-		colRecSize := int8(-1)
+		colRecSize := utils.INCONSISTENT_CVAL_SIZE
 		if allColumnsRecSize != nil {
-			colRecSize = allColumnsRecSize[colName]
+			if recSize, ok := allColumnsRecSize[colName]; ok {
+				colRecSize = recSize
+			}
 		}
 
 		segReader, err := InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries, colRecSize)
@@ -196,8 +198,8 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		allInUseSegSetFiles = append(allInUseSegSetFiles, fName)
 	}
 
-	var allColumnsRecSize map[string]int8
-	smi, exist := metadata.GetMicroIndexForSegKey(segKey)
+	var allColumnsRecSize map[string]uint32
+	smi, exist := metadata.GetSegMicroIndexForSegKey(segKey)
 	if exist {
 		allColumnsRecSize = smi.GetAllColumnsRecSize()
 	}

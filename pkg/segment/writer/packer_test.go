@@ -539,16 +539,16 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 	}
 
 	// column `a` has constant length of 4. So this column should have size as 4.
-	// column `c` also has constant length until 4th record. It does not exist in the 5th record. So this should be -1.
-	// column `d` also has constant length until 4th record. In 5th record, its length changes. So this should be -1.
+	// column `c` also has constant length until 4th record. It does not exist in the 5th record. So this should be INCONSISTENT_CVAL_SIZE.
+	// column `d` also has constant length until 4th record. In 5th record, its length changes. So this should be INCONSISTENT_CVAL_SIZE.
 	// column `e` is consistently set to null. So this should have size of 1.
 
-	expectedColSizes := []map[string]int8{
+	expectedColSizes := []map[string]uint32{
 		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
 		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
 		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
 		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
-		{"a": 3 + 4, "c": -1, "d": -1, "e": 1},
+		{"a": 3 + 4, "c": INCONSISTENT_CVAL_SIZE, "d": INCONSISTENT_CVAL_SIZE, "e": 1},
 	}
 
 	cTime := uint64(time.Now().UnixMilli())
@@ -571,9 +571,9 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 	}
 }
 
-func assertTheColRecSize(t *testing.T, ss *SegStore, expectedColValSizes map[string]int8, idx int) {
+func assertTheColRecSize(t *testing.T, ss *SegStore, expectedColValSizes map[string]uint32, idx int) {
 	for colName, expectedSize := range expectedColValSizes {
-		actualSize := ss.AllSeenColumns[colName]
+		actualSize := ss.AllSeenColumnSizes[colName]
 		assert.Equal(t, expectedSize, actualSize, "idx=%v, colName=%v", idx, colName)
 	}
 }

@@ -239,14 +239,14 @@ func TestStarTree(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey1",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
+		wipBlock:           wipBlock,
+		SegmentKey:         "test-segkey1",
+		AllSeenColumnSizes: allCols,
+		pqTracker:          initPQTracker(),
+		AllSst:             segstats,
+		numBlocks:          0,
 	}
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
@@ -325,14 +325,14 @@ func TestStarTreeMedium(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey2",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
+		wipBlock:           wipBlock,
+		SegmentKey:         "test-segkey2",
+		AllSeenColumnSizes: allCols,
+		pqTracker:          initPQTracker(),
+		AllSst:             segstats,
+		numBlocks:          0,
 	}
 	tsKey := config.GetTimeStampKey()
 
@@ -413,15 +413,15 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	segstats := make(map[string]*SegStats)
 	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey3",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
+		wipBlock:           wipBlock,
+		SegmentKey:         "test-segkey3",
+		AllSeenColumnSizes: allCols,
+		pqTracker:          initPQTracker(),
+		AllSst:             segstats,
+		numBlocks:          0,
 	}
 	tsKey := config.GetTimeStampKey()
 
@@ -502,14 +502,14 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey4",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
+		wipBlock:           wipBlock,
+		SegmentKey:         "test-segkey4",
+		AllSeenColumnSizes: allCols,
+		pqTracker:          initPQTracker(),
+		AllSst:             segstats,
+		numBlocks:          0,
 	}
 	tsKey := config.GetTimeStampKey()
 

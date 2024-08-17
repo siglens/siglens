@@ -135,6 +135,8 @@ var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
+const INCONSISTENT_CVAL_SIZE uint32 = 1_000_000 // 1MB
+
 type SS_DTYPE uint8
 
 const (

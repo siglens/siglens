@@ -358,7 +358,7 @@ func (hm *allSegmentMetadata) getMicroIndex(segKey string) (*SegmentMicroIndex, 
 	return blockMicroIndex, ok
 }
 
-func GetMicroIndexForSegKey(segKey string) (*SegmentMicroIndex, bool) {
+func GetSegMicroIndexForSegKey(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 	return globalMetadata.getMicroIndex(segKey)

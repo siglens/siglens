@@ -66,7 +66,7 @@ type SegmentFileReader struct {
 	currOffset               uint32
 	currUncompressedBlockLen uint32
 	currRecLen               uint32
-	colValueRecLen           int8
+	consistentColValueLen    uint32
 
 	isBlockLoaded      bool
 	currFileBuffer     []byte   // buffer re-used for file reads values
@@ -80,21 +80,21 @@ type SegmentFileReader struct {
 // returns a new SegmentFileReader and any errors encountered
 // The returned SegmentFileReader must call .Close() when finished using it to close the fd
 func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen int8) (*SegmentFileReader, error) {
+	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32) (*SegmentFileReader, error) {
 	return &SegmentFileReader{
-		ColName:            colName,
-		fileName:           fd.Name(),
-		currFD:             fd,
-		blockMetadata:      blockMetadata,
-		currOffset:         0,
-		currFileBuffer:     *fileReadBufferPool.Get().(*[]byte),
-		currRawBlockBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
-		colValueRecLen:     colValueRecLen,
-		isBlockLoaded:      false,
-		encType:            255,
-		blockSummaries:     blockSummaries,
-		deTlv:              make([][]byte, 0),
-		deRecToTlv:         make([]uint16, 0),
+		ColName:               colName,
+		fileName:              fd.Name(),
+		currFD:                fd,
+		blockMetadata:         blockMetadata,
+		currOffset:            0,
+		currFileBuffer:        *fileReadBufferPool.Get().(*[]byte),
+		currRawBlockBuffer:    *uncompressedReadBufferPool.Get().(*[]byte),
+		consistentColValueLen: colValueRecLen,
+		isBlockLoaded:         false,
+		encType:               255,
+		blockSummaries:        blockSummaries,
+		deTlv:                 make([][]byte, 0),
+		deRecToTlv:            make([]uint16, 0),
 	}, nil
 }
 
@@ -251,10 +251,10 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 	// if we have the +ve column value rec len, that is the current record length
 	// This value comes from the segment metadata, where we store the column value size
-	// at segment level. If the value is +ve, it means all records in the segment for this column
-	// have the same length and if it is -ve, it means the records have different lengths
-	if sfr.colValueRecLen > 0 {
-		return uint32(sfr.colValueRecLen), nil
+	// at segment level. If the value is +ve and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
+	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
+	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != utils.INCONSISTENT_CVAL_SIZE {
+		return uint32(sfr.consistentColValueLen), nil
 	}
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {

@@ -133,7 +133,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]int8, blockIdx uint16,
+	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockIdx uint16,
 	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()

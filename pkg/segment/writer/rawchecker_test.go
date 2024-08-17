@@ -155,7 +155,7 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 	}
 
 	for _, test := range cases {
-		allCols := make(map[string]int8)
+		allCols := make(map[string]uint32)
 		segstats := make(map[string]*SegStats)
 
 		var blockSummary BlockSummary
@@ -173,12 +173,12 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			bb:                 bbp.Get(),
 		}
 		segstore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     "test-segkey",
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      0,
+			wipBlock:           wipBlock,
+			SegmentKey:         "test-segkey",
+			AllSeenColumnSizes: allCols,
+			pqTracker:          initPQTracker(),
+			AllSst:             segstats,
+			numBlocks:          0,
 		}
 		ts := config.GetTimeStampKey()
 		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS)

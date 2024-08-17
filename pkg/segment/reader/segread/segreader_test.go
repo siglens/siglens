@@ -56,7 +56,7 @@ func Test_segReader(t *testing.T) {
 		log.Infof("testing with %s", fileName)
 		fd, err := os.Open(fileName)
 		assert.NoError(t, err)
-		sReader, err := InitNewSegFileReader(fd, queryCol, blockmeta, 0, bsm, -1)
+		sReader, err := InitNewSegFileReader(fd, queryCol, blockmeta, 0, bsm, segutils.INCONSISTENT_CVAL_SIZE)
 		assert.Nil(t, err)
 
 		// invalid block
@@ -131,7 +131,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, -1)
+	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
 	assert.Nil(b, err)
 
 	b.ResetTimer()

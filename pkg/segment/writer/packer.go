@@ -558,7 +558,6 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{}, matched
 	if !ok {
 		colWip = InitColWip(ss.SegmentKey, key)
 		allColWip[key] = colWip
-		// ss.AllSeenColumns[key] = true
 	}
 	_, ok = allColsInBlock[key]
 	if !ok {
@@ -681,34 +680,24 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 }
 
 func (ss *SegStore) updateColValueSizeInAllSeenColumns(colName string, size uint32) {
-	currentSize, ok := ss.AllSeenColumns[colName]
+	currentSize, ok := ss.AllSeenColumnSizes[colName]
 	if !ok {
 		if ss.RecordCount > 0 {
-			// Not the first record in the segment, so the col value size is not consistent.
-			ss.AllSeenColumns[colName] = -1
-			currentSize = -1
+			// column appearing first time in the middle of the wip, so past recNums will be filled with BackFill_CVAL_TYpe, so mark this as inconsistent
+			ss.AllSeenColumnSizes[colName] = INCONSISTENT_CVAL_SIZE
 		} else {
-			ss.AllSeenColumns[colName] = 0
-			currentSize = 0
+			ss.AllSeenColumnSizes[colName] = size
 		}
-	}
 
-	if currentSize == -1 {
 		return
 	}
 
-	if size > math.MaxInt8 {
-		ss.AllSeenColumns[colName] = -1
+	if currentSize == INCONSISTENT_CVAL_SIZE {
 		return
 	}
 
-	if currentSize == 0 {
-		ss.AllSeenColumns[colName] = int8(size)
-		return
-	}
-
-	if currentSize != int8(size) {
-		ss.AllSeenColumns[colName] = -1
+	if currentSize != size {
+		ss.AllSeenColumnSizes[colName] = INCONSISTENT_CVAL_SIZE
 	}
 }
 
@@ -882,7 +871,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 	}
 
 	tsKey := config.GetTimeStampKey()
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	// set up entries
 	for j := 0; j < numBlocks; j++ {
 		currBlockUint := uint16(j)
@@ -902,12 +891,12 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			blockTs:            make([]uint64, 0),
 		}
 		segStore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     segkey,
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      currBlockUint,
+			wipBlock:           wipBlock,
+			SegmentKey:         segkey,
+			AllSeenColumnSizes: allCols,
+			pqTracker:          initPQTracker(),
+			AllSst:             segstats,
+			numBlocks:          currBlockUint,
 		}
 		for i := 0; i < entryCount; i++ {
 			entry := make(map[string]interface{})
@@ -985,7 +974,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 	mapCol["timestamp"] = true
 
 	tsKey := config.GetTimeStampKey()
-	allCols := make(map[string]int8)
+	allCols := make(map[string]uint32)
 	// set up entries
 	for j := 0; j < numBlocks; j++ {
 		currBlockUint := uint16(j)
@@ -1005,12 +994,12 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			blockTs:            make([]uint64, 0),
 		}
 		segStore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     segkey,
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      currBlockUint,
+			wipBlock:           wipBlock,
+			SegmentKey:         segkey,
+			AllSeenColumnSizes: allCols,
+			pqTracker:          initPQTracker(),
+			AllSst:             segstats,
+			numBlocks:          currBlockUint,
 		}
 		entries := []struct {
 			entry []byte
@@ -1194,7 +1183,7 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
 	if !ok {
 		tsWip = InitColWip(ss.SegmentKey, *tsKey)
 		allColWip[*tsKey] = tsWip
-		ss.AllSeenColumns[*tsKey] = -1
+		ss.AllSeenColumnSizes[*tsKey] = INCONSISTENT_CVAL_SIZE
 	}
 	// we will never need to backfill a ts key
 	allColsInBlock[*tsKey] = true

@@ -71,7 +71,7 @@ type SegStore struct {
 	lastUpdated        time.Time
 	VirtualTableName   string
 	RecordCount        int
-	AllSeenColumns     map[string]int8 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
+	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
 	pqTracker          *PQTracker
 	numBlocks          uint16
 	BytesReceivedCount uint64
@@ -105,21 +105,21 @@ func InitSegStore(
 ) *SegStore {
 	now := time.Now()
 	ss := SegStore{
-		Lock:              sync.Mutex{},
-		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        segmentKey,
-		segbaseDir:        segbaseDir,
-		suffix:            suffix,
-		lastUpdated:       now,
-		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]int8),
-		pqTracker:         initPQTracker(),
-		skipDe:            skipDe,
-		timeCreated:       now,
-		AllSst:            make(map[string]*structs.SegStats),
-		usingSegTree:      usingSegTree,
-		OrgId:             orgId,
-		firstTime:         true,
+		Lock:               sync.Mutex{},
+		pqNonEmptyResults:  make(map[string]bool),
+		SegmentKey:         segmentKey,
+		segbaseDir:         segbaseDir,
+		suffix:             suffix,
+		lastUpdated:        now,
+		VirtualTableName:   virtualTableName,
+		AllSeenColumnSizes: make(map[string]uint32),
+		pqTracker:          initPQTracker(),
+		skipDe:             skipDe,
+		timeCreated:        now,
+		AllSst:             make(map[string]*structs.SegStats),
+		usingSegTree:       usingSegTree,
+		OrgId:              orgId,
+		firstTime:          true,
 	}
 
 	ss.initWipBlock()
@@ -131,17 +131,17 @@ func InitSegStore(
 
 func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
 	segstore := &SegStore{
-		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        fmt.Sprintf("%s%d", baseDir, suffix),
-		segbaseDir:        baseDir,
-		suffix:            suffix,
-		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]int8),
-		pqTracker:         initPQTracker(),
-		timeCreated:       time.Now(),
-		AllSst:            make(map[string]*structs.SegStats),
-		OrgId:             orgId,
-		firstTime:         true,
+		pqNonEmptyResults:  make(map[string]bool),
+		SegmentKey:         fmt.Sprintf("%s%d", baseDir, suffix),
+		segbaseDir:         baseDir,
+		suffix:             suffix,
+		VirtualTableName:   virtualTableName,
+		AllSeenColumnSizes: make(map[string]uint32),
+		pqTracker:          initPQTracker(),
+		timeCreated:        time.Now(),
+		AllSst:             make(map[string]*structs.SegStats),
+		OrgId:              orgId,
+		firstTime:          true,
 	}
 
 	segstore.initWipBlock()
@@ -270,7 +270,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.BytesReceivedCount = 0
 	segstore.OnDiskBytes = 0
 
-	segstore.AllSeenColumns = make(map[string]int8)
+	segstore.AllSeenColumnSizes = make(map[string]uint32)
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	segstore.usingSegTree = false
@@ -544,7 +544,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
-				wipBlockMetadata, segstore.AllSeenColumns, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
+				wipBlockMetadata, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
 				segstore.latest_millis, segstore.RecordCount, segstore.OrgId)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
@@ -1416,7 +1416,7 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 
 	allColsSizes := make(map[string]*structs.ColSizeInfo)
 
-	for cname, colValueLen := range ss.AllSeenColumns {
+	for cname, colValueLen := range ss.AllSeenColumnSizes {
 
 		if cname == config.GetTimeStampKey() {
 			continue
@@ -1443,10 +1443,10 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		}
 		if colValueLen == 0 {
 			log.Errorf("getAllColsSizes: colValueLen is 0 for cname: %v. This should not happen.", cname)
-			colValueLen = -1
+			colValueLen = utils.INCONSISTENT_CVAL_SIZE
 		}
 
-		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, CValSize: colValueLen}
+		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, ConsistentCvalSize: colValueLen}
 		allColsSizes[cname] = &csinfo
 	}
 	return allColsSizes
