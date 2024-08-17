@@ -447,7 +447,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
 		}
 
-		segstore = &SegStore{Lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
+		segstore = NewSegStore(orgId)
 		segstore.initWipBlock()
 
 		err := segstore.resetSegStore(streamid, table)

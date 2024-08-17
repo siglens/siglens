@@ -89,6 +89,7 @@ type SegStore struct {
 	OrgId              uint64
 	firstTime          bool
 	stbDictEncWorkBuf  [][]string
+	segStatsWorkBuf    []byte
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -98,60 +99,19 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
-func InitSegStore(
-	segmentKey string,
-	segbaseDir string,
-	suffix uint64,
-	virtualTableName string,
-	skipDe bool,
-	orgId uint64,
-	usingSegTree bool,
-	highTs uint64,
-	lowTs uint64,
-) *SegStore {
-	now := time.Now()
-	ss := SegStore{
+func NewSegStore(orgId uint64) *SegStore {
+	segstore := &SegStore{
 		Lock:              sync.Mutex{},
 		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        segmentKey,
-		segbaseDir:        segbaseDir,
-		suffix:            suffix,
-		lastUpdated:       now,
-		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]bool),
-		pqTracker:         initPQTracker(),
-		skipDe:            skipDe,
-		timeCreated:       now,
-		AllSst:            make(map[string]*structs.SegStats),
-		usingSegTree:      usingSegTree,
-		OrgId:             orgId,
-		firstTime:         true,
-		stbDictEncWorkBuf: make([][]string, 0),
-	}
-
-	ss.initWipBlock()
-	ss.wipBlock.blockSummary.HighTs = highTs
-	ss.wipBlock.blockSummary.LowTs = lowTs
-
-	return &ss
-}
-
-func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
-	segstore := &SegStore{
-		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        fmt.Sprintf("%s%d", baseDir, suffix),
-		segbaseDir:        baseDir,
-		suffix:            suffix,
-		VirtualTableName:  virtualTableName,
 		AllSeenColumns:    make(map[string]bool),
 		pqTracker:         initPQTracker(),
 		timeCreated:       time.Now(),
 		AllSst:            make(map[string]*structs.SegStats),
 		OrgId:             orgId,
 		firstTime:         true,
+		stbDictEncWorkBuf: make([][]string, 0),
+		segStatsWorkBuf:   make([]byte, utils.WIP_SIZE),
 	}
-
-	segstore.initWipBlock()
 
 	return segstore
 }
@@ -1380,7 +1340,6 @@ func (ss *SegStore) FlushSegStats() error {
 		return err
 	}
 
-	buf := make([]byte, utils.WIP_SIZE)
 	for cname, sst := range ss.AllSst {
 
 		// cname len
@@ -1397,7 +1356,7 @@ func (ss *SegStore) FlushSegStats() error {
 			return err
 		}
 
-		idx, err := writeSstToBuf(sst, buf)
+		idx, err := writeSstToBuf(sst, ss.segStatsWorkBuf)
 		if err != nil {
 			log.Errorf("FlushSegStats: error writing to buf err=%v", err)
 			return err
@@ -1411,7 +1370,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencoding
-		_, err = fd.Write(buf[0:idx])
+		_, err = fd.Write(ss.segStatsWorkBuf[0:idx])
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err

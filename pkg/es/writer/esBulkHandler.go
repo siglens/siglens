@@ -54,6 +54,15 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
+var resp_status_201 map[string]interface{}
+
+func init() {
+	resp_status_201 = make(map[string]interface{})
+	statusbody := make(map[string]interface{})
+	statusbody["status"] = 201
+	resp_status_201["index"] = statusbody
+}
+
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
@@ -170,8 +179,8 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			success = false
 		}
 
-		responsebody := make(map[string]interface{})
 		if !success {
+			responsebody := make(map[string]interface{})
 			if maxRecordSizeExceeded {
 				error_response := utils.BulkErrorResponse{
 					ErrorResponse: *utils.NewBulkErrorResponseInfo("request entity too large", "request_entity_exception"),
@@ -190,10 +199,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			}
 		} else {
 			atleastOneSuccess = true
-			statusbody := make(map[string]interface{})
-			statusbody["status"] = 201
-			responsebody["index"] = statusbody
-			items = append(items, responsebody)
+			items = append(items, resp_status_201)
 		}
 	}
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)

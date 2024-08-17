@@ -111,6 +111,23 @@ func Int64ToBytesLittleEndian(signedval int64) []byte {
 	}
 	return buf.Bytes()
 }
+
+/*
+   This function converts the int64 to bytes in place. It is the responsibility
+   of the caller to make sure buf is atleast 8 bytes, else this func will crash
+ */
+func Int64ToBytesLittleEndianInplace(signedval int64, buf []byte) {
+	buf[0] = byte(signedval)
+	buf[1] = byte(signedval >> 8)
+	buf[2] = byte(signedval >> 16)
+	buf[3] = byte(signedval >> 24)
+	buf[4] = byte(signedval >> 32)
+	buf[5] = byte(signedval >> 40)
+	buf[6] = byte(signedval >> 48)
+	buf[7] = byte(signedval >> 56)
+}
+
+
 func BytesToInt64LittleEndian(bytes []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(bytes))
 }

@@ -255,7 +255,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 			case SS_DT_UNSIGNED_NUM:
 				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(e.CVal.(uint64)))
 			case SS_DT_SIGNED_NUM:
-				copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(e.CVal.(int64)))
+				utils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), stb.buf[idx:])
 			case SS_DT_FLOAT:
 				copy(stb.buf[idx:], utils.Float64ToBytesLittleEndian(e.CVal.(float64)))
 			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform

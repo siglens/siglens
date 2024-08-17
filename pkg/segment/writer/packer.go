@@ -651,7 +651,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 	switch numType {
 	case SS_INT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_INT64[:])
-		copy(wipbuf[idx+1:], utils.Int64ToBytesLittleEndian(int64(intVal)))
+		utils.Int64ToBytesLittleEndianInplace(int64(intVal), wipbuf[idx+1:])
 		valSize = 1 + 8
 	case SS_UINT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_UINT64[:])
