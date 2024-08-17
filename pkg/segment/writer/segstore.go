@@ -753,21 +753,21 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
-func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool) {
+func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 
 	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
-			return cname, true
+			return cname, true, 0
 		}
 
 		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
-			return cname, true
+			return cname, true, colCardinalityEstimate
 		}
 	}
-	return "", false
+	return "", false, 0
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
@@ -870,11 +870,12 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	if segstore.numBlocks != 0 {
-		cname, found := segstore.isAnyAtreeColAboveCardLimit()
+		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
 		if found {
 			// todo when we implement dropping of columns from atree, it should get triggered
 			// here and this log line can be removed
-			log.Errorf("computeStarTree: found cname: %v with high card, should not happen", cname)
+			log.Errorf("computeStarTree: found cname: %v with high card: %v",
+				cname, cardinality)
 		}
 	}
 
