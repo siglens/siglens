@@ -31,6 +31,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -51,11 +52,11 @@ import (
 
 var json = jsoniter.ConfigFastest
 
-var loadDataBytes0 = []byte(`{"index" : { "_index" : "test0"} }
-{"event_id": "f533f3d4-a521-4067-b59b-628bcf8fba62", "timestamp": 1628862769706, "eventType": "pageview", "page_url": "http://www.henry.info/blog/explore/homepage/", "page_url_path": "http://www.johnson.com/", "referer_url": "https://mccall-chavez.com/", "referer_url_scheme": "HEAD", "referer_url_port": 47012, "referer_medium": "bing", "utm_medium": "Beat.", "utm_source": "Edge politics.", "utm_content": "Fly.", "utm_campaign": "Development green.", "click_id": "c21ff7e1-2d96-4b21-8415-9b69f882a593", "geo_latitude": "51.42708", "geo_longitude": "-0.91979", "geo_country": "GB", "geo_timezone": "Europe/London", "geo_region_name": "Lower Earley", "ip_address": "198.13.58.1", "browser_name": "chrome", "browser_user_agent": "Mozilla/5.0 (Macintosh; U; PPC Mac OS X 10_10_4 rv:5.0; iu-CA) AppleWebKit/532.43.2 (KHTML, like Gecko) Version/5.0 Safari/532.43.2", "browser_language": "Part.", "os": "Linux", "os_name": "MacOS", "os_timezone": "Europe/Berlin", "device_type": "hardware", "device_is_mobile": true, "user_custom_id": "petersmichaela@hotmail.com", "user_domain_id": "c8aad4b3-0097-430e-8c74-3a2becbd41f9"}
+var loadDataBytes0 = []byte(`{"index" : { "_index" : "bidx-0"} }
+{"address":"91982 Plain side, New Orleans, North Dakota 65104","app_name":"Oxcould","app_version":"4.3.15","batch":"batch-89","city":"New Orleans","country":"Chile","first_name":"Luigi","gender":"male","group":"group 2","hobby":"Cosplaying","http_method":"HEAD","http_status":404,"ident":"23a1949c-c32d-47ab-a573-47859fac0e76","image":"https://picsum.photos/381/329","job_company":"TopCoder","job_description":"Dynamic","job_level":"Markets","job_title":"Liaison","last_name":"Tromp","latency":2891953,"latitude":33.139514,"longitude":114.767227,"question":"Sustainable gentrify yr meditation Godard salvia vice migas drinking fanny pack?","ssn":"660889936","state":"North Dakota","street":"91982 Plain side","url":"https://www.internationalextend.info/networks","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_5 rv:3.0) Gecko/1915-11-28 Firefox/35.0","user_color":"DodgerBlue","user_email":"graceheaney@beatty.io","user_phone":"2597778030","weekday":"Saturday","zip":"65104"}
 `)
-var loadDataBytes1 = []byte(`{"index" : { "_index" : "test1"} }
-{"event_id": "f533f3d4-a521-4067-b59b-628bcf8fba62", "timestamp": 1628862769706, "eventType": "pageview", "page_url": "http://www.henry.info/blog/explore/homepage/", "page_url_path": "http://www.johnson.com/", "referer_url": "https://mccall-chavez.com/", "referer_url_scheme": "HEAD", "referer_url_port": 47012, "referer_medium": "bing", "utm_medium": "Beat.", "utm_source": "Edge politics.", "utm_content": "Fly.", "utm_campaign": "Development green.", "click_id": "c21ff7e1-2d96-4b21-8415-9b69f882a593", "geo_latitude": "51.42708", "geo_longitude": "-0.91979", "geo_country": "GB", "geo_timezone": "Europe/London", "geo_region_name": "Lower Earley", "ip_address": "198.13.58.1", "browser_name": "chrome", "browser_user_agent": "Mozilla/5.0 (Macintosh; U; PPC Mac OS X 10_10_4 rv:5.0; iu-CA) AppleWebKit/532.43.2 (KHTML, like Gecko) Version/5.0 Safari/532.43.2", "browser_language": "Part.", "os": "Linux", "os_name": "MacOS", "os_timezone": "Europe/Berlin", "device_type": "hardware", "device_is_mobile": true, "user_custom_id": "petersmichaela@hotmail.com", "user_domain_id": "c8aad4b3-0097-430e-8c74-3a2becbd41f9"}
+var loadDataBytes1 = []byte(`{"index" : { "_index" : "bidx-1"} }
+{"address":"91982 Plain side, New Orleans, North Dakota 65104","app_name":"Oxcould","app_version":"4.3.15","batch":"batch-89","city":"New Orleans","country":"Chile","first_name":"Luigi","gender":"male","group":"group 2","hobby":"Cosplaying","http_method":"HEAD","http_status":404,"ident":"23a1949c-c32d-47ab-a573-47859fac0e76","image":"https://picsum.photos/381/329","job_company":"TopCoder","job_description":"Dynamic","job_level":"Markets","job_title":"Liaison","last_name":"Tromp","latency":2891953,"latitude":33.139514,"longitude":114.767227,"question":"Sustainable gentrify yr meditation Godard salvia vice migas drinking fanny pack?","ssn":"660889936","state":"North Dakota","street":"91982 Plain side","url":"https://www.internationalextend.info/networks","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_5 rv:3.0) Gecko/1915-11-28 Firefox/35.0","user_color":"DodgerBlue","user_email":"graceheaney@beatty.io","user_phone":"2597778030","weekday":"Saturday","zip":"65104"}
 `)
 
 var allData = [][]byte{loadDataBytes0, loadDataBytes1}
@@ -137,9 +138,16 @@ func Benchmark_EndToEnd(b *testing.B) {
 	index := "*"
 
 	logQueries := []string{
-		"* | stats count",
-		"* | stats sum(http_status) by app_name",
-		"* | head 131239 | stats count",
+
+		"* | timechart avg(latency) by http_method span=1h",
+
+		/*
+				"* | timechart avg(latency) by http_method span=1h",
+				"* | stats avg(http_status) by hobby, http_method",
+				"* | stats count(*) by http_status",
+				"* | stats sum(http_status) by hobby, http_method",
+			"whatever*",
+		*/
 	}
 
 	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
@@ -304,6 +312,8 @@ func Benchmark_esBulkIngest(b *testing.B) {
 	config.InitializeDefaultConfig(b.TempDir())
 	_ = vtable.InitVTable()
 
+	querytracker.InitQT()
+
 	var bulkData []byte
 
 	for i := 0; i < 1000; i += 1 {
@@ -311,12 +321,14 @@ func Benchmark_esBulkIngest(b *testing.B) {
 		bulkData = append(bulkData, allData[idx]...)
 	}
 
+	blkSendLoopCnt := 100
+
 	start := time.Now()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.SetParallelism(2)
-	for i := 0; i < b.N; i++ {
+	for bc := 0; bc < blkSendLoopCnt; bc++ {
 		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
@@ -372,25 +384,41 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	config.SetAggregationsFlag(true)
 	_ = vtable.InitVTable()
 
-	var bulkData []byte
+	measureInfoUsage := make(map[string]bool)
+	finalGrpCols := make(map[string]bool)
+
+	finalGrpCols["a"] = true
+	finalGrpCols["d"] = true
+	finalGrpCols["e"] = true
+	finalGrpCols["f"] = true
+	finalGrpCols["g"] = true
+	finalGrpCols["h"] = true
+	finalGrpCols["j"] = true
+
+	measureInfoUsage["b"] = true
+	measureInfoUsage["m"] = true
+	measureInfoUsage["o"] = true
 
 	idx := "agileTree-0"
+	querytracker.SetTopPersistentAggsForTestOnly(idx, finalGrpCols, measureInfoUsage)
+	var bulkData []byte
+
 
 	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 
-	for i := 0; i < 3_000_000; i += 1 {
+	for i := 0; i < 2_000_000; i += 1 {
 		ev := make(map[string]interface{})
 
-		ev["a"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(19_000))
+		ev["a"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
 		ev["b"] = fastrand.Uint32n(1_000_000)
 		ev["c"] = "1103823372288"
-		ev["d"] = fmt.Sprintf("iOS-%d", fastrand.Uint32n(19_000))
-		ev["e"] = fmt.Sprintf("abde-%d", fastrand.Uint32n(19_000))
-		ev["f"] = fmt.Sprintf("useastzone-%d", fastrand.Uint32n(19_000))
+		ev["d"] = fmt.Sprintf("iOS-%d", fastrand.Uint32n(1_000))
+		ev["e"] = fmt.Sprintf("abde-%d", fastrand.Uint32n(1_000))
+		ev["f"] = fmt.Sprintf("useastzone-%d", fastrand.Uint32n(1_000))
 		ev["g"] = uuid.NewString()
 		ev["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
 		ev["i"] = "ethernet4Zone-test4"
-		ev["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+		ev["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(500))
 		ev["k"] = "00000000000000000000ffff02020202"
 		ev["l"] = "funccompanysaf3ti"
 		ev["m"] = 6922966563614901991
@@ -406,10 +434,12 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 
 	start := time.Now()
 
+	numSegs := 4
+
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.SetParallelism(2)
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < numSegs; i++ {
 		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
