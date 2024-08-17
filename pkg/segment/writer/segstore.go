@@ -666,7 +666,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if config.IsAggregationsEnabled() && segstore.usingSegTree {
 			nc := segstore.sbuilder.GetNodeCount()
 			cnc := segstore.sbuilder.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles: stree nc: %v , Each Col NodeCount: %v", nc, cnc)
+			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
+				nc, cnc)
 
 			// give back the tree
 			atreeCounterLock.Lock()
@@ -792,6 +793,23 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
+func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool) {
+
+	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
+		_, ok := segstore.AllSst[cname]
+		if !ok {
+			// if we can't find the column then drop this col from atree
+			return cname, true
+		}
+
+		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		if colCardinalityEstimate > uint64(wipCardLimit) {
+			return cname, true
+		}
+	}
+	return "", false
+}
+
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 
 	gcols, inMesCols := querytracker.GetTopPersistentAggs(segstore.VirtualTableName)
@@ -810,14 +828,19 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
-
-		// skip columns if card is above threshold
-		if cest > uint32(wipCardLimit*2) {
+		// If this is the first seg after restart, we will not have the
+		// AllSst hll estimates, so check this first wip's card and skip accordingly
+		if segstore.wipBlock.colWips[cname].deCount >= wipCardLimit {
 			continue
 		}
 
-		grpColsCardinality[cname] = cest
+		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+
+		if colCardinalityEstimate > uint64(wipCardLimit) {
+			continue
+		}
+
+		grpColsCardinality[cname] = uint32(colCardinalityEstimate)
 		sortedGrpCols = append(sortedGrpCols, cname)
 	}
 
@@ -871,9 +894,10 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.stbDictEncWorkBuf = append(segstore.stbDictEncWorkBuf, newArr...)
 		}
 		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
-			if len(segstore.stbDictEncWorkBuf[colNum]) < MaxAgileTreeNodeCount {
-				// we know each stree col won't have more encodings than max stree node limit
-				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+			// Make the array twice the cols cardinality we allow because
+			// on the second block our HLL estimate may be still off
+			if len(segstore.stbDictEncWorkBuf[colNum]) < int(2*wipCardLimit) {
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, 2*wipCardLimit)
 			}
 		}
 
@@ -883,6 +907,15 @@ func (segstore *SegStore) computeStarTree() {
 
 	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
 		return
+	}
+
+	if segstore.numBlocks != 0 {
+		cname, found := segstore.isAnyAtreeColAboveCardLimit()
+		if found {
+			// todo when we implement dropping of columns from atree, it should get triggered
+			// here and this log line can be removed
+			log.Errorf("computeStarTree: found cname: %v with high card, should not happen", cname)
+		}
 	}
 
 	err := segstore.sbuilder.ComputeStarTree(&segstore.wipBlock)

@@ -83,6 +83,10 @@ type StarTreeBuilder struct {
 	buf               []byte
 }
 
+func (stb *StarTreeBuilder) GetGroupByKeys() []string {
+	return stb.groupByKeys
+}
+
 func (stb *StarTreeBuilder) GetNodeCount() int {
 	return stb.nodeCount
 }
