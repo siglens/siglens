@@ -240,14 +240,15 @@ func TestStarTree(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey1",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumns = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
 
@@ -331,14 +332,15 @@ func TestStarTreeMedium(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey2",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey2"
+	ss.AllSeenColumns = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -425,14 +427,15 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	allCols := make(map[string]bool)
 	segstats := make(map[string]*SegStats)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey3",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumns = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -518,14 +521,15 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey4",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey4"
+	ss.AllSeenColumns = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {

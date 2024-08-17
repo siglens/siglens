@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -861,14 +860,14 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			bb:                 bbp.Get(),
 			blockTs:            make([]uint64, 0),
 		}
-		segStore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     segkey,
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      currBlockUint,
-		}
+		segStore := NewSegStore(0)
+		segStore.wipBlock = wipBlock
+		segStore.SegmentKey = segkey
+		segStore.AllSeenColumns = allCols
+		segStore.pqTracker = initPQTracker()
+		segStore.AllSst = segstats
+		segStore.numBlocks = currBlockUint
+
 		for i := 0; i < entryCount; i++ {
 			entry := make(map[string]interface{})
 			entry[cnames[0]] = "match words 123 abc"
@@ -964,14 +963,15 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			bb:                 bbp.Get(),
 			blockTs:            make([]uint64, 0),
 		}
-		segStore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     segkey,
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      currBlockUint,
-		}
+
+		segStore := NewSegStore(0)
+		segStore.wipBlock = wipBlock
+		segStore.SegmentKey = segkey
+		segStore.AllSeenColumns = allCols
+		segStore.pqTracker = initPQTracker()
+		segStore.AllSst = segstats
+		segStore.numBlocks = currBlockUint
+
 		entries := []struct {
 			entry []byte
 		}{
@@ -1192,7 +1192,9 @@ func addRollup(rrmap map[uint64]*RolledRecs, rolledTs uint64, lastRecNum uint16)
 
 func WriteMockTsRollup(t *testing.T, segkey string) error {
 
-	ss := &SegStore{suffix: 1, Lock: sync.Mutex{}, SegmentKey: segkey}
+	ss := NewSegStore(0)
+	ss.SegmentKey = segkey
+	ss.suffix = 1
 
 	wipBlock := createMockTsRollupWipBlock(t, segkey)
 	ss.wipBlock = *wipBlock

@@ -403,7 +403,6 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	querytracker.SetTopPersistentAggsForTestOnly(idx, finalGrpCols, measureInfoUsage)
 	var bulkData []byte
 
-
 	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 
 	for i := 0; i < 2_000_000; i += 1 {
