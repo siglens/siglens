@@ -215,6 +215,13 @@ type colUsage struct {
 	usage int
 }
 
+func SetTopPersistentAggsForTestOnly(table string, grpCols map[string]bool, measCols map[string]bool) {
+	pg := &PersistentGroupBy{}
+	pg.GroupByCols = grpCols
+	pg.MeasureCols = measCols
+	localGroupByOverride[table] = pg
+}
+
 // returns a sorted slice of most used group by columns, and all measure columns.
 func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 	groupByColsUsage := make(map[string]int)
