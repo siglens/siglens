@@ -74,7 +74,7 @@ type StarTreeBuilder struct {
 	numGroupByCols    uint16
 	mColNames         []string
 	nodeCount         int
-	nodePool          []Node
+	nodePool          []*Node
 	tree              *StarTree
 	segDictMap        []map[string]uint32 // "mac" ==> enc-2
 	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
@@ -194,7 +194,7 @@ func (stb *StarTreeBuilder) resetNodeData(wip *WipBlock) {
 func (stb *StarTreeBuilder) newNode() *Node {
 
 	if stb.nodeCount >= len(stb.nodePool) {
-		stb.nodePool = append(stb.nodePool, Node{})
+		stb.nodePool = append(stb.nodePool, &Node{})
 	}
 	ans := stb.nodePool[stb.nodeCount]
 	stb.nodeCount += 1
@@ -203,7 +203,7 @@ func (stb *StarTreeBuilder) newNode() *Node {
 		ans.children = make(map[uint32]*Node)
 	}
 
-	return &ans
+	return ans
 }
 
 func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
@@ -319,12 +319,6 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 
 	numRecs := wip.blockSummary.RecCount
-
-	sizeToAdd := int(numRecs) - len(stb.nodePool)
-	if sizeToAdd > 0 {
-		newArr := make([]Node, sizeToAdd)
-		stb.nodePool = append(stb.nodePool, newArr...)
-	}
 
 	curColValues := make([]uint32, stb.numGroupByCols)
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
