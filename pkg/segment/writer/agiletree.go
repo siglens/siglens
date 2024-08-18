@@ -113,13 +113,12 @@ ResetSegTree
 
 parameters:
 
-	wipBlock: segstore's wip block
 	groupByKeys: groupBy column Names
 	mColNames: colnames of measure columns
 
 returns:
 */
-func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string,
+func (stb *StarTreeBuilder) ResetSegTree(groupByKeys []string,
 	mColNames []string, stbDictEncWorkBuf [][]string) {
 
 	stb.groupByKeys = groupByKeys
@@ -127,7 +126,7 @@ func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string,
 	stb.numGroupByCols = numGroupByCols
 	stb.mColNames = mColNames
 
-	stb.resetNodeData(block)
+	stb.resetNodeData()
 
 	root := stb.newNode()
 	root.myKey = math.MaxUint32 // give max for root
@@ -166,6 +165,10 @@ func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string,
 	}
 }
 
+func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
+	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
+}
+
 func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 	// todo a zero copy version of map lookups needed
 	enc, ok := stb.segDictMap[colNum][colVal]
@@ -179,7 +182,7 @@ func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 }
 
 // helper function to reset node data for builder reuse
-func (stb *StarTreeBuilder) resetNodeData(wip *WipBlock) {
+func (stb *StarTreeBuilder) resetNodeData() {
 
 	for _, node := range stb.nodePool {
 		node.parent = nil

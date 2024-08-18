@@ -861,7 +861,7 @@ func (segstore *SegStore) computeStarTree() {
 			}
 		}
 
-		segstore.sbuilder.ResetSegTree(&segstore.wipBlock, sortedGrpCols, mCols,
+		segstore.sbuilder.ResetSegTree(sortedGrpCols, mCols,
 			segstore.stbDictEncWorkBuf)
 	}
 
@@ -872,10 +872,12 @@ func (segstore *SegStore) computeStarTree() {
 	if segstore.numBlocks != 0 {
 		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
 		if found {
-			// todo when we implement dropping of columns from atree, it should get triggered
-			// here and this log line can be removed
-			log.Errorf("computeStarTree: found cname: %v with high card: %v",
-				cname, cardinality)
+			// todo when we implement dropping of columns from atree,
+			// drop the column here and remove the dropping of segtree
+			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
+				cname, cardinality, segstore.numBlocks)
+			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
+			segstore.usingSegTree = false
 		}
 	}
 

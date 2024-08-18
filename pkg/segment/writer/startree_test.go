@@ -281,7 +281,7 @@ func TestStarTree(t *testing.T) {
 
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols, mColNames, gcWorkBuf)
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -375,7 +375,7 @@ func TestStarTreeMedium(t *testing.T) {
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -470,7 +470,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -564,7 +564,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames, gcWorkBuf)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root

@@ -414,7 +414,6 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)
 			}
-			log.Infof("Flushed WIP buffer due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 		}
 		segstore.Lock.Unlock()
 	}
