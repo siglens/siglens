@@ -721,6 +721,62 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	return nil
 }
 
+func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalList := []string{}
+
+	var strList []string
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		strList = make([]string, 0)
+		runningEvalStats[measureAgg.String()] = strList
+	} else {
+		strList, ok = runningEvalStats[measureAgg.String()].([]string)
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForList: can not convert to list for measureAgg: %v", measureAgg.String())
+		}
+	}
+
+	if len(fields) == 0 {
+		fieldToValue := make(map[string]utils.CValueEnclosure)
+		list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
+		}
+		finalList = list
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForList: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForList: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+
+			list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
+			}
+			finalList = append(finalList, list...)
+		}
+	}
+	sort.Strings(finalList)
+	// splunk list is limited to 100 results, take first 100 results match splunk.
+	if len(finalList) > 100 {
+		finalList = finalList[:100]
+	}
+	measureResults[measureAgg.String()] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  finalList,
+	}
+	return nil
+}
+
 func AddMeasureAggInRunningStatsForCount(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()

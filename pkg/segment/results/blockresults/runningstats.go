@@ -578,11 +578,11 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to populate field to value, err: %v", err)
 	}
 
-	_, err = agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
+	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
-	(*runningStats)[i].rawVal.CVal = strList
+	(*runningStats)[i].rawVal.CVal = result
 
 	return len(fields) - 1, nil
 }

@@ -374,6 +374,14 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			continue
 		case utils.List:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+				continue
+			}
+
 			// Splunk documentation specifies that if more than 100 values are in the field, only the first 100 are returned.
 			strList := make([]string, 0, 100)
 
