@@ -121,18 +121,18 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	var bytesReceived int
 	// store all request index
-	items_len := 1000
-	var items = make([]interface{}, items_len)
+	itemsLen := 1000
+	var items = make([]interface{}, itemsLen)
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
 
 	idxToStreamIdCache := make(map[string]string)
 	for scanner.Scan() {
 		inCount++
-		if inCount >= items_len {
+		if inCount >= itemsLen {
 			newArr := make([]interface{}, 1000)
 			items = append(items, newArr...)
-			items_len += 1000
+			itemsLen += 1000
 		}
 
 		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())

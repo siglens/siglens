@@ -140,14 +140,11 @@ func Benchmark_EndToEnd(b *testing.B) {
 	logQueries := []string{
 
 		"* | timechart avg(latency) by http_method span=1h",
-
-		/*
-				"* | timechart avg(latency) by http_method span=1h",
-				"* | stats avg(http_status) by hobby, http_method",
-				"* | stats count(*) by http_status",
-				"* | stats sum(http_status) by hobby, http_method",
-			"whatever*",
-		*/
+		"* | timechart avg(latency) by http_method span=1h",
+		"* | stats avg(http_status) by hobby, http_method",
+		"* | stats count(*) by http_status",
+		"* | stats sum(http_status) by hobby, http_method",
+		"whatever*",
 	}
 
 	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
@@ -455,7 +452,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < numSegs; i++ {
-		for bcnt := 0; bcnt < 5; bcnt++ {
+		for bulkCnt := 0; bulkCnt < 5; bulkCnt++ {
 			processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
 			if err != nil {
 				log.Errorf("ERROR: err=%v", err)
