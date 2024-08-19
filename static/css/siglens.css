@@ -6036,6 +6036,6 @@ input.form-control {
     height: 60px !important;
 }
 
-#cancel-upload-btn{
+#cancel-upload-btn, #cancel-overwrite-btn{
     margin-right: 10px;
 }
