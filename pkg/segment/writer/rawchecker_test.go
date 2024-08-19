@@ -30,7 +30,6 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
