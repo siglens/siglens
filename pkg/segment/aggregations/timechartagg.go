@@ -157,10 +157,9 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 		return nil
 	}
 
-	// List() and Values() produce non numeric result.
-	// hence, when there is only one agg and agg is values() or List(), we can not score that based on the sum of the values in the aggregation
+	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation
 	onlyUseByValuesFunc := false
-	if len(measureOperations) == 1 && (measureOperations[0].MeasureFunc == utils.Values || measureOperations[0].MeasureFunc == utils.List) {
+	if len(measureOperations) == 1 && measureOperations[0].MeasureFunc == utils.Values {
 		onlyUseByValuesFunc = true
 	}
 
@@ -168,7 +167,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 	valIsInLimit := make(map[string]bool)
 	isRankBySum := IsRankBySum(timechart)
 
-	// When there is only one aggregator and aggregator is values() or List(), we can not score that based on the sum of the values in the aggregation
+	// When there is only one aggregator and aggregator is values(), we can not score that based on the sum of the values in the aggregation
 	if isRankBySum && !onlyUseByValuesFunc {
 		scorePairs := make([]scorePair, 0)
 		// []float64, 0: score; 1: index
@@ -352,24 +351,6 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		sort.Strings(uniqueStrings)
 
 		eVal.CVal = uniqueStrings
-		eVal.Dtype = utils.SS_DT_STRING_SLICE
-		return
-	case utils.List:
-		// Can not do addition for values func
-		if useAdditionForMerge {
-			return
-		}
-		strList1, ok := eValToMerge.CVal.([]string)
-		if !ok {
-			log.Errorf("MergeVal: failed to convert eValToMerge to []string: %v", eValToMerge.CVal)
-		}
-		strList2, ok := eVal.CVal.([]string)
-		if !ok {
-			log.Errorf("MergeVal: failed to convert eVal to []string: %v", eVal.CVal)
-		}
-		strList1 = append(strList1, strList2...)
-		sort.Strings(strList1)
-		eVal.CVal = strList1
 		eVal.Dtype = utils.SS_DT_STRING_SLICE
 		return
 	}

@@ -569,9 +569,21 @@ func (ss *SegStats) Merge(other *SegStats) {
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
-		return
+	} else {
+		ss.NumStats.Merge(other.NumStats)
 	}
-	ss.NumStats.Merge(other.NumStats)
+	if ss.StringStats == nil {
+		ss.StringStats = other.StringStats
+	} else {
+		ss.StringStats.Merge(other.StringStats)
+	}
+}
+
+func (ss *StringStats) Merge(other *StringStats) {
+	for key, value := range other.StrSet {
+		ss.StrSet[key] = value
+	}
+	ss.StrList = append(ss.StrList, other.StrList...)
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {

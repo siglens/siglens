@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"math"
+	"sort"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
@@ -115,6 +116,18 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				return e1, nil
 			}
 			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
+		}
+	case SS_DT_STRING_SLICE:
+		{
+			if fun == List {
+				list1 := e1.CVal.([]string)
+				list2 := e2.CVal.([]string)
+				list1 = append(list1, list2...)
+				e1.CVal = list1
+				return e1, nil
+			} else {
+				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for slice", fun)
+			}
 		}
 	default:
 		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
@@ -246,6 +259,16 @@ func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnc
 			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
 		}
 	}
+}
+
+func AddToSortedSlice(destSortedList []string, newString string) []string {
+	// Find the position where the new string should be inserted
+	index := sort.SearchStrings(destSortedList, newString)
+
+	// Insert the new string at the found index
+	destSortedList = append(destSortedList[:index], append([]string{newString}, destSortedList[index:]...)...)
+
+	return destSortedList
 }
 
 func AppendWithLimit(dest []string, src []string, limit int) []string {

@@ -183,13 +183,6 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 			ssResults.ValuesMap = make(map[string]struct{}, 0)
 		}
 		ssResults.ValuesMap[strValue] = struct{}{}
-	case utils.List:
-		strValue := fmt.Sprintf("%v", colValue.CVal)
-		strList, ok := ssResults.CurrResult.CVal.([]string)
-		if !ok {
-			return utils.CValueEnclosure{}, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: failed to convert current result to []string for %v", ssResults.CurrResult.CVal)
-		}
-		ssResults.CurrResult.CVal = append(strList, strValue)
 	default:
 		return utils.CValueEnclosure{}, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -247,27 +240,6 @@ func removeFrontElementFromWindow(window *putils.GobbableList, ssResults *struct
 			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
 		}
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
-	} else if measureAgg == utils.List {
-		if frontElement.Value.Dtype != utils.SS_DT_STRING {
-			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a string value, has value: %v, function: %v", frontElement.Value, measureAgg)
-		}
-		strValue := fmt.Sprintf("%v", frontElement.Value.CVal.(string))
-		strList, ok := ssResults.CurrResult.CVal.([]string)
-		if !ok {
-			return fmt.Errorf("removeFrontElementFromWindow: Error: failed to convert current result to []string for %v", ssResults.CurrResult.CVal)
-		}
-		found := false
-		for i, v := range strList {
-			if v == strValue {
-				// Remove the element by appending everything before and after it
-				strList = append(strList[:i], strList[i+1:]...)
-				found = true
-			}
-		}
-		if !found {
-			return fmt.Errorf("removeFrontElementFromWindow: Error: Current result does not contain the value: %v which is present in the window", strValue)
-		}
-		ssResults.CurrResult.CVal = strList
 	}
 
 	window.Remove(window.Front())
@@ -395,8 +367,6 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 		return ssResults.CurrResult, true, nil
 	case utils.Values:
 		return getValues(ssResults.CardinalityMap), true, nil
-	case utils.List:
-		return ssResults.CurrResult, true, nil
 	default:
 		return utils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -601,15 +571,6 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		}
 
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
-	case utils.List:
-		strValue := fmt.Sprintf("%v", colValue.CVal)
-		strList, ok := ssResults.CurrResult.CVal.([]string)
-		if !ok {
-			return utils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error: failed to convert current result to []string for %v", ssResults.CurrResult.CVal)
-		}
-		strList = append(strList, strValue)
-		ssResults.CurrResult.CVal = strList
-		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return utils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -1052,7 +1013,7 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 				} else {
 					if streamStatsResult != "" {
 						dataType := utils.SS_DT_FLOAT
-						if measureAgg.MeasureFunc == utils.Values || measureAgg.MeasureFunc == utils.List {
+						if measureAgg.MeasureFunc == utils.Values {
 							dataType = utils.SS_DT_STRING_SLICE
 						}
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = utils.CValueEnclosure{
