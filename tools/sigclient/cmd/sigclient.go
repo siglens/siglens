@@ -133,8 +133,6 @@ var esQueryCmd = &cobra.Command{
 		outputFile, _ := cmd.Flags().GetString("outputFile")
 		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
 		cicd, _ := cmd.Flags().GetBool("cicd")
-		flags := cmd.Flags()
-		_ = flags
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
