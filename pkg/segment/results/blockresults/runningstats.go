@@ -146,7 +146,7 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		case utils.List:
 			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for values/cardinality, err: %v", err)
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for list, err: %v", err)
 			}
 			i += step
 		default:
