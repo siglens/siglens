@@ -131,7 +131,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var mFunc utils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case utils.Sum, utils.Max, utils.Min:
+		case utils.Sum, utils.Max, utils.Min, utils.List:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -767,6 +767,28 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				CVal:  uniqueStrings,
 			}
 
+			idx++
+		case utils.List:
+			if mInfo.ValueColRequest != nil {
+				if len(mInfo.ValueColRequest.GetFields()) == 0 {
+					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+					continue
+				}
+			}
+			valIdx := gb.reverseMeasureIndex[idx]
+			strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
+			if !ok {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+			sort.Strings(strList)
+			if len(strList) > 100 {
+				strList = strList[:100]
+			}
+			eVal = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  strList,
+			}
 			idx++
 		case utils.Sum, utils.Max, utils.Min:
 			if mInfo.ValueColRequest != nil {

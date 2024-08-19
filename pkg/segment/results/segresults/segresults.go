@@ -378,13 +378,15 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			strList := make([]string, 0, 100)
 
 			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrList != nil {
+				sort.Strings(currSst.StringStats.StrList)
 				strList = utils.AppendWithLimit(strList, currSst.StringStats.StrList, 100)
 			}
 
 			if sr.runningSegStat[idx] != nil && sr.runningSegStat[idx].StringStats != nil {
+				sort.Strings(sr.runningSegStat[idx].StringStats.StrList)
 				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, 100)
 			}
-
+			sort.Strings(strList)
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING_SLICE,
 				CVal:  strList,
