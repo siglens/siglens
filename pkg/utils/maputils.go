@@ -87,14 +87,12 @@ func SetDifference[K comparable, T1, T2 any](newSet map[K]T2, oldSet map[K]T1) (
 	return added, removed
 }
 
-// AddMapKeysToSet converts a map to a set. The set is represented as a map with the key as the element of the set
 func AddMapKeysToSet[K comparable, V any](set map[K]struct{}, source map[K]V) {
 	for k := range source {
 		set[k] = struct{}{}
 	}
 }
 
-// AddSliceToSet converts a slice to a set. The set is represented as a map with the key as the element of the set
 func AddSliceToSet[K comparable](set map[K]struct{}, source []K) {
 	for _, k := range source {
 		set[k] = struct{}{}
