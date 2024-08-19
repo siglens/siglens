@@ -569,6 +569,9 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 
 		assertTheColRecSize(t, segstore, expectedColSizeAfterIdx, idx)
 	}
+
+	err = CleanupUnrotatedSegment(segstore, sId, true)
+	assert.Nil(t, err)
 }
 
 func assertTheColRecSize(t *testing.T, ss *SegStore, expectedColValSizes map[string]uint32, idx int) {
