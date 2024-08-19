@@ -1090,7 +1090,7 @@ function getMetricsQData() {
             });
             let functionsArray = formulaDetailsMap[key].functions || [];
             // Update the formula by wrapping it with each function in the functionsArray
-            let formula = formulas[key].formula;
+            let formula = formulaDetailsMap[key].formula;
             for (let func of functionsArray) {
                 formula = `${func}(${formula})`;
             }
