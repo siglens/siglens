@@ -876,7 +876,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			entry[cnames[2]] = i
 			entry[cnames[3]] = (i%2 == 0)
 			entry[cnames[4]] = strconv.FormatUint(uint64(i)*2, 10)
-			entry[cnames[5]] = "batch-" + fmt.Sprint(j) + "-" + utils.RandomStringWithCharset(10)
+			entry[cnames[5]] = "batch-" + fmt.Sprint(j) + "-" + utils.GetRandomString(10, "alphanum")
 			entry[cnames[6]] = (i * 2)
 			entry[cnames[7]] = "batch-" + fmt.Sprint(j)
 			entry[cnames[8]] = j

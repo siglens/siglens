@@ -10009,7 +10009,7 @@ func Test_FillNull_ValueArg_FieldList(t *testing.T) {
 	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
 }
 
-func GetMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
+func getMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
 	switch measureFunc {
 	case utils.Cardinality:
 		return "dc", ""
@@ -10022,8 +10022,8 @@ func GetMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
 }
 
 func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions) {
-	measureFuncStr, param := GetMeasureFuncStr(aggFunc)
-	measureCol := GetRandomString(10)
+	measureFuncStr, param := getMeasureFuncStr(aggFunc)
+	measureCol := putils.GetRandomString(10, "alpha")
 	query := []byte(`search A=1 | stats ` + measureFuncStr + `(` + measureCol + `)`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
@@ -10061,7 +10061,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions)
 
 func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(latitude >= 0 AND http_method="GET"))
-	measureFuncStr, param := GetMeasureFuncStr(measureFunc)
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(latitude >= 0 AND http_method="GET"))`
 
 	query := []byte(`city=Boston | stats max(latitude), ` + measureWithEvalStr)
@@ -10112,11 +10112,11 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(constantNum))
 	var randomStr string
 	if isField {
-		randomStr = GetRandomString(10)
+		randomStr = putils.GetRandomString(10, "alpha")
 	} else {
 		randomStr = fmt.Sprintf("%v", rand.Float64())
 	}
-	measureFuncStr, param := GetMeasureFuncStr(measureFunc)
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(` + randomStr + `))`
 
 	query := []byte(`city=Boston | stats max(latitude), ` + measureWithEvalStr)
@@ -10151,8 +10151,8 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 
 func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
-	measureFuncStr, param := GetMeasureFuncStr(measureFunc)
-	trueValueField := GetRandomString(10)
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
+	trueValueField := putils.GetRandomString(10, "alpha")
 	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
@@ -10203,10 +10203,10 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.Aggre
 	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.ValueIsField)
 }
 
-func GetAggFunctions() []utils.AggregateFunctions {
+func getAggFunctions() []utils.AggregateFunctions {
 	return []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Min, utils.Max,
 		utils.Range, utils.Cardinality, utils.Values, utils.List,
-		utils.Estdc, utils.EstdcError, utils.Mean, utils.Median,
+		utils.Estdc, utils.EstdcError, utils.Median,
 		utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq, utils.Var,
 		utils.Varp, utils.First, utils.Last, utils.Earliest, utils.Latest,
 		utils.EarliestTime, utils.LatestTime, utils.StatsRate,
@@ -10214,21 +10214,8 @@ func GetAggFunctions() []utils.AggregateFunctions {
 	}
 }
 
-func GetRandomString(length int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyz"
-	// Create a slice to store the random characters
-	result := make([]byte, length)
-
-	for i := range result {
-		// Select a random character from the letters string
-		result[i] = letters[rand.Intn(len(letters))]
-	}
-
-	return string(result)
-}
-
 func Test_Aggs(t *testing.T) {
-	aggFuncs := GetAggFunctions()
+	aggFuncs := getAggFunctions()
 
 	for _, aggFunc := range aggFuncs {
 		testSingleAggregateFunction(t, aggFunc)

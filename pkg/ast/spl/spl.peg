@@ -140,8 +140,6 @@ func GetAggregateFunction(funcName string) utils.AggregateFunctions {
         return utils.Estdc
     case "estdc_error":
         return utils.EstdcError
-    case "mean":
-        return utils.Mean
     case "median":
         return utils.Median
     case "mode":
