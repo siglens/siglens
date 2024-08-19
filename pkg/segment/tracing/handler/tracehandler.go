@@ -467,7 +467,7 @@ func ProcessRedTracesIngest() {
 		orgId := uint64(0)
 
 		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0  /* TODO */, idxToStreamIdCache)
+		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
