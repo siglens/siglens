@@ -824,29 +824,20 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
     datePickerHandler(startEpoch, endEpoch, startEpoch);
 }
-
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';
-    logsExplorer.innerHTML = ''; // Clear previous content
+    logsExplorer.innerHTML = '';
 
-    if (res.qtype === 'logs-query') {
-        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
-        return;
-    }
-
-    if (res.qtype === 'segstats-query') {
-        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
+    if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
+        alert('This query does not support bar graph visualization.');
+        $('#logs-explorer').hide();
         return;
     }
 
     if (res.qtype === 'aggs-query') {
         let columnOrder = [];
-        if (res.groupByCols.length > 1) {
-            $('#logs-explorer').hide(); // This query does not support bar graph visualization.
-            return;
-        }
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+        if (res.columnsOrder && res.columnsOrder.length > 0) {
             columnOrder = res.columnsOrder;
         } else {
             if (res.groupByCols) {
@@ -864,34 +855,54 @@ function alertChart(res) {
             return;
         }
 
-        let xAxisData = [];
-        let yAxisData = [];
         let hits = res.measure;
-        let columns = columnOrder;
-
-        // loop through the hits and create the data for the bar chart
-        for (let i = 0; i < hits.length; i++) {
-            let hit = hits[i];
-
-            let xAxisValue = hit.GroupByValues[0];
-            let yAxisValue;
-            let measureVal = hit.MeasureVal;
-            yAxisValue = measureVal[columns[1]];
-            xAxisData.push(xAxisValue);
-            yAxisData.push(yAxisValue);
+        if (!hits || hits.length === 0) {
+            $('#logs-explorer').hide();
+            return;
         }
 
-        let barOptions = loadBarOptions(xAxisData, yAxisData);
-        let chartDom = document.createElement('div');
-        chartDom.style.width = '100%';
-        chartDom.style.height = '100%';
-        logsExplorer.appendChild(chartDom);
-        let myChart = echarts.init(chartDom);
-        myChart.setOption(barOptions);
+        let xAxisData = [];
+        let multipleGroupBy = hits[0].GroupByValues.length > 1;
 
-        window.addEventListener('resize', () => {
-            myChart.resize();
-        });
+        if (columnOrder.length > 1) {
+            let measureFunctions = res.measureFunctions;
+            let seriesData = measureFunctions.map(function (measureFunction) {
+                return {
+                    name: measureFunction,
+                    data: hits.map(function (item) {
+                        return item.MeasureVal[measureFunction] || 0;
+                    }),
+                };
+            });
+
+            xAxisData = hits.map((item) => {
+                //eslint-disable-next-line no-undef
+                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
+                return groupByValue || 'NULL';
+            });
+
+            let barOptions = loadBarOptions(xAxisData, seriesData);
+            let chartDom = document.createElement('div');
+            chartDom.style.width = '100%';
+            chartDom.style.height = '100%';
+            logsExplorer.appendChild(chartDom);
+            let myChart = echarts.init(chartDom);
+            myChart.setOption(barOptions);
+
+            window.addEventListener('resize', () => {
+                myChart.resize();
+            });
+        } else if (columnOrder.length === 1) {
+            // Handle cases with only one column
+            let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
+            if (singleMeasure != null) {
+                displayBigNumber(singleMeasure, -1, 'dataType', 0);
+            } else {
+                $('#logs-explorer').hide();
+            }
+        } else {
+            $('#logs-explorer').hide();
+        }
     }
 }
 
