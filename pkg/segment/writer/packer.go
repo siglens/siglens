@@ -1096,7 +1096,9 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 
 	idx += uint32(RI_BLK_LEN_SIZE)
 
-	blkRIBuf := make([]byte, RI_SIZE)
+	// 255 for key + 1 (type) + 8 (MinVal) + 8 (MaxVal)
+	riSizeEstimate := (255 + 17) * len(blockRangeIndex)
+	blkRIBuf := make([]byte, riSizeEstimate)
 
 	// copy the blockNum
 	copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
@@ -1107,7 +1109,7 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 
 	for key, item := range blockRangeIndex {
 		if len(blkRIBuf) < int(idx) {
-			newSlice := make([]byte, RI_SIZE)
+			newSlice := make([]byte, riSizeEstimate)
 			blkRIBuf = append(blkRIBuf, newSlice...)
 		}
 		copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(key))))

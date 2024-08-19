@@ -402,11 +402,24 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	measureInfoUsage["o"] = true
 
 	idx := "agileTree-0"
+	idx1 := "agileTree-1"
+	idx2 := "agileTree-2"
+	idx3 := "agileTree-3"
+	idx4 := "agileTree-4"
 	querytracker.SetTopPersistentAggsForTestOnly(idx, finalGrpCols, measureInfoUsage)
+	querytracker.SetTopPersistentAggsForTestOnly(idx1, finalGrpCols, measureInfoUsage)
+	querytracker.SetTopPersistentAggsForTestOnly(idx2, finalGrpCols, measureInfoUsage)
+	querytracker.SetTopPersistentAggsForTestOnly(idx3, finalGrpCols, measureInfoUsage)
+	querytracker.SetTopPersistentAggsForTestOnly(idx4, finalGrpCols, measureInfoUsage)
 	var bulkData []byte
 
-	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
+	actionLineIdx0 := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
+	actionLineIdx1 := "{\"index\": {\"_index\": \"" + idx1 + "\", \"_type\": \"_doc\"}}\n"
+	actionLineIdx2 := "{\"index\": {\"_index\": \"" + idx2 + "\", \"_type\": \"_doc\"}}\n"
+	actionLineIdx3 := "{\"index\": {\"_index\": \"" + idx3 + "\", \"_type\": \"_doc\"}}\n"
+	actionLineIdx4 := "{\"index\": {\"_index\": \"" + idx4 + "\", \"_type\": \"_doc\"}}\n"
 
+	allActions := []string{actionLineIdx0, actionLineIdx1, actionLineIdx2, actionLineIdx3, actionLineIdx4}
 	for i := 0; i < 2_000_000; i += 1 {
 		ev := make(map[string]interface{})
 
@@ -428,27 +441,30 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 
 		body, _ := json.Marshal(ev)
 
-		bulkData = append(bulkData, []byte(actionLine)...)
+		al := allActions[fastrand.Uint32n(5)]
+		bulkData = append(bulkData, []byte(al)...)
 		bulkData = append(bulkData, []byte(body)...)
 		bulkData = append(bulkData, []byte("\n")...)
 	}
 
 	start := time.Now()
 
-	numSegs := 4
+	numSegs := 6
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < numSegs; i++ {
-		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
-		if err != nil {
-			log.Errorf("ERROR: err=%v", err)
-			break
-		}
-		if processedCount == 0 {
-			log.Errorf("ERROR: processedCount was 0, resp=%v", response)
-			break
+		for bcnt := 0; bcnt < 5; bcnt++ {
+			processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
+			if err != nil {
+				log.Errorf("ERROR: err=%v", err)
+				break
+			}
+			if processedCount == 0 {
+				log.Errorf("ERROR: processedCount was 0, resp=%v", response)
+				break
+			}
 		}
 		writer.ForceRotateSegmentsForTest()
 	}

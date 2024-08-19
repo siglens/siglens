@@ -121,11 +121,20 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	var bytesReceived int
 	// store all request index
-	var items = make([]interface{}, 0)
+	items_len := 1000
+	var items = make([]interface{}, items_len)
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
+
+	idxToStreamIdCache := make(map[string]string)
 	for scanner.Scan() {
 		inCount++
+		if inCount >= items_len {
+			newArr :=  make([]interface{}, 1000)
+			items = append(items, newArr...)
+			items_len += 1000
+		}
+
 		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
 		switch esAction {
 
@@ -161,7 +170,8 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid, rid)
+					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
+						false, localIndexMap, myid, rid, idxToStreamIdCache)
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
@@ -187,7 +197,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 413
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			} else {
 				overallError = true
 				error_response := utils.BulkErrorResponse{
@@ -195,18 +205,18 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 400
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			}
 		} else {
 			atleastOneSuccess = true
-			items = append(items, resp_status_201)
+			items[inCount-1] = resp_status_201
 		}
 	}
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
-	response["items"] = items
+	response["items"] = items[0:inCount]
 
 	if atleastOneSuccess {
 		return processedCount, response, nil
@@ -285,7 +295,8 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 }
 
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64, rid uint64) error {
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
+	rid uint64, idxToStreamIdCache map[string]string) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -302,7 +313,14 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	if ts_millis == 0 {
 		ts_millis = tsNow
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	var streamid string
+	var ok bool
+	streamid, ok = idxToStreamIdCache[indexNameConverted]
+	if !ok {
+		streamid = utils.CreateStreamId(indexNameConverted, myid)
+		idxToStreamIdCache[indexNameConverted] = streamid
+	}
 
 	// TODO: we used to add _index in the json_source doc, since it is needed during
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
