@@ -115,7 +115,6 @@ type WipBlock struct {
 	columnRangeIndexes map[string]*RangeIndex
 	colWips            map[string]*ColWip
 	columnsInBlock     map[string]bool
-	pqMatches          map[string]*pqmr.PQMatchResults
 	maxIdx             uint32
 	blockTs            []uint64
 	tomRollup          map[uint64]*RolledRecs // top-of-minute rollup
@@ -133,9 +132,7 @@ func (wp *WipBlock) getSize() uint64 {
 	size += wp.blockSummary.GetSize()
 	size += uint64(24 * len(wp.columnRangeIndexes))
 	size += uint64(WIP_SIZE * len(wp.colWips))
-	for _, v := range wp.pqMatches {
-		size += v.GetInMemSize()
-	}
+
 	return size
 }
 
@@ -159,6 +156,7 @@ func GetInMemorySize() uint64 {
 	totalSize := uint64(0)
 	for _, s := range allSegStores {
 		totalSize += s.wipBlock.getSize()
+		totalSize += s.GetSegStorePQMatchSize()
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()

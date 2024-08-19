@@ -164,7 +164,6 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			columnBlooms:       make(map[string]*BloomIndex),
 			columnRangeIndexes: make(map[string]*RangeIndex),
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     make(map[string]bool),
 			blockSummary:       blockSummary,
 			tomRollup:          make(map[uint64]*RolledRecs),

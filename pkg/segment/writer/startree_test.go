@@ -230,7 +230,6 @@ func TestStarTree(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -240,6 +239,7 @@ func TestStarTree(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]bool)
+<<<<<<< HEAD
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
@@ -249,6 +249,18 @@ func TestStarTree(t *testing.T) {
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
+=======
+	ss := &SegStore{
+		wipBlock:       wipBlock,
+		SegmentKey:     "test-segkey1",
+		AllSeenColumns: allCols,
+		pqTracker:      initPQTracker(),
+		pqMatches:      make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:   make(map[string]struct{}),
+		AllSst:         segstats,
+		numBlocks:      0,
+	}
+>>>>>>> develop
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
 
@@ -322,7 +334,6 @@ func TestStarTreeMedium(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -332,6 +343,7 @@ func TestStarTreeMedium(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]bool)
+<<<<<<< HEAD
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
@@ -341,6 +353,18 @@ func TestStarTreeMedium(t *testing.T) {
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
+=======
+	ss := &SegStore{
+		wipBlock:       wipBlock,
+		SegmentKey:     "test-segkey2",
+		AllSeenColumns: allCols,
+		pqTracker:      initPQTracker(),
+		pqMatches:      make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:   make(map[string]struct{}),
+		AllSst:         segstats,
+		numBlocks:      0,
+	}
+>>>>>>> develop
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -416,7 +440,6 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -427,6 +450,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	allCols := make(map[string]bool)
 	segstats := make(map[string]*SegStats)
+<<<<<<< HEAD
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
@@ -436,6 +460,18 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
+=======
+	ss := &SegStore{
+		wipBlock:       wipBlock,
+		SegmentKey:     "test-segkey3",
+		AllSeenColumns: allCols,
+		pqTracker:      initPQTracker(),
+		pqMatches:      make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:   make(map[string]struct{}),
+		AllSst:         segstats,
+		numBlocks:      0,
+	}
+>>>>>>> develop
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -511,7 +547,6 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),

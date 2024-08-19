@@ -356,7 +356,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
 			}
-			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb, nil, false)
+			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb, nil, false, false)
 			if colWip.cbufidx > maxIdx {
 				maxIdx = colWip.cbufidx
 			}
@@ -463,7 +463,7 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 	if !ss.skipDe {
 		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
 	}
-	stats.AddSegStatsStr(ss.AllSst, key, value, ss.wipBlock.bb, nil, false)
+	stats.AddSegStatsStr(ss.AllSst, key, value, ss.wipBlock.bb, nil, false, false)
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
 	}
@@ -852,7 +852,6 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			columnBlooms:       columnBlooms,
 			columnRangeIndexes: columnRangeIndexes,
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     mapCol,
 			tomRollup:          make(map[uint64]*RolledRecs),
 			tohRollup:          make(map[uint64]*RolledRecs),
@@ -955,7 +954,6 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			columnBlooms:       columnBlooms,
 			columnRangeIndexes: columnRangeIndexes,
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     mapCol,
 			tomRollup:          make(map[uint64]*RolledRecs),
 			tohRollup:          make(map[uint64]*RolledRecs),
@@ -963,7 +961,6 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			bb:                 bbp.Get(),
 			blockTs:            make([]uint64, 0),
 		}
-
 		segStore := NewSegStore(0)
 		segStore.wipBlock = wipBlock
 		segStore.SegmentKey = segkey
