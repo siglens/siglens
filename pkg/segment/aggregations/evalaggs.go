@@ -600,6 +600,35 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 	return float64(len(strSet)), nil
 }
 
+func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, strList []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+
+	if len(fields) == 0 {
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("PerformAggEvalForList: Error while evaluating value col request function: %v", err)
+		}
+		strList = append(strList, valueStr)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return []string{}, fmt.Errorf("PerformAggEvalForList: there are some errors in the eval function that is inside the values function: %v", err)
+			}
+			if boolResult {
+				strList = append(strList, "1")
+			}
+		} else {
+			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				return []string{}, fmt.Errorf("PerformAggEvalForList: Error while evaluating value col request, err: %v", err)
+			}
+			strList = append(strList, cellValueStr)
+		}
+	}
+	return strList, nil
+}
+
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	result := 0.0
@@ -652,7 +681,6 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-
 	if len(fields) == 0 {
 		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
 		if err != nil {
