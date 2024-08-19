@@ -916,6 +916,7 @@ func (segstore *SegStore) computeStarTree() {
 				cname, cardinality, segstore.numBlocks)
 			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.usingSegTree = false
+			return
 		}
 	}
 
