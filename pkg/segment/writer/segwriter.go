@@ -83,13 +83,19 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
+type DeData struct {
+	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
+	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
+	deRecNums         [][]uint16        // [De idx] ==> recNums that match this de
+	deCount           uint16            // keeps track of cardinality count for this COL_WIP
+}
+
 type ColWip struct {
-	cbufidx   uint32              // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx uint32              // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf      [WIP_SIZE]byte      // in progress bytes
-	csgFname  string              // file name of csg file
-	deMap     map[string][]uint16 // dictWordKey ==> recordNums that match this key
-	deCount   uint16              // keeps track of cardinality count for this COL_WIP
+	cbufidx   uint32         // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf      [WIP_SIZE]byte // in progress bytes
+	csgFname  string         // file name of csg file
+	deData    *DeData
 }
 
 type RangeIndex struct {
@@ -420,10 +426,15 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
+	deData := DeData{deToRecnumIdx: make(map[string]uint16),
+		deHashToRecnumIdx: make(map[uint64]uint16),
+		deRecNums:         make([][]uint16, MaxDeEntries),
+		deCount:           0,
+	}
+
 	return &ColWip{
 		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deMap:    make(map[string][]uint16),
-		deCount:  0,
+		deData:   &deData,
 	}
 }
 
@@ -927,12 +938,15 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeCount(val uint16) {
-	cw.deCount = val
-}
+func (cw *ColWip) SetDeData(deCount uint16, deToRecnumIdx map[string]uint16,
+	deHashToRecnumIdx map[uint64]uint16, deRecNums [][]uint16) {
 
-func (cw *ColWip) SetDeMap(val map[string][]uint16) {
-	cw.deMap = val
+	deData := DeData{deToRecnumIdx: deToRecnumIdx,
+		deHashToRecnumIdx: deHashToRecnumIdx,
+		deRecNums:         deRecNums,
+		deCount:           deCount,
+	}
+	cw.deData = &deData
 }
 
 func (cw *ColWip) WriteSingleString(value string) {

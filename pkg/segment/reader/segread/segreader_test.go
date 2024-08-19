@@ -181,9 +181,13 @@ func Benchmark_readColumnarFile(b *testing.B) {
 func Test_packUnpackDictEnc(t *testing.T) {
 
 	colWip := &writer.ColWip{}
+
 	deCount := uint16(100)
 
-	deMap := make(map[string][]uint16)
+	deToRecnumIdx := make(map[string]uint16)
+	deHashToRecnumIdx := make(map[uint64]uint16)
+	deRecNums := make([][]uint16, 100)
+
 	recCounts := uint16(100)
 
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
@@ -208,15 +212,20 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		copy(cvalBytes[3:], cval)
 
 		arr := make([]uint16, recCounts/deCount)
-		deMap[string(cvalBytes)] = arr
+
+		cvalHash := xxhash.Sum64(cvalBytes)
+
+		deToRecnumIdx[string(cvalBytes)] = dwIdx
+		deHashToRecnumIdx[cvalHash] = dwIdx
+		deRecNums[dwIdx] = arr
+
 		for rn := uint16(0); rn < recCounts/deCount; rn++ {
 			arr[rn] = recNum + rn
 		}
 		recNum += recCounts / deCount
 	}
 
-	colWip.SetDeCount(deCount)
-	colWip.SetDeMap(deMap)
+	colWip.SetDeData(deCount, deToRecnumIdx, deHashToRecnumIdx, deRecNums)
 
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()

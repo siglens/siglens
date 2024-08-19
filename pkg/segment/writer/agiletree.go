@@ -105,7 +105,6 @@ ResetSegTree
 	Current assumptions:
 
 	All groupBy columns that contain strings are dictionaryEncoded.
-	Any column with len(col.deMap) != 0 is assumed to be dictionary encoded
 	It is also assumed that no other values than the dic encoded strings appear in that column
 
 	When storing all other values, their raw byte values are converted to an unsigned integer,
@@ -288,8 +287,10 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		stb.wipRecNumToColEnc[colNum] = toputils.ResizeSlice(stb.wipRecNumToColEnc[colNum], int(numRecs))
 
 		cwip := wip.colWips[colName]
-		if cwip.deCount < wipCardLimit {
-			for rawKey, indices := range cwip.deMap {
+		deData := cwip.deData
+		if deData.deCount < wipCardLimit {
+			for rawKey, recIdx := range deData.deToRecnumIdx {
+				indices := deData.deRecNums[recIdx]
 				enc := stb.setColValEnc(colNum, rawKey)
 				for _, recNum := range indices {
 					stb.wipRecNumToColEnc[colNum][recNum] = enc
@@ -394,7 +395,6 @@ ComputeStarTree
 	Current assumptions:
 
 	All groupBy columns that contain strings are dictionaryEncoded.
-	Any column with len(col.deMap) != 0 is assumed to be dictionary encoded
 	It is also assumed that no other values than the dic encoded strings appear in that column
 
 	When storing all other values, their raw byte values are converted to an unsigned integer,
@@ -456,8 +456,10 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 	colName string) (utils.CValueEnclosure, error) {
 
-	if cwip.deCount < wipCardLimit {
-		for dword, recNumsArr := range cwip.deMap {
+	deData := cwip.deData
+	if deData.deCount < wipCardLimit {
+		for dword, recsIdx := range deData.deToRecnumIdx {
+			recNumsArr := deData.deRecNums[recsIdx]
 			if toputils.BinarySearchUint16(recNum, recNumsArr) {
 				var mcVal utils.CValueEnclosure
 				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)

@@ -168,10 +168,16 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			cwip.deCount = 0
-			for dword := range cwip.deMap {
-				delete(cwip.deMap, dword)
+			for dword := range cwip.deData.deToRecnumIdx {
+				delete(cwip.deData.deToRecnumIdx, dword)
 			}
+			for cvalHash := range cwip.deData.deHashToRecnumIdx {
+				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			}
+			for idx := range cwip.deData.deRecNums {
+				cwip.deData.deRecNums[idx] = nil
+			}
+			cwip.deData.deCount = 0
 		}
 	}
 
@@ -504,7 +510,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							return
 						}
 						_ = segstore.writeWipTsRollups(cname)
-					} else if colWip.deCount > 0 && colWip.deCount < wipCardLimit {
+					} else if colWip.deData.deCount > 0 && colWip.deData.deCount < wipCardLimit {
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
@@ -828,7 +834,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 
 		// If this is the first seg after restart, we will not have the
 		// AllSst hll estimates, so check this first wip's card and skip accordingly
-		if segstore.wipBlock.colWips[cname].deCount >= wipCardLimit {
+		if segstore.wipBlock.colWips[cname].deData.deCount >= wipCardLimit {
 			continue
 		}
 
@@ -894,8 +900,8 @@ func (segstore *SegStore) computeStarTree() {
 		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
 			// Make the array twice the cols cardinality we allow because
 			// on the second block our HLL estimate may be still off
-			if len(segstore.stbDictEncWorkBuf[colNum]) < int(2*wipCardLimit) {
-				segstore.stbDictEncWorkBuf[colNum] = make([]string, 2*wipCardLimit)
+			if len(segstore.stbDictEncWorkBuf[colNum]) < int(MaxDeEntries) {
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxDeEntries)
 			}
 		}
 
