@@ -432,7 +432,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						continue
 					}
 					if blkResults.ShouldAddMore() {
-						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx)
+						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
 						if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
@@ -520,7 +520,7 @@ func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *struct
 }
 
 func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.MultiColSegmentReader, blkNum uint16,
-	recNum uint16, recTs uint64, qid uint64, aggsSortColKeyIdx int) (float64, bool) {
+	recNum uint16, recTs uint64, qid uint64, aggsSortColKeyIdx int, nodeRes *structs.NodeResult) (float64, bool) {
 
 	var sortVal float64
 	var err error
@@ -537,7 +537,7 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 
 	var colVal utils.CValueEnclosure
 	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
-		qid, false, &colVal)
+		qid, false, &colVal, nodeRes)
 	if err != nil {
 		invalidAggsCol = true
 		return sortVal, invalidAggsCol

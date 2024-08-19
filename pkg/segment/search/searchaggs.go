@@ -296,7 +296,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
 			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
-				qid, false, &retCVal)
+				qid, false, &retCVal, nodeRes)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %v", colKeyIdx), log.ErrorLevel, err)
 
@@ -840,7 +840,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, false, &cValEnc)
+					recNum, qid, false, &cValEnc, nodeRes)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
@@ -998,7 +998,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 		if blkResults.ShouldAddMore() {
-			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx)
+			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
 			if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 				rrc := &utils.RecordResultContainer{
 					SegKeyInfo: utils.SegKeyInfo{

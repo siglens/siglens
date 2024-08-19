@@ -207,7 +207,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
 			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
+				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap, nodeRes)
 			if err != nil {
 				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return
