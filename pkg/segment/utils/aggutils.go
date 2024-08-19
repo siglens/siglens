@@ -20,7 +20,6 @@ package utils
 import (
 	"fmt"
 	"math"
-	"sort"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
@@ -259,16 +258,6 @@ func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnc
 			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
 		}
 	}
-}
-
-func AddToSortedSlice(destSortedList []string, newString string) []string {
-	// Find the position where the new string should be inserted
-	index := sort.SearchStrings(destSortedList, newString)
-
-	// Insert the new string at the found index
-	destSortedList = append(destSortedList[:index], append([]string{newString}, destSortedList[index:]...)...)
-
-	return destSortedList
 }
 
 func AppendWithLimit(dest []string, src []string, limit int) []string {

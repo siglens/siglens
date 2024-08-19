@@ -580,10 +580,14 @@ func (ss *SegStats) Merge(other *SegStats) {
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
-	for key, value := range other.StrSet {
-		ss.StrSet[key] = value
+	if ss.StrSet != nil {
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
 	}
-	ss.StrList = append(ss.StrList, other.StrList...)
+	if ss.StrList != nil {
+		ss.StrList = append(ss.StrList, other.StrList...)
+	}
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
