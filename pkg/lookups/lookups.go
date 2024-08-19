@@ -185,6 +185,7 @@ func GetLookupFile(ctx *fasthttp.RequestCtx) {
 		if err != nil {
 			if err.Error() != "EOF" {
 				utils.SendInternalError(ctx, "Error while reading the file", "", err)
+				return
 			}
 			break
 		}
