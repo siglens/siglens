@@ -887,3 +887,29 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
             "file2.csv",
             "file3.csv.gz"
         ]
+
+### Get Specific Lookup File
+
+    endpoint: api/lookup-files/{lookupFilename}
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/lookup-files/test_lookup.csv
+    response: 
+    
+    Test,EmployeeID,FirstName,LastName,Department,Position,Salary,HireDate,PerformanceScore,Email,IsRemote
+    -1,1001,John,Smith,Engineering,Senior Developer,85000,2019-03-15,4.2,john.smith@techco.com,TRUE
+    ... more rows
+
+### Delete Specific Lookup File
+
+    endpoint: api/lookup-files/{lookupFilename}
+    method: DELETE
+
+    Example:
+    request: http://localhost:5122/api/lookup-files/test_lookup.csv
+    response: "Lookup file deleted successfully"
+
+
+
+

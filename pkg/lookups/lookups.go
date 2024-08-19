@@ -155,62 +155,65 @@ func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
 
 func GetLookupFile(ctx *fasthttp.RequestCtx) {
 	lookupFilename := utils.ExtractParamAsString(ctx.UserValue("lookupFilename"))
-	
+
 	lookupsDir := config.GetLookupPath()
 	filePath := filepath.Join(lookupsDir, lookupFilename)
 
-    file, err := os.Open(filePath)
-    if err != nil {
-        if os.IsNotExist(err) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
 			ctx.Error("File not found", fasthttp.StatusNotFound)
 		} else {
 			utils.SendInternalError(ctx, "Error while opening the file", "", err)
 		}
 		return
-    }
-    defer file.Close()
+	}
+	defer file.Close()
 
 	// Set the Content-Type header to indicate it's a CSV file
-    ctx.Response.Header.Set("Content-Type", "text/csv")
-    
+	ctx.Response.Header.Set("Content-Type", "text/csv")
+
 	// Create a buffered reader
-    reader := bufio.NewReader(file)
+	reader := bufio.NewReader(file)
 
-    // Buffer to hold data chunks
-    buf := make([]byte, 8192) // 8KB buffer
+	// Buffer to hold data chunks
+	buf := make([]byte, 8192) // 8KB buffer
 
-    // Stream the file data to the response in chunks
-    for {
-        n, err := reader.Read(buf)
-        if err != nil {
-            if err.Error() != "EOF" {
+	// Stream the file data to the response in chunks
+	for {
+		n, err := reader.Read(buf)
+		if err != nil {
+			if err.Error() != "EOF" {
 				utils.SendInternalError(ctx, "Error while reading the file", "", err)
-            }
-            break
-        }
-        if _, err := ctx.Write(buf[:n]); err != nil {
-			utils.SendInternalError(ctx, "Error while sending the data", "", err)
-            return
-        }
-    }
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-
-func DeleteLookupFile(ctx *fasthttp.RequestCtx) {
-	lookupFilename := utils.ExtractParamAsString(ctx.UserValue("lookupFilename"))
-	
-	lookupsDir := config.GetLookupPath()
-	filePath := filepath.Join(lookupsDir, lookupFilename)
-
-	if err := os.Remove(filePath); err != nil {
-		if !os.IsNotExist(err) {
-			utils.SendInternalError(ctx, "Error while deleting the file", "", err)
+			}
+			break
 		}
-		return
+		if _, err := ctx.Write(buf[:n]); err != nil {
+			utils.SendInternalError(ctx, "Error while sending the data", "", err)
+			return
+		}
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func DeleteLookupFile(ctx *fasthttp.RequestCtx) {
+	lookupFilename := utils.ExtractParamAsString(ctx.UserValue("lookupFilename"))
+
+	lookupsDir := config.GetLookupPath()
+	filePath := filepath.Join(lookupsDir, lookupFilename)
+
+	err := os.Remove(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ctx.Error("File not found", fasthttp.StatusNotFound)
+		} else {
+			utils.SendInternalError(ctx, "Error while deleting the file", "", err)
+		}
+		return
+	}
+
+	response := "Lookup file deleted successfully"
+	utils.WriteJsonResponse(ctx, response)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}

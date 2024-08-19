@@ -67,7 +67,7 @@ func MigrateLookupsForCicd() error {
 		log.Fatalf("migrateLookupsForCicd: Error creating destination directory: %v", err)
 		return err
 	}
-	
+
 	// Create the destination file
 	lookupDestPath := filepath.Join(destDir, "test_lookup.csv")
 	lookupDestFile, err := os.Create(lookupDestPath)
@@ -78,10 +78,10 @@ func MigrateLookupsForCicd() error {
 	defer lookupDestFile.Close()
 
 	// Copy the contents
-    _, err = io.Copy(lookupDestFile, lookupSrcFile)
-    if err != nil {
-        return fmt.Errorf("error copying file: %v", err)
-    }
+	_, err = io.Copy(lookupDestFile, lookupSrcFile)
+	if err != nil {
+		return fmt.Errorf("error copying file: %v", err)
+	}
 
 	// Reset file position
 	_, err = lookupSrcFile.Seek(0, 0)
@@ -90,20 +90,20 @@ func MigrateLookupsForCicd() error {
 	}
 
 	// Create the destination gzip file
-    compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
-    if err != nil {
-        return fmt.Errorf("error creating destination file: %v", err)
-    }
+	compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
+	if err != nil {
+		return fmt.Errorf("error creating destination file: %v", err)
+	}
 	defer compressedLookupDestFile.Close()
 
 	// Create a gzip writer
-    gzipWriter := gzip.NewWriter(compressedLookupDestFile)
+	gzipWriter := gzip.NewWriter(compressedLookupDestFile)
 
 	// Copy the contents from source to gzip writer
-    _, err = io.Copy(gzipWriter, lookupSrcFile)
-    if err != nil {
-        return fmt.Errorf("error compressing file: %v", err)
-    }
+	_, err = io.Copy(gzipWriter, lookupSrcFile)
+	if err != nil {
+		return fmt.Errorf("error compressing file: %v", err)
+	}
 
 	// Close the gzip writer
 	err = gzipWriter.Close()
