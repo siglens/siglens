@@ -130,7 +130,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	for scanner.Scan() {
 		inCount++
 		if inCount >= items_len {
-			newArr :=  make([]interface{}, 1000)
+			newArr := make([]interface{}, 1000)
 			items = append(items, newArr...)
 			items_len += 1000
 		}
