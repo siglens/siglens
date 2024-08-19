@@ -53,8 +53,6 @@ const (
 )
 
 func MigrateLookupsForCicd() error {
-	curr, _ := os.Getwd()
-	_ = curr
 	lookupSrcPath := filepath.Join("..", "..", "cicd/test_lookup.csv")
 	lookupSrcFile, err := os.Open(lookupSrcPath)
 	if err != nil {
@@ -85,6 +83,12 @@ func MigrateLookupsForCicd() error {
         return fmt.Errorf("error copying file: %v", err)
     }
 
+	// Reset file position
+	_, err = lookupSrcFile.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("error resetting file position: %v", err)
+	}
+
 	// Create the destination gzip file
     compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
     if err != nil {
@@ -94,13 +98,18 @@ func MigrateLookupsForCicd() error {
 
 	// Create a gzip writer
     gzipWriter := gzip.NewWriter(compressedLookupDestFile)
-    defer gzipWriter.Close()
 
 	// Copy the contents from source to gzip writer
     _, err = io.Copy(gzipWriter, lookupSrcFile)
     if err != nil {
         return fmt.Errorf("error compressing file: %v", err)
     }
+
+	// Close the gzip writer
+	err = gzipWriter.Close()
+	if err != nil {
+		return fmt.Errorf("error closing gzip writer: %v", err)
+	}
 
 	return nil
 }
