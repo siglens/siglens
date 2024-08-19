@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
@@ -48,7 +47,6 @@ func Test_multiSegReader(t *testing.T) {
 	multiReader := sharedReader.MultiColReaders[0]
 	var err error
 	var cKeyidx int
-	nodeRes := &structs.NodeResult{}
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
@@ -60,16 +58,16 @@ func Test_multiSegReader(t *testing.T) {
 
 		// invalid block
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, uint16(numBlocks), 0, 0, false,
-			&cValEnc, nodeRes)
+			&cValEnc)
 		assert.NotNil(t, err)
 
 		// correct block, incorrect recordNum
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,
-			false, &cValEnc, nodeRes)
+			false, &cValEnc)
 		assert.NotNil(t, err)
 
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock-3), 0,
-			false, &cValEnc, nodeRes)
+			false, &cValEnc)
 		assert.Nil(t, err)
 		assert.NotNil(t, cValEnc)
 		log.Infof("ExtractValueFromColumnFile: %+v for column %s", cValEnc, colName)

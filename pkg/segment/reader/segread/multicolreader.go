@@ -269,11 +269,10 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
 func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
-	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure, nodeRes *structs.NodeResult) error {
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
-			nodeRes.StoreGlobalSearchError("ExtractValueFromColumnFile: Failed to extract timestamp from record", log.ErrorLevel, err)
 			return err
 		}
 		retCVal.Dtype = utils.SS_DT_UNSIGNED_NUM

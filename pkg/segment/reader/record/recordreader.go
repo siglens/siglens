@@ -260,9 +260,9 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			var cValEnc utils.CValueEnclosure
 
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
-				qid, isTsCol, &cValEnc, nodeRes)
+				qid, isTsCol, &cValEnc)
 			if err != nil {
-				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {
