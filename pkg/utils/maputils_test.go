@@ -19,7 +19,6 @@ package utils
 
 import (
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -140,8 +139,7 @@ func Test_SetDifference(t *testing.T) {
 	addedEntries, removedEntries := SetDifference(set1, set2)
 	assert.Equal(t, 2, len(addedEntries))
 	assert.Equal(t, 0, len(removedEntries))
-	sort.Strings(removedEntries)
-	assert.True(t, CompareStringSlices([]string{"key1", "key2"}, addedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, addedEntries)
 
 	set1["key3"] = struct{}{}
 	set2["key1"] = struct{}{}
@@ -150,17 +148,16 @@ func Test_SetDifference(t *testing.T) {
 	addedEntries, removedEntries = SetDifference(set1, set2)
 	assert.Equal(t, 1, len(addedEntries))
 	assert.Equal(t, 0, len(removedEntries))
-	assert.True(t, CompareStringSlices([]string{"key3"}, addedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, addedEntries)
 
 	addedEntries, removedEntries = SetDifference(set2, set1)
 	assert.Equal(t, 0, len(addedEntries))
 	assert.Equal(t, 1, len(removedEntries))
-	assert.True(t, CompareStringSlices([]string{"key3"}, removedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, removedEntries)
 
 	set1 = map[string]struct{}{}
 	addedEntries, removedEntries = SetDifference(set1, set2)
 	assert.Equal(t, 0, len(addedEntries))
 	assert.Equal(t, 2, len(removedEntries))
-	sort.Strings(removedEntries)
-	assert.True(t, CompareStringSlices([]string{"key1", "key2"}, removedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, removedEntries)
 }
