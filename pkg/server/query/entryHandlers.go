@@ -696,3 +696,15 @@ func getAllLookupFilesHandler() func(ctx *fasthttp.RequestCtx) {
 		lookups.GetAllLookupFiles(ctx)
 	}
 }
+
+func getLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.GetLookupFile(ctx)
+	}
+}
+
+func deleteLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.DeleteLookupFile(ctx)
+	}
+}

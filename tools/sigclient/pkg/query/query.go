@@ -19,12 +19,14 @@ package query
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -49,6 +51,59 @@ const (
 	freeText
 	random
 )
+
+func MigrateLookupsForCicd() error {
+	curr, _ := os.Getwd()
+	_ = curr
+	lookupSrcPath := filepath.Join("..", "..", "cicd/test_lookup.csv")
+	lookupSrcFile, err := os.Open(lookupSrcPath)
+	if err != nil {
+		log.Fatalf("migrateLookupsForCicd: Error opening lookup file: %v", err)
+		return err
+	}
+	defer lookupSrcFile.Close()
+
+	destDir := filepath.Join("..", "..", "data/lookups")
+	err = os.MkdirAll(destDir, os.ModePerm)
+	if err != nil {
+		log.Fatalf("migrateLookupsForCicd: Error creating destination directory: %v", err)
+		return err
+	}
+	
+	// Create the destination file
+	lookupDestPath := filepath.Join(destDir, "test_lookup.csv")
+	lookupDestFile, err := os.Create(lookupDestPath)
+	if err != nil {
+		log.Fatalf("migrateLookupsForCicd: Error creating destination lookup file: %v", err)
+		return err
+	}
+	defer lookupDestFile.Close()
+
+	// Copy the contents
+    _, err = io.Copy(lookupDestFile, lookupSrcFile)
+    if err != nil {
+        return fmt.Errorf("error copying file: %v", err)
+    }
+
+	// Create the destination gzip file
+    compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
+    if err != nil {
+        return fmt.Errorf("error creating destination file: %v", err)
+    }
+	defer compressedLookupDestFile.Close()
+
+	// Create a gzip writer
+    gzipWriter := gzip.NewWriter(compressedLookupDestFile)
+    defer gzipWriter.Close()
+
+	// Copy the contents from source to gzip writer
+    _, err = io.Copy(gzipWriter, lookupSrcFile)
+    if err != nil {
+        return fmt.Errorf("error compressing file: %v", err)
+    }
+
+	return nil
+}
 
 func (q logsQueryTypes) String() string {
 	switch q {
