@@ -35,6 +35,8 @@ func GetRandomString(length int, stringType string) string {
 		charset = alphabets
 	case "numeric":
 		charset = digits
+	case "alphanumeric":
+		charset = alphabets + digits
 	default:
 		charset = alphabets + digits
 	}
