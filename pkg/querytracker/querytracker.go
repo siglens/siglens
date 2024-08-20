@@ -215,6 +215,27 @@ type colUsage struct {
 	usage int
 }
 
+func PopulateColUsageFromMeasure(measureAgg *structs.MeasureAggregator, measureInfoUsage map[string]bool) {
+	if measureAgg == nil {
+		return
+	}
+
+	if measureAgg.ValueColRequest != nil {
+		fields := measureAgg.ValueColRequest.GetFields()
+		for _, field := range fields {
+			measureInfoUsage[field] = true
+		}
+	} else {
+		measureInfoUsage[measureAgg.MeasureCol] = true
+	}
+}
+
+func RemoveIrrelevantCols[T any](cols map[string]T, irrelevantCols []string) {
+	for _, col := range irrelevantCols {
+		delete(cols, col)
+	}
+}
+
 func SetTopPersistentAggsForTestOnly(table string, grpCols map[string]bool, measCols map[string]bool) {
 	pg := &PersistentGroupBy{}
 	pg.GroupByCols = grpCols
@@ -274,7 +295,7 @@ func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 		}
 		measureInfo := queryAggs.GroupByRequest.MeasureOperations
 		for _, m := range measureInfo {
-			measureInfoUsage[m.MeasureCol] = true
+			PopulateColUsageFromMeasure(m, measureInfoUsage)
 		}
 	}
 	var ss []colUsage
@@ -303,6 +324,10 @@ func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 			break
 		}
 	}
+
+	irrelevantCols := []string{config.GetTimeStampKey(), "*"}
+	RemoveIrrelevantCols(finalGrpCols, irrelevantCols)
+	RemoveIrrelevantCols(measureInfoUsage, irrelevantCols)
 
 	return finalGrpCols, measureInfoUsage
 }
