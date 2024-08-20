@@ -221,9 +221,20 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 		}
 		return fopOnString(rec, qValDte, fop, isRegexSearch)
 	case SS_DT_BOOL:
-		if len(rec) == 0 || rec[0] != VALTYPE_ENC_BOOL[0] {
+		if len(rec) == 0 {
+			if fop == Equals {
+				return false, nil
+			} else if fop == NotEquals {
+				return true, nil
+			}
+
+			return false, toputils.TeeErrorf("filterOpOnDataType: invalid bool operator: %v", fop)
+		}
+
+		if rec[0] != VALTYPE_ENC_BOOL[0] {
 			return false, nil
 		}
+
 		return fopOnBool(rec, qValDte, fop)
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM, SS_DT_FLOAT:
 		return fopOnNumber(rec, qValDte, recDte, fop)
