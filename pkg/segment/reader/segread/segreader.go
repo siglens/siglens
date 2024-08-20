@@ -173,6 +173,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
 	for keyIndex := range colsIndexMap {
 		if keyIndex >= len(mcsr.allFileReaders) {
+			// This can happen if the column does not exist.
 			return nil
 		}
 
