@@ -218,6 +218,8 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			if isRegexSearch && isValTypeEncANumber(rec[0]) {
 				return filterOpOnRecNumberEncType(rec, qValDte, fop, isRegexSearch, recDte)
 			}
+
+			return false, nil
 		}
 		return fopOnString(rec, qValDte, fop, isRegexSearch)
 	case SS_DT_BOOL:
@@ -287,7 +289,11 @@ func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterO
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	isRegexSearch bool) (bool, error) {
 
-	const sOff uint16 = 3
+	const sOff int = 3
+	if len(rec) < sOff {
+		return false, toputils.TeeErrorf("fopOnString: invalid rec: %v", rec)
+	}
+
 	switch fop {
 	case Equals:
 		if isRegexSearch {
