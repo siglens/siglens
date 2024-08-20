@@ -841,13 +841,6 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         $('#filter-input').val(searchText);
     }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
-
-    return {
-        searchText: searchText,
-        startEpoch: startEpoch,
-        endEpoch: endEpoch,
-        queryLanguage: queryLanguage,
-    };
 }
 
 function alertChart(res) {
