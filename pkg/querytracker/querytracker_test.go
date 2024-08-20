@@ -222,7 +222,8 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("test-1")
 	assert.Len(t, grpCols, 3)
-	assert.Equal(t, "col2", grpCols[0], "only col2 exists in both usages, so it should be first")
+	_, ok := grpCols["col2"]
+	assert.True(t, ok, "col2 must exist")
 	var mCol3_1 string
 	mCol4 = ""
 	for m := range measure {
@@ -285,7 +286,9 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("jaeger-1")
 	assert.Len(t, grpCols, 6)
-	assert.Equal(t, "traceID", grpCols[0], "traceID exists in both usages, so it should be first")
+
+	_, ok := grpCols["traceID"]
+	assert.True(t, ok, "traceID should be present")
 	var mCol3_1 string
 	mCol4 = ""
 	for m := range measure {

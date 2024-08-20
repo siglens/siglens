@@ -74,7 +74,7 @@ type StarTreeBuilder struct {
 	numGroupByCols    uint16
 	mColNames         []string
 	nodeCount         int
-	nodePool          []Node
+	nodePool          []*Node
 	tree              *StarTree
 	segDictMap        []map[string]uint32 // "mac" ==> enc-2
 	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
@@ -83,8 +83,20 @@ type StarTreeBuilder struct {
 	buf               []byte
 }
 
+func (stb *StarTreeBuilder) GetGroupByKeys() []string {
+	return stb.groupByKeys
+}
+
 func (stb *StarTreeBuilder) GetNodeCount() int {
 	return stb.nodeCount
+}
+
+func (stb *StarTreeBuilder) GetEachColNodeCount() map[string]uint32 {
+	res := make(map[string]uint32)
+	for colIdx, lastNum := range stb.segDictLastNum {
+		res[stb.groupByKeys[colIdx]] = lastNum
+	}
+	return res
 }
 
 /*
@@ -93,7 +105,6 @@ ResetSegTree
 	Current assumptions:
 
 	All groupBy columns that contain strings are dictionaryEncoded.
-	Any column with len(col.deMap) != 0 is assumed to be dictionary encoded
 	It is also assumed that no other values than the dic encoded strings appear in that column
 
 	When storing all other values, their raw byte values are converted to an unsigned integer,
@@ -101,20 +112,20 @@ ResetSegTree
 
 parameters:
 
-	wipBlock: segstore's wip block
 	groupByKeys: groupBy column Names
 	mColNames: colnames of measure columns
 
 returns:
 */
-func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string, mColNames []string) {
+func (stb *StarTreeBuilder) ResetSegTree(groupByKeys []string,
+	mColNames []string, stbDictEncWorkBuf [][]string) {
 
 	stb.groupByKeys = groupByKeys
 	numGroupByCols := uint16(len(groupByKeys))
 	stb.numGroupByCols = numGroupByCols
 	stb.mColNames = mColNames
 
-	stb.resetNodeData(block)
+	stb.resetNodeData()
 
 	root := stb.newNode()
 	root.myKey = math.MaxUint32 // give max for root
@@ -137,8 +148,7 @@ func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string, 
 
 	for colNum := uint16(0); colNum < numGroupByCols; colNum++ {
 		if stb.segDictEncRev[colNum] == nil {
-			// we know each col won't have more encodings than max node limit
-			stb.segDictEncRev[colNum] = make([]string, MaxAgileTreeNodeCount)
+			stb.segDictEncRev[colNum] = stbDictEncWorkBuf[colNum]
 		}
 		if stb.segDictMap[colNum] == nil {
 			stb.segDictMap[colNum] = make(map[string]uint32)
@@ -154,6 +164,10 @@ func (stb *StarTreeBuilder) ResetSegTree(block *WipBlock, groupByKeys []string, 
 	}
 }
 
+func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
+	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
+}
+
 func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 	// todo a zero copy version of map lookups needed
 	enc, ok := stb.segDictMap[colNum][colVal]
@@ -167,7 +181,7 @@ func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 }
 
 // helper function to reset node data for builder reuse
-func (stb *StarTreeBuilder) resetNodeData(wip *WipBlock) {
+func (stb *StarTreeBuilder) resetNodeData() {
 
 	for _, node := range stb.nodePool {
 		node.parent = nil
@@ -182,7 +196,7 @@ func (stb *StarTreeBuilder) resetNodeData(wip *WipBlock) {
 func (stb *StarTreeBuilder) newNode() *Node {
 
 	if stb.nodeCount >= len(stb.nodePool) {
-		stb.nodePool = append(stb.nodePool, Node{})
+		stb.nodePool = append(stb.nodePool, &Node{})
 	}
 	ans := stb.nodePool[stb.nodeCount]
 	stb.nodeCount += 1
@@ -191,7 +205,7 @@ func (stb *StarTreeBuilder) newNode() *Node {
 		ans.children = make(map[uint32]*Node)
 	}
 
-	return &ans
+	return ans
 }
 
 func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
@@ -273,8 +287,10 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		stb.wipRecNumToColEnc[colNum] = toputils.ResizeSlice(stb.wipRecNumToColEnc[colNum], int(numRecs))
 
 		cwip := wip.colWips[colName]
-		if cwip.deCount < wipCardLimit {
-			for rawKey, indices := range cwip.deMap {
+		deData := cwip.deData
+		if deData.deCount < wipCardLimit {
+			for rawKey, recIdx := range deData.deToRecnumIdx {
+				indices := deData.deRecNums[recIdx]
 				enc := stb.setColValEnc(colNum, rawKey)
 				for _, recNum := range indices {
 					stb.wipRecNumToColEnc[colNum][recNum] = enc
@@ -307,12 +323,6 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 
 	numRecs := wip.blockSummary.RecCount
-
-	sizeToAdd := int(numRecs) - len(stb.nodePool)
-	if sizeToAdd > 0 {
-		newArr := make([]Node, sizeToAdd)
-		stb.nodePool = append(stb.nodePool, newArr...)
-	}
 
 	curColValues := make([]uint32, stb.numGroupByCols)
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
@@ -385,7 +395,6 @@ ComputeStarTree
 	Current assumptions:
 
 	All groupBy columns that contain strings are dictionaryEncoded.
-	Any column with len(col.deMap) != 0 is assumed to be dictionary encoded
 	It is also assumed that no other values than the dic encoded strings appear in that column
 
 	When storing all other values, their raw byte values are converted to an unsigned integer,
@@ -447,8 +456,10 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 	colName string) (utils.CValueEnclosure, error) {
 
-	if cwip.deCount < wipCardLimit {
-		for dword, recNumsArr := range cwip.deMap {
+	deData := cwip.deData
+	if deData.deCount < wipCardLimit {
+		for dword, recsIdx := range deData.deToRecnumIdx {
+			recNumsArr := deData.deRecNums[recsIdx]
 			if toputils.BinarySearchUint16(recNum, recNumsArr) {
 				var mcVal utils.CValueEnclosure
 				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)

@@ -63,8 +63,9 @@ func Test_sstReadWrite(t *testing.T) {
 	allSst["col-a"] = &inSst
 	allSst["col-b"] = &inSst
 
-	ss := writer.SegStore{SegmentKey: "segkey-1",
-		AllSst: allSst}
+	ss := writer.NewSegStore(0)
+	ss.SegmentKey = "segkey-1"
+	ss.AllSst = allSst
 
 	err := ss.FlushSegStats()
 	assert.Nil(t, err)
