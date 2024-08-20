@@ -870,6 +870,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         - Form data:
             - name: [filename]
             - file: [file content]
+            - overwrite: true (optional, to overwrite existing file)
 
     response: 
         File uploaded successfully: [filename]
