@@ -96,6 +96,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <button type="button" id="upload-btn" class="btn primary-btn w-100">Upload</button>
                 </div>
             </div>
+            <div class="popupContent" id="overwrite-confirmation">
+                <h3 class="header">File Already Exists</h3>
+                <p>A file with the name "<span id="existing-file-name"></span>" already exists. Do you want to overwrite it?</p>
+                <div class="d-flex mt-4">
+                    <button type="button" id="cancel-overwrite-btn" class="btn grey-btn w-100">Cancel</button>
+                    <button type="button" id="confirm-overwrite-btn" class="btn primary-btn w-100">Overwrite</button>
+                </div>
+            </div>
         </div>
 
         <div id="app-footer">
