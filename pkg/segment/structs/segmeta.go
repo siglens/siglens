@@ -26,7 +26,7 @@ const MAX_SEGMETA_FSIZE = 10_000_000 // 10 MB
 type ColSizeInfo struct {
 	CmiSize            uint64 `json:"cmiSize"`
 	CsgSize            uint64 `json:"csgSize"`
-	ConsistentCvalSize uint32 `json:"cValSize"`
+	ConsistentCvalSize uint32 `json:"cValSize"` // The size of the column value, given that the size is consistent across all records. The value is set to `1MB` if the column values length is not consistent.
 }
 
 type VtableCounts struct {

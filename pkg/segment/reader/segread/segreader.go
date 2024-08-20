@@ -259,9 +259,9 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 }
 
 func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
-	// if we have the +ve column value rec len, that is the current record length
+	// if we have the positive column value rec len, that is the current record length
 	// This value comes from the segment metadata, where we store the column value size
-	// at segment level. If the value is +ve and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
+	// at segment level. If the value is >0 and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
 	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
 	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != utils.INCONSISTENT_CVAL_SIZE {
 		return sfr.consistentColValueLen, nil
