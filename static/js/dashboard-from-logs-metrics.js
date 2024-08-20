@@ -58,7 +58,7 @@ $(document).ready(function () {
 
         var encodedRuleName = encodeURIComponent(ruleName);
         const urlParams = new URLSearchParams(window.location.search);
-        const filterTab=urlParams.get('filterTab');
+        const filterTab = urlParams.get('filterTab');
         // Assuming you have the `data` object available
         var queryParams = {
             queryLanguage: data.queryLanguage,

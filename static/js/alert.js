@@ -242,9 +242,9 @@ async function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
-        const filterTab=urlParams.get('filterTab');
+        const filterTab = urlParams.get('filterTab');
 
-        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch,filterTab);
+        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
     }
 
     if (!alertEditFlag && !alertFromMetricsExplorerFlag && !window.location.href.includes('alert-details.html')) {
@@ -826,7 +826,7 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
     // Set the query language and mark the appropriate option as active
     $('#query-language-btn span').html(queryLanguage);
     $('.query-language-option').removeClass('active');
-    
+
     if (queryLanguage === 'SQL') {
         $('#option-1').addClass('active');
     } else if (queryLanguage === 'Log QL') {
@@ -861,9 +861,6 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         queryLanguage: queryLanguage,
     };
 }
-
-
-
 
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
