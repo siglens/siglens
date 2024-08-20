@@ -143,14 +143,14 @@ function createTable(data) {
     const columnDefs = [
         { headerName: 'PQId', field: 'id', sortable: true, filter: true, width: 250, flex: 0 },
         { headerName: 'Count', field: 'count', sortable: true, filter: true, width: 250, flex: 0 },
-        { 
-            headerName: 'Last Used', 
-            field: 'last_used_epoch', 
-            sortable: true, 
+        {
+            headerName: 'Last Used',
+            field: 'last_used_epoch',
+            sortable: true,
             filter: true,
             width: 250,
             flex: 0,
-            valueFormatter: (params) => formatEpochToReadable(params.value)
+            valueFormatter: (params) => formatEpochToReadable(params.value),
         },
         { headerName: 'Search Text', field: 'search_text', sortable: true, filter: true, flex: 1 },
     ];
