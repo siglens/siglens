@@ -362,3 +362,8 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | eval mvindex = mvindex(split(""a:bc:123"", "":""), -2, 2) | stats count by mvindex",now-1d,now,*,countRecord:mvindex:*,eq,"bc,123",Splunk QL
 "app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""jim*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,2,Splunk QL
 "app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""abc*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,"",Splunk QL
+weekday=Monday,now-1d,now,*,total,eq,14325,Splunk QL
+weekday=Monday AND invalidColumn=foo,now-1d,now,*,total,eq,0,Splunk QL
+weekday=Monday AND invalidColumn!=foo,now-1d,now,*,total,eq,14325,Splunk QL
+weekday=Monday OR invalidColumn!=foo,now-1d,now,*,total,eq,100000,Splunk QL
+weekday=Monday OR invalidColumn=foo,now-1d,now,*,total,eq,14325,Splunk QL
