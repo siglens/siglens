@@ -2695,7 +2695,6 @@ function getMetricsDataForSave(qname, qdesc) {
         queryDescription: qdesc || '',
         startTime: filterStartDate,
         endTime: filterEndDate,
-        metricsQueryParams : JSON.stringify(metricsQueryParams)
+        metricsQueryParams: JSON.stringify(metricsQueryParams),
     };
-    
 }
