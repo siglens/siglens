@@ -663,7 +663,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_FLOAT64[:])
-		copy(wipbuf[idx+1:], utils.Float64ToBytesLittleEndian(fltVal))
+		utils.Float64ToBytesLittleEndianInplace(fltVal, wipbuf[idx+1:])
 		valSize = 1 + 8
 	default:
 		log.Errorf("encJsonNumber: unknown numType: %v", numType)
