@@ -28,6 +28,7 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -202,12 +203,21 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	}
 	switch qValDte.Dtype {
 	case SS_DT_STRING:
-		if len(rec) == 0 || rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
+		if len(rec) == 0 {
+			if fop == Equals {
+				return false, nil
+			} else if fop == NotEquals {
+				return true, nil
+			}
+
+			return false, toputils.TeeErrorf("filterOpOnDataType: invalid string operator: %v", fop)
+		}
+
+		if rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
 			// if we are doing a regex search on a number, we need to convert the number to string
-			if len(rec) > 0 && isRegexSearch && isValTypeEncANumber(rec[0]) {
+			if isRegexSearch && isValTypeEncANumber(rec[0]) {
 				return filterOpOnRecNumberEncType(rec, qValDte, fop, isRegexSearch, recDte)
 			}
-			return false, nil
 		}
 		return fopOnString(rec, qValDte, fop, isRegexSearch)
 	case SS_DT_BOOL:

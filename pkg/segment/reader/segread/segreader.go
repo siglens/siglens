@@ -173,7 +173,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
 	for keyIndex := range colsIndexMap {
 		if keyIndex >= len(mcsr.allFileReaders) {
-			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: keyIndex %v is out of bounds, len of allFileReaders: %v", keyIndex, len(mcsr.allFileReaders))
+			return nil
 		}
 
 		sfr := mcsr.allFileReaders[keyIndex]
