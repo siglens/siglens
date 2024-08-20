@@ -25,7 +25,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -239,16 +238,15 @@ func TestStarTree(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]uint32)
-	ss := &SegStore{
-		wipBlock:           wipBlock,
-		SegmentKey:         "test-segkey1",
-		AllSeenColumnSizes: allCols,
-		pqTracker:          initPQTracker(),
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:       make(map[string]struct{}),
-		AllSst:             segstats,
-		numBlocks:          0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
 
@@ -274,9 +272,14 @@ func TestStarTree(t *testing.T) {
 	groupByCols := []string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+	}
+
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols, mColNames)
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -326,16 +329,15 @@ func TestStarTreeMedium(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]uint32)
-	ss := &SegStore{
-		wipBlock:           wipBlock,
-		SegmentKey:         "test-segkey2",
-		AllSeenColumnSizes: allCols,
-		pqTracker:          initPQTracker(),
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:       make(map[string]struct{}),
-		AllSst:             segstats,
-		numBlocks:          0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey2"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -362,10 +364,15 @@ func TestStarTreeMedium(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+	}
+
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -416,16 +423,15 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	allCols := make(map[string]uint32)
 	segstats := make(map[string]*SegStats)
-	ss := &SegStore{
-		wipBlock:           wipBlock,
-		SegmentKey:         "test-segkey3",
-		AllSeenColumnSizes: allCols,
-		pqTracker:          initPQTracker(),
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:       make(map[string]struct{}),
-		AllSst:             segstats,
-		numBlocks:          0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -453,9 +459,14 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+	}
+
 	var builder StarTreeBuilder
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -505,16 +516,15 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	}
 	segstats := make(map[string]*SegStats)
 	allCols := make(map[string]uint32)
-	ss := &SegStore{
-		wipBlock:           wipBlock,
-		SegmentKey:         "test-segkey4",
-		AllSeenColumnSizes: allCols,
-		pqTracker:          initPQTracker(),
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:       make(map[string]struct{}),
-		AllSst:             segstats,
-		numBlocks:          0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey4"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
 
 	for i, test := range currCases {
@@ -541,10 +551,15 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+	}
+
 	var builder StarTreeBuilder
 
 	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root

@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -47,6 +46,8 @@ import (
 )
 
 var wipCardLimit uint16 = 1001
+
+const MaxDeEntries = 2002 // this should be atleast 2x of wipCardLimit
 
 const FPARM_INT64 = int64(0)
 const FPARM_UINT64 = uint64(0)
@@ -611,8 +612,11 @@ func backFillPastRecords(key string, val interface{}, recNum uint16, colBlooms m
 		recArr[i] = i
 	}
 	// we will also init dictEnc for backfilled recnums
-	colWip.deMap[string(VALTYPE_ENC_BACKFILL[:])] = recArr
-	colWip.deCount++
+	colWip.deData.deToRecnumIdx[string(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
+	colWip.deData.deHashToRecnumIdx[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
+	colWip.deData.deRecNums[colWip.deData.deCount] = recArr
+	colWip.deData.deCount++
+
 	return packedLen
 }
 
@@ -658,7 +662,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 	switch numType {
 	case SS_INT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_INT64[:])
-		copy(wipbuf[idx+1:], utils.Int64ToBytesLittleEndian(int64(intVal)))
+		utils.Int64ToBytesLittleEndianInplace(int64(intVal), wipbuf[idx+1:])
 		valSize = 1 + 8
 	case SS_UINT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_UINT64[:])
@@ -666,7 +670,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_FLOAT64[:])
-		copy(wipbuf[idx+1:], utils.Float64ToBytesLittleEndian(fltVal))
+		utils.Float64ToBytesLittleEndianInplace(fltVal, wipbuf[idx+1:])
 		valSize = 1 + 8
 	default:
 		log.Errorf("encJsonNumber: unknown numType: %v", numType)
@@ -889,16 +893,14 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			bb:                 bbp.Get(),
 			blockTs:            make([]uint64, 0),
 		}
-		segStore := &SegStore{
-			wipBlock:           wipBlock,
-			SegmentKey:         segkey,
-			AllSeenColumnSizes: allCols,
-			pqTracker:          initPQTracker(),
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
-			LastSegPqids:       make(map[string]struct{}),
-			AllSst:             segstats,
-			numBlocks:          currBlockUint,
-		}
+		segStore := NewSegStore(0)
+		segStore.wipBlock = wipBlock
+		segStore.SegmentKey = segkey
+		segStore.AllSeenColumnSizes = allCols
+		segStore.pqTracker = initPQTracker()
+		segStore.AllSst = segstats
+		segStore.numBlocks = currBlockUint
+
 		for i := 0; i < entryCount; i++ {
 			entry := make(map[string]interface{})
 			entry[cnames[0]] = "match words 123 abc"
@@ -993,16 +995,14 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			bb:                 bbp.Get(),
 			blockTs:            make([]uint64, 0),
 		}
-		segStore := &SegStore{
-			wipBlock:           wipBlock,
-			SegmentKey:         segkey,
-			AllSeenColumnSizes: allCols,
-			pqTracker:          initPQTracker(),
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
-			LastSegPqids:       make(map[string]struct{}),
-			AllSst:             segstats,
-			numBlocks:          currBlockUint,
-		}
+		segStore := NewSegStore(0)
+		segStore.wipBlock = wipBlock
+		segStore.SegmentKey = segkey
+		segStore.AllSeenColumnSizes = allCols
+		segStore.pqTracker = initPQTracker()
+		segStore.AllSst = segstats
+		segStore.numBlocks = currBlockUint
+
 		entries := []struct {
 			entry []byte
 		}{
@@ -1130,7 +1130,9 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 
 	idx += uint32(RI_BLK_LEN_SIZE)
 
-	blkRIBuf := make([]byte, RI_SIZE)
+	// 255 for key + 1 (type) + 8 (MinVal) + 8 (MaxVal)
+	riSizeEstimate := (255 + 17) * len(blockRangeIndex)
+	blkRIBuf := make([]byte, riSizeEstimate)
 
 	// copy the blockNum
 	copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
@@ -1141,7 +1143,7 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 
 	for key, item := range blockRangeIndex {
 		if len(blkRIBuf) < int(idx) {
-			newSlice := make([]byte, RI_SIZE)
+			newSlice := make([]byte, riSizeEstimate)
 			blkRIBuf = append(blkRIBuf, newSlice...)
 		}
 		copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(key))))
@@ -1223,7 +1225,9 @@ func addRollup(rrmap map[uint64]*RolledRecs, rolledTs uint64, lastRecNum uint16)
 
 func WriteMockTsRollup(t *testing.T, segkey string) error {
 
-	ss := &SegStore{suffix: 1, Lock: sync.Mutex{}, SegmentKey: segkey}
+	ss := NewSegStore(0)
+	ss.SegmentKey = segkey
+	ss.suffix = 1
 
 	wipBlock := createMockTsRollupWipBlock(t, segkey)
 	ss.wipBlock = *wipBlock
@@ -1364,14 +1368,20 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 }
 
 func checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16) {
-	if colWip.deCount < wipCardLimit {
-		recs, ok := colWip.deMap[string(cval)]
+	if colWip.deData.deCount < wipCardLimit {
+		cvalHash := xxhash.Sum64(cval)
+		recsIdx, ok := colWip.deData.deHashToRecnumIdx[cvalHash]
 		if !ok {
-			recs = make([]uint16, 0)
-			colWip.deCount += 1
+			recs := make([]uint16, 0)
+			deData := colWip.deData
+
+			deData.deToRecnumIdx[string(cval)] = colWip.deData.deCount
+			deData.deHashToRecnumIdx[cvalHash] = colWip.deData.deCount
+			deData.deRecNums[colWip.deData.deCount] = recs
+			recsIdx = deData.deCount
+			deData.deCount++
 		}
-		recs = append(recs, recNum)
-		colWip.deMap[string(cval)] = recs
+		colWip.deData.deRecNums[recsIdx] = append(colWip.deData.deRecNums[recsIdx], recNum)
 		// todo we optimize this code, by pre-allocing a fixed length of recs, keep an idx, then add it to recs
 		// advantages: 1) we avoid extending the array. 2) we avoid inserting in the map on every rec
 	}
@@ -1395,11 +1405,12 @@ func PackDictEnc(colWip *ColWip) {
 	colWip.cbufidx = 0
 	// reuse the existing cbuf
 	// copy num of dict words
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(colWip.deCount))
+	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
 	colWip.cbufidx += 2
 
-	for dword, recNumsArr := range colWip.deMap {
+	for dword, recIdx := range colWip.deData.deToRecnumIdx {
 
+		recNumsArr := colWip.deData.deRecNums[recIdx]
 		// copy the actual dict word , the TLV is packed inside the dword
 		copy(colWip.cbuf[colWip.cbufidx:], []byte(dword))
 		colWip.cbufidx += uint32(len(dword))

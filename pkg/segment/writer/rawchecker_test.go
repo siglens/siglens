@@ -30,7 +30,6 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -171,16 +170,14 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			todRollup:          make(map[uint64]*RolledRecs),
 			bb:                 bbp.Get(),
 		}
-		segstore := &SegStore{
-			wipBlock:           wipBlock,
-			SegmentKey:         "test-segkey",
-			AllSeenColumnSizes: allCols,
-			pqTracker:          initPQTracker(),
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
-			LastSegPqids:       make(map[string]struct{}),
-			AllSst:             segstats,
-			numBlocks:          0,
-		}
+		segstore := NewSegStore(0)
+		segstore.wipBlock = wipBlock
+		segstore.SegmentKey = "test-segkey"
+		segstore.AllSeenColumnSizes = allCols
+		segstore.pqTracker = initPQTracker()
+		segstore.AllSst = segstats
+		segstore.numBlocks = 0
+
 		ts := config.GetTimeStampKey()
 		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS)
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
