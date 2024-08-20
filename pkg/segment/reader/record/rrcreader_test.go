@@ -69,7 +69,7 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, &structs.QueryAggregators{})
+	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, &structs.QueryAggregators{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 
@@ -148,7 +148,7 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
 	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
 	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(aggNode.OutputTransforms.OutputColumns.IncludeColumns, "key0")
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode)
+	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 
@@ -212,7 +212,7 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
 	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
 	aggNode.OutputTransforms.OutputColumns.ExcludeColumns = append(aggNode.OutputTransforms.OutputColumns.ExcludeColumns, "key0")
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode)
+	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 

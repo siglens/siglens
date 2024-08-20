@@ -1913,7 +1913,7 @@ func Test_StatisticExpr(t *testing.T) {
 		ByClause:  []string{"app_name"},
 	}
 
-	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetGroupByCols())
+	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetFields())
 
 	bucketResult := &BucketResult{
 		ElemCount:   333,

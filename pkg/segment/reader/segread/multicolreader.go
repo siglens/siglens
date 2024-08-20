@@ -237,8 +237,7 @@ func (scr *SharedMultiColReaders) Close() {
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
 
 	if mcsr.timeReader == nil {
-		log.Errorf("qid=%v, MultiColSegmentReader.GetTimeStampForRecord: Tried to get timestamp using a multi reader without an initialized timeReader, blockNum: %v recordNum: %v", qid, blockNum, recordNum)
-		return 0, errors.New("uninitialized timerange reader")
+		return 0, fmt.Errorf("qid=%v, MultiColSegmentReader.GetTimeStampForRecord: Tried to get timestamp using a multi reader without an initialized timeReader, blockNum: %v recordNum: %v", qid, blockNum, recordNum)
 	}
 	return mcsr.timeReader.GetTimeStampForRecord(blockNum, recordNum, qid)
 }

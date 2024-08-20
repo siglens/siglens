@@ -19,12 +19,14 @@ package query
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -49,6 +51,67 @@ const (
 	freeText
 	random
 )
+
+func MigrateLookups(lookupFiles []string) error {
+
+	destDir := filepath.Join("../../data/lookups")
+	err := os.MkdirAll(destDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("MigrateLookups: Error creating destination directory: %v", err)
+	}
+
+	for _, lookupFile := range lookupFiles {
+		lookupSrcFile, err := os.Open(lookupFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error opening lookup file %v, err: %v", lookupFile, err)
+		}
+		defer lookupSrcFile.Close()
+
+		// Create the destination file
+		lookupDestPath := filepath.Join(destDir, filepath.Base(lookupFile))
+		lookupDestFile, err := os.Create(lookupDestPath)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer lookupDestFile.Close()
+
+		// Copy the contents
+		_, err = io.Copy(lookupDestFile, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error copying file %v, err: %v", lookupFile, err)
+		}
+
+		// Reset file position
+		_, err = lookupSrcFile.Seek(0, 0)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error resetting file position %v, err: %v", lookupFile, err)
+		}
+
+		// Create the destination gzip file
+		compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating compressed lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer compressedLookupDestFile.Close()
+
+		// Create a gzip writer
+		gzipWriter := gzip.NewWriter(compressedLookupDestFile)
+
+		// Copy the contents from source to gzip writer
+		_, err = io.Copy(gzipWriter, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error compressing file %v, err: %v", lookupDestPath, err)
+		}
+
+		// Close the gzip writer
+		err = gzipWriter.Close()
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error closing gzip writer %v err: %v", lookupDestPath, err)
+		}
+	}
+
+	return nil
+}
 
 func (q logsQueryTypes) String() string {
 	switch q {
