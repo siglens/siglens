@@ -40,8 +40,8 @@ import (
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
-	tsKey string, esQuery bool, qid uint64,
-	aggs *structs.QueryAggregators, colsIndexMap map[string]int, allColsInAggs map[string]struct{}) (map[string]map[string]interface{}, map[string]bool, error) {
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
+	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult) (map[string]map[string]interface{}, map[string]bool, error) {
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
@@ -169,7 +169,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			idx++
 		}
 		sort.Slice(allRecNums, func(i, j int) bool { return allRecNums[i] < allRecNums[j] })
-		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs)
+		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
 
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
@@ -208,7 +208,8 @@ func getMathOpsColMap(MathOps []*structs.MathEvaluator) map[string]int {
 }
 
 func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segread.MultiColSegmentReader,
-	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators) map[uint16]map[string]interface{} {
+	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	nodeRes *structs.NodeResult) map[uint16]map[string]interface{} {
 
 	results := make(map[uint16]map[string]interface{})
 
@@ -284,7 +285,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
-				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {

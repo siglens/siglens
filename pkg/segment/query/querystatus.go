@@ -405,7 +405,9 @@ func GetOrCreateQuerySearchNodeResult(qid uint64) (*structs.NodeResult, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.nodeResult == nil {
-		rQuery.nodeResult = &structs.NodeResult{}
+		rQuery.nodeResult = &structs.NodeResult{
+			GlobalSearchErrors: make(map[string]*structs.SearchErrorInfo),
+		}
 	}
 	return rQuery.nodeResult, nil
 }

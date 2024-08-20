@@ -202,6 +202,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		},
 	}
 	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	nodeRes := &structs.NodeResult{}
 	for _, rrc := range result.AllRecords {
 
 		blkRecIndexes := make(map[uint16]map[uint16]uint64)
@@ -209,7 +210,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		recIdxs[rrc.RecordNum] = 1
 		blkRecIndexes[rrc.BlockNum] = recIdxs
 		segkey := result.SegEncToKey[rrc.SegKeyInfo.SegKeyEnc]
-		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int), nil)
+		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int), nil, nodeRes)
 		assert.Nil(t, err)
 
 		log.Info(records)
