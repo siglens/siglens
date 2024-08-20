@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -358,6 +359,8 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 			if bi != nil {
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyName)))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyVal)))
 			}
 			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb, nil, false, false)
 			if colWip.cbufidx > maxIdx {
@@ -466,6 +469,7 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(value))
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(value)))
 	}
 	if !ss.skipDe {
 		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
