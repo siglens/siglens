@@ -276,7 +276,7 @@ func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterO
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	isRegexSearch bool) (bool, error) {
 
-	var sOff uint16 = 3
+	const sOff uint16 = 3
 	switch fop {
 	case Equals:
 		if isRegexSearch {
