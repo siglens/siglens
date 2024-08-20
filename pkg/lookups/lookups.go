@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -162,4 +163,53 @@ func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Error writing response", fasthttp.StatusInternalServerError)
 		return
 	}
+}
+
+func GetLookupFile(ctx *fasthttp.RequestCtx) {
+	lookupFilename := utils.ExtractParamAsString(ctx.UserValue("lookupFilename"))
+
+	lookupsDir := config.GetLookupPath()
+	filePath := filepath.Join(lookupsDir, lookupFilename)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ctx.Error("File not found", fasthttp.StatusNotFound)
+		} else {
+			utils.SendInternalError(ctx, "Error while opening the file", "", err)
+		}
+		return
+	}
+	defer file.Close()
+
+	ctx.Response.Header.Set("Content-Type", "text/csv")
+
+	_, err = io.Copy(ctx, file)
+	if err != nil {
+		utils.SendInternalError(ctx, "Error while copying the file", "", err)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func DeleteLookupFile(ctx *fasthttp.RequestCtx) {
+	lookupFilename := utils.ExtractParamAsString(ctx.UserValue("lookupFilename"))
+
+	lookupsDir := config.GetLookupPath()
+	filePath := filepath.Join(lookupsDir, lookupFilename)
+
+	err := os.Remove(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ctx.Error("File not found", fasthttp.StatusNotFound)
+		} else {
+			utils.SendInternalError(ctx, "Error while deleting the file", "", err)
+		}
+		return
+	}
+
+	response := "Lookup file deleted successfully"
+	utils.WriteJsonResponse(ctx, response)
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }

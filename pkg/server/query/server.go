@@ -251,6 +251,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	hs.Router.POST(server_utils.API_PREFIX+"/lookup-upload", hs.Recovery(uploadLookupFileHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/lookup-files", hs.Recovery(getAllLookupFilesHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(getLookupFileHandler()))
+	hs.Router.DELETE(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(deleteLookupFileHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
 	if config.IsDebugMode() {
