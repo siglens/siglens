@@ -229,6 +229,8 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	streams := jsonData["streams"]
 	allIngestData := make(map[string]interface{})
 
+	idxToStreamIdCache := make(map[string]string)
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
 		ingestCommonFields := parseLabels(labels)
@@ -271,7 +273,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */)
+				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache)
 				if err != nil {
 					utils.SendError(ctx, "Failed to ingest record", "", err)
 					return
@@ -291,13 +293,13 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 //	{
 //	 "streams": [
 //	   {
-//	     "stream": {
-//	       "label": "value"
-//	     },
-//	     "values": [
-//	         [ "<unix epoch in nanoseconds>", "<log line>"],
-//	         [ "<unix epoch in nanoseconds>", "<log line>", {"trace_id": "0242ac120002", "user_id": "superUser123"}]
-//	     ]
+//		 "stream": {
+//		   "label": "value"
+//		 },
+//		 "values": [
+//			 [ "<unix epoch in nanoseconds>", "<log line>"],
+//			 [ "<unix epoch in nanoseconds>", "<log line>", {"trace_id": "0242ac120002", "user_id": "superUser123"}]
+//		 ]
 //	   }
 //	 ]
 //	}
@@ -330,6 +332,8 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	localIndexMap := make(map[string]string)
+
+	idxToStreamIdCache := make(map[string]string)
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})
@@ -376,7 +380,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0)
+			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache)
 			if err != nil {
 				utils.SendError(ctx, "Failed to ingest record", "", err)
 				return
@@ -581,7 +585,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 
 	if len(queryResult.MeasureResults) > 0 {
 		lokiMetricsResponse := getMetricsResponse(queryResult)
@@ -671,7 +675,7 @@ func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qc := structs.InitQueryContextWithTableInfo(ti, rutils.DefaultBucketCount, 0, myid, false)
 
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		writeEmptyIndexStatsResponse(ctx)
 		return
@@ -729,7 +733,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, DefaultLimit, 0, myid, false)
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get matching records", "", err)
 		return

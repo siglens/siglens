@@ -57,6 +57,11 @@ import (
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
+const MaxConcurrentAgileTrees = 5
+
+var currentAgileTreeCount int
+var atreeCounterLock sync.Mutex = sync.Mutex{}
+
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -85,6 +90,8 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	stbDictEncWorkBuf  [][]string
+	segStatsWorkBuf    []byte
 	SegmentErrors      map[string]*structs.SearchErrorInfo
 }
 
@@ -95,52 +102,10 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
-func InitSegStore(
-	segmentKey string,
-	segbaseDir string,
-	suffix uint64,
-	virtualTableName string,
-	skipDe bool,
-	orgId uint64,
-	usingSegTree bool,
-	highTs uint64,
-	lowTs uint64,
-) *SegStore {
-	now := time.Now()
-	ss := SegStore{
+func NewSegStore(orgId uint64) *SegStore {
+	segstore := &SegStore{
 		Lock:              sync.Mutex{},
 		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        segmentKey,
-		segbaseDir:        segbaseDir,
-		suffix:            suffix,
-		lastUpdated:       now,
-		VirtualTableName:  virtualTableName,
-		AllSeenColumns:    make(map[string]bool),
-		pqTracker:         initPQTracker(),
-		pqMatches:         make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:      make(map[string]struct{}),
-		skipDe:            skipDe,
-		timeCreated:       now,
-		AllSst:            make(map[string]*structs.SegStats),
-		usingSegTree:      usingSegTree,
-		OrgId:             orgId,
-		firstTime:         true,
-	}
-
-	ss.initWipBlock()
-	ss.wipBlock.blockSummary.HighTs = highTs
-	ss.wipBlock.blockSummary.LowTs = lowTs
-
-	return &ss
-}
-
-func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
-	segstore := &SegStore{
-		pqNonEmptyResults: make(map[string]bool),
-		SegmentKey:        fmt.Sprintf("%s%d", baseDir, suffix),
-		segbaseDir:        baseDir,
-		suffix:            suffix,
-		VirtualTableName:  virtualTableName,
 		AllSeenColumns:    make(map[string]bool),
 		pqTracker:         initPQTracker(),
 		pqMatches:         make(map[string]*pqmr.PQMatchResults),
@@ -149,9 +114,9 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 		AllSst:            make(map[string]*structs.SegStats),
 		OrgId:             orgId,
 		firstTime:         true,
+		stbDictEncWorkBuf: make([][]string, 0),
+		segStatsWorkBuf:   make([]byte, utils.WIP_SIZE),
 	}
-
-	segstore.initWipBlock()
 
 	return segstore
 }
@@ -203,10 +168,16 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			cwip.deCount = 0
-			for dword := range cwip.deMap {
-				delete(cwip.deMap, dword)
+			for dword := range cwip.deData.deToRecnumIdx {
+				delete(cwip.deData.deToRecnumIdx, dword)
 			}
+			for cvalHash := range cwip.deData.deHashToRecnumIdx {
+				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			}
+			for idx := range cwip.deData.deRecNums {
+				cwip.deData.deRecNums[idx] = nil
+			}
+			cwip.deData.deCount = 0
 		}
 	}
 
@@ -539,7 +510,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							return
 						}
 						_ = segstore.writeWipTsRollups(cname)
-					} else if colWip.deCount > 0 && colWip.deCount < wipCardLimit {
+					} else if colWip.deData.deCount > 0 && colWip.deData.deCount < wipCardLimit {
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
@@ -695,6 +666,19 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
+
+		if config.IsAggregationsEnabled() && segstore.usingSegTree {
+			nc := segstore.sbuilder.GetNodeCount()
+			cnc := segstore.sbuilder.GetEachColNodeCount()
+			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
+				nc, cnc)
+
+			// give back the tree
+			atreeCounterLock.Lock()
+			currentAgileTreeCount--
+			atreeCounterLock.Unlock()
+		}
+
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
@@ -813,12 +797,29 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
+func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
+
+	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
+		_, ok := segstore.AllSst[cname]
+		if !ok {
+			// if we can't find the column then drop this col from atree
+			return cname, true, 0
+		}
+
+		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		if colCardinalityEstimate > uint64(wipCardLimit) {
+			return cname, true, colCardinalityEstimate
+		}
+	}
+	return "", false, 0
+}
+
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 
 	gcols, inMesCols := querytracker.GetTopPersistentAggs(segstore.VirtualTableName)
 	sortedGrpCols := make([]string, 0)
-	gcMap := make(map[string]uint32) // use it to sort based on cardinality
-	for _, cname := range gcols {
+	grpColsCardinality := make(map[string]uint32) // use it to sort based on cardinality
+	for cname := range gcols {
 
 		// verify if cname exist in wip
 		_, ok := segstore.wipBlock.colWips[cname]
@@ -831,13 +832,24 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
-		gcMap[cname] = cest
+		// If this is the first seg after restart, we will not have the
+		// AllSst hll estimates, so check this first wip's card and skip accordingly
+		if segstore.wipBlock.colWips[cname].deData.deCount >= wipCardLimit {
+			continue
+		}
+
+		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+
+		if colCardinalityEstimate > uint64(wipCardLimit) {
+			continue
+		}
+
+		grpColsCardinality[cname] = uint32(colCardinalityEstimate)
 		sortedGrpCols = append(sortedGrpCols, cname)
 	}
 
 	sort.Slice(sortedGrpCols, func(i, j int) bool {
-		return gcMap[sortedGrpCols[i]] < gcMap[sortedGrpCols[j]]
+		return grpColsCardinality[sortedGrpCols[i]] < grpColsCardinality[sortedGrpCols[j]]
 	})
 
 	mCols := make([]string, 0)
@@ -863,12 +875,55 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.usingSegTree = false
 			return
 		}
+
+		hasTreeSpace := false
+		atreeCounterLock.Lock()
+		if currentAgileTreeCount < MaxConcurrentAgileTrees {
+			// for now the first MaxConcurrentAgileTrees segstores will get to AgileTree but
+			// we should add some smart logic on how we can rotate this
+			// amongst other indices/segstores
+			currentAgileTreeCount++
+			hasTreeSpace = true
+		}
+		atreeCounterLock.Unlock()
+		if !hasTreeSpace {
+			segstore.usingSegTree = false
+			return
+		}
+
 		segstore.usingSegTree = true
-		segstore.sbuilder.ResetSegTree(&segstore.wipBlock, sortedGrpCols, mCols)
+		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
+		if sizeToAdd > 0 {
+			newArr := make([][]string, sizeToAdd)
+			segstore.stbDictEncWorkBuf = append(segstore.stbDictEncWorkBuf, newArr...)
+		}
+		for colNum := 0; colNum < len(sortedGrpCols); colNum++ {
+			// Make the array twice the cols cardinality we allow because
+			// on the second block our HLL estimate may be still off
+			if len(segstore.stbDictEncWorkBuf[colNum]) < int(MaxDeEntries) {
+				segstore.stbDictEncWorkBuf[colNum] = make([]string, MaxDeEntries)
+			}
+		}
+
+		segstore.sbuilder.ResetSegTree(sortedGrpCols, mCols,
+			segstore.stbDictEncWorkBuf)
 	}
 
 	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
 		return
+	}
+
+	if segstore.numBlocks != 0 {
+		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
+		if found {
+			// todo when we implement dropping of columns from atree,
+			// drop the column here and remove the dropping of segtree
+			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
+				cname, cardinality, segstore.numBlocks)
+			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
+			segstore.usingSegTree = false
+			return
+		}
 	}
 
 	err := segstore.sbuilder.ComputeStarTree(&segstore.wipBlock)
@@ -1334,7 +1389,6 @@ func (ss *SegStore) FlushSegStats() error {
 		return err
 	}
 
-	buf := make([]byte, utils.WIP_SIZE)
 	for cname, sst := range ss.AllSst {
 
 		// cname len
@@ -1351,7 +1405,7 @@ func (ss *SegStore) FlushSegStats() error {
 			return err
 		}
 
-		idx, err := writeSstToBuf(sst, buf)
+		idx, err := writeSstToBuf(sst, ss.segStatsWorkBuf)
 		if err != nil {
 			log.Errorf("FlushSegStats: error writing to buf err=%v", err)
 			return err
@@ -1365,7 +1419,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencoding
-		_, err = fd.Write(buf[0:idx])
+		_, err = fd.Write(ss.segStatsWorkBuf[0:idx])
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err

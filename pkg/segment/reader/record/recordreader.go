@@ -41,7 +41,7 @@ import (
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64,
-	aggs *structs.QueryAggregators, colsIndexMap map[string]int) (map[string]map[string]interface{}, map[string]bool, error) {
+	aggs *structs.QueryAggregators, colsIndexMap map[string]int, allColsInAggs map[string]struct{}) (map[string]map[string]interface{}, map[string]bool, error) {
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
@@ -56,6 +56,14 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			log.Errorf("GetRecordsFromSegment: failed to get column for key: %s, table %s", segKey, vTable)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
+	}
+
+	// if len(allColsInAggs) > 0, then we need to intersect the allCols with allColsInAggs
+	// this is because we only need to read the columns that are present in the aggregators.
+	// if len(allColsInAggs) == 0, then we ignore this step, as this would mean that the
+	// query does not have a stats block, and we need to read all columns.
+	if len(allColsInAggs) > 0 {
+		allCols = toputils.IntersectionWithFirstMapValues(allCols, allColsInAggs)
 	}
 	allCols = applyColNameTransform(allCols, aggs, colsIndexMap, qid)
 	numOpenFds := int64(len(allCols))

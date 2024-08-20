@@ -209,7 +209,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		recIdxs[rrc.RecordNum] = 1
 		blkRecIndexes[rrc.BlockNum] = recIdxs
 		segkey := result.SegEncToKey[rrc.SegKeyInfo.SegKeyEnc]
-		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int))
+		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int), nil)
 		assert.Nil(t, err)
 
 		log.Info(records)
@@ -1314,13 +1314,13 @@ func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileC
 		case query.RUNNING:
 			sawRunning = true
 		case query.QUERY_UPDATE:
-			rrcs, qc, _, err = query.GetRawRecordInfoForQid(scroll, qid)
+			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
 			assert.Nil(t, err)
 			buckets, _ = query.GetBucketsForQid(qid)
 			sawQueryUpdate = true
 		case query.COMPLETE:
 			sawRRCComplete = true
-			rrcs, qc, _, err = query.GetRawRecordInfoForQid(scroll, qid)
+			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
 			buckets, _ = query.GetBucketsForQid(qid)
 			assert.Nil(t, err)
 			sawExit = true

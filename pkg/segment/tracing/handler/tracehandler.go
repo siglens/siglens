@@ -423,6 +423,8 @@ func ProcessRedTracesIngest() {
 		serviceToSpanDuration[entrySpan.Service] = durationList
 	}
 
+	idxToStreamIdCache := make(map[string]string)
+
 	// Map from the service name to the RED metrics
 	for service, spanCnt := range serviceToSpanCnt {
 
@@ -465,7 +467,7 @@ func ProcessRedTracesIngest() {
 		orgId := uint64(0)
 
 		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */)
+		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
@@ -568,8 +570,10 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
 
+	idxToStreamIdCache := make(map[string]string)
+
 	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */)
+	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 

@@ -79,16 +79,29 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 	}
 
 	dstPath := filepath.Join(fullLookupsDir, fileName)
-	if _, err := os.Stat(dstPath); !os.IsNotExist(err) {
+
+	// Check if file exists and handle overwrite
+	fileExists := false
+	if _, err := os.Stat(dstPath); err == nil {
+		fileExists = true
+	}
+
+	overwrite := string(ctx.FormValue("overwrite")) == "true"
+	if fileExists && !overwrite {
 		log.Errorf("UploadLookupFile: File already exists: %s", fileName)
 		ctx.Error("A file with the same name already exists", fasthttp.StatusConflict)
 		return
 	}
 
-	dst, err := os.Create(dstPath)
+	var dst *os.File
+	if overwrite {
+		dst, err = os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	} else {
+		dst, err = os.Create(dstPath)
+	}
 	if err != nil {
-		log.Errorf("UploadLookupFile: Error creating the destination file: %v", err)
-		ctx.Error("Error creating the destination file", fasthttp.StatusInternalServerError)
+		log.Errorf("UploadLookupFile: Error creating/opening the destination file: %v", err)
+		ctx.Error("Error creating/opening the destination file", fasthttp.StatusInternalServerError)
 		return
 	}
 	defer dst.Close()

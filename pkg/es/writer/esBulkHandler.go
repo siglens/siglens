@@ -54,6 +54,15 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
+var resp_status_201 map[string]interface{}
+
+func init() {
+	resp_status_201 = make(map[string]interface{})
+	statusbody := make(map[string]interface{})
+	statusbody["status"] = 201
+	resp_status_201["index"] = statusbody
+}
+
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
@@ -112,11 +121,20 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	var bytesReceived int
 	// store all request index
-	var items = make([]interface{}, 0)
+	itemsLen := 1000
+	var items = make([]interface{}, itemsLen)
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
+
+	idxToStreamIdCache := make(map[string]string)
 	for scanner.Scan() {
 		inCount++
+		if inCount >= itemsLen {
+			newArr := make([]interface{}, 1000)
+			items = append(items, newArr...)
+			itemsLen += 1000
+		}
+
 		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
 		switch esAction {
 
@@ -152,7 +170,8 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid, rid)
+					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
+						false, localIndexMap, myid, rid, idxToStreamIdCache)
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
@@ -170,15 +189,15 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			success = false
 		}
 
-		responsebody := make(map[string]interface{})
 		if !success {
+			responsebody := make(map[string]interface{})
 			if maxRecordSizeExceeded {
 				error_response := utils.BulkErrorResponse{
 					ErrorResponse: *utils.NewBulkErrorResponseInfo("request entity too large", "request_entity_exception"),
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 413
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			} else {
 				overallError = true
 				error_response := utils.BulkErrorResponse{
@@ -186,21 +205,18 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 400
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			}
 		} else {
 			atleastOneSuccess = true
-			statusbody := make(map[string]interface{})
-			statusbody["status"] = 201
-			responsebody["index"] = statusbody
-			items = append(items, responsebody)
+			items[inCount-1] = resp_status_201
 		}
 	}
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
-	response["items"] = items
+	response["items"] = items[0:inCount]
 
 	if atleastOneSuccess {
 		return processedCount, response, nil
@@ -279,7 +295,8 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 }
 
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64, rid uint64) error {
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
+	rid uint64, idxToStreamIdCache map[string]string) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -296,7 +313,14 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	if ts_millis == 0 {
 		ts_millis = tsNow
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	var streamid string
+	var ok bool
+	streamid, ok = idxToStreamIdCache[indexNameConverted]
+	if !ok {
+		streamid = utils.CreateStreamId(indexNameConverted, myid)
+		idxToStreamIdCache[indexNameConverted] = streamid
+	}
 
 	// TODO: we used to add _index in the json_source doc, since it is needed during
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
