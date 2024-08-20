@@ -372,10 +372,12 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
 
 	aggsSortColKeyIdx := int(-1)
+	colsToReadIndices := make(map[int]struct{})
 	if aggs != nil && aggs.Sort != nil {
 		colKeyIdx, ok := multiReader.GetColKeyIndex(aggs.Sort.ColName)
 		if ok {
 			aggsSortColKeyIdx = colKeyIdx
+			colsToReadIndices[colKeyIdx] = struct{}{}
 		}
 	}
 
@@ -412,6 +414,12 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 			log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get timestamps for block %d. Number of read ts blocks %+v, segkey=%v", qid, blockNum, len(allTimestamps), req.SegmentKey)
 			continue
 		}
+		err := multiReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
+		if err != nil {
+			log.Errorf("qid=%d, rawSearchSingleSPQMR: failed to validate and read sort column: %v for block %d, err: %v", qid, aggs.Sort.ColName, blockNum, err)
+			continue
+		}
+
 		isBlkFullyEncosed := tRange.AreTimesFullyEnclosed(blkSum.LowTs, blkSum.HighTs)
 		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs, false) {
 			for recNum := uint(0); recNum < numRecsInBlock; recNum++ {

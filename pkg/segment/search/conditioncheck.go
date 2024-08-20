@@ -29,6 +29,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func GetRequiredColsForSearchQuery(multiColReader *segread.MultiColSegmentReader, sq *SearchQuery, cmiPassedNonDictColKeyIndices map[int]struct{}, queryInfoColKeyIndex int) (map[int]struct{}, error) {
+	colsToReadIndices := make(map[int]struct{})
+
+	switch sq.SearchType {
+	case MatchAll:
+		return colsToReadIndices, nil
+	case MatchWords, SimpleExpression, RegexExpression, MatchDictArraySingleColumn:
+		colsToReadIndices[queryInfoColKeyIndex] = struct{}{}
+	case MatchWordsAllColumns, SimpleExpressionAllColumns, RegexExpressionAllColumns, MatchDictArrayAllColumns:
+		for colIndex := range cmiPassedNonDictColKeyIndices {
+			colsToReadIndices[colIndex] = struct{}{}
+		}
+	default:
+		return nil, fmt.Errorf("getRequiredColsForSearchQuery: unsupported query type! %+v", sq.SearchType)
+	}
+	return colsToReadIndices, nil
+}
+
 // TODO: support for complex expressions
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,

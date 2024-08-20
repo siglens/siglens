@@ -403,6 +403,22 @@ func (self *DedupExpr) ReleaseProcessedSegmentsLock() {
 	self.processedSegmentsLock.Unlock()
 }
 
+func (self *DedupExpr) GetFields() []string {
+	return append(self.FieldList, GetFieldsFromSortElements(self.DedupSortEles)...)
+}
+
+func (self *SortExpr) GetFields() []string {
+	return GetFieldsFromSortElements(self.SortEles)
+}
+
+func GetFieldsFromSortElements(sortEles []*SortElement) []string {
+	fields := []string{}
+	for _, sortEle := range sortEles {
+		fields = append(fields, sortEle.Field)
+	}
+	return fields
+}
+
 func (self *SortExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
 }
@@ -1380,7 +1396,7 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 
 // Only display fields which in StatisticExpr
 func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *BucketResult) error {
-	groupByCols := self.GetGroupByCols()
+	groupByCols := self.GetFields()
 	groupByKeys := make([]string, 0)
 	bucketKey := make([]string, 0)
 	switch bucketResult.BucketKey.(type) {
@@ -1450,7 +1466,7 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 	return nil
 }
 
-func (self *StatisticExpr) GetGroupByCols() []string {
+func (self *StatisticExpr) GetFields() []string {
 	return append(self.FieldList, self.ByClause...)
 }
 

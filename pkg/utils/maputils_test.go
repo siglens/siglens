@@ -18,7 +18,7 @@
 package utils
 
 import (
-	"sort"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +45,89 @@ func Test_MapToSet(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func Test_ConvertToSetFromMap(t *testing.T) {
+	set := make(map[string]struct{})
+	sourceMap := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+
+	AddMapKeysToSet(set, sourceMap)
+
+	expectedSet := map[string]struct{}{
+		"a": {},
+		"b": {},
+		"c": {},
+	}
+
+	if !reflect.DeepEqual(set, expectedSet) {
+		t.Errorf("Expected %v, got %v", expectedSet, set)
+	}
+}
+
+func Test_ConvertToSetFromSlice(t *testing.T) {
+	set := make(map[string]struct{})
+	sourceSlice := []string{"x", "y", "z"}
+
+	AddSliceToSet(set, sourceSlice)
+
+	expectedSet := map[string]struct{}{
+		"x": {},
+		"y": {},
+		"z": {},
+	}
+
+	if !reflect.DeepEqual(set, expectedSet) {
+		t.Errorf("Expected %v, got %v", expectedSet, set)
+	}
+}
+
+// Test case: Both maps have common keys
+func Test_IntersectionWithCommonKeys(t *testing.T) {
+	map1 := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	map2 := map[string]bool{
+		"b": true,
+		"c": false,
+		"d": true,
+	}
+
+	expected := map[string]int{
+		"b": 2,
+		"c": 3,
+	}
+
+	result := IntersectionWithFirstMapValues(map1, map2)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Expected %v, got %v", expected, result)
+	}
+}
+
+// Test case: No common keys between the maps
+func Test_IntersectionWithNoCommonKeys(t *testing.T) {
+	map1 := map[string]int{
+		"a": 1,
+		"b": 2,
+	}
+	map2 := map[string]bool{
+		"c": true,
+		"d": false,
+	}
+
+	expected := map[string]int{}
+
+	result := IntersectionWithFirstMapValues(map1, map2)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Expected %v, got %v", expected, result)
+	}
+}
+
 func Test_SetDifference(t *testing.T) {
 	set1 := map[string]struct{}{
 		"key1": {},
@@ -56,8 +139,7 @@ func Test_SetDifference(t *testing.T) {
 	addedEntries, removedEntries := SetDifference(set1, set2)
 	assert.Equal(t, 2, len(addedEntries))
 	assert.Equal(t, 0, len(removedEntries))
-	sort.Strings(removedEntries)
-	assert.True(t, CompareStringSlices([]string{"key1", "key2"}, addedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, addedEntries)
 
 	set1["key3"] = struct{}{}
 	set2["key1"] = struct{}{}
@@ -66,17 +148,16 @@ func Test_SetDifference(t *testing.T) {
 	addedEntries, removedEntries = SetDifference(set1, set2)
 	assert.Equal(t, 1, len(addedEntries))
 	assert.Equal(t, 0, len(removedEntries))
-	assert.True(t, CompareStringSlices([]string{"key3"}, addedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, addedEntries)
 
 	addedEntries, removedEntries = SetDifference(set2, set1)
 	assert.Equal(t, 0, len(addedEntries))
 	assert.Equal(t, 1, len(removedEntries))
-	assert.True(t, CompareStringSlices([]string{"key3"}, removedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, removedEntries)
 
 	set1 = map[string]struct{}{}
 	addedEntries, removedEntries = SetDifference(set1, set2)
 	assert.Equal(t, 0, len(addedEntries))
 	assert.Equal(t, 2, len(removedEntries))
-	sort.Strings(removedEntries)
-	assert.True(t, CompareStringSlices([]string{"key1", "key2"}, removedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, removedEntries)
 }

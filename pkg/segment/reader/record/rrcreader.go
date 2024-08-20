@@ -185,7 +185,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+	segEncToKey map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
 	nodeRes := GetOrCreateNodeRes(qid)
@@ -206,8 +206,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
-			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap, nodeRes)
+			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes, config.GetTimeStampKey(),
+				esResponse, qid, aggs, colsIndexMap, allColsInAggs, nodeRes)
 			if err != nil {
 				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return

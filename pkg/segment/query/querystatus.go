@@ -106,6 +106,7 @@ type RunningQueryState struct {
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
+	AllColsInAggs            map[string]struct{}
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -453,6 +454,36 @@ func SetFinalStatsForQid(qid uint64, nodeResult *structs.NodeResult) error {
 	return rQuery.searchRes.SetFinalStatsFromNodeResult(nodeResult)
 }
 
+func SetAllColsInAggsForQid(qid uint64, allCols map[string]struct{}) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("SetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.AllColsInAggs = allCols
+	rQuery.rqsLock.Unlock()
+}
+
+func GetAllColsInAggsForQid(qid uint64) (map[string]struct{}, error) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("GetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return nil, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.AllColsInAggs, nil
+}
+
 // gets the measure results for the running query.
 // if the query is segment stats, it will delete the input segkeyenc
 func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit int) ([]*structs.BucketHolder, []string, []string, []string, int) {
@@ -556,31 +587,31 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 }
 
 // returns the rrcs, query counts, map of segkey encoding, and errors
-func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, error) {
+func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, map[string]struct{}, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("GetRawRecordInforForQid: qid %+v does not exist!", qid)
-		return nil, 0, nil, fmt.Errorf("qid does not exist")
+		return nil, 0, nil, nil, fmt.Errorf("qid does not exist")
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 
 	if len(rQuery.rawRecords) <= scroll {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 	skCopy := make(map[uint16]string, len(rQuery.searchRes.SegEncToKey))
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
-	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, nil
+	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, rQuery.AllColsInAggs, nil
 }
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
