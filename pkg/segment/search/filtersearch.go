@@ -213,6 +213,20 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			}
 		}
 
+		colsToReadIndices, err := GetRequiredColsForSearchQuery(multiColReader, query, cmiPassedNonDictColKeyIndices, queryInfoColKeyIndex)
+		if err != nil {
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to get required cols for search query. err: %v", qid, err)
+			allSearchResults.AddError(err)
+			return
+		}
+
+		err = multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
+		if err != nil {
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to validate and read block: %d, err: %v", qid, blockNum, err)
+			allSearchResults.AddError(err)
+			return
+		}
+
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,

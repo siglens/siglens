@@ -30,7 +30,6 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -164,7 +163,6 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			columnBlooms:       make(map[string]*BloomIndex),
 			columnRangeIndexes: make(map[string]*RangeIndex),
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     make(map[string]bool),
 			blockSummary:       blockSummary,
 			tomRollup:          make(map[uint64]*RolledRecs),
@@ -172,14 +170,14 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			todRollup:          make(map[uint64]*RolledRecs),
 			bb:                 bbp.Get(),
 		}
-		segstore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     "test-segkey",
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      0,
-		}
+		segstore := NewSegStore(0)
+		segstore.wipBlock = wipBlock
+		segstore.SegmentKey = "test-segkey"
+		segstore.AllSeenColumns = allCols
+		segstore.pqTracker = initPQTracker()
+		segstore.AllSst = segstats
+		segstore.numBlocks = 0
+
 		ts := config.GetTimeStampKey()
 		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS)
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))

@@ -43,3 +43,37 @@ func Test_MapToSet(t *testing.T) {
 	_, ok = set["key3"]
 	assert.True(t, ok)
 }
+
+func Test_SetDifference(t *testing.T) {
+	set1 := map[string]struct{}{
+		"key1": {},
+		"key2": {},
+	}
+
+	set2 := map[string]struct{}{}
+
+	addedEntries, removedEntries := SetDifference(set1, set2)
+	assert.Equal(t, 2, len(addedEntries))
+	assert.Equal(t, 0, len(removedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, addedEntries)
+
+	set1["key3"] = struct{}{}
+	set2["key1"] = struct{}{}
+	set2["key2"] = struct{}{}
+
+	addedEntries, removedEntries = SetDifference(set1, set2)
+	assert.Equal(t, 1, len(addedEntries))
+	assert.Equal(t, 0, len(removedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, addedEntries)
+
+	addedEntries, removedEntries = SetDifference(set2, set1)
+	assert.Equal(t, 0, len(addedEntries))
+	assert.Equal(t, 1, len(removedEntries))
+	assert.ElementsMatch(t, []string{"key3"}, removedEntries)
+
+	set1 = map[string]struct{}{}
+	addedEntries, removedEntries = SetDifference(set1, set2)
+	assert.Equal(t, 0, len(addedEntries))
+	assert.Equal(t, 2, len(removedEntries))
+	assert.ElementsMatch(t, []string{"key1", "key2"}, removedEntries)
+}
