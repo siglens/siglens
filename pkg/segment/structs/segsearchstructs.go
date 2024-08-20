@@ -119,15 +119,16 @@ type BlockMetadataHolder struct {
 
 // a struct for raw search to apply search on specific blocks within a file
 type SegmentSearchRequest struct {
-	SegmentKey         string
-	SearchMetadata     *SearchMetadataHolder
-	AllBlocksToSearch  map[uint16]*BlockMetadataHolder // maps all blocks needed to search to the BlockMetadataHolder needed to read
-	VirtualTableName   string
-	AllPossibleColumns map[string]bool // all possible columns for the segKey
-	LatestEpochMS      uint64          // latest epoch time - used for query planning
-	SType              SegType
-	CmiPassedCnames    map[uint16]map[string]bool // maps blkNum -> colName -> true that have passed the cmi check
-	HasMatchedRrc      bool                       // flag to denote matches, so that we decide whether to send a websocket update
+	SegmentKey           string
+	SearchMetadata       *SearchMetadataHolder
+	AllBlocksToSearch    map[uint16]*BlockMetadataHolder // maps all blocks needed to search to the BlockMetadataHolder needed to read
+	VirtualTableName     string
+	AllPossibleColumns   map[string]bool // all possible columns for the segKey
+	LatestEpochMS        uint64          // latest epoch time - used for query planning
+	SType                SegType
+	CmiPassedCnames      map[uint16]map[string]bool // maps blkNum -> colName -> true that have passed the cmi check
+	HasMatchedRrc        bool                       // flag to denote matches, so that we decide whether to send a websocket update
+	ConsistentCValLenMap map[string]uint32          // map of column name to consistent column value length
 }
 
 // a holder struct for holding a cmi for a single block. Based on CmiType, either Bf or Ranges will be defined

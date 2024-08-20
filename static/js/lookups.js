@@ -68,7 +68,7 @@ function displayLookupFiles(data) {
     gridOptions.api.sizeColumnsToFit();
 }
 
-$('#upload-btn').on('click', function () {
+function uploadFile(overwrite = false) {
     const name = $('#db-name').val();
     const fileInput = $('#file-input')[0];
 
@@ -86,6 +86,7 @@ $('#upload-btn').on('click', function () {
     const formData = new FormData();
     formData.append('name', name);
     formData.append('file', file);
+    formData.append('overwrite', overwrite);
 
     $.ajax({
         url: '/api/lookup-upload',
@@ -95,7 +96,7 @@ $('#upload-btn').on('click', function () {
         contentType: false,
         success: function () {
             showToast('File uploaded successfully.', 'success');
-            $('.popupOverlay, #upload-lookup-file').removeClass('active');
+            $('.popupOverlay, #upload-lookup-file, #overwrite-confirmation').removeClass('active');
             $('#db-name').val('');
             $('#file-input').val('');
 
@@ -103,9 +104,29 @@ $('#upload-btn').on('click', function () {
             fetchLookupFiles();
         },
         error: function (xhr) {
-            showToast(`Error uploading file: ${xhr.responseText}`);
+            if (xhr.status === 409 && !overwrite) {
+                // File already exists, show confirmation dialog
+                $('#existing-file-name').text(name);
+                $('.popupOverlay, #overwrite-confirmation').addClass('active');
+                $('#upload-lookup-file').removeClass('active');
+            } else {
+                showToast(`Error uploading file: ${xhr.responseText}`);
+            }
         },
     });
+}
+
+$('#upload-btn').on('click', function () {
+    uploadFile(false);
+});
+
+$('#confirm-overwrite-btn').on('click', function () {
+    uploadFile(true);
+});
+
+$('#cancel-overwrite-btn').on('click', function () {
+    $('#overwrite-confirmation').removeClass('active');
+    $('#upload-lookup-file').addClass('active');
 });
 
 $('#new-lookup-file').on('click', function () {

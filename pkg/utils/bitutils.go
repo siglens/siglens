@@ -43,6 +43,26 @@ func BytesToBoolLittleEndian(bytes []byte) bool {
 	return bytes[0] == []byte{1}[0]
 }
 
+/*
+This function converts the float64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Float64ToBytesLittleEndianInplace(val float64, buf []byte) {
+
+	// Convert float64 to uint64 representation
+	bits := math.Float64bits(val)
+
+	// Write the uint64 value into the byte slice in little-endian order
+	buf[0] = byte(bits)
+	buf[1] = byte(bits >> 8)
+	buf[2] = byte(bits >> 16)
+	buf[3] = byte(bits >> 24)
+	buf[4] = byte(bits >> 32)
+	buf[5] = byte(bits >> 40)
+	buf[6] = byte(bits >> 48)
+	buf[7] = byte(bits >> 56)
+}
+
 func Float64ToBytesLittleEndian(val float64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, val)
@@ -111,6 +131,22 @@ func Int64ToBytesLittleEndian(signedval int64) []byte {
 	}
 	return buf.Bytes()
 }
+
+/*
+This function converts the int64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Int64ToBytesLittleEndianInplace(signedval int64, buf []byte) {
+	buf[0] = byte(signedval)
+	buf[1] = byte(signedval >> 8)
+	buf[2] = byte(signedval >> 16)
+	buf[3] = byte(signedval >> 24)
+	buf[4] = byte(signedval >> 32)
+	buf[5] = byte(signedval >> 40)
+	buf[6] = byte(signedval >> 48)
+	buf[7] = byte(signedval >> 56)
+}
+
 func BytesToInt64LittleEndian(bytes []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(bytes))
 }

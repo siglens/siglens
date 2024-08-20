@@ -87,6 +87,7 @@ Options:
     --randomQueries bool   Generate random queries (default false)
 -v  verbose                Output hits and elapsed time for each query
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
+-l, --lookups []string     List of lookup files to migrate to the `data/lookups` folder before executing the queries. Enter the paths of these files.
 ```
 
 #### Notes

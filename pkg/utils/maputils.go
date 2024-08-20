@@ -17,7 +17,9 @@
 
 package utils
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // If there are duplicate keys, values from the second map will overwrite those
 // from the first map.
@@ -83,4 +85,34 @@ func SetDifference[K comparable, T1, T2 any](newSet map[K]T2, oldSet map[K]T1) (
 	}
 
 	return added, removed
+}
+
+func AddMapKeysToSet[K comparable, V any](set map[K]struct{}, source map[K]V) {
+	for k := range source {
+		set[k] = struct{}{}
+	}
+}
+
+func AddSliceToSet[K comparable](set map[K]struct{}, source []K) {
+	for _, k := range source {
+		set[k] = struct{}{}
+	}
+}
+
+func AddToSet[K comparable](set map[K]struct{}, key K) {
+	set[key] = struct{}{}
+}
+
+// IntersectionWithFirstMapValues returns a map containing the intersection of the keys of the two maps.
+// The values of the first map are retained.
+func IntersectionWithFirstMapValues[K comparable, V1 any, V2 any](map1 map[K]V1, map2 map[K]V2) map[K]V1 {
+	intersection := make(map[K]V1)
+
+	for k, v := range map1 {
+		if _, exists := map2[k]; exists {
+			intersection[k] = v
+		}
+	}
+
+	return intersection
 }

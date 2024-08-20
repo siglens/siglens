@@ -97,12 +97,14 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	scanner.Split(bufio.ScanLines)
 	localIndexMap := make(map[string]string)
 
+	idxToStreamIdCache := make(map[string]string)
+
 	responsebody := make(map[string]interface{})
 	for scanner.Scan() {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
 		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, 0 /* TODO */)
+		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache)
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
