@@ -834,12 +834,12 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
     } else if (queryLanguage === 'Splunk QL') {
         $('#option-3').addClass('active');
     }
-if (filterTab === '0') {
-    codeToBuilderParsing(searchText);
-} else if (filterTab === '1') {
-    $('#custom-code-tab').tabs('option', 'active', 1);
-    $('#filter-input').val(searchText);
-}
+    if (filterTab === '0') {
+        codeToBuilderParsing(searchText);
+    } else if (filterTab === '1') {
+        $('#custom-code-tab').tabs('option', 'active', 1);
+        $('#filter-input').val(searchText);
+    }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
 
     return {
