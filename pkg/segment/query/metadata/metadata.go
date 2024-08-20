@@ -647,3 +647,16 @@ func GetAllColNames(indices []string) []string {
 	}
 	return colNames
 }
+
+func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[string]uint32 {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
+	for segKey := range segmap {
+		smi, ok := globalMetadata.getMicroIndex(segKey)
+		if ok {
+			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+		}
+	}
+	return ConsistentCValLenPerSeg
+}
