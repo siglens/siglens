@@ -22,20 +22,28 @@ import (
 	"time"
 )
 
+type StringType uint8
+
+const (
+	Alpha StringType = iota
+	Numeric
+	AlphaNumeric
+)
+
 const alphabets = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 const digits = "0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func GetRandomString(length int, stringType string) string {
+func GetRandomString(length int, stringType StringType) string {
 	var charset string
 	switch stringType {
-	case "alpha":
+	case Alpha:
 		charset = alphabets
-	case "numeric":
+	case Numeric:
 		charset = digits
-	case "alphanumeric":
+	case AlphaNumeric:
 		charset = alphabets + digits
 	default:
 		charset = alphabets + digits

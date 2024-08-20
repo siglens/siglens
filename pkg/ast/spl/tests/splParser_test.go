@@ -10023,7 +10023,7 @@ func getMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
 
 func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions) {
 	measureFuncStr, param := getMeasureFuncStr(aggFunc)
-	measureCol := putils.GetRandomString(10, "alpha")
+	measureCol := putils.GetRandomString(10, putils.Alpha)
 	query := []byte(`search A=1 | stats ` + measureFuncStr + `(` + measureCol + `)`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
@@ -10112,7 +10112,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(constantNum))
 	var randomStr string
 	if isField {
-		randomStr = putils.GetRandomString(10, "alpha")
+		randomStr = putils.GetRandomString(10, putils.Alpha)
 	} else {
 		randomStr = fmt.Sprintf("%v", rand.Float64())
 	}
@@ -10152,7 +10152,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
-	trueValueField := putils.GetRandomString(10, "alpha")
+	trueValueField := putils.GetRandomString(10, putils.Alpha)
 	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
