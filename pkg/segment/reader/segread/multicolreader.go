@@ -27,7 +27,6 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -145,7 +144,7 @@ Only columns that exist will be loaded, not guaranteed to load all columnns in c
 It is up to the caller to close the open FDs using .Close()
 */
 func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, numReaders int, qid uint64) (*SharedMultiColReaders, error) {
+	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64) (*SharedMultiColReaders, error) {
 	allInUseSegSetFiles := make([]string, 0)
 
 	maxOpenFds := int64(0)
@@ -198,14 +197,8 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		allInUseSegSetFiles = append(allInUseSegSetFiles, fName)
 	}
 
-	var allColumnsRecSize map[string]uint32
-	smi, exist := metadata.GetSegMicroIndexForSegKey(segKey)
-	if exist {
-		allColumnsRecSize = smi.GetAllColumnsRecSize()
-	}
-
 	for i := 0; i < numReaders; i++ {
-		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, allColumnsRecSize, qid)
+		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, consistentCValLen, qid)
 		if err != nil {
 			sharedReader.Close()
 			err := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)

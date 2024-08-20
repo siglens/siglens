@@ -510,10 +510,10 @@ func GetUnrotatedMetadataInfo() (uint64, uint64) {
 }
 
 // returns map[table]->map[segKey]->timeRange that pass index & time range check, total checked, total passed
-func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*dtu.TimeRange, uint64, uint64) {
+func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 	totalCount := uint64(0)
 	totalChecked := uint64(0)
-	retVal := make(map[string]map[string]*dtu.TimeRange)
+	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
 
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
@@ -533,9 +533,11 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			continue
 		}
 		if _, ok := retVal[usi.TableName]; !ok {
-			retVal[usi.TableName] = make(map[string]*dtu.TimeRange)
+			retVal[usi.TableName] = make(map[string]*structs.SegmentByTimeAndColSizes)
 		}
-		retVal[usi.TableName][segKey] = usi.tsRange
+		retVal[usi.TableName][segKey] = &structs.SegmentByTimeAndColSizes{
+			TimeRange: usi.tsRange,
+		}
 		totalCount++
 	}
 	return retVal, totalChecked, totalCount

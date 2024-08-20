@@ -52,6 +52,17 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
+func GetConsistentCValLenPerSeg(segmap map[string]*utils.BlkRecIdxContainer) map[string]map[string]uint32 {
+	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
+	for segKey := range segmap {
+		smi, ok := metadata.GetSegMicroIndexForSegKey(segKey)
+		if ok {
+			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+		}
+	}
+	return ConsistentCValLenPerSeg
+}
+
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
@@ -203,11 +214,14 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 
+	consistentCValLenPerSeg := GetConsistentCValLenPerSeg(segmap)
+
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
+			consistentCValLen := consistentCValLenPerSeg[currSeg]
 			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
+				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap, consistentCValLen)
 			if err != nil {
 				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return
