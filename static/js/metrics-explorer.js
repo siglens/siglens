@@ -132,6 +132,7 @@ $(document).ready(async function () {
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
     }
+    setSaveQueriesDialog();
 });
 
 async function customRangeHandlerMetrics(_evt) {
@@ -2684,4 +2685,17 @@ function adjustInputWidth(input) {
     const padding = 5;
     const width = Math.max(minWidth, input.value.length * charWidth + padding);
     input.style.width = width + 'px';
+}
+
+//eslint-disable-next-line no-unused-vars
+function getMetricsDataForSave(qname, qdesc) {
+    return {
+        dataSource: 'metrics',
+        queryName: qname,
+        queryDescription: qdesc || '',
+        startTime: filterStartDate,
+        endTime: filterEndDate,
+        metricsQueryParams : JSON.stringify(metricsQueryParams)
+    };
+    
 }
