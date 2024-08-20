@@ -232,7 +232,7 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 		}
 
 		if rec[0] != VALTYPE_ENC_BOOL[0] {
-			return false, nil
+			return false, toputils.TeeErrorf("filterOpOnDataType: expected bool encoding; got %v", rec[0])
 		}
 
 		return fopOnBool(rec, qValDte, fop)
