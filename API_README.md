@@ -909,7 +909,3 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     Example:
     request: http://localhost:5122/api/lookup-files/test_lookup.csv
     response: "Lookup file deleted successfully"
-
-
-
-

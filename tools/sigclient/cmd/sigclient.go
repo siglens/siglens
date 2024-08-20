@@ -132,7 +132,7 @@ var esQueryCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		outputFile, _ := cmd.Flags().GetString("outputFile")
 		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
-		cicd, _ := cmd.Flags().GetBool("cicd")
+		lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -143,12 +143,10 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
-		if cicd {
-			err := query.MigrateLookupsForCicd()
-			if err != nil {
-				log.Fatalf("Error migrating lookups for cicd: %v", err)
-				return
-			}
+		err := query.MigrateLookups(lookupFiles)
+		if err != nil {
+			log.Fatalf("Error while migrating lookups: %v", err)
+			return
 		}
 
 		if filepath != "" {
@@ -372,7 +370,7 @@ func init() {
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
 	queryCmd.PersistentFlags().StringP("outputFile", "o", "", "The filePath to output the Response time of Queries in csv format, When runResponseTime is set to True.")
 	queryCmd.PersistentFlags().BoolP("runResponseTime", "t", false, "Runs the given Queries and outputs the response time into a file in CSV format.")
-	queryCmd.PersistentFlags().BoolP("cicd", "z", false, "Run the queries in cicd mode.")
+	queryCmd.PersistentFlags().StringSliceP("lookups", "l", []string{}, "List of lookups to migrate")
 
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")

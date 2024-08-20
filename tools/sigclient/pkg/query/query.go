@@ -52,63 +52,62 @@ const (
 	random
 )
 
-func MigrateLookupsForCicd() error {
-	lookupSrcPath := filepath.Join("..", "..", "cicd/test_lookup.csv")
-	lookupSrcFile, err := os.Open(lookupSrcPath)
-	if err != nil {
-		log.Fatalf("migrateLookupsForCicd: Error opening lookup file: %v", err)
-		return err
-	}
-	defer lookupSrcFile.Close()
+func MigrateLookups(lookupFiles []string) error {
 
-	destDir := filepath.Join("..", "..", "data/lookups")
-	err = os.MkdirAll(destDir, os.ModePerm)
+	destDir := filepath.Join("../../data/lookups")
+	err := os.MkdirAll(destDir, os.ModePerm)
 	if err != nil {
-		log.Fatalf("migrateLookupsForCicd: Error creating destination directory: %v", err)
-		return err
+		return fmt.Errorf("MigrateLookups: Error creating destination directory: %v", err)
 	}
 
-	// Create the destination file
-	lookupDestPath := filepath.Join(destDir, "test_lookup.csv")
-	lookupDestFile, err := os.Create(lookupDestPath)
-	if err != nil {
-		log.Fatalf("migrateLookupsForCicd: Error creating destination lookup file: %v", err)
-		return err
-	}
-	defer lookupDestFile.Close()
+	for _, lookupFile := range lookupFiles {
+		lookupSrcFile, err := os.Open(lookupFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error opening lookup file %v, err: %v", lookupFile, err)
+		}
+		defer lookupSrcFile.Close()
 
-	// Copy the contents
-	_, err = io.Copy(lookupDestFile, lookupSrcFile)
-	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
-	}
+		// Create the destination file
+		lookupDestPath := filepath.Join(destDir, filepath.Base(lookupFile))
+		lookupDestFile, err := os.Create(lookupDestPath)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer lookupDestFile.Close()
 
-	// Reset file position
-	_, err = lookupSrcFile.Seek(0, 0)
-	if err != nil {
-		return fmt.Errorf("error resetting file position: %v", err)
-	}
+		// Copy the contents
+		_, err = io.Copy(lookupDestFile, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error copying file %v, err: %v", lookupFile, err)
+		}
 
-	// Create the destination gzip file
-	compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
-	if err != nil {
-		return fmt.Errorf("error creating destination file: %v", err)
-	}
-	defer compressedLookupDestFile.Close()
+		// Reset file position
+		_, err = lookupSrcFile.Seek(0, 0)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error resetting file position %v, err: %v", lookupFile, err)
+		}
 
-	// Create a gzip writer
-	gzipWriter := gzip.NewWriter(compressedLookupDestFile)
+		// Create the destination gzip file
+		compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating compressed lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer compressedLookupDestFile.Close()
 
-	// Copy the contents from source to gzip writer
-	_, err = io.Copy(gzipWriter, lookupSrcFile)
-	if err != nil {
-		return fmt.Errorf("error compressing file: %v", err)
-	}
+		// Create a gzip writer
+		gzipWriter := gzip.NewWriter(compressedLookupDestFile)
 
-	// Close the gzip writer
-	err = gzipWriter.Close()
-	if err != nil {
-		return fmt.Errorf("error closing gzip writer: %v", err)
+		// Copy the contents from source to gzip writer
+		_, err = io.Copy(gzipWriter, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error compressing file %v, err: %v", lookupDestPath, err)
+		}
+
+		// Close the gzip writer
+		err = gzipWriter.Close()
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error closing gzip writer %v err: %v", lookupDestPath, err)
+		}
 	}
 
 	return nil

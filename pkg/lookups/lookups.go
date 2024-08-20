@@ -18,7 +18,6 @@
 package lookups
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -170,29 +169,12 @@ func GetLookupFile(ctx *fasthttp.RequestCtx) {
 	}
 	defer file.Close()
 
-	// Set the Content-Type header to indicate it's a CSV file
 	ctx.Response.Header.Set("Content-Type", "text/csv")
 
-	// Create a buffered reader
-	reader := bufio.NewReader(file)
-
-	// Buffer to hold data chunks
-	buf := make([]byte, 8192) // 8KB buffer
-
-	// Stream the file data to the response in chunks
-	for {
-		n, err := reader.Read(buf)
-		if err != nil {
-			if err.Error() != "EOF" {
-				utils.SendInternalError(ctx, "Error while reading the file", "", err)
-				return
-			}
-			break
-		}
-		if _, err := ctx.Write(buf[:n]); err != nil {
-			utils.SendInternalError(ctx, "Error while sending the data", "", err)
-			return
-		}
+	_, err = io.Copy(ctx, file)
+	if err != nil {
+		utils.SendInternalError(ctx, "Error while copying the file", "", err)
+		return
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
