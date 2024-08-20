@@ -76,7 +76,7 @@ type SegStore struct {
 	lastUpdated        time.Time
 	VirtualTableName   string
 	RecordCount        int
-	AllSeenColumns     map[string]bool
+	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
 	pqTracker          *PQTracker
 	pqMatches          map[string]*pqmr.PQMatchResults
 	LastSegPqids       map[string]struct{}
@@ -104,18 +104,18 @@ type PQTracker struct {
 
 func NewSegStore(orgId uint64) *SegStore {
 	segstore := &SegStore{
-		Lock:              sync.Mutex{},
-		pqNonEmptyResults: make(map[string]bool),
-		AllSeenColumns:    make(map[string]bool),
-		pqTracker:         initPQTracker(),
-		pqMatches:         make(map[string]*pqmr.PQMatchResults),
-		LastSegPqids:      make(map[string]struct{}),
-		timeCreated:       time.Now(),
-		AllSst:            make(map[string]*structs.SegStats),
-		OrgId:             orgId,
-		firstTime:         true,
-		stbDictEncWorkBuf: make([][]string, 0),
-		segStatsWorkBuf:   make([]byte, utils.WIP_SIZE),
+		Lock:               sync.Mutex{},
+		pqNonEmptyResults:  make(map[string]bool),
+		AllSeenColumnSizes: make(map[string]uint32),
+		pqTracker:          initPQTracker(),
+		pqMatches:          make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:       make(map[string]struct{}),
+		timeCreated:        time.Now(),
+		AllSst:             make(map[string]*structs.SegStats),
+		OrgId:              orgId,
+		firstTime:          true,
+		stbDictEncWorkBuf:  make([][]string, 0),
+		segStatsWorkBuf:    make([]byte, utils.WIP_SIZE),
 	}
 
 	return segstore
@@ -252,7 +252,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.BytesReceivedCount = 0
 	segstore.OnDiskBytes = 0
 
-	segstore.AllSeenColumns = make(map[string]bool)
+	segstore.AllSeenColumnSizes = make(map[string]uint32)
 	segstore.LastSegPqids = make(map[string]struct{})
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
@@ -555,7 +555,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
-				wipBlockMetadata, segstore.AllSeenColumns, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
+				wipBlockMetadata, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
 				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.pqMatches)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
@@ -1511,7 +1511,7 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 
 	allColsSizes := make(map[string]*structs.ColSizeInfo)
 
-	for cname := range ss.AllSeenColumns {
+	for cname, colValueLen := range ss.AllSeenColumnSizes {
 
 		if cname == config.GetTimeStampKey() {
 			continue
@@ -1536,8 +1536,12 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		if !onlocal {
 			log.Errorf("getAllColsSizes: csg cname: %v, fname: %+v not on local disk", cname, fname)
 		}
+		if colValueLen == 0 {
+			log.Errorf("getAllColsSizes: colValueLen is 0 for cname: %v. This should not happen.", cname)
+			colValueLen = utils.INCONSISTENT_CVAL_SIZE
+		}
 
-		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
+		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, ConsistentCvalSize: colValueLen}
 		allColsSizes[cname] = &csinfo
 	}
 	return allColsSizes

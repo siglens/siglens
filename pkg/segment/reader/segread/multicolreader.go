@@ -76,7 +76,7 @@ Caller is responsible for calling .CloseAll() to close all the fds.
 Can also be used to get the timestamp for any arbitrary record in the Segment
 */
 func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, qid uint64) (*MultiColSegmentReader, error) {
+	blockSummaries []*structs.BlockSummary, allColumnsRecSize map[string]uint32, qid uint64) (*MultiColSegmentReader, error) {
 
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
@@ -109,7 +109,14 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 			continue
 		}
 
-		segReader, err := InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries)
+		colRecSize := utils.INCONSISTENT_CVAL_SIZE
+		if allColumnsRecSize != nil {
+			if recSize, ok := allColumnsRecSize[colName]; ok {
+				colRecSize = recSize
+			}
+		}
+
+		segReader, err := InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries, colRecSize)
 		if err != nil {
 			log.Errorf("qid=%d, initNewMultiColumnReader: failed initialize segfile reader for column %s Using file %s. Error: %v",
 				qid, colName, colFD.Name(), err)
@@ -137,7 +144,7 @@ Only columns that exist will be loaded, not guaranteed to load all columnns in c
 It is up to the caller to close the open FDs using .Close()
 */
 func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, numReaders int, qid uint64) (*SharedMultiColReaders, error) {
+	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64) (*SharedMultiColReaders, error) {
 	allInUseSegSetFiles := make([]string, 0)
 
 	maxOpenFds := int64(0)
@@ -191,7 +198,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 	}
 
 	for i := 0; i < numReaders; i++ {
-		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, qid)
+		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, consistentCValLen, qid)
 		if err != nil {
 			sharedReader.Close()
 			err := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)

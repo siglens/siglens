@@ -41,7 +41,7 @@ import (
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
-	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult) (map[string]map[string]interface{}, map[string]bool, error) {
+	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult, consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
@@ -135,7 +135,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 
 	result := make(map[string]map[string]interface{})
 
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, qid)
+	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid)
 	if err != nil {
 		log.Errorf("GetRecordsFromSegment: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err
