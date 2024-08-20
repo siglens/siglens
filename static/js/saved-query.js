@@ -64,7 +64,7 @@ function setSaveQueriesDialog() {
 
         if (valid) {
             let data;
-            if(isMetricsScreen) {
+            if (isMetricsScreen) {
                 data = getMetricsDataForSave(qname.val(), description.val());
             } else {
                 data = getSearchFilterForSave(qname.val(), description.val());
@@ -156,7 +156,7 @@ class linkCellRenderer {
     init(params) {
         this.eGui = document.createElement('span');
         let href;
-        if(params.data.dataSource === 'metrics') {
+        if (params.data.dataSource === 'metrics') {
             //todo fix this to load metrics explorer
             this.eGui.innerHTML = '<a class="query-link" href="metrics-explorer.html" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
         } else {
