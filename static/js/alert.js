@@ -100,7 +100,7 @@ $(document).ready(async function () {
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
     const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(urlParams.get('alertRule_name'));
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -242,8 +242,9 @@ async function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
+        const filterTab=urlParams.get('filterTab');
 
-        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
+        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch,filterTab);
     }
 
     if (!alertEditFlag && !alertFromMetricsExplorerFlag && !window.location.href.includes('alert-details.html')) {
@@ -818,12 +819,52 @@ function alertDetailsFunctions() {
     });
 }
 
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
+function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
+    // Focus on the alert rule name input field
     $('#alert-rule-name').focus();
-    $('#query').val(query);
-    $(`.ranges .inner-range #${startEpoch}`).addClass('active');
+
+    // Set the query language and mark the appropriate option as active
+    $('#query-language-btn span').html(queryLanguage);
+    $('.query-language-option').removeClass('active');
+    
+    if (queryLanguage === 'SQL') {
+        $('#option-1').addClass('active');
+    } else if (queryLanguage === 'Log QL') {
+        $('#option-2').addClass('active');
+    } else if (queryLanguage === 'Splunk QL') {
+        $('#option-3').addClass('active');
+    }
+    let filterValue = searchText;
+    if (filterTab == '0' || filterTab == null) {
+        if (filterValue != '*') {
+            codeToBuilderParsing(filterValue);
+            $('#filter-input').val(filterValue).change();
+            toggleClearButtonVisibility();
+            isQueryBuilderSearch = true;
+        }
+    } else {
+        $('#custom-code-tab').tabs('option', 'active', 1);
+        if (filterValue === '*') {
+            $('#filter-input').val('').change();
+        } else {
+            $('#filter-input').val(filterValue).change();
+            toggleClearButtonVisibility();
+        }
+        isQueryBuilderSearch = false;
+    }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
+
+    return {
+        searchText: searchText,
+        startEpoch: startEpoch,
+        endEpoch: endEpoch,
+        queryLanguage: queryLanguage,
+    };
 }
+
+
+
+
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';

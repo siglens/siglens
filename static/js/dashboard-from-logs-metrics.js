@@ -57,18 +57,20 @@ $(document).ready(function () {
         $('.rule-name-error').removeClass('active').text(''); // Clear error message if ruleName is not empty
 
         var encodedRuleName = encodeURIComponent(ruleName);
-
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterTab=urlParams.get('filterTab');
         // Assuming you have the `data` object available
         var queryParams = {
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
             startEpoch: data.startEpoch,
             endEpoch: data.endEpoch,
+            filterTab: filterTab,
             alertRule_name: encodedRuleName,
         };
 
         var queryString = $.param(queryParams);
-        window.open('../alert.html' + queryString, '_blank');
+        window.open('../alert.html?' + queryString, '_blank');
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
