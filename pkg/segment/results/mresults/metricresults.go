@@ -828,11 +828,15 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 		for i := 0; i < runningDS.idx; i++ {
 			timestamp := runningDS.runningEntries[i].downsampledTime
 
+			// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
+			// even when there is only one tag filter. This prevents all entries from having the same grpID,
+			// which would result in a count of 1 for each timestamp.
+			uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
 			_, exists := seriesIdEntriesMap[seriesId][timestamp]
 			if !exists {
 				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
 			}
-			seriesIdEntriesMap[seriesId][timestamp][grpID] = struct{}{}
+			seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
 		}
 	}
 
