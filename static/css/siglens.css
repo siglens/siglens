@@ -2798,10 +2798,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .ag-theme-mycustomtheme .ag-header-cell-resize {
     background-color: var(--bg-color) !important;
 }
- .ag-cell {
+#LogResultsGrid .ag-cell {
+    user-select: all;
+}
+
+.ag-cell{
     padding: 3px 15px !important;
     font-size: 14px;
-    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{

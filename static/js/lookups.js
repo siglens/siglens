@@ -19,6 +19,10 @@
 
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
+
+    $('#confirm-delete-btn').on('click', performDelete);
+    $('#cancel-delete-btn').on('click', closeDeletePopup);
+
     fetchLookupFiles();
 });
 
@@ -39,6 +43,14 @@ function fetchLookupFiles() {
 const columnDefs = [
     { headerName: 'Name', field: 'name', resizable: true, sortable: true },
     { headerName: 'Destination', field: 'destination', resizable: true, sortable: true },
+    {
+        headerName: 'Action',
+        cellRenderer: function (params) {
+            return `
+                <button class="btn-simple" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
+            `;
+        },
+    },
 ];
 
 const gridOptions = {
@@ -141,3 +153,31 @@ $('#cancel-upload-btn').on('click', function () {
 
 $('#db-name').focus(() => $('.name-empty').removeClass('active'));
 $('#file-input').focus(() => $('.file-empty').removeClass('active'));
+
+let fileToDelete = '';
+
+function deleteLookupFile(filename) {
+    fileToDelete = filename;
+    $('.popupOverlay, #delete-confirmation').addClass('active');
+}
+
+function performDelete() {
+    $.ajax({
+        url: `/api/lookup-files/${encodeURIComponent(fileToDelete)}`,
+        method: 'DELETE',
+        success: function (response) {
+            showToast(response, 'success');
+            fetchLookupFiles();
+            closeDeletePopup();
+        },
+        error: function (xhr) {
+            showToast(`Error deleting file: ${xhr.responseText}`, 'error');
+            closeDeletePopup();
+        },
+    });
+}
+
+function closeDeletePopup() {
+    $('.popupOverlay, #delete-confirmation').removeClass('active');
+    fileToDelete = '';
+}

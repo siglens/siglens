@@ -98,10 +98,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="popupContent" id="overwrite-confirmation">
                 <h3 class="header">File Already Exists</h3>
-                <p>A file with the name "<span id="existing-file-name"></span>" already exists. Do you want to overwrite it?</p>
+                <p>A file with the name "<span id="existing-file-name"></span>" already exists. Do you want to overwrite
+                    it?</p>
                 <div class="d-flex mt-4">
                     <button type="button" id="cancel-overwrite-btn" class="btn grey-btn w-100">Cancel</button>
                     <button type="button" id="confirm-overwrite-btn" class="btn primary-btn w-100">Overwrite</button>
+                </div>
+            </div>
+            <div class="popupContent" id="delete-confirmation">
+                <h3 class="header">Confirmation</h3>
+                <p>Are you sure you want to delete this lookup file?</p>
+                <div class="d-flex mt-4">
+                    <button type="button" id="cancel-delete-btn" class="btn grey-btn w-100">Cancel</button>
+                    <button type="button" id="confirm-delete-btn" class="btn primary-btn w-100">Delete</button>
                 </div>
             </div>
         </div>
