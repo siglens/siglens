@@ -155,6 +155,7 @@ func (sss *SegmentSearchStatus) GetRecordIteratorForBlock(op utils.LogicalOperat
 }
 
 func (sss *SegmentSearchStatus) updateMatchedRecords(blkNum uint16, matchedRecs *pqmr.PQMatchResults, op utils.LogicalOperator) error {
+
 	blkStatus, ok := sss.AllBlockStatus[blkNum]
 	if !ok {
 		log.Warnf("updateAndMatchedRecords: block %d does not exist in allBlockStatus!", blkNum)

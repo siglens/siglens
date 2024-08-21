@@ -227,7 +227,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 		return
 	}
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	searchRes := executeRawSearchOnNode(searchNode, searchReq, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
+	searchRes := executeRawSearchOnNode(searchNode, searchReq, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
 	mergeSegmentSearchStatus(segmentSearchRecords, searchRes, utils.And)
 	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
@@ -490,73 +490,62 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
-	allBlockSearchHelpers []*structs.BlockSearchHelper, queryMetrics *structs.QueryProcessingMetrics,
-	qid uint64, allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
+func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, allBlockSearchHelpers []*structs.BlockSearchHelper,
+	queryMetrics *structs.QueryProcessingMetrics, qid uint64, allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult,
+	blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
 
-	tempSearchStatus := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
+	searchRes := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
 
 	if node.AndSearchConditions != nil {
-		searchRes := applyRawSearchToConditions(node.AndSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		andSearchRes := applyRawSearchToConditions(node.AndSearchConditions, searchReq, allBlockSearchHelpers,
 			utils.And, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		fmt.Println("Merge in AND")
-		mergeSegmentSearchStatus(tempSearchStatus, searchRes, utils.And)
+		mergeSegmentSearchStatus(searchRes, andSearchRes, utils.And)
 	}
 
 	if node.OrSearchConditions != nil {
-		searchRes := applyRawSearchToConditions(node.OrSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		orSearchRes := applyRawSearchToConditions(node.OrSearchConditions, searchReq, allBlockSearchHelpers,
 			utils.Or, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		fmt.Println("Merge in OR")
-		mergeSegmentSearchStatus(tempSearchStatus, searchRes, utils.And)
+		mergeSegmentSearchStatus(searchRes, orSearchRes, utils.And)
 	}
 
 	if node.ExclusionSearchConditions != nil {
-		searchRes := applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		notSearchRes := applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, allBlockSearchHelpers,
 			utils.Exclusion, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		fmt.Println("Merge in EXC")
-		mergeSegmentSearchStatus(tempSearchStatus, searchRes, utils.And)
+		mergeSegmentSearchStatus(searchRes, notSearchRes, utils.And)
 	}
 
-	return tempSearchStatus
+	return searchRes
 }
 
-func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
+func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
 
-	tempSearchStatus := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
+	searchRes := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
 
 	if cond.SearchNode != nil {
 		for _, sNode := range cond.SearchNode {
-			searchRes := executeRawSearchOnNode(sNode, searchReq, segmentSearch, allBlockSearchHelpers, queryMetrics,
+			nodeSearchRes := executeRawSearchOnNode(sNode, searchReq, allBlockSearchHelpers, queryMetrics,
 				qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-			mergeSegmentSearchStatus(tempSearchStatus, searchRes, op)
+			mergeSegmentSearchStatus(searchRes, nodeSearchRes, op)
 		}
-		if cond.SearchQueries != nil {
-			for _, query := range cond.SearchQueries {
-				RawSearchSingleQuery(query, searchReq, tempSearchStatus, allBlockSearchHelpers, op, queryMetrics,
-					qid, allSearchResults, nodeRes)
-			}
-		}
-	} else {
-		if cond.SearchQueries != nil {
-			for _, query := range cond.SearchQueries {
-				RawSearchSingleQuery(query, searchReq, tempSearchStatus, allBlockSearchHelpers, op, queryMetrics,
-					qid, allSearchResults, nodeRes)
-			}
+	}
+	if cond.SearchQueries != nil {
+		for _, query := range cond.SearchQueries {
+			RawSearchSingleQuery(query, searchReq, searchRes, allBlockSearchHelpers, op, queryMetrics,
+				qid, allSearchResults, nodeRes)
 		}
 	}
 
-	return tempSearchStatus
+	return searchRes
 }
 
-func mergeSegmentSearchStatus(segmentSearch *SegmentSearchStatus, tempSearchStatus *SegmentSearchStatus, op utils.LogicalOperator) {
-	if tempSearchStatus == nil {
+func mergeSegmentSearchStatus(baseSearch *SegmentSearchStatus, searchToMerge *SegmentSearchStatus, op utils.LogicalOperator) {
+	if searchToMerge == nil {
 		return
 	}
-	fmt.Println("Merge searches with ", op)
-	for blkNum, blkStatus := range tempSearchStatus.AllBlockStatus {
-		_ = segmentSearch.updateMatchedRecords(blkNum, blkStatus.allRecords, op)
+	for blkNum, blkStatus := range searchToMerge.AllBlockStatus {
+		_ = baseSearch.updateMatchedRecords(blkNum, blkStatus.allRecords, op)
 	}
 }
 
@@ -786,7 +775,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	}
 
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	searchStatus := executeRawSearchOnNode(searchNode, req, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
+	searchStatus := executeRawSearchOnNode(searchNode, req, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
 	mergeSegmentSearchStatus(segmentSearchRecords, searchStatus, utils.And)
 
