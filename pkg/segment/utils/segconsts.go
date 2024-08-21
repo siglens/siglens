@@ -111,6 +111,8 @@ const MS_IN_MIN = 60_000     // 60 * 1000
 const MS_IN_HOUR = 3_600_000 // 60 * 60 * 1000
 const MS_IN_DAY = 86_400_000 // 24 * 60 * 60 * 1000
 
+const MAX_LIST_SIZE = 100
+
 var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")

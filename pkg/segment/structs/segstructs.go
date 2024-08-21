@@ -593,9 +593,23 @@ func (ss *StringStats) Merge(other *StringStats) {
 		for key, value := range other.StrSet {
 			ss.StrSet[key] = value
 		}
+	} else if other.StrSet != nil {
+		ss.StrSet = make(map[string]struct{})
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
 	}
+
 	if ss.StrList != nil {
 		ss.StrList = append(ss.StrList, other.StrList...)
+	} else if other.StrList != nil {
+		if len(other.StrList) > utils.MAX_LIST_SIZE {
+			ss.StrList = make([]string, utils.MAX_LIST_SIZE)
+			copy(ss.StrList, other.StrList[:utils.MAX_LIST_SIZE])
+		} else {
+			ss.StrList = make([]string, len(other.StrList))
+			copy(ss.StrList, other.StrList)
+		}
 	}
 }
 
