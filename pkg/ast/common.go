@@ -53,7 +53,7 @@ func (cci *CaseConversionInfo) ShouldSearchWithOriginalCase() bool {
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
-func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, valueIsCaseInSensitive bool, qid uint64) ([]*FilterCriteria, error) {
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, valueIsCaseInSensitive bool, shouldBeCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -72,6 +72,15 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 	default:
 		log.Errorf("qid=%d, ProcessSingleFilter: invalid comparison operator %v", qid, opr)
 		return nil, errors.New("ProcessSingleFilter: invalid comparison operator")
+	}
+
+	fmt.Printf("\n ProcessSingleFilter: colName=%v, colValue=%v, originalColValue=%v, compOpr=%v, valueIsRegex=%v, valueIsCaseInSensitive=%v, shouldBeCaseSensitive=%v", colName, colValue, originalColValue, compOpr, valueIsRegex, valueIsCaseInSensitive, shouldBeCaseSensitive)
+
+	if shouldBeCaseSensitive {
+		valueIsCaseInSensitive = false
+		if originalColValue != nil {
+			colValue = originalColValue
+		}
 	}
 
 	caseConversion := &CaseConversionInfo{
@@ -159,6 +168,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
+	fmt.Printf("qid=%d, ProcessSingleFilter: colName=%v, colValue=%v, compOpr=%v, valueIsRegex=%v, valueIsCaseInSensitive=%v, shouldBeCaseSensitive=%v", qid, colName, colValue, compOpr, valueIsRegex, valueIsCaseInSensitive, shouldBeCaseSensitive)
 	andFilterCondition[0].FilterIsCaseInSensitive = valueIsCaseInSensitive
 	return andFilterCondition, nil
 }
@@ -180,14 +190,21 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, nega
 		}
 	}
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
-		MatchColumn:         k.(string),
-		MatchWords:          matchWords,
-		MatchWordsOriginal:  matchWordsOriginal,
-		MatchOperator:       opr,
-		MatchPhrase:         []byte(rtInput),
-		MatchPhraseOriginal: []byte(originalRtInput),
-		MatchType:           MATCH_PHRASE,
-		NegateMatch:         negateMatch}}
+		MatchColumn:   k.(string),
+		MatchWords:    matchWords,
+		MatchOperator: opr,
+		MatchPhrase:   []byte(rtInput),
+		MatchType:     MATCH_PHRASE,
+		NegateMatch:   negateMatch}}
+
+	if len(matchWordsOriginal) > 0 {
+		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
+	}
+
+	if len(originalRtInput) > 0 {
+		criteria.MatchFilter.MatchPhraseOriginal = []byte(originalRtInput)
+	}
+
 	return &criteria
 }
 
@@ -225,11 +242,14 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 	}
 
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
-		MatchColumn:        colName.(string),
-		MatchWords:         matchWords,
-		MatchWordsOriginal: matchWordsOriginal,
-		MatchOperator:      opr,
-		NegateMatch:        negateMatch}}
+		MatchColumn:   colName.(string),
+		MatchWords:    matchWords,
+		MatchOperator: opr,
+		NegateMatch:   negateMatch}}
+
+	if len(matchWordsOriginal) > 0 {
+		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
+	}
 
 	return &criteria
 }
