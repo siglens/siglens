@@ -25,6 +25,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,7 +117,7 @@ func Test_searchQuotedStringNoBreakers(t *testing.T) {
 }
 
 func Test_searchQuotedStringMinorBreakers(t *testing.T) {
-	query := []byte(`search "abc./\\:=@#$%-_DEF"`)
+	query := []byte(`search CASE("abc./\\:=@#$%-_DEF")`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -125,6 +126,7 @@ func Test_searchQuotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
+	assert.Equal(t, filterNode.Comparison.ValueIsCaseSensitive, true)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
@@ -140,11 +142,11 @@ func Test_searchQuotedStringMajorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, `"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`)
+	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`))
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte(strings.ToLower(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`)), matchFilter.MatchPhrase)
 }
 
 func Test_impliedSearchCommand(t *testing.T) {

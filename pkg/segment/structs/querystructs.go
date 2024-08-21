@@ -91,8 +91,9 @@ type ExpressionFilter struct {
 
 // Top level filter criteria condition that define either a MatchFilter or ExpressionFilter. Only one will be defined, never both
 type FilterCriteria struct {
-	MatchFilter      *MatchFilter      // match filter to check multiple words in a column
-	ExpressionFilter *ExpressionFilter // expression filter to check a single expression in a column
+	MatchFilter           *MatchFilter      // match filter to check multiple words in a column
+	ExpressionFilter      *ExpressionFilter // expression filter to check a single expression in a column
+	FilterIsCaseSensitive bool              // if the filter is case sensitive
 }
 
 // A condition struct defines the FilterConditions and ASTNodes that exist as a part of a single condition

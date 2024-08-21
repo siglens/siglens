@@ -474,6 +474,11 @@ type FormatResultsRequestArguments struct {
     formatResultExpr *structs.FormatResultsRequest
 }
 
+type StringSearchRequest struct {
+	value interface{}
+	valueIsCaseSensitive bool
+}
+
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -3860,28 +3865,46 @@ FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWi
     return keyValuePair, nil
 }
 
-NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
+NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
+    ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: op.(string),
             Field: key.(string),
-            Values: value,
+            Values: ssr.value,
+            ValueIsCaseSensitive: ssr.valueIsCaseSensitive,
         },
     }
     return node, nil
 }
 
-UnnamedFieldWithStringValue <- value:String {
+UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
+    ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: "=",
             Field: "*",
-            Values: value,
+            Values: ssr.value,
+            ValueIsCaseSensitive: ssr.valueIsCaseSensitive,
         },
     }
     return node, nil
+}
+
+CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
+    return &StringSearchRequest{
+        value: value,
+        valueIsCaseSensitive: true,
+    }, nil
+}
+
+CaseInsensitiveString <- value:String {
+    return &StringSearchRequest{
+        value: strings.ToLower(value.(string)),
+        valueIsCaseSensitive: false,
+    }, nil
 }
 
 // Parses one or more FieldNames separated by a comma and space.

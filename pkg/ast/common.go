@@ -40,7 +40,7 @@ import (
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
-func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, valueIsRegex bool, qid uint64) ([]*FilterCriteria, error) {
+func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, valueIsRegex bool, valueIsCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -134,6 +134,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
+	andFilterCondition[0].FilterIsCaseSensitive = valueIsCaseSensitive
 	return andFilterCondition, nil
 }
 

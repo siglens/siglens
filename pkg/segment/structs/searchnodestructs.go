@@ -54,10 +54,11 @@ const (
 // A Search query is either an expression or match filter
 // Never will both be defined
 type SearchQuery struct {
-	ExpressionFilter *SearchExpression
-	MatchFilter      *MatchFilter
-	SearchType       SearchQueryType // type of query
-	QueryInfo        *QueryInfo      // query info
+	ExpressionFilter      *SearchExpression
+	MatchFilter           *MatchFilter
+	SearchType            SearchQueryType // type of query
+	QueryInfo             *QueryInfo      // query info
+	FilterIsCaseSensitive bool            // whether the filter is case sensitive
 }
 
 type QueryInfo struct {

@@ -207,3 +207,10 @@ func SearchStr(needle string, haystack []string) bool {
 func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
+
+func NormalizeSearchBytes(isCaseSensitive bool, valueBytes []byte) []byte {
+	if isCaseSensitive {
+		return valueBytes
+	}
+	return bytes.ToLower(valueBytes)
+}
