@@ -107,7 +107,7 @@ func HashString(x string) string {
 }
 
 // we are assumung that needleLen and haystackLen are both non zero
-func IsSubWordPresent(haystack []byte, needle []byte, isCaseSensitive bool) bool {
+func IsSubWordPresent(haystack []byte, needle []byte, isCaseInSensitive bool) bool {
 	needleLen := len(needle)
 	haystackLen := len(haystack)
 
@@ -115,7 +115,7 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseSensitive bool) bool
 		return false
 	}
 
-	haystack = NormalizeSearchBytes(isCaseSensitive, haystack)
+	haystack = NormalizeSearchBytes(isCaseInSensitive, haystack)
 
 	if needleLen == haystackLen {
 		return bytes.Equal(needle, haystack)

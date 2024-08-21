@@ -126,7 +126,7 @@ func Test_searchQuotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
-	assert.Equal(t, filterNode.Comparison.ValueIsCaseSensitive, true)
+	assert.Equal(t, filterNode.Comparison.ValueIsCaseInSensitive, false)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)

@@ -39,7 +39,7 @@ returns:
 	err
 */
 func (sfr *SegmentFileReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper, isCaseSensitive bool) (bool, error) {
+	bsh *structs.BlockSearchHelper, isCaseInSensitive bool) (bool, error) {
 	var compiledRegex *regexp.Regexp
 	var err error
 
@@ -56,7 +56,7 @@ func (sfr *SegmentFileReader) ApplySearchToMatchFilterDictCsg(match *structs.Mat
 	}
 
 	for dwordIdx, dWord := range sfr.deTlv {
-		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord, compiledRegex, isCaseSensitive)
+		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord, compiledRegex, isCaseInSensitive)
 		if err != nil {
 			return false, err
 		}
@@ -82,7 +82,7 @@ returns:
 	err
 */
 func (sfr *SegmentFileReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
-	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseSensitive bool) (bool, error) {
+	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInSensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
@@ -94,7 +94,7 @@ func (sfr *SegmentFileReader) ApplySearchToExpressionFilterDictCsg(qValDte *util
 
 	dte := &utils.DtypeEnclosure{}
 	for dwordIdx, dWord := range sfr.deTlv {
-		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseSensitive)
+		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInSensitive)
 		if err != nil {
 			return false, err
 		}

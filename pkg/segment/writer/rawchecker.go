@@ -33,7 +33,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp, isCaseSensitive bool) (bool, error) {
+func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp, isCaseInSensitive bool) (bool, error) {
 	var err error
 
 	if len(match.MatchWords) == 0 {
@@ -75,11 +75,11 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 			if compiledRegex != nil {
 				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
-				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase, isCaseSensitive)
+				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase, isCaseInSensitive)
 			}
 		} else {
 			for _, qword := range match.MatchWords {
-				foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseSensitive)
+				foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseInSensitive)
 				if !foundQword {
 					break
 				}
@@ -91,7 +91,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 	if match.MatchOperator == Or {
 		var foundQword bool
 		for _, qword := range match.MatchWords {
-			foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseSensitive)
+			foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseInSensitive)
 			if foundQword {
 				return true, nil
 			}
@@ -103,7 +103,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 }
 
 func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byte, fop FilterOperator, isRegexSearch bool,
-	holderDte *DtypeEnclosure, isCaseSensitive bool) (bool, error) {
+	holderDte *DtypeEnclosure, isCaseInSensitive bool) (bool, error) {
 	if qValDte == nil {
 		return false, nil
 	}
@@ -111,7 +111,7 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 	if len(rec) == 0 || rec[0] != VALTYPE_DICT_ARRAY[0] {
 		return false, nil
 	} else if rec[0] == VALTYPE_DICT_ARRAY[0] {
-		rec = utils.NormalizeSearchBytes(isCaseSensitive, rec)
+		rec = utils.NormalizeSearchBytes(isCaseInSensitive, rec)
 		//loop over the dict arrray till we reach the end
 		totalLen := utils.BytesToInt16LittleEndian(rec[1:])
 		idx := uint16(3)
@@ -179,11 +179,11 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 }
 
 func ApplySearchToExpressionFilterSimpleCsg(qValDte *DtypeEnclosure, fop FilterOperator,
-	col []byte, isRegexSearch bool, holderDte *DtypeEnclosure, isCaseSensitive bool) (bool, error) {
+	col []byte, isRegexSearch bool, holderDte *DtypeEnclosure, isCaseInSensitive bool) (bool, error) {
 
 	holderDte.Reset()
 
-	return filterOpOnDataType(col, qValDte, fop, isRegexSearch, holderDte, isCaseSensitive)
+	return filterOpOnDataType(col, qValDte, fop, isRegexSearch, holderDte, isCaseInSensitive)
 }
 
 func isValTypeEncANumber(valTypeEnc byte) bool {
@@ -197,7 +197,7 @@ func isValTypeEncANumber(valTypeEnc byte) bool {
 }
 
 func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
-	isRegexSearch bool, recDte *DtypeEnclosure, isCaseSensitive bool) (bool, error) {
+	isRegexSearch bool, recDte *DtypeEnclosure, isCaseInSensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
@@ -222,7 +222,7 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 
 			return false, nil
 		}
-		return fopOnString(rec, qValDte, fop, isRegexSearch, isCaseSensitive)
+		return fopOnString(rec, qValDte, fop, isRegexSearch, isCaseInSensitive)
 	case SS_DT_BOOL:
 		if len(rec) == 0 {
 			if fop == Equals {
@@ -288,7 +288,7 @@ func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterO
 }
 
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
-	isRegexSearch bool, isCaseSensitive bool) (bool, error) {
+	isRegexSearch bool, isCaseInSensitive bool) (bool, error) {
 
 	const sOff int = 3
 	if len(rec) < sOff {
@@ -307,7 +307,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 		if len(rec[sOff:]) != len(qValDte.StringVal) {
 			return false, nil
 		}
-		searchBytes := utils.NormalizeSearchBytes(isCaseSensitive, rec[sOff:])
+		searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
 		return bytes.Equal(searchBytes, qValDte.StringValBytes), nil
 	case NotEquals:
 		if isRegexSearch {
@@ -317,7 +317,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			}
 			return !regexp.Match(rec[sOff:]), nil
 		}
-		searchBytes := utils.NormalizeSearchBytes(isCaseSensitive, rec[sOff:])
+		searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
 		return !bytes.Equal(searchBytes, qValDte.StringValBytes), nil
 	}
 	return false, nil

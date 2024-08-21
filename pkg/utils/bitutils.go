@@ -208,9 +208,9 @@ func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
 
-func NormalizeSearchBytes(isCaseSensitive bool, valueBytes []byte) []byte {
-	if isCaseSensitive {
-		return valueBytes
+func NormalizeSearchBytes(isCaseInSensitive bool, valueBytes []byte) []byte {
+	if isCaseInSensitive {
+		return bytes.ToLower(valueBytes)
 	}
-	return bytes.ToLower(valueBytes)
+	return valueBytes
 }

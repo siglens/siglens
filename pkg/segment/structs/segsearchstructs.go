@@ -345,7 +345,7 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 			sq.SearchType = MatchAll
 		}
 	}
-	sq.FilterIsCaseSensitive = criteria.FilterIsCaseSensitive
+	sq.FilterIsCaseInSensitive = criteria.FilterIsCaseInSensitive
 	return sq
 }
 
