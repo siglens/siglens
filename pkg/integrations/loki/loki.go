@@ -230,6 +230,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	allIngestData := make(map[string]interface{})
 
 	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
@@ -273,7 +274,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache)
+				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
 				if err != nil {
 					utils.SendError(ctx, "Failed to ingest record", "", err)
 					return
@@ -334,6 +335,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	localIndexMap := make(map[string]string)
 
 	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})
@@ -380,7 +382,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache)
+			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr)
 			if err != nil {
 				utils.SendError(ctx, "Failed to ingest record", "", err)
 				return
