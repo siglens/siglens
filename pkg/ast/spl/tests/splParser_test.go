@@ -190,11 +190,12 @@ func Test_searchUnquotedStringMinorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
+	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc./\\:=@#$%-_DEF"`))
+	assert.Equal(t, filterNode.Comparison.ValueIsCaseInSensitive, true)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte(`abc./\\:=@#$%-_DEF`), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte("abc./\\\\:=@#$%-_def"), matchFilter.MatchPhrase)
 }
 
 func Test_searchUnquotedStringMajorBreakerAtStart(t *testing.T) {

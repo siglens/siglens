@@ -113,11 +113,12 @@ func getHashForSearchQuery(sq *structs.SearchQuery) uint64 {
 		return 0
 	}
 
-	val := fmt.Sprintf("%v:%v:%v:%v",
+	val := fmt.Sprintf("%v:%v:%v:%v:%v",
 		getHashForSearchExpression(sq.ExpressionFilter),
 		getHashForMatchFilter(sq.MatchFilter),
 		sq.SearchType,
-		getHashForQueryInfo(sq.QueryInfo))
+		getHashForQueryInfo(sq.QueryInfo),
+		sq.FilterIsCaseInSensitive)
 	return xxhash.Sum64String(val)
 }
 

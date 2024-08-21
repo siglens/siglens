@@ -312,17 +312,18 @@ func GetAllColumnsFromCondition(cond *SearchCondition) (map[string]bool, bool) {
 // returns map[string]bool, bool, LogicalOperator
 // map is all non-wildcard block bloom keys, bool is if any keyword contained a wildcard, LogicalOperator
 // is if any/all of map keys need to exist
-func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, LogicalOperator) {
+func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, map[string]string, bool, LogicalOperator) {
+	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
 
 	if query.MatchFilter != nil {
-		matchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch()
-		return matchKeys, wildcardExists, matchOp
+		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInSensitive)
+		return matchKeys, originalMatchKeys, wildcardExists, matchOp
 	} else {
-		blockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch()
+		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInSensitive)
 		if err != nil {
-			return make(map[string]bool), false, And
+			return make(map[string]bool), make(map[string]string), false, And
 		}
-		return blockBloomKeys, wildcardExists, And
+		return blockBloomKeys, originalBlockBloomKeys, wildcardExists, And
 	}
 }
 
