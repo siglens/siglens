@@ -47,7 +47,7 @@ const columnDefs = [
         headerName: 'Action',
         cellRenderer: function (params) {
             return `
-                <button class="btn-simple" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
+                <button class="btn-simple delete-button" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
             `;
         },
     },
@@ -63,6 +63,12 @@ const gridOptions = {
         cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
+    },
+    onRowClicked: function (params) {
+        // Check if the click is not on the delete button
+        if (!$(params.event.target).hasClass('delete-button')) {
+            getLookupFile(params.data.name);
+        }
     },
 };
 let eGridDiv = $('#ag-grid')[0];
@@ -180,4 +186,67 @@ function performDelete() {
 function closeDeletePopup() {
     $('.popupOverlay, #delete-confirmation').removeClass('active');
     fileToDelete = '';
+}
+
+function getLookupFile(filename) {
+    $.ajax({
+        url: `/api/lookup-files/${encodeURIComponent(filename)}`,
+        method: 'GET',
+        success: function (data) {
+            displayCSVContent(filename, data);
+        },
+        error: function (xhr, status, error) {
+            showToast(`Error retrieving file: ${xhr.responseText}`, 'error');
+        },
+    });
+}
+
+function displayCSVContent(filename, content) {
+    console.log(filename, content);
+    // Split the content into lines
+    const lines = content.trim().split('\n');
+
+    // Parse headers
+    const headers = lines[0].split(',').map((header) => header.replace(/"/g, '').trim());
+
+    // Parse data
+    const rowData = lines.slice(1).map((line) => {
+        const values = line.split(',').map((value) => value.replace(/"/g, '').trim());
+        return headers.reduce((obj, header, index) => {
+            obj[header] = values[index];
+            return obj;
+        }, {});
+    });
+
+    const columnDefs = headers.map((header) => ({
+        headerName: header,
+        field: header,
+        sortable: true,
+        filter: true,
+    }));
+
+    $('.popupOverlay, #csvViewerModal').addClass('active');
+    $('#csvViewerModal .header').text(filename);
+
+    const gridDiv = document.createElement('div');
+    gridDiv.id = 'ag-grid';
+    gridDiv.style.height = '400px';
+    gridDiv.style.width = '100%';
+
+    $('#csvViewerModal .csv-container').empty().append(gridDiv);
+
+    new agGrid.Grid(gridDiv, {
+        columnDefs: columnDefs,
+        rowData: rowData,
+        defaultColDef: {
+            flex: 1,
+            minWidth: 100,
+            resizable: true,
+            sortable: true,
+        },
+    });
+}
+
+function closeCSVModal() {
+    $('.popupOverlay, #csvViewerModal').removeClass('active');
 }
