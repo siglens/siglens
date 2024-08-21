@@ -260,8 +260,16 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 
 func (sm *SegmentMicroIndex) getColumns() map[string]bool {
 	retVal := make(map[string]bool, len(sm.ColumnNames))
-	for k := range sm.ColumnNames {
-		retVal[k] = true
+	for colName := range sm.ColumnNames {
+		retVal[colName] = true
+	}
+	return retVal
+}
+
+func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
+	retVal := make(map[string]uint32, len(sm.ColumnNames))
+	for colName, colSizeInfo := range sm.ColumnNames {
+		retVal[colName] = colSizeInfo.ConsistentCvalSize
 	}
 	return retVal
 }

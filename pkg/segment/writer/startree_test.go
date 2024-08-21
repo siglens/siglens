@@ -237,12 +237,12 @@ func TestStarTree(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey1"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
@@ -328,12 +328,12 @@ func TestStarTreeMedium(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey2"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
@@ -421,13 +421,13 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 	segstats := make(map[string]*SegStats)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey1"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
@@ -515,12 +515,12 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey4"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0

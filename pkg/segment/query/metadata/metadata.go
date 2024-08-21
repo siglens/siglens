@@ -533,13 +533,13 @@ func IsUnrotatedQueryNeeded(timeRange *dtu.TimeRange, indexNames []string) bool 
 		 2. final matched count
 		 3. total possible count
 */
-func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*dtu.TimeRange, uint64, uint64) {
+func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 	timePassed := uint64(0)
 	totalChecked := uint64(0)
-	retVal := make(map[string]map[string]*dtu.TimeRange)
+	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
 	for _, index := range indexNames {
 		tableMicroIndices, ok := globalMetadata.tableSortedMetadata[index]
 		if !ok {
@@ -549,11 +549,14 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 		for _, smi := range tableMicroIndices {
 			if timeRange.CheckRangeOverLap(smi.EarliestEpochMS, smi.LatestEpochMS) && smi.OrgId == orgid {
 				if _, ok := retVal[index]; !ok {
-					retVal[index] = make(map[string]*dtu.TimeRange)
+					retVal[index] = make(map[string]*structs.SegmentByTimeAndColSizes)
 				}
-				retVal[index][smi.SegmentKey] = &dtu.TimeRange{
-					StartEpochMs: smi.EarliestEpochMS,
-					EndEpochMs:   smi.LatestEpochMS,
+				retVal[index][smi.SegmentKey] = &structs.SegmentByTimeAndColSizes{
+					TimeRange: &dtu.TimeRange{
+						StartEpochMs: smi.EarliestEpochMS,
+						EndEpochMs:   smi.LatestEpochMS,
+					},
+					ConsistentCValLenMap: smi.GetAllColumnsRecSize(),
 				}
 				timePassed++
 			}
@@ -637,4 +640,17 @@ func GetAllColNames(indices []string) []string {
 		colNames = append(colNames, cName)
 	}
 	return colNames
+}
+
+func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[string]uint32 {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
+	for segKey := range segmap {
+		smi, ok := globalMetadata.getMicroIndex(segKey)
+		if ok {
+			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+		}
+	}
+	return ConsistentCValLenPerSeg
 }
