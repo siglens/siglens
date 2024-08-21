@@ -74,8 +74,6 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		return nil, errors.New("ProcessSingleFilter: invalid comparison operator")
 	}
 
-	fmt.Printf("\n ProcessSingleFilter: colName=%v, colValue=%v, originalColValue=%v, compOpr=%v, valueIsRegex=%v, valueIsCaseInSensitive=%v, shouldBeCaseSensitive=%v", colName, colValue, originalColValue, compOpr, valueIsRegex, valueIsCaseInSensitive, shouldBeCaseSensitive)
-
 	if shouldBeCaseSensitive {
 		valueIsCaseInSensitive = false
 		if originalColValue != nil {
@@ -168,7 +166,6 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
-	fmt.Printf("qid=%d, ProcessSingleFilter: colName=%v, colValue=%v, compOpr=%v, valueIsRegex=%v, valueIsCaseInSensitive=%v, shouldBeCaseSensitive=%v", qid, colName, colValue, compOpr, valueIsRegex, valueIsCaseInSensitive, shouldBeCaseSensitive)
 	andFilterCondition[0].FilterIsCaseInSensitive = valueIsCaseInSensitive
 	return andFilterCondition, nil
 }

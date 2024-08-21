@@ -393,7 +393,6 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldB
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error while processing single filter, error: %v", qid, err)
 			return err
 		}
-		fmt.Printf("\ncriteria: %v\n", criteria[0])
 		filtercond := &Condition{
 			FilterCriteria: []*FilterCriteria(criteria),
 		}

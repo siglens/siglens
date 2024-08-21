@@ -10083,7 +10083,8 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFun
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
+	assert.Equal(t, `"boston"`, filterNode.Comparison.Values)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10138,7 +10139,9 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
+	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10910,7 +10913,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
 
 	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 
