@@ -18,6 +18,7 @@
 package search
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
 
@@ -70,12 +71,14 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 }
 
 func logSingleQuerySummary(segmentSearch *SegmentSearchStatus, op utils.LogicalOperator, qid uint64) {
-	if config.IsDebugMode() {
-		opStr := utils.ConvertOperatorToString(op)
-		sumMatched, sumUnmatched := segmentSearch.getTotalCounts()
-		log.Infof("qid=%d, After a %+v op, there are %+v total matched records and %+v total unmatched records",
-			qid, opStr, sumMatched, sumUnmatched)
-	}
+	// if config.IsDebugMode() {
+	opStr := utils.ConvertOperatorToString(op)
+	sumMatched, sumUnmatched := segmentSearch.getTotalCounts()
+	log.Infof("qid=%d, After a %+v op, there are %+v total matched records and %+v total unmatched records",
+		qid, opStr, sumMatched, sumUnmatched)
+	fmt.Printf("qid=%d, After a %+v op, there are %+v total matched records and %+v total unmatched records\n",
+		qid, opStr, sumMatched, sumUnmatched)
+	// }
 }
 
 func getAllColumnsNeededForSearch(query *structs.SearchQuery, allCols map[string]bool) map[string]bool {
