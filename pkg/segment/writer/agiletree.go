@@ -67,6 +67,7 @@ type Node struct {
 	parent    *Node
 	children  map[uint32]*Node
 	aggValues []utils.CValueEnclosure
+	commonNodes map[uint32][]*Node
 }
 
 type StarTreeBuilder struct {
@@ -277,6 +278,53 @@ func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum 
 	} else {
 		return child
 	}
+}
+
+// func (stb *StarTreeBuilder) cleanupCommon(nodesMap map[uint32][]*Node) error {
+// 	commonNodes := make(map[uint32][]*Node)
+
+// 	for _, nodes := range nodesMap {
+// 		fixedNode := nodes[0]
+// 		for i := 1; i < len(nodes); i++ {
+// 			node := nodes[i]
+// 			for k, v := range node.children {
+// 				fixedNode.children[k] = v
+// 			}
+// 			node.children = nil
+// 		}
+// 	}
+// 	return nil
+// }
+
+func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToRemove uint) error {
+	// todo implement
+	if currIdx == idxToRemove {
+		parentNode := node.parent
+		commonNodes := make(map[uint32][]*Node)
+
+		// gather grandchildren
+		for _, child := range node.children {
+			for key, grandchild := range child.children {
+				grandchild.parent = parentNode
+				if commonNodes[key] == nil {
+					commonNodes[key] = []*Node{grandchild}
+				} else {
+					commonNodes[key] = append(commonNodes[key], grandchild)
+				}
+				delete(child.children, key)
+			}
+			child.parent = nil
+		}
+
+		// remove the column layer
+		for childKey := range parentNode.children {
+			delete(parentNode.children, childKey)
+		}
+
+		parentNode.commonNodes = commonNodes
+	}
+
+	return nil
 }
 
 func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
