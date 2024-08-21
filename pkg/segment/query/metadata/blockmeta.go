@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -141,12 +142,20 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 				log.Errorf("qid=%d, Time range passed for a block with no micro index!", qid)
 				continue
 			}
+
 			if isRange {
+				blocksCopy1 := toputils.ShallowCopyMap(timeFilteredBlocks)
+				blocksCopy2 := toputils.ShallowCopyMap(timeFilteredBlocks)
+
 				if wildcardCol {
-					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
+					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, blocksCopy1, qid)
+					doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, blocksCopy2)
 				} else {
-					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, colsToCheck, qid)
+					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, blocksCopy1, colsToCheck, qid)
+					doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, blocksCopy2, colsToCheck)
 				}
+
+				timeFilteredBlocks = toputils.MergeMaps(blocksCopy1, blocksCopy2)
 			} else {
 				negateMatch := false
 				if currQuery != nil && currQuery.MatchFilter != nil && currQuery.MatchFilter.NegateMatch {
