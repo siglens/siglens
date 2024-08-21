@@ -161,3 +161,25 @@ func Test_SetDifference(t *testing.T) {
 	assert.Equal(t, 2, len(removedEntries))
 	assert.ElementsMatch(t, []string{"key1", "key2"}, removedEntries)
 }
+
+func Test_ShallowCopyMap(t *testing.T) {
+	originalMap := map[string][]int{
+		"key1": {1, 2, 3},
+		"key2": {4},
+	}
+
+	// Test basic copying.
+	copiedMap := ShallowCopyMap(originalMap)
+	assert.Len(t, copiedMap, 2)
+	assert.Equal(t, []int{1, 2, 3}, copiedMap["key1"])
+	assert.Equal(t, []int{4}, copiedMap["key2"])
+
+	// Ensure we did a shallow, rather than deep, copy.
+	originalMap["key1"][0] = 8
+	assert.Equal(t, []int{8, 2, 3}, copiedMap["key1"])
+
+	// Ensure the maps are different.
+	delete(copiedMap, "key1")
+	assert.Len(t, copiedMap, 1)
+	assert.Len(t, originalMap, 2)
+}
