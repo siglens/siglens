@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"sync/atomic"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -468,7 +469,7 @@ type StringStats struct {
 }
 
 type SearchErrorInfo struct {
-	Count    int
+	Count    uint64
 	LogLevel log.Level
 	Error    error
 }
@@ -1414,7 +1415,7 @@ func StoreError(errorStore map[string]*SearchErrorInfo, errMsg string, logLevel 
 	if globalErr, ok := errorStore[errMsg]; !ok {
 		errorStore[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel, Error: err}
 	} else {
-		globalErr.Count++
+		atomic.AddUint64(&globalErr.Count, 1)
 	}
 
 	return errorStore

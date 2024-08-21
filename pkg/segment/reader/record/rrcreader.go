@@ -203,11 +203,14 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 
+	consistentCValLenPerSeg := metadata.GetSMIConsistentColValueLen(segmap)
+
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
-			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-				config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap, allColsInAggs)
+			consistentCValLen := consistentCValLenPerSeg[currSeg]
+			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes, config.GetTimeStampKey(),
+				esResponse, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
 			if err != nil {
 				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return
