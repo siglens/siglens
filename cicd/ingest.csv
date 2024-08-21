@@ -371,3 +371,8 @@ weekday=Monday OR invalidColumn!=foo,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn!=false,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn=foo,now-1d,now,*,total,eq,14325,Splunk QL
 weekday=Monday OR invalidColumn=false,now-1d,now,*,total,eq,14325,Splunk QL
+city=123,now-1d,now,*,total,eq,0,Splunk QL
+city!=123,now-1d,now,*,total,eq,100000,Splunk QL
+invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
+invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
+invalidColumn!=123,now-1d,now,*,total,eq,100000,Splunk QL
