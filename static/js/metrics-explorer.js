@@ -2030,19 +2030,119 @@ async function getMetricNames() {
     return res;
 }
 
+function displayErrorMessage(container, message) {
+    // Ensure container is a DOM element
+    if (container instanceof jQuery) {
+        container = container.get(0);
+    }
+
+    // Find the canvas element inside the container
+    var graphCanvas = container.querySelector('.graph-canvas');
+    
+    // Create a new canvas element
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+
+    // Set canvas size (adjust as needed)
+    canvas.width = graphCanvas.offsetWidth; // Use the container's width
+    canvas.height = graphCanvas.offsetHeight; // Use the container's height
+
+    // Add the canvas to the graph-canvas div
+    graphCanvas.innerHTML = ''; // Clear any existing content in the graph-canvas
+    graphCanvas.appendChild(canvas);
+
+    // Clear any previous drawings or data on the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Get the CSS variable for the text color
+    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--empty-response-text-color').trim() || '#808080';
+
+    // Set the text properties
+    ctx.font = '700 20px DINpro'; // Font weight and size
+    ctx.fillStyle = textColor; // Text color
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Function to wrap text
+    function wrapText(text, maxWidth) {
+        var words = text.split(' ');
+        var line = '';
+        var lines = [];
+
+        for (var n = 0; n < words.length; n++) {
+            var testLine = line + words[n] + ' ';
+            var metrics = ctx.measureText(testLine);
+            var testWidth = metrics.width;
+
+            if (testWidth > maxWidth && n > 0) {
+                lines.push(line);
+                line = words[n] + ' ';
+            } else {
+                line = testLine;
+            }
+        }
+
+        lines.push(line);
+        return lines;
+    }
+
+    // Wrap the message text
+    var wrappedText = wrapText(message, canvas.width * 0.9); // Wrap text within 90% of the canvas width
+
+    // Calculate the total height needed for the text
+    var lineHeight = 30; // Adjust as needed (24px font size + some spacing)
+    var totalHeight = wrappedText.length * lineHeight;
+
+    // Calculate the starting Y position to center the text vertically
+    var startY = (canvas.height - totalHeight) / 2;
+
+    // Draw the wrapped text
+    wrappedText.forEach(function(line, index) {
+        ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+    });
+}
+
 async function getMetricsData(queryName, metricName, state) {
+    var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
+    container.append('<div id="panel-loading"></div>');
     const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
     const queries = [query];
     const formula = { formula: queryName };
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
-    const res = await fetchTimeSeriesData(data);
-    metricsQueryParams = data; // For alerts page
+    try {
+        const res = await fetchTimeSeriesData(data);
 
-    if (res) {
-        rawTimeSeriesData = res;
-        updateDownloadButtons();
+        metricsQueryParams = data; // For alerts page
+
+        if (res) {
+            rawTimeSeriesData = res;
+            updateDownloadButtons();
+        }
+
+    } catch (error) {
+        console.error("Error fetching time series data:", error);
+        // Assuming `canvas` is available in this scope or can be passed as an argument
+        var canvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
+        if (canvas.length > 0) {
+            // Extract the error message
+            const errorMessage = (error.responseJSON && error.responseJSON.error) ||
+                (error.responseText && JSON.parse(error.responseText).error) ||
+                'An unknown error occurred';
+                canvas.remove();
+                
+                delete chartDataCollection[queryName];
+                delete lineCharts[queryName];
+                var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
+            // Display the error message
+            displayErrorMessage(container, errorMessage);
+
+        }
+    }
+    finally {
+        // Hide the loader after data is fetched or an error occurs
+        container.find('#panel-loading').remove();
     }
 }
 
@@ -2050,6 +2150,9 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
+    var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
+    var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"] .graph-canvas');
+    container.append('<div id="panel-loading"></div>');
 
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
@@ -2072,6 +2175,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
+
     let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
@@ -2085,6 +2189,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
+
     const data = {
         start: filterStartDate,
         end: filterEndDate,
@@ -2094,31 +2199,63 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     metricsQueryParams = data;
 
-    const res = await fetchTimeSeriesData(data);
-    if (res) {
-        rawTimeSeriesData = res;
-    }
+    try {
+        const res = await fetchTimeSeriesData(data);
+        if (res) {
+            rawTimeSeriesData = res;
+        }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData);
+        const chartData = await convertDataForChart(rawTimeSeriesData);
 
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    } else {
-        addVisualizationContainer(formulaId, chartData, formulaString);
+        if (isAlertScreen) {
+            addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+        } else {
+            addVisualizationContainer(formulaId, chartData, formulaString);
+        }
+        updateDownloadButtons();
+
+    } catch (error) {
+        console.error("Error fetching time series data:", error);
+        // Assuming `canvas` is available in this scope or can be passed as an argument
+        var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
+        if (canvas.length > 0) {
+            // Extract the error message
+            const errorMessage = (error.responseJSON && error.responseJSON.error) ||
+                (error.responseText && JSON.parse(error.responseText).error) ||
+                'An unknown error occurred';
+                canvas.remove();
+                
+                delete chartDataCollection[formulaId];
+                delete lineCharts[formulaId];
+                var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
+            // Display the error message
+            displayErrorMessage(container, errorMessage);
+
+        }
     }
-    updateDownloadButtons();
+    finally {
+        // Hide the loader after data is fetched or an error occurs
+        container.find('#panel-loading').remove();
+    }
 }
+
 
 async function fetchTimeSeriesData(data) {
-    return $.ajax({
-        method: 'post',
-        url: 'metrics-explorer/api/v1/timeseries',
-        headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    });
+    try {
+        return await $.ajax({
+            method: 'post',
+            url: 'metrics-explorer/api/v1/timeseries',
+            headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
+    } catch (error) {
+        // Handle the error and pass it along
+        throw error;
+    }
 }
+
 
 function getTagKeyValue(metricName) {
     return new Promise((resolve, reject) => {
