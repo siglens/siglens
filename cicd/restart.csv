@@ -352,10 +352,10 @@ weekday=Monday OR invalidColumn!=foo,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn!=false,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn=foo,now-1d,now,*,total,eq,14325,Splunk QL
 weekday=Monday OR invalidColumn=false,now-1d,now,*,total,eq,14325,Splunk QL
-"city=Boston | stats values(http_status) as list", now-1d,now,*,group:list:*,eq,[200 301 302 400 404 500],Splunk QL
-"city=Boston  | stats list(eval(country=""Norway"")) as list",now-1d,now,*,group:list:*,eq,[1 1 1],Splunk QL
-"city=Boston  | stats list(eval(""abc"")) as list",now-1d,now,*,group:list:*,eq,"[abc]",Splunk QL
-"city=Boston country=Norway | stats list(eval(http_status + 10)) as list",now-1d,now,*,group:list:*,eq,[414 311 210],Splunk QL
-"city=Boston  country=Norway | stats list(eval(if(http_status > 400, 100, ""abc""))) as list",now-1d,now,*,group:list:*,eq,[100 abc abc],Splunk QL
-"city=Boston country=Norway | stats list(eval(if(http_method = ""DELETE"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD POST POST],Splunk QL
+"app_name=Grayeye | stats list(http_status) as list", now-1d,now,*,group:list:*,eq,[301],Splunk QL
+"app_name=Grayeye | stats list(eval(gender="female")) as list",now-1d,now,*,group:list:*,eq,[1],Splunk QL
+"app_name=Grayeye | stats list(eval(""abc"")) as list",now-1d,now,*,group:list:*,eq,"[abc]",Splunk QL
+"app_name=Grayeye | stats list(eval(http_status + 10)) as list",now-1d,now,*,group:list:*,eq,[311],Splunk QL
+"app_name=Grayeye | stats list(eval(if(http_status > 300, 100, ""abc""))) as list",now-1d,now,*,group:list:*,eq,[100],Splunk QL
+"app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
 
