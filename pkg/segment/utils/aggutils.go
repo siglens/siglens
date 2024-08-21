@@ -22,7 +22,7 @@ import (
 	"math"
 )
 
-func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
+func CValueEnclosureReduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
 
 	if e1.Dtype == SS_INVALID {
 		return e2, nil
@@ -111,6 +111,106 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				set2 := e2.CVal.(map[string]struct{})
 				for str := range set2 {
 					set1[str] = struct{}{}
+				}
+				return e1, nil
+			}
+			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
+		}
+	default:
+		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
+	}
+	return e1, fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
+}
+
+func Reduce(e1 DtypeEnclosure, e2 DtypeEnclosure, fun AggregateFunctions) (DtypeEnclosure, error) {
+
+	if e1.Dtype == SS_INVALID {
+		return e2, nil
+	} else if e2.Dtype == SS_INVALID {
+		return e1, nil
+	} else if e2.Dtype == SS_DT_BACKFILL {
+		return e1, nil
+	} else if e1.Dtype == SS_DT_BACKFILL {
+		return e2, nil
+	}
+
+	// cannot reduce with incoming as string
+	if e2.Dtype == SS_DT_STRING {
+		return e1, nil
+	}
+
+	// Convert to float if needed
+	if e1.Dtype == SS_DT_FLOAT && e2.Dtype != SS_DT_FLOAT {
+		switch e2.Dtype {
+		case SS_DT_UNSIGNED_NUM:
+			e2.Dtype = SS_DT_FLOAT
+			e2.FloatVal = float64(e2.UnsignedVal)
+		case SS_DT_SIGNED_NUM:
+			e2.Dtype = SS_DT_FLOAT
+			e2.FloatVal = float64(e2.SignedVal)
+		}
+	}
+
+	if e2.Dtype == SS_DT_FLOAT && e1.Dtype != SS_DT_FLOAT {
+		switch e1.Dtype {
+		case SS_DT_UNSIGNED_NUM:
+			e1.Dtype = SS_DT_FLOAT
+			e1.FloatVal = float64(e1.UnsignedVal)
+		case SS_DT_SIGNED_NUM:
+			e1.Dtype = SS_DT_FLOAT
+			e1.FloatVal = float64(e1.SignedVal)
+		}
+	}
+
+	// TODO: what if one is int64 and the other is uint64? Is there any way to avoid annoying conversions?
+
+	switch e1.Dtype {
+	case SS_DT_UNSIGNED_NUM:
+		switch fun {
+		case Sum, Count:
+			e1.UnsignedVal = e1.UnsignedVal + e2.UnsignedVal
+			return e1, nil
+		case Min:
+			e1.UnsignedVal = MinUint64(e1.UnsignedVal, e2.UnsignedVal)
+			return e1, nil
+		case Max:
+			e1.UnsignedVal = MaxUint64(e1.UnsignedVal, e2.UnsignedVal)
+			return e1, nil
+		}
+	case SS_DT_SIGNED_NUM:
+		switch fun {
+		case Sum, Count:
+			e1.SignedVal = e1.SignedVal + e2.SignedVal
+			return e1, nil
+		case Min:
+			e1.SignedVal = MinInt64(e1.SignedVal, e2.SignedVal)
+			return e1, nil
+		case Max:
+			e1.SignedVal = MaxInt64(e1.SignedVal, e2.SignedVal)
+			return e1, nil
+		}
+	case SS_DT_FLOAT:
+		switch fun {
+		case Sum, Count:
+			e1.FloatVal = e1.FloatVal + e2.FloatVal
+			return e1, nil
+		case Min:
+			e1.FloatVal = math.Min(e1.FloatVal, e2.FloatVal)
+			return e1, nil
+		case Max:
+			e1.FloatVal = math.Max(e1.FloatVal, e2.FloatVal)
+			return e1, nil
+		}
+	case SS_DT_STRING_SET:
+		{
+			switch fun {
+			case Cardinality:
+				fallthrough
+			case Values:
+				set1 := e1.StringSliceVal
+				set2 := e2.StringSliceVal
+				for str := range set2 {
+					set1[str] = ""
 				}
 				return e1, nil
 			}

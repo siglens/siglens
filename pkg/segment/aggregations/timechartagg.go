@@ -355,7 +355,7 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		return
 	}
 
-	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)
+	retVal, err := utils.CValueEnclosureReduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
 		log.Errorf("MergeVal: failed to merge eVal into otherCVal: %v", err)
 		return

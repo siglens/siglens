@@ -269,7 +269,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 }
 
 func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e utils.CValueEnclosure, i int) error {
-	retVal, err := utils.Reduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
+	retVal, err := utils.CValueEnclosureReduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
 	if err != nil {
 		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
 	} else {

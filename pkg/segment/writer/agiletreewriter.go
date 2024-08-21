@@ -253,11 +253,11 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 
 			switch e.Dtype {
 			case SS_DT_UNSIGNED_NUM:
-				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(e.CVal.(uint64)))
+				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(uint64(e.UnsignedVal)))
 			case SS_DT_SIGNED_NUM:
-				utils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), stb.buf[idx:])
+				utils.Int64ToBytesLittleEndianInplace(e.SignedVal, stb.buf[idx:])
 			case SS_DT_FLOAT:
-				utils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), stb.buf[idx:])
+				utils.Float64ToBytesLittleEndianInplace(e.FloatVal, stb.buf[idx:])
 			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform
 			default:
 				return 0, fmt.Errorf("encodeNodeDetails: unsupported Dtype: %v, agIdx: %v, nodeKey: %+v, e: %+v",

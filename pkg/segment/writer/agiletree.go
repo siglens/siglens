@@ -60,13 +60,13 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	return MeasFnCountIdx
 }
 
-var one = utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)}
+var one = utils.DtypeEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, UnsignedVal: uint64(1)}
 
 type Node struct {
 	myKey     uint32
 	parent    *Node
 	children  map[uint32]*Node
-	aggValues []utils.CValueEnclosure
+	aggValues []utils.DtypeEnclosure
 }
 
 type StarTreeBuilder struct {
@@ -215,7 +215,7 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 
 	if len(cur.children) != 0 {
-		cur.aggValues = make([]utils.CValueEnclosure, lenAggValues)
+		cur.aggValues = make([]utils.DtypeEnclosure, lenAggValues)
 	}
 
 	var err error
@@ -355,25 +355,28 @@ func (stb *StarTreeBuilder) addMeasures(val utils.CValueEnclosure,
 	lenAggValues int, midx int, node *Node) error {
 
 	if node.aggValues == nil {
-		node.aggValues = make([]utils.CValueEnclosure, lenAggValues)
+		node.aggValues = make([]utils.DtypeEnclosure, lenAggValues)
 	}
 
-	var err error
+	dVal, err := utils.CreateDtypeEnclosure(val.CVal, 0)
+	if err != nil {
+		return fmt.Errorf("addMeasures: Failed to create dtype enclosure for value: %v", val)
+	}
 	// always calculate all meas Fns
 	agvidx := midx + MeasFnMinIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Min)
+	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], *dVal, utils.Min)
 	if err != nil {
 		log.Errorf("addMeasures: error in min err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnMaxIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Max)
+	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], *dVal, utils.Max)
 	if err != nil {
 		log.Errorf("addMeasures: error in max err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnSumIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Sum)
+	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], *dVal, utils.Sum)
 	if err != nil {
 		log.Errorf("addMeasures: error in sum err:%v", err)
 		return err
