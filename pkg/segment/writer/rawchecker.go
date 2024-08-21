@@ -73,6 +73,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 			}
 
 			if compiledRegex != nil {
+				asciiBytes = utils.NormalizeSearchBytes(isCaseInSensitive, asciiBytes)
 				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
 				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase, isCaseInSensitive)
@@ -302,7 +303,8 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			if regexp == nil {
 				return false, errors.New("qValDte had nil regexp compilation")
 			}
-			return regexp.Match(rec[sOff:]), nil
+			searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
+			return regexp.Match(searchBytes), nil
 		}
 		if len(rec[sOff:]) != len(qValDte.StringVal) {
 			return false, nil
@@ -315,7 +317,8 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			if regexp == nil {
 				return false, errors.New("qValDte had nil regexp compilation")
 			}
-			return !regexp.Match(rec[sOff:]), nil
+			searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
+			return !regexp.Match(searchBytes), nil
 		}
 		searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
 		return !bytes.Equal(searchBytes, qValDte.StringValBytes), nil
