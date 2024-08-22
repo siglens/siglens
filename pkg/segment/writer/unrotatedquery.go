@@ -359,6 +359,10 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 			var cmi *structs.CmiContainer
 			var ok bool
 			if cmi, ok = currInfo[col]; !ok {
+				if rangeOp == segutils.NotEquals {
+					timeFilteredBlocks[blkNum][col] = true
+					matchedBlockRange = true
+				}
 				continue
 			}
 			if cmi.Ranges == nil {
