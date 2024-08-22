@@ -195,6 +195,17 @@ func (stb *StarTreeBuilder) resetNodeData() {
 
 func (stb *StarTreeBuilder) newNode() *Node {
 
+	// pre-alloc on the first one to the size of MaxAgileTree,
+	// and after that if the nodePool count exceeds then we can do the
+	// one by one extension
+	sizeNeeded := MaxAgileTreeNodeCount - len(stb.nodePool)
+	if sizeNeeded > 0 {
+		newArr := make([]*Node, sizeNeeded)
+		for i:=0; i < sizeNeeded; i++ {
+			newArr[i] = &Node{}
+		}
+		stb.nodePool = append(stb.nodePool, newArr...)
+	}
 	if stb.nodeCount >= len(stb.nodePool) {
 		stb.nodePool = append(stb.nodePool, &Node{})
 	}
