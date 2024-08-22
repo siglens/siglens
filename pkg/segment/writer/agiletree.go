@@ -281,8 +281,11 @@ func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum 
 }
 
 func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
+	if nodeToMerge.aggValues == nil {
+		return nil
+	}
 	if node.aggValues == nil {
-		node.aggValues = make([]utils.CValueEnclosure, len(nodeToMerge.aggValues))
+		node.aggValues = make([]utils.CValueEnclosure, len(stb.mColNames)*TotalMeasFns)
 	}
 
 	var err error
@@ -320,25 +323,8 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node, currIdx uint, lastIdx uint) error {
+func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node) error {
 	var err error
-	// if we are at the last level, we need to update the agg values
-	if currIdx == lastIdx {
-		for _, nodes := range currNode.commonChildren {
-			fixedNode := nodes[0]
-			for i := 1; i < len(nodes); i++ {
-				node := nodes[i]
-				err = stb.updateAggVals(fixedNode, node)
-				if err != nil {
-					return err
-				}
-			}
-			currNode.children[fixedNode.myKey] = fixedNode
-		}
-		currNode.commonChildren = nil
-		return nil
-	}
-
 	// delink the children from the current nodes and accumulate them as commonChildren
 	for _, nodes := range currNode.commonChildren {
 		fixedNode := nodes[0]
@@ -349,6 +335,10 @@ func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node, currIdx uint, 
 					commonChildren[key] = []*Node{child}
 				} else {
 					commonChildren[key] = append(commonChildren[key], child)
+					err = stb.updateAggVals(commonChildren[key][0], child)
+					if err != nil {
+						return err
+					}
 				}
 				child.parent = fixedNode
 				delete(node.children, key)
@@ -359,7 +349,7 @@ func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node, currIdx uint, 
 
 	// link parent and children properly and cleanup commonChildren
 	for _, children := range currNode.commonChildren {
-		err = stb.cleanupCommonChildren(children[0], currIdx+1, lastIdx)
+		err = stb.cleanupCommonChildren(children[0])
 		if err != nil {
 			return err
 		}
@@ -389,7 +379,6 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 			// just combine the aggs at parent.
 			return stb.updateLastLevel(node)
 		}
-
 		commonChildren := make(map[uint32][]*Node)
 
 		// accumulate grandchildren as commonChildren
@@ -400,8 +389,18 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 					commonChildren[key] = []*Node{grandchild}
 				} else {
 					commonChildren[key] = append(commonChildren[key], grandchild)
+					err := stb.updateAggVals(commonChildren[key][0], grandchild)
+					if err != nil {
+						return err
+					}
 				}
 				delete(childNode.children, key)
+			}
+
+			// add child aggs to parent
+			err := stb.updateAggVals(node, childNode)
+			if err != nil {
+				return err
 			}
 
 			// remove children
@@ -411,7 +410,7 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 
 		node.commonChildren = commonChildren
 
-		return stb.cleanupCommonChildren(node, currIdx+1, lastIdx)
+		return stb.cleanupCommonChildren(node)
 	}
 
 	for _, child := range node.children {

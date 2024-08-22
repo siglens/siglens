@@ -688,6 +688,24 @@ var cases2 = []struct {
 					"rating": 1
 			}`,
 	},
+	{
+		`{
+					"brand":"bmw",
+					"color": "pink",
+					"price": 25,
+					"perf": 5,
+					"rating": 2
+			}`,
+	},
+
+	{
+		`{
+					"brand":"audi",
+					"price": 20,
+					"perf": 6,
+					"rating": 4
+			}`,
+	},
 }
 
 // Tree structure of the data:
@@ -695,9 +713,9 @@ var cases2 = []struct {
 //                                         ROOT
 //                  /                       |                            \
 //                 /                        |                              \
-//              toyota                     audi                            bmw
+//              toyota                     audi (20, 6, 4)                 bmw
 //           /    |    \              /           \                     /   |     \
-//        green yellow red         blue        green                green  red   pink
+//        green yellow red         blue        green                green  red   pink (25, 5, 2)
 //         |     |     |         |            /       \            |       |      |
 //        sedan  sedan  suv    sedan       sedan     suv         sedan    sedan   suv
 //         |     |     |         |           |       |            |        |       |
@@ -795,9 +813,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 3, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// Levels: 0 -> brand, 1 -> color, 2 -> type
@@ -815,9 +833,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// remove color
@@ -834,9 +852,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// remove type
@@ -853,9 +871,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// remove brand and color
@@ -874,9 +892,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// remove color and type
@@ -895,9 +913,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	// remove brand and type
@@ -916,9 +934,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
-		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
-		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
+		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
+		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
 	}
 
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
