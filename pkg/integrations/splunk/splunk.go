@@ -99,9 +99,10 @@ func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int)
 	}
 
 	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	localIndexMap := make(map[string]string)
-	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache)
+	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
 	if err != nil {
 		return fmt.Errorf("Failed to add entry to in mem buffer"), fasthttp.StatusServiceUnavailable
 	}
