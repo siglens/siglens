@@ -822,18 +822,6 @@ function alertDetailsFunctions() {
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
     // Focus on the alert rule name input field
     $('#alert-rule-name').focus();
-
-    // Set the query language and mark the appropriate option as active
-    $('#query-language-btn span').html(queryLanguage);
-    $('.query-language-option').removeClass('active');
-
-    if (queryLanguage === 'SQL') {
-        $('#option-1').addClass('active');
-    } else if (queryLanguage === 'Log QL') {
-        $('#option-2').addClass('active');
-    } else if (queryLanguage === 'Splunk QL') {
-        $('#option-3').addClass('active');
-    }
     if (filterTab === '0') {
         codeToBuilderParsing(searchText);
     } else if (filterTab === '1') {
@@ -841,6 +829,17 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         $('#filter-input').val(searchText);
     }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
+    let data = {
+        state: wsState,
+        searchText: searchText,
+        startEpoch: startEpoch,
+        endEpoch: endEpoch,
+        indexName: selectedSearchIndex,
+        queryLanguage: queryLanguage,
+    };
+    fetchLogsPanelData(data, -1).then((res) => {
+        alertChart(res);
+    });
 }
 
 function alertChart(res) {
