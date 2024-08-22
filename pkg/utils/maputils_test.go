@@ -77,3 +77,32 @@ func Test_SetDifference(t *testing.T) {
 	assert.Equal(t, 2, len(removedEntries))
 	assert.ElementsMatch(t, []string{"key1", "key2"}, removedEntries)
 }
+
+func Test_RemoveEntriesFromMap(t *testing.T) {
+	map1 := map[string]int{
+		"key1": 1,
+		"key2": 2,
+		"key3": 3,
+	}
+
+	RemoveEntriesFromMap(map1, []string{"key1", "key2"})
+	assert.Equal(t, 1, len(map1))
+	_, exists := map1["key3"]
+	assert.True(t, exists)
+
+	map2 := map[string]struct{}{
+		"key1": {},
+		"key2": {},
+		"key3": {},
+	}
+
+	RemoveEntriesFromMap(map2, []string{"key1"})
+	assert.Equal(t, 2, len(map2))
+	_, exists = map2["key2"]
+	assert.True(t, exists)
+	_, exists = map2["key3"]
+	assert.True(t, exists)
+
+	RemoveEntriesFromMap(map2, []string{"key2", "key3"})
+	assert.Equal(t, 0, len(map2))
+}

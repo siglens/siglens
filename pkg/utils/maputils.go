@@ -84,3 +84,9 @@ func SetDifference[K comparable, T1, T2 any](newSet map[K]T2, oldSet map[K]T1) (
 
 	return added, removed
 }
+
+func RemoveEntriesFromMap[K comparable, T any](map1 map[K]T, keysToRemove []K) {
+	for _, key := range keysToRemove {
+		delete(map1, key)
+	}
+}
