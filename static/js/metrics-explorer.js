@@ -2104,6 +2104,8 @@ function displayErrorMessage(container, message) {
 
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
+    var mergedContainer = $('#merged-graph-container').find('.merged-graph');
+    mergedContainer.append('<div id="panel-loading"></div>');
     container.append('<div id="panel-loading"></div>');
     const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
     const queries = [query];
@@ -2153,6 +2155,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"] .graph-canvas');
     container.append('<div id="panel-loading"></div>');
+    var mergedContainer = $('#merged-graph-container').find('.merged-graph');
+    mergedContainer.append('<div id="panel-loading"></div>');
 
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
