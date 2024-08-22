@@ -63,10 +63,10 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 var one = utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)}
 
 type Node struct {
-	myKey     uint32
-	parent    *Node
-	children  map[uint32]*Node
-	aggValues []utils.CValueEnclosure
+	myKey          uint32
+	parent         *Node
+	children       map[uint32]*Node
+	aggValues      []utils.CValueEnclosure
 	commonChildren map[uint32][]*Node
 }
 

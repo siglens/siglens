@@ -595,12 +595,6 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	_ = os.RemoveAll(fName)
 }
 
-
-
-
-
-
-
 var cases2 = []struct {
 	input2 string
 }{
@@ -703,14 +697,13 @@ var cases2 = []struct {
 //                 /                        |                              \
 //              toyota                     audi                            bmw
 //           /    |    \              /           \                     /   |     \
-//        green yellow red         blue        green                green  red   pink                 
+//        green yellow red         blue        green                green  red   pink
 //         |     |     |         |            /       \            |       |      |
 //        sedan  sedan  suv    sedan       sedan     suv         sedan    sedan   suv
-//         |     |     |         |           |       |            |        |       |     
-// Price:  10    8     9        20          16       30          50        18      40           
-// Perf:   9     7     8        11          11       15          16        11      3            
-// Rating: 5     3     4        6           10       12          11        3       1  
-
+//         |     |     |         |           |       |            |        |       |
+// Price:  10    8     9        20          16       30          50        18      40
+// Perf:   9     7     8        11          11       15          16        11      3
+// Rating: 5     3     4        6           10       12          11        3       1
 
 func checkAggValues(t *testing.T, measureInd int, root *Node, expected []interface{}) {
 	offset := measureInd * TotalMeasFns
@@ -727,6 +720,12 @@ func checkAggValues(t *testing.T, measureInd int, root *Node, expected []interfa
 	assert.Equal(t, expected[3].(uint64), root.aggValues[agidx].CVal.(uint64))
 }
 
+func getTotalLevels(node *Node) int {
+	if node == nil || node.children == nil || len(node.children) == 0 {
+		return 0
+	}
+	return 1 + getTotalLevels(node.children[0])
+}
 
 func TestStarTree2(t *testing.T) {
 
@@ -795,6 +794,7 @@ func TestStarTree2(t *testing.T) {
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 3, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -808,11 +808,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 0, 2)
+		err = builder.removeLevelFromTree(root, 0, 0, 2)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 2, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -825,11 +827,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 1, 2)
+		err = builder.removeLevelFromTree(root, 0, 1, 2)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 2, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -842,11 +846,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 2, 2)
+		err = builder.removeLevelFromTree(root, 0, 2, 2)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 2, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -859,12 +865,15 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 0, 2)
-		builder.removeLevelFromTree(root, 0, 1, 1)
+		err = builder.removeLevelFromTree(root, 0, 0, 2)
+		assert.NoError(t, err)
+		err = builder.removeLevelFromTree(root, 0, 1, 1)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 1, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -877,12 +886,15 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 1, 2)
-		builder.removeLevelFromTree(root, 0, 1, 1)
+		err = builder.removeLevelFromTree(root, 0, 1, 2)
+		assert.NoError(t, err)
+		err = builder.removeLevelFromTree(root, 0, 1, 1)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 1, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
@@ -895,12 +907,15 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		builder.removeLevelFromTree(root, 0, 0, 2)
-		builder.removeLevelFromTree(root, 0, 1, 1)
+		err = builder.removeLevelFromTree(root, 0, 0, 2)
+		assert.NoError(t, err)
+		err = builder.removeLevelFromTree(root, 0, 1, 1)
+		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
 		assert.NoError(t, err)
 
+		assert.Equal(t, 1, getTotalLevels(root))
 		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
 		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
 		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
