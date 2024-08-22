@@ -627,6 +627,41 @@ func (nte *NumTypeEnclosure) ToCValueEnclosure() (*CValueEnclosure, error) {
 	}
 }
 
+func (nte *NumTypeEnclosure) Reset() {
+	nte.Ntype = SS_INVALID
+	nte.IntgrVal = 0
+	nte.FloatVal = 0
+}
+
+func (cval *CValueEnclosure) ToNumType() (*NumTypeEnclosure, error) {
+	if cval == nil {
+		return nil, fmt.Errorf("ToNumType: cval is nil")
+	}
+	switch cval.Dtype {
+	case SS_DT_FLOAT:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_FLOAT,
+			FloatVal: cval.CVal.(float64),
+		}, nil
+	case SS_DT_SIGNED_NUM:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_SIGNED_NUM,
+			IntgrVal: cval.CVal.(int64),
+		}, nil
+	case SS_DT_UNSIGNED_NUM:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_SIGNED_NUM,
+			IntgrVal: int64(cval.CVal.(uint64)),
+		}, nil
+	case SS_DT_BACKFILL:
+		return &NumTypeEnclosure{
+			Ntype: SS_DT_BACKFILL,
+		}, nil
+	default:
+		return nil, fmt.Errorf("ToNumType: unexpected Ntype: %v", cval.Dtype)
+	}
+}
+
 var CMI_BLOOM_INDEX = []byte{0x01}
 var CMI_RANGE_INDEX = []byte{0x02}
 var CMI_INVERTED_INDEX = []byte{0x03}
