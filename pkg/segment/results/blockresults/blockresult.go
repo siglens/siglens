@@ -781,8 +781,8 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
 				continue
 			}
-			if len(strList) > utils.MAX_LIST_SIZE {
-				strList = strList[:utils.MAX_LIST_SIZE]
+			if len(strList) > utils.MAX_SPL_LIST_SIZE {
+				strList = strList[:utils.MAX_SPL_LIST_SIZE]
 			}
 			eVal = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING_SLICE,

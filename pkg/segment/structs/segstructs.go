@@ -603,9 +603,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 	if ss.StrList != nil {
 		ss.StrList = append(ss.StrList, other.StrList...)
 	} else if other.StrList != nil {
-		if len(other.StrList) > utils.MAX_LIST_SIZE {
-			ss.StrList = make([]string, utils.MAX_LIST_SIZE)
-			copy(ss.StrList, other.StrList[:utils.MAX_LIST_SIZE])
+		if len(other.StrList) > utils.MAX_SPL_LIST_SIZE {
+			ss.StrList = make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(ss.StrList, other.StrList[:utils.MAX_SPL_LIST_SIZE])
 		} else {
 			ss.StrList = make([]string, len(other.StrList))
 			copy(ss.StrList, other.StrList)

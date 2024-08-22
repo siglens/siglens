@@ -111,7 +111,10 @@ const MS_IN_MIN = 60_000     // 60 * 1000
 const MS_IN_HOUR = 3_600_000 // 60 * 60 * 1000
 const MS_IN_DAY = 86_400_000 // 24 * 60 * 60 * 1000
 
-const MAX_LIST_SIZE = 100
+// Splunk limits the number of values returned by stat list to 100 values.
+// We can use similar limit for stat list
+// https://docs.splunk.com/Documentation/SplunkCloud/9.1.2312/SearchReference/Multivaluefunctions
+const MAX_SPL_LIST_SIZE = 100
 
 var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)

@@ -758,9 +758,9 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 		}
 	}
 
-	// limit the list to MAX_LIST_SIZE
-	if len(finalList) > utils.MAX_LIST_SIZE {
-		finalList = finalList[:utils.MAX_LIST_SIZE]
+	// limit the list to MAX_SPL_LIST_SIZE
+	if len(finalList) > utils.MAX_SPL_LIST_SIZE {
+		finalList = finalList[:utils.MAX_SPL_LIST_SIZE]
 	}
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_STRING_SLICE,
