@@ -567,7 +567,7 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
             });
         }
         allSelectedFunctions.addClass('error');
-        
+
         if (!allSelectedFunctions[0]._tippy) {
             tippy(allSelectedFunctions[0], {
                 content: 'Functions is not compatible with the query types in this expression.',
@@ -599,7 +599,7 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
         }
 
         allSelectedFunctions.removeClass('error');
-        
+
         if (allSelectedFunctions[0]._tippy) {
             allSelectedFunctions[0]._tippy.destroy();
         }
