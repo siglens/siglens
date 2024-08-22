@@ -36,7 +36,7 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen, isMetricsURL, isDashboardScreen;
-//eslint-disable-next-line no-unused-vars
+
 let metricsQueryParams;
 let funcApplied = false;
 let selectedTheme = 'Classic';
@@ -558,6 +558,7 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
         formulaButton.off('click');
 
         if (!formulaButton[0]._tippy) {
+            //eslint-disable-next-line no-undef
             tippy(formulaButton[0], {
                 content: '<div>Functions require a formula input containing a <br>query</div>',
                 allowHTML: true,
@@ -569,6 +570,7 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
         allSelectedFunctions.addClass('error');
 
         if (!allSelectedFunctions[0]._tippy) {
+            //eslint-disable-next-line no-undef
             tippy(allSelectedFunctions[0], {
                 content: 'Functions is not compatible with the query types in this expression.',
                 trigger: 'mouseenter',
