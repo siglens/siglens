@@ -358,6 +358,7 @@ func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
 	return extraSearchNode
 }
 
+// If ShouldBeCaseSensitive is true, then the search query will not consider any of the case-insensitive search options.
 func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCaseSensitive bool) error {
 	var err error
 	if node == nil {

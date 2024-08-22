@@ -53,6 +53,7 @@ func (cci *CaseConversionInfo) ShouldSearchWithOriginalCase() bool {
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
+// If shouldBeCaseSensitive is set to true, valueIsCaseInSensitive will be ignored
 func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, valueIsCaseInSensitive bool, shouldBeCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
