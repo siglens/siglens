@@ -111,6 +111,11 @@ const MS_IN_MIN = 60_000     // 60 * 1000
 const MS_IN_HOUR = 3_600_000 // 60 * 60 * 1000
 const MS_IN_DAY = 86_400_000 // 24 * 60 * 60 * 1000
 
+// Splunk limits the number of values returned by stat list to 100 values.
+// We can use similar limit for stat list
+// https://docs.splunk.com/Documentation/SplunkCloud/9.1.2312/SearchReference/Multivaluefunctions
+const MAX_SPL_LIST_SIZE = 100
+
 var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")
@@ -619,6 +624,41 @@ func (nte *NumTypeEnclosure) ToCValueEnclosure() (*CValueEnclosure, error) {
 		}, nil
 	default:
 		return nil, fmt.Errorf("ToCValueEnclosure: unexpected Ntype: %v", nte.Ntype)
+	}
+}
+
+func (nte *NumTypeEnclosure) Reset() {
+	nte.Ntype = SS_INVALID
+	nte.IntgrVal = 0
+	nte.FloatVal = 0
+}
+
+func (cval *CValueEnclosure) ToNumType() (*NumTypeEnclosure, error) {
+	if cval == nil {
+		return nil, fmt.Errorf("ToNumType: cval is nil")
+	}
+	switch cval.Dtype {
+	case SS_DT_FLOAT:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_FLOAT,
+			FloatVal: cval.CVal.(float64),
+		}, nil
+	case SS_DT_SIGNED_NUM:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_SIGNED_NUM,
+			IntgrVal: cval.CVal.(int64),
+		}, nil
+	case SS_DT_UNSIGNED_NUM:
+		return &NumTypeEnclosure{
+			Ntype:    SS_DT_SIGNED_NUM,
+			IntgrVal: int64(cval.CVal.(uint64)),
+		}, nil
+	case SS_DT_BACKFILL:
+		return &NumTypeEnclosure{
+			Ntype: SS_DT_BACKFILL,
+		}, nil
+	default:
+		return nil, fmt.Errorf("ToNumType: unexpected Ntype: %v", cval.Dtype)
 	}
 }
 

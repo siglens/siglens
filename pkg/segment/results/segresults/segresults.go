@@ -374,17 +374,24 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			continue
 		case utils.List:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+				continue
+			}
+
 			// Splunk documentation specifies that if more than 100 values are in the field, only the first 100 are returned.
-			strList := make([]string, 0, 100)
+			strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
 
 			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrList != nil {
-				strList = utils.AppendWithLimit(strList, currSst.StringStats.StrList, 100)
+				strList = utils.AppendWithLimit(strList, currSst.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 			}
 
 			if sr.runningSegStat[idx] != nil && sr.runningSegStat[idx].StringStats != nil {
-				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, 100)
+				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 			}
-
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING_SLICE,
 				CVal:  strList,

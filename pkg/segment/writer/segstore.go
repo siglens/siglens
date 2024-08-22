@@ -991,14 +991,16 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 
 }
 
-func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, signalType utils.SIGNAL_TYPE) error {
+func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
+	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string) error {
 
 	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType)
+		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+			cnameCacheByteHashToStr)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err

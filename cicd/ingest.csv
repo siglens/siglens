@@ -362,6 +362,10 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | eval mvindex = mvindex(split(""a:bc:123"", "":""), -2, 2) | stats count by mvindex",now-1d,now,*,countRecord:mvindex:*,eq,"bc,123",Splunk QL
 "app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""jim*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,2,Splunk QL
 "app_name=Bracecould | eval mvfind = mvfind(split(""jack:john:jimmy:jim"", "":""), ""abc*"") | stats count by mvfind",now-1d,now,*,countRecord:mvfind:*,eq,"",Splunk QL
+"* | search country=Sweden http_method=HEAD | search city=Boston OR city=def | stats count",now-1d,now,*,group:count(*):*,eq,2,Splunk QL
+"search country=Sweden http_method=HEAD | city=def OR city=Boston | stats count",now-1d,now,*,group:count(*):*,eq,2,Splunk QL
+"http_method=PATCH OR city=Boston | country=Sweden | stats count",now-1d,now,*,group:count(*):*,eq,54,Splunk QL
+"city=Boston | country=Sweden | NOT http_method = PUT | stats count",now-1d,now,*,group:count(*):*,eq,3,Splunk QL
 weekday=Monday,now-1d,now,*,total,eq,14325,Splunk QL
 weekday=Monday AND invalidColumn=foo,now-1d,now,*,total,eq,0,Splunk QL
 weekday=Monday AND invalidColumn=false,now-1d,now,*,total,eq,0,Splunk QL
@@ -377,3 +381,9 @@ invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn!=123,now-1d,now,*,total,eq,100000,Splunk QL
 NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
+"app_name=Grayeye | stats list(http_status) as list", now-1d,now,*,group:list:*,eq,[301],Splunk QL
+"app_name=Grayeye | stats list(eval(gender=""female"")) as list",now-1d,now,*,group:list:*,eq,[1],Splunk QL
+"app_name=Grayeye | stats list(eval(""abc"")) as list",now-1d,now,*,group:list:*,eq,"[abc]",Splunk QL
+"app_name=Grayeye | stats list(eval(http_status + 10)) as list",now-1d,now,*,group:list:*,eq,[311],Splunk QL
+"app_name=Grayeye | stats list(eval(if(http_status > 300, 100, ""abc""))) as list",now-1d,now,*,group:list:*,eq,[100],Splunk QL
+"app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
