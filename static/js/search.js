@@ -547,6 +547,7 @@ function getSearchFilterForSave(qname, qdesc) {
     let filterValue = filterTextQB.trim() || '*';
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     return {
+        dataSource: 'logs',
         queryName: qname,
         queryDescription: qdesc || '',
         searchText: filterValue,
