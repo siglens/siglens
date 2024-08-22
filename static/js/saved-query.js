@@ -19,7 +19,6 @@
 
 let sqgridDiv = null;
 let sqRowData = [];
-let isMetricsScreen;
 //eslint-disable-next-line no-unused-vars
 function setSaveQueriesDialog() {
     let dialog = null;
