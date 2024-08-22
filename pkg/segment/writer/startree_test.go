@@ -41,8 +41,8 @@ var cases = []struct {
 					"b":"val1",
 					"c":true,
 					"d":"John",
-				   "e": 1,
-				   "f": 2
+				    "e": 1,
+				    "f": 2
 			}`,
 	},
 	{
@@ -593,4 +593,228 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	_ = os.RemoveAll(fName)
 	fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
 	_ = os.RemoveAll(fName)
+}
+
+
+
+
+
+
+
+var cases2 = []struct {
+	input2 string
+}{
+	{
+		`{
+					"brand":"toyota",
+					"color":"green",
+					"type":"sedan",
+					"price":10,
+					"perf":9,
+					"rating":5
+			}`,
+	},
+	{
+		`{
+					"brand":"toyota",
+					"color": "yellow",
+					"type": "sedan",
+					"price": 8,
+					"perf": 7,
+					"rating": 3
+			}`,
+	},
+	{
+		`{
+					"brand":"toyota",
+					"color": "red",
+					"type": "suv",
+					"price": 9,
+					"perf": 8,
+					"rating": 4
+			}`,
+	},
+	{
+		`{
+					"brand":"audi",
+					"color": "blue",
+					"type": "sedan",
+					"price": 20,
+					"perf": 11,
+					"rating": 6
+			}`,
+	},
+	{
+		`{
+					"brand":"audi",
+					"color": "green",
+					"type": "suv",
+					"price": 30,
+					"perf": 15,
+					"rating": 12
+			}`,
+	},
+	{
+		`{
+					"brand":"audi",
+					"color": "green",
+					"type": "sedan",
+					"price": 16,
+					"perf": 11,
+					"rating": 10
+			}`,
+	},
+	{
+		`{
+					"brand":"bmw",
+					"color": "red",
+					"type": "sedan",
+					"price": 18,
+					"perf": 11,
+					"rating": 3
+			}`,
+	},
+	{
+		`{
+					"brand":"bmw",
+					"color": "green",
+					"type": "sedan",
+					"price": 50,
+					"perf": 16,
+					"rating": 11
+			}`,
+	},
+	{
+		`{
+					"brand":"bmw",
+					"color": "pink",
+					"type": "suv",
+					"price": 40,
+					"perf": 3,
+					"rating": 1
+			}`,
+	},
+}
+
+func getCVals(node *Node) []interface{} {
+	var cvals []interface{}
+	for _, agg := range node.aggValues {
+		cvals = append(cvals, agg.CVal)
+	}
+	return cvals
+}
+
+func printTree(node *Node, level int) {
+	for i := 0; i < level; i++ {
+		fmt.Print("  ")
+	}
+	fmt.Printf("Node: %v ", node.myKey)
+	if len(node.children) == 0 {
+		fmt.Printf("val: %v", getCVals(node))
+	}
+	fmt.Println()
+	for _, child := range node.children {
+		printTree(child, level+1)
+	}
+}
+
+
+func TestStarTree2(t *testing.T) {
+
+	rangeIndex = map[string]*structs.Numbers{}
+
+	var blockSummary structs.BlockSummary
+	colWips := make(map[string]*ColWip)
+	wipBlock := WipBlock{
+		columnBlooms:       make(map[string]*BloomIndex),
+		columnRangeIndexes: make(map[string]*RangeIndex),
+		colWips:            colWips,
+		columnsInBlock:     make(map[string]bool),
+		blockSummary:       blockSummary,
+		tomRollup:          make(map[uint64]*RolledRecs),
+		tohRollup:          make(map[uint64]*RolledRecs),
+		todRollup:          make(map[uint64]*RolledRecs),
+		bb:                 bbp.Get(),
+	}
+	segstats := make(map[string]*SegStats)
+	allCols := make(map[string]bool)
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumns = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
+	tsKey := config.GetTimeStampKey()
+	for i, test := range cases2 {
+		var record_json map[string]interface{}
+		var json = jsoniter.ConfigCompatibleWithStandardLibrary
+		decoder := json.NewDecoder(bytes.NewReader([]byte(test.input2)))
+		decoder.UseNumber()
+		err := decoder.Decode(&record_json)
+		if err != nil {
+			t.Errorf("testid: %d: Failed to parse json err:%v", i+1, err)
+			continue
+		}
+		raw, err := json.Marshal(record_json)
+		assert.NoError(t, err)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		assert.NoError(t, err)
+
+		ss.wipBlock.maxIdx = maxIdx
+		ss.wipBlock.blockSummary.RecCount += 1
+	}
+
+	groupByCols := []string{"brand", "color", "type"}
+	mColNames := []string{"price"}
+
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+	}
+
+	var builder StarTreeBuilder
+	// for trial := 0; trial < 10; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
+
+		// assert.NotNil(t, root)
+		// assert.NotNil(t, root.children)
+		// assert.NotNil(t, root.children[0].children)
+		// assert.NotNil(t, root.children[0].children[0].children)
+		// assert.NotNil(t, root.children[0].children[0].children[0].aggValues)
+
+		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[0].CVal.(int64))
+		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[1].CVal.(int64))
+		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[2].CVal.(int64))
+		// assert.Equal(t, uint64(1), root.children[0].children[0].children[0].aggValues[3].CVal.(uint64))
+
+		printTree(root, 0)
+
+		builder.removeLevelFromTree(root, 0, 0, 2)
+
+		fmt.Println()
+
+		printTree(root, 0)
+
+		// builder.removeLevelFromTree(root, 0, 1, 1)
+
+		// fmt.Println()
+
+		// printTree(root, 0)
+
+		assert.True(t, false)
+
+		// _, err = builder.EncodeStarTree(ss.SegmentKey)
+		// assert.NoError(t, err)
+	// }
+	// fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
+	// _ = os.RemoveAll(fName)
+	// fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
+	// _ = os.RemoveAll(fName)
+
 }

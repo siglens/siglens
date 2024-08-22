@@ -67,7 +67,7 @@ type Node struct {
 	parent    *Node
 	children  map[uint32]*Node
 	aggValues []utils.CValueEnclosure
-	commonNodes map[uint32][]*Node
+	commonChildren map[uint32][]*Node
 }
 
 type StarTreeBuilder struct {
@@ -280,48 +280,167 @@ func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum 
 	}
 }
 
-// func (stb *StarTreeBuilder) cleanupCommon(nodesMap map[uint32][]*Node) error {
-// 	commonNodes := make(map[uint32][]*Node)
 
-// 	for _, nodes := range nodesMap {
-// 		fixedNode := nodes[0]
-// 		for i := 1; i < len(nodes); i++ {
-// 			node := nodes[i]
-// 			for k, v := range node.children {
-// 				fixedNode.children[k] = v
-// 			}
-// 			node.children = nil
-// 		}
-// 	}
-// 	return nil
-// }
+func validateLeafNode(node *Node, measureIdx int) error {
+	if node.aggValues == nil || measureIdx >= len(node.aggValues) {
+		log.Errorf("cleanupCommon: node has no aggValues or not enough aggValues")
+		return fmt.Errorf("cleanupCommon: node has no aggValues or not enough aggValues")
+	}
+	return nil
+}
 
-func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToRemove uint) error {
+
+func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
+	if node.aggValues == nil {
+		node.aggValues = make([]utils.CValueEnclosure, len(nodeToMerge.aggValues))
+	}
+
+	var err error
+	for mcNum := range stb.mColNames {
+		midx := mcNum * TotalMeasFns
+		agvidx := midx + MeasFnMinIdx
+		err = validateLeafNode(node, agvidx)
+		if err != nil {
+			return err
+		}
+		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Min)
+		if err != nil {
+			log.Errorf("addMeasures: error in min err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnMaxIdx
+		err = validateLeafNode(node, agvidx)
+		if err != nil {
+			return err
+		}
+		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Max)
+		if err != nil {
+			log.Errorf("addMeasures: error in max err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnSumIdx
+		err = validateLeafNode(node, agvidx)
+		if err != nil {
+			return err
+		}
+		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Sum)
+		if err != nil {
+			log.Errorf("addMeasures: error in sum err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnCountIdx
+		err = validateLeafNode(node, agvidx)
+		if err != nil {
+			break
+		}
+		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Count)
+		if err != nil {
+			log.Errorf("addMeasures: error in count err:%v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) cleanupCommon(currNode *Node, currIdx uint, lastIdx uint) error {
+	var err error
+	if currIdx == lastIdx {
+		for _, nodes := range currNode.commonChildren {
+			fixedNode := nodes[0]
+			for i := 1; i < len(nodes); i++ {
+				node := nodes[i]
+				err = stb.updateAggVals(fixedNode, node)
+				if err != nil {
+					return err
+				}
+			}
+			currNode.children[fixedNode.myKey] = fixedNode
+		}
+		currNode.commonChildren = nil
+		return nil
+	}
+
+	for _, nodes := range currNode.commonChildren {
+		fixedNode := nodes[0]
+		commonChildren := make(map[uint32][]*Node)
+		for _, node := range nodes {
+			for key, child := range node.children {
+				if commonChildren[key] == nil {
+					commonChildren[key] = []*Node{child}
+				} else {
+					commonChildren[key] = append(commonChildren[key], child)
+				}
+				child.parent = fixedNode
+				delete(node.children, key)
+			}
+		}
+		fixedNode.commonChildren = commonChildren
+	}
+
+	for _, children := range currNode.commonChildren {
+		err = stb.cleanupCommon(children[0], currIdx+1, lastIdx)
+		if err != nil {
+			return err
+		}
+		currNode.children[children[0].myKey] = children[0]
+	}
+	currNode.commonChildren = nil
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
+	for _, child := range node.children {
+		err := stb.updateAggVals(node, child)
+		if err != nil {
+			return err
+		}
+		delete(node.children, child.myKey)
+	}
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToRemove uint, lastIdx uint) error {
 	// todo implement
+
 	if currIdx == idxToRemove {
-		parentNode := node.parent
-		commonNodes := make(map[uint32][]*Node)
+		if currIdx == lastIdx {
+			return stb.updateLastLevel(node)
+		}
+
+		commonChildren := make(map[uint32][]*Node)
 
 		// gather grandchildren
-		for _, child := range node.children {
-			for key, grandchild := range child.children {
-				grandchild.parent = parentNode
-				if commonNodes[key] == nil {
-					commonNodes[key] = []*Node{grandchild}
+		for childKey, childNode := range node.children {
+			for key, grandchild := range childNode.children {
+				grandchild.parent = node
+				if commonChildren[key] == nil {
+					commonChildren[key] = []*Node{grandchild}
 				} else {
-					commonNodes[key] = append(commonNodes[key], grandchild)
+					commonChildren[key] = append(commonChildren[key], grandchild)
 				}
-				delete(child.children, key)
+				delete(childNode.children, key)
 			}
-			child.parent = nil
+			// remove children
+			childNode.parent = nil
+			delete(node.children, childKey)
 		}
 
-		// remove the column layer
-		for childKey := range parentNode.children {
-			delete(parentNode.children, childKey)
-		}
+		node.commonChildren = commonChildren
 
-		parentNode.commonNodes = commonNodes
+		return stb.cleanupCommon(node, currIdx+1, lastIdx)
+	}
+
+	for _, child := range node.children {
+		err := stb.removeLevelFromTree(child, currIdx+1, idxToRemove, lastIdx)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
