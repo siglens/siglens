@@ -2038,7 +2038,7 @@ function displayErrorMessage(container, message) {
 
     // Find the canvas element inside the container
     var graphCanvas = container.querySelector('.graph-canvas');
-    
+
     // Create a new canvas element
     var canvas = document.createElement('canvas');
     var ctx = canvas.getContext('2d');
@@ -2097,7 +2097,7 @@ function displayErrorMessage(container, message) {
     var startY = (canvas.height - totalHeight) / 2;
 
     // Draw the wrapped text
-    wrappedText.forEach(function(line, index) {
+    wrappedText.forEach(function (line, index) {
         ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
     });
 }
@@ -2122,27 +2122,22 @@ async function getMetricsData(queryName, metricName, state) {
             rawTimeSeriesData = res;
             updateDownloadButtons();
         }
-
     } catch (error) {
-        console.error("Error fetching time series data:", error);
+        console.error('Error fetching time series data:', error);
         // Assuming `canvas` is available in this scope or can be passed as an argument
         var canvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
         if (canvas.length > 0) {
             // Extract the error message
-            const errorMessage = (error.responseJSON && error.responseJSON.error) ||
-                (error.responseText && JSON.parse(error.responseText).error) ||
-                'An unknown error occurred';
-                canvas.remove();
-                
-                delete chartDataCollection[queryName];
-                delete lineCharts[queryName];
-                var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
+            const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+            canvas.remove();
+
+            delete chartDataCollection[queryName];
+            delete lineCharts[queryName];
+            var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
             // Display the error message
             displayErrorMessage(container, errorMessage);
-
         }
-    }
-    finally {
+    } finally {
         // Hide the loader after data is fetched or an error occurs
         container.find('#panel-loading').remove();
     }
@@ -2217,32 +2212,26 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             addVisualizationContainer(formulaId, chartData, formulaString);
         }
         updateDownloadButtons();
-
     } catch (error) {
-        console.error("Error fetching time series data:", error);
+        console.error('Error fetching time series data:', error);
         // Assuming `canvas` is available in this scope or can be passed as an argument
         var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
         if (canvas.length > 0) {
             // Extract the error message
-            const errorMessage = (error.responseJSON && error.responseJSON.error) ||
-                (error.responseText && JSON.parse(error.responseText).error) ||
-                'An unknown error occurred';
-                canvas.remove();
-                
-                delete chartDataCollection[formulaId];
-                delete lineCharts[formulaId];
-                var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
+            const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+            canvas.remove();
+
+            delete chartDataCollection[formulaId];
+            delete lineCharts[formulaId];
+            var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
             // Display the error message
             displayErrorMessage(container, errorMessage);
-
         }
-    }
-    finally {
+    } finally {
         // Hide the loader after data is fetched or an error occurs
         container.find('#panel-loading').remove();
     }
 }
-
 
 async function fetchTimeSeriesData(data) {
     try {
@@ -2259,7 +2248,6 @@ async function fetchTimeSeriesData(data) {
         throw error;
     }
 }
-
 
 function getTagKeyValue(metricName) {
     return new Promise((resolve, reject) => {
