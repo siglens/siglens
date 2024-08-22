@@ -22,6 +22,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -134,6 +135,8 @@ var VERSION_TAGSTREE = []byte{0x01}
 var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
+
+const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
 type SS_DTYPE uint8
 
@@ -282,7 +285,8 @@ const (
 type AggregateFunctions int
 
 const (
-	Count AggregateFunctions = iota + 1
+	Invalid AggregateFunctions = iota
+	Count
 	Avg
 	Min
 	Max

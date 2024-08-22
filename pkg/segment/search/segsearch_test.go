@@ -92,7 +92,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	allSegFileResults, err := segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
-	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary)
+	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numBuffers*5, len(allSegFileResults.GetResults()))
 	assert.Equal(t, allSegFileResults.GetTotalCount(), uint64(len(allSegFileResults.GetResults())))
@@ -110,7 +110,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	querytracker.UpdateQTUsage([]string{searchReq.VirtualTableName}, node, nil, "*")
 
 	// Call rawSearchColumnar
-	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary)
+	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
 	// We need to sleep because pqmr files are written in background go routines
 	time.Sleep(1 * time.Second)
 	// Now make sure filename exists
@@ -156,7 +156,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	}
 	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
-	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 3, querySummary)
+	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 3, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, (numBuffers*numEntriesForBuffer)/2, len(allSegFileResults.GetResults()))
 
@@ -178,7 +178,7 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
-	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary)
+	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.NotEqual(t, 0, allSegFileResults.GetAllErrors(), "errors MUST happen")
 	assert.Equal(t, 0, len(allSegFileResults.GetResults()))
 
@@ -202,7 +202,7 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
-	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary)
+	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numEntriesForBuffer, len(allSegFileResults.GetResults()))
 
@@ -232,7 +232,7 @@ func Test_simpleRawSearch(t *testing.T) {
 		}
 	}
 
-	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 5, querySummary)
+	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 5, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numEntriesForBuffer, len(allSegFileResults.GetResults()))
 
@@ -281,7 +281,7 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
-	rawSearchColumnar(searchReq, nestedQuery, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary)
+	rawSearchColumnar(searchReq, nestedQuery, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numEntriesForBuffer*2, len(allSegFileResults.GetResults()))
 
@@ -342,7 +342,7 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	allSegFileResults, err := segresults.InitSearchResults(10000, nil, RRCCmd, 1)
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
-	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary)
+	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
 
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numBuffers, len(allSegFileResults.GetResults()))
@@ -369,7 +369,7 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
-	rawSearchColumnar(searchReq, node2, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary)
+	rawSearchColumnar(searchReq, node2, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
 
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numBuffers*2, len(allSegFileResults.GetResults()))
@@ -409,7 +409,7 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 	allSegFileResults, err := segresults.InitSearchResults(10000, nil, SegmentStatsCmd, 1000)
 	assert.Nil(t, err)
 
-	block0, err := RawComputeSegmentStats(searchReq, 5, node, fullTimeRange, measureOps, allSegFileResults, 123, querySummary)
+	block0, err := RawComputeSegmentStats(searchReq, 5, node, fullTimeRange, measureOps, allSegFileResults, 123, querySummary, &structs.NodeResult{})
 	assert.Nil(t, err)
 	assert.Len(t, block0, 2)
 	assert.Contains(t, block0, "key0")
@@ -460,7 +460,7 @@ func Benchmark_simpleRawSearch(b *testing.B) {
 	for i := 0; i < count; i++ {
 		allSegFileResults, err := segresults.InitSearchResults(100, agg, RRCCmd, 8)
 		assert.NoError(b, err)
-		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary)
+		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary, &structs.NodeResult{})
 		b := allSegFileResults.GetBucketResults()
 		c := allSegFileResults.GetTotalCount()
 		log.Infof("num buckets %+v, count %+v", len(b["date histogram"].Results), c)
@@ -515,7 +515,7 @@ func Benchmark_simpleAggregations(b *testing.B) {
 	for i := 0; i < count; i++ {
 		allSegFileResults, err := segresults.InitSearchResults(100, agg, RRCCmd, 8)
 		assert.NoError(b, err)
-		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary)
+		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary, &structs.NodeResult{})
 		b := allSegFileResults.GetBucketResults()
 		c := allSegFileResults.GetTotalCount()
 		log.Infof("num buckets %+v, count %+v", len(b["test"].Results), c)

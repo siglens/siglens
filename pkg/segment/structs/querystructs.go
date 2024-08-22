@@ -126,6 +126,11 @@ type BlockTracker struct {
 	excludeBlocks map[uint16]bool
 }
 
+type SegmentByTimeAndColSizes struct {
+	TimeRange            *dtu.TimeRange
+	ConsistentCValLenMap map[string]uint32
+}
+
 func InitTableInfo(rawRequest string, orgid uint64, es bool) *TableInfo {
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(rawRequest, orgid, es)
 	ti := &TableInfo{rawRequest: rawRequest}

@@ -205,9 +205,14 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 
 	for fName, cname := range bulkDownloadFiles {
 		fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
-		if err != nil {
-			log.Errorf("readCmis: open failed cname=%v, fname=%v, err=[%v], continuing with rest", cname, fName, err)
+		if os.IsNotExist(err) {
+			// This can happen if a query specifies a column that does not
+			// exist in the segment.
+			log.Infof("readCmis: no CMI file for column %v", cname)
 			continue
+		}
+		if err != nil {
+			return nil, toputils.TeeErrorf("readCmis: cannot open fname=%v, cname=%v, err=[%v]", fName, cname, err)
 		}
 		defer fd.Close()
 
@@ -260,8 +265,16 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 
 func (sm *SegmentMicroIndex) getColumns() map[string]bool {
 	retVal := make(map[string]bool, len(sm.ColumnNames))
-	for k := range sm.ColumnNames {
-		retVal[k] = true
+	for colName := range sm.ColumnNames {
+		retVal[colName] = true
+	}
+	return retVal
+}
+
+func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
+	retVal := make(map[string]uint32, len(sm.ColumnNames))
+	for colName, colSizeInfo := range sm.ColumnNames {
+		retVal[colName] = colSizeInfo.ConsistentCvalSize
 	}
 	return retVal
 }

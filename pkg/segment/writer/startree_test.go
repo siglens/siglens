@@ -237,15 +237,17 @@ func TestStarTree(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey1"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
@@ -262,7 +264,8 @@ func TestStarTree(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -328,17 +331,19 @@ func TestStarTreeMedium(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey2"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	for i, test := range currCases {
 
@@ -354,7 +359,8 @@ func TestStarTreeMedium(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -421,18 +427,20 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 	segstats := make(map[string]*SegStats)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey1"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	for i, test := range currCases {
 
@@ -448,7 +456,8 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -515,17 +524,19 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 
 	ss := NewSegStore(0)
 	ss.wipBlock = wipBlock
 	ss.SegmentKey = "test-segkey4"
-	ss.AllSeenColumns = allCols
+	ss.AllSeenColumnSizes = allCols
 	ss.pqTracker = initPQTracker()
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	for i, test := range currCases {
 
@@ -541,7 +552,8 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
