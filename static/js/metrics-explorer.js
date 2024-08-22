@@ -2036,7 +2036,7 @@ function displayErrorMessage(container, message) {
         container = container.get(0);
     }
     // Get the merged graph container
-    const mergedContainer = document.querySelector("#merged-graph-container");
+    const mergedContainer = document.querySelector('#merged-graph-container');
 
     // Find the canvas elements
     var graphCanvas = container.querySelector('.graph-canvas');
