@@ -697,7 +697,6 @@ var cases2 = []struct {
 					"rating": 2
 			}`,
 	},
-
 	{
 		`{
 					"brand":"audi",
@@ -706,22 +705,40 @@ var cases2 = []struct {
 					"rating": 4
 			}`,
 	},
+	{
+		`{
+					"brand":"audi",
+					"color":"green",
+					"price": 10,
+					"perf": 3,
+					"rating": 2
+			}`,
+	},
+	{
+		`{
+					"brand":"audi",
+					"color":"blue",
+					"price": 5,
+					"perf": 2,
+					"rating": 3
+			}`,
+	},
 }
 
 // Tree structure of the data:
 
 //                                         ROOT
-//                  /                       |                            \
-//                 /                        |                              \
-//              toyota                     audi (20, 6, 4)                 bmw
-//           /    |    \              /           \                     /   |     \
-//        green yellow red         blue        green                green  red   pink (25, 5, 2)
-//         |     |     |         |            /       \            |       |      |
-//        sedan  sedan  suv    sedan       sedan     suv         sedan    sedan   suv
-//         |     |     |         |           |       |            |        |       |
-// Price:  10    8     9        20          16       30          50        18      40
-// Perf:   9     7     8        11          11       15          16        11      3
-// Rating: 5     3     4        6           10       12          11        3       1
+//                  /                       |                                    \
+//                 /                        |                                      \
+//              toyota                     audi (20, 6, 4)                         bmw
+//           /    |    \              /           \                     /             |     \
+//        green yellow red       blue (5, 2, 3)   green (10, 3, 2) green (25, 5, 2)  red   pink
+//         |     |     |         |            /       \            |                   |      |
+//        sedan  sedan  suv    sedan       sedan     suv         sedan                sedan   suv
+//         |     |     |         |           |       |            |                    |       |
+// Price:  10    8     9        20          16       30          50                    18      40
+// Perf:   9     7     8        11          11       15          16                    11      3
+// Rating: 5     3     4        6           10       12          11                    3       1
 
 func checkAggValues(t *testing.T, measureInd int, root *Node, expected []interface{}) {
 	offset := measureInd * TotalMeasFns
@@ -742,7 +759,14 @@ func getTotalLevels(node *Node) int {
 	if node == nil || node.children == nil || len(node.children) == 0 {
 		return 0
 	}
-	return 1 + getTotalLevels(node.children[0])
+	max := 0
+	for _, child := range node.children {
+		level := getTotalLevels(child)
+		if level > max {
+			max = level
+		}
+	}
+	return 1 + max
 }
 
 func TestStarTree2(t *testing.T) {
@@ -803,7 +827,7 @@ func TestStarTree2(t *testing.T) {
 
 	// basic test
 	var builder StarTreeBuilder
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -813,14 +837,14 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 3, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// Levels: 0 -> brand, 1 -> color, 2 -> type
 	// remove brand
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -833,13 +857,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// remove color
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -852,13 +876,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// remove type
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -871,13 +895,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// remove brand and color
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -892,13 +916,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// remove color and type
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -913,13 +937,13 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	// remove brand and type
-	for trial := 0; trial < 1; trial += 1 {
+	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
@@ -934,9 +958,9 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(246), int64(8), int64(50), uint64(11)})
-		checkAggValues(t, 1, root, []interface{}{int64(102), int64(3), int64(16), uint64(11)})
-		checkAggValues(t, 2, root, []interface{}{int64(61), int64(1), int64(12), uint64(11)})
+		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
+		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
+		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
 	}
 
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
