@@ -110,7 +110,9 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 					}
 
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
-					caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					if originalColValue != nil {
+						caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					}
 					if strings.Contains(t, "\"") {
 						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, caseConversion)
 						andFilterCondition = append(andFilterCondition, criteria)
@@ -135,7 +137,9 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
-					caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					if originalColValue != nil {
+						caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					}
 					criteria := CreateTermFilterCriteria(colName, cleanedColVal, opr, qid, caseConversion)
 					andFilterCondition = append(andFilterCondition, criteria)
 				}

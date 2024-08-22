@@ -158,6 +158,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		leafNode = createMatchAll(qid)
 		return leafNode, nil, nil
 	}
+
+	shouldBeCaseSensitive := true
+
 	//peg parsing to AST tree
 	switch queryLanguage {
 	case "Pipe QL":
@@ -166,6 +169,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		res, err = logql.Parse("", []byte(searchText))
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
+		shouldBeCaseSensitive = false
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
 	}
@@ -196,7 +200,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	searchNode, aggs = optimizeQuery(searchNode, aggs)
 
-	err = SearchQueryToASTnode(searchNode, boolNode, qid, false)
+	err = SearchQueryToASTnode(searchNode, boolNode, qid, shouldBeCaseSensitive)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
 		return nil, nil, err

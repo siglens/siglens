@@ -100,7 +100,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 			RightSearchInput: rightInput,
 		},
 	}
-	allKeys, wildcard, op := query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op := query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 1, "only 1 key")
 	_, ok := allKeys["1"]
 	assert.True(t, ok, "value exists")
@@ -108,7 +108,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 	assert.Equal(t, And, op)
 
 	query.ExpressionFilter.LeftSearchInput = leftLiteralInput
-	allKeys, wildcard, op = query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 1, "only 1 key")
 	_, ok = allKeys["abc"]
 	assert.True(t, ok, "abc key exists")
@@ -116,7 +116,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 	assert.Equal(t, And, op)
 
 	query.ExpressionFilter.LeftSearchInput = leftWildCardInput
-	allKeys, wildcard, op = query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 0, "no keys")
 	_, ok = allKeys["abc*"]
 	assert.False(t, ok, "abc* should not exist bc of wildcard")
@@ -130,7 +130,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 			MatchOperator: Or,
 		},
 	}
-	allKeys, wildcard, op = matchTest.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = matchTest.GetAllBlockBloomKeysToSearch()
 	assert.True(t, wildcard)
 	assert.Len(t, allKeys, 2, "2 keys")
 	_, ok = allKeys["a"]
@@ -153,7 +153,7 @@ func Test_GetAllBlockBloomKeysToSearch_MatchPhrase(t *testing.T) {
 		MatchType:     MATCH_PHRASE,
 	}
 
-	allKeys, wildcard, op := matchFilterNoWildcard.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op := matchFilterNoWildcard.GetAllBlockBloomKeysToSearch(false, false)
 	assert.Equal(t, 1, len(allKeys))
 	_, ok := allKeys["foo bar"]
 	assert.True(t, ok)
@@ -168,7 +168,7 @@ func Test_GetAllBlockBloomKeysToSearch_MatchPhrase(t *testing.T) {
 		MatchType:     MATCH_PHRASE,
 	}
 
-	allKeys, wildcard, op = matchFilterWithWildcard.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = matchFilterWithWildcard.GetAllBlockBloomKeysToSearch(false, false)
 	assert.Equal(t, 0, len(allKeys))
 	assert.True(t, wildcard)
 	assert.Equal(t, And, op)
