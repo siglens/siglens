@@ -227,7 +227,13 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	var matchedBlockRange bool
 	for colName := range colsToCheck {
 		colCMI, err := segMicroIndex.GetCMIForBlockAndColumn(blockToCheck, colName)
+		if err == errCMIColNotFound && rangeOp == utils.NotEquals {
+			matchedBlockRange = true
+			timeFilteredBlocks[blockToCheck][colName] = true
+			continue
+		}
 		if err != nil {
+			log.Errorf("doRangeCheckForCol: failed to get cmi for block %d and column %s: %v", blockToCheck, colName, err)
 			continue
 		}
 		if colCMI.CmiType != utils.CMI_RANGE_INDEX[0] {
