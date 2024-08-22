@@ -247,6 +247,8 @@ func TestStarTree(t *testing.T) {
 	ss.AllSst = segstats
 	ss.numBlocks = 0
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
 
@@ -262,7 +264,8 @@ func TestStarTree(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -340,6 +343,8 @@ func TestStarTreeMedium(t *testing.T) {
 
 	tsKey := config.GetTimeStampKey()
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for i, test := range currCases {
 
 		var record_json map[string]interface{}
@@ -354,7 +359,8 @@ func TestStarTreeMedium(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -434,6 +440,8 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	tsKey := config.GetTimeStampKey()
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for i, test := range currCases {
 
 		var record_json map[string]interface{}
@@ -448,7 +456,8 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -527,6 +536,8 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 
 	tsKey := config.GetTimeStampKey()
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for i, test := range currCases {
 
 		var record_json map[string]interface{}
@@ -541,7 +552,8 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx

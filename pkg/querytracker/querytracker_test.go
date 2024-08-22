@@ -369,8 +369,8 @@ func Test_PostPqsClear(t *testing.T) {
 	UpdateQTUsage(tableName, sNode, nil, "os=iOS")
 
 	expected := map[string]interface{}{
-		"promoted_aggregations": make(map[string]int),
-		"promoted_searches":     make(map[string]int),
+		"promoted_aggregations": []map[string]interface{}{},
+		"promoted_searches":     []map[string]interface{}{},
 		"total_tracked_queries": 0,
 	}
 	var pqsSummary, clearPqsSummary map[string]interface{}
