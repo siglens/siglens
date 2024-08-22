@@ -184,6 +184,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <button class="btn alert-from-metrics-btn below-btn-img" id="alert-from-metrics-btn" title="Create Alert"></button>
                     <button class="btn add-metrics-to-db-btn below-btn-img" id="add-metrics-to-db-btn" title="Add to Dashboard" class="mx-3"></button>
+                    <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+
                     <div class="dropdown download-btn">                       
                         <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
@@ -194,6 +196,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <li id="csv-block" class="query-language-option">Download as CSV</li>
                             <li id="json-block" class="query-language-option">Download as JSON</li>
                         </div>
+                    </div>
+                    <div id="save-queries">
+                        <p class="validateTips"></p>
+                        <form>
+                            <fieldset>
+                                <input type="text" name="qname" id="qname" placeholder="Name"
+                                    class="text ui-widget-content ui-corner-all">
+                                <input type="text" name="description" id="description" placeholder="Description (Optional)"
+                                    class="text ui-widget-content ui-corner-all">
+                                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                            </fieldset>
+                        </form>
                     </div>
                 </div>
                 <div id="metrics-graphs" class="metrics-graph-container mt-5">
@@ -251,6 +266,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/metrics-explorer.js"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/dashboard-from-logs-metrics.js?cb=1_1_10"></script>
