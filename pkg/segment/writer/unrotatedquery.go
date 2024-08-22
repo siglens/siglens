@@ -362,6 +362,10 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 				continue
 			}
 			if cmi.Ranges == nil {
+				if rangeOp == segutils.NotEquals {
+					timeFilteredBlocks[blkNum][col] = true
+					matchedBlockRange = true
+				}
 				continue
 			}
 			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
