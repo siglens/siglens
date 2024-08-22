@@ -202,13 +202,12 @@ func (stb *StarTreeBuilder) newNode() *Node {
 	// pre-alloc on the first one to the size of MaxAgileTree,
 	// and after that if the nodePool count exceeds then we can do the
 	// one by one extension
-	sizeNeeded := MaxAgileTreeNodeCount - len(stb.nodePool)
-	if sizeNeeded > 0 {
-		newArr := make([]*Node, sizeNeeded)
-		for i := 0; i < sizeNeeded; i++ {
-			newArr[i] = &Node{}
+	stbNodePoolLen := len(stb.nodePool)
+	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCount)
+	if len(stb.nodePool) > stbNodePoolLen {
+		for i := stbNodePoolLen; i < len(stb.nodePool); i++ {
+			stb.nodePool[i] = &Node{}
 		}
-		stb.nodePool = append(stb.nodePool, newArr...)
 	}
 	if stb.nodeCount >= len(stb.nodePool) {
 		stb.nodePool = append(stb.nodePool, &Node{})
@@ -230,13 +229,12 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 
 	if len(cur.children) != 0 {
-		sizeNeeded := lenAggValues - len(cur.aggValues)
-		if sizeNeeded > 0 {
-			newArr := make([]*utils.NumTypeEnclosure, sizeNeeded)
-			for i := 0; i < sizeNeeded; i++ {
-				newArr[i] = &utils.NumTypeEnclosure{}
+		aggValuesLen := len(cur.aggValues)
+		cur.aggValues = toputils.ResizeSlice(cur.aggValues, lenAggValues)
+		if len(cur.aggValues) > aggValuesLen {
+			for i := aggValuesLen; i < len(cur.aggValues); i++ {
+				cur.aggValues[i] = &utils.NumTypeEnclosure{}
 			}
-			cur.aggValues = append(cur.aggValues, newArr...)
 		}
 	}
 
