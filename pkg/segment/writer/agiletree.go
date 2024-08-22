@@ -188,6 +188,11 @@ func (stb *StarTreeBuilder) resetNodeData() {
 		for k := range node.children {
 			delete(node.children, k)
 		}
+		if len(node.aggValues) > 0 {
+			for i := range node.aggValues {
+				node.aggValues[i].Reset()
+			}
+		}
 	}
 	stb.nodeCount = 0
 }

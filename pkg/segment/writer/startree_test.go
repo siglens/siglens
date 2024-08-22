@@ -388,7 +388,7 @@ func TestStarTreeMedium(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-
+		fmt.Println("root.aggValues[agSumIdx]=", root.aggValues[agSumIdx])
 		assert.Equal(t, root.aggValues[agSumIdx].IntgrVal,
 			int64(34*1000),
 			fmt.Sprintf("expected sum of 340000 for sum of column f; got %d",
@@ -596,7 +596,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 				root.aggValues[agidx].IntgrVal))
 
 		agidx = 1*(TotalMeasFns) + MeasFnCountIdx
-		assert.Equal(t, uint64(800), root.aggValues[agidx].IntgrVal,
+		assert.Equal(t, int64(800), root.aggValues[agidx].IntgrVal,
 			fmt.Sprintf("expected 800 for count of column f; got %d",
 				root.aggValues[agidx].IntgrVal))
 
