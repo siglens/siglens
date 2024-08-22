@@ -2035,45 +2035,50 @@ function displayErrorMessage(container, message) {
     if (container instanceof jQuery) {
         container = container.get(0);
     }
+    // Get the merged graph container
+    const mergedContainer = document.querySelector("#merged-graph-container");
 
-    // Find the canvas element inside the container
+    // Find the canvas elements
     var graphCanvas = container.querySelector('.graph-canvas');
-
-    // Create a new canvas element
+    var mergedGraph = mergedContainer.querySelector('.merged-graph');
+    // Create new canvas elements
     var canvas = document.createElement('canvas');
     var ctx = canvas.getContext('2d');
-
-    // Set canvas size (adjust as needed)
-    canvas.width = graphCanvas.offsetWidth; // Use the container's width
-    canvas.height = graphCanvas.offsetHeight; // Use the container's height
-
-    // Add the canvas to the graph-canvas div
-    graphCanvas.innerHTML = ''; // Clear any existing content in the graph-canvas
+    var mergedCanvas = document.createElement('canvas');
+    var mctx = mergedCanvas.getContext('2d');
+    // Set canvas sizes
+    canvas.width = graphCanvas.offsetWidth;
+    canvas.height = graphCanvas.offsetHeight;
+    mergedCanvas.width = mergedGraph.offsetWidth;
+    mergedCanvas.height = mergedGraph.offsetHeight;
+    // Clear existing content and append new canvas elements
+    graphCanvas.innerHTML = '';
     graphCanvas.appendChild(canvas);
-
-    // Clear any previous drawings or data on the canvas
+    mergedGraph.innerHTML = '';
+    mergedGraph.appendChild(mergedCanvas);
+    // Clear previous drawings on the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    mctx.clearRect(0, 0, mergedCanvas.width, mergedCanvas.height);
     // Get the CSS variable for the text color
     var textColor = getComputedStyle(document.documentElement).getPropertyValue('--empty-response-text-color').trim() || '#808080';
-
-    // Set the text properties
+    // Set text properties for both canvases
     ctx.font = '700 20px DINpro'; // Font weight and size
     ctx.fillStyle = textColor; // Text color
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
+    mctx.font = '700 20px DINpro'; // Font weight and size
+    mctx.fillStyle = textColor; // Text color
+    mctx.textAlign = 'center';
+    mctx.textBaseline = 'middle';
     // Function to wrap text
-    function wrapText(text, maxWidth) {
+    function wrapText(text, maxWidth, context) {
         var words = text.split(' ');
         var line = '';
         var lines = [];
-
         for (var n = 0; n < words.length; n++) {
             var testLine = line + words[n] + ' ';
-            var metrics = ctx.measureText(testLine);
+            var metrics = context.measureText(testLine);
             var testWidth = metrics.width;
-
             if (testWidth > maxWidth && n > 0) {
                 lines.push(line);
                 line = words[n] + ' ';
@@ -2081,24 +2086,25 @@ function displayErrorMessage(container, message) {
                 line = testLine;
             }
         }
-
         lines.push(line);
         return lines;
     }
-
-    // Wrap the message text
-    var wrappedText = wrapText(message, canvas.width * 0.9); // Wrap text within 90% of the canvas width
-
+    // Wrap the message text for both canvases
+    var wrappedText = wrapText(message, canvas.width * 0.9, ctx);
+    var mergedWrappedText = wrapText(message, mergedCanvas.width * 0.9, mctx);
     // Calculate the total height needed for the text
     var lineHeight = 30; // Adjust as needed (24px font size + some spacing)
     var totalHeight = wrappedText.length * lineHeight;
-
+    var totalMergeHeight = mergedWrappedText.length * lineHeight;
     // Calculate the starting Y position to center the text vertically
     var startY = (canvas.height - totalHeight) / 2;
-
-    // Draw the wrapped text
+    var startMergeY = (mergedCanvas.height - totalMergeHeight) / 2;
+    // Draw the wrapped text on both canvases
     wrappedText.forEach(function (line, index) {
         ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+    });
+    mergedWrappedText.forEach(function (line, index) {
+        mctx.fillText(line, mergedCanvas.width / 2, startMergeY + index * lineHeight);
     });
 }
 
@@ -2133,9 +2139,9 @@ async function getMetricsData(queryName, metricName, state) {
 
             delete chartDataCollection[queryName];
             delete lineCharts[queryName];
-            var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
+            var errorContainer = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
             // Display the error message
-            displayErrorMessage(container, errorMessage);
+            displayErrorMessage(errorContainer, errorMessage);
         }
     } finally {
         // Hide the loader after data is fetched or an error occurs
@@ -2215,17 +2221,17 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     } catch (error) {
         console.error('Error fetching time series data:', error);
         // Assuming `canvas` is available in this scope or can be passed as an argument
-        var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
-        if (canvas.length > 0) {
+        var errorCanvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
+        if (errorCanvas.length > 0) {
             // Extract the error message
             const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-            canvas.remove();
+            errorCanvas.remove();
 
             delete chartDataCollection[formulaId];
             delete lineCharts[formulaId];
-            var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
+            var errorContainer = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
             // Display the error message
-            displayErrorMessage(container, errorMessage);
+            displayErrorMessage(errorContainer, errorMessage);
         }
     } finally {
         // Hide the loader after data is fetched or an error occurs
@@ -2234,19 +2240,14 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 }
 
 async function fetchTimeSeriesData(data) {
-    try {
-        return await $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/timeseries',
-            headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data),
-        });
-    } catch (error) {
-        // Handle the error and pass it along
-        throw error;
-    }
+    return await $.ajax({
+        method: 'post',
+        url: 'metrics-explorer/api/v1/timeseries',
+        headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
+        crossDomain: true,
+        dataType: 'json',
+        data: JSON.stringify(data),
+    });
 }
 
 function getTagKeyValue(metricName) {
