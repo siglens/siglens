@@ -388,7 +388,6 @@ func TestStarTreeMedium(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		fmt.Println("root.aggValues[agSumIdx]=", root.aggValues[agSumIdx])
 		assert.Equal(t, root.aggValues[agSumIdx].IntgrVal,
 			int64(34*1000),
 			fmt.Sprintf("expected sum of 340000 for sum of column f; got %d",
