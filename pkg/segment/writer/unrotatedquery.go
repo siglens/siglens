@@ -356,22 +356,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 		// As long as there is one column within the range, the value is equal to true
 		var matchedBlockRange bool
 		for col := range colsToCheck {
-			var cmi *structs.CmiContainer
-			var ok bool
-			if cmi, ok = currInfo[col]; !ok {
+			cmi, ok := currInfo[col]
+			if !ok || cmi == nil || cmi.Ranges == nil {
 				if rangeOp == segutils.NotEquals {
 					timeFilteredBlocks[blkNum][col] = true
 					matchedBlockRange = true
 				}
 				continue
 			}
-			if cmi.Ranges == nil {
-				if rangeOp == segutils.NotEquals {
-					timeFilteredBlocks[blkNum][col] = true
-					matchedBlockRange = true
-				}
-				continue
-			}
+
 			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
 			if isMatched {
 				timeFilteredBlocks[blkNum][col] = true
