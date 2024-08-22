@@ -376,3 +376,4 @@ city!=123,now-1d,now,*,total,eq,100000,Splunk QL
 invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn!=123,now-1d,now,*,total,eq,100000,Splunk QL
+NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
