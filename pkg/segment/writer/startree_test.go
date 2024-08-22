@@ -696,26 +696,35 @@ var cases2 = []struct {
 	},
 }
 
-func getCVals(node *Node) []interface{} {
-	var cvals []interface{}
-	for _, agg := range node.aggValues {
-		cvals = append(cvals, agg.CVal)
-	}
-	return cvals
-}
+// Tree structure of the data:
 
-func printTree(node *Node, level int) {
-	for i := 0; i < level; i++ {
-		fmt.Print("  ")
-	}
-	fmt.Printf("Node: %v ", node.myKey)
-	if len(node.children) == 0 {
-		fmt.Printf("val: %v", getCVals(node))
-	}
-	fmt.Println()
-	for _, child := range node.children {
-		printTree(child, level+1)
-	}
+//                                         ROOT
+//                  /                       |                            \
+//                 /                        |                              \
+//              toyota                     audi                            bmw
+//           /    |    \              /           \                     /   |     \
+//        green yellow red         blue        green                green  red   pink                 
+//         |     |     |         |            /       \            |       |      |
+//        sedan  sedan  suv    sedan       sedan     suv         sedan    sedan   suv
+//         |     |     |         |           |       |            |        |       |     
+// Price:  10    8     9        20          16       30          50        18      40           
+// Perf:   9     7     8        11          11       15          16        11      3            
+// Rating: 5     3     4        6           10       12          11        3       1  
+
+
+func checkAggValues(t *testing.T, measureInd int, root *Node, expected []interface{}) {
+	offset := measureInd * TotalMeasFns
+	agidx := offset + MeasFnSumIdx
+	assert.Equal(t, expected[0].(int64), root.aggValues[agidx].CVal.(int64))
+
+	agidx = offset + MeasFnMinIdx
+	assert.Equal(t, expected[1].(int64), root.aggValues[agidx].CVal.(int64))
+
+	agidx = offset + MeasFnMaxIdx
+	assert.Equal(t, expected[2].(int64), root.aggValues[agidx].CVal.(int64))
+
+	agidx = offset + MeasFnCountIdx
+	assert.Equal(t, expected[3].(uint64), root.aggValues[agidx].CVal.(uint64))
 }
 
 
@@ -768,53 +777,137 @@ func TestStarTree2(t *testing.T) {
 	}
 
 	groupByCols := []string{"brand", "color", "type"}
-	mColNames := []string{"price"}
+	mColNames := []string{"price", "perf", "rating"}
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
 	}
 
+	// basic test
 	var builder StarTreeBuilder
-	// for trial := 0; trial < 10; trial += 1 {
+	for trial := 0; trial < 1; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
 
-		// assert.NotNil(t, root)
-		// assert.NotNil(t, root.children)
-		// assert.NotNil(t, root.children[0].children)
-		// assert.NotNil(t, root.children[0].children[0].children)
-		// assert.NotNil(t, root.children[0].children[0].children[0].aggValues)
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
 
-		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[0].CVal.(int64))
-		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[1].CVal.(int64))
-		// assert.Equal(t, int64(10), root.children[0].children[0].children[0].aggValues[2].CVal.(int64))
-		// assert.Equal(t, uint64(1), root.children[0].children[0].children[0].aggValues[3].CVal.(uint64))
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
 
-		printTree(root, 0)
+	// Levels: 0 -> brand, 1 -> color, 2 -> type
+	// remove brand
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
 
 		builder.removeLevelFromTree(root, 0, 0, 2)
 
-		fmt.Println()
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
 
-		printTree(root, 0)
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
 
-		// builder.removeLevelFromTree(root, 0, 1, 1)
+	// remove color
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
 
-		// fmt.Println()
+		builder.removeLevelFromTree(root, 0, 1, 2)
 
-		// printTree(root, 0)
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
 
-		assert.True(t, false)
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
 
-		// _, err = builder.EncodeStarTree(ss.SegmentKey)
-		// assert.NoError(t, err)
-	// }
-	// fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
-	// _ = os.RemoveAll(fName)
-	// fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
-	// _ = os.RemoveAll(fName)
+	// remove type
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
 
+		builder.removeLevelFromTree(root, 0, 2, 2)
+
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
+
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
+
+	// remove brand and color
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
+
+		builder.removeLevelFromTree(root, 0, 0, 2)
+		builder.removeLevelFromTree(root, 0, 1, 1)
+
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
+
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
+
+	// remove color and type
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
+
+		builder.removeLevelFromTree(root, 0, 1, 2)
+		builder.removeLevelFromTree(root, 0, 1, 1)
+
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
+
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
+
+	// remove brand and type
+	for trial := 0; trial < 1; trial += 1 {
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+		err := builder.ComputeStarTree(&ss.wipBlock)
+		assert.NoError(t, err)
+		root := builder.tree.Root
+
+		builder.removeLevelFromTree(root, 0, 0, 2)
+		builder.removeLevelFromTree(root, 0, 1, 1)
+
+		_, err = builder.EncodeStarTree(ss.SegmentKey)
+		assert.NoError(t, err)
+
+		checkAggValues(t, 0, root, []interface{}{int64(201), int64(8), int64(50), uint64(9)})
+		checkAggValues(t, 1, root, []interface{}{int64(91), int64(3), int64(16), uint64(9)})
+		checkAggValues(t, 2, root, []interface{}{int64(55), int64(1), int64(12), uint64(9)})
+	}
+
+	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
+	_ = os.RemoveAll(fName)
+	fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
+	_ = os.RemoveAll(fName)
 }

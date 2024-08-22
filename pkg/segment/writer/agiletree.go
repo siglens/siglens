@@ -280,16 +280,6 @@ func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum 
 	}
 }
 
-
-func validateLeafNode(node *Node, measureIdx int) error {
-	if node.aggValues == nil || measureIdx >= len(node.aggValues) {
-		log.Errorf("cleanupCommon: node has no aggValues or not enough aggValues")
-		return fmt.Errorf("cleanupCommon: node has no aggValues or not enough aggValues")
-	}
-	return nil
-}
-
-
 func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	if node.aggValues == nil {
 		node.aggValues = make([]utils.CValueEnclosure, len(nodeToMerge.aggValues))
@@ -299,46 +289,30 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	for mcNum := range stb.mColNames {
 		midx := mcNum * TotalMeasFns
 		agvidx := midx + MeasFnMinIdx
-		err = validateLeafNode(node, agvidx)
-		if err != nil {
-			return err
-		}
 		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Min)
 		if err != nil {
-			log.Errorf("addMeasures: error in min err:%v", err)
+			log.Errorf("updateAggVals: error in min err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnMaxIdx
-		err = validateLeafNode(node, agvidx)
-		if err != nil {
-			return err
-		}
 		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Max)
 		if err != nil {
-			log.Errorf("addMeasures: error in max err:%v", err)
+			log.Errorf("updateAggVals: error in max err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnSumIdx
-		err = validateLeafNode(node, agvidx)
-		if err != nil {
-			return err
-		}
 		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Sum)
 		if err != nil {
-			log.Errorf("addMeasures: error in sum err:%v", err)
+			log.Errorf("updateAggVals: error in sum err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnCountIdx
-		err = validateLeafNode(node, agvidx)
-		if err != nil {
-			break
-		}
 		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Count)
 		if err != nil {
-			log.Errorf("addMeasures: error in count err:%v", err)
+			log.Errorf("updateAggVals: error in count err:%v", err)
 			return err
 		}
 	}
@@ -346,8 +320,9 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) cleanupCommon(currNode *Node, currIdx uint, lastIdx uint) error {
+func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node, currIdx uint, lastIdx uint) error {
 	var err error
+	// if we are at the last level, we need to update the agg values
 	if currIdx == lastIdx {
 		for _, nodes := range currNode.commonChildren {
 			fixedNode := nodes[0]
@@ -364,6 +339,7 @@ func (stb *StarTreeBuilder) cleanupCommon(currNode *Node, currIdx uint, lastIdx 
 		return nil
 	}
 
+	// delink the children from the current nodes and accumulate them as commonChildren
 	for _, nodes := range currNode.commonChildren {
 		fixedNode := nodes[0]
 		commonChildren := make(map[uint32][]*Node)
@@ -381,8 +357,9 @@ func (stb *StarTreeBuilder) cleanupCommon(currNode *Node, currIdx uint, lastIdx 
 		fixedNode.commonChildren = commonChildren
 	}
 
+	// link parent and children properly and cleanup commonChildren
 	for _, children := range currNode.commonChildren {
-		err = stb.cleanupCommon(children[0], currIdx+1, lastIdx)
+		err = stb.cleanupCommonChildren(children[0], currIdx+1, lastIdx)
 		if err != nil {
 			return err
 		}
@@ -406,16 +383,16 @@ func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
 }
 
 func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToRemove uint, lastIdx uint) error {
-	// todo implement
-
 	if currIdx == idxToRemove {
 		if currIdx == lastIdx {
+			// if last column needs to be removed, accumulation of children is not required as they will be unique.
+			// just combine the aggs at parent.
 			return stb.updateLastLevel(node)
 		}
 
 		commonChildren := make(map[uint32][]*Node)
 
-		// gather grandchildren
+		// accumulate grandchildren as commonChildren
 		for childKey, childNode := range node.children {
 			for key, grandchild := range childNode.children {
 				grandchild.parent = node
@@ -426,6 +403,7 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 				}
 				delete(childNode.children, key)
 			}
+
 			// remove children
 			childNode.parent = nil
 			delete(node.children, childKey)
@@ -433,7 +411,7 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 
 		node.commonChildren = commonChildren
 
-		return stb.cleanupCommon(node, currIdx+1, lastIdx)
+		return stb.cleanupCommonChildren(node, currIdx+1, lastIdx)
 	}
 
 	for _, child := range node.children {
