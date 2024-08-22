@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -488,7 +489,7 @@ func (ss *SegStore) encodeSingleString(key string, valStr string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(value)))
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytes.ToLower(valBytes))
 	}
 	if !ss.skipDe {
 		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
