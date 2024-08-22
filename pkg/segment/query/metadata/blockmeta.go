@@ -29,7 +29,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -144,18 +143,12 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 			}
 
 			if isRange {
-				blocksCopy1 := toputils.ShallowCopyMap(timeFilteredBlocks)
-				blocksCopy2 := toputils.ShallowCopyMap(timeFilteredBlocks)
-
 				if wildcardCol {
-					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, blocksCopy1, qid)
-					doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, blocksCopy2)
+					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
 				} else {
-					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, blocksCopy1, colsToCheck, qid)
-					doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, blocksCopy2, colsToCheck)
+					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, colsToCheck, qid)
 				}
 
-				timeFilteredBlocks = toputils.MergeMaps(blocksCopy1, blocksCopy2)
 			} else {
 				negateMatch := false
 				if currQuery != nil && currQuery.MatchFilter != nil && currQuery.MatchFilter.NegateMatch {
@@ -238,6 +231,10 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 			continue
 		}
 		if colCMI.CmiType != utils.CMI_RANGE_INDEX[0] {
+			if rangeOp == utils.NotEquals {
+				matchedBlockRange = true
+				timeFilteredBlocks[blockToCheck][colName] = true
+			}
 			continue
 		}
 		matchedBlockRange = metautils.CheckRangeIndex(rangeFilter, colCMI.Ranges, rangeOp, qid)
