@@ -48,7 +48,7 @@ func Test_segReader(t *testing.T) {
 	var queryCol string
 
 	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
@@ -150,7 +150,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums)
+	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
 	assert.Nil(b, err)
 
 	b.ResetTimer()

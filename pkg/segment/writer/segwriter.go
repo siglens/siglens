@@ -91,11 +91,12 @@ type DeData struct {
 }
 
 type ColWip struct {
-	cbufidx   uint32         // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf      [WIP_SIZE]byte // in progress bytes
-	csgFname  string         // file name of csg file
-	deData    *DeData
+	cbufidx               uint32         // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx             uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf                  [WIP_SIZE]byte // in progress bytes
+	csgFname              string         // file name of csg file
+	deData                *DeData
+	workBufForCompression []byte
 }
 
 type RangeIndex struct {
@@ -239,7 +240,8 @@ func cleanRecentlyRotatedInfo() {
 // place where we play with the locks
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
+	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -247,11 +249,13 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 
-	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush, signalType, orgid, rid)
+	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
+		signalType, orgid, rid, cnameCacheByteHashToStr)
 }
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
+	rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
@@ -268,7 +272,7 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType)
+	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr)
 	if err != nil {
 		return err
 	}
@@ -433,8 +437,9 @@ func InitColWip(segKey string, colName string) *ColWip {
 	}
 
 	return &ColWip{
-		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:   &deData,
+		csgFname:              fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:                &deData,
+		workBufForCompression: make([]byte, WIP_SIZE),
 	}
 }
 
@@ -706,7 +711,10 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 func compressWip(colWip *ColWip, encType []byte) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
-		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx], make([]byte, 0, colWip.cbufidx))
+
+		// reduce the len to 0, but keep the cap of the underlying buffer
+		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx],
+			colWip.workBufForCompression[:0])
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf[0:colWip.cbufidx]
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {

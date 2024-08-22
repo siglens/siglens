@@ -335,6 +335,8 @@ func ProcessRedTracesIngest() {
 	// We should use this array to record all the spans
 	spans := make([]*structs.Span, 0)
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for {
 		ctx := &fasthttp.RequestCtx{}
 		requestData, err := json.Marshal(searchRequestBody)
@@ -467,7 +469,7 @@ func ProcessRedTracesIngest() {
 		orgId := uint64(0)
 
 		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
+		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
@@ -571,9 +573,10 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	orgId := uint64(0)
 
 	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
+	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 
