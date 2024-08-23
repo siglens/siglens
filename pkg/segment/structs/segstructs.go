@@ -936,7 +936,17 @@ func (qa *QueryAggregators) CheckForColRequestAndAttachToFillNullExprInChain() {
 
 // To determine whether it contains ValueColRequest
 func (qa *QueryAggregators) HasValueColRequest() bool {
-	for _, agg := range qa.MeasureOperations {
+	if HasValueColRequestInMeasureAggs(qa.MeasureOperations) {
+		return true
+	}
+	if qa.GroupByRequest != nil && HasValueColRequestInMeasureAggs(qa.GroupByRequest.MeasureOperations) {
+		return true
+	}
+	return false
+}
+
+func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
+	for _, agg := range measureAggs {
 		if agg.ValueColRequest != nil {
 			return true
 		}
