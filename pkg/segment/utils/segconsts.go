@@ -633,6 +633,41 @@ func (nte *NumTypeEnclosure) Reset() {
 	nte.FloatVal = 0
 }
 
+func (cval *CValueEnclosure) ToNumber() (*Number, error) {
+	if cval == nil {
+		return nil, fmt.Errorf("ToNumber: cval is nil")
+	}
+
+	number := &Number{}
+
+	switch cval.Dtype {
+	case SS_DT_FLOAT:
+		val, ok := cval.CVal.(float64)
+		if !ok {
+			return nil, fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetFloat64(val)
+	case SS_DT_SIGNED_NUM:
+		val, ok := cval.CVal.(int64)
+		if !ok {
+			return nil, fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetUint64(uint64(val))
+	case SS_DT_UNSIGNED_NUM:
+		val, ok := cval.CVal.(uint64)
+		if !ok {
+			return nil, fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetUint64(val)
+	case SS_DT_BACKFILL:
+		return number, nil
+	default:
+		return nil, fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+	}
+
+	return number, nil
+}
+
 func (cval *CValueEnclosure) ToNumType() (*NumTypeEnclosure, error) {
 	if cval == nil {
 		return nil, fmt.Errorf("ToNumType: cval is nil")
