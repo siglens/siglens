@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
+	"github.com/cespare/xxhash"
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
@@ -43,6 +45,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastrand"
 
+	"github.com/segmentio/go-hll"
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	esquery "github.com/siglens/siglens/pkg/es/query"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -144,7 +147,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 		"* | stats avg(http_status) by hobby, http_method",
 		"* | stats count(*) by http_status",
 		"* | stats sum(http_status) by hobby, http_method",
-		"whatever*",
+		"whatever1234*",
 	}
 
 	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
@@ -608,4 +611,97 @@ func Benchmark_S3_segupload(b *testing.B) {
 
 	*/
 
+}
+
+func createUniqueStrings(n int) []string {
+	uniqueStrings := make([]string, n)
+	for i := 0; i < n; i++ {
+		uniqueStrings[i] = fmt.Sprintf("string-%d", i)
+	}
+	return uniqueStrings
+}
+
+func insertIntoAxiomHll(axiomHll *hyperloglog.Sketch, str string) {
+	axiomHll.Insert([]byte(str))
+}
+
+func axiomHllCardinality(axiomHll *hyperloglog.Sketch) uint64 {
+	return axiomHll.Estimate()
+}
+
+func Benchmark_axiomHLL(b *testing.B) {
+
+	/*
+	   go test -run=Bench -bench=Benchmark_axiomHLL  -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go tool pprof ./rawsearch_cpu cpuprofile.out
+
+	   (for mem profile)
+	   go test -run=Bench -bench=Benchmark_axiomHLL -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go tool pprof ./rawsearch_mem memprofile.out
+
+	*/
+
+	log.Infof("Benchmark_axiomHLL: Creating unique strings")
+	// Create 50 Million unique strings
+	uniqueStrings := createUniqueStrings(50_000_000)
+	log.Infof("Benchmark_axiomHLL: created %v unique strings", len(uniqueStrings))
+
+	axiomHll := hyperloglog.New16()
+
+	log.Infof("Benchmark_axiomHLL: Inserting %v unique strings", len(uniqueStrings))
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for _, str := range uniqueStrings {
+		insertIntoAxiomHll(axiomHll, str)
+	}
+
+	log.Infof("Benchmark_axiomHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), axiomHllCardinality(axiomHll))
+}
+
+func insertIntoSegmentioHll(segmentioHll *hll.Hll, strHash uint64) {
+	segmentioHll.AddRaw(strHash)
+}
+
+func segmentioHllCardinality(segmentioHll *hll.Hll) uint64 {
+	return segmentioHll.Cardinality()
+}
+
+func Benchmark_segmentioHLL(b *testing.B) {
+
+	/*
+	   go test -run=Bench -bench=Benchmark_segmentioHLL  -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go tool pprof ./rawsearch_cpu cpuprofile.out
+
+	   (for mem profile)
+	   go test -run=Bench -bench=Benchmark_segmentioHLL -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go tool pprof ./rawsearch_mem memprofile.out
+
+	*/
+
+	log.Infof("Benchmark_segmentioHLL: Creating unique strings")
+	// Create 50 Million unique strings
+	uniqueStrings := createUniqueStrings(50_000_000)
+	log.Infof("Benchmark_segmentioHLL: created %v unique strings", len(uniqueStrings))
+
+	hll.Defaults(hll.Settings{
+		Log2m:             10,
+		Regwidth:          4,
+		ExplicitThreshold: hll.AutoExplicitThreshold,
+		SparseEnabled:     true,
+	})
+
+	segmentioHll := &hll.Hll{}
+
+	log.Infof("Benchmark_segmentioHLL: Inserting %v unique strings", len(uniqueStrings))
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for _, str := range uniqueStrings {
+		strHash := xxhash.Sum64String(str)
+		insertIntoSegmentioHll(segmentioHll, strHash)
+	}
+
+	log.Infof("Benchmark_segmentioHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), segmentioHllCardinality(segmentioHll))
 }
