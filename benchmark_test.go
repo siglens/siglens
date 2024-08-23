@@ -613,20 +613,17 @@ func Benchmark_S3_segupload(b *testing.B) {
 
 }
 
-func createUniqueStrings(n int) []string {
-	uniqueStrings := make([]string, n)
-	for i := 0; i < n; i++ {
-		uniqueStrings[i] = fmt.Sprintf("string-%d", i)
+func insertIntoAxiomHll(byteUniqueStrings [][]byte) {
+	hllCounts := 10
+	hlls := make([]*hyperloglog.Sketch, hllCounts)
+
+	for i := 0; i < hllCounts; i++ {
+		hlls[i] = hyperloglog.New16()
+		for _, byteStr := range byteUniqueStrings {
+			hlls[i].Insert(byteStr)
+		}
+		log.Infof("insertIntoAxiomHll: HLL %v, cardinality=%v", i, hlls[i].Estimate())
 	}
-	return uniqueStrings
-}
-
-func insertIntoAxiomHll(axiomHll *hyperloglog.Sketch, str string) {
-	axiomHll.Insert([]byte(str))
-}
-
-func axiomHllCardinality(axiomHll *hyperloglog.Sketch) uint64 {
-	return axiomHll.Estimate()
 }
 
 func Benchmark_axiomHLL(b *testing.B) {
@@ -641,22 +638,23 @@ func Benchmark_axiomHLL(b *testing.B) {
 
 	*/
 
-	log.Infof("Benchmark_axiomHLL: Creating unique strings")
+	n := 50_000_000
+	log.Infof("Benchmark_axiomHLL: Creating %v unique strings", n)
 	// Create 50 Million unique strings
-	uniqueStrings := createUniqueStrings(50_000_000)
+	uniqueStrings := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		uniqueStrings[i] = []byte(fmt.Sprintf("string-%d", i))
+	}
 	log.Infof("Benchmark_axiomHLL: created %v unique strings", len(uniqueStrings))
-
-	axiomHll := hyperloglog.New16()
 
 	log.Infof("Benchmark_axiomHLL: Inserting %v unique strings", len(uniqueStrings))
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for _, str := range uniqueStrings {
-		insertIntoAxiomHll(axiomHll, str)
-	}
 
-	log.Infof("Benchmark_axiomHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), axiomHllCardinality(axiomHll))
+	insertIntoAxiomHll(uniqueStrings)
+
+	log.Infof("Benchmark_axiomHLL: Done inserting %v unique strings", len(uniqueStrings))
 }
 
 func insertIntoSegmentioHll(segmentioHll *hll.Hll, strHash uint64) {
@@ -679,29 +677,37 @@ func Benchmark_segmentioHLL(b *testing.B) {
 
 	*/
 
+	n := 50_000_000
 	log.Infof("Benchmark_segmentioHLL: Creating unique strings")
 	// Create 50 Million unique strings
-	uniqueStrings := createUniqueStrings(50_000_000)
+	uniqueStrings := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		uniqueStrings[i] = []byte(fmt.Sprintf("string-%d", i))
+	}
 	log.Infof("Benchmark_segmentioHLL: created %v unique strings", len(uniqueStrings))
 
-	hll.Defaults(hll.Settings{
+	hllSetting := hll.Settings{
 		Log2m:             10,
 		Regwidth:          4,
 		ExplicitThreshold: hll.AutoExplicitThreshold,
 		SparseEnabled:     true,
-	})
+	}
 
-	segmentioHll := &hll.Hll{}
+	segmentioHll, err := hll.NewHll(hllSetting)
+	if err != nil {
+		log.Fatalf("Benchmark_segmentioHLL: failed to create segmentioHll: %v", err)
+		return
+	}
 
 	log.Infof("Benchmark_segmentioHLL: Inserting %v unique strings", len(uniqueStrings))
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for _, str := range uniqueStrings {
-		strHash := xxhash.Sum64String(str)
-		insertIntoSegmentioHll(segmentioHll, strHash)
+	for _, byteStr := range uniqueStrings {
+		strHash := xxhash.Sum64(byteStr)
+		insertIntoSegmentioHll(&segmentioHll, strHash)
 	}
 
-	log.Infof("Benchmark_segmentioHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), segmentioHllCardinality(segmentioHll))
+	log.Infof("Benchmark_segmentioHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), segmentioHllCardinality(&segmentioHll))
 }
