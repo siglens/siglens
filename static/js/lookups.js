@@ -163,11 +163,13 @@ $('#file-input').focus(() => $('.file-empty').removeClass('active'));
 
 let fileToDelete = '';
 
+//eslint-disable-next-line no-unused-vars
 function deleteLookupFile(filename) {
     fileToDelete = filename;
     $('.popupOverlay, #delete-confirmation').addClass('active');
 }
 
+//eslint-disable-next-line no-unused-vars
 function downloadLookupFile(filename) {
     const downloadUrl = `/api/lookup-files/${encodeURIComponent(filename)}`;
     const link = document.createElement('a');
@@ -272,6 +274,8 @@ function displayCSVContent(filename, content) {
     <div class="d-flex mt-4 justify-content-end">
         <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 210px; margin-left: 10px;">Close</button>
     </div>`);
+
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(gridDiv, {
         columnDefs: columnDefs,
         rowData: rowData,
@@ -284,6 +288,7 @@ function displayCSVContent(filename, content) {
     });
 }
 
+//eslint-disable-next-line no-unused-vars
 function closeCSVModal() {
     $('.popupOverlay, #csvViewerModal').removeClass('active');
 }
