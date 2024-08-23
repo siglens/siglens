@@ -384,8 +384,15 @@ func fopOnNumber(rec []byte, qValDte *DtypeEnclosure,
 	recDte *DtypeEnclosure, op FilterOperator) (bool, error) {
 
 	validNumberType, err := getNumberRecDte(rec, recDte)
-	if !validNumberType {
+	if err != nil {
+		log.Errorf("fopOnNumber: cannot check number type; rec=%v, err=%v", rec, err)
 		return false, err
+	}
+
+	if !validNumberType {
+		// This can happen if we search for a number in a string-only field.
+		// In this case, =, <, >=, etc. should not match, but != should match.
+		return op == NotEquals, nil
 	}
 
 	// now create a float (highest level for rec, only if we need to based on query

@@ -19,7 +19,6 @@
 
 let sqgridDiv = null;
 let sqRowData = [];
-let isMetricsScreen;
 //eslint-disable-next-line no-unused-vars
 function setSaveQueriesDialog() {
     let dialog = null;
@@ -65,6 +64,7 @@ function setSaveQueriesDialog() {
 
         if (valid) {
             let data;
+            //eslint-disable-next-line no-undef
             if (isMetricsScreen) {
                 data = getMetricsDataForSave(qname.val(), description.val());
             } else {
@@ -211,6 +211,7 @@ class btnCellRenderer {
 $(document).ready(function () {
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/metrics-explorer.html')) {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
     $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {

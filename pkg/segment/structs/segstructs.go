@@ -578,9 +578,39 @@ func (ss *SegStats) Merge(other *SegStats) {
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
-		return
+	} else {
+		ss.NumStats.Merge(other.NumStats)
 	}
-	ss.NumStats.Merge(other.NumStats)
+	if ss.StringStats == nil {
+		ss.StringStats = other.StringStats
+	} else {
+		ss.StringStats.Merge(other.StringStats)
+	}
+}
+
+func (ss *StringStats) Merge(other *StringStats) {
+	if ss.StrSet != nil {
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
+	} else if other.StrSet != nil {
+		ss.StrSet = make(map[string]struct{})
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
+	}
+
+	if ss.StrList != nil {
+		ss.StrList = append(ss.StrList, other.StrList...)
+	} else if other.StrList != nil {
+		if len(other.StrList) > utils.MAX_SPL_LIST_SIZE {
+			ss.StrList = make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(ss.StrList, other.StrList[:utils.MAX_SPL_LIST_SIZE])
+		} else {
+			ss.StrList = make([]string, len(other.StrList))
+			copy(ss.StrList, other.StrList)
+		}
+	}
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
@@ -906,7 +936,17 @@ func (qa *QueryAggregators) CheckForColRequestAndAttachToFillNullExprInChain() {
 
 // To determine whether it contains ValueColRequest
 func (qa *QueryAggregators) HasValueColRequest() bool {
-	for _, agg := range qa.MeasureOperations {
+	if HasValueColRequestInMeasureAggs(qa.MeasureOperations) {
+		return true
+	}
+	if qa.GroupByRequest != nil && HasValueColRequestInMeasureAggs(qa.GroupByRequest.MeasureOperations) {
+		return true
+	}
+	return false
+}
+
+func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
+	for _, agg := range measureAggs {
 		if agg.ValueColRequest != nil {
 			return true
 		}
