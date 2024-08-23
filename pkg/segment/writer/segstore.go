@@ -1051,7 +1051,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	// copy the blockNum
 	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
-		log.Errorf("flushBloomIndex: bloomsize write failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
@@ -1070,12 +1070,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 	bytesWritten += uint32(bloomSize)
-
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: bloom data sync failed fname=%v, err=%v", fname, err)
-		return 0
-	}
 
 	err = bffd.Close()
 	if err != nil {
@@ -1104,7 +1098,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	err = bffd.Sync()
 	if err != nil {
-		log.Errorf("flushBloomIndex: data length sync failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: data sync failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 
