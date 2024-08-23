@@ -494,6 +494,11 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
+        currentPanel.display=chartType;
+        currentPanel.color=selectedTheme;
+        currentPanel.stroke=selectedStroke;
+        currentPanel.style=selectedLineStyle;
+        
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;

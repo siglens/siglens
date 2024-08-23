@@ -159,7 +159,13 @@ function saveJsonChanges() {
                     name: dbName,
                     description: dbDescr,
                     timeRange: timeRange,
-                    panels: localPanels,
+                    panels: localPanels.map(panel => ({
+                        ...panel,
+                        display: panel.display,
+                        color: panel.color,
+                        style: panel.style,
+                        stroke: panel.stroke,
+                    })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
                 },
@@ -246,7 +252,13 @@ async function updateDashboard() {
                 name: dbName,
                 description: dbDescr,
                 timeRange: timeRange,
-                panels: tempPanels,
+                panels: tempPanels.map(panel => ({
+                    ...panel,
+                    display: panel.display,
+                    color: panel.color,
+                    style: panel.style,
+                    stroke: panel.stroke,
+                })),
                 refresh: dbRefresh,
             },
         }),
@@ -312,6 +324,10 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
+document.getElementById('display-input').value = currentPanel.display || 'Line chart';
+document.getElementById('color-input').value = currentPanel.color || 'Classic';
+document.getElementById('line-style-input').value = currentPanel.style || 'Solid';
+document.getElementById('stroke-input').value = currentPanel.stroke || 'Normal';
     });
 }
 function handlePanelRemove(panelId) {

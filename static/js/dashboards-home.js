@@ -254,7 +254,13 @@ class btnRenderer {
                                 details: {
                                     name: duplicatedDBName,
                                     description: duplicatedDescription,
-                                    panels: duplicatedPanels,
+                                    panels: duplicatedPanels.map(panel => ({
+                                        ...panel,
+                                        display: panel.display,
+                                        color: panel.color,
+                                        style: panel.style,
+                                        stroke: panel.stroke,
+                                    })),
                                     timeRange: duplicateTimeRange,
                                     refresh: duplicateRefresh,
                                 },
