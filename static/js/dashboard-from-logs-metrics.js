@@ -24,7 +24,6 @@ const existingDashboard = $('.existing-dashboard');
 let newDashboardFlag = true;
 let dashboardID;
 
-
 $(document).ready(function () {
     existingDashboard.hide();
     $('#create-panel').hide();
@@ -165,13 +164,15 @@ function createPanelToNewDashboard() {
                         description: inputdbdescription,
                         timeRange: timeRange,
                         refresh: refresh,
-                        panels: [{
-                            ...panelCreatedFromLogs,
-                            display: panelCreatedFromLogs.display,
-                            color: panelCreatedFromLogs.color,
-                            style: panelCreatedFromLogs.style,
-                            stroke: panelCreatedFromLogs.stroke,
-                        }],
+                        panels: [
+                            {
+                                ...panelCreatedFromLogs,
+                                display: panelCreatedFromLogs.display,
+                                color: panelCreatedFromLogs.color,
+                                style: panelCreatedFromLogs.style,
+                                stroke: panelCreatedFromLogs.stroke,
+                            },
+                        ],
                     },
                 };
                 updateDashboard(dashboard);
@@ -321,11 +322,10 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
-            display:chartType,
+            display: chartType,
             color: selectedTheme,
             style: selectedLineStyle,
             stroke: selectedStroke,
-
         };
     } else {
         panel = {
