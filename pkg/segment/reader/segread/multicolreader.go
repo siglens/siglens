@@ -252,7 +252,7 @@ func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]
 }
 
 // Reads the raw value and returns the []byte in TLV format (type-[length]-value encoding)
-func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, blockNum uint16, recordNum uint16, qid uint64, isTsCol bool) ([]byte, error) {
+func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, blockNum uint16, recordNum uint16, qid uint64, isTsCol bool, nodeRes *structs.NodeResult) ([]byte, error) {
 
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
@@ -266,7 +266,9 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 	}
 
 	if colKeyIndex == -1 || colKeyIndex >= mcsr.maxColIdx {
-		return nil, fmt.Errorf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
+		nodeRes.StoreGlobalSearchError(fmt.Sprintf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader", colKeyIndex),
+			log.ErrorLevel, fmt.Errorf("All cols: %+v", mcsr.allColsReverseIndex))
+		return nil, nil
 	}
 
 	return mcsr.allFileReaders[colKeyIndex].ReadRecordFromBlock(blockNum, recordNum)
@@ -274,7 +276,7 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
 func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
-	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure) error {
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure, nodeRes *structs.NodeResult) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
@@ -286,7 +288,7 @@ func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, b
 		return nil
 	}
 
-	rawVal, err := mcsr.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, isTsCol)
+	rawVal, err := mcsr.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, isTsCol, nodeRes)
 	if err != nil {
 		retCVal.Dtype = utils.SS_DT_BACKFILL
 		retCVal.CVal = nil

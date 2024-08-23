@@ -570,7 +570,7 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 
 	var colVal utils.CValueEnclosure
 	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
-		qid, false, &colVal)
+		qid, false, &colVal, nodeRes)
 	if err != nil {
 		nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", aggs.Sort.ColName), log.ErrorLevel, err)
 		invalidAggsCol = true

@@ -23,6 +23,7 @@ import (
 	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -51,7 +52,7 @@ func GetRequiredColsForSearchQuery(multiColReader *segread.MultiColSegmentReader
 func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
 	searchReq *SegmentSearchRequest, cmiPassedNonDictColKeyIndices map[int]struct{},
-	queryInfoColKeyIndex int, compiledRegex *regexp.Regexp) (bool, error) {
+	queryInfoColKeyIndex int, compiledRegex *regexp.Regexp, nodeRes *structs.NodeResult) (bool, error) {
 
 	switch query.SearchType {
 	case MatchAll:
@@ -59,7 +60,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		return true, nil
 	case MatchWords:
 		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex,
-			blockNum, recordNum, qid, false)
+			blockNum, recordNum, qid, false, nodeRes)
 		if err != nil {
 			return false, err
 		}
@@ -69,7 +70,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		var finalErr error
 		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 			if err != nil {
 				finalErr = err
 				continue
@@ -88,13 +89,13 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			return false, finalErr
 		}
 	case SimpleExpression:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 		if err != nil {
 			return false, err
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte)
 	case RegexExpression:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 		if err != nil {
 			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid=%v, err: %v", query.QueryInfo.ColName, qid, err)
 			return false, nil
@@ -105,7 +106,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		var finalErr error
 		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 			if err != nil {
 				finalErr = err
 				continue
@@ -128,7 +129,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		var finalErr error
 		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 			if err != nil {
 				finalErr = err
 				continue
@@ -147,7 +148,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			return false, finalErr
 		}
 	case MatchDictArraySingleColumn:
-		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
+		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 		if err != nil {
 			return false, err
 		}
@@ -157,7 +158,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		var finalErr error
 		for colKeyIndex := range cmiPassedNonDictColKeyIndices {
 
-			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false)
+			rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, false, nodeRes)
 			if err != nil {
 				finalErr = err
 				continue

@@ -231,7 +231,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex, compiledRegex)
+					queryInfoColKeyIndex, compiledRegex, nodeRes)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to ApplyColumnarSearchQuery", log.ErrorLevel, err)
 					break

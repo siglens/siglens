@@ -263,7 +263,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
 			if byFieldCnameKeyIdx != -1 {
 				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(byFieldCnameKeyIdx,
-					blockNum, recNum, qid, isTsCol)
+					blockNum, recNum, qid, isTsCol, nodeRes)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to get key for column %v", byField), log.ErrorLevel, err)
 				} else {
@@ -306,7 +306,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 					len(groupbyColKeyIndices)*utils.MAX_RECORD_SIZE)
 			}
 			for _, colKeyIndex := range groupbyColKeyIndices {
-				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)
+				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false, nodeRes)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to get key for column %v", colKeyIndex), log.ErrorLevel, err)
 					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
@@ -320,7 +320,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
 			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
-				qid, false, &retCVal)
+				qid, false, &retCVal, nodeRes)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %v", colKeyIdx), log.ErrorLevel, err)
 
@@ -875,7 +875,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, false, &cValEnc)
+					recNum, qid, false, &cValEnc, nodeRes)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
