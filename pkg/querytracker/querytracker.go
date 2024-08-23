@@ -264,7 +264,7 @@ func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 			continue
 		}
 		queryAggs := agginfo.QueryAggs
-		if queryAggs == nil || queryAggs.GroupByRequest == nil {
+		if queryAggs == nil || queryAggs.GroupByRequest == nil || queryAggs.HasValueColRequest() {
 			continue
 		}
 		cols := queryAggs.GroupByRequest.GroupByColumns
@@ -303,6 +303,11 @@ func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 			break
 		}
 	}
+
+	colsToIgnoreForTracking := []string{config.GetTimeStampKey(), "*"}
+
+	utils.RemoveEntriesFromMap(finalGrpCols, colsToIgnoreForTracking)
+	utils.RemoveEntriesFromMap(measureInfoUsage, colsToIgnoreForTracking)
 
 	return finalGrpCols, measureInfoUsage
 }
@@ -369,7 +374,7 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchTex
 
 func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchText string) {
 
-	if aggs == nil || aggs.IsAggsEmpty() {
+	if aggs == nil || aggs.IsAggsEmpty() || aggs.HasValueColRequest() {
 		return
 	}
 
