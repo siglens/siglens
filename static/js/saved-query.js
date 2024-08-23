@@ -63,8 +63,14 @@ function setSaveQueriesDialog() {
         valid = valid && checkRegexp(qname, /^[a-zA-Z0-9_-]+$/i, 'queryname may consist of a-z, 0-9, dash, underscores.');
 
         if (valid) {
+            let data;
+            //eslint-disable-next-line no-undef
+            if (isMetricsScreen) {
+                data = getMetricsDataForSave(qname.val(), description.val());
+            } else {
+                data = getSearchFilterForSave(qname.val(), description.val());
+            }
             //post to save api
-            let data = getSearchFilterForSave(qname.val(), description.val());
             $.ajax({
                 method: 'post',
                 url: 'api/usersavedqueries/save',
@@ -150,8 +156,14 @@ class linkCellRenderer {
     // init method gets the details of the cell to be renderer
     init(params) {
         this.eGui = document.createElement('span');
-        let href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
-        this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+        let href;
+        if (params.data.dataSource === 'metrics') {
+            //todo fix this to load metrics explorer
+            this.eGui.innerHTML = '<a class="query-link" href="metrics-explorer.html" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+        } else {
+            href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
+            this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+        }
     }
 
     getGui() {
@@ -197,6 +209,11 @@ class btnCellRenderer {
 
 // Delete confirmation popup
 $(document).ready(function () {
+    var currentPage = window.location.pathname;
+    if (currentPage.startsWith('/metrics-explorer.html')) {
+        //eslint-disable-next-line no-undef
+        isMetricsScreen = true;
+    }
     $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
         $('.popupOverlay, .popupContent').removeClass('active');
     });
@@ -314,6 +331,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
+            newRow.set('dataSource', value.dataSource);
+            newRow.set('metricsQueryParams', value.metricsQueryParams);
+            newRow.set('start', value.startTime);
+            newRow.set('end', value.endTime);
+
             sqFilteredRowData = _.concat(sqFilteredRowData, Object.fromEntries(newRow));
             idx = idx + 1;
         });
@@ -336,6 +358,10 @@ function displaySavedQueries(res, flag) {
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
+            newRow.set('dataSource', value.dataSource);
+            newRow.set('metricsQueryParams', value.metricsQueryParams);
+            newRow.set('start', value.startTime);
+            newRow.set('end', value.endTime);
             sqRowData = _.concat(sqRowData, Object.fromEntries(newRow));
             idx = idx + 1;
         });

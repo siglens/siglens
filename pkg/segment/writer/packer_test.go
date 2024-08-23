@@ -142,6 +142,8 @@ func TestRecordEncodeDecode(t *testing.T) {
 			}`,
 			)},
 	}
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
@@ -151,7 +153,8 @@ func TestRecordEncodeDecode(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS)
+		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
 
@@ -252,6 +255,9 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 		}`,
 			)},
 	}
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
@@ -261,7 +267,8 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES)
+		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES,
+			cnameCacheByteHashToStr)
 
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
 
@@ -455,13 +462,12 @@ func Test_addSegStatsNums(t *testing.T) {
 
 	cname := "mycol1"
 	sst := make(map[string]*SegStats)
-	bb := bbp.Get()
 
-	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb)
+	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
 	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
 
-	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb)
+	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
 
@@ -559,8 +565,11 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 		t.Errorf("failed to get segstore! %v", err)
 	}
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
 	for idx, record := range records {
-		err := segstore.WritePackedRecord(record.input, cTime, SIGNAL_EVENTS)
+		err := segstore.WritePackedRecord(record.input, cTime, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr)
 		assert.Nil(t, err, "failed to write packed record %v", idx)
 
 		assert.Equal(t, idx+1, segstore.RecordCount, "idx=%v", idx)
