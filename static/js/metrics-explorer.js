@@ -2318,7 +2318,7 @@ async function refreshMetricsGraphs() {
         // Update graph for each query
         for (const queryName of Object.keys(queries)) {
             const queryDetails = queries[queryName];
-            
+
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
@@ -2341,7 +2341,6 @@ async function refreshMetricsGraphs() {
         }
     }
 }
-
 
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
