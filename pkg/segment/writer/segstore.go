@@ -54,6 +54,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
+// For Last wip we do not know how many nodes this wip will add, hence we
+// leave a room for one wip's worth of recs.
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
