@@ -160,7 +160,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	doRecLevelSearch, deCnames, err := applyColumnarSearchUsingDictEnc(query, multiColReader, blockNum, qid,
 		recIT, blockHelper, searchReq, cmiPassedCnames)
 	if err != nil {
-		allSearchResults.AddError(err)
+		nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to applyColumnarSearchUsingDictEnc", log.ErrorLevel, err)
 		// we still continue, since the reclevel may not yield an error
 	}
 

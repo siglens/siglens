@@ -851,7 +851,8 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			idx++
 		}
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
-		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
+		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage,
+			blockStatus.BlockNum, recIT, localStats, bb, qid, nodeRes)
 
 		nonDeColsKeyIndices := make(map[int]string)
 		for cname := range nonDeCols {
@@ -913,7 +914,8 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 
 // returns all columns that are not dict encoded
 func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
-	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64) map[string]bool {
+	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64, nodeRes *structs.NodeResult) map[string]bool {
+
 	retVal := make(map[string]bool)
 	for colName := range mCols {
 		if colName == "*" {
@@ -922,7 +924,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 		}
 		isDict, err := mcr.IsBlkDictEncoded(colName, blockNum)
 		if err != nil {
-			log.Errorf("qid=%d, segmentStatsWorker failed to check if column is dict encoded %+v. Err: %v", qid, colName, err)
+			nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: failed to check if column %v is dict encoded", colName), log.ErrorLevel, err)
 			continue
 		}
 		if !isDict {
@@ -987,6 +989,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				switch val := rawVal.(type) {
 				case string:
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case int64:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case float64:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true
