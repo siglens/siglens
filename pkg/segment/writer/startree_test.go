@@ -691,7 +691,7 @@ var cases2 = []struct {
 	{
 		`{
 					"brand":"bmw",
-					"color": "pink",
+					"color": "green",
 					"price": 25,
 					"perf": 5,
 					"rating": 2
@@ -909,7 +909,7 @@ func TestStarTree2(t *testing.T) {
 
 		err = builder.removeLevelFromTree(root, 0, 0, 2)
 		assert.NoError(t, err)
-		err = builder.removeLevelFromTree(root, 0, 1, 1)
+		err = builder.removeLevelFromTree(root, 0, 0, 1)
 		assert.NoError(t, err)
 
 		_, err = builder.EncodeStarTree(ss.SegmentKey)
