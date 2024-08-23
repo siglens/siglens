@@ -18,7 +18,6 @@
 package writer
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
@@ -73,7 +72,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 			}
 
 			if compiledRegex != nil {
-				asciiBytes = utils.NormalizeSearchBytes(isCaseInSensitive, asciiBytes)
+				// if the search is case insensitive, then the compiled regex should already be case insensitive regex
 				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
 				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase, isCaseInSensitive)
@@ -112,7 +111,6 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 	if len(rec) == 0 || rec[0] != VALTYPE_DICT_ARRAY[0] {
 		return false, nil
 	} else if rec[0] == VALTYPE_DICT_ARRAY[0] {
-		rec = utils.NormalizeSearchBytes(isCaseInSensitive, rec)
 		//loop over the dict arrray till we reach the end
 		totalLen := utils.BytesToInt16LittleEndian(rec[1:])
 		idx := uint16(3)
@@ -122,7 +120,7 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 			strlen := utils.BytesToUint16LittleEndian(rec[idx : idx+2])
 			idx += 2
 			if int(strlen) == len(col) {
-				keyEquals = bytes.Equal(rec[idx:idx+strlen], col)
+				keyEquals = utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[idx:idx+strlen], col)
 			}
 			idx += strlen
 			if !keyEquals {
@@ -148,23 +146,23 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 				// one byte for type & two for reclen
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_BOOL[0]:
 				// valEquals, err = fopOnBool(rec[idx:], qValDte, fop)
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_INT64[0]:
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_FLOAT64[0]:
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			default:
 				log.Errorf("ApplySearchToDictArrayFilter:SS_DT_ARRAY_DICT unknown type=%v\n", rec[idx])
@@ -288,6 +286,7 @@ func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterO
 
 }
 
+// If the search is a regex search and case insensitive, then the compiled regex should already be case insensitive regex
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	isRegexSearch bool, isCaseInSensitive bool) (bool, error) {
 
@@ -303,25 +302,21 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			if regexp == nil {
 				return false, errors.New("qValDte had nil regexp compilation")
 			}
-			searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
-			return regexp.Match(searchBytes), nil
+			return regexp.Match(rec[sOff:]), nil
 		}
 		if len(rec[sOff:]) != len(qValDte.StringVal) {
 			return false, nil
 		}
-		searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
-		return bytes.Equal(searchBytes, qValDte.StringValBytes), nil
+		return utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[sOff:], qValDte.StringValBytes), nil
 	case NotEquals:
 		if isRegexSearch {
 			regexp := qValDte.GetRegexp()
 			if regexp == nil {
 				return false, errors.New("qValDte had nil regexp compilation")
 			}
-			searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
-			return !regexp.Match(searchBytes), nil
+			return !regexp.Match(rec[sOff:]), nil
 		}
-		searchBytes := utils.NormalizeSearchBytes(isCaseInSensitive, rec[sOff:])
-		return !bytes.Equal(searchBytes, qValDte.StringValBytes), nil
+		return !utils.PerformBytesEqualityCheck(isCaseInSensitive, rec[sOff:], qValDte.StringValBytes), nil
 	}
 	return false, nil
 }

@@ -214,3 +214,22 @@ func NormalizeSearchBytes(isCaseInSensitive bool, valueBytes []byte) []byte {
 	}
 	return valueBytes
 }
+
+func BytesCaseInsensitiveEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] && a[i] != b[i]^32 {
+			return false
+		}
+	}
+	return true
+}
+
+func PerformBytesEqualityCheck(isCaseInSensitive bool, a, b []byte) bool {
+	if isCaseInSensitive {
+		return BytesCaseInsensitiveEqual(a, b)
+	}
+	return bytes.Equal(a, b)
+}
