@@ -40,27 +40,22 @@ import (
 
 type CaseConversionInfo struct {
 	dualCaseCheckEnabled bool
-	caseInSensitive      bool
+	caseInsensitive      bool
 	valueIsRegex         bool
 	IsString             bool
 	colValue             interface{}
 	originalColValue     interface{}
 }
 
-// We will also search with the original case(originalColValue) if the following conditions are met:
-// 1. dualCaseCheckEnabled is true (this is from config: config.IsDualCaseCheckEnabled())
-// 2. caseInSensitive is true
-// 3. valueIsRegex is false
-// 4. colValue is different from originalColValue (if they are same, we don't need to search with original case)
 func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
-	return cci.IsString && cci.dualCaseCheckEnabled && cci.caseInSensitive && !cci.valueIsRegex && cci.colValue != cci.originalColValue
+	return cci.IsString && cci.dualCaseCheckEnabled && cci.caseInsensitive && !cci.valueIsRegex && cci.colValue != cci.originalColValue
 }
 
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
-// If forceCaseSensitive is set to true, caseInSensitive will be ignored
-func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInSensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
+// If forceCaseSensitive is set to true, caseInsensitive will be ignored
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -82,7 +77,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 	}
 
 	if forceCaseSensitive {
-		caseInSensitive = false
+		caseInsensitive = false
 		if originalColValue != nil {
 			colValue = originalColValue
 		}
@@ -90,7 +85,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 
 	caseConversion := &CaseConversionInfo{
 		dualCaseCheckEnabled: config.IsDualCaseCheckEnabled(),
-		caseInSensitive:      caseInSensitive,
+		caseInsensitive:      caseInsensitive,
 		valueIsRegex:         valueIsRegex,
 		colValue:             colValue,
 		originalColValue:     originalColValue,
@@ -178,7 +173,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
-	andFilterCondition[0].FilterIsCaseInSensitive = caseInSensitive
+	andFilterCondition[0].FilterIsCaseInsensitive = caseInsensitive
 	return andFilterCondition, nil
 }
 
@@ -269,7 +264,7 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
 		if cci != nil {
-			cVal.UpdateTheRegexp(cci.caseInSensitive)
+			cVal.UpdateRegexp(cci.caseInsensitive)
 		}
 	}
 

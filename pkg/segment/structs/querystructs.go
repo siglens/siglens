@@ -95,7 +95,7 @@ type ExpressionFilter struct {
 type FilterCriteria struct {
 	MatchFilter             *MatchFilter      // match filter to check multiple words in a column
 	ExpressionFilter        *ExpressionFilter // expression filter to check a single expression in a column
-	FilterIsCaseInSensitive bool              // if the filter is case sensitive
+	FilterIsCaseInsensitive bool              // if the filter is case sensitive
 }
 
 // A condition struct defines the FilterConditions and ASTNodes that exist as a part of a single condition

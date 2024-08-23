@@ -165,7 +165,7 @@ func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error
 	return &dte, nil
 }
 
-func (dte *DtypeEnclosure) UpdateTheRegexp(caseInsensitive bool) {
+func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool) {
 	if dte == nil {
 		return
 	}
@@ -182,7 +182,7 @@ func (dte *DtypeEnclosure) UpdateTheRegexp(caseInsensitive bool) {
 
 		compiledRegex, err := regexp.Compile(rawRegex)
 		if err != nil {
-			log.Errorf("UpdateTheRegexp: Failed to compile regex for %s. This may cause search failures. Err: %v", rawRegex, err)
+			log.Errorf("UpdateRegexp: Failed to compile regex for %s. This may cause search failures. Err: %v", rawRegex, err)
 		}
 		dte.SetRegexp(compiledRegex)
 	}

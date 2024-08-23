@@ -118,7 +118,7 @@ func getHashForSearchQuery(sq *structs.SearchQuery) uint64 {
 		getHashForMatchFilter(sq.MatchFilter),
 		sq.SearchType,
 		getHashForQueryInfo(sq.QueryInfo),
-		sq.FilterIsCaseInSensitive)
+		sq.FilterIsCaseInsensitive)
 	return xxhash.Sum64String(val)
 }
 

@@ -107,7 +107,7 @@ func HashString(x string) string {
 }
 
 // we are assumung that needleLen and haystackLen are both non zero
-func IsSubWordPresent(haystack []byte, needle []byte, isCaseInSensitive bool) bool {
+func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bool {
 	needleLen := len(needle)
 	haystackLen := len(haystack)
 
@@ -118,7 +118,7 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInSensitive bool) bo
 	for i := 0; i <= haystackLen-needleLen; i++ {
 		haystackSlice := haystack[i : i+needleLen]
 
-		if PerformBytesEqualityCheck(isCaseInSensitive, haystackSlice, needle) {
+		if PerformBytesEqualityCheck(isCaseInsensitive, haystackSlice, needle) {
 			// haystack[i:i+needleLen-1] was matched
 			// we need to check if haystack[i - 1] is a whitespace and if haystack[i + needleLen] is a whitespace
 			if (i == 0 || haystack[i-1] == single_whitespace[0]) && (i+needleLen == haystackLen || haystack[i+needleLen] == single_whitespace[0]) {

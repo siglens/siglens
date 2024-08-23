@@ -308,7 +308,7 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 			// TODO: handle error
 			log.Errorf("getSearchInputFromFilterInput: qid=%d, Error creating dtype enclosure: %v", qid, err)
 		} else {
-			val.UpdateTheRegexp(isCaseInsensitive)
+			val.UpdateRegexp(isCaseInsensitive)
 		}
 		searchInput.ColumnValue = val
 		return &searchInput
@@ -334,9 +334,9 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 	var sq *SearchQuery
 
 	if criteria.MatchFilter != nil {
-		sq = extractSearchQueryFromMatchFilter(criteria.MatchFilter, criteria.FilterIsCaseInSensitive, qid)
+		sq = extractSearchQueryFromMatchFilter(criteria.MatchFilter, criteria.FilterIsCaseInsensitive, qid)
 	} else {
-		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInSensitive, qid)
+		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInsensitive, qid)
 
 		var colVal *DtypeEnclosure
 		if sq.ExpressionFilter.LeftSearchInput.ColumnValue != nil {
@@ -349,7 +349,7 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 			sq.SearchType = MatchAll
 		}
 	}
-	sq.FilterIsCaseInSensitive = criteria.FilterIsCaseInSensitive
+	sq.FilterIsCaseInsensitive = criteria.FilterIsCaseInsensitive
 	return sq
 }
 
@@ -399,9 +399,9 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter, isCaseInsensitive boo
 	return currQuery
 }
 
-func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInSensitive bool, qid uint64) *SearchQuery {
-	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, isCaseInSensitive, qid)
-	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, isCaseInSensitive, qid)
+func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensitive bool, qid uint64) *SearchQuery {
+	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, isCaseInsensitive, qid)
+	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, isCaseInsensitive, qid)
 	sq := &SearchQuery{
 		ExpressionFilter: &SearchExpression{
 			LeftSearchInput:  leftSearchInput,
@@ -419,7 +419,7 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInSensi
 			// We don't need to do this with the LeftSearchInput.OriginalColumnValue, as this is a regex/wildcard
 			// And we don't do Bloom Filtering for regex/wildcard searches
 			cval := dtu.ReplaceWildcardStarWithRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal)
-			if isCaseInSensitive {
+			if isCaseInsensitive {
 				cval = "(?i)" + cval
 			}
 			rexpC, err := regexp.Compile(cval)
@@ -527,7 +527,7 @@ func (searchExp *SearchExpression) GetAllBlockBloomKeysToSearch(dualCaseCheckEna
 	return allKeys, originalAllKeys, false, nil
 }
 
-func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool, isCaseInSensitive bool) (map[string]bool, map[string]string, bool, LogicalOperator) {
+func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool, isCaseInsensitive bool) (map[string]bool, map[string]string, bool, LogicalOperator) {
 	allKeys := make(map[string]bool)
 	originalAllKeys := make(map[string]string) // map of normalized lowercase key -> original key
 	wildcardExists := false
@@ -557,7 +557,7 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool
 		} else {
 			stringMatchPhrase := string(match.MatchPhrase)
 			allKeys[stringMatchPhrase] = true
-			if dualCaseCheckEnabled && isCaseInSensitive && len(match.MatchPhraseOriginal) > 0 {
+			if dualCaseCheckEnabled && isCaseInsensitive && len(match.MatchPhraseOriginal) > 0 {
 				originalAllKeys[stringMatchPhrase] = string(match.MatchPhraseOriginal)
 			}
 		}
@@ -571,7 +571,7 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool
 			}
 			stringLiteral := string(literal)
 			allKeys[stringLiteral] = true
-			if dualCaseCheckEnabled && isCaseInSensitive && isMatchWordsLengthEqual {
+			if dualCaseCheckEnabled && isCaseInsensitive && isMatchWordsLengthEqual {
 				originalAllKeys[stringLiteral] = string(match.MatchWordsOriginal[idx])
 			}
 		}

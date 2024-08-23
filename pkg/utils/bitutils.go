@@ -220,8 +220,8 @@ func BytesCaseInsensitiveEqual(a, b []byte) bool {
 	return true
 }
 
-func PerformBytesEqualityCheck(isCaseInSensitive bool, a, b []byte) bool {
-	if isCaseInSensitive {
+func PerformBytesEqualityCheck(isCaseInsensitive bool, a, b []byte) bool {
+	if isCaseInsensitive {
 		return BytesCaseInsensitiveEqual(a, b)
 	}
 	return bytes.Equal(a, b)

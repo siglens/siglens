@@ -58,7 +58,7 @@ type SearchQuery struct {
 	MatchFilter             *MatchFilter
 	SearchType              SearchQueryType // type of query
 	QueryInfo               *QueryInfo      // query info
-	FilterIsCaseInSensitive bool            // whether the filter is case sensitive
+	FilterIsCaseInsensitive bool            // whether the filter is case sensitive
 }
 
 type QueryInfo struct {
@@ -316,10 +316,10 @@ func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, map[s
 	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
 
 	if query.MatchFilter != nil {
-		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInSensitive)
+		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
 		return matchKeys, originalMatchKeys, wildcardExists, matchOp
 	} else {
-		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInSensitive)
+		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
 		if err != nil {
 			return make(map[string]bool), make(map[string]string), false, And
 		}
