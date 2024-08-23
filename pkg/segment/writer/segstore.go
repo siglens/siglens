@@ -1077,7 +1077,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 
-	bffd, err = os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	bffd, err = os.OpenFile(fname, os.O_WRONLY, 0644)
 	if err != nil {
 		log.Errorf("flushBloomIndex: open failed fname=%v for writing the bloom size, err=%v", fname, err)
 		return 0
@@ -1090,7 +1090,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 
-	_, err = bffd.Write(toputils.Uint32ToBytesLittleEndian(bytesWritten-4))
+	_, err = bffd.Write(toputils.Uint32ToBytesLittleEndian(bytesWritten - 4))
 	if err != nil {
 		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
 		return 0
