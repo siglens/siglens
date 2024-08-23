@@ -26,21 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func convertAstNodeToCaseSensitive(node *ast.Node) {
-	if node == nil {
-		return
-	}
-
-	if node.Comparison.Values == `"*"` {
-		return
-	}
-
-	node.Comparison.CaseInsensitive = false
-	node.Comparison.OriginalValues = nil
-	convertAstNodeToCaseSensitive(node.Left)
-	convertAstNodeToCaseSensitive(node.Right)
-}
-
 func splToUnoptimizedNodes(t *testing.T, query string) (*ast.Node, *structs.QueryAggregators) {
 	queryStructAsAny, err := spl.Parse("", []byte(query))
 	assert.NoError(t, err)
@@ -58,13 +43,6 @@ func verifyEquivalentSplQueries(t *testing.T,
 	astNode1, aggs1 := splToUnoptimizedNodes(t, unoptomizedQuery)
 	astNode2, aggs2 := splToUnoptimizedNodes(t, optimizedQuery)
 
-	// We don't want to do a case-insentive search for a command that is with stats.
-	// But by default, the search node returns a case-insensitive node. So we need to convert it to case-sensitive.
-	// But also please not this conversion will only work for these specific example queries as the filter search node is number type
-	// So there is no concept of case-insensitive search for numbers.
-	// If the filter type is a string, then the output of this function will not match with output of astNode1.
-	convertAstNodeToCaseSensitive(astNode2)
-
 	astNode1, aggs1 = optimizationFunction(astNode1, aggs1)
 
 	assert.Equal(t, astNode1, astNode2)
@@ -78,7 +56,7 @@ func Test_optimizeStatsEvalQueries(t *testing.T) {
 	)
 	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
 		`* | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
-		`* AND (foo=42 OR bar="baz") | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
+		`* AND (foo=42 OR bar=CASE("baz")) | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
 	)
 	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
 		`A=1 OR NOT B=2 | stats count(eval(foo=42))`,

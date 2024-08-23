@@ -159,7 +159,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		return leafNode, nil, nil
 	}
 
-	shouldBeCaseSensitive := true
+	forceCaseSensitive := true
 
 	//peg parsing to AST tree
 	switch queryLanguage {
@@ -169,7 +169,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		res, err = logql.Parse("", []byte(searchText))
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
-		shouldBeCaseSensitive = false
+		forceCaseSensitive = false
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
 	}
@@ -200,7 +200,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	searchNode, aggs = optimizeQuery(searchNode, aggs)
 
-	err = SearchQueryToASTnode(searchNode, boolNode, qid, shouldBeCaseSensitive)
+	err = SearchQueryToASTnode(searchNode, boolNode, qid, forceCaseSensitive)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
 		return nil, nil, err
@@ -332,6 +332,7 @@ func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
 				fieldWasSet = true
 			case SEMRawString:
 				extraSearchNode.Comparison.Values = "\"" + stringExpr.RawString + "\""
+				extraSearchNode.Comparison.OriginalValues = extraSearchNode.Comparison.Values
 				valueWasSet = true
 			case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
 				// TODO: we can handle at least some of these.
@@ -358,8 +359,8 @@ func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
 	return extraSearchNode
 }
 
-// If ShouldBeCaseSensitive is true, then the search query will not consider any of the case-insensitive search options.
-func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCaseSensitive bool) error {
+// If forceCaseSensitive is true, then the search query will not consider any of the case-insensitive search options.
+func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	var err error
 	if node == nil {
 		return nil
@@ -367,33 +368,33 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldB
 
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := parseORCondition(node.Left, boolNode, qid, ShouldBeCaseSensitive)
+		err := parseORCondition(node.Left, boolNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseORCondition for left child, error: %v", qid, err)
 			return err
 		}
 
-		err = parseORCondition(node.Right, boolNode, qid, ShouldBeCaseSensitive)
+		err = parseORCondition(node.Right, boolNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseORCondition for right child, error: %v", qid, err)
 			return err
 		}
 
 	case ast.NodeAnd:
-		err := parseANDCondition(node.Left, boolNode, qid, ShouldBeCaseSensitive)
+		err := parseANDCondition(node.Left, boolNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseANDCondition for left child, error: %v", qid, err)
 			return err
 		}
 
-		err = parseANDCondition(node.Right, boolNode, qid, ShouldBeCaseSensitive)
+		err = parseANDCondition(node.Right, boolNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseANDCondition for right child, error: %v", qid, err)
 			return err
 		}
 
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error while processing single filter, error: %v", qid, err)
 			return err
@@ -678,14 +679,14 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 	return aggNode, nil
 }
 
-func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCaseSensitive bool) error {
+func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	qsSubNode := &ASTNode{}
 	if boolNode.OrFilterCondition == nil {
 		boolNode.OrFilterCondition = &Condition{}
 	}
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := SearchQueryToASTnode(node, qsSubNode, qid, ShouldBeCaseSensitive)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, parseORCondition: SearchQueryToASTnode error for NodeOr, err: %v", qid, err)
 			return err
@@ -697,7 +698,7 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCas
 		}
 		return nil
 	case ast.NodeAnd:
-		err := SearchQueryToASTnode(node, qsSubNode, qid, ShouldBeCaseSensitive)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, parseORCondition: SearchQueryToASTnode error for NodeAnd, err: %v", qid, err)
 			return err
@@ -709,7 +710,7 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCas
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, parseORCondition: Error while processing single filter, err: %v", qid, err)
 			return err
@@ -728,14 +729,14 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCas
 		return errors.New("parseORCondition: node type not supported")
 	}
 }
-func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCaseSensitive bool) error {
+func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	qsSubNode := &ASTNode{}
 	if boolNode.AndFilterCondition == nil {
 		boolNode.AndFilterCondition = &Condition{}
 	}
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := SearchQueryToASTnode(node, qsSubNode, qid, ShouldBeCaseSensitive)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, parseANDCondition: SearchQueryToASTnode error for NodeOr, err: %v", qid, err)
 			return err
@@ -747,7 +748,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCa
 		}
 		return nil
 	case ast.NodeAnd:
-		err := SearchQueryToASTnode(node, qsSubNode, qid, ShouldBeCaseSensitive)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
 			log.Errorf("qid=%d, parseANDCondition: SearchQueryToASTnode error for NodeAnd, err: %v", qid, err)
 			return err
@@ -759,7 +760,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCa
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, parseANDCondition: Error while processing single filter, err: %v", qid, err)
 			return err
