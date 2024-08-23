@@ -2031,82 +2031,24 @@ async function getMetricNames() {
 }
 
 function displayErrorMessage(container, message) {
-    // Ensure container is a DOM element
     if (container instanceof jQuery) {
         container = container.get(0);
     }
-    // Get the merged graph container
     const mergedContainer = document.querySelector("#merged-graph-container");
-
-    // Find the canvas elements
     var graphCanvas = container.querySelector('.graph-canvas');
     var mergedGraph = mergedContainer.querySelector('.merged-graph');
-    // Create new canvas elements
-    var canvas = document.createElement('canvas');
-    var ctx = canvas.getContext('2d');
-    var mergedCanvas = document.createElement('canvas');
-    var mctx = mergedCanvas.getContext('2d');
-    // Set canvas sizes
-    canvas.width = graphCanvas.offsetWidth;
-    canvas.height = graphCanvas.offsetHeight;
-    mergedCanvas.width = mergedGraph.offsetWidth;
-    mergedCanvas.height = mergedGraph.offsetHeight;
-    // Clear existing content and append new canvas elements
+    var span = document.createElement('span');
+    var mergedSpan = document.createElement('span');
     graphCanvas.innerHTML = '';
-    graphCanvas.appendChild(canvas);
+    graphCanvas.appendChild(span);
     mergedGraph.innerHTML = '';
-    mergedGraph.appendChild(mergedCanvas);
-    // Clear previous drawings on the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    mctx.clearRect(0, 0, mergedCanvas.width, mergedCanvas.height);
-    // Get the CSS variable for the text color
-    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--empty-response-text-color').trim() || '#808080';
-    // Set text properties for both canvases
-    ctx.font = '700 20px DINpro'; // Font weight and size
-    ctx.fillStyle = textColor; // Text color
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    mctx.font = '700 20px DINpro'; // Font weight and size
-    mctx.fillStyle = textColor; // Text color
-    mctx.textAlign = 'center';
-    mctx.textBaseline = 'middle';
-    // Function to wrap text
-    function wrapText(text, maxWidth, context) {
-        var words = text.split(' ');
-        var line = '';
-        var lines = [];
-        for (var n = 0; n < words.length; n++) {
-            var testLine = line + words[n] + ' ';
-            var metrics = context.measureText(testLine);
-            var testWidth = metrics.width;
-            if (testWidth > maxWidth && n > 0) {
-                lines.push(line);
-                line = words[n] + ' ';
-            } else {
-                line = testLine;
-            }
-        }
-        lines.push(line);
-        return lines;
-    }
-    // Wrap the message text for both canvases
-    var wrappedText = wrapText(message, canvas.width * 0.9, ctx);
-    var mergedWrappedText = wrapText(message, mergedCanvas.width * 0.9, mctx);
-    // Calculate the total height needed for the text
-    var lineHeight = 30; // Adjust as needed (24px font size + some spacing)
-    var totalHeight = wrappedText.length * lineHeight;
-    var totalMergeHeight = mergedWrappedText.length * lineHeight;
-    // Calculate the starting Y position to center the text vertically
-    var startY = (canvas.height - totalHeight) / 2;
-    var startMergeY = (mergedCanvas.height - totalMergeHeight) / 2;
-    // Draw the wrapped text on both canvases
-    wrappedText.forEach(function (line, index) {
-        ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
-    });
-    mergedWrappedText.forEach(function (line, index) {
-        mctx.fillText(line, mergedCanvas.width / 2, startMergeY + index * lineHeight);
-    });
+    mergedGraph.appendChild(mergedSpan);
+    span.classList.add('error-message');
+    mergedSpan.classList.add('error-message');
+    span.textContent = message;
+    mergedSpan.textContent = message;
 }
+
 
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
