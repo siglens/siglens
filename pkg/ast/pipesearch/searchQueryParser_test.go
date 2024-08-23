@@ -35,7 +35,7 @@ func convertAstNodeToCaseSensitive(node *ast.Node) {
 		return
 	}
 
-	node.Comparison.ValueIsCaseInSensitive = false
+	node.Comparison.CaseInsensitive = false
 	node.Comparison.OriginalValues = nil
 	convertAstNodeToCaseSensitive(node.Left)
 	convertAstNodeToCaseSensitive(node.Right)

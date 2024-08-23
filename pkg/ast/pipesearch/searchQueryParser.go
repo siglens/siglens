@@ -393,7 +393,7 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldB
 		}
 
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.ValueIsCaseInSensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, SearchQueryToASTnode: Error while processing single filter, error: %v", qid, err)
 			return err
@@ -709,7 +709,7 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCas
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.ValueIsCaseInSensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, parseORCondition: Error while processing single filter, err: %v", qid, err)
 			return err
@@ -759,7 +759,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, ShouldBeCa
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.ValueIsCaseInSensitive, ShouldBeCaseSensitive, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, ShouldBeCaseSensitive, qid)
 		if err != nil {
 			log.Errorf("qid=%d, parseANDCondition: Error while processing single filter, err: %v", qid, err)
 			return err

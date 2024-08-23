@@ -116,12 +116,12 @@ type TimeModifiers struct {
 
 // Comparison is an individual comparison operation on a terminal node
 type Comparison struct {
-	Op                     string
-	Field                  string
-	Values                 interface{}
-	OriginalValues         interface{}
-	ValueIsRegex           bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
-	ValueIsCaseInSensitive bool // True if Values is case insensitive. False if Values is case sensitive.
+	Op              string
+	Field           string
+	Values          interface{}
+	OriginalValues  interface{}
+	ValueIsRegex    bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
+	CaseInsensitive bool
 }
 
 func (c *Comparison) isMatchAll() bool {

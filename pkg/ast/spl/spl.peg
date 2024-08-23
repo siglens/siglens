@@ -475,9 +475,9 @@ type FormatResultsRequestArguments struct {
 }
 
 type StringSearchRequest struct {
-	value interface{}
+    value interface{}
     originalValue interface{}
-	valueIsCaseInSensitive bool
+    caseInsensitive bool
 }
 
 }
@@ -3875,7 +3875,7 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(
             Field: key.(string),
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
-            ValueIsCaseInSensitive: ssr.valueIsCaseInSensitive,
+            CaseInsensitive: ssr.caseInsensitive,
         },
     }
     return node, nil
@@ -3890,7 +3890,7 @@ UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsens
             Field: "*",
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
-            ValueIsCaseInSensitive: ssr.valueIsCaseInSensitive,
+            CaseInsensitive: ssr.caseInsensitive,
         },
     }
     return node, nil
@@ -3900,7 +3900,7 @@ CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     return &StringSearchRequest{
         value: value,
         originalValue: value,
-        valueIsCaseInSensitive: false,
+        caseInsensitive: false,
     }, nil
 }
 
@@ -3908,7 +3908,7 @@ CaseInsensitiveString <- value:String {
     return &StringSearchRequest{
         value: strings.ToLower(value.(string)),
         originalValue: value,
-        valueIsCaseInSensitive: true,
+        caseInsensitive: true,
     }, nil
 }
 

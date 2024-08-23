@@ -126,7 +126,7 @@ func Test_searchQuotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
-	assert.False(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
@@ -191,7 +191,7 @@ func Test_searchUnquotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc./\\:=@#$%-_DEF"`))
-	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
@@ -1264,7 +1264,7 @@ func Test_searchQuotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
 	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
-	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
 	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
@@ -1289,7 +1289,7 @@ func Test_searchUnquotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
 	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
-	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
 	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
@@ -2220,7 +2220,7 @@ func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	assert.Equal(t, "=", filterNode.Comparison.Op)
 	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
 	assert.Equal(t, `"Boston"`, filterNode.Comparison.OriginalValues)
-	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -2580,7 +2580,7 @@ func Test_commentInsideQuotes(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Field, "A")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, "\"Hello, ```this is not commented out``` world!\"")
-	assert.False(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
 	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
@@ -10141,7 +10141,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	assert.Equal(t, "=", filterNode.Comparison.Op)
 	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
 	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
-	assert.True(t, filterNode.Comparison.ValueIsCaseInSensitive)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
