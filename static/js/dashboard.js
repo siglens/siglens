@@ -159,7 +159,7 @@ function saveJsonChanges() {
                     name: dbName,
                     description: dbDescr,
                     timeRange: timeRange,
-                    panels: localPanels.map(panel => ({
+                    panels: localPanels.map((panel) => ({
                         ...panel,
                         display: panel.display,
                         color: panel.color,
@@ -252,7 +252,7 @@ async function updateDashboard() {
                 name: dbName,
                 description: dbDescr,
                 timeRange: timeRange,
-                panels: tempPanels.map(panel => ({
+                panels: tempPanels.map((panel) => ({
                     ...panel,
                     display: panel.display,
                     color: panel.color,
@@ -324,10 +324,10 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
-document.getElementById('display-input').value = currentPanel.display || 'Line chart';
-document.getElementById('color-input').value = currentPanel.color || 'Classic';
-document.getElementById('line-style-input').value = currentPanel.style || 'Solid';
-document.getElementById('stroke-input').value = currentPanel.stroke || 'Normal';
+        document.getElementById('display-input').value = currentPanel.display || 'Line chart';
+        document.getElementById('color-input').value = currentPanel.color || 'Classic';
+        document.getElementById('line-style-input').value = currentPanel.style || 'Solid';
+        document.getElementById('stroke-input').value = currentPanel.stroke || 'Normal';
     });
 }
 function handlePanelRemove(panelId) {
