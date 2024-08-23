@@ -208,13 +208,6 @@ func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
 
-func NormalizeSearchBytes(isCaseInSensitive bool, valueBytes []byte) []byte {
-	if isCaseInSensitive {
-		return bytes.ToLower(valueBytes)
-	}
-	return valueBytes
-}
-
 func BytesCaseInsensitiveEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
