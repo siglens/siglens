@@ -360,6 +360,10 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
+	nte := &utils.NumTypeEnclosure{
+		Ntype: utils.SS_INVALID,
+	}
+
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for colNum := range stb.groupByKeys {
 			curColValues[colNum] = stb.wipRecNumToColEnc[colNum][recNum]
@@ -374,7 +378,7 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 					mcName, err)
 				continue
 			}
-			nte, err := cVal.ToNumType()
+			err = cVal.ToNumType(nte)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
 					cVal, mcName, err)
