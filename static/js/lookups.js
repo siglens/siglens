@@ -47,6 +47,7 @@ const columnDefs = [
         headerName: 'Action',
         cellRenderer: function (params) {
             return `
+                <button class="btn-simple download-button" onclick="downloadLookupFile('${params.data.name}')"></button>
                 <button class="btn-simple delete-button" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
             `;
         },
@@ -65,8 +66,8 @@ const gridOptions = {
         sortable: true,
     },
     onRowClicked: function (params) {
-        // Check if the click is not on the delete button
-        if (!$(params.event.target).hasClass('delete-button')) {
+        // Check if the click is not on the delete and download button
+        if (!$(params.event.target).hasClass('btn-simple')) {
             getLookupFile(params.data.name);
         }
     },
@@ -167,6 +168,16 @@ function deleteLookupFile(filename) {
     $('.popupOverlay, #delete-confirmation').addClass('active');
 }
 
+function downloadLookupFile(filename) {
+    const downloadUrl = `/api/lookup-files/${encodeURIComponent(filename)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function performDelete() {
     $.ajax({
         url: `/api/lookup-files/${encodeURIComponent(fileToDelete)}`,
@@ -192,17 +203,39 @@ function getLookupFile(filename) {
     $.ajax({
         url: `/api/lookup-files/${encodeURIComponent(filename)}`,
         method: 'GET',
+        dataType: 'text',
         success: function (data) {
-            displayCSVContent(filename, data);
+            if (filename.endsWith('.csv.gz')) {
+                displayCompressedFileInfo(filename);
+            } else {
+                displayCSVContent(filename, data);
+            }
         },
-        error: function (xhr, status, error) {
+        error: function (xhr) {
             showToast(`Error retrieving file: ${xhr.responseText}`, 'error');
         },
     });
 }
 
+function displayCompressedFileInfo(filename) {
+    $('.popupOverlay, #csvViewerModal').addClass('active');
+    $('#csvViewerModal .header').text(filename);
+
+    const infoHtml = `
+    <div class="compressed-file-info">
+        <p>This is a compressed file (.csv.gz). You cannot view its contents directly.</p>
+    </div>
+    <div class="d-flex mt-4">
+        <a href="/api/lookup-files/${encodeURIComponent(filename)}" download="${filename}" class="btn primary-btn w-100" >Download
+            File</a>
+        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 410px; margin-left: 10px;">Close</button>
+    </div>
+    `;
+
+    $('#csvViewerModal .csv-container').html(infoHtml);
+}
+
 function displayCSVContent(filename, content) {
-    console.log(filename, content);
     // Split the content into lines
     const lines = content.trim().split('\n');
 
@@ -232,9 +265,13 @@ function displayCSVContent(filename, content) {
     gridDiv.id = 'ag-grid';
     gridDiv.style.height = '400px';
     gridDiv.style.width = '100%';
+    gridDiv.classList.add('ag-theme-alpine');
 
     $('#csvViewerModal .csv-container').empty().append(gridDiv);
-
+    $('#csvViewerModal .csv-container').append(`
+    <div class="d-flex mt-4 justify-content-end">
+        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 210px; margin-left: 10px;">Close</button>
+    </div>`);
     new agGrid.Grid(gridDiv, {
         columnDefs: columnDefs,
         rowData: rowData,
