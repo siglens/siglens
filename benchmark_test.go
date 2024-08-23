@@ -657,12 +657,26 @@ func Benchmark_axiomHLL(b *testing.B) {
 	log.Infof("Benchmark_axiomHLL: Done inserting %v unique strings", len(uniqueStrings))
 }
 
-func insertIntoSegmentioHll(segmentioHll *hll.Hll, strHash uint64) {
-	segmentioHll.AddRaw(strHash)
-}
+func insertIntoSegmentioHll(byteUniqueStrings [][]byte) {
+	hllSetting := hll.Settings{
+		Log2m:             10,
+		Regwidth:          4,
+		ExplicitThreshold: hll.AutoExplicitThreshold,
+		SparseEnabled:     true,
+	}
 
-func segmentioHllCardinality(segmentioHll *hll.Hll) uint64 {
-	return segmentioHll.Cardinality()
+	hllsCount := 10
+
+	hlls := make([]hll.Hll, hllsCount)
+
+	for i := 0; i < hllsCount; i++ {
+		hlls[i], _ = hll.NewHll(hllSetting)
+		for _, byteStr := range byteUniqueStrings {
+			strHash := xxhash.Sum64(byteStr)
+			hlls[i].AddRaw(strHash)
+		}
+		log.Infof("insertIntoSegmentioHll: HLL %v, cardinality=%v", i, hlls[i].Cardinality())
+	}
 }
 
 func Benchmark_segmentioHLL(b *testing.B) {
@@ -686,28 +700,12 @@ func Benchmark_segmentioHLL(b *testing.B) {
 	}
 	log.Infof("Benchmark_segmentioHLL: created %v unique strings", len(uniqueStrings))
 
-	hllSetting := hll.Settings{
-		Log2m:             10,
-		Regwidth:          4,
-		ExplicitThreshold: hll.AutoExplicitThreshold,
-		SparseEnabled:     true,
-	}
-
-	segmentioHll, err := hll.NewHll(hllSetting)
-	if err != nil {
-		log.Fatalf("Benchmark_segmentioHLL: failed to create segmentioHll: %v", err)
-		return
-	}
-
 	log.Infof("Benchmark_segmentioHLL: Inserting %v unique strings", len(uniqueStrings))
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for _, byteStr := range uniqueStrings {
-		strHash := xxhash.Sum64(byteStr)
-		insertIntoSegmentioHll(&segmentioHll, strHash)
-	}
+	insertIntoSegmentioHll(uniqueStrings)
 
-	log.Infof("Benchmark_segmentioHLL: Done inserting %v unique strings. Cardinality=%v", len(uniqueStrings), segmentioHllCardinality(&segmentioHll))
+	log.Infof("Benchmark_segmentioHLL: Done inserting %v unique strings", len(uniqueStrings))
 }
