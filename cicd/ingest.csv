@@ -375,6 +375,12 @@ weekday=Monday OR invalidColumn!=foo,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn!=false,now-1d,now,*,total,eq,100000,Splunk QL
 weekday=Monday OR invalidColumn=foo,now-1d,now,*,total,eq,14325,Splunk QL
 weekday=Monday OR invalidColumn=false,now-1d,now,*,total,eq,14325,Splunk QL
+city=123,now-1d,now,*,total,eq,0,Splunk QL
+city!=123,now-1d,now,*,total,eq,100000,Splunk QL
+invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
+invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
+invalidColumn!=123,now-1d,now,*,total,eq,100000,Splunk QL
+NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
 "app_name=Grayeye | stats list(http_status) as list", now-1d,now,*,group:list:*,eq,[301],Splunk QL
 "app_name=Grayeye | stats list(eval(gender=""female"")) as list",now-1d,now,*,group:list:*,eq,[1],Splunk QL
 "app_name=Grayeye | stats list(eval(""abc"")) as list",now-1d,now,*,group:list:*,eq,"[abc]",Splunk QL

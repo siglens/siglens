@@ -18,6 +18,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,8 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+var errCMIColNotFound = errors.New("column not found in cmi")
 
 // Top level segment metadata for access of cmis/search metadata
 type SegmentMicroIndex struct {
@@ -119,7 +122,7 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 	}
 	retVal, ok := allCmis[cname]
 	if !ok {
-		return nil, fmt.Errorf("failed to find column %+v in cmis for block %+v", cname, blkNum)
+		return nil, errCMIColNotFound
 	}
 	return retVal, nil
 }
