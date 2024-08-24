@@ -28,7 +28,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
@@ -42,6 +41,7 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
+	"github.com/segmentio/go-hll"
 )
 
 var wipCardLimit uint16 = 1001
@@ -1462,16 +1462,24 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
+		hs := hll.Settings{
+			Log2m:             16,
+			Regwidth:          5,
+			ExplicitThreshold: hll.AutoExplicitThreshold,
+			SparseEnabled:     true,
+		}
+		sh, _ := hll.NewHll(hs)
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
-			Hll:       hyperloglog.New16()}
+			SegHll:    &sh}
 
 		segstats[cname] = stats
 	}
 
 	stats.Count++
-	stats.Hll.Insert(valBytes)
+	strHash := xxhash.Sum64(valBytes)
+	stats.SegHll.AddRaw(strHash)
 }
 
 func addSegStatsNums(segstats map[string]*SegStats, cname string,
@@ -1495,10 +1503,18 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 				IntgrVal: 0,
 				FloatVal: 0},
 		}
+		hs := hll.Settings{
+			Log2m:             16,
+			Regwidth:          5,
+			ExplicitThreshold: hll.AutoExplicitThreshold,
+			SparseEnabled:     true,
+		}
+		sh, _ := hll.NewHll(hs)
+
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			Hll:       hyperloglog.New16(),
+			SegHll:    &sh,
 			NumStats:  numStats,
 		}
 		segstats[cname] = stats
@@ -1523,7 +1539,8 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats.IsNumeric = true // TODO: what if we have a mix of numeric and non-numeric
 	}
 
-	stats.Hll.Insert(valBytes)
+	strHash := xxhash.Sum64(valBytes)
+	stats.SegHll.AddRaw(strHash)
 	processStats(stats, inNumType, intVal, uintVal, fltVal)
 }
 

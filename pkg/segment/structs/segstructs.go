@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/segmentio/go-hll"
 )
 
 type Numbers struct {
@@ -451,6 +452,7 @@ type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
 	Hll         *hyperloglog.Sketch
+	SegHll      *hll.Hll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure

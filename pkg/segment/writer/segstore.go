@@ -809,7 +809,8 @@ func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 			return cname, true, 0
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		//		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].SegHll.Cardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			return cname, true, colCardinalityEstimate
 		}
@@ -841,7 +842,8 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		//		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].SegHll.Cardinality()
 
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			continue
@@ -1455,11 +1457,15 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
+	/*
 	hllData, err := sst.Hll.MarshalBinary()
 	if err != nil {
 		log.Errorf("writeSstToBuf: HLL marshal failed err=%v", err)
 		return idx, err
 	}
+	*/
+
+	hllData := sst.SegHll.ToBytes()
 
 	// HLL_Size
 	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))
