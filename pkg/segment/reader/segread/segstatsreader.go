@@ -501,3 +501,57 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 
 	return &rSst, nil
 }
+
+func GetSegList(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+
+	// start with lower resolution and upgrade as necessary
+	rSst := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 0,
+	}
+	if currSegStat == nil {
+		log.Errorf("GetSegAvg: currSegStat is nil")
+		return &rSst, errors.New("GetSegAvg: currSegStat is nil")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		switch currSegStat.NumStats.Sum.Ntype {
+		case utils.SS_DT_FLOAT:
+			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal / float64(currSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		default:
+			rSst.FloatVal = float64(currSegStat.NumStats.Sum.IntgrVal) / float64(currSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+		return &rSst, nil
+	}
+	runningSegStat.Count = runningSegStat.Count + currSegStat.Count
+
+	switch currSegStat.NumStats.Sum.Ntype {
+	case utils.SS_DT_FLOAT:
+		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + currSegStat.NumStats.Sum.FloatVal
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) + currSegStat.NumStats.Sum.FloatVal
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+	default:
+		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + float64(currSegStat.NumStats.Sum.IntgrVal)
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
+			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+	}
+
+	return &rSst, nil
+}

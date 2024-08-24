@@ -633,8 +633,12 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			finalCols[colName] = true
 			if value.Dtype == utils.SS_DT_FLOAT {
 				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
-			} else {
-				value.CVal = humanize.Comma(value.CVal.(int64))
+			} else if value.Dtype == utils.SS_DT_STRING_SLICE {
+				strVal, err := value.GetString()
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
+				}
+				value.CVal = strVal
 			}
 			finalSegment[colName] = value.CVal
 		}
