@@ -59,6 +59,8 @@ const (
 	HOUR_IN_MS         = 3_600_000
 )
 
+const unescapeStackBufSize = 64
+
 func parseLabels(labelsString string) map[string]string {
 	labelsString = strings.Trim(labelsString, "{}")
 	labelPairs := strings.Split(labelsString, ", ")
@@ -231,6 +233,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [unescapeStackBufSize]byte
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
@@ -274,7 +277,8 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
+				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
+					jsParsingStackbuf[:])
 				if err != nil {
 					utils.SendError(ctx, "Failed to ingest record", "", err)
 					return
@@ -336,6 +340,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [unescapeStackBufSize]byte
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})
@@ -382,7 +387,8 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr)
+			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+				jsParsingStackbuf[:])
 			if err != nil {
 				utils.SendError(ctx, "Failed to ingest record", "", err)
 				return

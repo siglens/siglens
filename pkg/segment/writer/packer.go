@@ -73,7 +73,8 @@ const FPARM_FLOAT64 = float64(0)
 */
 func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *string,
 	signalType segutils.SIGNAL_TYPE,
-	cnameCacheByteHashToStr map[uint64]string) (uint32, bool, error) {
+	cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) (uint32, bool, error) {
 
 	var maxIdx uint32 = 0
 	var matchedCol = false
@@ -81,7 +82,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 	ss.encodeTime(recordTime, tsKey)
 	var err error
 	maxIdx, matchedCol, err = ss.encodeRawJsonObject("", rawData, maxIdx, tsKey, matchedCol,
-		signalType, cnameCacheByteHashToStr)
+		signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 	if err != nil {
 		log.Errorf("Failed to encode json object! err: %+v", err)
 		return maxIdx, matchedCol, err
@@ -110,7 +111,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 
 func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, maxIdx uint32, tsKey *string,
 	matchedCol bool, signalType segutils.SIGNAL_TYPE,
-	cnameCacheByteHashToStr map[uint64]string) (uint32, bool, error) {
+	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) (uint32, bool, error) {
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		// Maybe push some state onto a stack here?
@@ -132,7 +133,7 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, maxIdx uint
 		switch valueType {
 		case jp.Object:
 			maxIdx, matchedCol, err = ss.encodeRawJsonObject(finalKey, value, maxIdx, tsKey,
-				matchedCol, signalType, cnameCacheByteHashToStr)
+				matchedCol, signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: obj currKey: %v, err: %v", currKey, err)
 			}
@@ -141,17 +142,21 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, maxIdx uint
 
 				maxIdx, matchedCol, err = ss.encodeRawJsonArray(finalKey, value, maxIdx, tsKey, matchedCol, signalType)
 			} else {
-				maxIdx, matchedCol, err = ss.encodeNonJaegerRawJsonArray(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr)
+				maxIdx, matchedCol, err = ss.encodeNonJaegerRawJsonArray(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 			}
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: arr currKey: %v, err: %v", currKey, err)
 			}
 		case jp.String:
-			strVal, err := jp.ParseString(value)
+
+			bU, err := jp.Unescape(value, jsParsingStackbuf[:])
 			if err != nil {
-				return fmt.Errorf("encodeRawJsonObject: str currKey: %v, err: %v", currKey, err)
+				return fmt.Errorf("encodeRawJsonObject: failed to unescape currKey: %v, err: %v",
+					currKey, err)
 			}
-			maxIdx, matchedCol, err = ss.encodeSingleString(finalKey, strVal, maxIdx, tsKey, matchedCol, value)
+
+			maxIdx, matchedCol, err = ss.encodeSingleString(finalKey, maxIdx, tsKey, matchedCol,
+				bU)
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: singstr currKey: %v, err: %v", currKey, err)
 			}
@@ -213,7 +218,8 @@ func (ss *SegStore) encodeRawJsonArray(currKey string, data []byte, maxIdx uint3
 
 func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, maxIdx uint32, tsKey *string,
 	matchedCol bool, signalType segutils.SIGNAL_TYPE,
-	cnameCacheByteHashToStr map[uint64]string) (uint32, bool, error) {
+	cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) (uint32, bool, error) {
 
 	i := 0
 	var finalErr error
@@ -228,24 +234,25 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, max
 		i++
 		switch valueType {
 		case jp.Object:
-			maxIdx, matchedCol, encErr = ss.encodeRawJsonObject(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr)
+			maxIdx, matchedCol, encErr = ss.encodeRawJsonObject(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 			if encErr != nil {
 				finalErr = encErr
 				return
 			}
 		case jp.Array:
-			maxIdx, matchedCol, encErr = ss.encodeNonJaegerRawJsonArray(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr)
+			maxIdx, matchedCol, encErr = ss.encodeNonJaegerRawJsonArray(finalKey, value, maxIdx, tsKey, matchedCol, signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 			if encErr != nil {
 				finalErr = encErr
 				return
 			}
 		case jp.String:
-			strVal, encErr := jp.ParseString(value)
-			if encErr != nil {
+
+			bU, encErr := jp.Unescape(value, jsParsingStackbuf[:])
+			if err != nil {
 				finalErr = encErr
 				return
 			}
-			maxIdx, matchedCol, encErr = ss.encodeSingleString(finalKey, strVal, maxIdx, tsKey, matchedCol, value)
+			maxIdx, matchedCol, encErr = ss.encodeSingleString(finalKey, maxIdx, tsKey, matchedCol, bU)
 			if encErr != nil {
 				finalErr = encErr
 				return
@@ -299,7 +306,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 	}
 	var finalErr error
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, data, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, data, matchedCol, false)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -426,7 +433,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte, maxIdx uint3
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol, false)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -456,14 +463,14 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte, maxIdx uint3
 	return maxIdx, matchedCol, nil
 }
 
-func (ss *SegStore) encodeSingleString(key string, valStr string, maxIdx uint32,
+func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 	tsKey *string, matchedCol bool, valBytes []byte) (uint32, bool, error) {
 	if key == *tsKey {
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, valStr, matchedCol)
+	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, valBytes, matchedCol, true)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -478,7 +485,7 @@ func (ss *SegStore) encodeSingleString(key string, valStr string, maxIdx uint32,
 		}
 	}
 	s := colWip.cbufidx
-	colWip.WriteSingleString(valStr)
+	colWip.WriteSingleStringBytes(valBytes)
 	recLen := colWip.cbufidx - s
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
@@ -502,7 +509,7 @@ func (ss *SegStore) encodeSingleBool(key string, val bool, maxIdx uint32,
 	}
 	var colWip *ColWip
 	colBlooms := ss.wipBlock.columnBlooms
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, val, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, val, matchedCol, false)
 	var bi *BloomIndex
 	var ok bool
 
@@ -535,7 +542,7 @@ func (ss *SegStore) encodeSingleNull(key string, maxIdx uint32,
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, nil, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, nil, matchedCol, false)
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 1)
@@ -552,7 +559,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol)
+	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol, false)
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
 	retLen := encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
@@ -566,7 +573,8 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	return maxIdx, matchedCol, nil
 }
 
-func (ss *SegStore) initAndBackFillColumn(key string, value interface{}, matchedCol bool) (*ColWip, uint16, bool) {
+func (ss *SegStore) initAndBackFillColumn(key string, value interface{},
+	matchedCol bool, isValueStr bool) (*ColWip, uint16, bool) {
 	allColWip := ss.wipBlock.colWips
 	colBlooms := ss.wipBlock.columnBlooms
 	colRis := ss.wipBlock.columnRangeIndexes
@@ -582,7 +590,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{}, matched
 	if !ok {
 		if recNum != 0 {
 			log.Debugf("EncodeColumns: newColumn=%v showed up in the middle, backfilling it now", key)
-			backFillPastRecords(key, value, recNum, colBlooms, colRis, colWip)
+			backFillPastRecords(key, value, recNum, colBlooms, colRis, colWip, isValueStr)
 		}
 	}
 	allColsInBlock[key] = true
@@ -592,15 +600,18 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{}, matched
 }
 
 func initMicroIndices(key string, val interface{}, colBlooms map[string]*BloomIndex,
-	colRis map[string]*RangeIndex) {
-	switch val.(type) {
-	case string:
+	colRis map[string]*RangeIndex, isValueStr bool) {
+
+	if isValueStr {
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
 		bCount := getBlockBloomSize(bi)
 		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
+		return
+	}
 
+	switch val.(type) {
 	case float64, int64, uint64, json.Number:
 		ri := &RangeIndex{}
 		ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
@@ -617,8 +628,9 @@ func initMicroIndices(key string, val interface{}, colBlooms map[string]*BloomIn
 }
 
 func backFillPastRecords(key string, val interface{}, recNum uint16, colBlooms map[string]*BloomIndex,
-	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
-	initMicroIndices(key, val, colBlooms, colRis)
+	colRis map[string]*RangeIndex, colWip *ColWip, isValueStr bool) uint32 {
+
+	initMicroIndices(key, val, colBlooms, colRis, isValueStr)
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)
@@ -894,6 +906,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 	}
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	tsKey := config.GetTimeStampKey()
 	allCols := make(map[string]uint32)
@@ -940,7 +953,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			timestp := uint64(i) + 1 // dont start with 0 as timestamp
 			raw, _ := json.Marshal(entry)
 			_, _, err := segStore.EncodeColumns(raw, timestp, &tsKey, SIGNAL_EVENTS,
-				cnameCacheByteHashToStr)
+				cnameCacheByteHashToStr, jsParsingStackbuf[:])
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: error packing entry: %s", err)
 			}
@@ -999,6 +1012,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 	mapCol["timestamp"] = true
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	tsKey := config.GetTimeStampKey()
 	allCols := make(map[string]uint32)
@@ -1068,7 +1082,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 		entry := entries[0].entry
 		timestp := uint64(2) + 1 // dont start with 0 as timestamp
 		_, _, err := segStore.EncodeColumns(entry, timestp, &tsKey, SIGNAL_JAEGER_TRACES,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		if err != nil {
 			log.Errorf("WriteMockTraceFile: error packing entry: %s", err)
 		}
@@ -1282,6 +1296,7 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 	entryCount := 1000
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	startTs := uint64(1652222966645) // Tuesday, May 10, 2022 22:49:26.645
 	tsincr := uint64(7200)           // so that we have 2 hours, 2 days, and > 2mins buckets
@@ -1294,7 +1309,7 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 		record_json[cnames[1]] = json.Number(fmt.Sprint(i))
 		rawJson, _ := json.Marshal(record_json)
 		_, _, err := segstore.EncodeColumns(rawJson, runningTs, &tsKey, SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		if err != nil {
 			log.Errorf("Error:WriteMockColSegFile: error packing entry: %s", err)
 		}
