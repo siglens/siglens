@@ -24,7 +24,8 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"github.com/axiomhq/hyperloglog"
+	"github.com/cespare/xxhash"
+	"github.com/segmentio/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -222,7 +223,7 @@ type RunningStreamStatsResults struct {
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
-	CardinalityHLL      *hyperloglog.Sketch
+	CardinalityHLL      *hll.Hll
 	ValuesMap           map[string]struct{}
 }
 
@@ -450,7 +451,7 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	Hll         *hyperloglog.Sketch
+	SegHll      *hll.Hll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
@@ -501,6 +502,13 @@ type FieldGetter interface {
 	GetFields() []string
 }
 
+var SegHllSettings = hll.Settings{
+	Log2m:             16,
+	Regwidth:          5,
+	ExplicitThreshold: hll.AutoExplicitThreshold,
+	SparseEnabled:     true,
+}
+
 // init SegStats from raw bytes of SegStatsJSON
 func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
@@ -511,24 +519,89 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	}
 	ss.IsNumeric = segStatJson.IsNumeric
 	ss.Count = segStatJson.Count
-	ss.Hll = hyperloglog.New()
-	err = ss.Hll.UnmarshalBinary(segStatJson.RawHll)
+	err = ss.CreateHllFromBytes(segStatJson.RawHll, true)
 	if err != nil {
-		log.Errorf("SegStats.Init: Failed to unmarshal hyperloglog error: %v data: %v", err, string(segStatJson.RawHll))
+		log.Errorf("SegStats.Init: Failed to create new segmentio Hll from raw bytes. error: %v data: %v", err, string(segStatJson.RawHll))
 		return err
 	}
 	ss.NumStats = segStatJson.NumStats
 	return nil
 }
 
+// Creates a new segmentio Hll with the defined SegHllSettings.
+// If failed to create, it will return a default Hll
+func CreateNewSegmentioHll() *hll.Hll {
+	segHll, err := hll.NewHll(SegHllSettings)
+	if err != nil {
+		// fallback to default Hll
+		segHll = hll.Hll{}
+	}
+	return &segHll
+}
+
+func CreateSegmentioHllFromBytes(rawHll []byte) (*hll.Hll, error) {
+	segHll, err := hll.FromBytes(rawHll)
+	if err != nil {
+		return nil, err
+	}
+	return &segHll, nil
+}
+
+// Create new segmentio Hll from the raw bytes.
+// If creatNew is true, it will create a new Hll, if failed to create from raw bytes
+func (ss *SegStats) CreateHllFromBytes(rawHll []byte, creatNew bool) error {
+	segHll, err := CreateSegmentioHllFromBytes(rawHll)
+	if err != nil {
+		if creatNew {
+			return ss.CreateNewHll()
+		}
+	}
+
+	ss.SegHll = segHll
+	return nil
+}
+
+func (ss *SegStats) CreateNewHll() error {
+	segHll, err := hll.NewHll(SegHllSettings)
+	if err != nil {
+		return err
+	}
+
+	ss.SegHll = &segHll
+	return nil
+}
+
+func (ss *SegStats) InsertIntoHll(value []byte) {
+	if ss == nil || ss.SegHll == nil {
+		return
+	}
+
+	ss.SegHll.AddRaw(xxhash.Sum64(value))
+}
+
+func (ss *SegStats) GetHllCardinality() uint64 {
+	if ss == nil || ss.SegHll == nil {
+		return 0
+	}
+
+	return ss.SegHll.Cardinality()
+}
+
+func (ss *SegStats) GetHllBytes() []byte {
+	if ss == nil || ss.SegHll == nil {
+		return nil
+	}
+
+	return ss.SegHll.ToBytes()
+}
+
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
-	ss.Hll = hyperloglog.New()
-	err := ss.Hll.UnmarshalBinary(ssj.RawHll)
+	err := ss.CreateHllFromBytes(ssj.RawHll, false)
 	if err != nil {
-		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hyperloglog error: %v data: %v", err, string(ssj.RawHll))
+		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
@@ -541,11 +614,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson := &SegStatsJSON{}
 	segStatJson.IsNumeric = ss.IsNumeric
 	segStatJson.Count = ss.Count
-	rawHll, err := ss.Hll.MarshalBinary()
-	if err != nil {
-		log.Errorf("SegStats.ToJSON: Failed to marshal hyperloglog error: %v", err)
-		return nil, err
-	}
+	rawHll := ss.GetHllBytes()
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
 	segStatJson.StringStats = ss.StringStats
@@ -571,9 +640,11 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
-	err := ss.Hll.Merge(other.Hll)
-	if err != nil {
-		log.Errorf("SegStats.Merge: Failed to merge hyperloglog stats error: %v", err)
+	if ss.SegHll != nil && other.SegHll != nil {
+		err := ss.SegHll.StrictUnion(*other.SegHll)
+		if err != nil {
+			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
+		}
 	}
 
 	if ss.NumStats == nil {

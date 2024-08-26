@@ -23,7 +23,6 @@ import (
 	"math"
 	"os"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -105,10 +104,9 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
 	idx += 2
 
-	sst.Hll = hyperloglog.New16()
-	err := sst.Hll.UnmarshalBinary(fdata[idx : idx+hllSize])
+	err := sst.CreateHllFromBytes(fdata[idx:idx+hllSize], false)
 	if err != nil {
-		log.Errorf("qid=%d, readSingleSst: unmarshal sst err: %v", qid, err)
+		log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
 		return nil, err
 	}
 	idx += hllSize
@@ -399,16 +397,16 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		res.IntgrVal = int64(currSegStat.Hll.Estimate())
+		res.IntgrVal = int64(currSegStat.GetHllCardinality())
 		return &res, nil
 	}
 
-	err := runningSegStat.Hll.Merge(currSegStat.Hll)
+	err := runningSegStat.SegHll.StrictUnion(*currSegStat.SegHll)
 	if err != nil {
 		log.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
 		return nil, err
 	}
-	res.IntgrVal = int64(runningSegStat.Hll.Estimate())
+	res.IntgrVal = int64(runningSegStat.GetHllCardinality())
 
 	return &res, nil
 }

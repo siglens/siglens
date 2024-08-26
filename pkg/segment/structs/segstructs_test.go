@@ -20,7 +20,6 @@ package structs
 import (
 	"testing"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -773,7 +772,6 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 				},
 				Dtype: utils.SS_DT_SIGNED_NUM,
 			},
-			Hll:         hyperloglog.New16(),
 			StringStats: nil,
 			Records:     nil,
 		},
@@ -781,7 +779,6 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 			IsNumeric: false,
 			Count:     42,
 			NumStats:  nil,
-			Hll:       hyperloglog.New16(),
 			StringStats: &StringStats{
 				StrSet: map[string]struct{}{
 					"str1": {},
@@ -797,6 +794,9 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 	}
 
 	for _, originalSegStats := range segStatsList {
+		err := originalSegStats.CreateNewHll()
+		assert.NoError(t, err)
+
 		segStatsJson, err := originalSegStats.ToJSON()
 		assert.NoError(t, err)
 		assert.NotNil(t, segStatsJson)
@@ -814,7 +814,6 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		IsNumeric: false,
 		Count:     42,
 		NumStats:  nil,
-		Hll:       hyperloglog.New16(),
 		StringStats: &StringStats{
 			StrSet: map[string]struct{}{
 				"str1": {},
@@ -832,7 +831,6 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		IsNumeric: false,
 		Count:     42,
 		NumStats:  nil,
-		Hll:       hyperloglog.New16(),
 		StringStats: &StringStats{
 			StrSet: map[string]struct{}{
 				"str1": {},
@@ -845,6 +843,12 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		},
 		Records: nil,
 	}
+
+	err := segStat1.CreateNewHll()
+	assert.NoError(t, err)
+
+	err = segStat2.CreateNewHll()
+	assert.NoError(t, err)
 
 	assert.Equal(t, segStat1, segStat2)
 

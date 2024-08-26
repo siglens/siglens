@@ -24,7 +24,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -583,7 +582,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			sstMap[mOp.MeasureCol] = &structs.SegStats{
 				IsNumeric:   dtypeVal.IsNumeric(),
 				Count:       1,
-				Hll:         nil,
+				SegHll:      nil,
 				NumStats:    &structs.NumericStats{Min: *nTypeEnclosure, Max: *nTypeEnclosure, Sum: *nTypeEnclosure, Dtype: dtypeVal.Dtype},
 				StringStats: nil,
 				Records:     nil,
@@ -962,8 +961,11 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						stats = &structs.SegStats{
 							IsNumeric: false,
 							Count:     0,
-							Hll:       hyperloglog.New16(),
 							Records:   make([]*utils.CValueEnclosure, 0),
+						}
+						err := stats.CreateNewHll()
+						if err != nil {
+							log.Errorf("qid=%d, segmentStatsWorker failed to create new hll for col %s", qid, colName)
 						}
 
 						lStats[colName] = stats

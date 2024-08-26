@@ -24,7 +24,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
+	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -173,10 +173,10 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 	case utils.Cardinality:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.CardinalityHLL == nil {
-			ssResults.CardinalityHLL = hyperloglog.New()
+			ssResults.CardinalityHLL = structs.CreateNewSegmentioHll()
 		}
-		ssResults.CardinalityHLL.Insert([]byte(strValue))
-		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Estimate())
+		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
+		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Cardinality())
 	case utils.Values:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.ValuesMap == nil {
