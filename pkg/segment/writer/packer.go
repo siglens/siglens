@@ -149,14 +149,14 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, maxIdx uint
 			}
 		case jp.String:
 
-			bU, err := jp.Unescape(value, jsParsingStackbuf[:])
+			valUnescaped, err := jp.Unescape(value, jsParsingStackbuf[:])
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: failed to unescape currKey: %v, err: %v",
 					currKey, err)
 			}
 
 			maxIdx, matchedCol, err = ss.encodeSingleString(finalKey, maxIdx, tsKey, matchedCol,
-				bU)
+				valUnescaped)
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: singstr currKey: %v, err: %v", currKey, err)
 			}
@@ -247,12 +247,12 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, max
 			}
 		case jp.String:
 
-			bU, encErr := jp.Unescape(value, jsParsingStackbuf[:])
+			valUnescaped, encErr := jp.Unescape(value, jsParsingStackbuf[:])
 			if err != nil {
 				finalErr = encErr
 				return
 			}
-			maxIdx, matchedCol, encErr = ss.encodeSingleString(finalKey, maxIdx, tsKey, matchedCol, bU)
+			maxIdx, matchedCol, encErr = ss.encodeSingleString(finalKey, maxIdx, tsKey, matchedCol, valUnescaped)
 			if encErr != nil {
 				finalErr = encErr
 				return
@@ -306,7 +306,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 	}
 	var finalErr error
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, data, matchedCol, false)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, SS_DT_ARRAY_DICT, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -433,7 +433,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte, maxIdx uint3
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol, false)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -470,7 +470,7 @@ func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, valBytes, matchedCol, true)
+	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -509,7 +509,7 @@ func (ss *SegStore) encodeSingleBool(key string, val bool, maxIdx uint32,
 	}
 	var colWip *ColWip
 	colBlooms := ss.wipBlock.columnBlooms
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, val, matchedCol, false)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
 	var bi *BloomIndex
 	var ok bool
 
@@ -542,7 +542,7 @@ func (ss *SegStore) encodeSingleNull(key string, maxIdx uint32,
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, nil, matchedCol, false)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol)
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 1)
@@ -559,7 +559,20 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol, false)
+	var numType SS_DTYPE
+
+	switch value.(type) {
+	case float64, json.Number:
+		numType = SS_DT_FLOAT
+	case int64, int32, int16, int8, int:
+		numType = SS_DT_SIGNED_NUM
+	case uint64, uint32, uint16, uint8, uint:
+		numType = SS_DT_UNSIGNED_NUM
+	default:
+		numType = SS_DT_BACKFILL
+	}
+
+	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, numType, matchedCol)
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
 	retLen := encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
@@ -573,8 +586,8 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	return maxIdx, matchedCol, nil
 }
 
-func (ss *SegStore) initAndBackFillColumn(key string, value interface{},
-	matchedCol bool, isValueStr bool) (*ColWip, uint16, bool) {
+func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
+	matchedCol bool) (*ColWip, uint16, bool) {
 	allColWip := ss.wipBlock.colWips
 	colBlooms := ss.wipBlock.columnBlooms
 	colRis := ss.wipBlock.columnRangeIndexes
@@ -590,7 +603,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{},
 	if !ok {
 		if recNum != 0 {
 			log.Debugf("EncodeColumns: newColumn=%v showed up in the middle, backfilling it now", key)
-			backFillPastRecords(key, value, recNum, colBlooms, colRis, colWip, isValueStr)
+			backFillPastRecords(key, valType, recNum, colBlooms, colRis, colWip)
 		}
 	}
 	allColsInBlock[key] = true
@@ -599,25 +612,21 @@ func (ss *SegStore) initAndBackFillColumn(key string, value interface{},
 	return colWip, recNum, matchedCol
 }
 
-func initMicroIndices(key string, val interface{}, colBlooms map[string]*BloomIndex,
-	colRis map[string]*RangeIndex, isValueStr bool) {
+func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomIndex,
+	colRis map[string]*RangeIndex) {
 
-	if isValueStr {
+	switch valType {
+	case SS_DT_STRING:
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
 		bCount := getBlockBloomSize(bi)
 		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
-		return
-	}
-
-	switch val.(type) {
-	case float64, int64, uint64, json.Number:
+	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		ri := &RangeIndex{}
 		ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
 		colRis[key] = ri
-
-	case bool:
+	case SS_DT_BOOL:
 		// todo kunal, for bool type we need to keep a inverted index
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
@@ -627,10 +636,10 @@ func initMicroIndices(key string, val interface{}, colBlooms map[string]*BloomIn
 	}
 }
 
-func backFillPastRecords(key string, val interface{}, recNum uint16, colBlooms map[string]*BloomIndex,
-	colRis map[string]*RangeIndex, colWip *ColWip, isValueStr bool) uint32 {
+func backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
+	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
-	initMicroIndices(key, val, colBlooms, colRis, isValueStr)
+	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)
