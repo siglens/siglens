@@ -161,10 +161,12 @@ function saveJsonChanges() {
                     timeRange: timeRange,
                     panels: localPanels.map((panel) => ({
                         ...panel,
-                        display: panel.display,
-                        color: panel.color,
-                        style: panel.style,
-                        stroke: panel.stroke,
+                        style:{
+                            display: panel.style.display,
+                            color: panel.style.color,
+                            lineStyle: panel.style.lineStyle,
+                            lineStroke: panel.style.lineStroke,
+                        }  
                     })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
@@ -254,10 +256,12 @@ async function updateDashboard() {
                 timeRange: timeRange,
                 panels: tempPanels.map((panel) => ({
                     ...panel,
-                    display: panel.display,
-                    color: panel.color,
-                    style: panel.style,
-                    stroke: panel.stroke,
+                    style:{
+                        display: panel.style.display,
+                        color: panel.style.color,
+                        lineStyle: panel.style.lineStyle,
+                        lineStroke: panel.style.lineStroke,
+                    }  
                 })),
                 refresh: dbRefresh,
             },
@@ -324,10 +328,10 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
-        document.getElementById('display-input').value = currentPanel.display || 'Line chart';
-        document.getElementById('color-input').value = currentPanel.color || 'Classic';
-        document.getElementById('line-style-input').value = currentPanel.style || 'Solid';
-        document.getElementById('stroke-input').value = currentPanel.stroke || 'Normal';
+        document.getElementById('display-input').value = currentPanel.style.display || 'Line chart';
+        document.getElementById('color-input').value = currentPanel.style.color || 'Classic';
+        document.getElementById('line-style-input').value = currentPanel.style.lineStyle || 'Solid';
+        document.getElementById('stroke-input').value = currentPanel.style.lineStroke || 'Normal';
     });
 }
 function handlePanelRemove(panelId) {

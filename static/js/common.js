@@ -631,9 +631,9 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
             }
         }
-        toggleLineOptions(currentPanel.display);
-        updateChartTheme(currentPanel.color);                
-        updateLineCharts(currentPanel.style, currentPanel.stroke);
+        toggleLineOptions(currentPanel.style.display);
+        updateChartTheme(currentPanel.style.color);                
+        updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {

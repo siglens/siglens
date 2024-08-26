@@ -169,10 +169,13 @@ function createPanelToNewDashboard() {
                         refresh: refresh,
                         panels: [{
                             ...panelCreatedFromLogs,
-                            display: panelCreatedFromLogs.display,
-                            color: panelCreatedFromLogs.color,
-                            style: panelCreatedFromLogs.style,
-                            stroke: panelCreatedFromLogs.stroke,
+                            style: {
+                                display: panelCreatedFromLogs.style.display,
+                                color: panelCreatedFromLogs.style.color,
+                                lineStyle: panelCreatedFromLogs.style.lineStyle,
+                                lineStroke: panelCreatedFromLogs.style.lineStroke,
+                            }
+
                         }],
                     },
                 };
@@ -324,14 +327,16 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
-            //eslint-disable-next-line no-undef
-            display:chartType,
-            //eslint-disable-next-line no-undef
-            color: selectedTheme,
-            //eslint-disable-next-line no-undef
-            style: selectedLineStyle,
-             //eslint-disable-next-line no-undef
-            stroke: selectedStroke,
+            style: {
+                //eslint-disable-next-line no-undef
+                display: chartType,
+                //eslint-disable-next-line no-undef
+                color: selectedTheme,
+                //eslint-disable-next-line no-undef
+                lineStyle: selectedLineStyle,
+                //eslint-disable-next-line no-undef
+                lineStroke: selectedStroke,
+            }
 
         };
     } else {

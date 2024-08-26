@@ -495,13 +495,13 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
         const data = getMetricsQData();
         currentPanel.queryData = data;
            //eslint-disable-next-line no-undef
-        currentPanel.display=chartType;
+        currentPanel.style.display=chartType;
            //eslint-disable-next-line no-undef
-        currentPanel.color=selectedTheme;
+        currentPanel.style.color=selectedTheme;
            //eslint-disable-next-line no-undef
-        currentPanel.stroke=selectedStroke;
+        currentPanel.style.lineStroke=selectedStroke;
            //eslint-disable-next-line no-undef
-        currentPanel.style=selectedLineStyle;
+        currentPanel.style.lineStyle=selectedLineStyle;
         
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
