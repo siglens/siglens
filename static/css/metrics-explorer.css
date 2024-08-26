@@ -162,9 +162,10 @@ input:checked + .slider:before {
     background-color: var( --container-focus-bg-color );
     border-color:  #2D69BC;
 }
-.formula-box .formula.error-border{
+.formula-box .formula.error-border,
+.all-selected-functions-formula.error div{
     border: 1px solid #EB364B !important;
-    border-left: none ;
+    border-left: none;
 }
 .formula-arrow{
     cursor: pointer;
@@ -302,6 +303,11 @@ input:checked + .slider:before {
     -webkit-animation: spin 2s linear infinite;
     animation: spin 2s linear infinite;
     z-index: 10; /* Ensure it stays above other content */
+}
+
+.show-functions-formula.disabled,
+.show-functions-formula.disabled:hover{
+    cursor: not-allowed;
 }
 
 .metrics-query .remove-query:hover,

@@ -5518,6 +5518,7 @@ input.form-control {
     background-color: var(--side-nav-bg-color-regular);
     font-size: 12px;
     box-shadow: var(--box-shadow);
+    text-align: center;
 }
 
 .tippy-box[data-placement^='top'] > .tippy-arrow::before {
