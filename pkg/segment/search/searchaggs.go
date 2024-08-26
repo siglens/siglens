@@ -963,10 +963,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 							Count:     0,
 							Records:   make([]*utils.CValueEnclosure, 0),
 						}
-						err := stats.CreateNewHll()
-						if err != nil {
-							log.Errorf("qid=%d, segmentStatsWorker failed to create new hll for col %s", qid, colName)
-						}
+						stats.CreateNewHll()
 
 						lStats[colName] = stats
 					}

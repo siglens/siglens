@@ -794,8 +794,7 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 	}
 
 	for _, originalSegStats := range segStatsList {
-		err := originalSegStats.CreateNewHll()
-		assert.NoError(t, err)
+		originalSegStats.CreateNewHll()
 
 		segStatsJson, err := originalSegStats.ToJSON()
 		assert.NoError(t, err)
@@ -844,11 +843,9 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		Records: nil,
 	}
 
-	err := segStat1.CreateNewHll()
-	assert.NoError(t, err)
+	segStat1.CreateNewHll()
 
-	err = segStat2.CreateNewHll()
-	assert.NoError(t, err)
+	segStat2.CreateNewHll()
 
 	assert.Equal(t, segStat1, segStat2)
 

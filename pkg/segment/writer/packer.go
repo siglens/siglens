@@ -1465,10 +1465,7 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 			IsNumeric: false,
 			Count:     0,
 		}
-		err := stats.CreateNewHll()
-		if err != nil {
-			log.Errorf("addSegStatsStrIngestion: error creating hll: %s", err)
-		}
+		stats.CreateNewHll()
 
 		segstats[cname] = stats
 	}
@@ -1503,10 +1500,7 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 			Count:     0,
 			NumStats:  numStats,
 		}
-		err := stats.CreateNewHll()
-		if err != nil {
-			log.Errorf("addSegStatsNums: error creating hll: %s", err)
-		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 

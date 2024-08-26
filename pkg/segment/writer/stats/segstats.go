@@ -24,7 +24,6 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -52,10 +51,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 			NumStats:  numStats,
 			Records:   make([]*CValueEnclosure, 0),
 		}
-		err := stats.CreateNewHll()
-		if err != nil {
-			log.Errorf("AddSegStatsNums: Error creating new HLL: %v", err)
-		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 
@@ -94,10 +90,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 			Count:     0,
 			NumStats:  numStats,
 		}
-		err := stats.CreateNewHll()
-		if err != nil {
-			log.Errorf("AddSegStatsCount: Error creating new HLL: %v", err)
-		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 	stats.Count += count
@@ -241,10 +234,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 			Count:     0,
 			Records:   make([]*CValueEnclosure, 0),
 		}
-		err := stats.CreateNewHll()
-		if err != nil {
-			log.Errorf("AddSegStatsStr: Error creating new HLL: %v", err)
-		}
+		stats.CreateNewHll()
 
 		segstats[cname] = stats
 	}

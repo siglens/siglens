@@ -49,8 +49,7 @@ func Test_sstReadWrite(t *testing.T) {
 		Count:     2345,
 		NumStats:  &myNums,
 	}
-	err := inSst.CreateNewHll()
-	assert.Nil(t, err)
+	inSst.CreateNewHll()
 
 	for i := 0; i < 3200; i++ {
 		inSst.InsertIntoHll([]byte(fmt.Sprintf("mystr:%v", i)))
@@ -65,7 +64,7 @@ func Test_sstReadWrite(t *testing.T) {
 	ss.SegmentKey = "segkey-1"
 	ss.AllSst = allSst
 
-	err = ss.FlushSegStats()
+	err := ss.FlushSegStats()
 	assert.Nil(t, err)
 
 	allSstMap, err := ReadSegStats("segkey-1", 123)

@@ -509,6 +509,10 @@ var SegHllSettings = hll.Settings{
 	SparseEnabled:     true,
 }
 
+func init() {
+	initHllDefaultSettings()
+}
+
 // init SegStats from raw bytes of SegStatsJSON
 func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
@@ -528,12 +532,19 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	return nil
 }
 
+func initHllDefaultSettings() {
+	err := hll.Defaults(SegHllSettings)
+	if err != nil {
+		log.Errorf("initHllDefaultSettings: Failed to set default hll settings. error: %v", err)
+	}
+}
+
 // Creates a new segmentio Hll with the defined SegHllSettings.
-// If failed to create, it will return a default Hll
 func CreateNewSegmentioHll() *hll.Hll {
 	segHll, err := hll.NewHll(SegHllSettings)
 	if err != nil {
-		// fallback to default Hll
+		// fallback to default settings, which is not expected to happen.
+		// But the default settings should also be same as SegHllSettings as initialized in initHllDefaultSettings
 		segHll = hll.Hll{}
 	}
 	return &segHll
@@ -552,23 +563,17 @@ func CreateSegmentioHllFromBytes(rawHll []byte) (*hll.Hll, error) {
 func (ss *SegStats) CreateHllFromBytes(rawHll []byte, creatNew bool) error {
 	segHll, err := CreateSegmentioHllFromBytes(rawHll)
 	if err != nil {
-		if creatNew {
-			return ss.CreateNewHll()
-		}
+		return err
 	}
 
 	ss.SegHll = segHll
 	return nil
 }
 
-func (ss *SegStats) CreateNewHll() error {
-	segHll, err := hll.NewHll(SegHllSettings)
-	if err != nil {
-		return err
-	}
+func (ss *SegStats) CreateNewHll() {
+	segHll := CreateNewSegmentioHll()
 
-	ss.SegHll = &segHll
-	return nil
+	ss.SegHll = segHll
 }
 
 func (ss *SegStats) InsertIntoHll(value []byte) {
