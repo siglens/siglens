@@ -101,7 +101,6 @@ type SegStore struct {
 	SegmentErrors      map[string]*structs.SearchErrorInfo
 	bsPool             []*bitset.BitSet
 	bsPoolCurrIdx      uint32
-	bsPoolCount        uint32
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -131,14 +130,14 @@ func NewSegStore(orgId uint64) *SegStore {
 }
 
 func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
-	if ss.bsPoolCurrIdx >= ss.bsPoolCount {
+	lastKnownLen := uint32(len(ss.bsPool))
+	if ss.bsPoolCurrIdx >= lastKnownLen {
 		newCount := BS_INITIAL_SIZE
-		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+ss.bsPoolCount))
+		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
 		for i := uint32(0); i < newCount; i++ {
 			newBs := bitset.New(bsSize)
-			ss.bsPool[ss.bsPoolCount+i] = newBs
+			ss.bsPool[lastKnownLen+i] = newBs
 		}
-		ss.bsPoolCount += newCount
 	}
 	retVal := ss.bsPool[ss.bsPoolCurrIdx]
 	retVal.ClearAll()
