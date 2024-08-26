@@ -2034,7 +2034,7 @@ function displayErrorMessage(container, message) {
     if (container instanceof jQuery) {
         container = container.get(0);
     }
-    const mergedContainer = document.querySelector("#merged-graph-container");
+    const mergedContainer = document.querySelector('#merged-graph-container');
     var graphCanvas = container.querySelector('.graph-canvas');
     var mergedGraph = mergedContainer.querySelector('.merged-graph');
     var span = document.createElement('span');
@@ -2048,7 +2048,6 @@ function displayErrorMessage(container, message) {
     span.textContent = message;
     mergedSpan.textContent = message;
 }
-
 
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
