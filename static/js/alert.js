@@ -99,8 +99,7 @@ $(document).ready(async function () {
     let endTime = 'now';
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-    const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -847,8 +846,9 @@ function alertDetailsFunctions() {
 }
 
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
-    // Focus on the alert rule name input field
-    $('#alert-rule-name').focus();
+    const urlParams = new URLSearchParams(window.location.search);
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+
     if (filterTab === '0') {
         codeToBuilderParsing(searchText);
     } else if (filterTab === '1') {
@@ -875,7 +875,6 @@ function alertChart(res) {
     logsExplorer.innerHTML = '';
 
     if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
-        alert('This query does not support bar graph visualization.');
         $('#logs-explorer').hide();
         return;
     }
