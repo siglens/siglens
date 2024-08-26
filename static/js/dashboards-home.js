@@ -299,6 +299,9 @@ class btnRenderer {
             $('.popupOverlay, .popupContent').addClass('active');
             $('#new-dashboard-modal').hide();
 
+            $('#cancel-db-prompt, .popupOverlay').off('click');
+            $('#delete-dbbtn').off('click');
+            
             $('#cancel-db-prompt, .popupOverlay').click(function () {
                 $('.popupOverlay, .popupContent').removeClass('active');
                 $('#delete-db-prompt').hide();
