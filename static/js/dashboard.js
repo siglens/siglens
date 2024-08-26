@@ -161,12 +161,12 @@ function saveJsonChanges() {
                     timeRange: timeRange,
                     panels: localPanels.map((panel) => ({
                         ...panel,
-                        style:{
+                        style: {
                             display: panel.style.display,
                             color: panel.style.color,
                             lineStyle: panel.style.lineStyle,
                             lineStroke: panel.style.lineStroke,
-                        }  
+                        },
                     })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
@@ -256,12 +256,12 @@ async function updateDashboard() {
                 timeRange: timeRange,
                 panels: tempPanels.map((panel) => ({
                     ...panel,
-                    style:{
+                    style: {
                         display: panel.style.display,
                         color: panel.style.color,
                         lineStyle: panel.style.lineStyle,
                         lineStroke: panel.style.lineStroke,
-                    }  
+                    },
                 })),
                 refresh: dbRefresh,
             },
