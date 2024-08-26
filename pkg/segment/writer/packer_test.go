@@ -33,7 +33,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	bbp "github.com/valyala/bytebufferpool"
 )
 
 func TestBlockSumEncodeDecode(t *testing.T) {
@@ -449,10 +448,8 @@ func Test_addSegStatsStr(t *testing.T) {
 	sst := make(map[string]*SegStats)
 	numRecs := uint64(2000)
 
-	bb := bbp.Get()
-
 	for i := uint64(0); i < numRecs; i++ {
-		addSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb)
+		addSegStatsStrIngestion(sst, cname, []byte(fmt.Sprintf("%v", i)))
 	}
 
 	assert.Equal(t, numRecs, sst[cname].Count)
