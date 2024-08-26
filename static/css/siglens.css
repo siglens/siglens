@@ -6075,3 +6075,7 @@ input.form-control {
 #cancel-delete-btn{
     margin-right: 10px;
 }
+
+#csvViewerModal{
+    width: 60% !important;
+}

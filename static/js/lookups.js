@@ -220,8 +220,8 @@ function getLookupFile(filename) {
 }
 
 function displayCompressedFileInfo(filename) {
-    $('.popupOverlay, #csvViewerModal').addClass('active');
-    $('#csvViewerModal .header').text(filename);
+    $('.popupOverlay, #csvgzViewerModal').addClass('active');
+    $('#csvgzViewerModal .header').text(filename);
 
     const infoHtml = `
     <div class="compressed-file-info">
@@ -234,7 +234,7 @@ function displayCompressedFileInfo(filename) {
     </div>
     `;
 
-    $('#csvViewerModal .csv-container').html(infoHtml);
+    $('#csvgzViewerModal .csv-container').html(infoHtml);
 }
 
 function displayCSVContent(filename, content) {
@@ -272,7 +272,7 @@ function displayCSVContent(filename, content) {
     $('#csvViewerModal .csv-container').empty().append(gridDiv);
     $('#csvViewerModal .csv-container').append(`
     <div class="d-flex mt-4 justify-content-end">
-        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 210px; margin-left: 10px;">Close</button>
+        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 150px; margin-left: 10px;">Close</button>
     </div>`);
 
     //eslint-disable-next-line no-undef
@@ -290,5 +290,5 @@ function displayCSVContent(filename, content) {
 
 //eslint-disable-next-line no-unused-vars
 function closeCSVModal() {
-    $('.popupOverlay, #csvViewerModal').removeClass('active');
+    $('.popupOverlay, #csvViewerModal, #csvgzViewerModal').removeClass('active');
 }
