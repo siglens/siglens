@@ -36,7 +36,7 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen, isMetricsURL, isDashboardScreen;
-//eslint-disable-next-line no-unused-vars
+
 let metricsQueryParams;
 let funcApplied = false;
 let selectedTheme = 'Classic';
@@ -131,8 +131,8 @@ $(document).ready(async function () {
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
+        setSaveQueriesDialog();
     }
-    setSaveQueriesDialog();
 });
 
 async function customRangeHandlerMetrics(_evt) {
@@ -255,7 +255,6 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr('id');
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, 'now', selectedId);
-
     await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
@@ -338,21 +337,6 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
         }
     });
-    formulaElement.find('.show-functions-formula').on('click', function () {
-        event.stopPropagation();
-        var inputField = formulaElement.find('#functions-search-box-formula');
-        var optionsContainer = formulaElement.find('.options-container-formula');
-        var isContainerVisible = optionsContainer.is(':visible');
-
-        if (!isContainerVisible) {
-            optionsContainer.show();
-            inputField.val('');
-            inputField.focus();
-            inputField.autocomplete('search', '');
-        } else {
-            optionsContainer.hide();
-        }
-    });
 
     // Hide the functions dropdown
     $('body').on('click', function (event) {
@@ -385,7 +369,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 onFormulaErased(uniqueId);
                 return;
             }
-            let validationResult = validateFormula(formula, uniqueId); // Use the updated validateFormula function
+            let validationResult = validateFormula(formula, uniqueId);
             if (validationResult !== false) {
                 errorMessage.hide();
                 input.removeClass('error-border');
@@ -393,6 +377,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 if (isAlertScreen) {
                     $('#metrics-queries .metrics-query .query-name').removeClass('active');
                 }
+                updateTooltipForFormulaFunctions(uniqueId, validationResult);
                 if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
                 }
@@ -404,6 +389,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }, 500)
     ); // debounce delay
 }
+
 function extractFunctionsAndFormula(formulaInput) {
     const parseObject = {
         formula: '',
@@ -441,6 +427,7 @@ function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
         formulaElement.find('.all-selected-functions-formula').append(newDiv);
     });
 }
+
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
@@ -460,6 +447,7 @@ async function addAlertsFormulaElement(formulaInput) {
         $('#metrics-formula').append(formulaElement);
     }
     appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+    updateTooltipForFormulaFunctions(uniqueId, validationResult);
     funcApplied = false;
     getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
     let formulaElements = $('.formula-arrow');
@@ -487,6 +475,7 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
         $('#metrics-formula').append(formulaElement);
         appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+        updateTooltipForFormulaFunctions(uniqueId, validationResult);
         funcApplied = false;
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
     } else {
@@ -520,23 +509,30 @@ function validateFormula(formula, uniqueId) {
     if (!matches) {
         return false;
     }
+
     let queryNames = Object.keys(queries);
     let parts = formula.split(/[-+*/]/);
     let usedQueryNames = [];
+    let isNumeric = true;
+
     for (let part of parts) {
         part = part.trim();
         // Check if the part is a query name or a number
         if (queryNames.includes(part)) {
             usedQueryNames.push(part);
+            isNumeric = false;
         } else if (isNaN(part)) {
-            return false; // Todo: if only numeric value is present in formula
+            return false;
         }
     }
-    if (!usedQueryNames.length) {
-        let constantValue = parseFloat(formula);
-        if (!isNaN(constantValue)) usedQueryNames = queryNames;
-    }
 
+    if (isNumeric) {
+        // If numeric value
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue)) {
+            usedQueryNames = queryNames;
+        }
+    }
     // Nest the formula within the functions present in formulaDetails.functions
     let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
     for (let func of functionsArray) {
@@ -547,9 +543,69 @@ function validateFormula(formula, uniqueId) {
         formula: formula,
         queryNames: usedQueryNames,
         functions: functionsArray,
+        isNumeric: isNumeric,
     };
 }
 
+function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
+    const formulaElement = $(`.formula-box[data-id="${uniqueId}"]`);
+    const formulaButton = formulaElement.find('.show-functions-formula');
+    const allSelectedFunctions = $('.all-selected-functions-formula');
+
+    if (validationResult.isNumeric) {
+        formulaButton.addClass('disabled');
+        formulaButton.off('click');
+
+        if (!formulaButton[0]._tippy) {
+            //eslint-disable-next-line no-undef
+            tippy(formulaButton[0], {
+                content: '<div>Functions require a formula input containing a <br>query</div>',
+                allowHTML: true,
+                trigger: 'mouseenter',
+                arrow: true,
+                theme: 'light',
+            });
+        }
+        allSelectedFunctions.addClass('error');
+
+        if (!allSelectedFunctions[0]._tippy) {
+            //eslint-disable-next-line no-undef
+            tippy(allSelectedFunctions[0], {
+                content: 'Functions is not compatible with the query types in this expression.',
+                trigger: 'mouseenter',
+                arrow: true,
+                theme: 'light',
+            });
+        }
+    } else {
+        formulaButton.removeClass('disabled');
+        formulaButton.off('click').on('click', function (event) {
+            event.stopPropagation();
+            var inputField = formulaElement.find('#functions-search-box-formula');
+            var optionsContainer = formulaElement.find('.options-container-formula');
+            var isContainerVisible = optionsContainer.is(':visible');
+
+            if (!isContainerVisible) {
+                optionsContainer.show();
+                inputField.val('');
+                inputField.focus();
+                inputField.autocomplete('search', '');
+            } else {
+                optionsContainer.hide();
+            }
+        });
+
+        if (formulaButton[0]._tippy) {
+            formulaButton[0]._tippy.destroy();
+        }
+
+        allSelectedFunctions.removeClass('error');
+
+        if (allSelectedFunctions[0]._tippy) {
+            allSelectedFunctions[0]._tippy.destroy();
+        }
+    }
+}
 function disableQueryRemoval() {
     // Loop through each query element
     $('.metrics-query').each(function () {
@@ -2256,11 +2312,12 @@ async function refreshMetricsGraphs() {
 
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
+
     if (queries[firstKey].metrics) {
         // only if the first query is not empty
         // Update graph for each query
-        Object.keys(queries).forEach(async function (queryName) {
-            var queryDetails = queries[queryName];
+        for (const queryName of Object.keys(queries)) {
+            const queryDetails = queries[queryName];
 
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
@@ -2270,14 +2327,18 @@ async function refreshMetricsGraphs() {
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
             await handleQueryAndVisualize(queryName, queryDetails);
-        });
+        }
     }
 
+    // Second if block: This will execute only after the first one
     if (Object.keys(formulas).length > 0) {
         // Update graph for each formula
-        Object.keys(formulas).forEach(function (formulaId) {
-            getMetricsDataForFormula(formulaId, formulas[formulaId]);
-        });
+        for (const formulaId of Object.keys(formulas)) {
+            const formulaDetails = formulas[formulaId];
+            funcApplied = false;
+            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
+            getMetricsDataForFormula(formulaId, formulaDetails);
+        }
     }
 }
 

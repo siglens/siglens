@@ -1932,6 +1932,19 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
+.download-button {
+    background-image: url(../assets/download-regular.svg);
+    height: 16px;
+    background-repeat: no-repeat;
+    width: 18px;
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+    padding-bottom: 0;
+    margin-top: 4px;
+    background-size: contain;
+}
+
 #editbutton {
     background-image: url(../assets/edit-alert-icon.svg);
     height: 16px;
@@ -1988,6 +2001,14 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
     margin-left: 35px;
 }
+
+.download-button:hover {
+    background-image: url(../assets/download-active.svg);
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+}
+
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
     cursor: pointer;
@@ -2797,10 +2818,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .ag-theme-mycustomtheme .ag-header-cell-resize {
     background-color: var(--bg-color) !important;
 }
- .ag-cell {
+#LogResultsGrid .ag-cell {
+    user-select: all;
+}
+
+.ag-cell{
     padding: 3px 15px !important;
     font-size: 14px;
-    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{
@@ -5518,6 +5542,7 @@ input.form-control {
     background-color: var(--side-nav-bg-color-regular);
     font-size: 12px;
     box-shadow: var(--box-shadow);
+    text-align: center;
 }
 
 .tippy-box[data-placement^='top'] > .tippy-arrow::before {
@@ -6046,6 +6071,11 @@ input.form-control {
     height: 60px !important;
 }
 
-#cancel-upload-btn, #cancel-overwrite-btn{
+#cancel-upload-btn, #cancel-overwrite-btn,
+#cancel-delete-btn{
     margin-right: 10px;
+}
+
+#csvViewerModal{
+    width: 60% !important;
 }
