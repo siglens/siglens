@@ -213,6 +213,33 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+function updateChartColorsBasedOnTheme() {
+    //eslint-disable-next-line no-undef
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    //eslint-disable-next-line no-undef
+    if (mergedGraph) {
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.update();
+    }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            //eslint-disable-next-line no-undef
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+}
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index

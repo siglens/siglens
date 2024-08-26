@@ -216,12 +216,19 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(uint32(len(curLevNodes))))
 	idx += 4
 
-	nextLevelNodes := []*Node{}
+	numNodesNeeded := 0
+	for _, n := range curLevNodes {
+		numNodesNeeded += len(n.children)
+	}
+
+	nextLevelNodes := make([]*Node, numNodesNeeded)
+	nlIdx := 0
 	for _, n := range curLevNodes {
 
 		// save nextlevel children
 		for _, child := range n.children {
-			nextLevelNodes = append(nextLevelNodes, child)
+			nextLevelNodes[nlIdx] = child
+			nlIdx++
 		}
 		// encode curr nodes details
 

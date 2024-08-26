@@ -10579,9 +10579,6 @@ func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
 
-/*
-   This test is flaky, it fails on weekend boundary days, disabling it for now
-
 func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	query := `* | earliest=@w1-7d+9h latest=@w1-7d+17h`
 	_, err := spl.Parse("", []byte(query))
@@ -10595,12 +10592,16 @@ func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	// Get the current time in the local time zone
 	now := time.Now().In(time.Local)
 
+	daysToSubtract := int(now.Weekday())
+	if daysToSubtract == 0 { // Check if it's Sunday
+		daysToSubtract = 7
+	}
 	// Calculate the expected earliest time: last week's Monday at 9 AM
-	lastMonday9AM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 9, 0, 0, 0, time.Local)
+	lastMonday9AM := time.Date(now.Year(), now.Month(), now.Day()-daysToSubtract-7+int(time.Monday), 9, 0, 0, 0, now.Location())
 	expectedEarliestTime := lastMonday9AM
 
 	// Calculate the expected latest time: last week's Monday at 5 PM
-	lastMonday5PM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 17, 0, 0, 0, time.Local)
+	lastMonday5PM := time.Date(now.Year(), now.Month(), now.Day()-daysToSubtract-7+int(time.Monday), 17, 0, 0, 0, now.Location())
 	expectedLatestTime := lastMonday5PM
 
 	// Convert the actual times from Unix milliseconds to local time
@@ -10611,8 +10612,6 @@ func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
-
-*/
 
 func Test_ParseRelativeTimeModifier_Chained_4(t *testing.T) {
 	query := `* | earliest=-26h@h latest=-2h@h`
