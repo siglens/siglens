@@ -63,6 +63,8 @@ const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const MaxConcurrentAgileTrees = 5
 
+const BS_INITIAL_SIZE = uint32(1000)
+
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
 
@@ -130,7 +132,7 @@ func NewSegStore(orgId uint64) *SegStore {
 
 func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
 	if ss.bsPoolCurrIdx >= ss.bsPoolCount {
-		newCount := uint32(1000)
+		newCount := BS_INITIAL_SIZE
 		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+ss.bsPoolCount))
 		for i := uint32(0); i < newCount; i++ {
 			newBs := bitset.New(bsSize)
