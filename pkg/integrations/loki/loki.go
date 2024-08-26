@@ -59,8 +59,6 @@ const (
 	HOUR_IN_MS         = 3_600_000
 )
 
-const unescapeStackBufSize = 64
-
 func parseLabels(labelsString string) map[string]string {
 	labelsString = strings.Trim(labelsString, "{}")
 	labelPairs := strings.Split(labelsString, ", ")
@@ -233,7 +231,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
@@ -340,7 +338,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})

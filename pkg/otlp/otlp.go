@@ -39,8 +39,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const unescapeStackBufSize = 64
-
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_OTLP_TRACES, false)
@@ -90,7 +88,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	// Go through the request data and ingest each of the spans.
 	numSpans := 0       // The total number of spans sent in this request.

@@ -32,8 +32,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const unescapeStackBufSize = 64
-
 func generateESBody(recs int, actionLine string, rdr Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 
@@ -102,7 +100,7 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	idxToStreamIdCache := make(map[string]string)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	responsebody := make(map[string]interface{})
 	for scanner.Scan() {

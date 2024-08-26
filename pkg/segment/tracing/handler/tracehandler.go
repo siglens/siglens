@@ -40,8 +40,6 @@ import (
 
 const OneHourInMs = 60 * 60 * 1000
 
-const unescapeStackBufSize = 64
-
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
@@ -338,7 +336,7 @@ func ProcessRedTracesIngest() {
 	spans := make([]*structs.Span, 0)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
 
 	for {
 		ctx := &fasthttp.RequestCtx{}
@@ -577,7 +575,7 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
 
 	// Ingest
 	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,

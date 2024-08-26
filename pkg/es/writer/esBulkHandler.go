@@ -54,10 +54,6 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-// How much stack space to allocate for unescaping JSON strings; if a string longer
-// than this needs to be escaped, it will result in a heap allocation
-const unescapeStackBufSize = 64
-
 var resp_status_201 map[string]interface{}
 
 func init() {
@@ -133,7 +129,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	// stack-allocated array for allocation-free unescaping of small strings
-	var jsParsingStackbuf [unescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	for scanner.Scan() {
 		inCount++
