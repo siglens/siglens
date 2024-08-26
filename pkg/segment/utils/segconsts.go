@@ -65,7 +65,7 @@ const WIP_SIZE = 2_000_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
-const BLOCK_BLOOM_SIZE = 100 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
+const BLOCK_BLOOM_SIZE = 200 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
 const BLOCK_RI_MAP_SIZE = 100
 
 var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8         // 100MB
@@ -633,32 +633,29 @@ func (nte *NumTypeEnclosure) Reset() {
 	nte.FloatVal = 0
 }
 
-func (cval *CValueEnclosure) ToNumType() (*NumTypeEnclosure, error) {
+func (cval *CValueEnclosure) ToNumType(res *NumTypeEnclosure) error {
 	if cval == nil {
-		return nil, fmt.Errorf("ToNumType: cval is nil")
+		return fmt.Errorf("ToNumType: cval is nil")
 	}
 	switch cval.Dtype {
 	case SS_DT_FLOAT:
-		return &NumTypeEnclosure{
-			Ntype:    SS_DT_FLOAT,
-			FloatVal: cval.CVal.(float64),
-		}, nil
+		res.Ntype = SS_DT_FLOAT
+		res.FloatVal = cval.CVal.(float64)
+		return nil
 	case SS_DT_SIGNED_NUM:
-		return &NumTypeEnclosure{
-			Ntype:    SS_DT_SIGNED_NUM,
-			IntgrVal: cval.CVal.(int64),
-		}, nil
+		res.Ntype = SS_DT_SIGNED_NUM
+		res.IntgrVal = cval.CVal.(int64)
+		return nil
 	case SS_DT_UNSIGNED_NUM:
-		return &NumTypeEnclosure{
-			Ntype:    SS_DT_SIGNED_NUM,
-			IntgrVal: int64(cval.CVal.(uint64)),
-		}, nil
+		res.Ntype = SS_DT_UNSIGNED_NUM
+		res.IntgrVal = int64(cval.CVal.(uint64))
+		return nil
 	case SS_DT_BACKFILL:
-		return &NumTypeEnclosure{
-			Ntype: SS_DT_BACKFILL,
-		}, nil
+		res.Ntype = SS_DT_BACKFILL
+		res.Ntype = SS_DT_BACKFILL
+		return nil
 	default:
-		return nil, fmt.Errorf("ToNumType: unexpected Ntype: %v", cval.Dtype)
+		return fmt.Errorf("ToNumType: unexpected Ntype: %v", cval.Dtype)
 	}
 }
 

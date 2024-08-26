@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +41,6 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
-	"github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
@@ -377,8 +378,10 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 			if bi != nil {
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyName)))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyVal)))
 			}
-			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb, nil, false, false)
+			addSegStatsStrIngestion(ss.AllSst, keyName, []byte(keyVal))
 			if colWip.cbufidx > maxIdx {
 				maxIdx = colWip.cbufidx
 			}
@@ -485,11 +488,12 @@ func (ss *SegStore) encodeSingleString(key string, valStr string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytes.ToLower(valBytes))
 	}
 	if !ss.skipDe {
 		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
 	}
-	stats.AddSegStatsStr(ss.AllSst, key, valStr, ss.wipBlock.bb, nil, false, false)
+	addSegStatsStrIngestion(ss.AllSst, key, valBytes)
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
 	}
@@ -1457,8 +1461,7 @@ func PackDictEnc(colWip *ColWip) {
 	}
 }
 
-func addSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer) {
+func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valBytes []byte) {
 
 	var stats *SegStats
 	var ok bool
@@ -1473,9 +1476,7 @@ func addSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 	}
 
 	stats.Count++
-	bb.Reset()
-	_, _ = bb.WriteString(strVal)
-	stats.Hll.Insert(bb.B)
+	stats.Hll.Insert(valBytes)
 }
 
 func addSegStatsNums(segstats map[string]*SegStats, cname string,

@@ -203,7 +203,7 @@ func (stb *StarTreeBuilder) newNode() *Node {
 	// and after that if the nodePool count exceeds then we can do the
 	// one by one extension
 	stbNodePoolLen := len(stb.nodePool)
-	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCount)
+	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCountForAlloc)
 	if len(stb.nodePool) > stbNodePoolLen {
 		for i := stbNodePoolLen; i < len(stb.nodePool); i++ {
 			stb.nodePool[i] = &Node{}
@@ -360,6 +360,10 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
+	nte := &utils.NumTypeEnclosure{
+		Ntype: utils.SS_INVALID,
+	}
+
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for colNum := range stb.groupByKeys {
 			curColValues[colNum] = stb.wipRecNumToColEnc[colNum][recNum]
@@ -374,10 +378,10 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 					mcName, err)
 				continue
 			}
-			nte, err := cVal.ToNumType()
+			err = cVal.ToNumType(nte)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
-					mcName, cVal, err)
+					cVal, mcName, err)
 				continue
 			}
 
