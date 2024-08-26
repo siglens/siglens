@@ -19,6 +19,10 @@
 
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
+
+    $('#confirm-delete-btn').on('click', performDelete);
+    $('#cancel-delete-btn').on('click', closeDeletePopup);
+
     fetchLookupFiles();
 });
 
@@ -39,6 +43,15 @@ function fetchLookupFiles() {
 const columnDefs = [
     { headerName: 'Name', field: 'name', resizable: true, sortable: true },
     { headerName: 'Destination', field: 'destination', resizable: true, sortable: true },
+    {
+        headerName: 'Action',
+        cellRenderer: function (params) {
+            return `
+                <button class="btn-simple download-button" onclick="downloadLookupFile('${params.data.name}')"></button>
+                <button class="btn-simple delete-button" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
+            `;
+        },
+    },
 ];
 
 const gridOptions = {
@@ -51,6 +64,12 @@ const gridOptions = {
         cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
+    },
+    onRowClicked: function (params) {
+        // Check if the click is not on the delete and download button
+        if (!$(params.event.target).hasClass('btn-simple')) {
+            getLookupFile(params.data.name);
+        }
     },
 };
 let eGridDiv = $('#ag-grid')[0];
@@ -141,3 +160,135 @@ $('#cancel-upload-btn').on('click', function () {
 
 $('#db-name').focus(() => $('.name-empty').removeClass('active'));
 $('#file-input').focus(() => $('.file-empty').removeClass('active'));
+
+let fileToDelete = '';
+
+//eslint-disable-next-line no-unused-vars
+function deleteLookupFile(filename) {
+    fileToDelete = filename;
+    $('.popupOverlay, #delete-confirmation').addClass('active');
+}
+
+//eslint-disable-next-line no-unused-vars
+function downloadLookupFile(filename) {
+    const downloadUrl = `/api/lookup-files/${encodeURIComponent(filename)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function performDelete() {
+    $.ajax({
+        url: `/api/lookup-files/${encodeURIComponent(fileToDelete)}`,
+        method: 'DELETE',
+        success: function (response) {
+            showToast(response, 'success');
+            fetchLookupFiles();
+            closeDeletePopup();
+        },
+        error: function (xhr) {
+            showToast(`Error deleting file: ${xhr.responseText}`, 'error');
+            closeDeletePopup();
+        },
+    });
+}
+
+function closeDeletePopup() {
+    $('.popupOverlay, #delete-confirmation').removeClass('active');
+    fileToDelete = '';
+}
+
+function getLookupFile(filename) {
+    $.ajax({
+        url: `/api/lookup-files/${encodeURIComponent(filename)}`,
+        method: 'GET',
+        dataType: 'text',
+        success: function (data) {
+            if (filename.endsWith('.csv.gz')) {
+                displayCompressedFileInfo(filename);
+            } else {
+                displayCSVContent(filename, data);
+            }
+        },
+        error: function (xhr) {
+            showToast(`Error retrieving file: ${xhr.responseText}`, 'error');
+        },
+    });
+}
+
+function displayCompressedFileInfo(filename) {
+    $('.popupOverlay, #csvgzViewerModal').addClass('active');
+    $('#csvgzViewerModal .header').text(filename);
+
+    const infoHtml = `
+    <div class="compressed-file-info">
+        <p>This is a compressed file (.csv.gz). You cannot view its contents directly.</p>
+    </div>
+    <div class="d-flex mt-4">
+        <a href="/api/lookup-files/${encodeURIComponent(filename)}" download="${filename}" class="btn primary-btn w-100" >Download
+            File</a>
+        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 410px; margin-left: 10px;">Close</button>
+    </div>
+    `;
+
+    $('#csvgzViewerModal .csv-container').html(infoHtml);
+}
+
+function displayCSVContent(filename, content) {
+    // Split the content into lines
+    const lines = content.trim().split('\n');
+
+    // Parse headers
+    const headers = lines[0].split(',').map((header) => header.replace(/"/g, '').trim());
+
+    // Parse data
+    const rowData = lines.slice(1).map((line) => {
+        const values = line.split(',').map((value) => value.replace(/"/g, '').trim());
+        return headers.reduce((obj, header, index) => {
+            obj[header] = values[index];
+            return obj;
+        }, {});
+    });
+
+    const columnDefs = headers.map((header) => ({
+        headerName: header,
+        field: header,
+        sortable: true,
+        filter: true,
+    }));
+
+    $('.popupOverlay, #csvViewerModal').addClass('active');
+    $('#csvViewerModal .header').text(filename);
+
+    const gridDiv = document.createElement('div');
+    gridDiv.id = 'ag-grid';
+    gridDiv.style.height = '400px';
+    gridDiv.style.width = '100%';
+    gridDiv.classList.add('ag-theme-alpine');
+
+    $('#csvViewerModal .csv-container').empty().append(gridDiv);
+    $('#csvViewerModal .csv-container').append(`
+    <div class="d-flex mt-4 justify-content-end">
+        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 150px; margin-left: 10px;">Close</button>
+    </div>`);
+
+    //eslint-disable-next-line no-undef
+    new agGrid.Grid(gridDiv, {
+        columnDefs: columnDefs,
+        rowData: rowData,
+        defaultColDef: {
+            flex: 1,
+            minWidth: 100,
+            resizable: true,
+            sortable: true,
+        },
+    });
+}
+
+//eslint-disable-next-line no-unused-vars
+function closeCSVModal() {
+    $('.popupOverlay, #csvViewerModal, #csvgzViewerModal').removeClass('active');
+}
