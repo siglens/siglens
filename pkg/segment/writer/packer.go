@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -103,7 +105,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 		colWip.cbufidx += 1
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
-		checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount)
+		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount)
 	}
 
 	return maxIdx, matchedCol, nil
@@ -383,6 +385,8 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 			if bi != nil {
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyName)))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyVal)))
 			}
 			addSegStatsStrIngestion(ss.AllSst, keyName, []byte(keyVal))
 			if colWip.cbufidx > maxIdx {
@@ -491,9 +495,10 @@ func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytes.ToLower(valBytes))
 	}
 	if !ss.skipDe {
-		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
+		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
 	}
 	addSegStatsStrIngestion(ss.AllSst, key, valBytes)
 	if colWip.cbufidx > maxIdx {
@@ -575,7 +580,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{}, maxIdx uin
 	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, numType, matchedCol)
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
-	retLen := encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
+	retLen := ss.encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
 		ss.wipBlock.bb, colWip, valBytes)
 	colWip.cbufidx += retLen
 	ss.updateColValueSizeInAllSeenColumns(key, retLen)
@@ -603,7 +608,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 	if !ok {
 		if recNum != 0 {
 			log.Debugf("EncodeColumns: newColumn=%v showed up in the middle, backfilling it now", key)
-			backFillPastRecords(key, valType, recNum, colBlooms, colRis, colWip)
+			ss.backFillPastRecords(key, valType, recNum, colBlooms, colRis, colWip)
 		}
 	}
 	allColsInBlock[key] = true
@@ -636,30 +641,30 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 	}
 }
 
-func backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
+func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
 	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
-	recArr := make([]uint16, recNum)
-	for i := uint16(0); i < recNum; i++ {
+	bs := ss.GetNewBitset(uint(recNum))
+	for i := uint(0); i < uint(recNum); i++ {
 		// only the type will be saved when we are backfilling
 		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		packedLen += 1
-		recArr[i] = i
+		bs.Set(i)
 	}
 	// we will also init dictEnc for backfilled recnums
 	colWip.deData.deToRecnumIdx[string(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
 	colWip.deData.deHashToRecnumIdx[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
-	colWip.deData.deRecNums[colWip.deData.deCount] = recArr
+	colWip.deData.deRecNums[colWip.deData.deCount] = bs
 	colWip.deData.deCount++
 
 	return packedLen
 }
 
-func encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
+func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
 	colRis map[string]*RangeIndex, wRecNum uint16,
 	segstats map[string]*SegStats, bb *bbp.ByteBuffer, colWip *ColWip,
 	valBytes []byte) uint32 {
@@ -677,7 +682,7 @@ func encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
 			valBytes)
 		valSize := encJsonNumber(key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, wipbuf[:],
 			idx, ri.Ranges)
-		checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
 		return valSize
 	case int64:
 		addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64,
@@ -685,7 +690,7 @@ func encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
 
 		valSize := encJsonNumber(key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, wipbuf[:],
 			idx, ri.Ranges)
-		checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
 		return valSize
 
 	default:
@@ -1419,23 +1424,21 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 	}
 }
 
-func checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16) {
+func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16) {
 	if colWip.deData.deCount < wipCardLimit {
 		cvalHash := xxhash.Sum64(cval)
 		recsIdx, ok := colWip.deData.deHashToRecnumIdx[cvalHash]
 		if !ok {
-			recs := make([]uint16, 0)
+			// start bitset with len of the last RecNum*2
+			bs := ss.GetNewBitset(uint(recNum) * 2)
 			deData := colWip.deData
-
-			deData.deToRecnumIdx[string(cval)] = colWip.deData.deCount
-			deData.deHashToRecnumIdx[cvalHash] = colWip.deData.deCount
-			deData.deRecNums[colWip.deData.deCount] = recs
 			recsIdx = deData.deCount
+			deData.deToRecnumIdx[string(cval)] = recsIdx
+			deData.deHashToRecnumIdx[cvalHash] = recsIdx
+			deData.deRecNums[recsIdx] = bs
 			deData.deCount++
 		}
-		colWip.deData.deRecNums[recsIdx] = append(colWip.deData.deRecNums[recsIdx], recNum)
-		// todo we optimize this code, by pre-allocing a fixed length of recs, keep an idx, then add it to recs
-		// advantages: 1) we avoid extending the array. 2) we avoid inserting in the map on every rec
+		colWip.deData.deRecNums[recsIdx].Set(uint(recNum))
 	}
 }
 
@@ -1462,20 +1465,22 @@ func PackDictEnc(colWip *ColWip) {
 
 	for dword, recIdx := range colWip.deData.deToRecnumIdx {
 
-		recNumsArr := colWip.deData.deRecNums[recIdx]
+		recNumsBitset := colWip.deData.deRecNums[recIdx]
 		// copy the actual dict word , the TLV is packed inside the dword
 		copy(colWip.cbuf[colWip.cbufidx:], []byte(dword))
 		colWip.cbufidx += uint32(len(dword))
 
-		// copy num of records
-		numRecs := uint16(len(recNumsArr))
+		// copy num of records, by finding how many bits are set
+		numRecs := uint16(recNumsBitset.Count())
 		copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(numRecs))
 		colWip.cbufidx += 2
 
-		for i := uint16(0); i < numRecs; i++ {
-			// copy the recNum
-			copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(recNumsArr[i]))
-			colWip.cbufidx += 2
+		for i := uint16(0); i < uint16(recNumsBitset.Len()); i++ {
+			if recNumsBitset.Test(uint(i)) {
+				// copy the recNum
+				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(i))
+				colWip.cbufidx += 2
+			}
 		}
 	}
 }

@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -86,8 +87,9 @@ type SegfileRotateInfo struct {
 type DeData struct {
 	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
 	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
-	deRecNums         [][]uint16        // [De idx] ==> recNums that match this de
-	deCount           uint16            // keeps track of cardinality count for this COL_WIP
+	// kunal todo , we could potentially just use uint32 indexes here that could point to the pool
+	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
+	deCount   uint16           // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
@@ -380,7 +382,7 @@ func rotateSegmentOnTime() {
 				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
 			} else {
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting the segstore for streamid=%s", streamid)
+					log.Infof("Deleting the segstore for streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 					delete(allSegStores, streamid)
 				} else {
 					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
@@ -435,7 +437,7 @@ func InitColWip(segKey string, colName string) *ColWip {
 
 	deData := DeData{deToRecnumIdx: make(map[string]uint16),
 		deHashToRecnumIdx: make(map[uint64]uint16),
-		deRecNums:         make([][]uint16, MaxDeEntries),
+		deRecNums:         make([]*bitset.BitSet, MaxDeEntries),
 		deCount:           0,
 	}
 
@@ -949,8 +951,8 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeData(deCount uint16, deToRecnumIdx map[string]uint16,
-	deHashToRecnumIdx map[uint64]uint16, deRecNums [][]uint16) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint16,
+	deHashToRecnumIdx map[uint64]uint16, deRecNums []*bitset.BitSet) {
 
 	deData := DeData{deToRecnumIdx: deToRecnumIdx,
 		deHashToRecnumIdx: deHashToRecnumIdx,

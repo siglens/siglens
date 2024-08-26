@@ -30,6 +30,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -312,7 +313,10 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 func MonitorSpansHealth() {
 	time.Sleep(1 * time.Minute) // Wait for initial traces ingest first
 	for {
-		ProcessRedTracesIngest()
+		_, traceIndexCount, _, _ := health.GetTraceStatsForAllSegments(0)
+		if traceIndexCount > 0 {
+			ProcessRedTracesIngest()
+		}
 		time.Sleep(5 * time.Minute)
 	}
 }
