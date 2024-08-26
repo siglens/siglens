@@ -1139,7 +1139,6 @@ function handleDbSettings() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        console.log(JSON.stringify(res));
         $('.dbSet-dbName').val(res.name);
         $('.dbSet-dbDescr').val(res.description);
         $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten(res), null, 2));
