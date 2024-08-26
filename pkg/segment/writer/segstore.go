@@ -1023,52 +1023,6 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	return nil
 }
 
-// This function will write bloom to file and return the number of bytes written
-// Ensure that the caller has to again write the file with the correct bloom size later.
-func (ss *SegStore) writeBloomToFile(fname string, bi *BloomIndex) (uint32, error) {
-	bffd, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Errorf("writeBloomToFile: open failed fname=%v, err=%v", fname, err)
-		return 0, err
-	}
-	defer bffd.Close()
-
-	// There is no accurate way to find the size of bloom before writing it to the file.
-	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
-	bytesWritten := uint32(0)
-
-	_, err = bffd.Write([]byte{0, 0, 0, 0})
-	if err != nil {
-		log.Errorf("writeBloomToFile: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
-		return 0, err
-	}
-	bytesWritten += 4
-
-	// copy the blockNum
-	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
-		log.Errorf("writeBloomToFile: block num write failed fname=%v, err=%v", fname, err)
-		return 0, err
-	}
-	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
-
-	// write CMI type
-	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
-		log.Errorf("writeBloomToFile: CMI Type write failed fname=%v, err=%v", fname, err)
-		return 0, err
-	}
-	bytesWritten += 1
-
-	// write the blockBloom
-	bloomSize, err := bi.Bf.WriteTo(bffd)
-	if err != nil {
-		log.Errorf("writeBloomToFile: write blockbloom failed fname=%v, err=%v", fname, err)
-		return 0, err
-	}
-	bytesWritten += uint32(bloomSize)
-
-	return bytesWritten, nil
-}
-
 // flushes bloom index and returns number of bytes written
 func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
@@ -1079,26 +1033,60 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	fname := fmt.Sprintf("%s_%v.cmi", ss.SegmentKey, xxhash.Sum64String(cname))
 
-	bytesWritten, err := ss.writeBloomToFile(fname, bi)
+	bffd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return 0
-	}
-
-	// update the bloom size in the file
-	bffd, err := os.OpenFile(fname, os.O_WRONLY, 0644)
-	if err != nil {
-		log.Errorf("flushBloomIndex: open failed fname=%v for writing the bloom size, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: open failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	defer bffd.Close()
 
-	_, err = bffd.Seek(-int64(bytesWritten), io.SeekEnd)
+	startOffset, err := bffd.Seek(0, io.SeekEnd)
 	if err != nil {
-		log.Errorf("flushBloomIndex: seek failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: failed to seek at the end of the file fname=%v, err=%v", fname, err)
 		return 0
 	}
 
-	_, err = bffd.Write(toputils.Uint32ToBytesLittleEndian(bytesWritten - 4))
+	// There is no accurate way to find the size of bloom before writing it to the file.
+	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
+	bytesWritten := uint32(0)
+
+	_, err = bffd.Write([]byte{0, 0, 0, 0})
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += 4
+
+	// copy the blockNum
+	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
+		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
+
+	// write CMI type
+	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
+		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += 1
+
+	// write the blockBloom
+	bloomSize, err := bi.Bf.WriteTo(bffd)
+	if err != nil {
+		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += uint32(bloomSize)
+
+	err = bffd.Sync()
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
+		return 0
+	}
+
+	// write the correct bloom size
+	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
 	if err != nil {
 		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
 		return 0
@@ -1106,7 +1094,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	err = bffd.Sync()
 	if err != nil {
-		log.Errorf("flushBloomIndex: data sync failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: failed to sync correct bloom size fname=%v, err=%v", fname, err)
 		return 0
 	}
 
