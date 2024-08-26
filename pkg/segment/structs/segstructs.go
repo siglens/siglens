@@ -523,7 +523,7 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	}
 	ss.IsNumeric = segStatJson.IsNumeric
 	ss.Count = segStatJson.Count
-	err = ss.CreateHllFromBytes(segStatJson.RawHll, true)
+	err = ss.CreateHllFromBytes(segStatJson.RawHll)
 	if err != nil {
 		log.Errorf("SegStats.Init: Failed to create new segmentio Hll from raw bytes. error: %v data: %v", err, string(segStatJson.RawHll))
 		return err
@@ -552,9 +552,7 @@ func CreateHllFromBytes(rawHll []byte) (*hll.Hll, error) {
 	return &hll, nil
 }
 
-// Create new segmentio Hll from the raw bytes.
-// If creatNew is true, it will create a new Hll, if failed to create from raw bytes
-func (ss *SegStats) CreateHllFromBytes(rawHll []byte, creatNew bool) error {
+func (ss *SegStats) CreateHllFromBytes(rawHll []byte) error {
 	hll, err := CreateHllFromBytes(rawHll)
 	if err != nil {
 		return err
@@ -596,7 +594,7 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
-	err := ss.CreateHllFromBytes(ssj.RawHll, false)
+	err := ss.CreateHllFromBytes(ssj.RawHll)
 	if err != nil {
 		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
 		return nil, err

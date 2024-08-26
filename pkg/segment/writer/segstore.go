@@ -1444,7 +1444,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx := uint16(0)
 
 	// version
-	copy(buf[idx:], []byte{1})
+	copy(buf[idx:], utils.VERSION_SEGSTATS)
 	idx++
 
 	// isNumeric

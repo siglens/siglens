@@ -141,6 +141,8 @@ var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
+var VERSION_SEGSTATS = []byte{2}
+
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
 type SS_DTYPE uint8

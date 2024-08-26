@@ -90,7 +90,8 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	idx := uint16(0)
 
-	// read version, currently ignored
+	// read version
+	version := fdata[idx]
 	idx++
 
 	// read isNumeric
@@ -104,10 +105,12 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
 	idx += 2
 
-	err := sst.CreateHllFromBytes(fdata[idx:idx+hllSize], false)
-	if err != nil {
-		log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
-		return nil, err
+	if version == utils.VERSION_SEGSTATS[0] {
+		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
+		if err != nil {
+			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
+			return nil, err
+		}
 	}
 	idx += hllSize
 
