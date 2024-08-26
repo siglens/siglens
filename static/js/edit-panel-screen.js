@@ -494,15 +494,14 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.display=chartType;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.color=selectedTheme;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.lineStroke=selectedStroke;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.lineStyle=selectedLineStyle;
-        
+        //eslint-disable-next-line no-undef
+        currentPanel.style.display = chartType;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.color = selectedTheme;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStroke = selectedStroke;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStyle = selectedLineStyle;
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;

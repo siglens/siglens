@@ -256,12 +256,12 @@ class btnRenderer {
                                     description: duplicatedDescription,
                                     panels: duplicatedPanels.map((panel) => ({
                                         ...panel,
-                                        style:{
+                                        style: {
                                             display: panel.style.display,
                                             color: panel.style.color,
                                             lineStyle: panel.style.lineStyle,
                                             lineStroke: panel.style.lineStroke,
-                                        } 
+                                        },
                                     })),
                                     timeRange: duplicateTimeRange,
                                     refresh: duplicateRefresh,
