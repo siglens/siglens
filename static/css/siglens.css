@@ -2039,7 +2039,6 @@ div.dts div.dataTables_scrollBody table {
 }
 .delete-dialog{
     width: 564px !important;
-    left: 30%;
 }
 
 .usage-stats .popupContent{
@@ -4936,8 +4935,6 @@ color: #C8C7CC;
 
 #add-new-contact-popup{
     position: absolute;
-    top: 10%;
-    left: 22%;
     height: 70%;
     width: 60% !important;
     overflow: hidden;
@@ -5052,7 +5049,7 @@ color: #C8C7CC;
   background-color: var(--alerting-table-bg-color);
 }
 
-#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute::after{
+#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute:not(.ag-row-pinned)::after{
   content: '';
   position: absolute;
   left: 10px;
@@ -5521,6 +5518,7 @@ input.form-control {
     background-color: var(--side-nav-bg-color-regular);
     font-size: 12px;
     box-shadow: var(--box-shadow);
+    text-align: center;
 }
 
 .tippy-box[data-placement^='top'] > .tippy-arrow::before {
@@ -6006,6 +6004,19 @@ input.form-control {
 .pqs-tables h3{
     font-weight: 600;
     font-size: 16px;
+}
+
+.myOrg-inner-container .ag-row-pinned {
+    font-weight: bold;
+}
+
+.myOrg-inner-container .ag-row-pinned::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: var(--alerting-table-line-color);
+    top: 0;
 }
 
 .primary-btn{

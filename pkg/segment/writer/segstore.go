@@ -54,6 +54,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// For Last wip we do not know how many nodes this wip will add, hence we
+// leave a room for one wip's worth of recs.
+const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
@@ -991,14 +994,16 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 
 }
 
-func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, signalType utils.SIGNAL_TYPE) error {
+func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
+	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string) error {
 
 	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType)
+		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+			cnameCacheByteHashToStr)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err

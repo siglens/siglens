@@ -216,12 +216,19 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(uint32(len(curLevNodes))))
 	idx += 4
 
-	nextLevelNodes := []*Node{}
+	numNodesNeeded := 0
+	for _, n := range curLevNodes {
+		numNodesNeeded += len(n.children)
+	}
+
+	nextLevelNodes := make([]*Node, numNodesNeeded)
+	nlIdx := 0
 	for _, n := range curLevNodes {
 
 		// save nextlevel children
 		for _, child := range n.children {
-			nextLevelNodes = append(nextLevelNodes, child)
+			nextLevelNodes[nlIdx] = child
+			nlIdx++
 		}
 		// encode curr nodes details
 
@@ -248,20 +255,18 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		}
 
 		for agIdx, e := range n.aggValues {
-			copy(stb.buf[idx:], []byte{uint8(e.Dtype)})
+			copy(stb.buf[idx:], []byte{uint8(e.Ntype)})
 			idx += 1
 
-			switch e.Dtype {
-			case SS_DT_UNSIGNED_NUM:
-				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(e.CVal.(uint64)))
-			case SS_DT_SIGNED_NUM:
-				utils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), stb.buf[idx:])
+			switch e.Ntype {
+			case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
+				utils.Int64ToBytesLittleEndianInplace(e.IntgrVal, stb.buf[idx:])
 			case SS_DT_FLOAT:
-				utils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), stb.buf[idx:])
+				utils.Float64ToBytesLittleEndianInplace(e.FloatVal, stb.buf[idx:])
 			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform
 			default:
 				return 0, fmt.Errorf("encodeNodeDetails: unsupported Dtype: %v, agIdx: %v, nodeKey: %+v, e: %+v",
-					e.Dtype, agIdx, n.myKey, e)
+					e.Ntype, agIdx, n.myKey, e)
 			}
 			idx += 8
 		}
