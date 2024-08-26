@@ -65,16 +65,6 @@ const MaxConcurrentAgileTrees = 5
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
 
-var STBHolderPool [MaxConcurrentAgileTrees]*STBHolder
-
-type STBHolder struct {
-	stbPtr            *StarTreeBuilder
-	segStore          *SegStore
-	currentlyInUse    bool
-	lastUsedTimestamp time.Time
-	myIdx uint16
-}
-
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -112,47 +102,6 @@ type PQTracker struct {
 	hasWildcard bool
 	colNames    map[string]bool
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
-}
-
-func (ss *SegStore) GetSTB() *STBHolder {
-	atreeCounterLock.Lock()
-	defer atreeCounterLock.Unlock()
-	if currentAgileTreeCount == MaxConcurrentAgileTrees {
-		return nil
-	}
-
-	for i := 0; i < MaxConcurrentAgileTrees; i++ {
-		if STBHolderPool[i] == nil {
-			STBHolderPool[i] = &STBHolder{}
-			STBHolderPool[i].stbPtr = &StarTreeBuilder{}
-			STBHolderPool[i].currentlyInUse = true
-			STBHolderPool[i].lastUsedTimestamp = time.Now()
-			STBHolderPool[i].segStore = ss
-			STBHolderPool[i].myIdx = uint16(i)
-			currentAgileTreeCount++
-
-			return STBHolderPool[i]
-		}
-
-		if !STBHolderPool[i].currentlyInUse {
-			STBHolderPool[i].currentlyInUse = true
-			STBHolderPool[i].lastUsedTimestamp = time.Now()
-			currentAgileTreeCount++
-
-			return STBHolderPool[i]
-		}
-	}
-
-	return nil
-}
-
-func (stbHolder *STBHolder) ReleaseSTB() {
-	atreeCounterLock.Lock()
-	defer atreeCounterLock.Unlock()
-
-	currentAgileTreeCount--
-	stbHolder.currentlyInUse = false
-	stbHolder.segStore = nil
 }
 
 func NewSegStore(orgId uint64) *SegStore {
@@ -721,19 +670,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
-
-		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
-			nc := segstore.stbHolder.stbPtr.GetNodeCount()
-			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
-				nc, cnc)
-
-			// give back the tree
-			log.Infof("checkAndRotateColFiles: Release STB due to rotation: %v\n", segstore.stbHolder.myIdx)
-			segstore.stbHolder.ReleaseSTB()
-			segstore.stbHolder = nil
-		}
-
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
@@ -749,6 +685,16 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		instrumentation.IncrementInt64Counter(instrumentation.SEGFILE_ROTATE_COUNT, 1)
 		bytesWritten := segstore.flushStarTree()
 		segstore.OnDiskBytes += uint64(bytesWritten)
+
+		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+			nc := segstore.stbHolder.stbPtr.GetNodeCount()
+			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
+			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v Release STB due to rotation: %v\n",
+				nc, cnc, segstore.stbHolder.myIdx)
+
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
+		}
 
 		activeBasedir := segstore.segbaseDir
 		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
@@ -972,6 +918,7 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
+
 	if err != nil {
 		log.Errorf("computeStarTree: Release STB %v, Failed to compute star tree: %v", segstore.stbHolder.myIdx, err)
 		segstore.stbHolder.ReleaseSTB()
