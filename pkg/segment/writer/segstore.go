@@ -72,6 +72,7 @@ type STBHolder struct {
 	segStore          *SegStore
 	currentlyInUse    bool
 	lastUsedTimestamp time.Time
+	myIdx uint16
 }
 
 // SegStore Individual stream buffer
@@ -127,6 +128,7 @@ func (ss *SegStore) GetSTB() *STBHolder {
 			STBHolderPool[i].currentlyInUse = true
 			STBHolderPool[i].lastUsedTimestamp = time.Now()
 			STBHolderPool[i].segStore = ss
+			STBHolderPool[i].myIdx = uint16(i)
 			currentAgileTreeCount++
 
 			return STBHolderPool[i]
@@ -206,7 +208,6 @@ func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
 }
 
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
-
 	segstore.wipBlock.maxIdx = 0
 
 	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
@@ -308,6 +309,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	if segstore.stbHolder != nil {
+		log.Infof("resetSegStore: Release STB due to reset: %v\n", segstore.stbHolder.myIdx)
 		segstore.stbHolder.ReleaseSTB()
 		segstore.stbHolder = nil
 	}
@@ -525,7 +527,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
 	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
-
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
 		var totalMetadata uint64 = 0
@@ -728,6 +729,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				nc, cnc)
 
 			// give back the tree
+			log.Infof("checkAndRotateColFiles: Release STB due to rotation: %v\n", segstore.stbHolder.myIdx)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 		}
@@ -930,6 +932,7 @@ func (segstore *SegStore) computeStarTree() {
 
 		segstore.stbHolder = segstore.GetSTB()
 		if segstore.stbHolder == nil {
+			log.Infof("computeStarTree: Failed to get STB")
 			return
 		}
 
@@ -958,8 +961,8 @@ func (segstore *SegStore) computeStarTree() {
 		if found {
 			// todo when we implement dropping of columns from atree,
 			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
-				cname, cardinality, segstore.numBlocks)
+			log.Errorf("computeStarTree: Release STB %v found cname: %v with high card: %v, blockNum: %v",
+				segstore.stbHolder.myIdx, cname, cardinality, segstore.numBlocks)
 
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
@@ -970,9 +973,9 @@ func (segstore *SegStore) computeStarTree() {
 
 	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
 	if err != nil {
+		log.Errorf("computeStarTree: Release STB %v, Failed to compute star tree: %v", segstore.stbHolder.myIdx, err)
 		segstore.stbHolder.ReleaseSTB()
 		segstore.stbHolder = nil
-		log.Errorf("computeStarTree: Failed to compute star tree: %v", err)
 		return
 	}
 }
