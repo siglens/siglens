@@ -382,9 +382,11 @@ function getAllContactPoints(contactName) {
     }).then(function (res) {
         allContactsArray = res.contacts;
         if (window.location.href.includes('alert.html')) {
-            const contact = allContactsArray.find((contact) => contact.contact_name === contactName);
-            $('#contact-points-dropdown span').html(contact.contact_name);
-            $('#contact-points-dropdown span').attr('id', contact.contact_id);
+            if(contactName){
+                const contact = allContactsArray.find((contact) => contact.contact_name === contactName);
+                $('#contact-points-dropdown span').html(contact.contact_name);
+                $('#contact-points-dropdown span').attr('id', contact.contact_id);
+            }
         } else displayAllContacts(res.contacts);
     });
 }
