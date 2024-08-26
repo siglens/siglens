@@ -175,8 +175,7 @@ class btnRenderer {
         const starFilledURL = 'url("../assets/star-filled.svg")';
 
         this.eGui = document.createElement('span');
-        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;"> <!-- Added margin to move the container to the right -->
-                <button class='btn' id="viewbutton" title="Open dashboard"></button>
+        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;">
                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
                 <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
