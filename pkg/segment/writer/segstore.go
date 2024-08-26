@@ -1092,12 +1092,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync correct bloom size fname=%v, err=%v", fname, err)
-		return 0
-	}
-
 	if len(bi.HistoricalCount) == 0 {
 		bi.HistoricalCount = make([]uint32, 0)
 	}
