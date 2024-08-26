@@ -2698,7 +2698,6 @@ async function populateMetricsQueryElement(metricsQueryParams) {
             await addAlertsFormulaElement(formulas[0].formula);
         }
     }
-
 }
 function generateEmptyChartLabels(timeUnit, startTime, endTime) {
     const labels = [];
@@ -2757,32 +2756,32 @@ function transformPanelMetricsToMetrics(panelMetricsQueryParams) {
     const transformedFormulas = [];
 
     // Loop through `queriesData` to extract queries only (no formulas)
-    panelMetricsQueryParams.queriesData.forEach(queryData => {
-        queryData.queries.forEach(query => {
+    panelMetricsQueryParams.queriesData.forEach((queryData) => {
+        queryData.queries.forEach((query) => {
             transformedQueries.push({
                 name: query.name,
                 query: query.query,
                 qlType: query.qlType,
-                state: query.state || 'builder'
+                state: query.state || 'builder',
             });
         });
         // Exclude formulas from `queriesData`
     });
 
     // Combine formulas from `formulasData` only
-    panelMetricsQueryParams.formulasData.forEach(formulaData => {
-        formulaData.formulas.forEach(formula => {
+    panelMetricsQueryParams.formulasData.forEach((formulaData) => {
+        formulaData.formulas.forEach((formula) => {
             transformedFormulas.push({
-                formula: formula.formula
+                formula: formula.formula,
             });
         });
     });
 
     return {
-        start: panelMetricsQueryParams.queriesData[0]?.start || "now-90d",
-        end: panelMetricsQueryParams.queriesData[0]?.end || "now",
+        start: panelMetricsQueryParams.queriesData[0]?.start || 'now-90d',
+        end: panelMetricsQueryParams.queriesData[0]?.end || 'now',
         queries: transformedQueries,
-        formulas: transformedFormulas
+        formulas: transformedFormulas,
     };
 }
 
@@ -2802,5 +2801,3 @@ function getMetricsDataForSave(qname, qdesc) {
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
-
-
