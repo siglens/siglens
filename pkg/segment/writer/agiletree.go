@@ -46,13 +46,12 @@ var STBHolderPool [MaxConcurrentAgileTrees]*STBHolder
 
 type STBHolder struct {
 	stbPtr            *StarTreeBuilder
-	segStore          *SegStore
 	currentlyInUse    bool
 	lastUsedTimestamp time.Time
 	myIdx             uint16
 }
 
-func (ss *SegStore) GetSTB() *STBHolder {
+func GetSTB() *STBHolder {
 	atreeCounterLock.Lock()
 	defer atreeCounterLock.Unlock()
 	if currentAgileTreeCount == MaxConcurrentAgileTrees {
@@ -65,7 +64,6 @@ func (ss *SegStore) GetSTB() *STBHolder {
 			STBHolderPool[i].stbPtr = &StarTreeBuilder{}
 			STBHolderPool[i].currentlyInUse = true
 			STBHolderPool[i].lastUsedTimestamp = time.Now()
-			STBHolderPool[i].segStore = ss
 			STBHolderPool[i].myIdx = uint16(i)
 			currentAgileTreeCount++
 
@@ -90,7 +88,6 @@ func (stbHolder *STBHolder) ReleaseSTB() {
 
 	currentAgileTreeCount--
 	stbHolder.currentlyInUse = false
-	stbHolder.segStore = nil
 }
 
 var IdxToAgFn []utils.AggregateFunctions = []utils.AggregateFunctions{

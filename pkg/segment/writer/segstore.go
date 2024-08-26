@@ -876,7 +876,7 @@ func (segstore *SegStore) computeStarTree() {
 			return
 		}
 
-		segstore.stbHolder = segstore.GetSTB()
+		segstore.stbHolder = GetSTB()
 		if segstore.stbHolder == nil {
 			log.Infof("computeStarTree: Failed to get STB")
 			return
