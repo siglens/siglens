@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -86,8 +87,9 @@ type SegfileRotateInfo struct {
 type DeData struct {
 	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
 	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
-	deRecNums         [][]uint16        // [De idx] ==> recNums that match this de
-	deCount           uint16            // keeps track of cardinality count for this COL_WIP
+	// kunal todo , we could potentially just use uint32 indexes here that could point to the pool
+	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
+	deCount   uint16           // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
@@ -241,7 +243,8 @@ func cleanRecentlyRotatedInfo() {
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
-	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
+	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -250,12 +253,13 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	}
 
 	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr)
+		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
 }
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
-	rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
+	rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
@@ -272,7 +276,8 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr)
+	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr,
+		jsParsingStackbuf)
 	if err != nil {
 		return err
 	}
@@ -432,7 +437,7 @@ func InitColWip(segKey string, colName string) *ColWip {
 
 	deData := DeData{deToRecnumIdx: make(map[string]uint16),
 		deHashToRecnumIdx: make(map[uint64]uint16),
-		deRecNums:         make([][]uint16, MaxDeEntries),
+		deRecNums:         make([]*bitset.BitSet, MaxDeEntries),
 		deCount:           0,
 	}
 
@@ -946,8 +951,8 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeData(deCount uint16, deToRecnumIdx map[string]uint16,
-	deHashToRecnumIdx map[uint64]uint16, deRecNums [][]uint16) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint16,
+	deHashToRecnumIdx map[uint64]uint16, deRecNums []*bitset.BitSet) {
 
 	deData := DeData{deToRecnumIdx: deToRecnumIdx,
 		deHashToRecnumIdx: deHashToRecnumIdx,
@@ -958,6 +963,10 @@ func (cw *ColWip) SetDeData(deCount uint16, deToRecnumIdx map[string]uint16,
 }
 
 func (cw *ColWip) WriteSingleString(value string) {
+	cw.WriteSingleStringBytes([]byte(value))
+}
+
+func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 	cw.cbufidx += 1
 	n := uint16(len(value))

@@ -29,6 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -60,6 +61,8 @@ const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const MaxConcurrentAgileTrees = 5
+
+const BS_INITIAL_SIZE = uint32(1000)
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
@@ -95,6 +98,8 @@ type SegStore struct {
 	stbDictEncWorkBuf  [][]string
 	segStatsWorkBuf    []byte
 	SegmentErrors      map[string]*structs.SearchErrorInfo
+	bsPool             []*bitset.BitSet
+	bsPoolCurrIdx      uint32
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -121,6 +126,22 @@ func NewSegStore(orgId uint64) *SegStore {
 	}
 
 	return segstore
+}
+
+func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
+	lastKnownLen := uint32(len(ss.bsPool))
+	if ss.bsPoolCurrIdx >= lastKnownLen {
+		newCount := BS_INITIAL_SIZE
+		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
+		for i := uint32(0); i < newCount; i++ {
+			newBs := bitset.New(bsSize)
+			ss.bsPool[lastKnownLen+i] = newBs
+		}
+	}
+	retVal := ss.bsPool[ss.bsPoolCurrIdx]
+	retVal.ClearAll()
+	ss.bsPoolCurrIdx++
+	return retVal
 }
 
 func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, err error) {
@@ -159,6 +180,7 @@ func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.maxIdx = 0
+	segstore.bsPoolCurrIdx = 0
 
 	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
@@ -994,7 +1016,8 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 }
 
 func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
-	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string) error {
+	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	var maxIdx uint32
 	var err error
@@ -1002,7 +1025,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
 		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err
