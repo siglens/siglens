@@ -173,7 +173,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 	case utils.Cardinality:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.CardinalityHLL == nil {
-			ssResults.CardinalityHLL = structs.CreateNewSegmentioHll()
+			ssResults.CardinalityHLL = structs.CreateNewHll()
 		}
 		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
 		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Cardinality())

@@ -530,7 +530,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 	bucketNum := 0
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
-	tmLimitResult.Hll = structs.CreateNewSegmentioHll()
+	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
 	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations)
 	for key, idx := range gb.StringBucketIdx {
@@ -947,7 +947,7 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to decode hllString, err: %v", err)
 				return nil, err
 			}
-			hll, err := structs.CreateSegmentioHllFromBytes(hllBytes)
+			hll, err := structs.CreateHllFromBytes(hllBytes)
 			if err != nil {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hllBytes, err: %v", err)
 				return nil, err

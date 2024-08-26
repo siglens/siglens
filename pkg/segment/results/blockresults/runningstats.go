@@ -48,7 +48,7 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
 		if internalMeasureFns[i].MeasureFunc == utils.Cardinality {
-			retVal[i] = runningStats{hll: structs.CreateNewSegmentioHll()}
+			retVal[i] = runningStats{hll: structs.CreateNewHll()}
 		} else if internalMeasureFns[i].MeasureFunc == utils.Avg {
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
 		} else if internalMeasureFns[i].MeasureFunc == utils.Range {
@@ -254,7 +254,10 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			}
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				(*runningStats)[i].hll.Union(*toJoinRunningStats[i].hll)
+				err := (*runningStats)[i].hll.StrictUnion(*toJoinRunningStats[i].hll)
+				if err != nil {
+					log.Errorf("RunningBucketResults.mergeRunningStats: failed merge HLL!: %v", err)
+				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)

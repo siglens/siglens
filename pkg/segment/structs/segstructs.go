@@ -451,7 +451,7 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	SegHll      *hll.Hll
+	Hll         *hll.Hll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
@@ -502,7 +502,7 @@ type FieldGetter interface {
 	GetFields() []string
 }
 
-var SegHllSettings = hll.Settings{
+var HllSettings = hll.Settings{
 	Log2m:             16,
 	Regwidth:          5,
 	ExplicitThreshold: hll.AutoExplicitThreshold,
@@ -533,71 +533,63 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 }
 
 func initHllDefaultSettings() {
-	err := hll.Defaults(SegHllSettings)
+	err := hll.Defaults(HllSettings)
 	if err != nil {
 		log.Errorf("initHllDefaultSettings: Failed to set default hll settings. error: %v", err)
 	}
 }
 
-// Creates a new segmentio Hll with the defined SegHllSettings.
-func CreateNewSegmentioHll() *hll.Hll {
-	segHll, err := hll.NewHll(SegHllSettings)
-	if err != nil {
-		// fallback to default settings, which is not expected to happen.
-		// But the default settings should also be same as SegHllSettings as initialized in initHllDefaultSettings
-		segHll = hll.Hll{}
-	}
-	return &segHll
+// Creates a new segmentio Hll with the defined HllSettings.
+func CreateNewHll() *hll.Hll {
+	return &hll.Hll{}
 }
 
-func CreateSegmentioHllFromBytes(rawHll []byte) (*hll.Hll, error) {
-	segHll, err := hll.FromBytes(rawHll)
+func CreateHllFromBytes(rawHll []byte) (*hll.Hll, error) {
+	hll, err := hll.FromBytes(rawHll)
 	if err != nil {
 		return nil, err
 	}
-	return &segHll, nil
+	return &hll, nil
 }
 
 // Create new segmentio Hll from the raw bytes.
 // If creatNew is true, it will create a new Hll, if failed to create from raw bytes
 func (ss *SegStats) CreateHllFromBytes(rawHll []byte, creatNew bool) error {
-	segHll, err := CreateSegmentioHllFromBytes(rawHll)
+	hll, err := CreateHllFromBytes(rawHll)
 	if err != nil {
 		return err
 	}
 
-	ss.SegHll = segHll
+	ss.Hll = hll
 	return nil
 }
 
 func (ss *SegStats) CreateNewHll() {
-	segHll := CreateNewSegmentioHll()
-
-	ss.SegHll = segHll
+	ss.Hll = CreateNewHll()
 }
 
 func (ss *SegStats) InsertIntoHll(value []byte) {
-	if ss == nil || ss.SegHll == nil {
+	if ss == nil || ss.Hll == nil {
 		return
 	}
 
-	ss.SegHll.AddRaw(xxhash.Sum64(value))
+	ss.Hll.AddRaw(xxhash.Sum64(value))
 }
 
 func (ss *SegStats) GetHllCardinality() uint64 {
-	if ss == nil || ss.SegHll == nil {
+	if ss == nil || ss.Hll == nil {
 		return 0
 	}
 
-	return ss.SegHll.Cardinality()
+	return ss.Hll.Cardinality()
 }
 
 func (ss *SegStats) GetHllBytes() []byte {
-	if ss == nil || ss.SegHll == nil {
+	if ss == nil || ss.Hll == nil {
 		return nil
 	}
 
-	return ss.SegHll.ToBytes()
+	return ss.Hll.ToBytes()
 }
 
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
@@ -645,8 +637,8 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
-	if ss.SegHll != nil && other.SegHll != nil {
-		err := ss.SegHll.StrictUnion(*other.SegHll)
+	if ss.Hll != nil && other.Hll != nil {
+		err := ss.Hll.StrictUnion(*other.Hll)
 		if err != nil {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
 		}

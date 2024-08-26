@@ -582,7 +582,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			sstMap[mOp.MeasureCol] = &structs.SegStats{
 				IsNumeric:   dtypeVal.IsNumeric(),
 				Count:       1,
-				SegHll:      nil,
+				Hll:         nil,
 				NumStats:    &structs.NumericStats{Min: *nTypeEnclosure, Max: *nTypeEnclosure, Sum: *nTypeEnclosure, Dtype: dtypeVal.Dtype},
 				StringStats: nil,
 				Records:     nil,
