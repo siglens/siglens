@@ -309,6 +309,24 @@ type IncludeValue struct {
 	Label   string //new label of value in record
 }
 
+type AppendRequest struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+	Subsearch       interface{}
+}
+
+type AppendCmdOptions struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+}
+
+type AppendCmdOption struct {
+	OptionType string
+	Value      interface{}
+}
+
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
 	MultiColsRequest     *MultiColLetRequest
@@ -325,6 +343,7 @@ type LetColumnsRequest struct {
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
 	FillNullRequest      *FillNullExpr
+	AppendRequest        *AppendRequest
 }
 
 type FillNullExpr struct {
@@ -699,7 +718,25 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
-			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil || qa.OutputTransforms.LetColumns.AppendRequest != nil)
+}
+
+func (qa *QueryAggregators) hasAppendRequest() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		qa.OutputTransforms.LetColumns.AppendRequest != nil
+}
+
+func (qa *QueryAggregators) HasAppendInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.hasAppendRequest() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasAppendInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

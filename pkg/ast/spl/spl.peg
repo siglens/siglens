@@ -737,7 +737,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -5044,8 +5044,100 @@ InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
 }
 
 
+// Definitions for append command options
+AppendCmdOption <- option:(ExtendTimeRangeOption / MaxTimeOption / MaxOutOption) {
+    return option, nil
+}
+
+// Definitions for the individual options within append
+ExtendTimeRangeOption <- "extendtimerange" EQUAL boolean:("true" / "false") {
+    return &structs.AppendCmdOption{
+        OptionType: "extendtimerange",
+        Value:      boolean == "true",
+    }, nil
+}
+
+MaxTimeOption <- "maxtime" EQUAL time:Int {
+    return &structs.AppendCmdOption{
+        OptionType: "maxtime",
+        Value:      time,
+    }, nil
+}
+
+MaxOutOption <- "maxout" EQUAL max:Int {
+    return &structs.AppendCmdOption{
+        OptionType: "maxout",
+        Value:      max,
+    }, nil
+}
+
+// Subsearch definition using the existing SearchBlock rule
+Subsearch <- "[" SPACE? search:SearchBlock SPACE? "]" {
+    return search, nil
+}
+
+// Append command options extended to handle subsearches
+AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
+    restSlice := rest.([]any)
+    numOptions := 1 + len(restSlice)
+    appendCmdOptions := &structs.AppendCmdOptions{}
+
+    for i := 0; i < numOptions; i++ {
+        var option *structs.AppendCmdOption
+        if i == 0 {
+            option = first.(*structs.AppendCmdOption)
+        } else {
+            option = restSlice[i-1].([]any)[1].(*structs.AppendCmdOption)
+        }
+
+        switch option.OptionType {
+            case "extendtimerange":
+                appendCmdOptions.ExtendTimeRange = option.Value.(bool)
+            case "maxtime":
+                appendCmdOptions.MaxTime = option.Value.(int)
+            case "maxout":
+                appendCmdOptions.MaxOut = option.Value.(int)
+        }
+    }
+
+    return appendCmdOptions, nil
+}
+
+// AppendBlock with subsearch handling
+AppendBlock <- PIPE CMD_APPEND subsearch:Subsearch options:(SPACE AppendCmdOption)* {
+    appendOptions := &structs.AppendCmdOptions{}
+    for _, opt := range options.([]any) {
+        option := opt.(*structs.AppendCmdOption)
+        switch option.OptionType {
+            case "extendtimerange":
+                appendOptions.ExtendTimeRange = option.Value.(bool)
+            case "maxtime":
+                appendOptions.MaxTime = option.Value.(int)
+            case "maxout":
+                appendOptions.MaxOut = option.Value.(int)
+        }
+    }
+
+    letColReq := &structs.LetColumnsRequest{
+        AppendRequest: &structs.AppendRequest{
+            ExtendTimeRange: appendOptions.ExtendTimeRange,
+            MaxTime:         appendOptions.MaxTime,
+            MaxOut:          appendOptions.MaxOut,
+            Subsearch:       subsearch,
+        },
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: letColReq,
+        },
+    }, nil
+}
+
+
+
 // All commands except CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5079,6 +5171,7 @@ CMD_GENTIMES <- "gentimes"
 CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 CMD_MVEXPAND <- "mvexpand"
+CMD_APPEND <- "append" SPACE
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
