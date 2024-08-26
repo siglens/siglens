@@ -65,6 +65,15 @@ const MaxConcurrentAgileTrees = 5
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
 
+var STBHolderPool [MaxConcurrentAgileTrees]*STBHolder
+
+type STBHolder struct {
+	stbPtr            *StarTreeBuilder
+	segStore          *SegStore
+	currentlyInUse    bool
+	lastUsedTimestamp time.Time
+}
+
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -89,8 +98,7 @@ type SegStore struct {
 	skipDe             bool   // kibana docs dont need dict enc, hence this flag
 	timeCreated        time.Time
 	AllSst             map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
-	sbuilder           StarTreeBuilder
-	usingSegTree       bool
+	stbHolder          *STBHolder
 	OrgId              uint64
 	firstTime          bool
 	stbDictEncWorkBuf  [][]string
@@ -103,6 +111,46 @@ type PQTracker struct {
 	hasWildcard bool
 	colNames    map[string]bool
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
+}
+
+func (ss *SegStore) GetSTB() *STBHolder {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+	if currentAgileTreeCount == MaxConcurrentAgileTrees {
+		return nil
+	}
+
+	for i := 0; i < MaxConcurrentAgileTrees; i++ {
+		if STBHolderPool[i] == nil {
+			STBHolderPool[i] = &STBHolder{}
+			STBHolderPool[i].stbPtr = &StarTreeBuilder{}
+			STBHolderPool[i].currentlyInUse = true
+			STBHolderPool[i].lastUsedTimestamp = time.Now()
+			STBHolderPool[i].segStore = ss
+			currentAgileTreeCount++
+
+			return STBHolderPool[i]
+		}
+
+		if !STBHolderPool[i].currentlyInUse {
+			STBHolderPool[i].currentlyInUse = true
+			STBHolderPool[i].lastUsedTimestamp = time.Now()
+			currentAgileTreeCount++
+
+			return STBHolderPool[i]
+		}
+	}
+
+	return nil
+}
+
+func (stbHolder *STBHolder) ReleaseSTB() {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+
+	currentAgileTreeCount--
+	stbHolder.currentlyInUse = false
+	stbHolder.segStore = nil
 }
 
 func NewSegStore(orgId uint64) *SegStore {
@@ -259,7 +307,10 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.LastSegPqids = make(map[string]struct{})
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
-	segstore.usingSegTree = false
+	if segstore.stbHolder != nil {
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
+	}
 
 	segstore.AllSst = make(map[string]*structs.SegStats)
 	segstore.pqNonEmptyResults = make(map[string]bool)
@@ -661,8 +712,8 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
 
 	onTreeRotate := false
-	if config.IsAggregationsEnabled() && segstore.usingSegTree {
-		nc := segstore.sbuilder.GetNodeCount()
+	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+		nc := segstore.stbHolder.stbPtr.GetNodeCount()
 		if nc > MaxAgileTreeNodeCount {
 			onTreeRotate = true
 		}
@@ -670,16 +721,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
 
-		if config.IsAggregationsEnabled() && segstore.usingSegTree {
-			nc := segstore.sbuilder.GetNodeCount()
-			cnc := segstore.sbuilder.GetEachColNodeCount()
+		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+			nc := segstore.stbHolder.stbPtr.GetNodeCount()
+			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
 			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
 				nc, cnc)
 
 			// give back the tree
-			atreeCounterLock.Lock()
-			currentAgileTreeCount--
-			atreeCounterLock.Unlock()
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
 		}
 
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
@@ -802,7 +852,7 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 
 func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 
-	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
+	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
@@ -875,26 +925,14 @@ func (segstore *SegStore) computeStarTree() {
 	if segstore.numBlocks == 0 {
 		sortedGrpCols, mCols := segstore.initStarTreeCols()
 		if len(sortedGrpCols) == 0 || len(mCols) == 0 {
-			segstore.usingSegTree = false
 			return
 		}
 
-		hasTreeSpace := false
-		atreeCounterLock.Lock()
-		if currentAgileTreeCount < MaxConcurrentAgileTrees {
-			// for now the first MaxConcurrentAgileTrees segstores will get to AgileTree but
-			// we should add some smart logic on how we can rotate this
-			// amongst other indices/segstores
-			currentAgileTreeCount++
-			hasTreeSpace = true
-		}
-		atreeCounterLock.Unlock()
-		if !hasTreeSpace {
-			segstore.usingSegTree = false
+		segstore.stbHolder = segstore.GetSTB()
+		if segstore.stbHolder == nil {
 			return
 		}
 
-		segstore.usingSegTree = true
 		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
 		if sizeToAdd > 0 {
 			newArr := make([][]string, sizeToAdd)
@@ -908,11 +946,10 @@ func (segstore *SegStore) computeStarTree() {
 			}
 		}
 
-		segstore.sbuilder.ResetSegTree(sortedGrpCols, mCols,
-			segstore.stbDictEncWorkBuf)
+		segstore.stbHolder.stbPtr.ResetSegTree(sortedGrpCols, mCols, segstore.stbDictEncWorkBuf)
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	if segstore.stbHolder == nil { // if tree creation had failed on first block, then skip it
 		return
 	}
 
@@ -923,15 +960,18 @@ func (segstore *SegStore) computeStarTree() {
 			// drop the column here and remove the dropping of segtree
 			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
 				cname, cardinality, segstore.numBlocks)
-			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
-			segstore.usingSegTree = false
+
+			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
 			return
 		}
 	}
 
-	err := segstore.sbuilder.ComputeStarTree(&segstore.wipBlock)
+	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
 	if err != nil {
-		segstore.usingSegTree = false
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
 		log.Errorf("computeStarTree: Failed to compute star tree: %v", err)
 		return
 	}
@@ -943,11 +983,11 @@ func (segstore *SegStore) flushStarTree() uint32 {
 		return 0
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	if segstore.stbHolder == nil { // if tree creation had failed on first block, then skip it
 		return 0
 	}
 
-	size, err := segstore.sbuilder.EncodeStarTree(segstore.SegmentKey)
+	size, err := segstore.stbHolder.stbPtr.EncodeStarTree(segstore.SegmentKey)
 	if err != nil {
 		log.Errorf("flushStarTree: Failed to encode star tree: %v", err)
 		return 0
