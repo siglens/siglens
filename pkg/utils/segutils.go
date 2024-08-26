@@ -27,6 +27,8 @@ import (
 	"github.com/rogpeppe/fastuuid"
 )
 
+const UnescapeStackBufSize = 64
+
 var UUID_GENERATOR *fastuuid.Generator
 
 var MAX_SHARDS = int(1)

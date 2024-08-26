@@ -65,6 +65,7 @@ func Test_writePQSFiles(t *testing.T) {
 	querytracker.UpdateQTUsage([]string{"test"}, node, nil, "batch=batch-0")
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for batch := 0; batch < numBatch; batch++ {
 		for rec := 0; rec < numRec; rec++ {
@@ -80,7 +81,7 @@ func Test_writePQSFiles(t *testing.T) {
 				streamid := fmt.Sprintf("stream-%d", stremNum)
 				raw, _ := json.Marshal(record)
 				err := AddEntryToInMemBuf(streamid, raw, uint64(rec), "test", 10, false,
-					utils.SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr)
+					utils.SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 				assert.Nil(t, err)
 			}
 		}

@@ -243,7 +243,8 @@ func cleanRecentlyRotatedInfo() {
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
-	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
+	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -252,12 +253,13 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	}
 
 	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr)
+		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
 }
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
-	rid uint64, cnameCacheByteHashToStr map[uint64]string) error {
+	rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
@@ -274,7 +276,8 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr)
+	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr,
+		jsParsingStackbuf)
 	if err != nil {
 		return err
 	}
@@ -960,6 +963,10 @@ func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint
 }
 
 func (cw *ColWip) WriteSingleString(value string) {
+	cw.WriteSingleStringBytes([]byte(value))
+}
+
+func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 	cw.cbufidx += 1
 	n := uint16(len(value))

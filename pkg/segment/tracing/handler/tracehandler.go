@@ -340,6 +340,7 @@ func ProcessRedTracesIngest() {
 	spans := make([]*structs.Span, 0)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
 
 	for {
 		ctx := &fasthttp.RequestCtx{}
@@ -473,7 +474,7 @@ func ProcessRedTracesIngest() {
 		orgId := uint64(0)
 
 		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
+		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
@@ -578,9 +579,11 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
 
 	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
+	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:])
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 
