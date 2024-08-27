@@ -116,7 +116,6 @@ $(document).ready(async function () {
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
-
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',

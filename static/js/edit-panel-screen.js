@@ -279,7 +279,6 @@ $(document).ready(function () {
         $('#overview-button').addClass('active');
         displayPanelView(panelIndex);
     });
-
     let ele = $('#available-fields .select-unselect-header');
 
     if (theme === 'light') {
@@ -323,6 +322,7 @@ async function editPanelInit(redirectedFromViewScreen) {
     $('#panEdit-nameChangeInput').attr('placeholder', 'Name');
     $('#panEdit-descrChangeInput').attr('placeholder', 'Description (Optional)');
     toggleSwitch.checked = false;
+    alert(currentPanel.chartType);
     if (currentPanel.description) {
         const panelInfoCorner = $('.panelEditor-container .panelDisplay .panel-info-corner');
         const panelDescIcon = $('.panelEditor-container .panelDisplay .panel-info-corner #panel-desc-info');
@@ -360,6 +360,109 @@ async function editPanelInit(redirectedFromViewScreen) {
 
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
+    if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
+        // Check if the visualization options have already been appended
+        if ($('#visualization-options').length === 0) {
+            $('#metrics-query-language').append(`
+                <div id="visualization-options" class="d-flex mb-3 mt-3">
+                    <div>Display: <input id="display-input" type="text" value="Line chart"></div>
+                    <div>Color: <input id="color-input" type="text" value="Classic"></div>
+                    <div id="line-style-div">Style: <input id="line-style-input" type="text" value="Solid"></div>
+                    <div id="stroke-div">Stroke: <input id="stroke-input" type="text" value="Normal"></div>
+                </div>`);
+        }
+        var displayOptions = ['Line chart', 'Bar chart', 'Area chart'];
+        $('#display-input')
+            .autocomplete({
+                source: displayOptions,
+                minLength: 0,
+                select: function (event, ui) {
+                    toggleLineOptions(ui.item.value);
+                    chartType = ui.item.value;
+                    toggleChartType(ui.item.value);
+                    $(this).blur();
+                },
+            })
+            .on('click', function () {
+                if ($(this).autocomplete('widget').is(':visible')) {
+                    $(this).autocomplete('close');
+                } else {
+                    $(this).autocomplete('search', '');
+                }
+            })
+            .on('click', function () {
+                $(this).select();
+            });
+
+        var colorOptions = ['Classic', 'Purple', 'Cool', 'Green', 'Warm', 'Orange', 'Gray', 'Palette'];
+        $('#color-input')
+            .autocomplete({
+                source: colorOptions,
+                minLength: 0,
+                select: function (event, ui) {
+                    let selectedColorTheme = ui.item.value;
+                    updateChartTheme(selectedColorTheme);
+                    $(this).blur();
+                },
+            })
+            .on('click', function () {
+                if ($(this).autocomplete('widget').is(':visible')) {
+                    $(this).autocomplete('close');
+                } else {
+                    $(this).autocomplete('search', '');
+                }
+            })
+            .on('click', function () {
+                $(this).select();
+            });
+        var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
+        var strokeOptions = ['Normal', 'Thin', 'Thick'];
+
+        $('#line-style-input')
+            .autocomplete({
+                source: lineStyleOptions,
+                minLength: 0,
+                select: function (event, ui) {
+                    var selectedLineStyle = ui.item.value;
+                    var selectedStroke = $('#stroke-input').val();
+                    updateLineCharts(selectedLineStyle, selectedStroke);
+                    $(this).blur();
+                },
+            })
+            .on('click', function () {
+                if ($(this).autocomplete('widget').is(':visible')) {
+                    $(this).autocomplete('close');
+                } else {
+                    $(this).autocomplete('search', '');
+                }
+            })
+            .on('click', function () {
+                $(this).select();
+            });
+
+        $('#stroke-input')
+            .autocomplete({
+                source: strokeOptions,
+                minLength: 0,
+                select: function (event, ui) {
+                    var selectedStroke = ui.item.value;
+                    var selectedLineStyle = $('#line-style-input').val();
+                    updateLineCharts(selectedLineStyle, selectedStroke);
+                    $(this).blur();
+                },
+            })
+            .on('click', function () {
+                if ($(this).autocomplete('widget').is(':visible')) {
+                    $(this).autocomplete('close');
+                } else {
+                    $(this).autocomplete('search', '');
+                }
+            })
+            .on('click', function () {
+                $(this).select();
+            });
+
+    }
 
     if (selectedChartTypeIndex === 4) {
         $('.dropDown-unit').css('display', 'flex');
@@ -494,15 +597,16 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.display=chartType;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.color=selectedTheme;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.lineStroke=selectedStroke;
-           //eslint-disable-next-line no-undef
-        currentPanel.style.lineStyle=selectedLineStyle;
-        
+        currentPanel.style = {};
+        //eslint-disable-next-line no-undef
+        currentPanel.style.display = chartType;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.color = selectedTheme;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStroke = selectedStroke;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStyle = selectedLineStyle;
+
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;

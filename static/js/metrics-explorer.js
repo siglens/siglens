@@ -1489,6 +1489,7 @@ function toggleChartType(chartType) {
     }
 
     // Loop through each chart data
+    if(!isDashboardScreen){
     for (var queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var lineChart = lineCharts[queryName];
@@ -1508,6 +1509,7 @@ function toggleChartType(chartType) {
             lineChart.update();
         }
     }
+}
 
     mergeGraphs(chartType);
 }
