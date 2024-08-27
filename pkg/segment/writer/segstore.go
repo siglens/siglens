@@ -94,7 +94,7 @@ type SegStore struct {
 	SegmentErrors         map[string]*structs.SearchErrorInfo
 	bsPool                []*bitset.BitSet
 	bsPoolCurrIdx         uint32
-	workBufForCompression [][]byte
+	workBufForCompression [][]byte // A work buf for each column
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
