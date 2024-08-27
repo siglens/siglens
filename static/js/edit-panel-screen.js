@@ -496,7 +496,7 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
         currentPanel.queryData = data;
         //eslint-disable-next-line no-undef
         alert(chartType);
-        currentPanel.style={};
+        currentPanel.style = {};
         currentPanel.style.display = chartType;
         //eslint-disable-next-line no-undef
         currentPanel.style.color = selectedTheme;
