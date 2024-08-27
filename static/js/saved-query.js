@@ -336,7 +336,7 @@ function displaySavedQueries(res, flag) {
             newRow.set('qdescription', res[key].description);
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
-            newRow.set('type',res.dataSource);
+            newRow.set('type', res.dataSource);
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
@@ -367,7 +367,7 @@ function displaySavedQueries(res, flag) {
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
-            newRow.set('type',value.dataSource);
+            newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
             newRow.set('start', value.startTime);
