@@ -522,9 +522,9 @@ type DtypeEnclosure struct {
 	SignedVal      int64
 	FloatVal       float64
 	StringVal      string
-	StringValBytes []byte         // byte slice representation of StringVal
-	StringSliceVal []string       // used for array dict
-	RexpCompiled   *regexp.Regexp //  should be unexported in future to allow for gob encoding
+	StringValBytes []byte   // byte slice representation of StringVal
+	StringSliceVal []string // used for array dict
+	RexpCompiled   *regexp.Regexp
 }
 
 func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
