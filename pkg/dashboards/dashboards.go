@@ -244,9 +244,12 @@ func dashboardNameExists(dname string, orgid uint64) bool {
 		log.Errorf("dashboardNameExists: Error getting all dashboard IDs: %v", err)
 		return false
 	}
-	_, exists := allDashboardIds[dname]
-
-	return exists
+	for _, name := range allDashboardIds {
+		if name == dname {
+			return true
+		}
+	}
+	return false
 }
 
 func createDashboard(dname string, orgid uint64) (map[string]string, error) {

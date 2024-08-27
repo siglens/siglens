@@ -322,10 +322,13 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
 			for rawKey, recIdx := range deData.deToRecnumIdx {
-				indices := deData.deRecNums[recIdx]
 				enc := stb.setColValEnc(colNum, rawKey)
-				for _, recNum := range indices {
-					stb.wipRecNumToColEnc[colNum][recNum] = enc
+
+				recNumsBitset := deData.deRecNums[recIdx]
+				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
+					if recNumsBitset.Test(uint(recNum)) {
+						stb.wipRecNumToColEnc[colNum][recNum] = enc
+					}
 				}
 			}
 			continue // done with this dict encoded column
@@ -520,8 +523,8 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
 		for dword, recsIdx := range deData.deToRecnumIdx {
-			recNumsArr := deData.deRecNums[recsIdx]
-			if toputils.BinarySearchUint16(recNum, recNumsArr) {
+			recNumsBitSet := deData.deRecNums[recsIdx]
+			if recNumsBitSet.Test(uint(recNum)) {
 				var mcVal utils.CValueEnclosure
 				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)
 				if err != nil {

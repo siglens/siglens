@@ -255,7 +255,6 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr('id');
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, 'now', selectedId);
-
     await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
@@ -2285,11 +2284,12 @@ async function refreshMetricsGraphs() {
 
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
+
     if (queries[firstKey].metrics) {
         // only if the first query is not empty
         // Update graph for each query
-        Object.keys(queries).forEach(async function (queryName) {
-            var queryDetails = queries[queryName];
+        for (const queryName of Object.keys(queries)) {
+            const queryDetails = queries[queryName];
 
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
@@ -2299,14 +2299,18 @@ async function refreshMetricsGraphs() {
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
             await handleQueryAndVisualize(queryName, queryDetails);
-        });
+        }
     }
 
+    // Second if block: This will execute only after the first one
     if (Object.keys(formulas).length > 0) {
         // Update graph for each formula
-        Object.keys(formulas).forEach(function (formulaId) {
-            getMetricsDataForFormula(formulaId, formulas[formulaId]);
-        });
+        for (const formulaId of Object.keys(formulas)) {
+            const formulaDetails = formulas[formulaId];
+            funcApplied = false;
+            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
+            getMetricsDataForFormula(formulaId, formulaDetails);
+        }
     }
 }
 

@@ -32,8 +32,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
+	"github.com/segmentio/go-hll"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -314,7 +314,7 @@ type Cluster struct {
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
 	GroupValScoreMap map[string]*utils.CValueEnclosure
-	Hll              *hyperloglog.Sketch
+	Hll              *hll.Hll
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
 }

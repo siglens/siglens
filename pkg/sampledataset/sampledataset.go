@@ -100,13 +100,14 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	idxToStreamIdCache := make(map[string]string)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	responsebody := make(map[string]interface{})
 	for scanner.Scan() {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
 		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr)
+		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
