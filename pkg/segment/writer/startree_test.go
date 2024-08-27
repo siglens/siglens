@@ -248,6 +248,7 @@ func TestStarTree(t *testing.T) {
 	ss.numBlocks = 0
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
@@ -265,7 +266,7 @@ func TestStarTree(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -344,6 +345,7 @@ func TestStarTreeMedium(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -360,7 +362,7 @@ func TestStarTreeMedium(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -440,6 +442,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -456,7 +459,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -536,6 +539,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -552,7 +556,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx

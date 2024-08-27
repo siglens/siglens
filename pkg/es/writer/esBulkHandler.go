@@ -128,6 +128,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	// stack-allocated array for allocation-free unescaping of small strings
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
 	for scanner.Scan() {
 		inCount++
 		if inCount >= itemsLen {
@@ -173,7 +176,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				} else {
 					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
 						false, localIndexMap, myid, rid, idxToStreamIdCache,
-						cnameCacheByteHashToStr)
+						cnameCacheByteHashToStr, jsParsingStackbuf[:])
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
@@ -299,7 +302,7 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
-	cnameCacheByteHashToStr map[uint64]string) error {
+	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -330,7 +333,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	// OR in json-resp creation we add it in the resp using the vtable name
 
 	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid, rid, cnameCacheByteHashToStr)
+		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
