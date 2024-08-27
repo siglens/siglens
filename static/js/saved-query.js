@@ -275,7 +275,7 @@ let queriesColumnDefs = [
         resizable: true,
         valueFormatter: (params) => {
             return params.value ? params.value.toUpperCase() : '';
-        }
+        },
     },
     {
         field: 'queryLanguage',
