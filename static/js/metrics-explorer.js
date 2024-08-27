@@ -2034,22 +2034,21 @@ function displayErrorMessage(container, message) {
     if (container instanceof jQuery) {
         container = container.get(0);
     }
-    if(!isDashboardScreen){
-    const mergedContainer = document.querySelector("#merged-graph-container");
-    var graphCanvas = container.querySelector('.graph-canvas');
-    var mergedGraph = mergedContainer.querySelector('.merged-graph');
-    var span = document.createElement('span');
-    var mergedSpan = document.createElement('span');
-    graphCanvas.innerHTML = '';
-    graphCanvas.appendChild(span);
-    mergedGraph.innerHTML = '';
-    mergedGraph.appendChild(mergedSpan);
-    span.classList.add('error-message');
-    mergedSpan.classList.add('error-message');
-    span.textContent = message;
-    mergedSpan.textContent = message;
-    }
-    else{
+    if (!isDashboardScreen) {
+        const mergedContainer = document.querySelector('#merged-graph-container');
+        var graphCanvas = container.querySelector('.graph-canvas');
+        var mergedGraph = mergedContainer.querySelector('.merged-graph');
+        var span = document.createElement('span');
+        var mergedSpan = document.createElement('span');
+        graphCanvas.innerHTML = '';
+        graphCanvas.appendChild(span);
+        mergedGraph.innerHTML = '';
+        mergedGraph.appendChild(mergedSpan);
+        span.classList.add('error-message');
+        mergedSpan.classList.add('error-message');
+        span.textContent = message;
+        mergedSpan.textContent = message;
+    } else {
         var span = document.createElement('span');
         container.innerHTML = '';
         container.appendChild(span);
@@ -2058,14 +2057,13 @@ function displayErrorMessage(container, message) {
     }
 }
 
-
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
     var mergedContainer = $('#merged-graph-container').find('.merged-graph');
     mergedContainer.append('<div id="panel-loading"></div>');
     container.append('<div id="panel-loading"></div>');
-    if(isDashboardScreen){
-        var panelEditContainer=$('.panelDisplay').find('#panEdit-panel');
+    if (isDashboardScreen) {
+        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
     const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
@@ -2087,8 +2085,8 @@ async function getMetricsData(queryName, metricName, state) {
         console.error('Error fetching time series data:', error);
         // Assuming `canvas` is available in this scope or can be passed as an argument
         var canvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
-        if(isDashboardScreen){
-            canvas=$('.panelDisplay').find('#panEdit-panel canvas');
+        if (isDashboardScreen) {
+            canvas = $('.panelDisplay').find('#panEdit-panel canvas');
         }
         if (canvas.length > 0) {
             // Extract the error message
@@ -2098,8 +2096,8 @@ async function getMetricsData(queryName, metricName, state) {
             delete chartDataCollection[queryName];
             delete lineCharts[queryName];
             var errorContainer = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
-            if(isDashboardScreen){
-                errorContainer=$('.panelDisplay').find('#panEdit-panel');
+            if (isDashboardScreen) {
+                errorContainer = $('.panelDisplay').find('#panEdit-panel');
             }
             // Display the error message
             displayErrorMessage(errorContainer, errorMessage);
@@ -2108,11 +2106,9 @@ async function getMetricsData(queryName, metricName, state) {
         // Hide the loader after data is fetched or an error occurs
         container.find('#panel-loading').remove();
         mergedContainer.find('#panel-loading').remove();
-        if(isDashboardScreen){
+        if (isDashboardScreen) {
             panelEditContainer.find('#panel-loading').remove();
-            
         }
-
     }
 }
 
@@ -2126,8 +2122,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     var mergedContainer = $('#merged-graph-container').find('.merged-graph');
     mergedContainer.append('<div id="panel-loading"></div>');
 
-    if(isDashboardScreen){
-        var panelEditContainer=$('.panelDisplay').find('#panEdit-panel');
+    if (isDashboardScreen) {
+        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
@@ -2192,8 +2188,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     } catch (error) {
         console.error('Error fetching time series data:', error);
         var errorCanvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
-        if(isDashboardScreen){
-            errorCanvas=$('.panelDisplay').find('#panEdit-panel canvas');
+        if (isDashboardScreen) {
+            errorCanvas = $('.panelDisplay').find('#panEdit-panel canvas');
         }
         if (errorCanvas.length > 0) {
             // Extract the error message
@@ -2203,8 +2199,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             delete chartDataCollection[formulaId];
             delete lineCharts[formulaId];
             var errorContainer = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
-            if(isDashboardScreen){
-                errorContainer=$('.panelDisplay').find('#panEdit-panel');
+            if (isDashboardScreen) {
+                errorContainer = $('.panelDisplay').find('#panEdit-panel');
             }
             // Display the error message
             displayErrorMessage(errorContainer, errorMessage);
@@ -2213,7 +2209,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         // Hide the loader after data is fetched or an error occurs
         container.find('#panel-loading').remove();
         mergedContainer.find('#panel-loading').remove();
-        if(isDashboardScreen){
+        if (isDashboardScreen) {
             panelEditContainer.find('#panel-loading').remove();
         }
     }
