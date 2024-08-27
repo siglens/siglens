@@ -109,13 +109,11 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	return MeasFnCountIdx
 }
 
-var one = utils.NumTypeEnclosure{Ntype: utils.SS_DT_UNSIGNED_NUM, IntgrVal: int64(1)}
-
 type Node struct {
 	myKey     uint32
 	parent    *Node
 	children  map[uint32]*Node
-	aggValues []*utils.NumTypeEnclosure
+	aggValues []*utils.Number
 }
 
 type StarTreeBuilder struct {
@@ -282,7 +280,7 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 		cur.aggValues = toputils.ResizeSlice(cur.aggValues, lenAggValues)
 		if len(cur.aggValues) > aggValuesLen {
 			for i := aggValuesLen; i < len(cur.aggValues); i++ {
-				cur.aggValues[i] = &utils.NumTypeEnclosure{}
+				cur.aggValues[i] = &utils.Number{}
 			}
 		}
 	}
@@ -303,37 +301,25 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 		for mcNum := range stb.mColNames {
 			midx := mcNum * TotalMeasFns
 			agidx := midx + MeasFnMinIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx].Ntype,
-				child.aggValues[agidx].IntgrVal,
-				child.aggValues[agidx].FloatVal,
-				utils.Min)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Min)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating min err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnMaxIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx].Ntype,
-				child.aggValues[agidx].IntgrVal,
-				child.aggValues[agidx].FloatVal,
-				utils.Max)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Max)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating max err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnSumIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx].Ntype,
-				child.aggValues[agidx].IntgrVal,
-				child.aggValues[agidx].FloatVal,
-				utils.Sum)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Sum)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating sum err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnCountIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx].Ntype,
-				child.aggValues[agidx].IntgrVal,
-				child.aggValues[agidx].FloatVal,
-				utils.Count)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Count)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating count err:%v", err)
 				return err
@@ -412,9 +398,7 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
-	nte := &utils.NumTypeEnclosure{
-		Ntype: utils.SS_INVALID,
-	}
+	num := &utils.Number{}
 
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for colNum := range stb.groupByKeys {
@@ -430,14 +414,14 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 					mcName, err)
 				continue
 			}
-			err = cVal.ToNumType(nte)
+			err = cVal.ToNumber(num)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
 					cVal, mcName, err)
 				continue
 			}
 
-			err = stb.addMeasures(nte, lenAggValues, midx, node)
+			err = stb.addMeasures(num, lenAggValues, midx, node)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
 				return err
@@ -447,14 +431,14 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) addMeasures(val *utils.NumTypeEnclosure,
+func (stb *StarTreeBuilder) addMeasures(val *utils.Number,
 	lenAggValues int, midx int, node *Node) error {
 
 	sizeNeeded := lenAggValues - len(node.aggValues)
 	if sizeNeeded > 0 {
-		newArr := make([]*utils.NumTypeEnclosure, sizeNeeded)
+		newArr := make([]*utils.Number, sizeNeeded)
 		for i := 0; i < sizeNeeded; i++ {
-			newArr[i] = &utils.NumTypeEnclosure{}
+			newArr[i] = &utils.Number{}
 		}
 		node.aggValues = append(node.aggValues, newArr...)
 	}
@@ -462,39 +446,30 @@ func (stb *StarTreeBuilder) addMeasures(val *utils.NumTypeEnclosure,
 	var err error
 	// always calculate all meas Fns
 	agvidx := midx + MeasFnMinIdx
-	err = node.aggValues[agvidx].ReduceFast(val.Ntype,
-		val.IntgrVal,
-		val.FloatVal,
-		utils.Min)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Min)
 	if err != nil {
 		log.Errorf("addMeasures: error in min err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnMaxIdx
-	err = node.aggValues[agvidx].ReduceFast(val.Ntype,
-		val.IntgrVal,
-		val.FloatVal,
-		utils.Max)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Max)
 	if err != nil {
 		log.Errorf("addMeasures: error in max err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnSumIdx
-	err = node.aggValues[agvidx].ReduceFast(val.Ntype,
-		val.IntgrVal,
-		val.FloatVal,
-		utils.Sum)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Sum)
 	if err != nil {
 		log.Errorf("addMeasures: error in sum err:%v", err)
 		return err
 	}
 
+	one := &utils.Number{}
+	one.SetInt64(1)
+
 	agvidx = midx + MeasFnCountIdx
 	// for count we always use 1 instead of val
-	err = node.aggValues[agvidx].ReduceFast(one.Ntype,
-		one.IntgrVal,
-		one.FloatVal,
-		utils.Count)
+	err = node.aggValues[agvidx].ReduceFast(one, utils.Count)
 	if err != nil {
 		log.Errorf("addMeasures: error in count err:%v", err)
 		return err
