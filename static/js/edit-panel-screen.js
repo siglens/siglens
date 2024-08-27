@@ -370,8 +370,6 @@ async function editPanelInit(redirectedFromViewScreen) {
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
 
-
-
     if (selectedChartTypeIndex === 4) {
         $('.dropDown-unit').css('display', 'flex');
         $('#nestedDropDownContainer').css('display', 'flex');
