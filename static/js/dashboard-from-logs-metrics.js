@@ -44,6 +44,7 @@ $(document).ready(function () {
 
     $('#addrule-cancel-btn').click(function () {
         $('#rule-name').tooltip('hide');
+        $('#rule-name').val('');
         $('.rule-name-error').removeClass('active').text('');
         $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
     });
@@ -59,7 +60,12 @@ $(document).ready(function () {
         var encodedRuleName = encodeURIComponent(ruleName);
         const urlParams = new URLSearchParams(window.location.search);
         const filterTab = urlParams.get('filterTab');
-        // Assuming you have the `data` object available
+
+        $('#rule-name').tooltip('hide');
+        $('#rule-name').val('');
+        $('.rule-name-error').removeClass('active').text('');
+        $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
+
         var queryParams = {
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
