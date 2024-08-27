@@ -530,13 +530,14 @@ func GetSegList(runningSegStat *structs.SegStats,
 	// Limit list size to match splunk.
 	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
 
+	if runningSegStat.StringStats != nil {
+		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
 	if currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
 		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 	}
 
-	if runningSegStat.StringStats != nil {
-		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
-	}
 	res.CVal = strList
 	if runningSegStat.StringStats == nil {
 		runningSegStat.StringStats = &structs.StringStats{

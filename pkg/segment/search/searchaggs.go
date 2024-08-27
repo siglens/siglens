@@ -664,6 +664,8 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
 				}
 				value.CVal = strVal
+			} else {
+				value.CVal = humanize.Comma(value.CVal.(int64))
 			}
 			finalSegment[colName] = value.CVal
 		}
