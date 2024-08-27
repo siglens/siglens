@@ -36,7 +36,7 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen, isMetricsURL, isDashboardScreen;
-
+//eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
 let selectedTheme = 'Classic';
@@ -474,10 +474,10 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         formulas[uniqueId].formula = formulaAndFunction.formula;
         formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
         $('#metrics-formula').append(formulaElement);
-        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
         updateTooltipForFormulaFunctions(uniqueId, validationResult);
         funcApplied = false;
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     } else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
@@ -2664,9 +2664,15 @@ async function populateMetricsQueryElement(metricsQueryParams) {
         const parsedQueryObject = parsePromQL(query);
         await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
-
-    if (queries.length >= 1) {
-        await addAlertsFormulaElement(formulas[0].formula);
+    let formulasInUrl = 0;
+    while (isMetricsURL && formulasInUrl < formulas.length) {
+        await addMetricsFormulaElement(formulas[formulasInUrl].formula, formulas[formulasInUrl].formula);
+        formulasInUrl++;
+    }
+    if (!isMetricsURL) {
+        if (queries.length >= 1) {
+            await addAlertsFormulaElement(formulas[0].formula);
+        }
     }
 }
 function generateEmptyChartLabels(timeUnit, startTime, endTime) {
@@ -2721,13 +2727,52 @@ function adjustInputWidth(input) {
 }
 
 //eslint-disable-next-line no-unused-vars
+function formatMetricsForUrlParams(panelMetricsQueryParams) {
+    const transformedQueries = [];
+    const transformedFormulas = [];
+
+    // Loop through `queriesData` to extract queries only (no formulas)
+    panelMetricsQueryParams.queriesData.forEach((queryData) => {
+        queryData.queries.forEach((query) => {
+            transformedQueries.push({
+                name: query.name,
+                query: query.query,
+                qlType: query.qlType,
+                state: query.state || 'builder',
+            });
+        });
+        // Exclude formulas from `queriesData`
+    });
+
+    // Combine formulas from `formulasData` only
+    panelMetricsQueryParams.formulasData.forEach((formulaData) => {
+        formulaData.formulas.forEach((formula) => {
+            transformedFormulas.push({
+                formula: formula.formula,
+            });
+        });
+    });
+
+    return {
+        start: panelMetricsQueryParams.queriesData[0]?.start || 'now-90d',
+        end: panelMetricsQueryParams.queriesData[0]?.end || 'now',
+        queries: transformedQueries,
+        formulas: transformedFormulas,
+    };
+}
+//eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
+    let metricsQueryParamsData = getMetricsQData();
+
+    // Transform the structure to match `metricsQueryParams`
+    const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+
     return {
         dataSource: 'metrics',
         queryName: qname,
         queryDescription: qdesc || '',
         startTime: filterStartDate,
         endTime: filterEndDate,
-        metricsQueryParams: JSON.stringify(metricsQueryParams),
+        metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
