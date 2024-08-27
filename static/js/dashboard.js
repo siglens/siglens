@@ -256,12 +256,7 @@ async function updateDashboard() {
                 timeRange: timeRange,
                 panels: tempPanels.map((panel) => ({
                     ...panel,
-                    style: {
-                        display: panel.style.display,
-                        color: panel.style.color,
-                        lineStyle: panel.style.lineStyle,
-                        lineStroke: panel.style.lineStroke,
-                    },
+                    style: {},
                 })),
                 refresh: dbRefresh,
             },
