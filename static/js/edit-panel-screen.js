@@ -288,7 +288,6 @@ $(document).ready(function () {
     }
 });
 function checkChartType() {
-    alert(currentPanel.chartType);
     if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
         // Check if the visualization options have already been appended
         if ($('#visualization-options').length === 0) {
