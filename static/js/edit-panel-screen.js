@@ -395,13 +395,10 @@ function checkChartType() {
             .on('click', function () {
                 $(this).select();
             });
-    }
-
-    else {
+    } else {
         // If the chart type is not "Line Chart", remove the visualization options if they exist
         $('#visualization-options').remove();
     }
-
 }
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
@@ -475,8 +472,6 @@ async function editPanelInit(redirectedFromViewScreen) {
     checkChartType(currentPanel);
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
-
-
 
     if (selectedChartTypeIndex === 4) {
         $('.dropDown-unit').css('display', 'flex');
