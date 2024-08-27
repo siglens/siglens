@@ -48,7 +48,7 @@ func Test_HashSearchNode(t *testing.T) {
 	}
 
 	hid1 := GetHashForQuery(sNode)
-	expected := "15281968501864336114" // pre-computed hashid to compare against for above query
+	expected := "11481340929163441556" // pre-computed hashid to compare against for above query
 	assert.Equal(t, expected, hid1, "hid1=%v, not equal to expected=%v", hid1, expected)
 
 	hid2 := GetHashForQuery(sNode)

@@ -265,9 +265,9 @@ func parseSingleCondition(expr sqlparser.Expr, astNode *structs.ASTNode, qid uin
 		case string:
 			val = strings.ReplaceAll(val, "'", "")
 			val = strings.ReplaceAll(val, "\"", "")
-			criteria, err = ast.ProcessSingleFilter(columnName, val, val, clause[1], false, true, false, qid)
+			criteria, err = ast.ProcessSingleFilter(columnName, val, clause[1], false, qid)
 		default:
-			criteria, err = ast.ProcessSingleFilter(columnName, json.Number(literal), json.Number(literal), clause[1], false, true, false, qid)
+			criteria, err = ast.ProcessSingleFilter(columnName, json.Number(literal), clause[1], false, qid)
 		}
 
 		if err != nil {
