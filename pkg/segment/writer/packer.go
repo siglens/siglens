@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -382,6 +384,8 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 			if bi != nil {
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyName)))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyVal)))
 			}
 			addSegStatsStrIngestion(ss.AllSst, keyName, []byte(keyVal))
 			if colWip.cbufidx > maxIdx {
@@ -490,6 +494,7 @@ func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytes.ToLower(valBytes))
 	}
 	if !ss.skipDe {
 		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
