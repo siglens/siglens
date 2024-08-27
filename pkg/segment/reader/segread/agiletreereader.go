@@ -433,7 +433,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			agIdx := idx                           // set to the start of aggValue for this node's data
 			agIdx += uint32(measResIndices[j]) * 9 // jump to the AgValue for this meas's index
 
-			wvInt64, wvFloat64, dtype = utils.ConvertBytes(buf[agIdx : agIdx+9])
+			wvInt64, wvFloat64, dtype = utils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
 
 			// remainder will give us MeasFnIdx
 			fn := writer.IdxToAgFn[measResIndices[j]%writer.TotalMeasFns]

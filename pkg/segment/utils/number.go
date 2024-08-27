@@ -81,7 +81,7 @@ func (n *Number) Float64() (float64, error) {
 	return utils.BytesToFloat64LittleEndian(n.bytes[:8]), nil
 }
 
-func ConvertBytes(buf []byte) (int64, float64, SS_DTYPE) {
+func ConvertBytesToNumber(buf []byte) (int64, float64, SS_DTYPE) {
 	var intVal int64
 	var fltVal float64
 	var dtype SS_DTYPE
@@ -106,51 +106,43 @@ func ConvertBytes(buf []byte) (int64, float64, SS_DTYPE) {
 
 func (n *Number) ConvertToFloat64() error {
 
-	if n.bytes[8] == backfillType {
+	switch n.bytes[8] {
+	case backfillType, float64Type:
 		return nil
-	}
-
-	if n.bytes[8] == int64Type {
+	case int64Type:
 		ni, err := n.Int64()
 		if err != nil {
 			return err
 		}
 		n.SetFloat64(float64(ni))
 		return nil
-	}
-
-	if n.bytes[8] != float64Type {
+	default:
 		return fmt.Errorf("Not a float64, t: %v", n.bytes[8])
 	}
-	return nil
 }
 
 func (n *Number) ConvertToInt64() error {
 
-	if n.bytes[8] == backfillType {
+	switch n.bytes[8] {
+	case backfillType, int64Type:
 		return nil
-	}
-
-	if n.bytes[8] == float64Type {
+	case float64Type:
 		nf, err := n.Float64()
 		if err != nil {
 			return err
 		}
 		n.SetInt64(int64(nf))
 		return nil
-	}
-
-	if n.bytes[8] != int64Type {
+	default:
 		return fmt.Errorf("Not a int64, t: %v", n.bytes[8])
 	}
-	return nil
 }
 
 func (n *Number) Reset() {
 	n.bytes[8] = invalidType
 }
 
-func (n *Number) Type() numberType {
+func (n *Number) ntype() numberType {
 	return n.bytes[8]
 }
 
@@ -160,25 +152,25 @@ func (n *Number) CopyToBuffer(buf []byte) {
 
 func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 
-	if n.Type() == invalidType {
+	if n.ntype() == invalidType {
 		copy(n.bytes[:], other.bytes[:])
 		return nil
-	} else if other.Type() == invalidType {
+	} else if other.ntype() == invalidType {
 		return nil
-	} else if other.Type() == backfillType {
+	} else if other.ntype() == backfillType {
 		return nil
-	} else if n.Type() == backfillType {
+	} else if n.ntype() == backfillType {
 		copy(n.bytes[:], other.bytes[:])
 		return nil
 	}
 
 	// If I am float and other is int then Convert other to float
-	if n.Type() == float64Type && other.Type() == int64Type {
+	if n.ntype() == float64Type && other.ntype() == int64Type {
 		err := other.ConvertToFloat64()
 		if err != nil {
 			return err
 		}
-	} else if n.Type() == int64Type && other.Type() == float64Type {
+	} else if n.ntype() == int64Type && other.ntype() == float64Type {
 		// If I am int and other is float then Convert me to float
 		err := n.ConvertToFloat64()
 		if err != nil {
@@ -186,7 +178,7 @@ func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 		}
 	}
 
-	switch n.Type() {
+	switch n.ntype() {
 	case int64Type:
 		ni, err := n.Int64()
 		if err != nil {
@@ -230,7 +222,7 @@ func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 			return fmt.Errorf("ReduceFast: unsupported reduce function: %v", fun)
 		}
 	default:
-		return fmt.Errorf("ReduceFast: unexpected Type: %v", n.Type())
+		return fmt.Errorf("ReduceFast: unexpected Type: %v", n.ntype())
 	}
 
 	return nil
