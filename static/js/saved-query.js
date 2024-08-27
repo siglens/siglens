@@ -273,6 +273,9 @@ let queriesColumnDefs = [
         field: 'type',
         headerName: 'Type',
         resizable: true,
+        valueFormatter: (params) => {
+            return params.value ? params.value.toUpperCase() : '';
+        }
     },
     {
         field: 'queryLanguage',

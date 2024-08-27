@@ -36,7 +36,7 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen, isMetricsURL, isDashboardScreen;
-
+//eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
 let selectedTheme = 'Classic';
@@ -2752,7 +2752,7 @@ function adjustInputWidth(input) {
 }
 
 //eslint-disable-next-line no-unused-vars
-function transformPanelMetricsToMetrics(panelMetricsQueryParams) {
+function formatMetricsForUrlParams(panelMetricsQueryParams) {
     const transformedQueries = [];
     const transformedFormulas = [];
 
@@ -2785,13 +2785,12 @@ function transformPanelMetricsToMetrics(panelMetricsQueryParams) {
         formulas: transformedFormulas
     };
 }
-
+//eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
-    let panelMetricsQueryParams = getMetricsQData();
-    console.log(panelMetricsQueryParams);
+    let metricsQueryParamsData = getMetricsQData();
 
     // Transform the structure to match `metricsQueryParams`
-    const transformedMetricsQueryParams = transformPanelMetricsToMetrics(panelMetricsQueryParams);
+    const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
 
     return {
         dataSource: 'metrics',
