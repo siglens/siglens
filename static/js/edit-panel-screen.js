@@ -287,79 +287,8 @@ $(document).ready(function () {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 });
-//eslint-disable-next-line no-unused-vars
-async function editPanelInit(redirectedFromViewScreen) {
-    if (redirectedFromViewScreen === -1) {
-        $('#panel-editor-left').hide();
-        $('#viewPanel-container').show();
-        $('#edit-button').removeClass('active');
-        $('#overview-button').addClass('active');
-        displayPanelView(panelIndex);
-    } else {
-        $('#panel-editor-left').show();
-        $('#edit-button').addClass('active');
-        $('#overview-button').removeClass('active');
-    }
-    resetOptions();
-    $('.panelDisplay #empty-response').empty();
-    $('.panelDisplay #corner-popup').empty();
-    $('.panelDisplay #corner-popup').hide();
-    $('.panelDisplay #panelLogResultsGrid').empty();
-    $('.panelDisplay #panelLogResultsGrid').hide();
-    $('.panelDisplay .panel-info-corner').hide();
-    $('#metrics-queries,#metrics-formula').empty();
-    $('#filter-input').val('');
-    $('.tags-list').empty();
-    [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
-    $('#aggregations, #aggregate-attribute-text, #search-filter-text').show();
-    // formulas, queries = {};
-    currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
-    $('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
-    // reset inputs to show placeholders
-    $('.panEdit-navBar .panelTitle').html(currentPanel.name);
-    $('#panEdit-nameChangeInput').val(currentPanel.name);
-    $('#panEdit-descrChangeInput').val(currentPanel.description);
-    $('#panEdit-nameChangeInput').attr('placeholder', 'Name');
-    $('#panEdit-descrChangeInput').attr('placeholder', 'Description (Optional)');
-    toggleSwitch.checked = false;
+function checkChartType() {
     alert(currentPanel.chartType);
-    if (currentPanel.description) {
-        const panelInfoCorner = $('.panelEditor-container .panelDisplay .panel-info-corner');
-        const panelDescIcon = $('.panelEditor-container .panelDisplay .panel-info-corner #panel-desc-info');
-        panelInfoCorner.show();
-        panelDescIcon.tooltip('dispose');
-        panelDescIcon.attr('title', currentPanel.description);
-        panelDescIcon.tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: 'hover',
-        });
-        panelInfoCorner.hover(
-            function () {
-                panelDescIcon.tooltip('show');
-            },
-            function () {
-                panelDescIcon.tooltip('hide');
-            }
-        );
-    }
-    if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
-        if (currentPanel.queryType === 'logs') {
-            let queryMode = currentPanel.queryData.queryMode;
-            let queryText = currentPanel.queryData.searchText;
-            if (queryMode === 'Code' || queryMode === undefined) {
-                // undefined case for previously created panels and open code for those panels
-                $('#custom-code-tab').tabs('option', 'active', 1);
-                $('#filter-input').val(queryText);
-            } else if (queryMode === 'Builder') {
-                $('#custom-code-tab').tabs('option', 'active', 0);
-                codeToBuilderParsing(queryText);
-            }
-            setDashboardQueryModeHandler(queryMode);
-        }
-    }
-
-    if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
-    if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
     if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
         // Check if the visualization options have already been appended
         if ($('#visualization-options').length === 0) {
@@ -463,6 +392,87 @@ async function editPanelInit(redirectedFromViewScreen) {
             });
 
     }
+
+    else {
+        // If the chart type is not "Line Chart", remove the visualization options if they exist
+        $('#visualization-options').remove();
+    }
+
+}
+//eslint-disable-next-line no-unused-vars
+async function editPanelInit(redirectedFromViewScreen) {
+    if (redirectedFromViewScreen === -1) {
+        $('#panel-editor-left').hide();
+        $('#viewPanel-container').show();
+        $('#edit-button').removeClass('active');
+        $('#overview-button').addClass('active');
+        displayPanelView(panelIndex);
+    } else {
+        $('#panel-editor-left').show();
+        $('#edit-button').addClass('active');
+        $('#overview-button').removeClass('active');
+    }
+    resetOptions();
+    $('.panelDisplay #empty-response').empty();
+    $('.panelDisplay #corner-popup').empty();
+    $('.panelDisplay #corner-popup').hide();
+    $('.panelDisplay #panelLogResultsGrid').empty();
+    $('.panelDisplay #panelLogResultsGrid').hide();
+    $('.panelDisplay .panel-info-corner').hide();
+    $('#metrics-queries,#metrics-formula').empty();
+    $('#filter-input').val('');
+    $('.tags-list').empty();
+    [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+    $('#aggregations, #aggregate-attribute-text, #search-filter-text').show();
+    // formulas, queries = {};
+    currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+    $('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
+    // reset inputs to show placeholders
+    $('.panEdit-navBar .panelTitle').html(currentPanel.name);
+    $('#panEdit-nameChangeInput').val(currentPanel.name);
+    $('#panEdit-descrChangeInput').val(currentPanel.description);
+    $('#panEdit-nameChangeInput').attr('placeholder', 'Name');
+    $('#panEdit-descrChangeInput').attr('placeholder', 'Description (Optional)');
+    toggleSwitch.checked = false;
+    if (currentPanel.description) {
+        const panelInfoCorner = $('.panelEditor-container .panelDisplay .panel-info-corner');
+        const panelDescIcon = $('.panelEditor-container .panelDisplay .panel-info-corner #panel-desc-info');
+        panelInfoCorner.show();
+        panelDescIcon.tooltip('dispose');
+        panelDescIcon.attr('title', currentPanel.description);
+        panelDescIcon.tooltip({
+            delay: { show: 0, hide: 300 },
+            trigger: 'hover',
+        });
+        panelInfoCorner.hover(
+            function () {
+                panelDescIcon.tooltip('show');
+            },
+            function () {
+                panelDescIcon.tooltip('hide');
+            }
+        );
+    }
+    if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
+        if (currentPanel.queryType === 'logs') {
+            let queryMode = currentPanel.queryData.queryMode;
+            let queryText = currentPanel.queryData.searchText;
+            if (queryMode === 'Code' || queryMode === undefined) {
+                // undefined case for previously created panels and open code for those panels
+                $('#custom-code-tab').tabs('option', 'active', 1);
+                $('#filter-input').val(queryText);
+            } else if (queryMode === 'Builder') {
+                $('#custom-code-tab').tabs('option', 'active', 0);
+                codeToBuilderParsing(queryText);
+            }
+            setDashboardQueryModeHandler(queryMode);
+        }
+    }
+    checkChartType(currentPanel);
+    if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
+    if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
+
+
 
     if (selectedChartTypeIndex === 4) {
         $('.dropDown-unit').css('display', 'flex');
@@ -909,6 +919,7 @@ $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     $('.horizontalCaret').css('rotate', '90deg');
     refreshChartMenuOptions();
     runQueryBtnHandler();
+    checkChartType(currentPanel);
 });
 
 $('.colorCircle').on('click', function () {
