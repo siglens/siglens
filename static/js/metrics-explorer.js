@@ -2116,6 +2116,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
+    //eslint-disable-next-line no-unused-vars
     var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"] .graph-canvas');
     container.append('<div id="panel-loading"></div>');
