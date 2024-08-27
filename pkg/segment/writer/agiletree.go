@@ -365,7 +365,7 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 					mcName, err)
 				continue
 			}
-			num, err = cVal.ToNumber()
+			err = cVal.ToNumber(num)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
 					cVal, mcName, err)

@@ -37,6 +37,14 @@ type Number struct {
 	bytes [9]byte // 8 bytes for the number; last byte for the type
 }
 
+func (n *Number) SetInvalidType() {
+	n.bytes[8] = invalidType
+}
+
+func (n *Number) SetBackfillType() {
+	n.bytes[8] = backfillType
+}
+
 func (n *Number) SetInt64(i int64) {
 	utils.Int64ToBytesLittleEndianInplace(i, n.bytes[:8])
 	n.bytes[8] = int64Type
