@@ -201,8 +201,12 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
+		if bi.Bf == nil {
+			bi.Bf = bloom.NewWithEstimates(uint(utils.BLOCK_BLOOM_SIZE),
+				utils.BLOOM_COLL_PROBABILITY)
+		} else {
+			bi.Bf.ClearAll()
+		}
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {

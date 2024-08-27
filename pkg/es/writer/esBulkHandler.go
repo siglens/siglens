@@ -23,6 +23,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unsafe"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -53,6 +54,8 @@ const INDEX_TOP_STR string = "index"
 const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
+
+const MAX_INDEX_NAME_LEN = 256
 
 var resp_status_201 map[string]interface{}
 
@@ -131,6 +134,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// stack-allocated array for allocation-free unescaping of small strings
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
+	// we will accept indexnames only upto 256 bytes
+	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
+
 	for scanner.Scan() {
 		inCount++
 		if inCount >= itemsLen {
@@ -139,7 +145,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			itemsLen += 1000
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
+		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
+			idxNameParsingBuf)
+
 		switch esAction {
 
 		case INDEX, CREATE:
@@ -230,7 +238,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
+func extractIndexAndValidateAction(rawJson []byte,
+	idxNameParsingBuf []byte) (int, string, string) {
+
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
@@ -238,11 +248,14 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 			idVal = ""
 		}
 
-		idxVal, err := jp.GetString(val, INDEX_UNDER_STR)
-		if err != nil {
-			idxVal = ""
+		idxVal, idxDType, _, err := jp.Get(val, INDEX_UNDER_STR)
+		if err != nil || idxDType != jp.String {
+			idxVal = []byte("")
 		}
-		return INDEX, idxVal, idVal
+		copy(idxNameParsingBuf[:], idxVal[:])
+		idxNameParsingBuf = idxNameParsingBuf[0:len(idxVal)]
+
+		return INDEX, *(*string)(unsafe.Pointer(&idxNameParsingBuf)), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)
