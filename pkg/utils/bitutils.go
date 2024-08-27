@@ -233,3 +233,13 @@ func PerformBytesEqualityCheck(isCaseInsensitive bool, a, b []byte) bool {
 	}
 	return bytes.Equal(a, b)
 }
+
+// This function converts the bytes to lower case in place
+func BytesToLowerInPlace(b []byte) []byte {
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 32
+		}
+	}
+	return b
+}

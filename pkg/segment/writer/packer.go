@@ -18,7 +18,6 @@
 package writer
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -382,10 +380,12 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 				finalErr = fmt.Errorf("encodeSingleDictArray : received unknown key  %+s", keyType)
 			}
 			if bi != nil {
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyName)))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strings.ToLower(keyVal)))
+				bytesKeyName := []byte(keyName)
+				bytesKeyVal := []byte(keyVal)
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytesKeyName)
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytesKeyVal)
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(bytesKeyName))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(bytesKeyVal))
 			}
 			addSegStatsStrIngestion(ss.AllSst, keyName, []byte(keyVal))
 			if colWip.cbufidx > maxIdx {
@@ -494,12 +494,13 @@ func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytes.ToLower(valBytes))
+		bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(valBytes))
 	}
 	if !ss.skipDe {
 		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
 	}
-	addSegStatsStrIngestion(ss.AllSst, key, valBytes)
+	valueLen := uint32(len(valBytes))
+	addSegStatsStrIngestion(ss.AllSst, key, colWip.cbuf[colWip.cbufidx-valueLen:colWip.cbufidx])
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
 	}
