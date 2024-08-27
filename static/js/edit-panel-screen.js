@@ -291,8 +291,7 @@ function checkChartType(currentPanel) {
     if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
         $('#visualization-options').addClass('d-flex');
         $('#visualization-options').show();
-    }
-    else{
+    } else {
         $('#visualization-options').removeClass('d-flex');
         $('#visualization-options').hide();
     }
