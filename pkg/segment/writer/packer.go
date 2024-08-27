@@ -330,7 +330,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 				log.Errorf("getNestedDictEntries error %+v", err)
 				return
 			}
-			if keyName == "" || keyType == "" || keyVal == "" {
+			if len(keyName) == 0 || keyType == "" || len(keyVal) == 0 {
 				err = fmt.Errorf("encodeSingleDictArray: Jaeger tags array should have key/value/type values")
 				log.Error(err)
 				return
@@ -341,53 +341,55 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 			colWip.cbufidx += 2
 			copy(colWip.cbuf[colWip.cbufidx:], keyName)
 			colWip.cbufidx += uint32(n)
+
+			keyValLen := uint16(len(keyVal))
+			keyValLenBytes := utils.Uint16ToBytesLittleEndian(keyValLen)
+
 			//check key type
 			//based on that encode key value
 			switch keyType {
 			case "string":
 				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 				colWip.cbufidx += 1
-				n := uint16(len(keyVal))
-				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
 				colWip.cbufidx += 2
 				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
-				colWip.cbufidx += uint32(n)
+				colWip.cbufidx += uint32(keyValLen)
 			case "bool":
 				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
 				colWip.cbufidx += 1
-				n := uint16(len(keyVal))
-				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
 				colWip.cbufidx += 2
 				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
-				colWip.cbufidx += uint32(n)
+				colWip.cbufidx += uint32(keyValLen)
 			case "int64":
 				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_INT64[:])
 				colWip.cbufidx += 1
-				n := uint16(len(keyVal))
-				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
 				colWip.cbufidx += 2
 				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
-				colWip.cbufidx += uint32(n)
+				colWip.cbufidx += uint32(keyValLen)
 			case "float64":
 				copy(colWip.cbuf[colWip.cbufidx:], segutils.VALTYPE_ENC_FLOAT64[:])
 				colWip.cbufidx += 1
-				n := uint16(len(keyVal))
-				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
 				colWip.cbufidx += 2
 				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
-				colWip.cbufidx += uint32(n)
+				colWip.cbufidx += uint32(keyValLen)
 			default:
 				finalErr = fmt.Errorf("encodeSingleDictArray : received unknown key  %+s", keyType)
 			}
+			keyNameStr := string(keyName)
 			if bi != nil {
-				bytesKeyName := []byte(keyName)
-				bytesKeyVal := []byte(keyVal)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytesKeyName)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, bytesKeyVal)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(bytesKeyName))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(bytesKeyVal))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyName)
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyVal)
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyName))
+				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyVal))
 			}
-			addSegStatsStrIngestion(ss.AllSst, keyName, []byte(keyVal))
+			// get the copied key value bytes from the ColWip buffer,
+			// As the keyVal bytes are converted to lower case while adding to Bloom above.
+			keyValBytes := colWip.cbuf[colWip.cbufidx-uint32(keyValLen):]
+			addSegStatsStrIngestion(ss.AllSst, keyNameStr, keyValBytes)
 			if colWip.cbufidx > maxIdx {
 				maxIdx = colWip.cbufidx
 			}
@@ -404,8 +406,9 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 	return maxIdx, matchedCol, finalErr
 }
 
-func getNestedDictEntries(data []byte) (string, string, string, error) {
-	var nkey, ntype, nvalue string
+func getNestedDictEntries(data []byte) ([]byte, string, []byte, error) {
+	var nkey, nvalue []byte
+	var ntype string
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		switch string(key) {
@@ -414,11 +417,11 @@ func getNestedDictEntries(data []byte) (string, string, string, error) {
 				err := fmt.Errorf("getNestedDictEntries key should be of type string , found type %+v", valueType)
 				return err
 			}
-			nkey = string(value)
+			nkey = value
 		case "type":
 			ntype = string(value)
 		case "value":
-			nvalue = string(value)
+			nvalue = value
 		default:
 			err := fmt.Errorf("getNestedDictEntries: received unknown key of %+s", key)
 			return err
