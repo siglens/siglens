@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -1054,11 +1055,17 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 
+	writer := bufio.NewWriter(bffd)
+	if writer == nil {
+		log.Errorf("flushBloomIndex: failed to create writer for %v", bffd.Name())
+		return 0
+	}
+
 	// There is no accurate way to find the size of bloom before writing it to the file.
 	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
 	bytesWritten := uint32(0)
 
-	_, err = bffd.Write([]byte{0, 0, 0, 0})
+	_, err = writer.Write([]byte{0, 0, 0, 0})
 	if err != nil {
 		log.Errorf("flushBloomIndex: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
 		return 0
@@ -1066,30 +1073,30 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	bytesWritten += 4
 
 	// copy the blockNum
-	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
+	if _, err = writer.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
 		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
 
 	// write CMI type
-	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
+	if _, err = writer.Write(utils.CMI_BLOOM_INDEX); err != nil {
 		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	bytesWritten += 1
 
 	// write the blockBloom
-	bloomSize, err := bi.Bf.WriteTo(bffd)
+	bloomSize, err := bi.Bf.WriteTo(writer)
 	if err != nil {
 		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	bytesWritten += uint32(bloomSize)
 
-	err = bffd.Sync()
+	err = writer.Flush()
 	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: failed to flush bloom fname=%v, err=%v", fname, err)
 		return 0
 	}
 
