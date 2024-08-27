@@ -916,6 +916,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [64]byte
 
+	compWorkBuf := make([]byte, WIP_SIZE)
 	tsKey := config.GetTimeStampKey()
 	allCols := make(map[string]uint32)
 	// set up entries
@@ -983,7 +984,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
-			blkLen, blkOffset, err := writeWip(colWip, encType)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
 			}
@@ -1021,6 +1022,8 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [64]byte
+
+	compWorkBuf := make([]byte, WIP_SIZE)
 
 	tsKey := config.GetTimeStampKey()
 	allCols := make(map[string]uint32)
@@ -1111,7 +1114,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
-			blkLen, blkOffset, err := writeWip(colWip, encType)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
 			if err != nil {
 				log.Errorf("WriteMockTraceFile: failed to write tracer filename=%v, err=%v", csgFname, err)
 			}

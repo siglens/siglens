@@ -70,30 +70,31 @@ type SegStore struct {
 	wipBlock          WipBlock
 	pqNonEmptyResults map[string]bool // map pqid => true if segstream matched > 0 records
 	// segment related data
-	SegmentKey         string
-	segbaseDir         string
-	suffix             uint64
-	lastUpdated        time.Time
-	VirtualTableName   string
-	RecordCount        int
-	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
-	pqTracker          *PQTracker
-	pqMatches          map[string]*pqmr.PQMatchResults
-	LastSegPqids       map[string]struct{}
-	numBlocks          uint16
-	BytesReceivedCount uint64
-	OnDiskBytes        uint64 // running sum of cmi/csg/bsu file sizes
-	skipDe             bool   // kibana docs dont need dict enc, hence this flag
-	timeCreated        time.Time
-	AllSst             map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
-	stbHolder          *STBHolder
-	OrgId              uint64
-	firstTime          bool
-	stbDictEncWorkBuf  [][]string
-	segStatsWorkBuf    []byte
-	SegmentErrors      map[string]*structs.SearchErrorInfo
-	bsPool             []*bitset.BitSet
-	bsPoolCurrIdx      uint32
+	SegmentKey            string
+	segbaseDir            string
+	suffix                uint64
+	lastUpdated           time.Time
+	VirtualTableName      string
+	RecordCount           int
+	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
+	pqTracker             *PQTracker
+	pqMatches             map[string]*pqmr.PQMatchResults
+	LastSegPqids          map[string]struct{}
+	numBlocks             uint16
+	BytesReceivedCount    uint64
+	OnDiskBytes           uint64 // running sum of cmi/csg/bsu file sizes
+	skipDe                bool   // kibana docs dont need dict enc, hence this flag
+	timeCreated           time.Time
+	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
+	stbHolder             *STBHolder
+	OrgId                 uint64
+	firstTime             bool
+	stbDictEncWorkBuf     [][]string
+	segStatsWorkBuf       []byte
+	SegmentErrors         map[string]*structs.SearchErrorInfo
+	bsPool                []*bitset.BitSet
+	bsPoolCurrIdx         uint32
+	workBufForCompression [][]byte
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -516,10 +517,27 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			return err
 		}
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
+
+		//readjust workBufComp size based on num of columns in this wip
+		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
+		if sizeNeeded > 0 {
+			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+				sizeNeeded)
+			// now make each of these bufs of atleast WIP_SIZE
+			for i := 0; i < len(segstore.workBufForCompression); i++ {
+				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
+				if bsizeNeeded > 0 {
+					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+						bsizeNeeded)
+				}
+			}
+		}
+
+		compBufIdx := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
 				allColsToFlush.Add(1)
-				go func(cname string, colWip *ColWip) {
+				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
 					if cname == config.GetTimeStampKey() {
@@ -535,7 +553,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_COMLUNAR_BLOCK
 					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType)
+					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
 					if err != nil {
 						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return
@@ -562,7 +580,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							atomic.AddUint64(&totalMetadata, writtenBytes)
 						}
 					}
-				}(colName, colInfo)
+				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
+				compBufIdx++
 			}
 		}
 		if config.IsAggregationsEnabled() {
