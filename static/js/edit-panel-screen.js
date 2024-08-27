@@ -287,121 +287,15 @@ $(document).ready(function () {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 });
-function checkChartType() {
+function checkChartType(currentPanel) {
     if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
-        // Check if the visualization options have already been appended
-        if ($('#visualization-options').length === 0) {
-            $('#metrics-query-language').append(`
-                <div id="visualization-options" class="d-flex mb-3 mt-3">
-                    <div>Display: <input id="display-input" type="text" value="Line chart"></div>
-                    <div>Color: <input id="color-input" type="text" value="Classic"></div>
-                    <div id="line-style-div">Style: <input id="line-style-input" type="text" value="Solid"></div>
-                    <div id="stroke-div">Stroke: <input id="stroke-input" type="text" value="Normal"></div>
-                </div>`);
-        }
-        var displayOptions = ['Line chart', 'Bar chart', 'Area chart'];
-        $('#display-input')
-            .autocomplete({
-                source: displayOptions,
-                minLength: 0,
-                select: function (event, ui) {
-                    //eslint-disable-next-line no-unused-vars
-                    toggleLineOptions(ui.item.value);
-                    //eslint-disable-next-line no-unused-vars
-                    chartType = ui.item.value;
-                    //eslint-disable-next-line no-unused-vars
-                    toggleChartType(ui.item.value);
-                    $(this).blur();
-                },
-            })
-            .on('click', function () {
-                if ($(this).autocomplete('widget').is(':visible')) {
-                    $(this).autocomplete('close');
-                } else {
-                    $(this).autocomplete('search', '');
-                }
-            })
-            .on('click', function () {
-                $(this).select();
-            });
-
-        var colorOptions = ['Classic', 'Purple', 'Cool', 'Green', 'Warm', 'Orange', 'Gray', 'Palette'];
-        $('#color-input')
-            .autocomplete({
-                source: colorOptions,
-                minLength: 0,
-                select: function (event, ui) {
-                    let selectedColorTheme = ui.item.value;
-                    //eslint-disable-next-line no-unused-vars
-                    updateChartTheme(selectedColorTheme);
-                    $(this).blur();
-                },
-            })
-            .on('click', function () {
-                if ($(this).autocomplete('widget').is(':visible')) {
-                    $(this).autocomplete('close');
-                } else {
-                    $(this).autocomplete('search', '');
-                }
-            })
-            .on('click', function () {
-                $(this).select();
-            });
-        var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
-        var strokeOptions = ['Normal', 'Thin', 'Thick'];
-
-        $('#line-style-input')
-            .autocomplete({
-                source: lineStyleOptions,
-                minLength: 0,
-                select: function (event, ui) {
-                    var selectedLineStyle = ui.item.value;
-                    var selectedStroke = $('#stroke-input').val();
-                    //eslint-disable-next-line no-unused-vars
-                    updateLineCharts(selectedLineStyle, selectedStroke);
-                    $(this).blur();
-                },
-            })
-            .on('click', function () {
-                if ($(this).autocomplete('widget').is(':visible')) {
-                    $(this).autocomplete('close');
-                } else {
-                    $(this).autocomplete('search', '');
-                }
-            })
-            .on('click', function () {
-                $(this).select();
-            });
-
-        $('#stroke-input')
-            .autocomplete({
-                source: strokeOptions,
-                minLength: 0,
-                select: function (event, ui) {
-                    var selectedStroke = ui.item.value;
-                    var selectedLineStyle = $('#line-style-input').val();
-                    //eslint-disable-next-line no-unused-vars
-                    updateLineCharts(selectedLineStyle, selectedStroke);
-                    $(this).blur();
-                },
-            })
-            .on('click', function () {
-                if ($(this).autocomplete('widget').is(':visible')) {
-                    $(this).autocomplete('close');
-                } else {
-                    $(this).autocomplete('search', '');
-                }
-            })
-            .on('click', function () {
-                $(this).select();
-            });
+        $('#visualization-options').addClass('d-flex');
+        $('#visualization-options').show();
     }
-
-    else {
-        // If the chart type is not "Line Chart", remove the visualization options if they exist
-        $('#visualization-options').remove();
+    else{
+        $('#visualization-options').removeClass('d-flex');
+        $('#visualization-options').hide();
     }
-
 }
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
