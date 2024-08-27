@@ -1529,6 +1529,7 @@ $('#display-input')
 
 function toggleChartType(chartType) {
     // Convert the selected chart type to the corresponding Chart.js chart type
+    alert(chartType);
     var chartJsType;
     switch (chartType) {
         case 'Line chart':
@@ -1545,10 +1546,10 @@ function toggleChartType(chartType) {
     }
 
     // Loop through each chart data
+    if(!isDashboardScreen){
     for (var queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var lineChart = lineCharts[queryName];
-
             lineChart.config.type = chartJsType;
 
             if (chartType === 'Area chart') {
@@ -1563,7 +1564,7 @@ function toggleChartType(chartType) {
 
             lineChart.update();
         }
-    }
+    }}
 
     mergeGraphs(chartType);
 }
