@@ -25,7 +25,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -54,7 +53,7 @@ func parseWithoutError(t *testing.T, query string) (*structs.ASTNode, *structs.Q
 
 func extractMatchFilter(t *testing.T, node *ast.Node) *structs.MatchFilter {
 	astNode := &structs.ASTNode{}
-	err := pipesearch.SearchQueryToASTnode(node, astNode, 0, false)
+	err := pipesearch.SearchQueryToASTnode(node, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition)
 
@@ -71,7 +70,7 @@ func extractMatchFilter(t *testing.T, node *ast.Node) *structs.MatchFilter {
 
 func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFilter {
 	astNode := &structs.ASTNode{}
-	err := pipesearch.SearchQueryToASTnode(node, astNode, 0, false)
+	err := pipesearch.SearchQueryToASTnode(node, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition)
 
@@ -117,7 +116,7 @@ func Test_searchQuotedStringNoBreakers(t *testing.T) {
 }
 
 func Test_searchQuotedStringMinorBreakers(t *testing.T) {
-	query := []byte(`search CASE("abc./\\:=@#$%-_DEF")`)
+	query := []byte(`search "abc./\\:=@#$%-_DEF"`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -126,7 +125,6 @@ func Test_searchQuotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
-	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
@@ -142,11 +140,11 @@ func Test_searchQuotedStringMajorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`))
+	assert.Equal(t, filterNode.Comparison.Values, `"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte(strings.ToLower(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`)), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`), matchFilter.MatchPhrase)
 }
 
 func Test_impliedSearchCommand(t *testing.T) {
@@ -190,12 +188,11 @@ func Test_searchUnquotedStringMinorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc./\\:=@#$%-_DEF"`))
-	assert.True(t, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte("abc./\\\\:=@#$%-_def"), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte(`abc./\\:=@#$%-_DEF`), matchFilter.MatchPhrase)
 }
 
 func Test_searchUnquotedStringMajorBreakerAtStart(t *testing.T) {
@@ -644,7 +641,7 @@ func Test_searchSimpleAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -682,7 +679,7 @@ func Test_searchChainedAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -719,7 +716,7 @@ func Test_searchSimpleOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 2)
@@ -757,7 +754,7 @@ func Test_searchChainedOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -801,7 +798,7 @@ func Test_searchANDThenOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -845,7 +842,7 @@ func Test_searchORThenAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -905,7 +902,7 @@ func Test_searchParenthesesToChangePrecedence(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -942,7 +939,7 @@ func Test_searchImplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -980,7 +977,7 @@ func Test_searchChainedImplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1023,7 +1020,7 @@ func Test_searchMixedImplicitAndExplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1055,7 +1052,7 @@ func Test_searchSimpleNOTEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1079,7 +1076,7 @@ func Test_searchSimpleNOTNotEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1103,7 +1100,7 @@ func Test_searchSimpleNOTLessThan(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1127,7 +1124,7 @@ func Test_searchSimpleNOTGreaterThan(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1151,7 +1148,7 @@ func Test_searchSimpleNOTLessThanOrEqual(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1175,7 +1172,7 @@ func Test_searchSimpleNOTGreaterThanOrEqual(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1199,7 +1196,7 @@ func Test_searchCancelingNots(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1235,7 +1232,7 @@ func Test_searchCompoundNOT(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("10"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1262,18 +1259,16 @@ func Test_searchQuotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
 	assert.Equal(t, filterNode.Comparison.Field, "day")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
-	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
-	assert.True(t, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, filterNode.Comparison.Values, `"T*day"`)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "T*day")
 }
 
 func Test_searchUnquotedWildcard(t *testing.T) {
@@ -1287,18 +1282,16 @@ func Test_searchUnquotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
 	assert.Equal(t, filterNode.Comparison.Field, "day")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
-	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
-	assert.True(t, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, filterNode.Comparison.Values, `"T*day"`)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "T*day")
 }
 
 func Test_searchNumberedWildcardBecomesString(t *testing.T) {
@@ -1315,7 +1308,7 @@ func Test_searchNumberedWildcardBecomesString(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, `"50*"`)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1345,7 +1338,7 @@ func Test_chainedSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("2"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1390,7 +1383,7 @@ func Test_manyChainedSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("4"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1449,7 +1442,7 @@ func Test_manyChainedSearchOptionalPipeSpacing(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("4"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1520,7 +1513,7 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1598,7 +1591,7 @@ func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1652,7 +1645,7 @@ func Test_regexSingleColumnEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1690,7 +1683,7 @@ func Test_regexSingleColumnNotEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1735,7 +1728,7 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -2218,9 +2211,7 @@ func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
-	assert.Equal(t, `"Boston"`, filterNode.Comparison.OriginalValues)
-	assert.True(t, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -2457,7 +2448,7 @@ func Test_commentAtStart(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2487,7 +2478,7 @@ func Test_commentInMiddle(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 0)
@@ -2513,7 +2504,7 @@ func Test_commentAtEnd(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2536,7 +2527,7 @@ func Test_commentContainingQuotes(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2559,7 +2550,7 @@ func Test_commentContainingBackticks(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2570,7 +2561,7 @@ func Test_commentContainingBackticks(t *testing.T) {
 }
 
 func Test_commentInsideQuotes(t *testing.T) {
-	query := []byte("A=CASE(\"Hello, ```this is not commented out``` world!\")")
+	query := []byte("A=\"Hello, ```this is not commented out``` world!\"")
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -2580,10 +2571,9 @@ func Test_commentInsideQuotes(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Field, "A")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, "\"Hello, ```this is not commented out``` world!\"")
-	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -5410,7 +5400,7 @@ func Test_evalWithMultipleSpaces2(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -5453,7 +5443,7 @@ func Test_multilineQuery(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -7012,7 +7002,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		assert.NotNil(t, filterNode)
 
 		astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-		assert.Nil(t, err, "ind=%v, Failed for query: %s", ind, query)
+		assert.Nil(t, err)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
 		assert.NotNil(t, aggregator.TransactionArguments)
@@ -7020,8 +7010,8 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		transactionRequest := aggregator.TransactionArguments
 		assert.Equal(t, structs.TransactionType, aggregator.PipeCommandType)
 		assert.Equal(t, results[ind].Fields, transactionRequest.Fields)
-		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith, "ind=%v, Failed for query: %s", ind, query)
-		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith, "ind=%v, Failed for query: %s", ind, query)
+		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith)
+		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith)
 	}
 }
 
@@ -10083,8 +10073,7 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFun
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
-	assert.Equal(t, `"boston"`, filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10139,9 +10128,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
-	assert.True(t, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10912,7 +10899,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
 
 	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 

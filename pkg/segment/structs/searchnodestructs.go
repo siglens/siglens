@@ -54,11 +54,10 @@ const (
 // A Search query is either an expression or match filter
 // Never will both be defined
 type SearchQuery struct {
-	ExpressionFilter        *SearchExpression
-	MatchFilter             *MatchFilter
-	SearchType              SearchQueryType // type of query
-	QueryInfo               *QueryInfo      // query info
-	FilterIsCaseInsensitive bool            // whether the filter is case sensitive
+	ExpressionFilter *SearchExpression
+	MatchFilter      *MatchFilter
+	SearchType       SearchQueryType // type of query
+	QueryInfo        *QueryInfo      // query info
 }
 
 type QueryInfo struct {
@@ -312,18 +311,17 @@ func GetAllColumnsFromCondition(cond *SearchCondition) (map[string]bool, bool) {
 // returns map[string]bool, bool, LogicalOperator
 // map is all non-wildcard block bloom keys, bool is if any keyword contained a wildcard, LogicalOperator
 // is if any/all of map keys need to exist
-func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, map[string]string, bool, LogicalOperator) {
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
+func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, LogicalOperator) {
 
 	if query.MatchFilter != nil {
-		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
-		return matchKeys, originalMatchKeys, wildcardExists, matchOp
+		matchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch()
+		return matchKeys, wildcardExists, matchOp
 	} else {
-		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
+		blockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch()
 		if err != nil {
-			return make(map[string]bool), make(map[string]string), false, And
+			return make(map[string]bool), false, And
 		}
-		return blockBloomKeys, originalBlockBloomKeys, wildcardExists, And
+		return blockBloomKeys, wildcardExists, And
 	}
 }
 
