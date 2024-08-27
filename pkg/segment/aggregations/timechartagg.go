@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
+	"github.com/segmentio/go-hll"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -303,7 +303,7 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
-func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *hyperloglog.Sketch, hllToMerge *hyperloglog.Sketch,
+func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *hll.Hll, hllToMerge *hll.Hll,
 	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool) {
 
 	tmp := utils.CValueEnclosure{
@@ -328,11 +328,11 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		if useAdditionForMerge {
 			aggFunc = utils.Sum
 		} else {
-			err := hll.Merge(hllToMerge)
+			err := hll.StrictUnion(*hllToMerge)
 			if err != nil {
-				log.Errorf("MergeVal: failed to merge hyperloglog stats: %v", err)
+				log.Errorf("MergeVal: failed to merge hll stats: %v", err)
 			}
-			eVal.CVal = hll.Estimate()
+			eVal.CVal = hll.Cardinality()
 			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
 			return
 		}
@@ -389,7 +389,7 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal utils.CValueEnclosure,
-	hllToMerge *hyperloglog.Sketch, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
+	hllToMerge *hll.Hll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
 	isRankBySum := IsRankBySum(timechart)
