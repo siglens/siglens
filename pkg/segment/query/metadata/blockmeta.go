@@ -78,10 +78,10 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 // TODO: function is getting to big and has many args, needs to be refactored
 // Returns all search requests,  number of blocks checked, number of blocks passed, error
 func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
-	blockTracker *structs.BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
+	blockTracker *structs.BlockTracker, bloomKeys map[string]bool, bloomOp utils.LogicalOperator,
 	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool, wildCardValue bool,
 	currQuery *structs.SearchQuery, colsToCheck map[string]bool, wildcardCol bool,
-	qid uint64, isQueryPersistent bool, pqid string, dualCaseCheckEnabled bool) (*structs.SegmentSearchRequest, uint64, uint64, error) {
+	qid uint64, isQueryPersistent bool, pqid string) (*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	isMatchAll := currQuery.IsMatchAll()
 
@@ -155,9 +155,9 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 				}
 				if !wildCardValue && !negateMatch {
 					if wildcardCol {
-						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, dualCaseCheckEnabled)
+						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, timeFilteredBlocks)
 					} else {
-						doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, dualCaseCheckEnabled)
+						doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, timeFilteredBlocks, colsToCheck)
 					}
 				}
 			}
@@ -254,10 +254,8 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	}
 }
 
-func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
-	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool, dualCaseEnabled bool) {
-
-	checkInOriginalKeys := dualCaseEnabled && len(originalBloomKeys) > 0
+func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool,
+	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool) {
 
 	var matchedNeedleInBlock = true
 	for entry := range bloomKeys {
@@ -271,12 +269,6 @@ func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 				continue
 			}
 			needleExists = colCMI.Bf.TestString(entry)
-			if !needleExists && checkInOriginalKeys {
-				originalEntry, ok := originalBloomKeys[entry]
-				if ok {
-					needleExists = colCMI.Bf.TestString(originalEntry)
-				}
-			}
 			if needleExists {
 				timeFilteredBlocks[blockToCheck][colName] = true
 				break
@@ -296,10 +288,8 @@ func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 	}
 }
 
-func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
-	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, dualCaseCheckEnabled bool) {
-
-	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
+func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool,
+	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool) {
 
 	var matchedNeedleInBlock = true
 	var allEntriesMissing bool = false
@@ -314,15 +304,7 @@ func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 				if cmi.CmiType != utils.CMI_BLOOM_INDEX[0] {
 					continue
 				}
-				entryExists := cmi.Bf.TestString(entry)
-				if !entryExists && checkInOriginalKeys {
-					originalEntry, ok := originalBloomKeys[entry]
-					if ok {
-						entryExists = cmi.Bf.TestString(originalEntry)
-					}
-				}
-
-				if entryExists {
+				if cmi.Bf.TestString(entry) {
 					timeFilteredBlocks[blockToCheck][cname] = true
 					atleastOneFound = true
 				}

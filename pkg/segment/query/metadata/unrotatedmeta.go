@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -69,7 +68,7 @@ func createSearchRequestForUnrotated(fileName string, tableName string,
 // filters unrotated blocks based on search conditions
 // returns the final search request, total blocks, sum of filtered blocks, and any errors
 func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRange *dtu.TimeRange, indexNames []string,
-	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp utils.LogicalOperator, rangeFilter map[string]string,
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, bloomOp utils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp utils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	writer.UnrotatedInfoLock.RLock()
@@ -80,8 +79,6 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 	var wg sync.WaitGroup
 	totalUnrotatedBlocks := uint64(0)
 	totalFilteredBlocks := uint64(0)
-
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
 
 	for _, rawSearchKeys := range allBlocksToSearch {
 		for segKey, blkTracker := range rawSearchKeys {
@@ -95,7 +92,7 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 				defer wg.Done()
 
 				filteredBlocks, maxBlocks, numFiltered, err := store.DoCMICheckForUnrotated(currQuery, lookupTimeRange,
-					blkT, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid, dualCaseCheckEnabled)
+					blkT, bloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid)
 				atomic.AddUint64(&totalUnrotatedBlocks, maxBlocks)
 				atomic.AddUint64(&totalFilteredBlocks, numFiltered)
 				if err != nil {
@@ -175,9 +172,9 @@ func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op seg
 
 		for _, query := range condition.SearchQueries {
 			rangeFilter, rangeOp, isRange := query.ExtractRangeFilterFromQuery(qid)
-			bloomWords, originalBloomWords, wildcardBloom, bloomOp := query.GetAllBlockBloomKeysToSearch()
+			bloomWords, wildcardBloom, bloomOp := query.GetAllBlockBloomKeysToSearch()
 			res, totalUnrotatedBlocks, filteredUnrotatedBlocks, err := CheckMicroIndicesForUnrotated(query, timeRange, indexNames,
-				rawSearchKeys, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
+				rawSearchKeys, bloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
 
 			if err != nil {
 				log.Errorf("qid=%d, extractUnrotatedSSRFromCondition: an error occurred while checking unrotated data %+v", qid, err)

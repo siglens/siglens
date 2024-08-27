@@ -34,15 +34,12 @@ min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
 "{weekday=""Sunday""} | logfmt",now-1d,now,*,total,gt,1,Log QL
 "count_over_time({batch=""batch-*""}[1d])", now-1d,now,*,total,gt,100,Log QL
 app_name=Termitehad,now-90d,now,*,total,eq,21,Splunk QL
-app_name=termiteHad,now-90d,now,*,total,eq,21,Splunk QL
 app_name=Termitehad http_status=*,now-90d,now,*,total,eq,21,Splunk QL
-app_name=termitehad http_status=*,now-90d,now,*,total,eq,21,Splunk QL
 app_name=Termitehad http_status=***,now-90d,now,*,total,eq,21,Splunk QL
 app_name=Termitehad http_status=200,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=20*,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2**,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2**********,now-90d,now,*,total,eq,5,Splunk QL
-app_name=termitehad http_status=2**********,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2*0,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=2*****0,now-90d,now,*,total,eq,5,Splunk QL
 app_name=Termitehad http_status=302,now-90d,now,*,total,eq,5,Splunk QL
@@ -53,9 +50,7 @@ app_name=Termitehad http_status=404,now-90d,now,*,total,eq,3,Splunk QL
 app_name=Termitehad http_status=4*4,now-90d,now,*,total,eq,3,Splunk QL
 app_name=Termitehad http_status=4,now-90d,now,*,total,eq,0,Splunk QL
 app_name=Termitehad city=Tucson*,now-90d,now,*,total,eq,1,Splunk QL
-app_name=termitehad city=tucson*,now-90d,now,*,total,eq,1,Splunk QL
 app_name=Termitehad city=Tucso*n*,now-90d,now,*,total,eq,1,Splunk QL
-app_name=TermiteHAD city=tucso*n*,now-90d,now,*,total,eq,1,Splunk QL
 app_name=Termitehad city=Tuc*s*o*n*,now-90d,now,*,total,eq,1,Splunk QL
 app_name=Termitehad city=Tuc**s*o*n*,now-90d,now,*,total,eq,1,Splunk QL
 app_name=Termitehad city=Tucson,now-90d,now,*,total,eq,1,Splunk QL
@@ -64,13 +59,9 @@ app_name=Termitehad city=*on*,now-90d,now,*,total,eq,6,Splunk QL
 app_name=Termitehad city=on*,now-90d,now,*,total,eq,0,Splunk QL
 app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 "question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
-"question=""franzen pabst carry yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
 "NOT question=""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
-"NOT question=""franzen pabst carry Yuccie lomO Gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
 """Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
-"""franzen pabst carry yuccie lomo gentrify?""",now-1d,now,*,total,eq,1,Splunk QL
 "NOT ""Franzen pabst carry Yuccie lomo gentrify?""",now-1d,now,*,total,eq,99999,Splunk QL
-"NOT ""CASE(""Franzen pabst carry Yuccie lomo gentrify?"")""",now-1d,now,*,total,eq,99999,Splunk QL
 search app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 search Sunday,now-90d,now,*,total,gt,1,Splunk QL
 search http_status>400,now-1d,now,*,total,gt,0,Splunk QL

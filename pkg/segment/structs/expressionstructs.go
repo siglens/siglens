@@ -25,9 +25,8 @@ import (
 // only one field will be non-nil
 // literal can either be a string or a json.Number
 type ExpressionInput struct {
-	ColumnValue         *DtypeEnclosure // column value: "0", "abc", "abcd*", "0.213". This value will be normalized to Lower Case if the search is case insensitive.
-	OriginalColumnValue *DtypeEnclosure // original column value. Similar to Column Value, but is only created when dualCaseCheck is enabled and the search is case insensitive
-	ColumnName          string          // column name for expression: "col1", "col2", ... "colN"
+	ColumnValue *DtypeEnclosure // column value: "0", "abc", "abcd*", "0.213"
+	ColumnName  string          // column name for expression: "col1", "col2", ... "colN"
 }
 
 // expressions are used for SegReaders to parse and search segment files
