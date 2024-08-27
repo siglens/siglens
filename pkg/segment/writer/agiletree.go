@@ -48,7 +48,6 @@ type STBHolder struct {
 	stbPtr            *StarTreeBuilder
 	currentlyInUse    bool
 	lastUsedTimestamp time.Time
-	myIdx             uint16
 }
 
 func GetSTB() *STBHolder {
@@ -60,14 +59,9 @@ func GetSTB() *STBHolder {
 
 	for i := 0; i < MaxConcurrentAgileTrees; i++ {
 		if STBHolderPool[i] == nil {
-			STBHolderPool[i] = &STBHolder{}
-			STBHolderPool[i].stbPtr = &StarTreeBuilder{}
-			STBHolderPool[i].currentlyInUse = true
-			STBHolderPool[i].lastUsedTimestamp = time.Now()
-			STBHolderPool[i].myIdx = uint16(i)
-			currentAgileTreeCount++
-
-			return STBHolderPool[i]
+			STBHolderPool[i] = &STBHolder{
+				stbPtr: &StarTreeBuilder{},
+			}
 		}
 
 		if !STBHolderPool[i].currentlyInUse {

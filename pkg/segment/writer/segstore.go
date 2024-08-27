@@ -258,7 +258,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	if segstore.stbHolder != nil {
-		log.Infof("resetSegStore: Release STB due to reset: %v\n", segstore.stbHolder.myIdx)
+		log.Infof("resetSegStore: Release STB due to reset")
 		segstore.stbHolder.ReleaseSTB()
 		segstore.stbHolder = nil
 	}
@@ -689,9 +689,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
 			nc := segstore.stbHolder.stbPtr.GetNodeCount()
 			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v Release STB due to rotation: %v\n",
-				nc, cnc, segstore.stbHolder.myIdx)
-
+			log.Infof("checkAndRotateColFiles:  Release STB, stree node count: %v , Each Col NodeCount: %v", nc, cnc)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 		}
@@ -907,8 +905,8 @@ func (segstore *SegStore) computeStarTree() {
 		if found {
 			// todo when we implement dropping of columns from atree,
 			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: Release STB %v found cname: %v with high card: %v, blockNum: %v",
-				segstore.stbHolder.myIdx, cname, cardinality, segstore.numBlocks)
+			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
+				cname, cardinality, segstore.numBlocks)
 
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
@@ -920,7 +918,7 @@ func (segstore *SegStore) computeStarTree() {
 	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
 
 	if err != nil {
-		log.Errorf("computeStarTree: Release STB %v, Failed to compute star tree: %v", segstore.stbHolder.myIdx, err)
+		log.Errorf("computeStarTree: Release STB, Failed to compute star tree: %v", err)
 		segstore.stbHolder.ReleaseSTB()
 		segstore.stbHolder = nil
 		return
