@@ -503,55 +503,47 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 }
 
 func GetSegList(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
-
-	// start with lower resolution and upgrade as necessary
-	rSst := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
-		IntgrVal: 0,
+	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	res := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  make([]string, 0),
 	}
 	if currSegStat == nil {
-		log.Errorf("GetSegAvg: currSegStat is nil")
-		return &rSst, errors.New("GetSegAvg: currSegStat is nil")
+		log.Errorf("GetSegList: currSegStat is nil")
+		return &res, errors.New("GetSegList: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		switch currSegStat.NumStats.Sum.Ntype {
-		case utils.SS_DT_FLOAT:
-			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		default:
-			rSst.FloatVal = float64(currSegStat.NumStats.Sum.IntgrVal) / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		}
-		return &rSst, nil
-	}
-	runningSegStat.Count = runningSegStat.Count + currSegStat.Count
-
-	switch currSegStat.NumStats.Sum.Ntype {
-	case utils.SS_DT_FLOAT:
-		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + currSegStat.NumStats.Sum.FloatVal
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
+		if len(currSegStat.StringStats.StrList) > utils.MAX_SPL_LIST_SIZE {
+			finalStringList := make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(finalStringList, currSegStat.StringStats.StrList[:utils.MAX_SPL_LIST_SIZE])
+			res.CVal = finalStringList
 		} else {
-			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) + currSegStat.NumStats.Sum.FloatVal
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
+			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
+			copy(finalStringList, currSegStat.StringStats.StrList)
+			res.CVal = finalStringList
 		}
-	default:
-		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + float64(currSegStat.NumStats.Sum.IntgrVal)
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		} else {
-			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
-			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		}
+		return &res, nil
 	}
 
-	return &rSst, nil
+	// Limit list size to match splunk.
+	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
+
+	if currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
+		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
+	if runningSegStat.StringStats != nil {
+		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+	res.CVal = strList
+	if runningSegStat.StringStats == nil {
+		runningSegStat.StringStats = &structs.StringStats{
+			StrList: strList,
+		}
+	} else {
+		runningSegStat.StringStats.StrList = strList
+	}
+	return &res, nil
 }
