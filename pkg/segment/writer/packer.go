@@ -30,7 +30,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
@@ -1494,13 +1493,14 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
-			Hll:       hyperloglog.New16()}
+		}
+		stats.CreateNewHll()
 
 		segstats[cname] = stats
 	}
 
 	stats.Count++
-	stats.Hll.Insert(valBytes)
+	stats.InsertIntoHll(valBytes)
 }
 
 func addSegStatsNums(segstats map[string]*SegStats, cname string,
@@ -1527,9 +1527,9 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			Hll:       hyperloglog.New16(),
 			NumStats:  numStats,
 		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 
@@ -1552,7 +1552,7 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats.IsNumeric = true // TODO: what if we have a mix of numeric and non-numeric
 	}
 
-	stats.Hll.Insert(valBytes)
+	stats.InsertIntoHll(valBytes)
 	processStats(stats, inNumType, intVal, uintVal, fltVal)
 }
 
