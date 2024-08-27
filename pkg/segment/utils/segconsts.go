@@ -522,9 +522,9 @@ type DtypeEnclosure struct {
 	SignedVal      int64
 	FloatVal       float64
 	StringVal      string
-	StringValBytes []byte         // byte slice representation of StringVal
-	StringSliceVal []string       // used for array dict
-	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
+	StringValBytes []byte   // byte slice representation of StringVal
+	StringSliceVal []string // used for array dict
+	RexpCompiled   *regexp.Regexp
 }
 
 func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
@@ -539,7 +539,7 @@ func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
 		}
 	}
 
-	hasRegexp := dte.rexpCompiled != nil
+	hasRegexp := dte.RexpCompiled != nil
 	err := encoder.Encode(hasRegexp)
 	if err != nil {
 		log.Errorf("DtypeEnclosure.GobEncode: error encoding hasRegexp: %v", err)
@@ -547,9 +547,9 @@ func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
 	}
 
 	if hasRegexp {
-		err := encoder.Encode(dte.rexpCompiled.String())
+		err := encoder.Encode(dte.RexpCompiled.String())
 		if err != nil {
-			log.Errorf("DtypeEnclosure.GobEncode: error encoding rexpCompiled: %v", err)
+			log.Errorf("DtypeEnclosure.GobEncode: error encoding RexpCompiled: %v", err)
 			return nil, err
 		}
 	}
@@ -584,7 +584,7 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 			return err
 		}
 
-		dte.rexpCompiled, err = regexp.Compile(rexp)
+		dte.RexpCompiled, err = regexp.Compile(rexp)
 		if err != nil {
 			log.Errorf("DtypeEnclosure.GobDecode: error compiling rexp %v: %v", rexp, err)
 			return err
@@ -595,11 +595,11 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 }
 
 func (dte *DtypeEnclosure) SetRegexp(exp *regexp.Regexp) {
-	dte.rexpCompiled = exp
+	dte.RexpCompiled = exp
 }
 
 func (dte *DtypeEnclosure) GetRegexp() *regexp.Regexp {
-	return dte.rexpCompiled
+	return dte.RexpCompiled
 }
 
 // used for numeric calcs and promotions
@@ -740,7 +740,7 @@ func (dte *DtypeEnclosure) Reset() {
 	dte.SignedVal = 0
 	dte.FloatVal = 0
 	dte.StringVal = ""
-	dte.rexpCompiled = nil
+	dte.RexpCompiled = nil
 }
 
 func (dte *DtypeEnclosure) IsFullWildcard() bool {
@@ -749,7 +749,7 @@ func (dte *DtypeEnclosure) IsFullWildcard() bool {
 		if dte.StringVal == "*" {
 			return true
 		}
-		return dte.rexpCompiled != nil && dte.rexpCompiled.String() == ".*"
+		return dte.RexpCompiled != nil && dte.RexpCompiled.String() == ".*"
 	default:
 		return false
 	}
