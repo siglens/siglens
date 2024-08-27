@@ -114,7 +114,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		if !ok {
 			return false
 		}
-		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord(), nil, sQuery.FilterIsCaseInsensitive)
+		retVal, err := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, rawVal.getLastRecord(), nil)
 		if err != nil {
 			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply match words search", log.ErrorLevel, err)
 			return false
@@ -125,7 +125,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 			if cname == tsKey {
 				continue
 			}
-			retVal, _ := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, colVal.getLastRecord(), nil, sQuery.FilterIsCaseInsensitive)
+			retVal, _ := ApplySearchToMatchFilterRawCsg(sQuery.MatchFilter, colVal.getLastRecord(), nil)
 			if retVal {
 				return true
 			}
@@ -136,7 +136,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		if !ok {
 			return false
 		}
-		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), false, holderDte, sQuery.FilterIsCaseInsensitive)
+		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), false, holderDte)
 		if err != nil {
 			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply simple expression search", log.ErrorLevel, err)
 			return false
@@ -147,7 +147,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		if !ok {
 			return false
 		}
-		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), true, holderDte, sQuery.FilterIsCaseInsensitive)
+		retVal, err := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, rawVal.getLastRecord(), true, holderDte)
 		if err != nil {
 			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply wildcard expression search on RegexExpression", log.ErrorLevel, err)
 			return false
@@ -158,7 +158,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 			if cname == tsKey {
 				continue
 			}
-			retVal, _ := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, colVal.getLastRecord(), true, holderDte, sQuery.FilterIsCaseInsensitive)
+			retVal, _ := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, colVal.getLastRecord(), true, holderDte)
 			if retVal {
 				return true
 			}
@@ -169,7 +169,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 			if cname == tsKey {
 				continue
 			}
-			retVal, _ := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, colVal.getLastRecord(), false, holderDte, sQuery.FilterIsCaseInsensitive)
+			retVal, _ := ApplySearchToExpressionFilterSimpleCsg(sQuery.QueryInfo.QValDte, sQuery.ExpressionFilter.FilterOp, colVal.getLastRecord(), false, holderDte)
 			if retVal {
 				return true
 			}
@@ -180,7 +180,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 		if !ok {
 			return false
 		}
-		retVal, err := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, rawVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, true, holderDte, sQuery.FilterIsCaseInsensitive)
+		retVal, err := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, rawVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, true, holderDte)
 		if err != nil {
 			segStore.StoreSegmentError("applySearchSingleQuery: failed to apply wildcard expression search on MatchDictArraySingleColumn", log.ErrorLevel, err)
 			return false
@@ -191,7 +191,7 @@ func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQu
 			if cname == tsKey {
 				continue
 			}
-			retVal, _ := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, colVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, false, holderDte, sQuery.FilterIsCaseInsensitive)
+			retVal, _ := ApplySearchToDictArrayFilter([]byte(sQuery.QueryInfo.ColName), sQuery.QueryInfo.QValDte, colVal.getLastRecord(), sQuery.ExpressionFilter.FilterOp, false, holderDte)
 			if retVal {
 				return true
 			}

@@ -474,12 +474,6 @@ type FormatResultsRequestArguments struct {
     formatResultExpr *structs.FormatResultsRequest
 }
 
-type StringSearchRequest struct {
-    value interface{}
-    originalValue interface{}
-    caseInsensitive bool
-}
-
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -3866,50 +3860,28 @@ FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWi
     return keyValuePair, nil
 }
 
-NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
-    ssr := stringSearchReq.(*StringSearchRequest)
+NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: op.(string),
             Field: key.(string),
-            Values: ssr.value,
-            OriginalValues: ssr.originalValue,
-            CaseInsensitive: ssr.caseInsensitive,
+            Values: value,
         },
     }
     return node, nil
 }
 
-UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
-    ssr := stringSearchReq.(*StringSearchRequest)
+UnnamedFieldWithStringValue <- value:String {
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: "=",
             Field: "*",
-            Values: ssr.value,
-            OriginalValues: ssr.originalValue,
-            CaseInsensitive: ssr.caseInsensitive,
+            Values: value,
         },
     }
     return node, nil
-}
-
-CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
-    return &StringSearchRequest{
-        value: value,
-        originalValue: value,
-        caseInsensitive: false,
-    }, nil
-}
-
-CaseInsensitiveString <- value:String {
-    return &StringSearchRequest{
-        value: strings.ToLower(value.(string)),
-        originalValue: value,
-        caseInsensitive: true,
-    }, nil
 }
 
 // Parses one or more FieldNames separated by a comma and space.
