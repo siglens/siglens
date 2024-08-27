@@ -165,29 +165,6 @@ func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error
 	return &dte, nil
 }
 
-func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool) {
-	if dte == nil {
-		return
-	}
-
-	if dte.Dtype != SS_DT_STRING {
-		return
-	}
-
-	if strings.Contains(dte.StringVal, "*") {
-		rawRegex := dtu.ReplaceWildcardStarWithRegex(dte.StringVal)
-		if caseInsensitive {
-			rawRegex = "(?i)" + rawRegex
-		}
-
-		compiledRegex, err := regexp.Compile(rawRegex)
-		if err != nil {
-			log.Errorf("UpdateRegexp: Failed to compile regex for %s. This may cause search failures. Err: %v", rawRegex, err)
-		}
-		dte.SetRegexp(compiledRegex)
-	}
-}
-
 func enclosureFromJsonNumber(num json.Number, dte *DtypeEnclosure) {
 
 	numstr := string(num)

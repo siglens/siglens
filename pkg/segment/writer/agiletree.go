@@ -20,11 +20,18 @@ package writer
 import (
 	"fmt"
 	"math"
+	"sync"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+const MaxConcurrentAgileTrees = 5
+
+var currentAgileTreeCount int
+var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 type StarTree struct {
 	Root *Node
@@ -40,6 +47,48 @@ const (
 	// Note: always keep this last since it is used for indexing into aggValues
 	TotalMeasFns
 )
+
+var STBHolderPool [MaxConcurrentAgileTrees]*STBHolder
+
+type STBHolder struct {
+	stbPtr            *StarTreeBuilder
+	currentlyInUse    bool
+	lastUsedTimestamp time.Time
+}
+
+func GetSTB() *STBHolder {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+	if currentAgileTreeCount >= MaxConcurrentAgileTrees {
+		return nil
+	}
+
+	for i := 0; i < MaxConcurrentAgileTrees; i++ {
+		if STBHolderPool[i] == nil {
+			STBHolderPool[i] = &STBHolder{
+				stbPtr: &StarTreeBuilder{},
+			}
+		}
+
+		if !STBHolderPool[i].currentlyInUse {
+			STBHolderPool[i].currentlyInUse = true
+			STBHolderPool[i].lastUsedTimestamp = time.Now()
+			currentAgileTreeCount++
+
+			return STBHolderPool[i]
+		}
+	}
+
+	return nil
+}
+
+func (stbHolder *STBHolder) ReleaseSTB() {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+
+	currentAgileTreeCount--
+	stbHolder.currentlyInUse = false
+}
 
 var IdxToAgFn []utils.AggregateFunctions = []utils.AggregateFunctions{
 	utils.Min, utils.Max,

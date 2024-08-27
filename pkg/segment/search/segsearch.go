@@ -75,7 +75,7 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 		return
 	}
 	defer numConcurrentRawSearch.Release(1)
-	searchMemory := req.GetMaxSearchMemorySize(parallelismPerFile, PQMR_INITIAL_SIZE)
+	searchMemory := req.GetMaxSearchMemorySize(searchNode, parallelismPerFile, PQMR_INITIAL_SIZE)
 	err = limit.RequestSearchMemory(searchMemory)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
@@ -654,7 +654,7 @@ func AggsFastPathWrapper(req *structs.SegmentSearchRequest, parallelismPerFile i
 		return
 	}
 	defer numConcurrentRawSearch.Release(1)
-	searchMemory := req.GetMaxSearchMemorySize(parallelismPerFile, PQMR_INITIAL_SIZE)
+	searchMemory := req.GetMaxSearchMemorySize(searchNode, parallelismPerFile, PQMR_INITIAL_SIZE)
 	err = limit.RequestSearchMemory(searchMemory)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
