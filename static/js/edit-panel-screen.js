@@ -389,7 +389,6 @@ function checkChartType() {
             .on('click', function () {
                 $(this).select();
             });
-
     }
 
     else {
@@ -615,7 +614,6 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
         currentPanel.style.lineStroke = selectedStroke;
         //eslint-disable-next-line no-undef
         currentPanel.style.lineStyle = selectedLineStyle;
-
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
