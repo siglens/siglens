@@ -36,7 +36,7 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen, isMetricsURL, isDashboardScreen;
-
+//eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
 let selectedTheme = 'Classic';
@@ -474,10 +474,10 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         formulas[uniqueId].formula = formulaAndFunction.formula;
         formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
         $('#metrics-formula').append(formulaElement);
-        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
         updateTooltipForFormulaFunctions(uniqueId, validationResult);
         funcApplied = false;
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     } else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
@@ -1271,7 +1271,7 @@ function updateCloseIconVisibility() {
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
-function prepareChartData(seriesData, chartDataCollection, queryName, queryString) {
+function prepareChartData(seriesData, chartDataCollection, queryName) {
     var labels = [];
     var datasets = [];
 
@@ -1286,7 +1286,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: queryString,
+                label: series.seriesName,
                 data: series.values,
                 borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
                 backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
@@ -1307,10 +1307,10 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
     return chartData;
 }
 
-function initializeChart(canvas, seriesData, queryName, queryString, chartType) {
+function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
 
-    let chartData = prepareChartData(seriesData, chartDataCollection, queryName, queryString);
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
 
     const { gridLineColor, tickColor } = getGraphGridColors();
     var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
@@ -1425,7 +1425,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
     var canvas;
     if (isDashboardScreen) {
         // For dashboard page
-        prepareChartData(seriesData, chartDataCollection, queryName, queryString);
+        prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
         // For metrics explorer page
@@ -1466,7 +1466,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
             existingContainer.find('.graph-canvas').empty().append(canvas);
         }
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
+        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
 
         lineCharts[queryName] = lineChart;
         updateGraphWidth();
@@ -1964,91 +1964,50 @@ const shouldShowLegend = (panelId, datasets) => {
 async function convertDataForChart(data) {
     let seriesArray = [];
 
-    if (Object.prototype.hasOwnProperty.call(data, 'series') && Object.prototype.hasOwnProperty.call(data, 'timestamps') && Object.prototype.hasOwnProperty.call(data, 'values')) {
+    if (data.series && data.timestamps && data.values) {
         let chartStartTime = data.startTime;
         let chartEndTime = Math.floor(Date.now() / 1000);
         const timeRange = chartEndTime - chartStartTime;
-        // // Determine the best time unit based on the time range
-        if (timeRange > 365 * 24 * 60 * 60) {
-            timeUnit = 'month';
-        } else if (timeRange >= 90 * 24 * 60 * 60) {
-            timeUnit = '7day';
-        } else if (timeRange >= 30 * 24 * 60 * 60) {
-            timeUnit = '2day';
-        } else if (timeRange >= 7 * 24 * 60 * 60) {
-            timeUnit = '12hour';
-        } else if (timeRange >= 2 * 24 * 60 * 60) {
-            timeUnit = '6hour';
-        } else if (timeRange >= 24 * 60 * 60) {
-            timeUnit = '3hour';
-        } else if (timeRange >= 12 * 60 * 60) {
-            timeUnit = '30minute';
-        } else if (timeRange >= 3 * 60 * 60) {
-            timeUnit = '15minute';
-        } else if (timeRange >= 30 * 60) {
-            timeUnit = '5minute';
-        } else {
-            timeUnit = 'minute';
-        }
+
+        // Determine the best time unit based on the time range
+        timeUnit = determineTimeUnit(timeRange);
+
+        let calculatedInterval = data.intervalSec;
+
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
                 values: {},
             };
-            //eslint-disable-next-line no-useless-escape
-            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
-            let calculatedInterval = data.intervalSec;
-            let oneDayInMilliseconds = 24 * 60 * 60;
-            switch (calculatedInterval) {
-                case calculatedInterval >= 28800:
-                    chartStartTime = chartStartTime - oneDayInMilliseconds;
-                    chartEndTime = chartEndTime + oneDayInMilliseconds;
-                    break;
-                case calculatedInterval >= 1200:
-                    chartStartTime = chartStartTime - oneDayInMilliseconds;
-                    break;
-                case calculatedInterval >= 300:
-                    chartStartTime = chartStartTime - 60 * 60;
-                    break;
-                case calculatedInterval >= 120:
-                    chartStartTime = chartStartTime - 30 * 60;
-                    break;
-                case calculatedInterval >= 60:
-                    chartStartTime = chartStartTime - 15 * 60;
-                    break;
-                case calculatedInterval >= 10:
-                    chartStartTime = chartStartTime - 5 * 60;
-                    break;
-                default:
-                    chartStartTime = chartStartTime - 1 * 60;
-                    chartEndTime = chartEndTime + 1 * 60;
-            }
-            for (let j = 0; j < data.timestamps.length; j++) {
-                // Convert epoch seconds to milliseconds by multiplying by 1000
-                let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = moment(timestampInMilliseconds);
-                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
 
-                series.values[formattedDate] = data.values[i][j];
-            }
-            while (chartStartTime <= chartEndTime) {
-                let timestampInMilliseconds = chartStartTime * 1000;
-                let localDate = moment(timestampInMilliseconds);
-                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
-                if (series.values[formattedDate] === undefined) {
-                    if (regexNumeric.test(data.series[i])) {
-                        if (data.values[i][data.timestamps.length - 1] >= 0) {
-                            series.values[formattedDate] = data.values[i][data.timestamps.length - 1];
-                        }
-                    } else {
-                        series.values[formattedDate] = null;
-                    }
+            const isNumericExpression = /^[\d+\-*/() ]+$/.test(data.series[i]);
+
+            if (isNumericExpression) {
+                // For numeric expressions, use the same value for all timestamps
+                const constantValue = data.values[i][0];
+                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = constantValue;
                 }
-                chartStartTime += calculatedInterval;
+            } else {
+                // For regular metrics, add null values for all timestamps in the range
+                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = null;
+                }
+
+                // Add actual values only for timestamps present in the data
+                for (let j = 0; j < data.timestamps.length; j++) {
+                    const timestampInMilliseconds = data.timestamps[j] * 1000;
+                    const formattedDate = moment(timestampInMilliseconds).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = data.values[i][j];
+                }
             }
+
             seriesArray.push(series);
         }
     }
+
     if (seriesArray.length === 0) {
         const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
         seriesArray.push({
@@ -2061,6 +2020,19 @@ async function convertDataForChart(data) {
     }
 
     return seriesArray;
+}
+
+function determineTimeUnit(timeRange) {
+    if (timeRange > 365 * 24 * 60 * 60) return 'month';
+    if (timeRange >= 90 * 24 * 60 * 60) return '7day';
+    if (timeRange >= 30 * 24 * 60 * 60) return '2day';
+    if (timeRange >= 7 * 24 * 60 * 60) return '12hour';
+    if (timeRange >= 2 * 24 * 60 * 60) return '6hour';
+    if (timeRange >= 24 * 60 * 60) return '3hour';
+    if (timeRange >= 12 * 60 * 60) return '30minute';
+    if (timeRange >= 3 * 60 * 60) return '15minute';
+    if (timeRange >= 30 * 60) return '5minute';
+    return 'minute';
 }
 
 async function getMetricNames() {
@@ -2393,7 +2365,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
-    var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
+    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
     lineCharts[queryName] = lineChart;
 }
 
@@ -2692,9 +2664,15 @@ async function populateMetricsQueryElement(metricsQueryParams) {
         const parsedQueryObject = parsePromQL(query);
         await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
-
-    if (queries.length >= 1) {
-        await addAlertsFormulaElement(formulas[0].formula);
+    let formulasInUrl = 0;
+    while (isMetricsURL && formulasInUrl < formulas.length) {
+        await addMetricsFormulaElement(formulas[formulasInUrl].formula, formulas[formulasInUrl].formula);
+        formulasInUrl++;
+    }
+    if (!isMetricsURL) {
+        if (queries.length >= 1) {
+            await addAlertsFormulaElement(formulas[0].formula);
+        }
     }
 }
 function generateEmptyChartLabels(timeUnit, startTime, endTime) {
@@ -2749,13 +2727,52 @@ function adjustInputWidth(input) {
 }
 
 //eslint-disable-next-line no-unused-vars
+function formatMetricsForUrlParams(panelMetricsQueryParams) {
+    const transformedQueries = [];
+    const transformedFormulas = [];
+
+    // Loop through `queriesData` to extract queries only (no formulas)
+    panelMetricsQueryParams.queriesData.forEach((queryData) => {
+        queryData.queries.forEach((query) => {
+            transformedQueries.push({
+                name: query.name,
+                query: query.query,
+                qlType: query.qlType,
+                state: query.state || 'builder',
+            });
+        });
+        // Exclude formulas from `queriesData`
+    });
+
+    // Combine formulas from `formulasData` only
+    panelMetricsQueryParams.formulasData.forEach((formulaData) => {
+        formulaData.formulas.forEach((formula) => {
+            transformedFormulas.push({
+                formula: formula.formula,
+            });
+        });
+    });
+
+    return {
+        start: panelMetricsQueryParams.queriesData[0]?.start || 'now-90d',
+        end: panelMetricsQueryParams.queriesData[0]?.end || 'now',
+        queries: transformedQueries,
+        formulas: transformedFormulas,
+    };
+}
+//eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
+    let metricsQueryParamsData = getMetricsQData();
+
+    // Transform the structure to match `metricsQueryParams`
+    const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+
     return {
         dataSource: 'metrics',
         queryName: qname,
         queryDescription: qdesc || '',
         startTime: filterStartDate,
         endTime: filterEndDate,
-        metricsQueryParams: JSON.stringify(metricsQueryParams),
+        metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }

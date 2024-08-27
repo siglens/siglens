@@ -24,7 +24,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -962,9 +961,9 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						stats = &structs.SegStats{
 							IsNumeric: false,
 							Count:     0,
-							Hll:       hyperloglog.New16(),
 							Records:   make([]*utils.CValueEnclosure, 0),
 						}
+						stats.CreateNewHll()
 
 						lStats[colName] = stats
 					}
