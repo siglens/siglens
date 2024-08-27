@@ -611,26 +611,50 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
         } else {
-            // for panels on the dashboard page
-            for (const queryData of data.queriesData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = queryData.queries[0].query;
-                addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
-            }
+            try {
+                // for panels on the dashboard page
+                for (const queryData of data.queriesData) {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+        
+                    if (rawTimeSeriesData.error) {
+                        throw new Error(rawTimeSeriesData.error);
+                    }
+        
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    const queryString = queryData.queries[0].query;
+                    addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                }
+        
+                for (const formulaData of data.formulasData) {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+        
+                    if (rawTimeSeriesData.error) {
+                        throw new Error(rawTimeSeriesData.error);
+                    }
+        
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    let formulaString = formulaData.formulas[0].formula;
+                    // Replace a, b, etc., with actual query values
+                    formulaData.queries.forEach((query) => {
+                        const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                        formulaString = formulaString.replace(regex, query.query);
+                    });
+                    addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                }
+            } catch (error) {
+                console.error('Error fetching time series data:', error.message);
+                const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+        
+                // Assuming panelId is available and is a valid container
+                const errorContainer = document.querySelector(`#panel${panelId} .panel-body .panEdit-panel`);
 
-            for (const formulaData of data.formulasData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                let formulaString = formulaData.formulas[0].formula;
-                // Replace a, b, etc., with actual query values
-                formulaData.queries.forEach((query) => {
-                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-                    formulaString = formulaString.replace(regex, query.query);
-                });
-                addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+
+                if (errorContainer) {
+                    displayErrorMessage(errorContainer, errorMessage);
+                }
             }
         }
+        
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {
