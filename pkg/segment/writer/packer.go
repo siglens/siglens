@@ -895,6 +895,62 @@ func GetCvalFromRec(rec []byte, qid uint64, retVal *CValueEnclosure) (uint16, er
 	return endIdx, nil
 }
 
+func GetNumValFromRec(rec []byte, qid uint64, retVal *Number) (uint16, error) {
+
+	retVal.SetInvalidType()
+
+	if len(rec) == 0 {
+		return 0, errors.New("column value is empty")
+	}
+
+	var endIdx uint16
+
+	switch rec[0] {
+	case VALTYPE_ENC_SMALL_STRING[0]:
+		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
+		endIdx = strlen + 3
+	case VALTYPE_ENC_BOOL[0]:
+		endIdx = 2
+	case VALTYPE_ENC_INT8[0]:
+		retVal.SetInt64(int64(int8(rec[1:][0])))
+		endIdx = 2
+	case VALTYPE_ENC_INT16[0]:
+		retVal.SetInt64(int64(utils.BytesToInt16LittleEndian(rec[1:])))
+		endIdx = 3
+	case VALTYPE_ENC_INT32[0]:
+		retVal.SetInt64(int64(utils.BytesToInt32LittleEndian(rec[1:])))
+		endIdx = 5
+	case VALTYPE_ENC_INT64[0]:
+		retVal.SetInt64(utils.BytesToInt64LittleEndian(rec[1:]))
+		endIdx = 9
+	case VALTYPE_ENC_UINT8[0]:
+		retVal.SetInt64(int64((rec[1:])[0]))
+		endIdx = 2
+	case VALTYPE_ENC_UINT16[0]:
+		retVal.SetInt64(int64(utils.BytesToUint16LittleEndian(rec[1:])))
+		endIdx = 3
+	case VALTYPE_ENC_UINT32[0]:
+		retVal.SetInt64(int64(utils.BytesToUint32LittleEndian(rec[1:])))
+		endIdx = 5
+	case VALTYPE_ENC_UINT64[0]:
+		retVal.SetInt64(int64(utils.BytesToUint64LittleEndian(rec[1:])))
+		endIdx = 9
+	case VALTYPE_ENC_FLOAT64[0]:
+		retVal.SetFloat64(utils.BytesToFloat64LittleEndian(rec[1:]))
+		endIdx = 9
+	case VALTYPE_ENC_BACKFILL[0]:
+		retVal.SetBackfillType()
+		endIdx = 1
+	case VALTYPE_RAW_JSON[0]:
+		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
+		endIdx = strlen + 3
+	default:
+		log.Errorf("qid=%d, GetNumValFromRec: dont know how to convert type=%v\n", qid, rec[0])
+		return endIdx, errors.New("invalid rec type")
+	}
+	return endIdx, nil
+}
+
 func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
 	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
 	map[string]*ColSizeInfo) {
