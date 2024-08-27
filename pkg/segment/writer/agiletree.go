@@ -20,12 +20,18 @@ package writer
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+const MaxConcurrentAgileTrees = 5
+
+var currentAgileTreeCount int
+var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 type StarTree struct {
 	Root *Node

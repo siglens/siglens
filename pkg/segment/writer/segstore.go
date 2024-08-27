@@ -60,11 +60,6 @@ const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
-const MaxConcurrentAgileTrees = 5
-
-var currentAgileTreeCount int
-var atreeCounterLock sync.Mutex = sync.Mutex{}
-
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -689,7 +684,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
 			nc := segstore.stbHolder.stbPtr.GetNodeCount()
 			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles:  Release STB, stree node count: %v , Each Col NodeCount: %v", nc, cnc)
+			log.Infof("checkAndRotateColFiles: Release STB, segkey: %v, stree node count: %v , Each Col NodeCount: %v",
+				segstore.SegmentKey, nc, cnc)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 		}
@@ -875,8 +871,8 @@ func (segstore *SegStore) computeStarTree() {
 		}
 
 		segstore.stbHolder = GetSTB()
+		// nil stbHolder indicates that no tree is available
 		if segstore.stbHolder == nil {
-			log.Infof("computeStarTree: Failed to get STB")
 			return
 		}
 
@@ -896,7 +892,9 @@ func (segstore *SegStore) computeStarTree() {
 		segstore.stbHolder.stbPtr.ResetSegTree(sortedGrpCols, mCols, segstore.stbDictEncWorkBuf)
 	}
 
-	if segstore.stbHolder == nil { // if tree creation had failed on first block, then skip it
+	// nil stbHolder represents that the tree is either not available or
+	// the tree creation failed on first block, so need to skip it
+	if segstore.stbHolder == nil {
 		return
 	}
 
@@ -931,7 +929,8 @@ func (segstore *SegStore) flushStarTree() uint32 {
 		return 0
 	}
 
-	if segstore.stbHolder == nil { // if tree creation had failed on first block, then skip it
+	// nil stbHolder indicates that the tree is not present
+	if segstore.stbHolder == nil {
 		return 0
 	}
 
