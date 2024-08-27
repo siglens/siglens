@@ -49,24 +49,24 @@ func MicroIndexCheck(currQuery *SearchQuery, filesToSearch map[string]map[string
 	indexNames []string, querySummary *summary.QuerySummary, qid uint64, isQueryPersistent bool, pqid string) (map[string]*SegmentSearchRequest, error) {
 
 	rangeFilter, rangeOp, isRange := currQuery.ExtractRangeFilterFromQuery(qid)
-	bloomWords, originalBloomWords, wildcardBloom, bloomOp := currQuery.GetAllBlockBloomKeysToSearch()
+	bloomWords, wildcardBloom, bloomOp := currQuery.GetAllBlockBloomKeysToSearch()
 
 	finalFilteredRequest, blocksChecked, blockCount := filterViaMicroIndices(currQuery, indexNames, timeRange,
-		filesToSearch, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, wildcardBloom, isRange, qid, isQueryPersistent, pqid)
+		filesToSearch, bloomWords, bloomOp, rangeFilter, rangeOp, wildcardBloom, isRange, qid, isQueryPersistent, pqid)
 	querySummary.UpdateCMIResults(blocksChecked, blockCount)
 	return finalFilteredRequest, nil
 }
 
 // returns final SSRs, count of total blocks checked, count of blocks that passed
 func filterViaMicroIndices(currQuery *structs.SearchQuery, indexNames []string, timeRange *dtu.TimeRange,
-	filesToSearch map[string]map[string]*BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp LogicalOperator,
+	filesToSearch map[string]map[string]*BlockTracker, bloomWords map[string]bool, bloomOp LogicalOperator,
 	rangeFilter map[string]string, rangeOp utils.FilterOperator, wildCardValue bool,
 	isRange bool, qid uint64, isQueryPersistent bool, pqid string) (map[string]*SegmentSearchRequest, uint64, uint64) {
 
 	finalResults := make(map[string]*SegmentSearchRequest)
 
 	serResults, totalBlocks, finalBlockCount, errors := getAllSearchRequestsFromCmi(currQuery, timeRange,
-		filesToSearch, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildCardValue, qid, isQueryPersistent, pqid)
+		filesToSearch, bloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildCardValue, qid, isQueryPersistent, pqid)
 
 	if len(errors) > 0 {
 		for _, err := range errors {
@@ -82,7 +82,7 @@ func filterViaMicroIndices(currQuery *structs.SearchQuery, indexNames []string, 
 
 // returns a list of search request, max possible number of blocks, num blocks to be searched, error
 func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.TimeRange,
-	segkeysToCheck map[string]map[string]*BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
+	segkeysToCheck map[string]map[string]*BlockTracker, bloomKeys map[string]bool, bloomOp utils.LogicalOperator,
 	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool, wildCardValue bool,
 	qid uint64, isQueryPersistent bool, pqid string) ([]*structs.SegmentSearchRequest, uint64, uint64, []error) {
 
@@ -97,8 +97,6 @@ func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.
 	searchRequestResults := make(chan *structs.SegmentSearchRequest, sizeChannel)
 	searchRequestErrors := make(chan error, sizeChannel)
 
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
-
 	colsToCheck, wildcardColQuery := currQuery.GetAllColumnsInQuery()
 	delete(colsToCheck, config.GetTimeStampKey()) // timestamp should not be checked in cmi
 	var blockWG sync.WaitGroup
@@ -107,8 +105,8 @@ func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.
 			blockWG.Add(1)
 			go func(key, indName string, blkT *BlockTracker) {
 				defer blockWG.Done()
-				finalReq, totalBlockCount, filteredBlockCount, err := metadata.RunCmiCheck(key, indName, timeRange, blkT, bloomKeys, originalBloomKeys, bloomOp,
-					rangeFilter, rangeOp, isRange, wildCardValue, currQuery, colsToCheck, wildcardColQuery, qid, isQueryPersistent, pqid, dualCaseCheckEnabled)
+				finalReq, totalBlockCount, filteredBlockCount, err := metadata.RunCmiCheck(key, indName, timeRange, blkT, bloomKeys, bloomOp,
+					rangeFilter, rangeOp, isRange, wildCardValue, currQuery, colsToCheck, wildcardColQuery, qid, isQueryPersistent, pqid)
 				if err != nil {
 					log.Errorf("qid=%d, getAllSearchRequestsFromCmi: Failed to get search request from cmi: %+v", qid, err)
 					searchRequestErrors <- err
