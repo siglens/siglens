@@ -274,7 +274,11 @@ let queriesColumnDefs = [
         headerName: 'Type',
         resizable: true,
         valueFormatter: (params) => {
-            return params.value ? params.value.toUpperCase() : '';
+            if (params.value) {
+                return params.value.charAt(0).toUpperCase() + params.value.slice(1).toLowerCase();
+            } else {
+                return '';
+            }
         }
     },
     {
