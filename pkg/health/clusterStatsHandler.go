@@ -42,6 +42,12 @@ import (
 
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
+// GetTraceStatsForAllSegments retrieves all trace-related statistics.
+func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64) {
+	allSegMetas := writer.ReadAllSegmetas()
+	return GetTracesStats(myid, allSegMetas)
+}
+
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	var httpResp utils.ClusterStatsResponseInfo

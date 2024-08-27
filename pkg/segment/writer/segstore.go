@@ -18,10 +18,9 @@
 package writer
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"sort"
@@ -30,6 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -61,6 +61,8 @@ const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const MaxConcurrentAgileTrees = 5
+
+const BS_INITIAL_SIZE = uint32(1000)
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
@@ -96,6 +98,8 @@ type SegStore struct {
 	stbDictEncWorkBuf  [][]string
 	segStatsWorkBuf    []byte
 	SegmentErrors      map[string]*structs.SearchErrorInfo
+	bsPool             []*bitset.BitSet
+	bsPoolCurrIdx      uint32
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -122,6 +126,22 @@ func NewSegStore(orgId uint64) *SegStore {
 	}
 
 	return segstore
+}
+
+func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
+	lastKnownLen := uint32(len(ss.bsPool))
+	if ss.bsPoolCurrIdx >= lastKnownLen {
+		newCount := BS_INITIAL_SIZE
+		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
+		for i := uint32(0); i < newCount; i++ {
+			newBs := bitset.New(bsSize)
+			ss.bsPool[lastKnownLen+i] = newBs
+		}
+	}
+	retVal := ss.bsPool[ss.bsPoolCurrIdx]
+	retVal.ClearAll()
+	ss.bsPoolCurrIdx++
+	return retVal
 }
 
 func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, err error) {
@@ -160,6 +180,7 @@ func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.maxIdx = 0
+	segstore.bsPoolCurrIdx = 0
 
 	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
@@ -809,7 +830,7 @@ func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 			return cname, true, 0
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			return cname, true, colCardinalityEstimate
 		}
@@ -841,7 +862,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			continue
@@ -995,7 +1016,8 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 }
 
 func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
-	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string) error {
+	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	var maxIdx uint32
 	var err error
@@ -1003,7 +1025,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
 		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err
@@ -1034,56 +1056,65 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	fname := fmt.Sprintf("%s_%v.cmi", ss.SegmentKey, xxhash.Sum64String(cname))
 
-	bffd, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	bffd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("flushBloomIndex: open failed fname=%v, err=%v", fname, err)
 		return 0
 	}
-
 	defer bffd.Close()
 
-	var buf bytes.Buffer
-	bufWriter := bufio.NewWriter(&buf)
-
-	// there is no accurate way to find exactly how many bytes the write.to is going to write
-	// and we need that number , so that we write it first and then the actual bloom data
-	// hence this messiness to write it to some buffer, get the bytesWritten count and then do
-	// the actual write
-	bytesWritten, bferr := bi.Bf.WriteTo(bufWriter)
-	if bferr != nil {
-		log.Errorf("flushBloomIndex: write buf failed fname=%v, err=%v", fname, bferr)
+	startOffset, err := bffd.Seek(0, io.SeekEnd)
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to seek at the end of the file fname=%v, err=%v", fname, err)
 		return 0
 	}
 
-	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE // for blkNum
-	bytesWritten += 1                         // reserver for CMI_Type
+	// There is no accurate way to find the size of bloom before writing it to the file.
+	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
+	bytesWritten := uint32(0)
 
-	// copy the size of blockBloom in uint32
-	if _, err = bffd.Write(toputils.Uint32ToBytesLittleEndian(uint32(bytesWritten))); err != nil {
-		log.Errorf("flushBloomIndex: bloomsize write failed fname=%v, err=%v", fname, err)
+	_, err = bffd.Write([]byte{0, 0, 0, 0})
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += 4
 
 	// copy the blockNum
 	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
-		log.Errorf("flushBloomIndex: bloomsize write failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
 
 	// write CMI type
 	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
 		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += 1
 
 	// write the blockBloom
-	_, bferr = bi.Bf.WriteTo(bffd)
-	if bferr != nil {
-		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, bferr)
+	bloomSize, err := bi.Bf.WriteTo(bffd)
+	if err != nil {
+		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += uint32(bloomSize)
+
+	err = bffd.Sync()
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
 		return 0
 	}
 
-	finalBytesWritten := bytesWritten + 4 // add 4 for size
+	// write the correct bloom size
+	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
+		return 0
+	}
+
 	if len(bi.HistoricalCount) == 0 {
 		bi.HistoricalCount = make([]uint32, 0)
 	}
@@ -1093,7 +1124,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
 
 	}
-	return uint64(finalBytesWritten)
+	return uint64(bytesWritten)
 }
 
 // returns the number of bytes written
@@ -1444,7 +1475,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx := uint16(0)
 
 	// version
-	copy(buf[idx:], []byte{1})
+	copy(buf[idx:], utils.VERSION_SEGSTATS)
 	idx++
 
 	// isNumeric
@@ -1455,11 +1486,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
-	hllData, err := sst.Hll.MarshalBinary()
-	if err != nil {
-		log.Errorf("writeSstToBuf: HLL marshal failed err=%v", err)
-		return idx, err
-	}
+	hllData := sst.GetHllBytes()
 
 	// HLL_Size
 	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))

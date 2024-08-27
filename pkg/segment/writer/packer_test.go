@@ -142,6 +142,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 			)},
 	}
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
@@ -153,7 +154,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 		}
 		tsKey := config.GetTimeStampKey()
 		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
 
@@ -256,6 +257,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 	}
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
@@ -267,7 +269,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 		}
 		tsKey := config.GetTimeStampKey()
 		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
 
@@ -563,10 +565,11 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 	}
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for idx, record := range records {
 		err := segstore.WritePackedRecord(record.input, cTime, SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.Nil(t, err, "failed to write packed record %v", idx)
 
 		assert.Equal(t, idx+1, segstore.RecordCount, "idx=%v", idx)
