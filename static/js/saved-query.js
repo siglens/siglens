@@ -279,7 +279,7 @@ let queriesColumnDefs = [
             } else {
                 return '';
             }
-        }
+        },
     },
     {
         field: 'queryLanguage',
