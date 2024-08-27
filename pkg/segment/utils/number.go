@@ -81,6 +81,29 @@ func (n *Number) Float64() (float64, error) {
 	return utils.BytesToFloat64LittleEndian(n.bytes[:8]), nil
 }
 
+func ConvertBytes(buf []byte) (int64, float64, SS_DTYPE) {
+	var intVal int64
+	var fltVal float64
+	var dtype SS_DTYPE
+
+	if len(buf) < 9 {
+		return intVal, fltVal, SS_INVALID
+	}
+	switch buf[8] {
+	case invalidType:
+		dtype = SS_INVALID
+	case backfillType:
+		dtype = SS_DT_BACKFILL
+	case int64Type:
+		intVal = utils.BytesToInt64LittleEndian(buf[:8])
+		dtype = SS_DT_SIGNED_NUM
+	case float64Type:
+		fltVal = utils.BytesToFloat64LittleEndian(buf[:8])
+		dtype = SS_DT_UNSIGNED_NUM
+	}
+	return intVal, fltVal, dtype
+}
+
 func (n *Number) ConvertToFloat64() error {
 
 	if n.bytes[8] == backfillType {
@@ -150,15 +173,13 @@ func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 	}
 
 	// If I am float and other is int then Convert other to float
-	if n.Type() == float64Type || other.Type() == int64Type {
+	if n.Type() == float64Type && other.Type() == int64Type {
 		err := other.ConvertToFloat64()
 		if err != nil {
 			return err
 		}
-	}
-
-	// If I am int and other is float then Convert me to float
-	if n.Type() == int64Type || other.Type() == float64Type {
+	} else if n.Type() == int64Type && other.Type() == float64Type {
+		// If I am int and other is float then Convert me to float
 		err := n.ConvertToFloat64()
 		if err != nil {
 			return err
