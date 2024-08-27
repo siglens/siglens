@@ -305,8 +305,11 @@ function checkChartType() {
                 source: displayOptions,
                 minLength: 0,
                 select: function (event, ui) {
+                    //eslint-disable-next-line no-unused-vars
                     toggleLineOptions(ui.item.value);
+                    //eslint-disable-next-line no-unused-vars
                     chartType = ui.item.value;
+                    //eslint-disable-next-line no-unused-vars
                     toggleChartType(ui.item.value);
                     $(this).blur();
                 },
@@ -329,6 +332,7 @@ function checkChartType() {
                 minLength: 0,
                 select: function (event, ui) {
                     let selectedColorTheme = ui.item.value;
+                    //eslint-disable-next-line no-unused-vars
                     updateChartTheme(selectedColorTheme);
                     $(this).blur();
                 },
@@ -353,6 +357,7 @@ function checkChartType() {
                 select: function (event, ui) {
                     var selectedLineStyle = ui.item.value;
                     var selectedStroke = $('#stroke-input').val();
+                    //eslint-disable-next-line no-unused-vars
                     updateLineCharts(selectedLineStyle, selectedStroke);
                     $(this).blur();
                 },
@@ -375,6 +380,7 @@ function checkChartType() {
                 select: function (event, ui) {
                     var selectedStroke = ui.item.value;
                     var selectedLineStyle = $('#line-style-input').val();
+                    //eslint-disable-next-line no-unused-vars
                     updateLineCharts(selectedLineStyle, selectedStroke);
                     $(this).blur();
                 },
