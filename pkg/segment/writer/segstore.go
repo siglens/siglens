@@ -274,7 +274,6 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
 	if segstore.stbHolder != nil {
-		log.Infof("resetSegStore: Release STB due to reset")
 		segstore.stbHolder.ReleaseSTB()
 		segstore.stbHolder = nil
 	}

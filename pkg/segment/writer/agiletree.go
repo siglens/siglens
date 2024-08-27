@@ -59,7 +59,7 @@ type STBHolder struct {
 func GetSTB() *STBHolder {
 	atreeCounterLock.Lock()
 	defer atreeCounterLock.Unlock()
-	if currentAgileTreeCount == MaxConcurrentAgileTrees {
+	if currentAgileTreeCount >= MaxConcurrentAgileTrees {
 		return nil
 	}
 
