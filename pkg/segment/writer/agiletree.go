@@ -220,8 +220,12 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
-func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
+func (stb *StarTreeBuilder) setColValEnc(colNum int, colValBytes []byte) uint32 {
+
 	// todo a zero copy version of map lookups needed
+	// todo the key in these maps could be hash of the byte array and then
+	// we store a reverse hash map lookup
+	colVal := string(colValBytes)
 	enc, ok := stb.segDictMap[colNum][colVal]
 	if !ok {
 		enc = stb.segDictLastNum[colNum]
@@ -361,10 +365,15 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		cwip := wip.colWips[colName]
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
-			for rawKey, recIdx := range deData.deToRecnumIdx {
-				enc := stb.setColValEnc(colNum, rawKey)
+			for _, dci := range deData.hashToDci {
 
-				recNumsBitset := deData.deRecNums[recIdx]
+				s := dci.sIdx
+				wl := uint32(dci.wlen)
+
+				dword := cwip.cbuf[s : s+wl]
+
+				enc := stb.setColValEnc(colNum, dword)
+				recNumsBitset := deData.deRecNums[dci.recBsIdx]
 				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
 					if recNumsBitset.Test(uint(recNum)) {
 						stb.wipRecNumToColEnc[colNum][recNum] = enc
@@ -384,7 +393,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 				return err
 			}
 			idx += uint32(endIdx)
-			enc := stb.setColValEnc(colNum, string(cValBytes))
+			enc := stb.setColValEnc(colNum, cValBytes)
 			stb.wipRecNumToColEnc[colNum][recNum] = enc
 		}
 		if idx < cwip.cbufidx {
@@ -544,10 +553,16 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
-		for dword, recsIdx := range deData.deToRecnumIdx {
-			recNumsBitSet := deData.deRecNums[recsIdx]
+		for _, dci := range deData.hashToDci {
+
+			s := dci.sIdx
+			wl := uint32(dci.wlen)
+
+			dword := cwip.cbuf[s : s+wl]
+
+			recNumsBitSet := deData.deRecNums[dci.recBsIdx]
 			if recNumsBitSet.Test(uint(recNum)) {
-				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
+				_, err := GetNumValFromRec(dword[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)

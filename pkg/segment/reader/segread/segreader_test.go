@@ -185,8 +185,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 
 	deCount := uint16(100)
 
-	deToRecnumIdx := make(map[string]uint16)
-	deHashToRecnumIdx := make(map[uint64]uint16)
+	hashToDci := make(map[uint64]*writer.DwordCbufIdxs)
 	deRecNums := make([]*bitset.BitSet, 100)
 
 	recCounts := uint16(100)
@@ -204,6 +203,8 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	}
 
 	recNum := uint16(0)
+	tempWipCbuf := make([]byte, 2_000_000)
+	wipIdx := uint32(0)
 	for dwIdx := uint16(0); dwIdx < deCount; dwIdx++ {
 
 		cval := fmt.Sprintf("mycval-%v", dwIdx)
@@ -212,6 +213,11 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		copy(cvalBytes[1:], utils.Uint16ToBytesLittleEndian(uint16(len(cval))))
 		copy(cvalBytes[3:], cval)
 
+		cvTlvLen := uint32(len(cvalBytes))
+
+		copy(tempWipCbuf[wipIdx:], cvalBytes)
+		wipIdx += cvTlvLen
+
 		newBs := bitset.New(uint(recCounts))
 
 		for rn := uint16(0); rn < recCounts/deCount; rn++ {
@@ -219,14 +225,14 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		}
 		cvalHash := xxhash.Sum64(cvalBytes)
 
-		deToRecnumIdx[string(cvalBytes)] = dwIdx
-		deHashToRecnumIdx[cvalHash] = dwIdx
+		dci := writer.CreateDci(wipIdx-cvTlvLen, uint16(cvTlvLen), dwIdx)
+		hashToDci[cvalHash] = dci
 		deRecNums[dwIdx] = newBs
 
 		recNum += recCounts / deCount
 	}
-
-	colWip.SetDeDataForTest(deCount, deToRecnumIdx, deHashToRecnumIdx, deRecNums)
+	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
+	colWip.SetDeDataForTest(deCount, hashToDci, deRecNums)
 
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()

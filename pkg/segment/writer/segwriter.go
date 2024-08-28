@@ -84,20 +84,28 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
+// for holding DictWords and their indices inside wip.cbuf[]
+type DwordCbufIdxs struct {
+	sIdx     uint32 // startIndex of this dword inside the wip cbuf
+	wlen     uint16 // len of this dword includes the TLV
+	recBsIdx uint16 // index into the deRecNums bitset array
+}
+
 type DeData struct {
-	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
-	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
-	// kunal todo , we could potentially just use uint32 indexes here that could point to the pool
+	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
+	hashToDci map[uint64]*DwordCbufIdxs
 	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
 	deCount   uint16           // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
-	cbufidx   uint32         // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf      [WIP_SIZE]byte // in progress bytes
-	csgFname  string         // file name of csg file
-	deData    *DeData
+	cbufidx      uint32         // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx    uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf         [WIP_SIZE]byte // in progress bytes
+	csgFname     string         // file name of csg file
+	deData       *DeData
+	dePackingBuf [WIP_DE_PACKING_SIZE]byte
+	dciPool      []*DwordCbufIdxs
 }
 
 type RangeIndex struct {
@@ -434,15 +442,20 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
-	deData := DeData{deToRecnumIdx: make(map[string]uint16),
-		deHashToRecnumIdx: make(map[uint64]uint16),
-		deRecNums:         make([]*bitset.BitSet, MaxDeEntries),
-		deCount:           0,
+	deData := DeData{hashToDci: make(map[uint64]*DwordCbufIdxs),
+		deRecNums: make([]*bitset.BitSet, MaxDeEntries),
+		deCount:   0,
+	}
+
+	dciPool := make([]*DwordCbufIdxs, wipCardLimit)
+	for i := uint16(0); i < wipCardLimit; i++ {
+		dciPool[i] = &DwordCbufIdxs{}
 	}
 
 	return &ColWip{
 		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:   &deData,
+		dciPool:  dciPool,
 	}
 }
 
@@ -949,13 +962,12 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint16,
-	deHashToRecnumIdx map[uint64]uint16, deRecNums []*bitset.BitSet) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, hashToDci map[uint64]*DwordCbufIdxs,
+	deRecNums []*bitset.BitSet) {
 
-	deData := DeData{deToRecnumIdx: deToRecnumIdx,
-		deHashToRecnumIdx: deHashToRecnumIdx,
-		deRecNums:         deRecNums,
-		deCount:           deCount,
+	deData := DeData{hashToDci: hashToDci,
+		deRecNums: deRecNums,
+		deCount:   deCount,
 	}
 	cw.deData = &deData
 }
@@ -1143,4 +1155,14 @@ func DeletePQSData() error {
 
 	// Delete PQS meta directory
 	return pqsmeta.DeletePQMetaDir()
+}
+
+func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
+
+	dci := &DwordCbufIdxs{
+		sIdx:     sIdx,
+		wlen:     wlen,
+		recBsIdx: recBsIdx,
+	}
+	return dci
 }

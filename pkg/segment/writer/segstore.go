@@ -186,11 +186,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for dword := range cwip.deData.deToRecnumIdx {
-				delete(cwip.deData.deToRecnumIdx, dword)
-			}
-			for cvalHash := range cwip.deData.deHashToRecnumIdx {
-				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			for cvalHash := range cwip.deData.hashToDci {
+				delete(cwip.deData.hashToDci, cvalHash)
 			}
 			for idx := range cwip.deData.deRecNums {
 				cwip.deData.deRecNums[idx] = nil
@@ -533,6 +530,10 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			}
 		}
 
+		if config.IsAggregationsEnabled() {
+			segstore.computeStarTree()
+		}
+
 		compBufIdx := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
@@ -583,9 +584,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
 				compBufIdx++
 			}
-		}
-		if config.IsAggregationsEnabled() {
-			segstore.computeStarTree()
 		}
 
 		allColsToFlush.Wait()

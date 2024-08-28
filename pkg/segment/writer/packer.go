@@ -102,7 +102,8 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 		colWip.cbufidx += 1
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
-		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount)
+		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
+			colWip.cbufidx-1)
 	}
 
 	return maxIdx, matchedCol, nil
@@ -492,7 +493,7 @@ func (ss *SegStore) encodeSingleString(key string, maxIdx uint32,
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
 	}
 	if !ss.skipDe {
-		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
+		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s)
 	}
 	addSegStatsStrIngestion(ss.AllSst, key, valBytes)
 	if colWip.cbufidx > maxIdx {
@@ -623,7 +624,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		colBlooms[key] = bi
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		ri := &RangeIndex{}
-		ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
+		ri.Ranges = make(map[string]*Numbers)
 		colRis[key] = ri
 	case SS_DT_BOOL:
 		// todo kunal, for bool type we need to keep a inverted index
@@ -650,8 +651,14 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 		bs.Set(i)
 	}
 	// we will also init dictEnc for backfilled recnums
-	colWip.deData.deToRecnumIdx[string(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
-	colWip.deData.deHashToRecnumIdx[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = colWip.deData.deCount
+
+	dci := &DwordCbufIdxs{
+		sIdx:     colWip.cbufidx - 1,
+		wlen:     1,
+		recBsIdx: colWip.deData.deCount,
+	}
+
+	colWip.deData.hashToDci[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = dci
 	colWip.deData.deRecNums[colWip.deData.deCount] = bs
 	colWip.deData.deCount++
 
@@ -666,7 +673,7 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 	ri, ok := colRis[key]
 	if !ok {
 		ri = &RangeIndex{}
-		ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
+		ri.Ranges = make(map[string]*Numbers)
 		colRis[key] = ri
 	}
 
@@ -676,7 +683,7 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 			valBytes)
 		valSize := encJsonNumber(key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, wipbuf[:],
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx)
 		return valSize
 	case int64:
 		addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64,
@@ -684,7 +691,7 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 
 		valSize := encJsonNumber(key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, wipbuf[:],
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx)
 		return valSize
 
 	default:
@@ -1477,21 +1484,26 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 	}
 }
 
-func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16) {
+func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16, cbufIdx uint32) {
 	if colWip.deData.deCount < wipCardLimit {
 		cvalHash := xxhash.Sum64(cval)
-		recsIdx, ok := colWip.deData.deHashToRecnumIdx[cvalHash]
+		dci, ok := colWip.deData.hashToDci[cvalHash]
 		if !ok {
 			// start bitset with len of the last RecNum*2
 			bs := ss.GetNewBitset(uint(recNum) * 2)
+
 			deData := colWip.deData
-			recsIdx = deData.deCount
-			deData.deToRecnumIdx[string(cval)] = recsIdx
-			deData.deHashToRecnumIdx[cvalHash] = recsIdx
-			deData.deRecNums[recsIdx] = bs
+
+			dci = colWip.dciPool[deData.deCount]
+			dci.sIdx = cbufIdx
+			dci.wlen = uint16(len(cval))
+			dci.recBsIdx = deData.deCount
+
+			deData.hashToDci[cvalHash] = dci
+			deData.deRecNums[dci.recBsIdx] = bs
 			deData.deCount++
 		}
-		colWip.deData.deRecNums[recsIdx].Set(uint(recNum))
+		colWip.deData.deRecNums[dci.recBsIdx].Set(uint(recNum))
 	}
 }
 
@@ -1500,42 +1512,47 @@ func SetCardinalityLimit(val uint16) {
 }
 
 /*
-	Packing format for dictionary encoding
-	[NumDictWords 2B] [dEntry1 XX] [dEntry2 XX] ...
+		Packing format for dictionary encoding
+		[NumDictWords 2B] [dEntry1 XX] [dEntry2 XX] ...
 
-   dEntry1 -- format
-   [word1Len 2B] [ActualWord] [numRecs 2B] [recNum1 2B][recNum2 2B]....
-
+	   dEntry1 -- format
+	   [word1Len 2B] [ActualWord] [numRecs 2B] [recNum1 2B][recNum2 2B]....
 */
-
 func PackDictEnc(colWip *ColWip) {
 
-	colWip.cbufidx = 0
+	localIdx := 0
 	// reuse the existing cbuf
 	// copy num of dict words
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
-	colWip.cbufidx += 2
+	copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
+	localIdx += 2
 
-	for dword, recIdx := range colWip.deData.deToRecnumIdx {
+	for _, dci := range colWip.deData.hashToDci {
 
-		recNumsBitset := colWip.deData.deRecNums[recIdx]
+		s := dci.sIdx
+		wl := uint32(dci.wlen)
+
+		dword := colWip.cbuf[s : s+wl]
+
+		recNumsBitset := colWip.deData.deRecNums[dci.recBsIdx]
 		// copy the actual dict word , the TLV is packed inside the dword
-		copy(colWip.cbuf[colWip.cbufidx:], []byte(dword))
-		colWip.cbufidx += uint32(len(dword))
+		copy(colWip.dePackingBuf[localIdx:], dword)
+		localIdx += len(dword)
 
 		// copy num of records, by finding how many bits are set
 		numRecs := uint16(recNumsBitset.Count())
-		copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(numRecs))
-		colWip.cbufidx += 2
+		copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(numRecs))
+		localIdx += 2
 
 		for i := uint16(0); i < uint16(recNumsBitset.Len()); i++ {
 			if recNumsBitset.Test(uint(i)) {
 				// copy the recNum
-				copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(i))
-				colWip.cbufidx += 2
+				copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(i))
+				localIdx += 2
 			}
 		}
 	}
+	copy(colWip.cbuf[:localIdx], colWip.dePackingBuf[:localIdx])
+	colWip.cbufidx = uint32(localIdx)
 }
 
 func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valBytes []byte) {
@@ -1688,4 +1705,9 @@ func getColByteSlice(rec []byte, qid uint64) ([]byte, uint16, error) {
 	}
 
 	return rec[0:endIdx], endIdx, nil
+}
+
+func (colWip *ColWip) CopyWipForTestOnly(cbuf []byte, cbufIdx uint32) {
+	copy(colWip.cbuf[:cbufIdx], cbuf[:cbufIdx])
+	colWip.cbufidx += cbufIdx
 }
