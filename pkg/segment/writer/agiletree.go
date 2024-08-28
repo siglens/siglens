@@ -408,19 +408,12 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 		for mcNum, mcName := range stb.mColNames {
 			cwip := wip.colWips[mcName]
 			midx := mcNum * TotalMeasFns
-			cVal, err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName)
+			err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName, num)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not get measure for cname: %v, err: %v",
 					mcName, err)
 				continue
 			}
-			err = cVal.ToNumber(num)
-			if err != nil {
-				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
-					cVal, mcName, err)
-				continue
-			}
-
 			err = stb.addMeasures(num, lenAggValues, midx, node)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
@@ -542,33 +535,31 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 */
 
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
-	colName string) (utils.CValueEnclosure, error) {
+	colName string, num *utils.Number) error {
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
 		for dword, recsIdx := range deData.deToRecnumIdx {
 			recNumsBitSet := deData.deRecNums[recsIdx]
 			if recNumsBitSet.Test(uint(recNum)) {
-				var mcVal utils.CValueEnclosure
-				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)
+				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
-					return utils.CValueEnclosure{}, err
+					return err
 				}
-				return mcVal, nil
+				return nil
 			}
 		}
-		return utils.CValueEnclosure{}, fmt.Errorf("could not find recNum: %v", recNum)
+		return fmt.Errorf("could not find recNum: %v", recNum)
 	}
 
-	var cVal utils.CValueEnclosure
-	endIdx, err := GetCvalFromRec(cwip.cbuf[cIdx[colNum]:], 0, &cVal) // todo pass qid
+	endIdx, err := GetNumValFromRec(cwip.cbuf[cIdx[colNum]:], 0, num) // todo pass qid
 	if err != nil {
 		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
-		return utils.CValueEnclosure{}, err
+		return err
 	}
 	cIdx[colNum] += uint32(endIdx)
-	return cVal, nil
+	return nil
 }
