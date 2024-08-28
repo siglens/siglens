@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -56,8 +57,19 @@ const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
 const MAX_INDEX_NAME_LEN = 256
+const RESP_ITEMS_INITIAL_LEN = 4000
 
 var resp_status_201 map[string]interface{}
+
+var respItemsPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
+		return &slice
+	},
+}
 
 func init() {
 	resp_status_201 = make(map[string]interface{})
@@ -123,9 +135,14 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	scanner.Split(bufio.ScanLines)
 
 	var bytesReceived int
-	// store all request index
-	itemsLen := 1000
-	var items = make([]interface{}, itemsLen)
+
+	items := *respItemsPool.Get().(*[]interface{})
+	// if we end up extending items, then save the orig pointer, so that we can put it back
+	origItems := items
+	// kunal todo check , if items gets extended and we put back origitems then does the os
+	// delete the old items array ?
+	itemsLen := len(items)
+
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
 
@@ -140,7 +157,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	for scanner.Scan() {
 		inCount++
 		if inCount >= itemsLen {
-			newArr := make([]interface{}, 1000)
+			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
 			itemsLen += 1000
 		}
@@ -231,6 +248,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	response["errors"] = overallError
 	response["items"] = items[0:inCount]
 
+	respItemsPool.Put(&origItems)
 	if atleastOneSuccess {
 		return processedCount, response, nil
 	} else {
