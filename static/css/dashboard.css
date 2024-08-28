@@ -322,7 +322,7 @@
 .editPanelMenu-dataSource {
   width: 120px;
   position: absolute;
-  z-index: 9;
+  z-index: 10;
 }
 
 .queryInput-container {
@@ -1354,7 +1354,7 @@ input:checked + .slider:before {
   flex-shrink: 0;
 }
 .ui-widget.ui-widget-content{
-  z-index: 999;
+  z-index: 9;
 }
 .index-container{
   border: 1px solid var(--border-btn-color);
