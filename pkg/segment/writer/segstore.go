@@ -1497,13 +1497,16 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx += 2
 
 	// HLL_Data
-	hllByteSlice := sst.GetHllBytesInPlace(buf[idx : idx+uint16(hllDataSize)])
+	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)] // len = cap
+	hllByteSlice = sst.GetHllBytesInPlace(hllByteSlice)
 	hllByteSliceLen := len(hllByteSlice)
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
 		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
 	}
+	copy(buf[idx:], hllByteSlice)
 	idx += uint16(hllByteSliceLen)
 
 	if !sst.IsNumeric {
