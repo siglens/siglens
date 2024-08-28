@@ -104,8 +104,8 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
-func InitSegStore(segmentKey string, segbaseDir string, suffix uint64,
-	virtualTableName string, skipDe bool, orgId uint64) *SegStore {
+func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string,
+	skipDe bool, orgId uint64, highTs uint64, lowTs uint64) *SegStore {
 
 	segStore := NewSegStore(orgId)
 	segStore.SegmentKey = segmentKey
@@ -114,6 +114,10 @@ func InitSegStore(segmentKey string, segbaseDir string, suffix uint64,
 	segStore.VirtualTableName = virtualTableName
 	segStore.skipDe = skipDe
 	segStore.OrgId = orgId
+
+	segStore.initWipBlock()
+	segStore.wipBlock.blockSummary.HighTs = highTs
+	segStore.wipBlock.blockSummary.LowTs = lowTs
 
 	return segStore
 }
