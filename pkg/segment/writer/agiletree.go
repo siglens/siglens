@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -36,6 +37,30 @@ var atreeCounterLock sync.Mutex = sync.Mutex{}
 type StarTree struct {
 	Root *Node
 }
+
+type Node struct {
+	myKey     uint32
+	parent    *Node
+	children  map[uint32]*Node
+	aggValues []*utils.Number
+}
+
+type StarTreeBuilder struct {
+	groupByKeys       []string
+	numGroupByCols    uint16
+	mColNames         []string
+	nodeCount         int
+	nodePool          []*Node
+	tree              *StarTree
+	segDictMap        []map[string]uint32 // "mac" ==> enc-2
+	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
+	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
+	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
+	buf               []byte
+	// array to keep reusing for tree traversal. [level][*Node Array]
+	treeTravNodePts   [][]*Node
+}
+
 
 // its ok for this to be int, since this will be used as an index in arrays
 const (
@@ -66,7 +91,9 @@ func GetSTB() *STBHolder {
 	for i := 0; i < MaxConcurrentAgileTrees; i++ {
 		if STBHolderPool[i] == nil {
 			STBHolderPool[i] = &STBHolder{
-				stbPtr: &StarTreeBuilder{},
+				stbPtr: &StarTreeBuilder{
+					// 1 extra for the root level
+					treeTravNodePts: make([][]*Node, querytracker.MAX_NUM_GROUPBY_COLS+1)},
 			}
 		}
 
@@ -107,27 +134,6 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	}
 	log.Errorf("AgFnToIdx: invalid fn: %v", fn)
 	return MeasFnCountIdx
-}
-
-type Node struct {
-	myKey     uint32
-	parent    *Node
-	children  map[uint32]*Node
-	aggValues []*utils.Number
-}
-
-type StarTreeBuilder struct {
-	groupByKeys       []string
-	numGroupByCols    uint16
-	mColNames         []string
-	nodeCount         int
-	nodePool          []*Node
-	tree              *StarTree
-	segDictMap        []map[string]uint32 // "mac" ==> enc-2
-	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
-	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
-	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
-	buf               []byte
 }
 
 func (stb *StarTreeBuilder) GetGroupByKeys() []string {
