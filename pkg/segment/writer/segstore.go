@@ -104,7 +104,22 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
+func InitSegStore(segmentKey string, segbaseDir string, suffix uint64,
+	virtualTableName string, skipDe bool, orgId uint64) *SegStore {
+
+	segStore := NewSegStore(orgId)
+	segStore.SegmentKey = segmentKey
+	segStore.segbaseDir = segbaseDir
+	segStore.suffix = suffix
+	segStore.VirtualTableName = virtualTableName
+	segStore.skipDe = skipDe
+	segStore.OrgId = orgId
+
+	return segStore
+}
+
 func NewSegStore(orgId uint64) *SegStore {
+	now := time.Now()
 	segstore := &SegStore{
 		Lock:               sync.Mutex{},
 		pqNonEmptyResults:  make(map[string]bool),
@@ -112,7 +127,8 @@ func NewSegStore(orgId uint64) *SegStore {
 		pqTracker:          initPQTracker(),
 		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		LastSegPqids:       make(map[string]struct{}),
-		timeCreated:        time.Now(),
+		timeCreated:        now,
+		lastUpdated:        now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
