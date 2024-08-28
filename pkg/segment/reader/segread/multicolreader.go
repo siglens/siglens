@@ -369,19 +369,19 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[uint16
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool) (bool, error) {
+	bsh *structs.BlockSearchHelper, cname string) (bool, error) {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
 		return false, errors.New("could not find sfr for cname")
 	}
 
-	return mcsr.allFileReaders[keyIndex].ApplySearchToMatchFilterDictCsg(match, bsh, isCaseInsensitive)
+	return mcsr.allFileReaders[keyIndex].ApplySearchToMatchFilterDictCsg(match, bsh)
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
 	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper,
-	cname string, isCaseInsensitive bool) (bool, error) {
+	cname string) (bool, error) {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
@@ -389,7 +389,7 @@ func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte 
 	}
 
 	return mcsr.allFileReaders[keyIndex].ApplySearchToExpressionFilterDictCsg(qValDte,
-		fop, isRegexSearch, bsh, isCaseInsensitive)
+		fop, isRegexSearch, bsh)
 }
 
 func (mcsr *MultiColSegmentReader) IsColPresent(cname string) bool {

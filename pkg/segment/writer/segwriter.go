@@ -93,12 +93,11 @@ type DeData struct {
 }
 
 type ColWip struct {
-	cbufidx               uint32         // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx             uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf                  [WIP_SIZE]byte // in progress bytes
-	csgFname              string         // file name of csg file
-	deData                *DeData
-	workBufForCompression []byte
+	cbufidx   uint32         // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf      [WIP_SIZE]byte // in progress bytes
+	csgFname  string         // file name of csg file
+	deData    *DeData
 }
 
 type RangeIndex struct {
@@ -442,9 +441,8 @@ func InitColWip(segKey string, colName string) *ColWip {
 	}
 
 	return &ColWip{
-		csgFname:              fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:                &deData,
-		workBufForCompression: make([]byte, WIP_SIZE),
+		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:   &deData,
 	}
 }
 
@@ -674,7 +672,7 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 */
 // returns number of written bytes, offset of block in file, and any errors
 
-func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
+func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, error) {
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
@@ -698,7 +696,7 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	}
 	blkLen += 1 // for compression type
 
-	compressed, compLen, err := compressWip(colWip, encType)
+	compressed, compLen, err := compressWip(colWip, encType, compBuf)
 	if err != nil {
 		log.Errorf("WriteWip: compression of wip failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, blkOffset, err
@@ -713,13 +711,13 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	return blkLen, blkOffset, nil
 }
 
-func compressWip(colWip *ColWip, encType []byte) ([]byte, uint32, error) {
+func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
 
 		// reduce the len to 0, but keep the cap of the underlying buffer
 		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx],
-			colWip.workBufForCompression[:0])
+			compBuf[:0])
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf[0:colWip.cbufidx]
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
