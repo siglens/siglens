@@ -1122,10 +1122,9 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.AppendRequest != nil {
-		log.Infof("letColReq.AppendRequest != nil")
-		// if err := performAppendRequest(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
-		// 	return fmt.Errorf("performLetColumnsRequest: %v", err)
-		// }
+		if err := performAppendRequest(); err != nil {
+			return fmt.Errorf("performAppendRequest: %v", err)
+		}
 	} else {
 		return errors.New("performLetColumnsRequest: expected one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest to have a value")
 	}
@@ -1133,10 +1132,9 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 	return nil
 }
 
-// func performAppendRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) {
-// 	log.Info("Processing Append Request")
-// 	return nil
-// }
+func performAppendRequest() error {
+	return errors.New("append command is not implemented yet")
+}
 
 func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {

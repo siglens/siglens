@@ -665,7 +665,6 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 			aggNode.OutputTransforms.LetColumns.FillNullRequest = node.LetColumns.FillNullRequest
 		}
 		if node.LetColumns.AppendRequest != nil {
-			log.Info("Valid Append Request Found")
 			aggNode.OutputTransforms.LetColumns.AppendRequest = node.LetColumns.AppendRequest
 		}
 	}

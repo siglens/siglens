@@ -727,16 +727,7 @@ func (qa *QueryAggregators) hasAppendRequest() bool {
 }
 
 func (qa *QueryAggregators) HasAppendInChain() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.hasAppendRequest() {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasAppendInChain()
-	}
-	return false
+	return qa.HasInChain((*QueryAggregators).hasAppendRequest)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

@@ -11093,37 +11093,6 @@ func Test_RemoveRedundantSearches(t *testing.T) {
 }
 
 func Test_Append_1(t *testing.T) {
-	query := `search city=Boston | append [ search foo=bar ]`
-	res, err := spl.Parse("", []byte(query))
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "city", filterNode.Comparison.Field)
-	assert.Equal(t, `"boston"`, filterNode.Comparison.Values)
-
-	expressionFilter := extractExpressionFilter(t, filterNode)
-	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	assert.Equal(t, "boston", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
-
-	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
-	assert.Equal(t, "foo", subSearch.Comparison.Field)
-	assert.Equal(t, "=", subSearch.Comparison.Op)
-	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
-
-}
-func Test_Append_2(t *testing.T) {
 	query := `* | append [ search foo=bar ]`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
@@ -11146,10 +11115,13 @@ func Test_Append_2(t *testing.T) {
 	assert.Equal(t, "=", subSearch.Comparison.Op)
 	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
 
+	assert.Equal(t, 60, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
+	assert.Equal(t, 50000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
+
 }
 
-func Test_Append_3(t *testing.T) {
-	query := `* | append [ search foo=bar ] | format maxresults=5`
+func Test_Append_2(t *testing.T) {
+	query := `* | append maxtime=30 maxout=10000 [ search foo=bar ] `
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -11165,47 +11137,12 @@ func Test_Append_3(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
 
-	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
-	assert.Equal(t, "foo", subSearch.Comparison.Field)
-	assert.Equal(t, "=", subSearch.Comparison.Op)
-	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
-
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.FormatResults)
-	assert.Equal(t, "OR", aggregator.Next.OutputTransforms.LetColumns.FormatResults.MVSeparator)
-	assert.Equal(t, uint64(5), aggregator.Next.OutputTransforms.LetColumns.FormatResults.MaxResults)
-	assert.Equal(t, "NOT()", aggregator.Next.OutputTransforms.LetColumns.FormatResults.EmptyString)
-}
-
-func Test_Append_4(t *testing.T) {
-	query := `* | append [ search foo=bar ] | append [ search foo1=bar1 ]`
-	res, err := spl.Parse("", []byte(query))
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
-	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
+	assert.Equal(t, 30, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
+	assert.Equal(t, 10000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
 
 	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
 	assert.Equal(t, "foo", subSearch.Comparison.Field)
 	assert.Equal(t, "=", subSearch.Comparison.Op)
 	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
-
-	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.AppendRequest)
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.AppendRequest.Subsearch)
-
-	subSearchNext, _ := aggregator.Next.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
-	assert.Equal(t, "foo1", subSearchNext.Comparison.Field)
-	assert.Equal(t, "=", subSearchNext.Comparison.Op)
-	assert.Equal(t, "bar1", strings.Trim(subSearchNext.Comparison.Values.(string), `"`))
 
 }

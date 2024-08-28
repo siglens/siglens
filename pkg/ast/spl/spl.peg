@@ -5043,31 +5043,38 @@ InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
     return inputLookup, nil
 }
 
-
 // Definitions for append command options
 AppendCmdOption <- option:(ExtendTimeRangeOption / MaxTimeOption / MaxOutOption) {
     return option, nil
 }
 
 // Definitions for the individual options within append
-ExtendTimeRangeOption <- "extendtimerange" EQUAL boolean:("true" / "false") {
+ExtendTimeRangeOption <- "extendtimerange" EQUAL boolean:Boolean {
     return &structs.AppendCmdOption{
         OptionType: "extendtimerange",
         Value:      boolean == "true",
     }, nil
 }
 
-MaxTimeOption <- "maxtime" EQUAL time:Int {
+MaxTimeOption <- "maxtime" EQUAL time:IntegerAsString {
+    maxTimeInt, err := strconv.ParseUint(time.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid maxtime (%v): %v", time.(string), err)
+    }
     return &structs.AppendCmdOption{
         OptionType: "maxtime",
-        Value:      time,
+        Value:      maxTimeInt,
     }, nil
 }
 
-MaxOutOption <- "maxout" EQUAL max:Int {
+MaxOutOption <- "maxout" EQUAL max:IntegerAsString {
+    maxOutInt, err := strconv.ParseUint(max.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid maxout (%v): %v", max.(string), err)
+    }
     return &structs.AppendCmdOption{
         OptionType: "maxout",
-        Value:      max,
+        Value:      maxOutInt,
     }, nil
 }
 
@@ -5104,18 +5111,30 @@ AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
 }
 
 // AppendBlock with subsearch handling
-AppendBlock <- PIPE CMD_APPEND subsearch:Subsearch options:(SPACE AppendCmdOption)* {
-    appendOptions := &structs.AppendCmdOptions{}
-    for _, opt := range options.([]any) {
-        option := opt.(*structs.AppendCmdOption)
-        switch option.OptionType {
-            case "extendtimerange":
-                appendOptions.ExtendTimeRange = option.Value.(bool)
-            case "maxtime":
-                appendOptions.MaxTime = option.Value.(int)
-            case "maxout":
-                appendOptions.MaxOut = option.Value.(int)
-        }
+AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subsearch {
+    appendOptions := &structs.AppendCmdOptions{
+        ExtendTimeRange: false,
+        MaxTime:         60,
+        MaxOut:          50000,
+    }
+
+    for _, opt := range options.([]interface{}) {
+        if optSlice, ok := opt.([]interface{}); ok {
+            for _, appendOption := range optSlice {
+                if option, ok := appendOption.(*structs.AppendCmdOption); ok {
+                    switch option.OptionType {
+                        case "extendtimerange":
+                            appendOptions.ExtendTimeRange = option.Value.(bool)
+                        case "maxtime":
+                            appendOptions.MaxTime = int(option.Value.(uint64))
+                        case "maxout":
+                            appendOptions.MaxOut = int(option.Value.(uint64))
+                        default:
+                            return nil, fmt.Errorf("AppendBlock: Unknown OptionType: %v", option.OptionType)
+                    }
+                } 
+            }
+        } 
     }
 
     letColReq := &structs.LetColumnsRequest{
@@ -5133,7 +5152,6 @@ AppendBlock <- PIPE CMD_APPEND subsearch:Subsearch options:(SPACE AppendCmdOptio
         },
     }, nil
 }
-
 
 
 // All commands except CMD_SEARCH
