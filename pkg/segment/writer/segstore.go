@@ -1498,7 +1498,13 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 
 	// HLL_Data
 	hllByteSlice := sst.GetHllBytesInPlace(buf[idx : idx+uint16(hllDataSize)])
-	idx += uint16(len(hllByteSlice))
+	hllByteSliceLen := len(hllByteSlice)
+	if hllByteSliceLen != hllDataSize {
+		// This case should not happen, but if it does, we need to adjust the size
+		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
+		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+	}
+	idx += uint16(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
