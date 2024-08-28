@@ -56,6 +56,9 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			)},
 	}
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-a-%d", i)
@@ -65,7 +68,8 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		_, _, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS)
+		_, _, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 
 		colWips := allSegStores[sId].wipBlock.colWips
@@ -153,8 +157,11 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			)},
 	}
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for _, test := range cases {
-		allCols := make(map[string]bool)
+		allCols := make(map[string]uint32)
 		segstats := make(map[string]*SegStats)
 
 		var blockSummary BlockSummary
@@ -173,13 +180,14 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		segstore := NewSegStore(0)
 		segstore.wipBlock = wipBlock
 		segstore.SegmentKey = "test-segkey"
-		segstore.AllSeenColumns = allCols
+		segstore.AllSeenColumnSizes = allCols
 		segstore.pqTracker = initPQTracker()
 		segstore.AllSst = segstats
 		segstore.numBlocks = 0
 
 		ts := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS)
+		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
 
 		assert.Nil(t, err)

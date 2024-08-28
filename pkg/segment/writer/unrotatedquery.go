@@ -133,7 +133,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]bool, blockIdx uint16,
+	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockIdx uint16,
 	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64,
 	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
@@ -356,14 +356,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 		// As long as there is one column within the range, the value is equal to true
 		var matchedBlockRange bool
 		for col := range colsToCheck {
-			var cmi *structs.CmiContainer
-			var ok bool
-			if cmi, ok = currInfo[col]; !ok {
+			cmi, ok := currInfo[col]
+			if !ok || cmi == nil || cmi.Ranges == nil {
+				if rangeOp == segutils.NotEquals {
+					timeFilteredBlocks[blkNum][col] = true
+					matchedBlockRange = true
+				}
 				continue
 			}
-			if cmi.Ranges == nil {
-				continue
-			}
+
 			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
 			if isMatched {
 				timeFilteredBlocks[blkNum][col] = true
@@ -510,10 +511,10 @@ func GetUnrotatedMetadataInfo() (uint64, uint64) {
 }
 
 // returns map[table]->map[segKey]->timeRange that pass index & time range check, total checked, total passed
-func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*dtu.TimeRange, uint64, uint64) {
+func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 	totalCount := uint64(0)
 	totalChecked := uint64(0)
-	retVal := make(map[string]map[string]*dtu.TimeRange)
+	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
 
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
@@ -533,9 +534,11 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			continue
 		}
 		if _, ok := retVal[usi.TableName]; !ok {
-			retVal[usi.TableName] = make(map[string]*dtu.TimeRange)
+			retVal[usi.TableName] = make(map[string]*structs.SegmentByTimeAndColSizes)
 		}
-		retVal[usi.TableName][segKey] = usi.tsRange
+		retVal[usi.TableName][segKey] = &structs.SegmentByTimeAndColSizes{
+			TimeRange: usi.tsRange,
+		}
 		totalCount++
 	}
 	return retVal, totalChecked, totalCount

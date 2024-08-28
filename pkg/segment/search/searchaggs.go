@@ -24,7 +24,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -50,7 +49,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, aggCols, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, aggCols, err)
@@ -761,7 +760,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 
 	measureColAndTS, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(ops)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, measureColAndTS, err)
@@ -962,9 +961,9 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						stats = &structs.SegStats{
 							IsNumeric: false,
 							Count:     0,
-							Hll:       hyperloglog.New16(),
 							Records:   make([]*utils.CValueEnclosure, 0),
 						}
+						stats.CreateNewHll()
 
 						lStats[colName] = stats
 					}
@@ -987,6 +986,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				switch val := rawVal.(type) {
 				case string:
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case int64:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case float64:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true

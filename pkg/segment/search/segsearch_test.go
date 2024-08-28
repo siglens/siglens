@@ -417,8 +417,8 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 	key0Block0Stats := block0["key0"]
 	assert.False(t, key0Block0Stats.IsNumeric)
 	assert.Equal(t, key0Block0Stats.Count, uint64(numEntriesForBuffer))
-	assert.GreaterOrEqual(t, key0Block0Stats.Hll.Estimate(), uint64(0))
-	assert.LessOrEqual(t, key0Block0Stats.Hll.Estimate(), uint64(2), "key0 always has same value")
+	assert.GreaterOrEqual(t, key0Block0Stats.GetHllCardinality(), uint64(0))
+	assert.LessOrEqual(t, key0Block0Stats.GetHllCardinality(), uint64(2), "key0 always has same value")
 
 	key6Block0Stats := block0["key6"]
 	assert.True(t, key6Block0Stats.IsNumeric)

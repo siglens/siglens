@@ -141,6 +141,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 				log.Errorf("qid=%d, Time range passed for a block with no micro index!", qid)
 				continue
 			}
+
 			if isRange {
 				if wildcardCol {
 					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
@@ -225,10 +226,20 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	var matchedBlockRange bool
 	for colName := range colsToCheck {
 		colCMI, err := segMicroIndex.GetCMIForBlockAndColumn(blockToCheck, colName)
+		if err == errCMIColNotFound && rangeOp == utils.NotEquals {
+			matchedBlockRange = true
+			timeFilteredBlocks[blockToCheck][colName] = true
+			continue
+		}
 		if err != nil {
+			log.Errorf("doRangeCheckForCol: failed to get cmi for block %d and column %s: %v", blockToCheck, colName, err)
 			continue
 		}
 		if colCMI.CmiType != utils.CMI_RANGE_INDEX[0] {
+			if rangeOp == utils.NotEquals {
+				matchedBlockRange = true
+				timeFilteredBlocks[blockToCheck][colName] = true
+			}
 			continue
 		}
 		matchedBlockRange = metautils.CheckRangeIndex(rangeFilter, colCMI.Ranges, rangeOp, qid)

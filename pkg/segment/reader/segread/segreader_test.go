@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
@@ -48,7 +49,7 @@ func Test_segReader(t *testing.T) {
 	var queryCol string
 
 	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
@@ -150,7 +151,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums)
+	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
 	assert.Nil(b, err)
 
 	b.ResetTimer()
@@ -186,7 +187,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 
 	deToRecnumIdx := make(map[string]uint16)
 	deHashToRecnumIdx := make(map[uint64]uint16)
-	deRecNums := make([][]uint16, 100)
+	deRecNums := make([]*bitset.BitSet, 100)
 
 	recCounts := uint16(100)
 
@@ -211,21 +212,21 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		copy(cvalBytes[1:], utils.Uint16ToBytesLittleEndian(uint16(len(cval))))
 		copy(cvalBytes[3:], cval)
 
-		arr := make([]uint16, recCounts/deCount)
+		newBs := bitset.New(uint(recCounts))
 
+		for rn := uint16(0); rn < recCounts/deCount; rn++ {
+			newBs.Set(uint(recNum + rn))
+		}
 		cvalHash := xxhash.Sum64(cvalBytes)
 
 		deToRecnumIdx[string(cvalBytes)] = dwIdx
 		deHashToRecnumIdx[cvalHash] = dwIdx
-		deRecNums[dwIdx] = arr
+		deRecNums[dwIdx] = newBs
 
-		for rn := uint16(0); rn < recCounts/deCount; rn++ {
-			arr[rn] = recNum + rn
-		}
 		recNum += recCounts / deCount
 	}
 
-	colWip.SetDeData(deCount, deToRecnumIdx, deHashToRecnumIdx, deRecNums)
+	colWip.SetDeDataForTest(deCount, deToRecnumIdx, deHashToRecnumIdx, deRecNums)
 
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()

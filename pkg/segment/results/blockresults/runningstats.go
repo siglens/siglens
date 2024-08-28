@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/axiomhq/hyperloglog"
+	"github.com/cespare/xxhash"
+	"github.com/segmentio/go-hll"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -38,7 +39,7 @@ type RunningBucketResults struct {
 
 type runningStats struct {
 	rawVal    utils.CValueEnclosure // raw value
-	hll       *hyperloglog.Sketch
+	hll       *hll.Hll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
 }
@@ -47,7 +48,7 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
 		if internalMeasureFns[i].MeasureFunc == utils.Cardinality {
-			retVal[i] = runningStats{hll: hyperloglog.New()}
+			retVal[i] = runningStats{hll: structs.CreateNewHll()}
 		} else if internalMeasureFns[i].MeasureFunc == utils.Avg {
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
 		} else if internalMeasureFns[i].MeasureFunc == utils.Range {
@@ -133,7 +134,7 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				defer bbp.Put(bb)
 				bb.Reset()
 				_, _ = bb.WriteString(rawVal)
-				(*runningStats)[i].hll.Insert(bb.B)
+				(*runningStats)[i].hll.AddRaw(xxhash.Sum64(bb.B))
 				continue
 			}
 			fallthrough
@@ -141,6 +142,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			step, err := rr.AddEvalResultsForValuesOrCardinality(runningStats, measureResults, i)
 			if err != nil {
 				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for values/cardinality, err: %v", err)
+			}
+			i += step
+		case utils.List:
+			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i)
+			if err != nil {
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for list, err: %v", err)
 			}
 			i += step
 		default:
@@ -231,9 +238,23 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				}
 				i += (len(fields) - 1)
 			}
+		case utils.List:
+			if rr.currStats[i].ValueColRequest == nil {
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'list' while ValueColRequest is nil, err: %v", err)
+				}
+			} else {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'list' err: %v", err)
+				}
+				i += (len(fields) - 1)
+			}
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				err := (*runningStats)[i].hll.Merge(toJoinRunningStats[i].hll)
+				err := (*runningStats)[i].hll.StrictUnion(*toJoinRunningStats[i].hll)
 				if err != nil {
 					log.Errorf("RunningBucketResults.mergeRunningStats: failed merge HLL!: %v", err)
 				}
@@ -527,6 +548,42 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
+
+	return len(fields) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) (int, error) {
+	if (*runningStats)[i].rawVal.CVal == nil {
+		(*runningStats)[i].rawVal = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING_SLICE,
+			CVal:  make([]string, 0),
+		}
+	}
+	strList, ok := (*runningStats)[i].rawVal.CVal.([]string)
+	if !ok {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to convert CVal to list, err: %v", (*runningStats)[i].rawVal.CVal)
+	}
+	if rr.currStats[i].ValueColRequest == nil {
+		strVal, err := measureResults[i].GetString()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to add measurement to running stats, err: %v", err)
+		}
+		strList = append(strList, strVal)
+		(*runningStats)[i].rawVal.CVal = strList
+		return 0, nil
+	}
+
+	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fieldToValue, err := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to populate field to value, err: %v", err)
+	}
+
+	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].rawVal.CVal = result
 
 	return len(fields) - 1, nil
 }

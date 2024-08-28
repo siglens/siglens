@@ -20,11 +20,18 @@ package writer
 import (
 	"fmt"
 	"math"
+	"sync"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+const MaxConcurrentAgileTrees = 5
+
+var currentAgileTreeCount int
+var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 type StarTree struct {
 	Root *Node
@@ -40,6 +47,48 @@ const (
 	// Note: always keep this last since it is used for indexing into aggValues
 	TotalMeasFns
 )
+
+var STBHolderPool [MaxConcurrentAgileTrees]*STBHolder
+
+type STBHolder struct {
+	stbPtr            *StarTreeBuilder
+	currentlyInUse    bool
+	lastUsedTimestamp time.Time
+}
+
+func GetSTB() *STBHolder {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+	if currentAgileTreeCount >= MaxConcurrentAgileTrees {
+		return nil
+	}
+
+	for i := 0; i < MaxConcurrentAgileTrees; i++ {
+		if STBHolderPool[i] == nil {
+			STBHolderPool[i] = &STBHolder{
+				stbPtr: &StarTreeBuilder{},
+			}
+		}
+
+		if !STBHolderPool[i].currentlyInUse {
+			STBHolderPool[i].currentlyInUse = true
+			STBHolderPool[i].lastUsedTimestamp = time.Now()
+			currentAgileTreeCount++
+
+			return STBHolderPool[i]
+		}
+	}
+
+	return nil
+}
+
+func (stbHolder *STBHolder) ReleaseSTB() {
+	atreeCounterLock.Lock()
+	defer atreeCounterLock.Unlock()
+
+	currentAgileTreeCount--
+	stbHolder.currentlyInUse = false
+}
 
 var IdxToAgFn []utils.AggregateFunctions = []utils.AggregateFunctions{
 	utils.Min, utils.Max,
@@ -60,13 +109,11 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	return MeasFnCountIdx
 }
 
-var one = utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)}
-
 type Node struct {
 	myKey          uint32
 	parent         *Node
 	children       map[uint32]*Node
-	aggValues      []utils.CValueEnclosure
+	aggValues      []*utils.Number
 	commonChildren map[uint32][]*Node
 }
 
@@ -189,13 +236,27 @@ func (stb *StarTreeBuilder) resetNodeData() {
 		for k := range node.children {
 			delete(node.children, k)
 		}
-		node.aggValues = nil
+		if len(node.aggValues) > 0 {
+			for i := range node.aggValues {
+				node.aggValues[i].Reset()
+			}
+		}
 	}
 	stb.nodeCount = 0
 }
 
 func (stb *StarTreeBuilder) newNode() *Node {
 
+	// pre-alloc on the first one to the size of MaxAgileTree,
+	// and after that if the nodePool count exceeds then we can do the
+	// one by one extension
+	stbNodePoolLen := len(stb.nodePool)
+	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCountForAlloc)
+	if len(stb.nodePool) > stbNodePoolLen {
+		for i := stbNodePoolLen; i < len(stb.nodePool); i++ {
+			stb.nodePool[i] = &Node{}
+		}
+	}
 	if stb.nodeCount >= len(stb.nodePool) {
 		stb.nodePool = append(stb.nodePool, &Node{})
 	}
@@ -211,12 +272,16 @@ func (stb *StarTreeBuilder) newNode() *Node {
 
 func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 
-	first := true
-
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 
 	if len(cur.children) != 0 {
-		cur.aggValues = make([]utils.CValueEnclosure, lenAggValues)
+		aggValuesLen := len(cur.aggValues)
+		cur.aggValues = toputils.ResizeSlice(cur.aggValues, lenAggValues)
+		if len(cur.aggValues) > aggValuesLen {
+			for i := aggValuesLen; i < len(cur.aggValues); i++ {
+				cur.aggValues[i] = &utils.Number{}
+			}
+		}
 	}
 
 	var err error
@@ -226,34 +291,28 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 			return err
 		}
 
-		if first {
-			copy(cur.aggValues[:lenAggValues], child.aggValues[:lenAggValues])
-			first = false
-			continue
-		}
-
 		for mcNum := range stb.mColNames {
 			midx := mcNum * TotalMeasFns
 			agidx := midx + MeasFnMinIdx
-			cur.aggValues[agidx], err = utils.Reduce(cur.aggValues[agidx], child.aggValues[agidx], utils.Min)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Min)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating min err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnMaxIdx
-			cur.aggValues[agidx], err = utils.Reduce(cur.aggValues[agidx], child.aggValues[agidx], utils.Max)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Max)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating max err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnSumIdx
-			cur.aggValues[agidx], err = utils.Reduce(cur.aggValues[agidx], child.aggValues[agidx], utils.Sum)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Sum)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating sum err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnCountIdx
-			cur.aggValues[agidx], err = utils.Reduce(cur.aggValues[agidx], child.aggValues[agidx], utils.Count)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], utils.Count)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating count err:%v", err)
 				return err
@@ -285,35 +344,38 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 		return nil
 	}
 	if node.aggValues == nil {
-		node.aggValues = make([]utils.CValueEnclosure, len(stb.mColNames)*TotalMeasFns)
+		node.aggValues = make([]*utils.Number, len(stb.mColNames)*TotalMeasFns)
+		for i := range node.aggValues {
+			node.aggValues[i] = &utils.Number{}
+		}
 	}
 
 	var err error
 	for mcNum := range stb.mColNames {
 		midx := mcNum * TotalMeasFns
 		agvidx := midx + MeasFnMinIdx
-		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Min)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Min)
 		if err != nil {
 			log.Errorf("updateAggVals: error in min err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnMaxIdx
-		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Max)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Max)
 		if err != nil {
 			log.Errorf("updateAggVals: error in max err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnSumIdx
-		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Sum)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Sum)
 		if err != nil {
 			log.Errorf("updateAggVals: error in sum err:%v", err)
 			return err
 		}
 
 		agvidx = midx + MeasFnCountIdx
-		node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], nodeToMerge.aggValues[agvidx], utils.Count)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Count)
 		if err != nil {
 			log.Errorf("updateAggVals: error in count err:%v", err)
 			return err
@@ -435,10 +497,13 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
 			for rawKey, recIdx := range deData.deToRecnumIdx {
-				indices := deData.deRecNums[recIdx]
 				enc := stb.setColValEnc(colNum, rawKey)
-				for _, recNum := range indices {
-					stb.wipRecNumToColEnc[colNum][recNum] = enc
+
+				recNumsBitset := deData.deRecNums[recIdx]
+				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
+					if recNumsBitset.Test(uint(recNum)) {
+						stb.wipRecNumToColEnc[colNum][recNum] = enc
+					}
 				}
 			}
 			continue // done with this dict encoded column
@@ -447,14 +512,14 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		// read the non-dict way
 		idx := uint32(0)
 		for recNum := uint16(0); recNum < numRecs; recNum++ {
-			cVal, endIdx, err := getColByteSlice(cwip.cbuf[idx:], 0) // todo pass qid here
+			cValBytes, endIdx, err := getColByteSlice(cwip.cbuf[idx:], 0) // todo pass qid here
 			if err != nil {
 				log.Errorf("populateLeafsWithMeasVals: Could not extract val for cname: %v, idx: %v",
 					colName, idx)
 				return err
 			}
 			idx += uint32(endIdx)
-			enc := stb.setColValEnc(colNum, string(cVal))
+			enc := stb.setColValEnc(colNum, string(cValBytes))
 			stb.wipRecNumToColEnc[colNum][recNum] = enc
 		}
 		if idx < cwip.cbufidx {
@@ -473,6 +538,8 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
+	num := &utils.Number{}
+
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for colNum := range stb.groupByKeys {
 			curColValues[colNum] = stb.wipRecNumToColEnc[colNum][recNum]
@@ -481,12 +548,13 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 		for mcNum, mcName := range stb.mColNames {
 			cwip := wip.colWips[mcName]
 			midx := mcNum * TotalMeasFns
-			cVal, err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName)
+			err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName, num)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not get measure for cname: %v, err: %v",
 					mcName, err)
+				continue
 			}
-			err = stb.addMeasures(cVal, lenAggValues, midx, node)
+			err = stb.addMeasures(num, lenAggValues, midx, node)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
 				return err
@@ -496,37 +564,45 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) addMeasures(val utils.CValueEnclosure,
+func (stb *StarTreeBuilder) addMeasures(val *utils.Number,
 	lenAggValues int, midx int, node *Node) error {
 
-	if node.aggValues == nil {
-		node.aggValues = make([]utils.CValueEnclosure, lenAggValues)
+	sizeNeeded := lenAggValues - len(node.aggValues)
+	if sizeNeeded > 0 {
+		newArr := make([]*utils.Number, sizeNeeded)
+		for i := 0; i < sizeNeeded; i++ {
+			newArr[i] = &utils.Number{}
+		}
+		node.aggValues = append(node.aggValues, newArr...)
 	}
 
 	var err error
 	// always calculate all meas Fns
 	agvidx := midx + MeasFnMinIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Min)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Min)
 	if err != nil {
 		log.Errorf("addMeasures: error in min err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnMaxIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Max)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Max)
 	if err != nil {
 		log.Errorf("addMeasures: error in max err:%v", err)
 		return err
 	}
 	agvidx = midx + MeasFnSumIdx
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], val, utils.Sum)
+	err = node.aggValues[agvidx].ReduceFast(val, utils.Sum)
 	if err != nil {
 		log.Errorf("addMeasures: error in sum err:%v", err)
 		return err
 	}
 
+	one := &utils.Number{}
+	one.SetInt64(1)
+
 	agvidx = midx + MeasFnCountIdx
 	// for count we always use 1 instead of val
-	node.aggValues[agvidx], err = utils.Reduce(node.aggValues[agvidx], one, utils.Count)
+	err = node.aggValues[agvidx].ReduceFast(one, utils.Count)
 	if err != nil {
 		log.Errorf("addMeasures: error in count err:%v", err)
 		return err
@@ -599,33 +675,31 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 */
 
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
-	colName string) (utils.CValueEnclosure, error) {
+	colName string, num *utils.Number) error {
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
 		for dword, recsIdx := range deData.deToRecnumIdx {
-			recNumsArr := deData.deRecNums[recsIdx]
-			if toputils.BinarySearchUint16(recNum, recNumsArr) {
-				var mcVal utils.CValueEnclosure
-				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)
+			recNumsBitSet := deData.deRecNums[recsIdx]
+			if recNumsBitSet.Test(uint(recNum)) {
+				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
-					return utils.CValueEnclosure{}, err
+					return err
 				}
-				return mcVal, nil
+				return nil
 			}
 		}
-		return utils.CValueEnclosure{}, fmt.Errorf("could not find recNum: %v", recNum)
+		return fmt.Errorf("could not find recNum: %v", recNum)
 	}
 
-	var cVal utils.CValueEnclosure
-	endIdx, err := GetCvalFromRec(cwip.cbuf[cIdx[colNum]:], 0, &cVal) // todo pass qid
+	endIdx, err := GetNumValFromRec(cwip.cbuf[cIdx[colNum]:], 0, num) // todo pass qid
 	if err != nil {
 		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
-		return utils.CValueEnclosure{}, err
+		return err
 	}
 	cIdx[colNum] += uint32(endIdx)
-	return cVal, nil
+	return nil
 }

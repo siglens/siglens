@@ -1932,6 +1932,19 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
+.download-button {
+    background-image: url(../assets/download-regular.svg);
+    height: 16px;
+    background-repeat: no-repeat;
+    width: 18px;
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+    padding-bottom: 0;
+    margin-top: 4px;
+    background-size: contain;
+}
+
 #editbutton {
     background-image: url(../assets/edit-alert-icon.svg);
     height: 16px;
@@ -1988,6 +2001,14 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
     margin-left: 35px;
 }
+
+.download-button:hover {
+    background-image: url(../assets/download-active.svg);
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+}
+
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
     cursor: pointer;
@@ -2039,7 +2060,6 @@ div.dts div.dataTables_scrollBody table {
 }
 .delete-dialog{
     width: 564px !important;
-    left: 30%;
 }
 
 .usage-stats .popupContent{
@@ -2798,10 +2818,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .ag-theme-mycustomtheme .ag-header-cell-resize {
     background-color: var(--bg-color) !important;
 }
- .ag-cell {
+#LogResultsGrid .ag-cell {
+    user-select: all;
+}
+
+.ag-cell{
     padding: 3px 15px !important;
     font-size: 14px;
-    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{
@@ -4936,8 +4959,6 @@ color: #C8C7CC;
 
 #add-new-contact-popup{
     position: absolute;
-    top: 10%;
-    left: 22%;
     height: 70%;
     width: 60% !important;
     overflow: hidden;
@@ -5052,7 +5073,7 @@ color: #C8C7CC;
   background-color: var(--alerting-table-bg-color);
 }
 
-#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute::after{
+#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute:not(.ag-row-pinned)::after{
   content: '';
   position: absolute;
   left: 10px;
@@ -5521,6 +5542,7 @@ input.form-control {
     background-color: var(--side-nav-bg-color-regular);
     font-size: 12px;
     box-shadow: var(--box-shadow);
+    text-align: center;
 }
 
 .tippy-box[data-placement^='top'] > .tippy-arrow::before {
@@ -5590,8 +5612,6 @@ input.form-control {
     flex-direction: column;
     justify-content: center;
     color: var(--text-color);
-    font-weight: 600;
-    
   }
   #addrule-cancel-btn {
     background: var(--component-bg-color);
@@ -5599,7 +5619,6 @@ input.form-control {
     width: 195px !important;
     height: 32px !important;
     border: none;
-    padding: 2%;
     border-radius: 5px;
 }
 
@@ -5611,7 +5630,6 @@ input.form-control {
     color: #ffffff; 
     border: none;
     padding: 8px 16px;
-    font-size: 16px; 
     cursor: pointer;
     text-align: center;
     width: 195px !important;
@@ -5655,8 +5673,7 @@ input.form-control {
 }
 
 #addrule-save-btn img {
-    width: 15px; 
-    height: 15px;
+    width: 13px;
     margin-right: 8px; 
 }
 
@@ -6008,6 +6025,19 @@ input.form-control {
     font-size: 16px;
 }
 
+.myOrg-inner-container .ag-row-pinned {
+    font-weight: bold;
+}
+
+.myOrg-inner-container .ag-row-pinned::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: var(--alerting-table-line-color);
+    top: 0;
+}
+
 .primary-btn{
     margin: 0;
     text-decoration: none;
@@ -6036,6 +6066,11 @@ input.form-control {
     height: 60px !important;
 }
 
-#cancel-upload-btn, #cancel-overwrite-btn{
+#cancel-upload-btn, #cancel-overwrite-btn,
+#cancel-delete-btn{
     margin-right: 10px;
+}
+
+#csvViewerModal{
+    width: 60% !important;
 }

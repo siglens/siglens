@@ -131,6 +131,7 @@ $(document).ready(async function () {
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
+        setSaveQueriesDialog();
     }
 });
 
@@ -254,7 +255,6 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr('id');
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, 'now', selectedId);
-
     await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
@@ -337,21 +337,6 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
         }
     });
-    formulaElement.find('.show-functions-formula').on('click', function () {
-        event.stopPropagation();
-        var inputField = formulaElement.find('#functions-search-box-formula');
-        var optionsContainer = formulaElement.find('.options-container-formula');
-        var isContainerVisible = optionsContainer.is(':visible');
-
-        if (!isContainerVisible) {
-            optionsContainer.show();
-            inputField.val('');
-            inputField.focus();
-            inputField.autocomplete('search', '');
-        } else {
-            optionsContainer.hide();
-        }
-    });
 
     // Hide the functions dropdown
     $('body').on('click', function (event) {
@@ -384,7 +369,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 onFormulaErased(uniqueId);
                 return;
             }
-            let validationResult = validateFormula(formula, uniqueId); // Use the updated validateFormula function
+            let validationResult = validateFormula(formula, uniqueId);
             if (validationResult !== false) {
                 errorMessage.hide();
                 input.removeClass('error-border');
@@ -392,6 +377,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 if (isAlertScreen) {
                     $('#metrics-queries .metrics-query .query-name').removeClass('active');
                 }
+                updateTooltipForFormulaFunctions(uniqueId, validationResult);
                 if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
                 }
@@ -403,6 +389,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }, 500)
     ); // debounce delay
 }
+
 function extractFunctionsAndFormula(formulaInput) {
     const parseObject = {
         formula: '',
@@ -440,6 +427,7 @@ function appendFormulaFunctionAlertDiv(formulaElement, fnNames) {
         formulaElement.find('.all-selected-functions-formula').append(newDiv);
     });
 }
+
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
@@ -459,6 +447,7 @@ async function addAlertsFormulaElement(formulaInput) {
         $('#metrics-formula').append(formulaElement);
     }
     appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+    updateTooltipForFormulaFunctions(uniqueId, validationResult);
     funcApplied = false;
     getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
     let formulaElements = $('.formula-arrow');
@@ -485,9 +474,10 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         formulas[uniqueId].formula = formulaAndFunction.formula;
         formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
         $('#metrics-formula').append(formulaElement);
-        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
+        updateTooltipForFormulaFunctions(uniqueId, validationResult);
         funcApplied = false;
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+        appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     } else {
         formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
         $('#metrics-formula').append(formulaElement);
@@ -519,23 +509,30 @@ function validateFormula(formula, uniqueId) {
     if (!matches) {
         return false;
     }
+
     let queryNames = Object.keys(queries);
     let parts = formula.split(/[-+*/]/);
     let usedQueryNames = [];
+    let isNumeric = true;
+
     for (let part of parts) {
         part = part.trim();
         // Check if the part is a query name or a number
         if (queryNames.includes(part)) {
             usedQueryNames.push(part);
+            isNumeric = false;
         } else if (isNaN(part)) {
-            return false; // Todo: if only numeric value is present in formula
+            return false;
         }
     }
-    if (!usedQueryNames.length) {
-        let constantValue = parseFloat(formula);
-        if (!isNaN(constantValue)) usedQueryNames = queryNames;
-    }
 
+    if (isNumeric) {
+        // If numeric value
+        let constantValue = parseFloat(formula);
+        if (!isNaN(constantValue)) {
+            usedQueryNames = queryNames;
+        }
+    }
     // Nest the formula within the functions present in formulaDetails.functions
     let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
     for (let func of functionsArray) {
@@ -546,9 +543,69 @@ function validateFormula(formula, uniqueId) {
         formula: formula,
         queryNames: usedQueryNames,
         functions: functionsArray,
+        isNumeric: isNumeric,
     };
 }
 
+function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
+    const formulaElement = $(`.formula-box[data-id="${uniqueId}"]`);
+    const formulaButton = formulaElement.find('.show-functions-formula');
+    const allSelectedFunctions = $('.all-selected-functions-formula');
+
+    if (validationResult.isNumeric) {
+        formulaButton.addClass('disabled');
+        formulaButton.off('click');
+
+        if (!formulaButton[0]._tippy) {
+            //eslint-disable-next-line no-undef
+            tippy(formulaButton[0], {
+                content: '<div>Functions require a formula input containing a <br>query</div>',
+                allowHTML: true,
+                trigger: 'mouseenter',
+                arrow: true,
+                theme: 'light',
+            });
+        }
+        allSelectedFunctions.addClass('error');
+
+        if (!allSelectedFunctions[0]._tippy) {
+            //eslint-disable-next-line no-undef
+            tippy(allSelectedFunctions[0], {
+                content: 'Functions is not compatible with the query types in this expression.',
+                trigger: 'mouseenter',
+                arrow: true,
+                theme: 'light',
+            });
+        }
+    } else {
+        formulaButton.removeClass('disabled');
+        formulaButton.off('click').on('click', function (event) {
+            event.stopPropagation();
+            var inputField = formulaElement.find('#functions-search-box-formula');
+            var optionsContainer = formulaElement.find('.options-container-formula');
+            var isContainerVisible = optionsContainer.is(':visible');
+
+            if (!isContainerVisible) {
+                optionsContainer.show();
+                inputField.val('');
+                inputField.focus();
+                inputField.autocomplete('search', '');
+            } else {
+                optionsContainer.hide();
+            }
+        });
+
+        if (formulaButton[0]._tippy) {
+            formulaButton[0]._tippy.destroy();
+        }
+
+        allSelectedFunctions.removeClass('error');
+
+        if (allSelectedFunctions[0]._tippy) {
+            allSelectedFunctions[0]._tippy.destroy();
+        }
+    }
+}
 function disableQueryRemoval() {
     // Loop through each query element
     $('.metrics-query').each(function () {
@@ -1214,7 +1271,7 @@ function updateCloseIconVisibility() {
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
-function prepareChartData(seriesData, chartDataCollection, queryName, queryString) {
+function prepareChartData(seriesData, chartDataCollection, queryName) {
     var labels = [];
     var datasets = [];
 
@@ -1229,7 +1286,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
 
         datasets = seriesData.map(function (series, index) {
             return {
-                label: queryString,
+                label: series.seriesName,
                 data: series.values,
                 borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
                 backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
@@ -1250,10 +1307,10 @@ function prepareChartData(seriesData, chartDataCollection, queryName, queryStrin
     return chartData;
 }
 
-function initializeChart(canvas, seriesData, queryName, queryString, chartType) {
+function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
 
-    let chartData = prepareChartData(seriesData, chartDataCollection, queryName, queryString);
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
 
     const { gridLineColor, tickColor } = getGraphGridColors();
     var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
@@ -1368,7 +1425,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
     var canvas;
     if (isDashboardScreen) {
         // For dashboard page
-        prepareChartData(seriesData, chartDataCollection, queryName, queryString);
+        prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
         // For metrics explorer page
@@ -1409,7 +1466,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
             existingContainer.find('.graph-canvas').empty().append(canvas);
         }
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
+        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
 
         lineCharts[queryName] = lineChart;
         updateGraphWidth();
@@ -1907,91 +1964,50 @@ const shouldShowLegend = (panelId, datasets) => {
 async function convertDataForChart(data) {
     let seriesArray = [];
 
-    if (Object.prototype.hasOwnProperty.call(data, 'series') && Object.prototype.hasOwnProperty.call(data, 'timestamps') && Object.prototype.hasOwnProperty.call(data, 'values')) {
+    if (data.series && data.timestamps && data.values) {
         let chartStartTime = data.startTime;
         let chartEndTime = Math.floor(Date.now() / 1000);
         const timeRange = chartEndTime - chartStartTime;
-        // // Determine the best time unit based on the time range
-        if (timeRange > 365 * 24 * 60 * 60) {
-            timeUnit = 'month';
-        } else if (timeRange >= 90 * 24 * 60 * 60) {
-            timeUnit = '7day';
-        } else if (timeRange >= 30 * 24 * 60 * 60) {
-            timeUnit = '2day';
-        } else if (timeRange >= 7 * 24 * 60 * 60) {
-            timeUnit = '12hour';
-        } else if (timeRange >= 2 * 24 * 60 * 60) {
-            timeUnit = '6hour';
-        } else if (timeRange >= 24 * 60 * 60) {
-            timeUnit = '3hour';
-        } else if (timeRange >= 12 * 60 * 60) {
-            timeUnit = '30minute';
-        } else if (timeRange >= 3 * 60 * 60) {
-            timeUnit = '15minute';
-        } else if (timeRange >= 30 * 60) {
-            timeUnit = '5minute';
-        } else {
-            timeUnit = 'minute';
-        }
+
+        // Determine the best time unit based on the time range
+        timeUnit = determineTimeUnit(timeRange);
+
+        let calculatedInterval = data.intervalSec;
+
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
                 values: {},
             };
-            //eslint-disable-next-line no-useless-escape
-            const regexNumeric = /^\d+[+\-*\/%()]?[\d+]?|\s+/g;
-            let calculatedInterval = data.intervalSec;
-            let oneDayInMilliseconds = 24 * 60 * 60;
-            switch (calculatedInterval) {
-                case calculatedInterval >= 28800:
-                    chartStartTime = chartStartTime - oneDayInMilliseconds;
-                    chartEndTime = chartEndTime + oneDayInMilliseconds;
-                    break;
-                case calculatedInterval >= 1200:
-                    chartStartTime = chartStartTime - oneDayInMilliseconds;
-                    break;
-                case calculatedInterval >= 300:
-                    chartStartTime = chartStartTime - 60 * 60;
-                    break;
-                case calculatedInterval >= 120:
-                    chartStartTime = chartStartTime - 30 * 60;
-                    break;
-                case calculatedInterval >= 60:
-                    chartStartTime = chartStartTime - 15 * 60;
-                    break;
-                case calculatedInterval >= 10:
-                    chartStartTime = chartStartTime - 5 * 60;
-                    break;
-                default:
-                    chartStartTime = chartStartTime - 1 * 60;
-                    chartEndTime = chartEndTime + 1 * 60;
-            }
-            for (let j = 0; j < data.timestamps.length; j++) {
-                // Convert epoch seconds to milliseconds by multiplying by 1000
-                let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = moment(timestampInMilliseconds);
-                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
 
-                series.values[formattedDate] = data.values[i][j];
-            }
-            while (chartStartTime <= chartEndTime) {
-                let timestampInMilliseconds = chartStartTime * 1000;
-                let localDate = moment(timestampInMilliseconds);
-                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
-                if (series.values[formattedDate] === undefined) {
-                    if (regexNumeric.test(data.series[i])) {
-                        if (data.values[i][data.timestamps.length - 1] >= 0) {
-                            series.values[formattedDate] = data.values[i][data.timestamps.length - 1];
-                        }
-                    } else {
-                        series.values[formattedDate] = null;
-                    }
+            const isNumericExpression = /^[\d+\-*/() ]+$/.test(data.series[i]);
+
+            if (isNumericExpression) {
+                // For numeric expressions, use the same value for all timestamps
+                const constantValue = data.values[i][0];
+                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = constantValue;
                 }
-                chartStartTime += calculatedInterval;
+            } else {
+                // For regular metrics, add null values for all timestamps in the range
+                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = null;
+                }
+
+                // Add actual values only for timestamps present in the data
+                for (let j = 0; j < data.timestamps.length; j++) {
+                    const timestampInMilliseconds = data.timestamps[j] * 1000;
+                    const formattedDate = moment(timestampInMilliseconds).format('YYYY-MM-DDTHH:mm:ss');
+                    series.values[formattedDate] = data.values[i][j];
+                }
             }
+
             seriesArray.push(series);
         }
     }
+
     if (seriesArray.length === 0) {
         const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
         seriesArray.push({
@@ -2004,6 +2020,19 @@ async function convertDataForChart(data) {
     }
 
     return seriesArray;
+}
+
+function determineTimeUnit(timeRange) {
+    if (timeRange > 365 * 24 * 60 * 60) return 'month';
+    if (timeRange >= 90 * 24 * 60 * 60) return '7day';
+    if (timeRange >= 30 * 24 * 60 * 60) return '2day';
+    if (timeRange >= 7 * 24 * 60 * 60) return '12hour';
+    if (timeRange >= 2 * 24 * 60 * 60) return '6hour';
+    if (timeRange >= 24 * 60 * 60) return '3hour';
+    if (timeRange >= 12 * 60 * 60) return '30minute';
+    if (timeRange >= 3 * 60 * 60) return '15minute';
+    if (timeRange >= 30 * 60) return '5minute';
+    return 'minute';
 }
 
 async function getMetricNames() {
@@ -2255,11 +2284,12 @@ async function refreshMetricsGraphs() {
 
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
+
     if (queries[firstKey].metrics) {
         // only if the first query is not empty
         // Update graph for each query
-        Object.keys(queries).forEach(async function (queryName) {
-            var queryDetails = queries[queryName];
+        for (const queryName of Object.keys(queries)) {
+            const queryDetails = queries[queryName];
 
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
@@ -2269,14 +2299,18 @@ async function refreshMetricsGraphs() {
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
             await handleQueryAndVisualize(queryName, queryDetails);
-        });
+        }
     }
 
+    // Second if block: This will execute only after the first one
     if (Object.keys(formulas).length > 0) {
         // Update graph for each formula
-        Object.keys(formulas).forEach(function (formulaId) {
-            getMetricsDataForFormula(formulaId, formulas[formulaId]);
-        });
+        for (const formulaId of Object.keys(formulas)) {
+            const formulaDetails = formulas[formulaId];
+            funcApplied = false;
+            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
+            getMetricsDataForFormula(formulaId, formulaDetails);
+        }
     }
 }
 
@@ -2331,7 +2365,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
-    var lineChart = initializeChart(canvas, seriesData, queryName, queryString, chartType);
+    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
     lineCharts[queryName] = lineChart;
 }
 
@@ -2630,9 +2664,15 @@ async function populateMetricsQueryElement(metricsQueryParams) {
         const parsedQueryObject = parsePromQL(query);
         await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
     }
-
-    if (queries.length >= 1) {
-        await addAlertsFormulaElement(formulas[0].formula);
+    let formulasInUrl = 0;
+    while (isMetricsURL && formulasInUrl < formulas.length) {
+        await addMetricsFormulaElement(formulas[formulasInUrl].formula, formulas[formulasInUrl].formula);
+        formulasInUrl++;
+    }
+    if (!isMetricsURL) {
+        if (queries.length >= 1) {
+            await addAlertsFormulaElement(formulas[0].formula);
+        }
     }
 }
 function generateEmptyChartLabels(timeUnit, startTime, endTime) {
@@ -2684,4 +2724,55 @@ function adjustInputWidth(input) {
     const padding = 5;
     const width = Math.max(minWidth, input.value.length * charWidth + padding);
     input.style.width = width + 'px';
+}
+
+//eslint-disable-next-line no-unused-vars
+function formatMetricsForUrlParams(panelMetricsQueryParams) {
+    const transformedQueries = [];
+    const transformedFormulas = [];
+
+    // Loop through `queriesData` to extract queries only (no formulas)
+    panelMetricsQueryParams.queriesData.forEach((queryData) => {
+        queryData.queries.forEach((query) => {
+            transformedQueries.push({
+                name: query.name,
+                query: query.query,
+                qlType: query.qlType,
+                state: query.state || 'builder',
+            });
+        });
+        // Exclude formulas from `queriesData`
+    });
+
+    // Combine formulas from `formulasData` only
+    panelMetricsQueryParams.formulasData.forEach((formulaData) => {
+        formulaData.formulas.forEach((formula) => {
+            transformedFormulas.push({
+                formula: formula.formula,
+            });
+        });
+    });
+
+    return {
+        start: panelMetricsQueryParams.queriesData[0]?.start || 'now-90d',
+        end: panelMetricsQueryParams.queriesData[0]?.end || 'now',
+        queries: transformedQueries,
+        formulas: transformedFormulas,
+    };
+}
+//eslint-disable-next-line no-unused-vars
+function getMetricsDataForSave(qname, qdesc) {
+    let metricsQueryParamsData = getMetricsQData();
+
+    // Transform the structure to match `metricsQueryParams`
+    const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+
+    return {
+        dataSource: 'metrics',
+        queryName: qname,
+        queryDescription: qdesc || '',
+        startTime: filterStartDate,
+        endTime: filterEndDate,
+        metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
+    };
 }
