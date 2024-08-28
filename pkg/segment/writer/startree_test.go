@@ -855,49 +855,6 @@ func testAggs(t *testing.T, expected []int, aggValues []*utils.Number) {
 	}
 }
 
-func getCVals(node *Node) []interface{} {
-	var cvals []interface{}
-	for _, agg := range node.aggValues {
-		val, err := agg.Int64()
-		if err != nil {
-			cvals = append(cvals, "_")
-		} else {
-			cvals = append(cvals, val)
-		}
-	}
-	return cvals
-}
-
-func printTree(node *Node, level int) {
-	for i := 0; i < level; i++ {
-		fmt.Print("  ")
-	}
-	fmt.Printf("Node: %v ", node.myKey)
-	fmt.Printf("val: %v", getCVals(node))
-	fmt.Println()
-
-	for _, child := range node.children {
-		printTree(child, level+1)
-	}
-}
-
-func printMap[T any](mp map[string]T) {
-	for key, val := range mp {
-		fmt.Println(key, val)
-	}
-}
-
-func printMap2(mp map[string][]*utils.Number) {
-	for key, val := range mp {
-		vals := []int64{}
-		for _, v := range val {
-			val, _ := v.Int64()
-			vals = append(vals, val)
-		}
-		fmt.Println(key, vals)
-	}
-}
-
 func TestStarTree2(t *testing.T) {
 
 	rangeIndex = map[string]*structs.Numbers{}
@@ -1026,16 +983,12 @@ func TestStarTree2(t *testing.T) {
 	root = builder.tree.Root
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
-	printMap(encMap)
 
-	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	err = builder.DropColumn("brand")
 	assert.NoError(t, err)
-
-	printTree(root, 0)
 
 	aggValues = make(map[string][]*utils.Number, 0)
 	populateAggsFromTree(t, root, aggValues, "")
-	printMap2(aggValues)
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)
 	assert.NoError(t, err)
@@ -1081,10 +1034,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	printTree(root, 0)
-	err = builder.removeLevelFromTree(root, 0, 1, 2)
+	err = builder.DropColumn("color")
 	assert.NoError(t, err)
-	printTree(root, 0)
 
 	aggValues = make(map[string][]*utils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
@@ -1126,10 +1077,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	printTree(root, 0)
-	err = builder.removeLevelFromTree(root, 0, 2, 2)
+	err = builder.DropColumn("type")
 	assert.NoError(t, err)
-	printTree(root, 0)
 
 	aggValues = make(map[string][]*utils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
@@ -1172,9 +1121,9 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	err = builder.DropColumn("brand")
 	assert.NoError(t, err)
-	err = builder.removeLevelFromTree(root, 0, 0, 1)
+	err = builder.DropColumn("color")
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1204,9 +1153,9 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.removeLevelFromTree(root, 0, 1, 2)
+	err = builder.DropColumn("color")
 	assert.NoError(t, err)
-	err = builder.removeLevelFromTree(root, 0, 1, 1)
+	err = builder.DropColumn("type")
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1236,9 +1185,9 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	err = builder.DropColumn("brand")
 	assert.NoError(t, err)
-	err = builder.removeLevelFromTree(root, 0, 1, 1)
+	err = builder.DropColumn("type")
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)

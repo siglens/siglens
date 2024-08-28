@@ -216,6 +216,31 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
+func (stb *StarTreeBuilder) DropColumn(colToDrop string) error {
+	newGrpByKeys := make([]string, 0, len(stb.groupByKeys)-1)
+	dropLevel := -1
+	for idx, col := range stb.groupByKeys {
+		if col == colToDrop {
+			dropLevel = idx
+			continue
+		}
+		newGrpByKeys = append(newGrpByKeys, col)
+	}
+
+	if dropLevel == -1 {
+		return fmt.Errorf("DropColumn: column to drop %v not found", colToDrop)
+	}
+	err := stb.removeLevelFromTree(stb.tree.Root, 0, uint(dropLevel))
+	if err != nil {
+		return err
+	}
+
+	stb.numGroupByCols--
+	stb.groupByKeys = newGrpByKeys
+
+	return nil
+}
+
 func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 	// todo a zero copy version of map lookups needed
 	enc, ok := stb.segDictMap[colNum][colVal]
@@ -435,9 +460,9 @@ func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, colIdxToRemove uint, lastColIdx uint) error {
+func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, colIdxToRemove uint) error {
 	if currColIdx == colIdxToRemove {
-		if currColIdx == lastColIdx {
+		if currColIdx == uint(len(stb.groupByKeys)-1) {
 			// if last column needs to be removed, accumulation of children is not required as they will be unique.
 			// just combine the aggs at parent.
 			return stb.updateLastLevel(node)
@@ -477,7 +502,7 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, col
 	}
 
 	for _, child := range node.children {
-		err := stb.removeLevelFromTree(child, currColIdx+1, colIdxToRemove, lastColIdx)
+		err := stb.removeLevelFromTree(child, currColIdx+1, colIdxToRemove)
 		if err != nil {
 			return err
 		}
