@@ -104,6 +104,43 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
+func InitSegStore(
+	segmentKey string,
+	segbaseDir string,
+	suffix uint64,
+	virtualTableName string,
+	skipDe bool,
+	orgId uint64,
+	usingSegTree bool,
+	highTs uint64,
+	lowTs uint64,
+) *SegStore {
+	now := time.Now()
+	ss := SegStore{
+		Lock:              sync.Mutex{},
+		pqNonEmptyResults: make(map[string]bool),
+		SegmentKey:        segmentKey,
+		segbaseDir:        segbaseDir,
+		suffix:            suffix,
+		lastUpdated:       now,
+		VirtualTableName:  virtualTableName,
+		pqTracker:         initPQTracker(),
+		pqMatches:         make(map[string]*pqmr.PQMatchResults),
+		LastSegPqids:      make(map[string]struct{}),
+		skipDe:            skipDe,
+		timeCreated:       now,
+		AllSst:            make(map[string]*structs.SegStats),
+		OrgId:             orgId,
+		firstTime:         true,
+	}
+
+	ss.initWipBlock()
+	ss.wipBlock.blockSummary.HighTs = highTs
+	ss.wipBlock.blockSummary.LowTs = lowTs
+
+	return &ss
+}
+
 func NewSegStore(orgId uint64) *SegStore {
 	segstore := &SegStore{
 		Lock:               sync.Mutex{},
@@ -121,6 +158,16 @@ func NewSegStore(orgId uint64) *SegStore {
 	}
 
 	return segstore
+}
+
+func NewSegStoreInit(baseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
+	segStore := NewSegStore(orgId)
+	segStore.SegmentKey = fmt.Sprintf("%s%d", baseDir, suffix)
+	segStore.segbaseDir = baseDir
+	segStore.suffix = suffix
+	segStore.VirtualTableName = virtualTableName
+
+	return segStore
 }
 
 func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
