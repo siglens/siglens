@@ -1514,7 +1514,15 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 
 	// HLL_Data
 	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
-	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)] // len = cap
+
+	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
+	// This is necessary because we're using the slice to get the HLL bytes in place,
+	// and the HLL package relies on cap(slice) to determine where to write the bytes.
+	// It expects the slice to be exactly the size of hllDataSize. But the slice we're
+	// using is larger than that, so we need to ensure that the slice is exactly the size
+	// of hllDataSize.
+	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)]
+
 	hllByteSlice = sst.GetHllBytesInPlace(hllByteSlice)
 	hllByteSliceLen := len(hllByteSlice)
 	if hllByteSliceLen != hllDataSize {
