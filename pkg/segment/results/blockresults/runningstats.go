@@ -22,7 +22,7 @@ import (
 	"math"
 
 	"github.com/cespare/xxhash"
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"

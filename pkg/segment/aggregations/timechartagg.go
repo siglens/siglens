@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"

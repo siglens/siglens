@@ -1490,15 +1490,15 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
-	hllData := sst.GetHllBytes()
+	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))
+	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
 	idx += 2
 
 	// HLL_Data
-	copy(buf[idx:], hllData)
-	idx += uint16(len(hllData))
+	hllByteSlice := sst.GetHllBytesInPlace(buf[idx : idx+uint16(hllDataSize)])
+	idx += uint16(len(hllByteSlice))
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric

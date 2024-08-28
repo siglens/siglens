@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"

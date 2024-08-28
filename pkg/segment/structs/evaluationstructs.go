@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
