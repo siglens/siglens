@@ -254,21 +254,9 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 			log.Errorf("encodeNodeDetails: ancestor is not the root, level: %v, nodeKey: %+v", level, n.myKey)
 		}
 
-		for agIdx, e := range n.aggValues {
-			copy(stb.buf[idx:], []byte{uint8(e.Ntype)})
-			idx += 1
-
-			switch e.Ntype {
-			case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
-				utils.Int64ToBytesLittleEndianInplace(e.IntgrVal, stb.buf[idx:])
-			case SS_DT_FLOAT:
-				utils.Float64ToBytesLittleEndianInplace(e.FloatVal, stb.buf[idx:])
-			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform
-			default:
-				return 0, fmt.Errorf("encodeNodeDetails: unsupported Dtype: %v, agIdx: %v, nodeKey: %+v, e: %+v",
-					e.Ntype, agIdx, n.myKey, e)
-			}
-			idx += 8
+		for _, e := range n.aggValues {
+			e.CopyToBuffer(stb.buf[idx:])
+			idx += 9
 		}
 	}
 	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)

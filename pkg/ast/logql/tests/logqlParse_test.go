@@ -33,7 +33,7 @@ func Test_ParseStream(t *testing.T) {
 	res, err := logql.Parse("", json_body)
 	queryJson := res.(ast.QueryStruct).SearchFilter
 	assert.Nil(t, err)
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, queryJson)
 	assert.Equal(t, queryJson.Comparison.Field, "something")
@@ -44,7 +44,7 @@ func Test_ParseStream(t *testing.T) {
 	res, err = logql.Parse("", json_body)
 	queryJson = res.(ast.QueryStruct).SearchFilter
 	assert.Nil(t, err)
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, queryJson)
 	assert.Equal(t, queryJson.Left.Comparison.Field, "something")
@@ -60,7 +60,7 @@ func Test_ParseLabelFilter(t *testing.T) {
 	res, err := logql.Parse("", json_body)
 	queryJson := res.(ast.QueryStruct).SearchFilter
 	assert.Nil(t, err)
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, queryJson.Left.Comparison.Field, "something")
 	assert.Equal(t, queryJson.Left.Comparison.Values, "\"another\"")
@@ -74,7 +74,7 @@ func Test_ParseLogFilter(t *testing.T) {
 	res, err := logql.Parse("", json_body)
 	queryJson := res.(ast.QueryStruct).SearchFilter
 	assert.Nil(t, err)
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, queryJson.Right.Comparison.Values, ast.GrepValue{Field: "\"batch-212\""})
 	assert.Equal(t, queryJson.Left.Right.Comparison.Values, "\"Fresno\"")
@@ -87,7 +87,7 @@ func Test_ParseLogAndLabelFilter(t *testing.T) {
 	res, err := logql.Parse("", json_body)
 	assert.Nil(t, err)
 	queryJson := res.(ast.QueryStruct).SearchFilter
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, queryJson.Right.Right.Comparison.Values, "thing")
 	assert.Equal(t, queryJson.Right.Left.Comparison.Values, ast.GrepValue{Field: "\"batch-212\""})
@@ -103,7 +103,7 @@ func Test_ParseLogfmtKeyword(t *testing.T) {
 	queryJson := res.(ast.QueryStruct).SearchFilter
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	testIncludeValues := append(make([]*structs.IncludeValue, 0), &structs.IncludeValue{ColName: "city", Label: "city_life"}, &structs.IncludeValue{ColName: "gender", Label: "single_gender"}, &structs.IncludeValue{ColName: "host", Label: "host"})
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeValues, testIncludeValues)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.Logfmt, true)
@@ -116,7 +116,7 @@ func Test_ParseLogfmtKeyword(t *testing.T) {
 	pipeCommands = res.(ast.QueryStruct).PipeCommands
 	queryJson = res.(ast.QueryStruct).SearchFilter
 	astNode = &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.Logfmt, true)
 	assert.Equal(t, len(pipeCommands.OutputTransforms.OutputColumns.IncludeValues), 0)
@@ -134,7 +134,7 @@ func Test_ParseJSONKeyword(t *testing.T) {
 	testRenameColumns := make(map[string]string)
 	testRenameColumns["city"] = "city_life"
 	testIncludeValues := append(make([]*structs.IncludeValue, 0), &structs.IncludeValue{Index: 0, ColName: "gender", Label: "single_gender"})
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns, testOutputColumns)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.RenameColumns, testRenameColumns)
@@ -148,7 +148,7 @@ func Test_ParseJSONKeyword(t *testing.T) {
 	pipeCommands = res.(ast.QueryStruct).PipeCommands
 	queryJson = res.(ast.QueryStruct).SearchFilter
 	astNode = &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, queryJson.Comparison.Values, "\"female\"")
 	assert.Nil(t, pipeCommands)
@@ -165,7 +165,7 @@ func Test_ParseJSONKeywordAndFilters(t *testing.T) {
 	testRenameColumns := make(map[string]string)
 	testRenameColumns["city"] = "city_life"
 	testIncludeValues := append(make([]*structs.IncludeValue, 0), &structs.IncludeValue{Index: 0, ColName: "gender", Label: "single_gender"})
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns, testOutputColumns)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.RenameColumns, testRenameColumns)
@@ -180,7 +180,7 @@ func Test_ParseJSONKeywordAndFilters(t *testing.T) {
 	queryJson = res.(ast.QueryStruct).SearchFilter
 	pipeCommands = res.(ast.QueryStruct).PipeCommands
 	astNode = &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0, false)
+	err = pipesearch.SearchQueryToASTnode(queryJson, astNode, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns, testOutputColumns)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.RenameColumns, testRenameColumns)

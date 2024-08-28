@@ -86,10 +86,9 @@ func (s SegType) String() string {
 // A flattened expression input used for searching
 // TODO: flatten SearchExpressionInput with just []byte input
 type SearchExpressionInput struct {
-	ColumnName          string          // columnName to search for
-	ComplexRelation     *Expression     // complex relations that have columns defined in both sides
-	ColumnValue         *DtypeEnclosure // column value: "0", "abc", "abcd*", "0.213". This value will be normalized to Lower Case if the search is case insensitive.
-	OriginalColumnValue *DtypeEnclosure // original column value. Similar to Column Value, but is only created when dualCaseCheck is enabled and the search is case insensitive
+	ColumnName      string          // columnName to search for
+	ComplexRelation *Expression     // complex relations that have columns defined in both sides
+	ColumnValue     *DtypeEnclosure // column value: "0", "abc", "abcd*", "0.213"
 }
 
 // A flattened expression used for searching
@@ -142,7 +141,7 @@ type CmiContainer struct {
 
 // even if only one block will be searched and parallelism=10, we will spawn 10 buffers, although 9 wont be used
 // TODO: more accurate block summaries and colmeta sizing
-func (ssr *SegmentSearchRequest) GetMaxSearchMemorySize(parallelismPerFile int64, bitsetMinSize uint16) uint64 {
+func (ssr *SegmentSearchRequest) GetMaxSearchMemorySize(sNode *SearchNode, parallelismPerFile int64, bitsetMinSize uint16) uint64 {
 
 	// bitset size worst case is min(15000*num blocks, total record count)
 	var totalBits uint64
@@ -294,7 +293,7 @@ func (searchExp *SearchExpression) GetExpressionType() SearchQueryType {
 }
 
 // parse a FilterInput to a friendly SearchInput for raw searching/expression matching
-func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, qid uint64) *SearchExpressionInput {
+func getSearchInputFromFilterInput(filter *FilterInput, qid uint64) *SearchExpressionInput {
 
 	searchInput := SearchExpressionInput{}
 
@@ -307,8 +306,6 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 		if err != nil {
 			// TODO: handle error
 			log.Errorf("getSearchInputFromFilterInput: qid=%d, Error creating dtype enclosure: %v", qid, err)
-		} else {
-			val.UpdateRegexp(isCaseInsensitive)
 		}
 		searchInput.ColumnValue = val
 		return &searchInput
@@ -321,7 +318,6 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 			searchInput.ColumnName = expInput.ColumnName
 		} else {
 			searchInput.ColumnValue = expInput.ColumnValue
-			searchInput.OriginalColumnValue = expInput.OriginalColumnValue
 		}
 	} else {
 		searchInput.ComplexRelation = filter.Expression
@@ -331,12 +327,11 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 }
 
 func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *SearchQuery {
-	var sq *SearchQuery
 
 	if criteria.MatchFilter != nil {
-		sq = extractSearchQueryFromMatchFilter(criteria.MatchFilter, criteria.FilterIsCaseInsensitive, qid)
+		return extractSearchQueryFromMatchFilter(criteria.MatchFilter)
 	} else {
-		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInsensitive, qid)
+		sq := extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, qid)
 
 		var colVal *DtypeEnclosure
 		if sq.ExpressionFilter.LeftSearchInput.ColumnValue != nil {
@@ -348,12 +343,11 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 		if colVal != nil && colVal.Dtype == SS_DT_STRING && colVal.StringVal == "*" {
 			sq.SearchType = MatchAll
 		}
+		return sq
 	}
-	sq.FilterIsCaseInsensitive = criteria.FilterIsCaseInsensitive
-	return sq
 }
 
-func extractSearchQueryFromMatchFilter(match *MatchFilter, isCaseInsensitive bool, qid uint64) *SearchQuery {
+func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 	var qType SearchQueryType
 	currQuery := &SearchQuery{
 		MatchFilter: match,
@@ -385,12 +379,9 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter, isCaseInsensitive boo
 	}
 	if match.MatchPhrase != nil && bytes.Contains(match.MatchPhrase, []byte("*")) {
 		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
-		if isCaseInsensitive {
-			cval = "(?i)" + cval
-		}
 		rexpC, err := regexp.Compile(cval)
 		if err != nil {
-			log.Errorf("qid=%v, extractSearchQueryFromMatchFilter: regexp compile failed for exp: %v, err: %v", qid, cval, err)
+			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed for exp: %v, err: %v", cval, err)
 		} else {
 			currQuery.MatchFilter.SetRegexp(rexpC)
 		}
@@ -399,9 +390,9 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter, isCaseInsensitive boo
 	return currQuery
 }
 
-func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensitive bool, qid uint64) *SearchQuery {
-	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, isCaseInsensitive, qid)
-	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, isCaseInsensitive, qid)
+func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, qid uint64) *SearchQuery {
+	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, qid)
+	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, qid)
 	sq := &SearchQuery{
 		ExpressionFilter: &SearchExpression{
 			LeftSearchInput:  leftSearchInput,
@@ -416,12 +407,7 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensi
 		if sq.ExpressionFilter.LeftSearchInput.ColumnValue != nil &&
 			sq.ExpressionFilter.LeftSearchInput.ColumnValue.Dtype == SS_DT_STRING {
 
-			// We don't need to do this with the LeftSearchInput.OriginalColumnValue, as this is a regex/wildcard
-			// And we don't do Bloom Filtering for regex/wildcard searches
 			cval := dtu.ReplaceWildcardStarWithRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal)
-			if isCaseInsensitive {
-				cval = "(?i)" + cval
-			}
 			rexpC, err := regexp.Compile(cval)
 			if err != nil {
 				log.Errorf("extractSearchQueryFromExpressionFilter: regexp compile failed for exp: %v, err: %v", cval, err)
@@ -483,53 +469,41 @@ func (searchExp *SearchExpression) getAllColumnsInSearch() map[string]string {
 // returns a map with keys,  a boolean, and error
 // the map will contain only non wildcarded keys,
 // if bool is true, the searchExpression contained a wildcard
-func (searchExp *SearchExpression) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool, isCaseInsensitive bool) (map[string]bool, map[string]string, bool, error) {
+func (searchExp *SearchExpression) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, error) {
 	if searchExp.FilterOp != Equals {
-		return nil, nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple filter op is not equals")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple filter op is not equals")
 	}
 	if searchExp.LeftSearchInput != nil && searchExp.LeftSearchInput.ComplexRelation != nil {
 		// complex relations are not supported for blockbloom
-		return nil, nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple LeftSearchInput is complex relation")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple LeftSearchInput is complex relation")
 	}
 	if searchExp.RightSearchInput != nil && searchExp.RightSearchInput.ComplexRelation != nil {
-		return nil, nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple RightSearchInput is complex relation")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple RightSearchInput is complex relation")
 	}
 	allKeys := make(map[string]bool)
-	originalAllKeys := make(map[string]string) // map of normalized lowercase key -> original key
 	var colVal *DtypeEnclosure
-	var originalColVal *DtypeEnclosure
 	if searchExp.LeftSearchInput != nil && searchExp.LeftSearchInput.ColumnValue != nil {
 		colVal = searchExp.LeftSearchInput.ColumnValue
-		originalColVal = searchExp.LeftSearchInput.OriginalColumnValue
 	} else if searchExp.RightSearchInput != nil && searchExp.RightSearchInput.ColumnValue != nil {
 		colVal = searchExp.RightSearchInput.ColumnValue
-		originalColVal = searchExp.RightSearchInput.OriginalColumnValue
 	}
 
 	if colVal == nil {
-		return nil, nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name and value from request")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name and value from request")
 	}
 
 	if colVal.IsRegex() {
-		return allKeys, originalAllKeys, true, nil
+		return allKeys, true, nil
 	}
 	if len(colVal.StringVal) == 0 {
-		return allKeys, originalAllKeys, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name from request")
+		return allKeys, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name from request")
 	}
 	allKeys[colVal.StringVal] = true
-
-	if dualCaseCheckEnabled && isCaseInsensitive {
-		if originalColVal != nil && len(originalColVal.StringVal) > 0 {
-			originalAllKeys[colVal.StringVal] = originalColVal.StringVal
-		}
-	}
-
-	return allKeys, originalAllKeys, false, nil
+	return allKeys, false, nil
 }
 
-func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool, isCaseInsensitive bool) (map[string]bool, map[string]string, bool, LogicalOperator) {
+func (match *MatchFilter) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, LogicalOperator) {
 	allKeys := make(map[string]bool)
-	originalAllKeys := make(map[string]string) // map of normalized lowercase key -> original key
 	wildcardExists := false
 	if match.MatchType == MATCH_DICT_ARRAY {
 		mKey := match.MatchDictArray.MatchKey
@@ -550,38 +524,29 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool
 
 		allKeys[string(mKey)] = true
 		allKeys[mValStr] = true
-		return allKeys, originalAllKeys, wildcardExists, And
+		return allKeys, wildcardExists, And
 	} else if match.MatchType == MATCH_PHRASE {
 		if strings.Contains(string(match.MatchPhrase), "*") {
 			wildcardExists = true
 		} else {
-			stringMatchPhrase := string(match.MatchPhrase)
-			allKeys[stringMatchPhrase] = true
-			if dualCaseCheckEnabled && isCaseInsensitive && len(match.MatchPhraseOriginal) > 0 {
-				originalAllKeys[stringMatchPhrase] = string(match.MatchPhraseOriginal)
-			}
+			allKeys[string(match.MatchPhrase)] = true
 		}
 	} else {
-		isMatchWordsLengthEqual := len(match.MatchWordsOriginal) == len(match.MatchWords)
-		for idx, literal := range match.MatchWords {
+		for _, literal := range match.MatchWords {
 
 			if strings.Contains(string(literal), "*") {
 				wildcardExists = true
 				continue
 			}
-			stringLiteral := string(literal)
-			allKeys[stringLiteral] = true
-			if dualCaseCheckEnabled && isCaseInsensitive && isMatchWordsLengthEqual {
-				originalAllKeys[stringLiteral] = string(match.MatchWordsOriginal[idx])
-			}
+			allKeys[string(literal)] = true
 		}
 		// if only one matchWord then do And so that CMI logic will only pass blocks that pass
 		// bloom check
 		if len(allKeys) == 1 {
-			return allKeys, originalAllKeys, wildcardExists, And
+			return allKeys, wildcardExists, And
 		}
 	}
-	return allKeys, originalAllKeys, wildcardExists, match.MatchOperator
+	return allKeys, wildcardExists, match.MatchOperator
 }
 
 func (ef *SearchExpression) IsTimeRangeFilter() bool {

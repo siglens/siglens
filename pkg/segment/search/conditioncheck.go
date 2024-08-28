@@ -63,7 +63,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		if err != nil {
 			return false, err
 		}
-		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex, query.FilterIsCaseInsensitive)
+		return writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 	case MatchWordsAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
@@ -76,7 +76,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex, query.FilterIsCaseInsensitive)
+			retVal, _ := writer.ApplySearchToMatchFilterRawCsg(query.MatchFilter, rawColVal, compiledRegex)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
@@ -92,14 +92,14 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		if err != nil {
 			return false, err
 		}
-		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte, query.FilterIsCaseInsensitive)
+		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte)
 	case RegexExpression:
 		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(queryInfoColKeyIndex, blockNum, recordNum, qid, false)
 		if err != nil {
 			log.Debugf("ApplyColumnarSearchQuery: failed to read column %v rec from column file. qid=%v, err: %v", query.QueryInfo.ColName, qid, err)
 			return false, nil
 		}
-		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte, query.FilterIsCaseInsensitive)
+		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
 	case RegexExpressionAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
@@ -112,7 +112,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte, query.FilterIsCaseInsensitive)
+			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
@@ -135,7 +135,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte, query.FilterIsCaseInsensitive)
+			retVal, _ := writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, false, holderDte)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
@@ -151,7 +151,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 		if err != nil {
 			return false, err
 		}
-		return writer.ApplySearchToDictArrayFilter(query.QueryInfo.KValDte, query.QueryInfo.QValDte, rawColVal, Equals, true, holderDte, query.FilterIsCaseInsensitive)
+		return writer.ApplySearchToDictArrayFilter(query.QueryInfo.KValDte, query.QueryInfo.QValDte, rawColVal, Equals, true, holderDte)
 	case MatchDictArrayAllColumns:
 		var atleastOneNonError bool
 		var finalErr error
@@ -164,7 +164,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 			} else {
 				atleastOneNonError = true
 			}
-			retVal, _ := writer.ApplySearchToDictArrayFilter(query.QueryInfo.KValDte, query.QueryInfo.QValDte, rawColVal, query.ExpressionFilter.FilterOp, true, holderDte, query.FilterIsCaseInsensitive)
+			retVal, _ := writer.ApplySearchToDictArrayFilter(query.QueryInfo.KValDte, query.QueryInfo.QValDte, rawColVal, query.ExpressionFilter.FilterOp, true, holderDte)
 			if retVal {
 				multiColReader.IncrementColumnUsageByIdx(colKeyIndex)
 				return true, nil
@@ -210,7 +210,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			return true, dictEncColNames, nil
 		}
 
-		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
+		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: matchwords dict search failed, err=%v", err)
 			return false, dictEncColNames, err
@@ -230,7 +230,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			}
 
 			dictEncColNames[cname] = true
-			found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, cname, sq.FilterIsCaseInsensitive)
+			found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, cname)
 			if err != nil {
 				continue
 			}
@@ -254,7 +254,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		}
 
 		found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-			sq.ExpressionFilter.FilterOp, regex, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
+			sq.ExpressionFilter.FilterOp, regex, bsh, sq.QueryInfo.ColName)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: simpleexp/wildrexp dict search failed, err=%v", err)
 			return false, dictEncColNames, err
@@ -275,7 +275,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 			dictEncColNames[cname] = true
 			found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-				sq.ExpressionFilter.FilterOp, true, bsh, cname, sq.FilterIsCaseInsensitive)
+				sq.ExpressionFilter.FilterOp, true, bsh, cname)
 			if err != nil {
 				continue
 			}
@@ -299,7 +299,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 			dictEncColNames[cname] = true
 			found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-				sq.ExpressionFilter.FilterOp, false, bsh, cname, sq.FilterIsCaseInsensitive)
+				sq.ExpressionFilter.FilterOp, false, bsh, cname)
 			if err != nil {
 				continue
 			}

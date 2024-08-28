@@ -765,6 +765,10 @@
   background: var(--db-setting-option-selected);
 }
 
+.dbSet-container {
+  display: none;
+}
+
 .dbSet-right .hide {
   display: none;
   pointer-events: none;

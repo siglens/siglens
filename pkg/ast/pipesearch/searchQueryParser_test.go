@@ -56,7 +56,7 @@ func Test_optimizeStatsEvalQueries(t *testing.T) {
 	)
 	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
 		`* | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
-		`* AND (foo=42 OR bar=CASE("baz")) | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
+		`* AND (foo=42 OR bar="baz") | stats count(eval(foo=42)), sum(eval(bar="baz"))`,
 	)
 	verifyEquivalentSplQueries(t, optimizeStatsEvalQueries,
 		`A=1 OR NOT B=2 | stats count(eval(foo=42))`,
