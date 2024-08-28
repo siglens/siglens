@@ -2031,21 +2031,18 @@ async function getMetricNames() {
 }
 
 function displayErrorMessage(container, message) {
-    const mergedContainer = document.querySelector("#merged-graph-container");
+    const mergedContainer = document.querySelector('#merged-graph-container');
     var graphCanvas = container.find('.graph-canvas');
     var mergedGraph = mergedContainer.querySelector('.merged-graph');
     var mergedSpan = document.createElement('span');
     graphCanvas.innerHTML = '';
-    var errorSpan = $('<span></span>')
-        .addClass('error-message') 
-        .text(message); 
+    var errorSpan = $('<span></span>').addClass('error-message').text(message);
     graphCanvas.append(errorSpan);
     mergedGraph.innerHTML = '';
     mergedGraph.appendChild(mergedSpan);
     mergedSpan.classList.add('error-message');
     mergedSpan.textContent = message;
 }
-
 
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
@@ -2054,8 +2051,8 @@ async function getMetricsData(queryName, metricName, state) {
     container.append('<div id="panel-loading"></div>');
 
     //loader for dashboard
-    if(isDashboardScreen){
-        var panelEditContainer=$('.panelDisplay').find('#panEdit-panel');
+    if (isDashboardScreen) {
+        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
@@ -2079,9 +2076,7 @@ async function getMetricsData(queryName, metricName, state) {
         // Handle the error and throw it to be caught by the calling function
         var errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
         if (errorCanvas.length > 0) {
-            errorMessage = (error.responseJSON && error.responseJSON.error) ||
-                (error.responseText && JSON.parse(error.responseText).error) ||
-                'An unknown error occurred';
+            errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
             errorCanvas.remove();
             let mergedErrorCanvas = mergedContainer.find('canvas');
             mergedErrorCanvas.remove();
@@ -2094,9 +2089,8 @@ async function getMetricsData(queryName, metricName, state) {
     } finally {
         container.find('#panel-loading').remove();
         mergedContainer.find('#panel-loading').remove();
-        if(isDashboardScreen){
+        if (isDashboardScreen) {
             panelEditContainer.find('#panel-loading').remove();
-
         }
     }
 }
@@ -2111,8 +2105,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     var mergedContainer = $('#merged-graph-container').find('.merged-graph');
     mergedContainer.append('<div id="panel-loading"></div>');
 
-    if(isDashboardScreen){
-        var panelEditContainer=$('.panelDisplay').find('#panEdit-panel');
+    if (isDashboardScreen) {
+        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
@@ -2189,9 +2183,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     } finally {
         container.find('#panel-loading').remove();
         mergedContainer.find('#panel-loading').remove();
-        if(isDashboardScreen){
+        if (isDashboardScreen) {
             panelEditContainer.find('#panel-loading').remove();
-
         }
     }
 }
@@ -2262,7 +2255,6 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
         } else {
             addVisualizationContainer(queryName, chartData, queryString);
         }
-
     } catch (errorMessage) {
         displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
     }
