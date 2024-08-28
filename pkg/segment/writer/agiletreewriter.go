@@ -225,9 +225,9 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		numNodesNeeded += len(n.children)
 	}
 
-	stb.treeTravNodePts[level] = utils.ResizeSlice(stb.treeTravNodePts[level], numNodesNeeded)
+	stb.treeTravNodePtrs[level] = utils.ResizeSlice(stb.treeTravNodePtrs[level], numNodesNeeded)
 
-	nextLevelNodes := stb.treeTravNodePts[level][:numNodesNeeded]
+	nextLevelNodes := stb.treeTravNodePtrs[level][:numNodesNeeded]
 	nlIdx := 0
 
 	clBufIdx := uint32(0) // cur level buf idx for intermediary writes

@@ -58,9 +58,8 @@ type StarTreeBuilder struct {
 	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
 	buf               []byte
 	// array to keep reusing for tree traversal. [level][*Node Array]
-	treeTravNodePts   [][]*Node
+	treeTravNodePtrs [][]*Node
 }
-
 
 // its ok for this to be int, since this will be used as an index in arrays
 const (
@@ -93,7 +92,7 @@ func GetSTB() *STBHolder {
 			STBHolderPool[i] = &STBHolder{
 				stbPtr: &StarTreeBuilder{
 					// 1 extra for the root level
-					treeTravNodePts: make([][]*Node, querytracker.MAX_NUM_GROUPBY_COLS+1)},
+					treeTravNodePtrs: make([][]*Node, querytracker.MAX_NUM_GROUPBY_COLS+1)},
 			}
 		}
 

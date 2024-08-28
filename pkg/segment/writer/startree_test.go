@@ -281,7 +281,8 @@ func TestStarTree(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
@@ -379,7 +380,7 @@ func TestStarTreeMedium(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
@@ -479,7 +480,8 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
@@ -578,7 +580,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 1; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
