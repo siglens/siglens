@@ -104,12 +104,15 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
-func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
+func InitSegStore(segmentKey string, segbaseDir string, suffix uint64,
+	virtualTableName string, skipDe bool, orgId uint64) *SegStore {
+
 	segStore := NewSegStore(orgId)
 	segStore.SegmentKey = segmentKey
 	segStore.segbaseDir = segbaseDir
 	segStore.suffix = suffix
 	segStore.VirtualTableName = virtualTableName
+	segStore.skipDe = skipDe
 	segStore.OrgId = orgId
 
 	return segStore
