@@ -344,7 +344,6 @@ func Test_numberReduceFastMixed(t *testing.T) {
 }
 
 // Test_numberReduceFastUnsupported tests aggregating functions on unsupported numbers using ReduceFast.
-
 func Test_numberReduceFastUnsupported(t *testing.T) {
 	const unsupportedType = 0xFF
 	n1 := Number{[9]byte{0, 0, 0, 0, 0, 0, 0, 0, unsupportedType}}
@@ -357,6 +356,7 @@ func Test_numberReduceFastUnsupported(t *testing.T) {
 	}
 }
 
+// Test_convertBytesToNumber tests converting bytes to number. It should return the correct value.
 func Test_convertBytesToNumber(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -389,5 +389,14 @@ func Test_convertBytesToNumber(t *testing.T) {
 					tt.intVal, tt.floatVal, tt.dtype, intVal, floatVal, dtype)
 			}
 		})
+	}
+}
+
+// Test_convertInvalidBytesToNumber tests converting invalid bytes to number. It should return 0 for both Int64 and Float64.
+
+func Test_convertInvalidBytesToNumber(t *testing.T) {
+	intVal, floatVal, dtype := ConvertBytesToNumber(nil)
+	if intVal != 0 || floatVal != 0 || dtype != SS_INVALID {
+		assert.Fail(t, "Expected 0, 0, SS_INVALID, got %v, %v, %v", intVal, floatVal, dtype)
 	}
 }
