@@ -741,21 +741,6 @@ var cases2 = []struct {
 // Perf:   9     7     8        11          11       15          16                    11      3
 // Rating: 5     3     4        6           10       12          11                    3       1
 
-func checkAggValues(t *testing.T, measureInd int, root *Node, expected []interface{}) {
-	offset := measureInd * TotalMeasFns
-	agidx := offset + MeasFnSumIdx
-	assert.Equal(t, expected[0].(int64), root.aggValues[agidx].CVal.(int64))
-
-	agidx = offset + MeasFnMinIdx
-	assert.Equal(t, expected[1].(int64), root.aggValues[agidx].CVal.(int64))
-
-	agidx = offset + MeasFnMaxIdx
-	assert.Equal(t, expected[2].(int64), root.aggValues[agidx].CVal.(int64))
-
-	agidx = offset + MeasFnCountIdx
-	assert.Equal(t, expected[3].(uint64), root.aggValues[agidx].CVal.(uint64))
-}
-
 func getTotalLevels(node *Node) int {
 	if node == nil || node.children == nil || len(node.children) == 0 {
 		return 0
@@ -770,23 +755,26 @@ func getTotalLevels(node *Node) int {
 	return 1 + max
 }
 
-func (builder *StarTreeBuilder) DeriveEnc(wip WipBlock, recGroupByValues [][]string) (map[string]map[string]uint32, error) {
+func (builder *StarTreeBuilder) GetColValueEncodings(wip WipBlock, recGroupByValues [][]string) (map[string]map[string]uint32, error) {
 	numRecs := wip.blockSummary.RecCount
-	mp := make(map[string]map[string]uint32)
+	colValueToEncMap := make(map[string]map[string]uint32)
 	for colNum := range builder.groupByKeys {
-		mp[builder.groupByKeys[colNum]] = make(map[string]uint32)
+		colValueToEncMap[builder.groupByKeys[colNum]] = make(map[string]uint32)
 	}
 
+	// valueToEncMap will be used to store the encoded values for each group by key
+	// E.g. valueToEncMap["brand"]["toyota"] = 1 indicates that "toyota" is encoded as 1 for the brand column
+	// This will be used to verify the tree structure since enc values are not deterministic (because of map iteration order)
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for i, grpValues := range recGroupByValues[recNum] {
-			mp[builder.groupByKeys[i]][grpValues] = builder.wipRecNumToColEnc[i][recNum]
+			colValueToEncMap[builder.groupByKeys[i]][grpValues] = builder.wipRecNumToColEnc[i][recNum]
 		}
 	}
 
-	return mp, nil
+	return colValueToEncMap, nil
 }
 
-func getTree(t *testing.T, root *Node, ans map[string][]utils.CValueEnclosure, key string) {
+func populateAggsFromTree(t *testing.T, root *Node, aggValues map[string][]utils.CValueEnclosure, key string) {
 	var newKey string
 	if key == "" {
 		newKey = fmt.Sprintf("%v", root.myKey)
@@ -794,12 +782,12 @@ func getTree(t *testing.T, root *Node, ans map[string][]utils.CValueEnclosure, k
 		newKey = strings.Join([]string{key, fmt.Sprintf("%v", root.myKey)}, "_")
 	}
 	if root.children == nil || len(root.children) == 0 {
-		ans[newKey] = root.aggValues
+		aggValues[newKey] = root.aggValues
 		return
 	}
 
 	for _, child := range root.children {
-		getTree(t, child, ans, newKey)
+		populateAggsFromTree(t, child, aggValues, newKey)
 	}
 }
 
@@ -811,17 +799,21 @@ func createKey(root *Node, encMap map[string]map[string]uint32, grpCols []string
 	return strings.Join(keys, "_")
 }
 
-func testAggs(t *testing.T, expected []int, aggVals []utils.CValueEnclosure) {
-	assert.Equal(t, len(expected), len(aggVals))
+func testAggs(t *testing.T, expected []int, aggValues []utils.CValueEnclosure) {
+	assert.Equal(t, len(expected), len(aggValues))
 
-	for i := 0; i < len(expected); i++ {
-		if i%TotalMeasFns == MeasFnCountIdx {
-			assert.Equal(t, utils.SS_DT_UNSIGNED_NUM, aggVals[i].Dtype)
-			assert.Equal(t, expected[i], int(aggVals[i].CVal.(uint64)))
-		} else {
-			assert.Equal(t, utils.SS_DT_SIGNED_NUM, aggVals[i].Dtype)
-			assert.Equal(t, expected[i], int(aggVals[i].CVal.(int64)))
-		}
+	for offset := 0; offset < len(expected); offset += TotalMeasFns {
+		agidx := offset + MeasFnSumIdx
+		assert.Equal(t, int64(expected[agidx]), aggValues[agidx].CVal.(int64))
+
+		agidx = offset + MeasFnMinIdx
+		assert.Equal(t, int64(expected[agidx]), aggValues[agidx].CVal.(int64))
+
+		agidx = offset + MeasFnMaxIdx
+		assert.Equal(t, int64(expected[agidx]), aggValues[agidx].CVal.(int64))
+
+		agidx = offset + MeasFnCountIdx
+		assert.Equal(t, uint64(expected[agidx]), aggValues[agidx].CVal.(uint64))
 	}
 }
 
@@ -894,319 +886,292 @@ func TestStarTree2(t *testing.T) {
 
 	// basic test
 	var builder StarTreeBuilder
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err := builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root := builder.tree.Root
 
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	encMap, err := builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues := make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		// check the tree structure
-		assert.Equal(t, 13, len(tree))
-		key := createKey(root, encMap, groupByCols, []string{"toyota", "green", "sedan"})
-		testAggs(t, []int{10, 10, 10, 1, 9, 9, 9, 1, 5, 5, 5, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"toyota", "yellow", "sedan"})
-		testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"toyota", "red", "suv"})
-		testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "", ""})
-		testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "blue", ""})
-		testAggs(t, []int{5, 5, 5, 1, 2, 2, 2, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "blue", "sedan"})
-		testAggs(t, []int{20, 20, 20, 1, 11, 11, 11, 1, 6, 6, 6, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "green", ""})
-		testAggs(t, []int{10, 10, 10, 1, 3, 3, 3, 1, 2, 2, 2, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "green", "sedan"})
-		testAggs(t, []int{16, 16, 16, 1, 11, 11, 11, 1, 10, 10, 10, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"audi", "green", "suv"})
-		testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"bmw", "green", ""})
-		testAggs(t, []int{25, 25, 25, 1, 5, 5, 5, 1, 2, 2, 2, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"bmw", "green", "sedan"})
-		testAggs(t, []int{50, 50, 50, 1, 16, 16, 16, 1, 11, 11, 11, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"bmw", "red", "sedan"})
-		testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, groupByCols, []string{"bmw", "pink", "suv"})
-		testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, tree[key])
+	// check the tree structure
+	assert.Equal(t, 13, len(aggValues))
+	key := createKey(root, encMap, groupByCols, []string{"toyota", "green", "sedan"})
+	testAggs(t, []int{10, 10, 10, 1, 9, 9, 9, 1, 5, 5, 5, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"toyota", "yellow", "sedan"})
+	testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"toyota", "red", "suv"})
+	testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "", ""})
+	testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "blue", ""})
+	testAggs(t, []int{5, 5, 5, 1, 2, 2, 2, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "blue", "sedan"})
+	testAggs(t, []int{20, 20, 20, 1, 11, 11, 11, 1, 6, 6, 6, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "green", ""})
+	testAggs(t, []int{10, 10, 10, 1, 3, 3, 3, 1, 2, 2, 2, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "green", "sedan"})
+	testAggs(t, []int{16, 16, 16, 1, 11, 11, 11, 1, 10, 10, 10, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"audi", "green", "suv"})
+	testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"bmw", "green", ""})
+	testAggs(t, []int{25, 25, 25, 1, 5, 5, 5, 1, 2, 2, 2, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"bmw", "green", "sedan"})
+	testAggs(t, []int{50, 50, 50, 1, 16, 16, 16, 1, 11, 11, 11, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"bmw", "red", "sedan"})
+	testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, groupByCols, []string{"bmw", "pink", "suv"})
+	testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, aggValues[key])
 
-		assert.Equal(t, 3, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 3, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// Levels: 0 -> brand, 1 -> color, 2 -> type
 	// remove brand
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 0, 2)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		gCols := groupByCols[1:]
+	gCols := []string{"color", "type"}
 
-		// check the tree structure
-		assert.Equal(t, 10, len(tree))
-		key := createKey(root, encMap, gCols, []string{"green", "sedan"})
-		testAggs(t, []int{10, 50, 76, 3, 9, 16, 36, 3, 5, 11, 26, 3}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"green", ""})
-		testAggs(t, []int{10, 25, 35, 2, 3, 5, 8, 2, 2, 2, 4, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"green", "suv"})
-		testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, tree[key])
+	// check the tree structure
+	assert.Equal(t, 10, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{"green", "sedan"})
+	testAggs(t, []int{10, 50, 76, 3, 9, 16, 36, 3, 5, 11, 26, 3}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"green", ""})
+	testAggs(t, []int{10, 25, 35, 2, 3, 5, 8, 2, 2, 2, 4, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"green", "suv"})
+	testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"yellow", "sedan"})
-		testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"yellow", "sedan"})
+	testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"red", "suv"})
-		testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"red", "sedan"})
-		testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"red", "suv"})
+	testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"red", "sedan"})
+	testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"", ""})
-		testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"", ""})
+	testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"blue", ""})
-		testAggs(t, []int{5, 5, 5, 1, 2, 2, 2, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"blue", "sedan"})
-		testAggs(t, []int{20, 20, 20, 1, 11, 11, 11, 1, 6, 6, 6, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"blue", ""})
+	testAggs(t, []int{5, 5, 5, 1, 2, 2, 2, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"blue", "sedan"})
+	testAggs(t, []int{20, 20, 20, 1, 11, 11, 11, 1, 6, 6, 6, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"pink", "suv"})
-		testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"pink", "suv"})
+	testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, aggValues[key])
 
-		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 2, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// remove color
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 1, 2)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 1, 2)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		gCols := []string{"brand", "type"}
+	gCols = []string{"brand", "type"}
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		// check the tree structure
-		assert.Equal(t, 8, len(tree))
-		key := createKey(root, encMap, gCols, []string{"toyota", "sedan"})
-		testAggs(t, []int{8, 10, 18, 2, 7, 9, 16, 2, 3, 5, 8, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"toyota", "suv"})
-		testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, tree[key])
+	// check the aggValues structure
+	assert.Equal(t, 8, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{"toyota", "sedan"})
+	testAggs(t, []int{8, 10, 18, 2, 7, 9, 16, 2, 3, 5, 8, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"toyota", "suv"})
+	testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"audi", ""})
-		testAggs(t, []int{5, 20, 35, 3, 2, 6, 11, 3, 2, 4, 9, 3}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"audi", "sedan"})
-		testAggs(t, []int{16, 20, 36, 2, 11, 11, 22, 2, 6, 10, 16, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"audi", "suv"})
-		testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"audi", ""})
+	testAggs(t, []int{5, 20, 35, 3, 2, 6, 11, 3, 2, 4, 9, 3}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"audi", "sedan"})
+	testAggs(t, []int{16, 20, 36, 2, 11, 11, 22, 2, 6, 10, 16, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"audi", "suv"})
+	testAggs(t, []int{30, 30, 30, 1, 15, 15, 15, 1, 12, 12, 12, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"bmw", ""})
-		testAggs(t, []int{25, 25, 25, 1, 5, 5, 5, 1, 2, 2, 2, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"bmw", "sedan"})
-		testAggs(t, []int{18, 50, 68, 2, 11, 16, 27, 2, 3, 11, 14, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"bmw", "suv"})
-		testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", ""})
+	testAggs(t, []int{25, 25, 25, 1, 5, 5, 5, 1, 2, 2, 2, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", "sedan"})
+	testAggs(t, []int{18, 50, 68, 2, 11, 16, 27, 2, 3, 11, 14, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", "suv"})
+	testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, aggValues[key])
 
-		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 2, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// remove type
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 2, 2)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 2, 2)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		gCols := []string{"brand", "color"}
-		// check the tree structure
-		assert.Equal(t, 9, len(tree))
-		key := createKey(root, encMap, gCols, []string{"toyota", "green"})
-		testAggs(t, []int{10, 10, 10, 1, 9, 9, 9, 1, 5, 5, 5, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"toyota", "yellow"})
-		testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"toyota", "red"})
-		testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, tree[key])
+	gCols = []string{"brand", "color"}
+	// check the aggValues structure
+	assert.Equal(t, 9, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{"toyota", "green"})
+	testAggs(t, []int{10, 10, 10, 1, 9, 9, 9, 1, 5, 5, 5, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"toyota", "yellow"})
+	testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"toyota", "red"})
+	testAggs(t, []int{9, 9, 9, 1, 8, 8, 8, 1, 4, 4, 4, 1}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"audi", ""})
-		testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"audi", "blue"})
-		testAggs(t, []int{5, 20, 25, 2, 2, 11, 13, 2, 3, 6, 9, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"audi", "green"})
-		testAggs(t, []int{10, 30, 56, 3, 3, 15, 29, 3, 2, 12, 24, 3}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"audi", ""})
+	testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"audi", "blue"})
+	testAggs(t, []int{5, 20, 25, 2, 2, 11, 13, 2, 3, 6, 9, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"audi", "green"})
+	testAggs(t, []int{10, 30, 56, 3, 3, 15, 29, 3, 2, 12, 24, 3}, aggValues[key])
 
-		key = createKey(root, encMap, gCols, []string{"bmw", "green"})
-		testAggs(t, []int{25, 50, 75, 2, 5, 16, 21, 2, 2, 11, 13, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"bmw", "red"})
-		testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"bmw", "pink"})
-		testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, tree[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", "green"})
+	testAggs(t, []int{25, 50, 75, 2, 5, 16, 21, 2, 2, 11, 13, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", "red"})
+	testAggs(t, []int{18, 18, 18, 1, 11, 11, 11, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"bmw", "pink"})
+	testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, aggValues[key])
 
-		assert.Equal(t, 2, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 2, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// remove brand and color
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 0, 2)
-		assert.NoError(t, err)
-		err = builder.removeLevelFromTree(root, 0, 0, 1)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 0, 1)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		gCols := []string{"type"}
-		// check the tree structure
-		assert.Equal(t, 3, len(tree))
-		key := createKey(root, encMap, gCols, []string{""})
-		testAggs(t, []int{5, 25, 60, 4, 2, 6, 16, 4, 2, 4, 11, 4}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"sedan"})
-		testAggs(t, []int{8, 50, 122, 6, 7, 16, 65, 6, 3, 11, 38, 6}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"suv"})
-		testAggs(t, []int{9, 40, 79, 3, 3, 15, 26, 3, 1, 12, 17, 3}, tree[key])
+	gCols = []string{"type"}
+	// check the aggValues structure
+	assert.Equal(t, 3, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{""})
+	testAggs(t, []int{5, 25, 60, 4, 2, 6, 16, 4, 2, 4, 11, 4}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"sedan"})
+	testAggs(t, []int{8, 50, 122, 6, 7, 16, 65, 6, 3, 11, 38, 6}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"suv"})
+	testAggs(t, []int{9, 40, 79, 3, 3, 15, 26, 3, 1, 12, 17, 3}, aggValues[key])
 
-		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 1, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// remove color and type
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 1, 2)
-		assert.NoError(t, err)
-		err = builder.removeLevelFromTree(root, 0, 1, 1)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 1, 2)
+	assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 1, 1)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		gCols := []string{"brand"}
-		// check the tree structure
-		assert.Equal(t, 3, len(tree))
-		key := createKey(root, encMap, gCols, []string{"toyota"})
-		testAggs(t, []int{8, 10, 27, 3, 7, 9, 24, 3, 3, 5, 12, 3}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"audi"})
-		testAggs(t, []int{5, 30, 101, 6, 2, 15, 48, 6, 2, 12, 37, 6}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"bmw"})
-		testAggs(t, []int{18, 50, 133, 4, 3, 16, 35, 4, 1, 11, 17, 4}, tree[key])
+	gCols = []string{"brand"}
+	// check the aggValues structure
+	assert.Equal(t, 3, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{"toyota"})
+	testAggs(t, []int{8, 10, 27, 3, 7, 9, 24, 3, 3, 5, 12, 3}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"audi"})
+	testAggs(t, []int{5, 30, 101, 6, 2, 15, 48, 6, 2, 12, 37, 6}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"bmw"})
+	testAggs(t, []int{18, 50, 133, 4, 3, 16, 35, 4, 1, 11, 17, 4}, aggValues[key])
 
-		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	assert.Equal(t, 1, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	// remove brand and type
-	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
-		err := builder.ComputeStarTree(&ss.wipBlock)
-		assert.NoError(t, err)
-		root := builder.tree.Root
-		encMap, err := builder.DeriveEnc(ss.wipBlock, allGrpVals)
-		assert.NoError(t, err)
+	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
+	err = builder.ComputeStarTree(&ss.wipBlock)
+	assert.NoError(t, err)
+	root = builder.tree.Root
+	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
+	assert.NoError(t, err)
 
-		err = builder.removeLevelFromTree(root, 0, 0, 2)
-		assert.NoError(t, err)
-		err = builder.removeLevelFromTree(root, 0, 1, 1)
-		assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 0, 2)
+	assert.NoError(t, err)
+	err = builder.removeLevelFromTree(root, 0, 1, 1)
+	assert.NoError(t, err)
 
-		tree := make(map[string][]utils.CValueEnclosure)
-		getTree(t, root, tree, "")
+	aggValues = make(map[string][]utils.CValueEnclosure)
+	populateAggsFromTree(t, root, aggValues, "")
 
-		_, err = builder.EncodeStarTree(ss.SegmentKey)
-		assert.NoError(t, err)
+	_, err = builder.EncodeStarTree(ss.SegmentKey)
+	assert.NoError(t, err)
 
-		gCols := []string{"color"}
-		// check the tree structure
-		assert.Equal(t, 6, len(tree))
-		key := createKey(root, encMap, gCols, []string{""})
-		testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"green"})
-		testAggs(t, []int{10, 50, 141, 6, 3, 16, 59, 6, 2, 12, 42, 6}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"yellow"})
-		testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"red"})
-		testAggs(t, []int{9, 18, 27, 2, 8, 11, 19, 2, 3, 4, 7, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"blue"})
-		testAggs(t, []int{5, 20, 25, 2, 2, 11, 13, 2, 3, 6, 9, 2}, tree[key])
-		key = createKey(root, encMap, gCols, []string{"pink"})
-		testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, tree[key])
+	gCols = []string{"color"}
 
-		assert.Equal(t, 1, getTotalLevels(root))
-		checkAggValues(t, 0, root, []interface{}{int64(261), int64(5), int64(50), uint64(13)})
-		checkAggValues(t, 1, root, []interface{}{int64(107), int64(2), int64(16), uint64(13)})
-		checkAggValues(t, 2, root, []interface{}{int64(66), int64(1), int64(12), uint64(13)})
-	}
+	// check the aggValues structure
+	assert.Equal(t, 6, len(aggValues))
+	key = createKey(root, encMap, gCols, []string{""})
+	testAggs(t, []int{20, 20, 20, 1, 6, 6, 6, 1, 4, 4, 4, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"green"})
+	testAggs(t, []int{10, 50, 141, 6, 3, 16, 59, 6, 2, 12, 42, 6}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"yellow"})
+	testAggs(t, []int{8, 8, 8, 1, 7, 7, 7, 1, 3, 3, 3, 1}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"red"})
+	testAggs(t, []int{9, 18, 27, 2, 8, 11, 19, 2, 3, 4, 7, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"blue"})
+	testAggs(t, []int{5, 20, 25, 2, 2, 11, 13, 2, 3, 6, 9, 2}, aggValues[key])
+	key = createKey(root, encMap, gCols, []string{"pink"})
+	testAggs(t, []int{40, 40, 40, 1, 3, 3, 3, 1, 1, 1, 1, 1}, aggValues[key])
+
+	assert.Equal(t, 1, getTotalLevels(root))
+	testAggs(t, []int{5, 50, 261, 13, 2, 16, 107, 13, 1, 12, 66, 13}, root.aggValues)
 
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
 	_ = os.RemoveAll(fName)

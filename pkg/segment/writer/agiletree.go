@@ -323,8 +323,9 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node) error {
+func (stb *StarTreeBuilder) mergeChildNodes(currNode *Node) error {
 	var err error
+
 	// delink the children from the current nodes and accumulate them as commonChildren
 	for _, nodes := range currNode.commonChildren {
 		fixedNode := nodes[0]
@@ -349,7 +350,7 @@ func (stb *StarTreeBuilder) cleanupCommonChildren(currNode *Node) error {
 
 	// link parent and children properly and cleanup commonChildren
 	for _, children := range currNode.commonChildren {
-		err = stb.cleanupCommonChildren(children[0])
+		err = stb.mergeChildNodes(children[0])
 		if err != nil {
 			return err
 		}
@@ -372,9 +373,9 @@ func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToRemove uint, lastIdx uint) error {
-	if currIdx == idxToRemove {
-		if currIdx == lastIdx {
+func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, colIdxToRemove uint, lastColIdx uint) error {
+	if currColIdx == colIdxToRemove {
+		if currColIdx == lastColIdx {
 			// if last column needs to be removed, accumulation of children is not required as they will be unique.
 			// just combine the aggs at parent.
 			return stb.updateLastLevel(node)
@@ -410,11 +411,11 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currIdx uint, idxToR
 
 		node.commonChildren = commonChildren
 
-		return stb.cleanupCommonChildren(node)
+		return stb.mergeChildNodes(node)
 	}
 
 	for _, child := range node.children {
-		err := stb.removeLevelFromTree(child, currIdx+1, idxToRemove, lastIdx)
+		err := stb.removeLevelFromTree(child, currColIdx+1, colIdxToRemove, lastColIdx)
 		if err != nil {
 			return err
 		}
