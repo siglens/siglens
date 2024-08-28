@@ -297,6 +297,8 @@ func (stb *StarTreeBuilder) newNode() *Node {
 
 func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 
+	first := true
+
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 
 	if len(cur.children) != 0 {
@@ -314,6 +316,14 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 		err = stb.Aggregate(child)
 		if err != nil {
 			return err
+		}
+
+		if first {
+			for i, aggVal := range child.aggValues {
+				cur.aggValues[i].Copy(aggVal)
+			}
+			first = false
+			continue
 		}
 
 		for mcNum := range stb.mColNames {
