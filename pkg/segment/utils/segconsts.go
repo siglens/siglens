@@ -65,7 +65,7 @@ const WIP_SIZE = 2_000_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
-const BLOCK_BLOOM_SIZE = 20_000
+const BLOCK_BLOOM_SIZE = 100 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
 const BLOCK_RI_MAP_SIZE = 100
 
 var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8         // 100MB
