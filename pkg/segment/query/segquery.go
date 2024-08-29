@@ -260,7 +260,14 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 			aggs.BucketLimit = bucketLimit
 			queryInfo.aggs = aggs
 		}
-		return GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, true, true, qc.Orgid)
+		allColsInAggs := aggs.GetAllColsInAggsIfStatsPresent()
+		if len(allColsInAggs) > 0 {
+			SetAllColsInAggsForQid(qid, allColsInAggs)
+		}
+		nodeRes := GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, true, true, qc.Orgid)
+		nodeRes.AllColumnsInAggs = allColsInAggs
+
+		return nodeRes
 	default:
 		err := errors.New("unsupported query type")
 		log.Errorf("qid=%d Failed to apply search! error %+v", qid, err)
@@ -764,6 +771,12 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to get or create query search node result! Error: %v", qid, err)
+		return
+	}
+
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
@@ -779,8 +792,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
 		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
+		aggHasListFunc := segReq.aggs.HasListFunc()
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc {
+		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
@@ -809,7 +823,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 			// rawSearchSSR should be of size 1 or 0
 			for _, req := range rawSearchSSR {
-				sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs)
+				req.ConsistentCValLenMap = segReq.ConsistentCValLenMap
+				sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs, nodeRes)
 				if err != nil {
 					log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 					allSegFileResults.AddError(err)
@@ -955,6 +970,7 @@ func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileRes
 	qs.UpdateExtractSSRTime(time.Since(sTime))
 	for _, req := range rawSearchSSR {
 		req.SType = qsr.sType
+		req.ConsistentCValLenMap = qsr.ConsistentCValLenMap
 	}
 	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
 		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
@@ -1021,30 +1037,35 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func applyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		return fmt.Errorf("applyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)
+	}
 	for _, req := range allSegRequests {
-		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs)
+		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs, nodeRes)
 	}
 
 	return nil
 }
 
 // Returns sorted order of query segment requests, count of keys to raw search
-func FilterAggSegKeysToQueryResults(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*dtu.TimeRange,
+func FilterAggSegKeysToQueryResults(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes,
 	aggs *structs.QueryAggregators, segType structs.SegType) ([]*QuerySegmentRequest, uint64) {
 
 	allAggSegmentRequests := make([]*QuerySegmentRequest, 0)
 	aggSearchCount := uint64(0)
 	for tableName, segKeys := range allPossibleKeys {
-		for segKey, tsRange := range segKeys {
-			if tsRange == nil {
+		for segKey, segTimeCs := range segKeys {
+			if segTimeCs == nil {
 				log.Errorf("qid=%d, FilterAggSegKeysToQueryResults reieved an empty segment time range. SegKey %+v", qInfo.qid, segKey)
 				continue
 			}
 			qReq := &QuerySegmentRequest{
-				QueryInformation: *qInfo,
-				segKey:           segKey,
-				segKeyTsRange:    tsRange,
-				tableName:        tableName,
+				QueryInformation:     *qInfo,
+				segKey:               segKey,
+				segKeyTsRange:        segTimeCs.TimeRange,
+				tableName:            tableName,
+				ConsistentCValLenMap: segTimeCs.ConsistentCValLenMap,
 			}
 
 			qReq.sType = segType
@@ -1076,19 +1097,20 @@ func FilterSegKeysToQueryResults(qInfo *QueryInformation, qsrs []*QuerySegmentRe
 	return qsrs, rawSearchCount, pqsCount
 }
 
-func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*dtu.TimeRange) []*QuerySegmentRequest {
+func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes) []*QuerySegmentRequest {
 	allSegRequests := make([]*QuerySegmentRequest, 0)
 	for tableName, segKeys := range allPossibleKeys {
-		for segKey, tsRange := range segKeys {
-			if tsRange == nil {
+		for segKey, segTimeCs := range segKeys {
+			if segTimeCs == nil {
 				log.Errorf("qid=%d, ConvertSegKeysToQueryRequests received an empty segment time range. SegKey %+v", qInfo.qid, segKey)
 				continue
 			}
 			qReq := &QuerySegmentRequest{
-				QueryInformation: *qInfo,
-				segKey:           segKey,
-				segKeyTsRange:    tsRange,
-				tableName:        tableName,
+				QueryInformation:     *qInfo,
+				segKey:               segKey,
+				segKeyTsRange:        segTimeCs.TimeRange,
+				tableName:            tableName,
+				ConsistentCValLenMap: segTimeCs.ConsistentCValLenMap,
 			}
 			allSegRequests = append(allSegRequests, qReq)
 		}
@@ -1098,21 +1120,21 @@ func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[
 }
 
 // Returns query segment requests, count of keys to raw search, count of keys in PQS
-func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*dtu.TimeRange) ([]*QuerySegmentRequest, uint64, uint64) {
+func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes) ([]*QuerySegmentRequest, uint64, uint64) {
 
 	allSegRequests := make([]*QuerySegmentRequest, 0)
 	pqsCount := uint64(0)
 	rawSearchCount := uint64(0)
 	for tableName, segKeys := range allPossibleKeys {
-		for segKey, tsRange := range segKeys {
-			if tsRange == nil {
+		for segKey, segTimeCs := range segKeys {
+			if segTimeCs == nil {
 				log.Errorf("qid=%d, filterUnrotatedSegKeysToQueryRequests received an empty segment time range. SegKey %+v", qInfo.qid, segKey)
 				continue
 			}
 			qReq := &QuerySegmentRequest{
 				QueryInformation: *qInfo,
 				segKey:           segKey,
-				segKeyTsRange:    tsRange,
+				segKeyTsRange:    segTimeCs.TimeRange,
 				tableName:        tableName,
 			}
 			if writer.DoesSegKeyHavePqidResults(segKey, qInfo.pqid) {
@@ -1169,8 +1191,13 @@ func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 			BlockSummaries:    blkSummaries,
 			SearchTotalMemory: uint64(len(blkSummaries) * 16), // TODO: add bitset size here
 		},
+		ConsistentCValLenMap: qsr.ConsistentCValLenMap,
 	}
-	search.RawSearchPQMResults(req, qsr.parallelismPerFile, qsr.queryRange, qsr.aggs, qsr.sizeLimit, spqmr, allSearchResults, qsr.qid, qs)
+	nodeRes, err := GetOrCreateQuerySearchNodeResult(qsr.qid)
+	if err != nil {
+		return fmt.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get or create query search node result! Error: %v", qsr.qid, err)
+	}
+	search.RawSearchPQMResults(req, qsr.parallelismPerFile, qsr.queryRange, qsr.aggs, qsr.sizeLimit, spqmr, allSearchResults, qsr.qid, qs, nodeRes)
 
 	if req.HasMatchedRrc {
 		qsr.HasMatchedRrc = true
@@ -1196,6 +1223,7 @@ func applyFopFastPathSingleRequest(qsr *QuerySegmentRequest, allSegFileResults *
 	qs.UpdateExtractSSRTime(time.Since(sTime))
 	for _, req := range rawSearchSSR {
 		req.SType = qsr.sType
+		req.ConsistentCValLenMap = qsr.ConsistentCValLenMap
 	}
 
 	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,

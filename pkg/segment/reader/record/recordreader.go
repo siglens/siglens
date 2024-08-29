@@ -40,8 +40,8 @@ import (
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
-	tsKey string, esQuery bool, qid uint64,
-	aggs *structs.QueryAggregators, colsIndexMap map[string]int) (map[string]map[string]interface{}, map[string]bool, error) {
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
+	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult, consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
@@ -56,6 +56,14 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			log.Errorf("GetRecordsFromSegment: failed to get column for key: %s, table %s", segKey, vTable)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
+	}
+
+	// if len(allColsInAggs) > 0, then we need to intersect the allCols with allColsInAggs
+	// this is because we only need to read the columns that are present in the aggregators.
+	// if len(allColsInAggs) == 0, then we ignore this step, as this would mean that the
+	// query does not have a stats block, and we need to read all columns.
+	if len(allColsInAggs) > 0 {
+		allCols = toputils.IntersectionWithFirstMapValues(allCols, allColsInAggs)
 	}
 	allCols = applyColNameTransform(allCols, aggs, colsIndexMap, qid)
 	numOpenFds := int64(len(allCols))
@@ -127,7 +135,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 
 	result := make(map[string]map[string]interface{})
 
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, qid)
+	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid)
 	if err != nil {
 		log.Errorf("GetRecordsFromSegment: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err
@@ -161,7 +169,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			idx++
 		}
 		sort.Slice(allRecNums, func(i, j int) bool { return allRecNums[i] < allRecNums[j] })
-		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs)
+		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
 
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
@@ -200,7 +208,8 @@ func getMathOpsColMap(MathOps []*structs.MathEvaluator) map[string]int {
 }
 
 func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segread.MultiColSegmentReader,
-	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators) map[uint16]map[string]interface{} {
+	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	nodeRes *structs.NodeResult) map[uint16]map[string]interface{} {
 
 	results := make(map[uint16]map[string]interface{})
 
@@ -238,6 +247,21 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 		mathColMap = make(map[string]int)
 	}
 
+	colsToReadIndices := make(map[int]struct{})
+	for colKeyIdx, cname := range allColKeyIndices {
+		_, exists := dictEncCols[cname]
+		if exists {
+			continue
+		}
+		colsToReadIndices[colKeyIdx] = struct{}{}
+	}
+
+	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockIdx)
+	if err != nil {
+		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockIdx, err)
+		return results
+	}
+
 	var isTsCol bool
 	for _, recNum := range orderedRecNums {
 		_, ok := results[recNum]
@@ -261,7 +285,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
-				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {

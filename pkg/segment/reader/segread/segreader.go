@@ -66,6 +66,7 @@ type SegmentFileReader struct {
 	currOffset               uint32
 	currUncompressedBlockLen uint32
 	currRecLen               uint32
+	consistentColValueLen    uint32
 
 	isBlockLoaded      bool
 	currFileBuffer     []byte   // buffer re-used for file reads values
@@ -79,20 +80,21 @@ type SegmentFileReader struct {
 // returns a new SegmentFileReader and any errors encountered
 // The returned SegmentFileReader must call .Close() when finished using it to close the fd
 func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	qid uint64, blockSummaries []*structs.BlockSummary) (*SegmentFileReader, error) {
+	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32) (*SegmentFileReader, error) {
 	return &SegmentFileReader{
-		ColName:            colName,
-		fileName:           fd.Name(),
-		currFD:             fd,
-		blockMetadata:      blockMetadata,
-		currOffset:         0,
-		currFileBuffer:     *fileReadBufferPool.Get().(*[]byte),
-		currRawBlockBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
-		isBlockLoaded:      false,
-		encType:            255,
-		blockSummaries:     blockSummaries,
-		deTlv:              make([][]byte, 0),
-		deRecToTlv:         make([]uint16, 0),
+		ColName:               colName,
+		fileName:              fd.Name(),
+		currFD:                fd,
+		blockMetadata:         blockMetadata,
+		currOffset:            0,
+		currFileBuffer:        *fileReadBufferPool.Get().(*[]byte),
+		currRawBlockBuffer:    *uncompressedReadBufferPool.Get().(*[]byte),
+		consistentColValueLen: colValueRecLen,
+		isBlockLoaded:         false,
+		encType:               255,
+		blockSummaries:        blockSummaries,
+		deTlv:                 make([][]byte, 0),
+		deRecToTlv:            make([]uint16, 0),
 	}, nil
 }
 
@@ -170,21 +172,32 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	}
 }
 
+func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
+	for keyIndex := range colsIndexMap {
+		if keyIndex >= len(mcsr.allFileReaders) {
+			// This can happen if the column does not exist.
+			return nil
+		}
+
+		sfr := mcsr.allFileReaders[keyIndex]
+		if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
+			valid, err := sfr.readBlock(blockNum)
+			if !valid {
+				return err
+			}
+			if err != nil {
+				return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // returns the raw bytes of the blockNum:recordNum combination in the current segfile
 // optimized for subsequent calls to have the same blockNum
 // returns : encodedVal, error
 func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uint16) ([]byte, error) {
-
-	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
-		valid, err := sfr.readBlock(blockNum)
-		if !valid {
-			return nil, err
-		}
-		if err != nil {
-			log.Errorf("SegmentFileReader.ReadRecordFromBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
-			return nil, err
-		}
-	}
 
 	// if dict encoding, we use the dictmapping
 	if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
@@ -247,6 +260,13 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 }
 
 func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
+	// if we have the positive column value rec len, that is the current record length
+	// This value comes from the segment metadata, where we store the column value size
+	// at segment level. If the value is >0 and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
+	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
+	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != utils.INCONSISTENT_CVAL_SIZE {
+		return sfr.consistentColValueLen, nil
+	}
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {
 	case utils.VALTYPE_ENC_SMALL_STRING[0]:

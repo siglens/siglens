@@ -23,7 +23,6 @@ import (
 	"math"
 	"os"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -91,7 +90,8 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	idx := uint16(0)
 
-	// read version, currently ignored
+	// read version
+	version := fdata[idx]
 	idx++
 
 	// read isNumeric
@@ -105,11 +105,18 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
 	idx += 2
 
-	sst.Hll = hyperloglog.New16()
-	err := sst.Hll.UnmarshalBinary(fdata[idx : idx+hllSize])
-	if err != nil {
-		log.Errorf("qid=%d, readSingleSst: unmarshal sst err: %v", qid, err)
-		return nil, err
+	switch version {
+	case utils.VERSION_SEGSTATS[0]:
+		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
+		if err != nil {
+			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
+			return nil, err
+		}
+	case 1:
+		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
+	default:
+		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
+		return nil, errors.New("readSingleSst: unknown version")
 	}
 	idx += hllSize
 
@@ -399,16 +406,16 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		res.IntgrVal = int64(currSegStat.Hll.Estimate())
+		res.IntgrVal = int64(currSegStat.GetHllCardinality())
 		return &res, nil
 	}
 
-	err := runningSegStat.Hll.Merge(currSegStat.Hll)
+	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
 	if err != nil {
 		log.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
 		return nil, err
 	}
-	res.IntgrVal = int64(runningSegStat.Hll.Estimate())
+	res.IntgrVal = int64(runningSegStat.GetHllCardinality())
 
 	return &res, nil
 }

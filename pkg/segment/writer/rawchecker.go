@@ -18,7 +18,6 @@
 package writer
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
@@ -28,11 +27,12 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp) (bool, error) {
+func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRegex *regexp.Regexp, isCaseInsensitive bool) (bool, error) {
 	var err error
 
 	if len(match.MatchWords) == 0 {
@@ -72,13 +72,14 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 			}
 
 			if compiledRegex != nil {
+				// if the search is case insensitive, then the compiled regex should already be case insensitive regex
 				foundQword = compiledRegex.Match(asciiBytes)
 			} else {
-				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase)
+				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase, isCaseInsensitive)
 			}
 		} else {
 			for _, qword := range match.MatchWords {
-				foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword))
+				foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseInsensitive)
 				if !foundQword {
 					break
 				}
@@ -90,7 +91,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 	if match.MatchOperator == Or {
 		var foundQword bool
 		for _, qword := range match.MatchWords {
-			foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword))
+			foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword), isCaseInsensitive)
 			if foundQword {
 				return true, nil
 			}
@@ -102,7 +103,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte, compiledRege
 }
 
 func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byte, fop FilterOperator, isRegexSearch bool,
-	holderDte *DtypeEnclosure) (bool, error) {
+	holderDte *DtypeEnclosure, isCaseInsensitive bool) (bool, error) {
 	if qValDte == nil {
 		return false, nil
 	}
@@ -119,7 +120,7 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 			strlen := utils.BytesToUint16LittleEndian(rec[idx : idx+2])
 			idx += 2
 			if int(strlen) == len(col) {
-				keyEquals = bytes.Equal(rec[idx:idx+strlen], col)
+				keyEquals = utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[idx:idx+strlen], col)
 			}
 			idx += strlen
 			if !keyEquals {
@@ -145,23 +146,23 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 				// one byte for type & two for reclen
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_BOOL[0]:
 				// valEquals, err = fopOnBool(rec[idx:], qValDte, fop)
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_INT64[0]:
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			case VALTYPE_ENC_FLOAT64[0]:
 				strlen := utils.BytesToUint16LittleEndian(rec[idx+1 : idx+3])
 				idx += 3
-				valEquals = bytes.Equal(rec[idx:idx+strlen], qValDte.StringValBytes)
+				valEquals = utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[idx:idx+strlen], qValDte.StringValBytes)
 				idx += strlen
 			default:
 				log.Errorf("ApplySearchToDictArrayFilter:SS_DT_ARRAY_DICT unknown type=%v\n", rec[idx])
@@ -177,11 +178,11 @@ func ApplySearchToDictArrayFilter(col []byte, qValDte *DtypeEnclosure, rec []byt
 }
 
 func ApplySearchToExpressionFilterSimpleCsg(qValDte *DtypeEnclosure, fop FilterOperator,
-	col []byte, isRegexSearch bool, holderDte *DtypeEnclosure) (bool, error) {
+	col []byte, isRegexSearch bool, holderDte *DtypeEnclosure, isCaseInsensitive bool) (bool, error) {
 
 	holderDte.Reset()
 
-	return filterOpOnDataType(col, qValDte, fop, isRegexSearch, holderDte)
+	return filterOpOnDataType(col, qValDte, fop, isRegexSearch, holderDte, isCaseInsensitive)
 }
 
 func isValTypeEncANumber(valTypeEnc byte) bool {
@@ -195,25 +196,47 @@ func isValTypeEncANumber(valTypeEnc byte) bool {
 }
 
 func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
-	isRegexSearch bool, recDte *DtypeEnclosure) (bool, error) {
+	isRegexSearch bool, recDte *DtypeEnclosure, isCaseInsensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
 	}
 	switch qValDte.Dtype {
 	case SS_DT_STRING:
-		if len(rec) == 0 || rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
+		if len(rec) == 0 {
+			if fop == Equals {
+				return false, nil
+			} else if fop == NotEquals {
+				return true, nil
+			}
+
+			return false, toputils.TeeErrorf("filterOpOnDataType: invalid string operator: %v", fop)
+		}
+
+		if rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
 			// if we are doing a regex search on a number, we need to convert the number to string
-			if len(rec) > 0 && isRegexSearch && isValTypeEncANumber(rec[0]) {
+			if isRegexSearch && isValTypeEncANumber(rec[0]) {
 				return filterOpOnRecNumberEncType(rec, qValDte, fop, isRegexSearch, recDte)
 			}
+
 			return false, nil
 		}
-		return fopOnString(rec, qValDte, fop, isRegexSearch)
+		return fopOnString(rec, qValDte, fop, isRegexSearch, isCaseInsensitive)
 	case SS_DT_BOOL:
-		if len(rec) == 0 || rec[0] != VALTYPE_ENC_BOOL[0] {
-			return false, nil
+		if len(rec) == 0 {
+			if fop == Equals {
+				return false, nil
+			} else if fop == NotEquals {
+				return true, nil
+			}
+
+			return false, toputils.TeeErrorf("filterOpOnDataType: invalid bool operator: %v", fop)
 		}
+
+		if rec[0] != VALTYPE_ENC_BOOL[0] {
+			return false, toputils.TeeErrorf("filterOpOnDataType: expected bool encoding; got %v", rec[0])
+		}
+
 		return fopOnBool(rec, qValDte, fop)
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM, SS_DT_FLOAT:
 		return fopOnNumber(rec, qValDte, recDte, fop)
@@ -263,10 +286,15 @@ func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterO
 
 }
 
+// If the search is a regex search and case insensitive, then the compiled regex should already be case insensitive regex
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
-	isRegexSearch bool) (bool, error) {
+	isRegexSearch bool, isCaseInsensitive bool) (bool, error) {
 
-	var sOff uint16 = 3
+	const sOff int = 3
+	if len(rec) < sOff {
+		return false, toputils.TeeErrorf("fopOnString: invalid rec: %v", rec)
+	}
+
 	switch fop {
 	case Equals:
 		if isRegexSearch {
@@ -279,7 +307,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 		if len(rec[sOff:]) != len(qValDte.StringVal) {
 			return false, nil
 		}
-		return bytes.Equal(rec[sOff:], qValDte.StringValBytes), nil
+		return utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[sOff:], qValDte.StringValBytes), nil
 	case NotEquals:
 		if isRegexSearch {
 			regexp := qValDte.GetRegexp()
@@ -288,7 +316,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			}
 			return !regexp.Match(rec[sOff:]), nil
 		}
-		return !bytes.Equal(rec[sOff:], qValDte.StringValBytes), nil
+		return !utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[sOff:], qValDte.StringValBytes), nil
 	}
 	return false, nil
 }
@@ -356,8 +384,15 @@ func fopOnNumber(rec []byte, qValDte *DtypeEnclosure,
 	recDte *DtypeEnclosure, op FilterOperator) (bool, error) {
 
 	validNumberType, err := getNumberRecDte(rec, recDte)
-	if !validNumberType {
+	if err != nil {
+		log.Errorf("fopOnNumber: cannot check number type; rec=%v, err=%v", rec, err)
 		return false, err
+	}
+
+	if !validNumberType {
+		// This can happen if we search for a number in a string-only field.
+		// In this case, =, <, >=, etc. should not match, but != should match.
+		return op == NotEquals, nil
 	}
 
 	// now create a float (highest level for rec, only if we need to based on query

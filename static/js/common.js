@@ -1091,8 +1091,15 @@ function getMetricsQData() {
             let functionsArray = formulaDetailsMap[key].functions || [];
             // Update the formula by wrapping it with each function in the functionsArray
             let formula = formulas[key].formula;
+            
             for (let func of functionsArray) {
-                formula = `${func}(${formula})`;
+                // Create a regex to match the function being applied
+                const funcRegex = new RegExp(`\\b${func}\\(`);
+
+                // Check if the formula does not already contain the function
+                if (!funcRegex.test(formula)) {
+                    formula = `${func}(${formula})`;
+                }
             }
             formulasData.push({
                 end: endDate,

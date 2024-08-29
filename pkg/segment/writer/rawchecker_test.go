@@ -30,7 +30,6 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -57,6 +56,9 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			)},
 	}
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-a-%d", i)
@@ -66,7 +68,8 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		_, _, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS)
+		_, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 
 		colWips := allSegStores[sId].wipBlock.colWips
@@ -79,7 +82,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 
 		var found bool
 		for _, colWip := range colWips {
-			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf[:], nil)
+			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf[:], nil, false)
 			assert.Nil(t, err)
 			found = result
 			if found {
@@ -96,7 +99,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
+		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for val2 in column-a worked")
@@ -107,7 +110,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for val2 in column-d worked (should not be found)")
@@ -118,7 +121,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for two values in column-a worked (should not be found)")
@@ -129,7 +132,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for multiple values in column-a worked (all should be found)")
@@ -154,8 +157,11 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			)},
 	}
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for _, test := range cases {
-		allCols := make(map[string]bool)
+		allCols := make(map[string]uint32)
 		segstats := make(map[string]*SegStats)
 
 		var blockSummary BlockSummary
@@ -164,7 +170,6 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			columnBlooms:       make(map[string]*BloomIndex),
 			columnRangeIndexes: make(map[string]*RangeIndex),
 			colWips:            colWips,
-			pqMatches:          make(map[string]*pqmr.PQMatchResults),
 			columnsInBlock:     make(map[string]bool),
 			blockSummary:       blockSummary,
 			tomRollup:          make(map[uint64]*RolledRecs),
@@ -172,20 +177,19 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 			todRollup:          make(map[uint64]*RolledRecs),
 			bb:                 bbp.Get(),
 		}
-		segstore := &SegStore{
-			wipBlock:       wipBlock,
-			SegmentKey:     "test-segkey",
-			AllSeenColumns: allCols,
-			pqTracker:      initPQTracker(),
-			AllSst:         segstats,
-			numBlocks:      0,
-		}
+		segstore := NewSegStore(0)
+		segstore.wipBlock = wipBlock
+		segstore.SegmentKey = "test-segkey"
+		segstore.AllSeenColumnSizes = allCols
+		segstore.pqTracker = initPQTracker()
+		segstore.AllSst = segstats
+		segstore.numBlocks = 0
+
 		ts := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS)
-		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
+		_, err := segstore.EncodeColumns(test.input, 1234, &ts, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
 		assert.Nil(t, err)
-		assert.Greater(t, maxIdx, uint32(0))
 
 		var holderDte *DtypeEnclosure = &DtypeEnclosure{}
 		var qValDte *DtypeEnclosure
@@ -194,7 +198,7 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		qValDte, _ = CreateDtypeEnclosure("haystack", 0)
 		qValDte.AddStringAsByteSlice()
 		var eOff uint16 = 3 + utils.BytesToUint16LittleEndian(colWips["cstr"].cbuf[1:3]) // 2 bytes stored for string type
-		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf[:eOff], false, holderDte)
+		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf[:eOff], false, holderDte, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
@@ -202,7 +206,7 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		t.Logf("doing equals search for haystack for col that is not string")
 		qValDte, _ = CreateDtypeEnclosure("haystack", 0)
 		qValDte.AddStringAsByteSlice()
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte, false)
 		assert.Equal(t, false, result)
 		qValDte.Reset()
 
@@ -210,13 +214,13 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		t.Logf("doing equals search for float ")
 		t.Logf("cbuf:%s", string(colWips["cfloat"].cbuf[:]))
 		qValDte, _ = CreateDtypeEnclosure(-2345.35, 0)
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte, false)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
 
 		t.Logf("doing equals search for unsigned ")
 		qValDte, _ = CreateDtypeEnclosure(2345, 0)
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cunsigned"].cbuf[:], false, holderDte)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cunsigned"].cbuf[:], false, holderDte, false)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
 	}

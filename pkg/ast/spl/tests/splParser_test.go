@@ -21,9 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,7 +54,7 @@ func parseWithoutError(t *testing.T, query string) (*structs.ASTNode, *structs.Q
 
 func extractMatchFilter(t *testing.T, node *ast.Node) *structs.MatchFilter {
 	astNode := &structs.ASTNode{}
-	err := pipesearch.SearchQueryToASTnode(node, astNode, 0)
+	err := pipesearch.SearchQueryToASTnode(node, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition)
 
@@ -69,7 +71,7 @@ func extractMatchFilter(t *testing.T, node *ast.Node) *structs.MatchFilter {
 
 func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFilter {
 	astNode := &structs.ASTNode{}
-	err := pipesearch.SearchQueryToASTnode(node, astNode, 0)
+	err := pipesearch.SearchQueryToASTnode(node, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition)
 
@@ -115,7 +117,7 @@ func Test_searchQuotedStringNoBreakers(t *testing.T) {
 }
 
 func Test_searchQuotedStringMinorBreakers(t *testing.T) {
-	query := []byte(`search "abc./\\:=@#$%-_DEF"`)
+	query := []byte(`search CASE("abc./\\:=@#$%-_DEF")`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -124,6 +126,7 @@ func Test_searchQuotedStringMinorBreakers(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
 	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
+	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
@@ -139,11 +142,11 @@ func Test_searchQuotedStringMajorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, `"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`)
+	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc DEF < > [ ] ( ) { } ! ? ; , ' &"`))
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte(strings.ToLower(`abc DEF < > [ ] ( ) { } ! ? ; , ' &`)), matchFilter.MatchPhrase)
 }
 
 func Test_impliedSearchCommand(t *testing.T) {
@@ -187,11 +190,12 @@ func Test_searchUnquotedStringMinorBreakers(t *testing.T) {
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Field, "*")
-	assert.Equal(t, filterNode.Comparison.Values, `"abc./\\:=@#$%-_DEF"`)
+	assert.Equal(t, filterNode.Comparison.Values, strings.ToLower(`"abc./\\:=@#$%-_DEF"`))
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	matchFilter := extractMatchFilter(t, filterNode)
 	assert.Equal(t, structs.MATCH_PHRASE, matchFilter.MatchType)
-	assert.Equal(t, []byte(`abc./\\:=@#$%-_DEF`), matchFilter.MatchPhrase)
+	assert.Equal(t, []byte("abc./\\\\:=@#$%-_def"), matchFilter.MatchPhrase)
 }
 
 func Test_searchUnquotedStringMajorBreakerAtStart(t *testing.T) {
@@ -640,7 +644,7 @@ func Test_searchSimpleAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -678,7 +682,7 @@ func Test_searchChainedAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -715,7 +719,7 @@ func Test_searchSimpleOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 2)
@@ -753,7 +757,7 @@ func Test_searchChainedOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -797,7 +801,7 @@ func Test_searchANDThenOR(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -841,7 +845,7 @@ func Test_searchORThenAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -901,7 +905,7 @@ func Test_searchParenthesesToChangePrecedence(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -938,7 +942,7 @@ func Test_searchImplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("1000"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -976,7 +980,7 @@ func Test_searchChainedImplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1019,7 +1023,7 @@ func Test_searchMixedImplicitAndExplicitAND(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1051,7 +1055,7 @@ func Test_searchSimpleNOTEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1075,7 +1079,7 @@ func Test_searchSimpleNOTNotEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1099,7 +1103,7 @@ func Test_searchSimpleNOTLessThan(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1123,7 +1127,7 @@ func Test_searchSimpleNOTGreaterThan(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1147,7 +1151,7 @@ func Test_searchSimpleNOTLessThanOrEqual(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1171,7 +1175,7 @@ func Test_searchSimpleNOTGreaterThanOrEqual(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1195,7 +1199,7 @@ func Test_searchCancelingNots(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("200"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1231,7 +1235,7 @@ func Test_searchCompoundNOT(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("10"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1258,16 +1262,18 @@ func Test_searchQuotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
 	assert.Equal(t, filterNode.Comparison.Field, "day")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, `"T*day"`)
+	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
+	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "T*day")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
 }
 
 func Test_searchUnquotedWildcard(t *testing.T) {
@@ -1281,16 +1287,18 @@ func Test_searchUnquotedWildcard(t *testing.T) {
 	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
 	assert.Equal(t, filterNode.Comparison.Field, "day")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, `"T*day"`)
+	assert.Equal(t, filterNode.Comparison.Values, `"t*day"`)
+	assert.Equal(t, filterNode.Comparison.OriginalValues, `"T*day"`)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "T*day")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
 }
 
 func Test_searchNumberedWildcardBecomesString(t *testing.T) {
@@ -1307,7 +1315,7 @@ func Test_searchNumberedWildcardBecomesString(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, `"50*"`)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1337,7 +1345,7 @@ func Test_chainedSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("2"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1382,7 +1390,7 @@ func Test_manyChainedSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("4"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1441,7 +1449,7 @@ func Test_manyChainedSearchOptionalPipeSpacing(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("4"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1512,7 +1520,7 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1590,7 +1598,7 @@ func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
@@ -1644,7 +1652,7 @@ func Test_regexSingleColumnEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1682,7 +1690,7 @@ func Test_regexSingleColumnNotEquals(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1727,7 +1735,7 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -1742,10 +1750,6 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, compiledRegex)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.GetRegexp(), compiledRegex)
-}
-
-func Test_aggCountWithField(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Count, "city")
 }
 
 func Test_aggCountWithoutField(t *testing.T) {
@@ -1886,126 +1890,6 @@ func Test_aggDistinctCountAlias(t *testing.T) {
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Cardinality)
-}
-
-func Test_aggAvg(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Avg, "latency")
-}
-
-func Test_aggMin(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Min, "latency")
-}
-
-func Test_aggMax(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Max, "latency")
-}
-
-func Test_aggRange(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Range, "latency")
-}
-
-func Test_aggValues(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Values, "latency")
-}
-
-func Test_aggSum(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Sum, "latency")
-}
-
-// These aggregation functions only have their parsing logic implemented.
-func Test_unimplementedAgg(t *testing.T) {
-	testSingleAggregateFunction(t, utils.Estdc, "latency")
-	testSingleAggregateFunction(t, utils.EstdcError, "latency")
-	testSingleAggregateFunction(t, utils.Median, "latency")
-	testSingleAggregateFunction(t, utils.Mode, "latency")
-	testSingleAggregateFunction(t, utils.Stdev, "latency")
-	testSingleAggregateFunction(t, utils.Stdevp, "latency")
-	testSingleAggregateFunction(t, utils.Sumsq, "latency")
-	testSingleAggregateFunction(t, utils.Var, "latency")
-	testSingleAggregateFunction(t, utils.Varp, "latency")
-	testSingleAggregateFunction(t, utils.First, "latency")
-	testSingleAggregateFunction(t, utils.Last, "latency")
-	testSingleAggregateFunction(t, utils.List, "latency")
-	testSingleAggregateFunction(t, utils.Earliest, "latency")
-	testSingleAggregateFunction(t, utils.EarliestTime, "latency")
-	testSingleAggregateFunction(t, utils.Latest, "latency")
-	testSingleAggregateFunction(t, utils.LatestTime, "latency")
-	testSingleAggregateFunction(t, utils.StatsRate, "latency")
-	testPercAggregateFunction(t, utils.ExactPerc, "6.6", "latency")
-	testPercAggregateFunction(t, utils.Perc, "99", "latency")
-	testPercAggregateFunction(t, utils.UpperPerc, "5", "latency")
-}
-
-func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, measureCol string) {
-	query := []byte(`search A=1 | stats ` + aggFunc.String() + `(` + measureCol + `)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
-}
-
-func testPercAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, percentStr string, measureCol string) {
-	query := []byte(`search A=1 | stats ` + aggFunc.String() + percentStr + `(` + measureCol + `)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].Param, percentStr)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
-	assert.Equal(t, aggregator.MeasureOperations[0].Param, percentStr)
 }
 
 func Test_groupbyOneField(t *testing.T) {
@@ -2334,7 +2218,9 @@ func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, `"Boston"`, filterNode.Comparison.OriginalValues)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -2571,7 +2457,7 @@ func Test_commentAtStart(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2601,7 +2487,7 @@ func Test_commentInMiddle(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 0)
@@ -2627,7 +2513,7 @@ func Test_commentAtEnd(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2650,7 +2536,7 @@ func Test_commentContainingQuotes(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2673,7 +2559,7 @@ func Test_commentContainingBackticks(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -2684,7 +2570,7 @@ func Test_commentContainingBackticks(t *testing.T) {
 }
 
 func Test_commentInsideQuotes(t *testing.T) {
-	query := []byte("A=\"Hello, ```this is not commented out``` world!\"")
+	query := []byte("A=CASE(\"Hello, ```this is not commented out``` world!\")")
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -2694,9 +2580,10 @@ func Test_commentInsideQuotes(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Field, "A")
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, "\"Hello, ```this is not commented out``` world!\"")
+	assert.False(t, filterNode.Comparison.CaseInsensitive)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
@@ -4108,14 +3995,16 @@ func Test_evalFunctionsSplit(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "split")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMField)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName, "ident")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter.RawString, "-")
-
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMMultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "split")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams), 2)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0])
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].FieldName, "ident")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1])
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].RawString, "-")
 }
 
 func Test_evalFunctionsNow(t *testing.T) {
@@ -4951,14 +4840,21 @@ func Test_evalFunctionsMvAppend(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvappend")
-	assert.Len(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList, 2)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].StringExprMode), int(structs.SEMRawString))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].RawString), "abc")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvappend")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), structs.MVEMMultiValueExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams)
+	assert.Len(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams, 2)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].StringExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].StringExpr.StringExprMode), int(structs.SEMRawString))
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].StringExpr.RawString), "abc")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[1])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[1].ValueExprMode), structs.VEMMultiValueExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[1].MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[1].MultiValueExpr.MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[1].MultiValueExpr.FieldName), "http_status")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -4983,8 +4879,9 @@ func Test_evalFunctionsMvCount(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvcount")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.FieldName, "http_status")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5006,11 +4903,14 @@ func Test_evalFunctionsMvDedup(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvdedup")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvdedup")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "http_status")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5032,12 +4932,13 @@ func Test_evalFunctionsMvFilter(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvfilter")
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Condition.LeftValue.NumericExpr.Value), "http_status")
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Condition.ValueOp), ">")
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Condition.RightValue.NumericExpr.Value), "300")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvfilter")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Condition)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Condition.LeftValue.NumericExpr.Value), "http_status")
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Condition.ValueOp), ">")
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Condition.RightValue.NumericExpr.Value), "300")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5065,8 +4966,9 @@ func Test_evalFunctionsMvFind(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvfind")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.FieldName), "http_status")
 	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Regex.GetCompiledRegex()), compiledRegex)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
@@ -5089,15 +4991,18 @@ func Test_evalFunctionsMvIndex(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvindex")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.StartIndex.NumericExprMode), int(structs.NEMNumber))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.StartIndex.Value), "1")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvindex")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams), 1)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[0].IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[0].Value, "1")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
-
 }
 
 func Test_evalFunctionsMvJoin(t *testing.T) {
@@ -5121,8 +5026,9 @@ func Test_evalFunctionsMvJoin(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvjoin")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.FieldName), "http_status")
 	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter.StringExprMode), int(structs.SEMRawString))
 	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter.RawString), ";")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
@@ -5146,15 +5052,21 @@ func Test_evalFunctionsMvMap(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvmap")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
-
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Op), "*")
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Left.Value), "http_status")
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Right.Value), "10")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvmap")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0])
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].NumericExpr)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].NumericExpr.Op), "*")
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].NumericExpr.Left.Value), "http_status")
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.ValueExprParams[0].NumericExpr.Right.Value), "10")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5176,17 +5088,24 @@ func Test_evalFunctionsMvRange(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvrange")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMRawString))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString), "7d")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.StartIndex.NumericExprMode), int(structs.NEMNumber))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.StartIndex.Value), "1514834731")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EndIndex.NumericExprMode), int(structs.NEMNumber))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EndIndex.Value), "1524134919")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvrange")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams), 2)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[0].NumericExprMode), int(structs.NEMNumber))
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[0].Value), "1514834731")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[1])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[1].NumericExprMode), int(structs.NEMNumber))
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.NumericExprParams[1].Value), "1524134919")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].StringExprMode), int(structs.SEMRawString))
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].RawString), "7d")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
-
 }
 
 func Test_evalFunctionsMvSort(t *testing.T) {
@@ -5207,11 +5126,14 @@ func Test_evalFunctionsMvSort(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvsort")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvsort")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), int(structs.MVEMMultiValueExpr))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "http_status")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5233,14 +5155,17 @@ func Test_evalFunctionsMvZip(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mvzip")
-	assert.Len(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList, 2)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[0].FieldName), "mvleft")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.ValueList[1].FieldName), `mvright`)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), structs.MVEMMultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mvzip")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 2)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "mvleft")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[1])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[1].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[1].FieldName), "mvright")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5262,12 +5187,15 @@ func Test_evalFunctionsMvToJsonArray(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mv_to_json_array")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), int(structs.SEMField))
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName), "http_status")
-	assert.True(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.InferTypes))
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), structs.MVEMMultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mv_to_json_array")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "http_status")
+	assert.True(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.InferTypes))
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -5482,7 +5410,7 @@ func Test_evalWithMultipleSpaces2(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
@@ -5525,7 +5453,7 @@ func Test_multilineQuery(t *testing.T) {
 	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
 
 	astNode := &structs.ASTNode{}
-	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
@@ -7084,7 +7012,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		assert.NotNil(t, filterNode)
 
 		astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-		assert.Nil(t, err)
+		assert.Nil(t, err, "ind=%v, Failed for query: %s", ind, query)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
 		assert.NotNil(t, aggregator.TransactionArguments)
@@ -7092,8 +7020,8 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		transactionRequest := aggregator.TransactionArguments
 		assert.Equal(t, structs.TransactionType, aggregator.PipeCommandType)
 		assert.Equal(t, results[ind].Fields, transactionRequest.Fields)
-		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith)
-		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith)
+		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith, "ind=%v, Failed for query: %s", ind, query)
+		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith, "ind=%v, Failed for query: %s", ind, query)
 	}
 }
 
@@ -10091,8 +10019,62 @@ func Test_FillNull_ValueArg_FieldList(t *testing.T) {
 	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
 }
 
-func performCommon_aggEval_BoolExpr(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string) {
+func getMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
+	switch measureFunc {
+	case utils.Cardinality:
+		return "dc", ""
+	case utils.Perc, utils.ExactPerc, utils.UpperPerc:
+		percentStr := fmt.Sprintf("%v", rand.Float64()*100)
+		return measureFunc.String() + percentStr, percentStr
+	default:
+		return measureFunc.String(), ""
+	}
+}
+
+func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions) {
+	measureFuncStr, param := getMeasureFuncStr(aggFunc)
+	measureCol := putils.GetRandomString(10, putils.Alpha)
+	query := []byte(`search A=1 | stats ` + measureFuncStr + `(` + measureCol + `)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 1)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, aggregator.MeasureOperations, 1)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
+	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
+}
+
+func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(latitude >= 0 AND http_method="GET"))
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
+	measureWithEvalStr := measureFuncStr + `(eval(latitude >= 0 AND http_method="GET"))`
+
+	query := []byte(`city=Boston | stats max(latitude), ` + measureWithEvalStr)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -10101,7 +10083,8 @@ func performCommon_aggEval_BoolExpr(t *testing.T, query []byte, measureFunc util
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
+	assert.Equal(t, `"boston"`, filterNode.Comparison.Values)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10110,8 +10093,9 @@ func performCommon_aggEval_BoolExpr(t *testing.T, query []byte, measureFunc util
 	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
 	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
-	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
@@ -10135,8 +10119,18 @@ func performCommon_aggEval_BoolExpr(t *testing.T, query []byte, measureFunc util
 	assert.Equal(t, "GET", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.RightValue.StringExpr.RawString)
 }
 
-func performCommon_aggEval_Constant(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, constantNum string) {
+func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.AggregateFunctions, isField bool) {
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(constantNum))
+	var randomStr string
+	if isField {
+		randomStr = putils.GetRandomString(10, putils.Alpha)
+	} else {
+		randomStr = fmt.Sprintf("%v", rand.Float64())
+	}
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
+	measureWithEvalStr := measureFuncStr + `(eval(` + randomStr + `))`
+
+	query := []byte(`city=Boston | stats max(latitude), ` + measureWithEvalStr)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -10145,7 +10139,9 @@ func performCommon_aggEval_Constant(t *testing.T, query []byte, measureFunc util
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.OriginalValues)
+	assert.True(t, filterNode.Comparison.CaseInsensitive)
 
 	pipeCommands := res.(ast.QueryStruct).PipeCommands
 	assert.NotNil(t, pipeCommands)
@@ -10154,47 +10150,26 @@ func performCommon_aggEval_Constant(t *testing.T, query []byte, measureFunc util
 	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
 	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
-	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr)
 
-	assert.Equal(t, constantNum, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.Value)
-	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
+	assert.Equal(t, randomStr, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.Value)
+	assert.Equal(t, isField, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
 }
 
-func performCommon_aggEval_Field(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, fieldName string) {
-	// Query Form: app_name=Bracecould | stats min(longitude), measureFunc(eval(field))
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
-	assert.Equal(t, "app_name", filterNode.Comparison.Field)
-	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Bracecould\"", filterNode.Comparison.Values)
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 2)
-	assert.Equal(t, "longitude", pipeCommands.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Min, pipeCommands.MeasureOperations[0].MeasureFunc)
-
-	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
-	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
-	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
-	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
-	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr)
-
-	assert.Equal(t, fieldName, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.Value)
-	assert.Equal(t, true, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
-}
-
-func performCommon_aggEval_ConditionalExpr(t *testing.T, query []byte, measureFunc utils.AggregateFunctions, strEnc string, trueValueField string, falseValueConstant string) {
+func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
+	measureFuncStr, param := getMeasureFuncStr(measureFunc)
+	trueValueField := putils.GetRandomString(10, putils.Alpha)
+	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
+	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
+
+	query := []byte(`app_name=bracecould | stats sum(http_status), ` + measureWithEvalStr)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -10212,8 +10187,10 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, query []byte, measureFu
 	assert.Equal(t, "http_status", pipeCommands.MeasureOperations[0].MeasureCol)
 	assert.Equal(t, utils.Sum, pipeCommands.MeasureOperations[0].MeasureFunc)
 
-	assert.Equal(t, strEnc, pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 
@@ -10239,108 +10216,27 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, query []byte, measureFu
 	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.ValueIsField)
 }
 
-func Test_aggHasEval_BooleanExpr(t *testing.T) {
-	query := []byte(`city=Boston | stats max(latitude), count(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Count, `count(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), sum(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Sum, `sum(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), avg(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Avg, `avg(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), min(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Min, `min(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), max(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Max, `max(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Range, `range(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), dc(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Cardinality, `dc(eval(latitude >= 0 AND http_method="GET"))`)
-
-	query = []byte(`city=Boston | stats max(latitude), values(eval(latitude >= 0 AND http_method="GET"))`)
-	performCommon_aggEval_BoolExpr(t, query, utils.Values, `values(eval(latitude >= 0 AND http_method="GET"))`)
+func getAggFunctions() []utils.AggregateFunctions {
+	return []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Min, utils.Max,
+		utils.Range, utils.Cardinality, utils.Values, utils.List,
+		utils.Estdc, utils.EstdcError, utils.Median,
+		utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq, utils.Var,
+		utils.Varp, utils.First, utils.Last, utils.Earliest, utils.Latest,
+		utils.EarliestTime, utils.LatestTime, utils.StatsRate,
+		utils.Perc, utils.ExactPerc, utils.UpperPerc,
+	}
 }
 
-func Test_aggHasEval_Constant(t *testing.T) {
-	query := []byte(`city=Boston | stats max(latitude), count(eval(1))`)
-	performCommon_aggEval_Constant(t, query, utils.Count, `count(eval(1))`, "1")
+func Test_Aggs(t *testing.T) {
+	aggFuncs := getAggFunctions()
 
-	query = []byte(`city=Boston | stats max(latitude), sum(eval(1))`)
-	performCommon_aggEval_Constant(t, query, utils.Sum, `sum(eval(1))`, "1")
-
-	query = []byte(`city=Boston | stats max(latitude), avg(eval(20))`)
-	performCommon_aggEval_Constant(t, query, utils.Avg, `avg(eval(20))`, "20")
-
-	query = []byte(`city=Boston | stats max(latitude), min(eval(-3))`)
-	performCommon_aggEval_Constant(t, query, utils.Min, `min(eval(-3))`, "-3")
-
-	query = []byte(`city=Boston | stats max(latitude), max(eval(1000))`)
-	performCommon_aggEval_Constant(t, query, utils.Max, `max(eval(1000))`, "1000")
-
-	query = []byte(`city=Boston | stats max(latitude), range(eval(5))`)
-	performCommon_aggEval_Constant(t, query, utils.Range, `range(eval(5))`, "5")
-
-	query = []byte(`city=Boston | stats max(latitude), dc(eval(0))`)
-	performCommon_aggEval_Constant(t, query, utils.Cardinality, `dc(eval(0))`, "0")
-
-	query = []byte(`city=Boston | stats max(latitude), values(eval(50))`)
-	performCommon_aggEval_Constant(t, query, utils.Values, `values(eval(50))`, "50")
-}
-
-func Test_aggHasEval_Field(t *testing.T) {
-	query := []byte(`app_name=Bracecould | stats min(longitude), count(eval(http_status))`)
-	performCommon_aggEval_Field(t, query, utils.Count, `count(eval(http_status))`, "http_status")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), sum(eval(http_status))`)
-	performCommon_aggEval_Field(t, query, utils.Sum, `sum(eval(http_status))`, "http_status")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), avg(eval(longitude))`)
-	performCommon_aggEval_Field(t, query, utils.Avg, `avg(eval(longitude))`, "longitude")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), min(eval(latitude))`)
-	performCommon_aggEval_Field(t, query, utils.Min, `min(eval(latitude))`, "latitude")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), max(eval(http_status))`)
-	performCommon_aggEval_Field(t, query, utils.Max, `max(eval(http_status))`, "http_status")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), range(eval(longitude))`)
-	performCommon_aggEval_Field(t, query, utils.Range, `range(eval(longitude))`, "longitude")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), dc(eval(latitude))`)
-	performCommon_aggEval_Field(t, query, utils.Cardinality, `dc(eval(latitude))`, "latitude")
-
-	query = []byte(`app_name=Bracecould | stats min(longitude), values(eval(http_status))`)
-	performCommon_aggEval_Field(t, query, utils.Values, `values(eval(http_status))`, "http_status")
-}
-
-func Test_aggHasEval_ConditionalExpr(t *testing.T) {
-	query := []byte(`app_name=bracecould | stats sum(http_status), count(eval(if(http_status=500, longitude, 1)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Count, `count(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), sum(eval(if(http_status=500, longitude, 1)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Sum, `sum(eval(if(http_status=500, longitude, 1)))`, "longitude", "1")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), avg(eval(if(http_status=500, http_status, -20)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Avg, `avg(eval(if(http_status=500, http_status, -20)))`, "http_status", "-20")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), min(eval(if(http_status=500, latitude, 100)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Min, `min(eval(if(http_status=500, latitude, 100)))`, "latitude", "100")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), max(eval(if(http_status=500, http_status, -1000)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Max, `max(eval(if(http_status=500, http_status, -1000)))`, "http_status", "-1000")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), range(eval(if(http_status=500, latitude, 3)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Range, `range(eval(if(http_status=500, latitude, 3)))`, "latitude", "3")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), dc(eval(if(http_status=500, longitude, 7)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Cardinality, `dc(eval(if(http_status=500, longitude, 7)))`, "longitude", "7")
-
-	query = []byte(`app_name=bracecould | stats sum(http_status), values(eval(if(http_status=500, http_method, 0)))`)
-	performCommon_aggEval_ConditionalExpr(t, query, utils.Values, `values(eval(if(http_status=500, http_method, 0)))`, "http_method", "0")
+	for _, aggFunc := range aggFuncs {
+		testSingleAggregateFunction(t, aggFunc)
+		performCommon_aggEval_BoolExpr(t, aggFunc)
+		performCommon_aggEval_Constant_Field(t, aggFunc, false)
+		performCommon_aggEval_Constant_Field(t, aggFunc, true)
+		performCommon_aggEval_ConditionalExpr(t, aggFunc)
+	}
 }
 
 func Test_MVExpand_NoLimit(t *testing.T) {
@@ -10683,9 +10579,6 @@ func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
 
-/*
-   This test is flaky, it fails on weekend boundary days, disabling it for now
-
 func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	query := `* | earliest=@w1-7d+9h latest=@w1-7d+17h`
 	_, err := spl.Parse("", []byte(query))
@@ -10699,12 +10592,16 @@ func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	// Get the current time in the local time zone
 	now := time.Now().In(time.Local)
 
+	daysToSubtract := int(now.Weekday())
+	if daysToSubtract == 0 { // Check if it's Sunday
+		daysToSubtract = 7
+	}
 	// Calculate the expected earliest time: last week's Monday at 9 AM
-	lastMonday9AM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 9, 0, 0, 0, time.Local)
+	lastMonday9AM := time.Date(now.Year(), now.Month(), now.Day()-daysToSubtract-7+int(time.Monday), 9, 0, 0, 0, now.Location())
 	expectedEarliestTime := lastMonday9AM
 
 	// Calculate the expected latest time: last week's Monday at 5 PM
-	lastMonday5PM := time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())-7+int(time.Monday), 17, 0, 0, 0, time.Local)
+	lastMonday5PM := time.Date(now.Year(), now.Month(), now.Day()-daysToSubtract-7+int(time.Monday), 17, 0, 0, 0, now.Location())
 	expectedLatestTime := lastMonday5PM
 
 	// Convert the actual times from Unix milliseconds to local time
@@ -10715,8 +10612,6 @@ func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
-
-*/
 
 func Test_ParseRelativeTimeModifier_Chained_4(t *testing.T) {
 	query := `* | earliest=-26h@h latest=-2h@h`
@@ -11017,7 +10912,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
 	assert.Equal(t, "city", filterNode.Comparison.Field)
 	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+	assert.Equal(t, "\"boston\"", filterNode.Comparison.Values)
 
 	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 
@@ -11195,4 +11090,59 @@ func Test_RemoveRedundantSearches(t *testing.T) {
 	astNode, aggregator = parseWithoutError(t, query)
 	assert.Equal(t, expectedAstNode, astNode)
 	assert.Equal(t, expectedAggregator, aggregator)
+}
+
+func Test_Append_1(t *testing.T) {
+	query := `* | append [ search foo=bar ]`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
+
+	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
+	assert.Equal(t, "foo", subSearch.Comparison.Field)
+	assert.Equal(t, "=", subSearch.Comparison.Op)
+	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
+
+	assert.Equal(t, 60, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
+	assert.Equal(t, 50000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
+
+}
+
+func Test_Append_2(t *testing.T) {
+	query := `* | append maxtime=30 maxout=10000 [ search foo=bar ] `
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
+
+	assert.Equal(t, 30, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
+	assert.Equal(t, 10000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
+
+	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
+	assert.Equal(t, "foo", subSearch.Comparison.Field)
+	assert.Equal(t, "=", subSearch.Comparison.Op)
+	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
+
 }

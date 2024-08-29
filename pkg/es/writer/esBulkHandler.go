@@ -22,7 +22,9 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -53,6 +55,28 @@ const INDEX_TOP_STR string = "index"
 const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
+
+const MAX_INDEX_NAME_LEN = 256
+const RESP_ITEMS_INITIAL_LEN = 4000
+
+var resp_status_201 map[string]interface{}
+
+var respItemsPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
+		return &slice
+	},
+}
+
+func init() {
+	resp_status_201 = make(map[string]interface{})
+	statusbody := make(map[string]interface{})
+	statusbody["status"] = 201
+	resp_status_201["index"] = statusbody
+}
 
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
@@ -111,13 +135,38 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	scanner.Split(bufio.ScanLines)
 
 	var bytesReceived int
-	// store all request index
-	var items = make([]interface{}, 0)
+
+	items := *respItemsPool.Get().(*[]interface{})
+	// if we end up extending items, then save the orig pointer, so that we can put it back
+	origItems := items
+	defer respItemsPool.Put(&origItems)
+
+	// kunal todo check , if items gets extended and we put back origitems then does the os
+	// delete the old items array ?
+	itemsLen := len(items)
+
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
+
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	// stack-allocated array for allocation-free unescaping of small strings
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	// we will accept indexnames only upto 256 bytes
+	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
+
 	for scanner.Scan() {
 		inCount++
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
+		if inCount >= itemsLen {
+			newArr := make([]interface{}, 100)
+			items = append(items, newArr...)
+			itemsLen += 1000
+		}
+
+		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
+			idxNameParsingBuf)
+
 		switch esAction {
 
 		case INDEX, CREATE:
@@ -152,7 +201,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid, rid)
+					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
+						false, localIndexMap, myid, rid, idxToStreamIdCache,
+						cnameCacheByteHashToStr, jsParsingStackbuf[:])
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
@@ -170,15 +221,15 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			success = false
 		}
 
-		responsebody := make(map[string]interface{})
 		if !success {
+			responsebody := make(map[string]interface{})
 			if maxRecordSizeExceeded {
 				error_response := utils.BulkErrorResponse{
 					ErrorResponse: *utils.NewBulkErrorResponseInfo("request entity too large", "request_entity_exception"),
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 413
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			} else {
 				overallError = true
 				error_response := utils.BulkErrorResponse{
@@ -186,21 +237,18 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 400
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			}
 		} else {
 			atleastOneSuccess = true
-			statusbody := make(map[string]interface{})
-			statusbody["status"] = 201
-			responsebody["index"] = statusbody
-			items = append(items, responsebody)
+			items[inCount-1] = resp_status_201
 		}
 	}
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
-	response["items"] = items
+	response["items"] = items[0:inCount]
 
 	if atleastOneSuccess {
 		return processedCount, response, nil
@@ -209,7 +257,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
+func extractIndexAndValidateAction(rawJson []byte,
+	idxNameParsingBuf []byte) (int, string, string) {
+
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
@@ -217,11 +267,14 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 			idVal = ""
 		}
 
-		idxVal, err := jp.GetString(val, INDEX_UNDER_STR)
-		if err != nil {
-			idxVal = ""
+		idxVal, idxDType, _, err := jp.Get(val, INDEX_UNDER_STR)
+		if err != nil || idxDType != jp.String {
+			idxVal = []byte("")
 		}
-		return INDEX, idxVal, idVal
+		copy(idxNameParsingBuf[:], idxVal[:])
+		idxNameParsingBuf = idxNameParsingBuf[0:len(idxVal)]
+
+		return INDEX, *(*string)(unsafe.Pointer(&idxNameParsingBuf)), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)
@@ -279,7 +332,9 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 }
 
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64, rid uint64) error {
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
+	rid uint64, idxToStreamIdCache map[string]string,
+	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -296,14 +351,21 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	if ts_millis == 0 {
 		ts_millis = tsNow
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	var streamid string
+	var ok bool
+	streamid, ok = idxToStreamIdCache[indexNameConverted]
+	if !ok {
+		streamid = utils.CreateStreamId(indexNameConverted, myid)
+		idxToStreamIdCache[indexNameConverted] = streamid
+	}
 
 	// TODO: we used to add _index in the json_source doc, since it is needed during
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
 	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid, rid)
+		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err

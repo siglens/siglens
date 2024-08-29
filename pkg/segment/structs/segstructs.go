@@ -21,8 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
+	"sync/atomic"
 
-	"github.com/axiomhq/hyperloglog"
+	"github.com/cespare/xxhash"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -145,6 +148,8 @@ type TransactionGroupState struct {
 	Timestamp uint64
 }
 
+// Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
+// This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
 	PipeCommandType      PipeCommandType
 	OutputTransforms     *OutputTransforms
@@ -218,7 +223,7 @@ type RunningStreamStatsResults struct {
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
-	CardinalityHLL      *hyperloglog.Sketch
+	CardinalityHLL      *sutils.GobbableHll
 	ValuesMap           map[string]struct{}
 }
 
@@ -305,6 +310,24 @@ type IncludeValue struct {
 	Label   string //new label of value in record
 }
 
+type AppendRequest struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+	Subsearch       interface{}
+}
+
+type AppendCmdOptions struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+}
+
+type AppendCmdOption struct {
+	OptionType string
+	Value      interface{}
+}
+
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
 	MultiColsRequest     *MultiColLetRequest
@@ -321,6 +344,7 @@ type LetColumnsRequest struct {
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
 	FillNullRequest      *FillNullExpr
+	AppendRequest        *AppendRequest
 }
 
 type FillNullExpr struct {
@@ -440,12 +464,13 @@ type NodeResult struct {
 	CurrentSearchResultCount    int
 	AllSearchColumnsByTimeRange map[string]bool
 	FinalColumns                map[string]bool
+	AllColumnsInAggs            map[string]struct{}
 }
 
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	Hll         *hyperloglog.Sketch
+	Hll         *sutils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
@@ -459,12 +484,14 @@ type NumericStats struct {
 }
 
 type StringStats struct {
-	StrSet map[string]struct{}
+	StrSet  map[string]struct{}
+	StrList []string
 }
 
 type SearchErrorInfo struct {
-	Count    int
+	Count    uint64
 	LogLevel log.Level
+	Error    error
 }
 
 // json exportable struct for segstats
@@ -490,6 +517,21 @@ type AvgStat struct {
 	Sum   float64
 }
 
+type FieldGetter interface {
+	GetFields() []string
+}
+
+var HllSettings = hll.Settings{
+	Log2m:             16,
+	Regwidth:          5,
+	ExplicitThreshold: hll.AutoExplicitThreshold,
+	SparseEnabled:     true,
+}
+
+func init() {
+	initHllDefaultSettings()
+}
+
 // init SegStats from raw bytes of SegStatsJSON
 func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
@@ -500,24 +542,97 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	}
 	ss.IsNumeric = segStatJson.IsNumeric
 	ss.Count = segStatJson.Count
-	ss.Hll = hyperloglog.New()
-	err = ss.Hll.UnmarshalBinary(segStatJson.RawHll)
+	err = ss.CreateHllFromBytes(segStatJson.RawHll)
 	if err != nil {
-		log.Errorf("SegStats.Init: Failed to unmarshal hyperloglog error: %v data: %v", err, string(segStatJson.RawHll))
+		log.Errorf("SegStats.Init: Failed to create new segmentio Hll from raw bytes. error: %v data: %v", err, string(segStatJson.RawHll))
 		return err
 	}
 	ss.NumStats = segStatJson.NumStats
 	return nil
 }
 
+func initHllDefaultSettings() {
+	err := hll.Defaults(HllSettings)
+	if err != nil {
+		log.Errorf("initHllDefaultSettings: Failed to set default hll settings. error: %v", err)
+	}
+}
+
+// Creates a new segmentio Hll with the defined HllSettings.
+func CreateNewHll() *sutils.GobbableHll {
+	return &sutils.GobbableHll{Hll: hll.Hll{}}
+}
+
+func CreateHllFromBytes(rawHll []byte) (*hll.Hll, error) {
+	hll, err := hll.FromBytes(rawHll)
+	if err != nil {
+		return nil, err
+	}
+	return &hll, nil
+}
+
+func (ss *SegStats) CreateHllFromBytes(rawHll []byte) error {
+	hll, err := CreateHllFromBytes(rawHll)
+	if err != nil {
+		return err
+	}
+
+	ss.Hll = &sutils.GobbableHll{Hll: *hll}
+	return nil
+}
+
+func (ss *SegStats) CreateNewHll() {
+	ss.Hll = CreateNewHll()
+}
+
+func (ss *SegStats) InsertIntoHll(value []byte) {
+	if ss == nil || ss.Hll == nil {
+		return
+	}
+
+	ss.Hll.AddRaw(xxhash.Sum64(value))
+}
+
+func (ss *SegStats) GetHllCardinality() uint64 {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	return ss.Hll.Cardinality()
+}
+
+func (ss *SegStats) GetHllBytes() []byte {
+	if ss == nil || ss.Hll == nil {
+		return nil
+	}
+
+	return ss.Hll.ToBytes()
+}
+
+func (ss *SegStats) GetHllBytesInPlace(bytes []byte) []byte {
+	if ss == nil || ss.Hll == nil {
+		return nil
+	}
+
+	return ss.Hll.ToBytesInPlace(bytes)
+}
+
+func (ss *SegStats) GetHllDataSize() int {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	_, size := ss.Hll.GetStorageTypeAndSizeInBytes()
+	return size
+}
+
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
-	ss.Hll = hyperloglog.New()
-	err := ss.Hll.UnmarshalBinary(ssj.RawHll)
+	err := ss.CreateHllFromBytes(ssj.RawHll)
 	if err != nil {
-		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hyperloglog error: %v data: %v", err, string(ssj.RawHll))
+		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
@@ -530,11 +645,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson := &SegStatsJSON{}
 	segStatJson.IsNumeric = ss.IsNumeric
 	segStatJson.Count = ss.Count
-	rawHll, err := ss.Hll.MarshalBinary()
-	if err != nil {
-		log.Errorf("SegStats.ToJSON: Failed to marshal hyperloglog error: %v", err)
-		return nil, err
-	}
+	rawHll := ss.GetHllBytes()
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
 	segStatJson.StringStats = ss.StringStats
@@ -560,16 +671,48 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
-	err := ss.Hll.Merge(other.Hll)
-	if err != nil {
-		log.Errorf("SegStats.Merge: Failed to merge hyperloglog stats error: %v", err)
+	if ss.Hll != nil && other.Hll != nil {
+		err := ss.Hll.StrictUnion(other.Hll.Hll)
+		if err != nil {
+			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
+		}
 	}
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
-		return
+	} else {
+		ss.NumStats.Merge(other.NumStats)
 	}
-	ss.NumStats.Merge(other.NumStats)
+	if ss.StringStats == nil {
+		ss.StringStats = other.StringStats
+	} else {
+		ss.StringStats.Merge(other.StringStats)
+	}
+}
+
+func (ss *StringStats) Merge(other *StringStats) {
+	if ss.StrSet != nil {
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
+	} else if other.StrSet != nil {
+		ss.StrSet = make(map[string]struct{})
+		for key, value := range other.StrSet {
+			ss.StrSet[key] = value
+		}
+	}
+
+	if ss.StrList != nil {
+		ss.StrList = append(ss.StrList, other.StrList...)
+	} else if other.StrList != nil {
+		if len(other.StrList) > utils.MAX_SPL_LIST_SIZE {
+			ss.StrList = make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(ss.StrList, other.StrList[:utils.MAX_SPL_LIST_SIZE])
+		} else {
+			ss.StrList = make([]string, len(other.StrList))
+			copy(ss.StrList, other.StrList)
+		}
+	}
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
@@ -658,7 +801,16 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
-			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil || qa.OutputTransforms.LetColumns.AppendRequest != nil)
+}
+
+func (qa *QueryAggregators) hasAppendRequest() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		qa.OutputTransforms.LetColumns.AppendRequest != nil
+}
+
+func (qa *QueryAggregators) HasAppendInChain() bool {
+	return qa.HasInChain((*QueryAggregators).hasAppendRequest)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {
@@ -895,7 +1047,17 @@ func (qa *QueryAggregators) CheckForColRequestAndAttachToFillNullExprInChain() {
 
 // To determine whether it contains ValueColRequest
 func (qa *QueryAggregators) HasValueColRequest() bool {
-	for _, agg := range qa.MeasureOperations {
+	if HasValueColRequestInMeasureAggs(qa.MeasureOperations) {
+		return true
+	}
+	if qa.GroupByRequest != nil && HasValueColRequestInMeasureAggs(qa.GroupByRequest.MeasureOperations) {
+		return true
+	}
+	return false
+}
+
+func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
+	for _, agg := range measureAggs {
 		if agg.ValueColRequest != nil {
 			return true
 		}
@@ -913,6 +1075,15 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 	return false
 }
 
+func (qa *QueryAggregators) HasListFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == utils.List {
+			return true
+		}
+	}
+	return false
+}
+
 func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
@@ -921,6 +1092,10 @@ func (qa *QueryAggregators) CanLimitBuckets() bool {
 	// We shouldn't limit the buckets if there's other things to do after the
 	// aggregation, like sorting, filtering, making new columns, etc.
 	return qa.Sort == nil && qa.Next == nil
+}
+
+func (fillNullExpr *FillNullExpr) GetFields() []string {
+	return fillNullExpr.FieldList
 }
 
 // Init default query aggregators.
@@ -948,6 +1123,189 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+func (qa *QueryAggregators) HasStatsBlock() bool {
+	return qa != nil && !qa.HasStreamStats() && qa.HasGroupByOrMeasureAggsInBlock()
+}
+
+func (qa *QueryAggregators) HasStatsBlockInChain() bool {
+	return qa.HasInChain((*QueryAggregators).HasStatsBlock)
+}
+
+// returns all columns in the query aggregators if stats are present.
+// Update this function whenever a new struct or a new Column Field is added to the query aggregators.
+func (qa *QueryAggregators) GetAllColsInAggsIfStatsPresent() map[string]struct{} {
+	if qa == nil {
+		return nil
+	}
+
+	if !qa.HasStatsBlockInChain() {
+		return nil
+	}
+
+	cols := make(map[string]struct{})
+
+	qa.GetAllColsInChainUpToFirstStatsBlock(cols)
+
+	return cols
+}
+
+func (qa *QueryAggregators) GetAllColsInChainUpToFirstStatsBlock(cols map[string]struct{}) {
+	if qa == nil {
+		return
+	}
+
+	AddAllColumnsInOutputTransforms(cols, qa.OutputTransforms)
+	AddAllColumnsInMeasureAggs(cols, qa.MeasureOperations)
+	AddAllColumnsInGroupByRequest(cols, qa.GroupByRequest)
+	AddAllColumnsInTransactionArguments(cols, qa.TransactionArguments)
+	AddAllColumnsInStreamStatsOptions(cols, qa.StreamStatsOptions)
+
+	if qa.HasStatsBlock() {
+		// We want to stop after processing the first stats block
+		return
+	}
+
+	if qa.Next != nil {
+		qa.Next.GetAllColsInChainUpToFirstStatsBlock(cols)
+	}
+}
+
+func AddAllColumnsInOutputTransforms(cols map[string]struct{}, outputTransforms *OutputTransforms) {
+	if outputTransforms == nil {
+		return
+	}
+
+	if outputTransforms.HarcodedCol != nil {
+		sutils.AddSliceToSet(cols, outputTransforms.HarcodedCol)
+	}
+
+	if outputTransforms.RenameHardcodedColumns != nil {
+		sutils.AddMapKeysToSet(cols, outputTransforms.RenameHardcodedColumns)
+	}
+
+	AddAllColumnsInColumnsRequest(cols, outputTransforms.OutputColumns)
+	AddAllColumnsInLetColumnsRequest(cols, outputTransforms.LetColumns)
+	AddAllColumnsInExpr(cols, outputTransforms.FilterRows)
+
+	if outputTransforms.HeadRequest != nil {
+		AddAllColumnsInExpr(cols, outputTransforms.HeadRequest.BoolExpr)
+	}
+}
+
+func AddAllColumnsInColumnsRequest(cols map[string]struct{}, columnsRequest *ColumnsRequest) {
+	if columnsRequest == nil {
+		return
+	}
+
+	if columnsRequest.RenameColumns != nil {
+		sutils.AddMapKeysToSet(cols, columnsRequest.RenameColumns)
+	}
+
+	if columnsRequest.ExcludeColumns != nil {
+		sutils.AddSliceToSet(cols, columnsRequest.ExcludeColumns)
+	}
+
+	if columnsRequest.IncludeColumns != nil {
+		sutils.AddSliceToSet(cols, columnsRequest.IncludeColumns)
+	}
+
+	if columnsRequest.IncludeValues != nil {
+		for _, includeValue := range columnsRequest.IncludeValues {
+			cols[includeValue.ColName] = struct{}{}
+		}
+	}
+
+	if columnsRequest.Next != nil {
+		AddAllColumnsInColumnsRequest(cols, columnsRequest.Next)
+	}
+}
+
+func AddAllColumnsInLetColumnsRequest(cols map[string]struct{}, letColumnsRequest *LetColumnsRequest) {
+	if letColumnsRequest == nil {
+		return
+	}
+
+	if letColumnsRequest.MultiColsRequest != nil {
+		cols[letColumnsRequest.MultiColsRequest.LeftCName] = struct{}{}
+		cols[letColumnsRequest.MultiColsRequest.RightCName] = struct{}{}
+	}
+
+	if letColumnsRequest.SingleColRequest != nil {
+		cols[letColumnsRequest.SingleColRequest.CName] = struct{}{}
+	}
+
+	AddAllColumnsInExpr(cols, letColumnsRequest.ValueColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.RexColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.StatisticColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.RenameColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.DedupColRequest)
+	AddAllColumnsInExpr(cols, letColumnsRequest.SortColRequest)
+
+	if letColumnsRequest.MultiValueColRequest != nil && letColumnsRequest.MultiValueColRequest.ColName != "" {
+		cols[letColumnsRequest.MultiValueColRequest.ColName] = struct{}{}
+	}
+
+	if letColumnsRequest.BinRequest != nil {
+		cols[letColumnsRequest.BinRequest.Field] = struct{}{}
+	}
+
+	AddAllColumnsInExpr(cols, letColumnsRequest.FillNullRequest)
+}
+
+func AddAllColumnsInExpr(cols map[string]struct{}, expr FieldGetter) {
+	if expr == nil || reflect.ValueOf(expr).IsNil() {
+		return
+	}
+
+	fields := expr.GetFields()
+
+	sutils.AddSliceToSet(cols, fields)
+}
+
+func AddAllColumnsInMeasureAggs(cols map[string]struct{}, measureAggs []*MeasureAggregator) {
+	if measureAggs == nil {
+		return
+	}
+
+	for _, measureAgg := range measureAggs {
+		if measureAgg.MeasureCol != "" && measureAgg.MeasureCol != "*" {
+			sutils.AddToSet(cols, measureAgg.MeasureCol)
+		}
+		AddAllColumnsInExpr(cols, measureAgg.ValueColRequest)
+	}
+}
+
+func AddAllColumnsInGroupByRequest(cols map[string]struct{}, groupByRequest *GroupByRequest) {
+	if groupByRequest == nil {
+		return
+	}
+
+	if groupByRequest.GroupByColumns != nil {
+		sutils.AddSliceToSet(cols, groupByRequest.GroupByColumns)
+	}
+
+	AddAllColumnsInMeasureAggs(cols, groupByRequest.MeasureOperations)
+}
+
+func AddAllColumnsInTransactionArguments(cols map[string]struct{}, transactionArguments *TransactionArguments) {
+	if transactionArguments == nil {
+		return
+	}
+
+	if transactionArguments.Fields != nil {
+		sutils.AddSliceToSet(cols, transactionArguments.Fields)
+	}
+}
+
+func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOptions *StreamStatsOptions) {
+	if streamStatsOptions == nil {
+		return
+	}
+
+	AddAllColumnsInExpr(cols, streamStatsOptions.ResetBefore)
+	AddAllColumnsInExpr(cols, streamStatsOptions.ResetAfter)
 }
 
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
@@ -1196,14 +1554,20 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
-func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level) {
-	if nodeRes.GlobalSearchErrors == nil {
-		nodeRes.GlobalSearchErrors = make(map[string]*SearchErrorInfo)
+func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
+	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)
+}
+
+func StoreError(errorStore map[string]*SearchErrorInfo, errMsg string, logLevel log.Level, err error) map[string]*SearchErrorInfo {
+	if errorStore == nil {
+		errorStore = make(map[string]*SearchErrorInfo)
 	}
 
-	if globalErr, ok := nodeRes.GlobalSearchErrors[errMsg]; !ok {
-		nodeRes.GlobalSearchErrors[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel}
+	if globalErr, ok := errorStore[errMsg]; !ok {
+		errorStore[errMsg] = &SearchErrorInfo{Count: 1, LogLevel: logLevel, Error: err}
 	} else {
-		globalErr.Count++
+		atomic.AddUint64(&globalErr.Count, 1)
 	}
+
+	return errorStore
 }

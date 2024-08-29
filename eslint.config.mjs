@@ -153,6 +153,7 @@ export default [
         "getSavedQueries": true,
         "showError": true,
         "getSearchFilterForSave": true,
+        "getMetricsDataForSave": true,
         "showSendTestDataUpdateToast": true,
         "newUri": true,
         "addQSParm": true,

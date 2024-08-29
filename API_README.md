@@ -857,3 +857,56 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         - limit: non-negative int (default 10; 0 means no limit)
     Outputs:
         - tagKeys: []{key: string, numValues: int}
+
+## Lookup APIs
+
+### Upload Lookup File
+    endpoint: api/lookup-upload
+    method: POST
+
+    Example:
+    request: http://localhost:5122/api/lookup-upload
+    body: 
+        - Form data:
+            - name: [filename]
+            - file: [file content]
+            - overwrite: true (optional, to overwrite existing file)
+
+    response: 
+        File uploaded successfully: [filename]
+
+### Get All Lookup Files
+
+    endpoint: api/lookup-files
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/lookup-files
+    response: 
+        [
+            "file1.csv",
+            "file2.csv",
+            "file3.csv.gz"
+        ]
+
+### Get Specific Lookup File
+
+    endpoint: api/lookup-files/{lookupFilename}
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/lookup-files/test_lookup.csv
+    response: 
+    
+    Test,EmployeeID,FirstName,LastName,Department,Position,Salary,HireDate,PerformanceScore,Email,IsRemote
+    -1,1001,John,Smith,Engineering,Senior Developer,85000,2019-03-15,4.2,john.smith@techco.com,TRUE
+    ... more rows
+
+### Delete Specific Lookup File
+
+    endpoint: api/lookup-files/{lookupFilename}
+    method: DELETE
+
+    Example:
+    request: http://localhost:5122/api/lookup-files/test_lookup.csv
+    response: "Lookup file deleted successfully"

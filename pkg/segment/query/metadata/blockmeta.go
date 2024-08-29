@@ -78,10 +78,10 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 // TODO: function is getting to big and has many args, needs to be refactored
 // Returns all search requests,  number of blocks checked, number of blocks passed, error
 func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
-	blockTracker *structs.BlockTracker, bloomKeys map[string]bool, bloomOp utils.LogicalOperator,
+	blockTracker *structs.BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
 	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool, wildCardValue bool,
 	currQuery *structs.SearchQuery, colsToCheck map[string]bool, wildcardCol bool,
-	qid uint64, isQueryPersistent bool, pqid string) (*structs.SegmentSearchRequest, uint64, uint64, error) {
+	qid uint64, isQueryPersistent bool, pqid string, dualCaseCheckEnabled bool) (*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	isMatchAll := currQuery.IsMatchAll()
 
@@ -141,6 +141,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 				log.Errorf("qid=%d, Time range passed for a block with no micro index!", qid)
 				continue
 			}
+
 			if isRange {
 				if wildcardCol {
 					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
@@ -154,9 +155,9 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 				}
 				if !wildCardValue && !negateMatch {
 					if wildcardCol {
-						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, timeFilteredBlocks)
+						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, dualCaseCheckEnabled)
 					} else {
-						doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, timeFilteredBlocks, colsToCheck)
+						doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, dualCaseCheckEnabled)
 					}
 				}
 			}
@@ -225,10 +226,20 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	var matchedBlockRange bool
 	for colName := range colsToCheck {
 		colCMI, err := segMicroIndex.GetCMIForBlockAndColumn(blockToCheck, colName)
+		if err == errCMIColNotFound && rangeOp == utils.NotEquals {
+			matchedBlockRange = true
+			timeFilteredBlocks[blockToCheck][colName] = true
+			continue
+		}
 		if err != nil {
+			log.Errorf("doRangeCheckForCol: failed to get cmi for block %d and column %s: %v", blockToCheck, colName, err)
 			continue
 		}
 		if colCMI.CmiType != utils.CMI_RANGE_INDEX[0] {
+			if rangeOp == utils.NotEquals {
+				matchedBlockRange = true
+				timeFilteredBlocks[blockToCheck][colName] = true
+			}
 			continue
 		}
 		matchedBlockRange = metautils.CheckRangeIndex(rangeFilter, colCMI.Ranges, rangeOp, qid)
@@ -243,8 +254,10 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	}
 }
 
-func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool,
-	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool) {
+func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
+	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool, dualCaseEnabled bool) {
+
+	checkInOriginalKeys := dualCaseEnabled && len(originalBloomKeys) > 0
 
 	var matchedNeedleInBlock = true
 	for entry := range bloomKeys {
@@ -258,6 +271,12 @@ func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 				continue
 			}
 			needleExists = colCMI.Bf.TestString(entry)
+			if !needleExists && checkInOriginalKeys {
+				originalEntry, ok := originalBloomKeys[entry]
+				if ok {
+					needleExists = colCMI.Bf.TestString(originalEntry)
+				}
+			}
 			if needleExists {
 				timeFilteredBlocks[blockToCheck][colName] = true
 				break
@@ -277,8 +296,10 @@ func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 	}
 }
 
-func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool,
-	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool) {
+func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
+	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, dualCaseCheckEnabled bool) {
+
+	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
 
 	var matchedNeedleInBlock = true
 	var allEntriesMissing bool = false
@@ -293,7 +314,15 @@ func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 				if cmi.CmiType != utils.CMI_BLOOM_INDEX[0] {
 					continue
 				}
-				if cmi.Bf.TestString(entry) {
+				entryExists := cmi.Bf.TestString(entry)
+				if !entryExists && checkInOriginalKeys {
+					originalEntry, ok := originalBloomKeys[entry]
+					if ok {
+						entryExists = cmi.Bf.TestString(originalEntry)
+					}
+				}
+
+				if entryExists {
 					timeFilteredBlocks[blockToCheck][cname] = true
 					atleastOneFound = true
 				}

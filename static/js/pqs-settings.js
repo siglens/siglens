@@ -103,7 +103,7 @@ $('#clear-pqs-info').on('click', function () {
     $('#clear-pqs').on('click', function () {
         $.ajax({
             url: '/api/pqs/clear',
-            method: 'GET',
+            method: 'POST',
             success: function () {
                 $('.pqs-grid').empty();
                 showToast('PQS Info cleared successfully', 'success');
@@ -134,69 +134,87 @@ function getPQSQueries() {
 }
 
 function createTable(data) {
+    function formatEpochToReadable(epoch) {
+        if (!epoch) return '';
+        const date = new Date(epoch * 1000);
+        return date.toLocaleString();
+    }
+
     const columnDefs = [
-        { headerName: 'Category', field: 'category', sortable: true, filter: true },
-        { headerName: 'ID', field: 'id', sortable: true, filter: true },
-        { headerName: 'Count', field: 'count', sortable: true, filter: true },
+        { headerName: 'PQId', field: 'id', sortable: true, filter: true, width: 250, flex: 0 },
+        { headerName: 'Count', field: 'count', sortable: true, filter: true, width: 250, flex: 0 },
+        {
+            headerName: 'Last Used',
+            field: 'last_used_epoch',
+            sortable: true,
+            filter: true,
+            width: 250,
+            flex: 0,
+            valueFormatter: (params) => formatEpochToReadable(params.value),
+        },
+        { headerName: 'Search Text', field: 'search_text', sortable: true, filter: true, flex: 1 },
     ];
 
-    const aggregationRowData = [];
-    for (const [id, count] of Object.entries(data.promoted_aggregations)) {
-        aggregationRowData.push({ category: 'Promoted Aggregations', id: id, count: count });
-    }
+    const aggregationRowData = data.promoted_aggregations.map((item) => ({
+        id: item.id,
+        count: item.count,
+        last_used_epoch: item.last_used_epoch,
+        search_text: item.search_text || '',
+    }));
+
+    const aggregationTotalRow = {
+        id: 'Total Tracked Aggregations',
+        count: aggregationRowData.length,
+        last_used_epoch: '',
+        search_text: '',
+    };
 
     const aggregationGridOptions = {
         columnDefs: columnDefs,
         rowData: aggregationRowData,
         onRowClicked: function (event) {
-            if (event.data.id) {
+            if (event.data.id && event.data.id !== 'Total Tracked Aggregations') {
                 fetchDetails(event.data.id);
             }
         },
         defaultColDef: {
-            flex: 1,
-            minWidth: 100,
             resizable: true,
             cellClass: 'align-center-grid',
         },
         headerHeight: 32,
         rowHeight: 42,
+        pinnedBottomRowData: [aggregationTotalRow],
     };
 
-    const searchRowData = [];
-    for (const [id, count] of Object.entries(data.promoted_searches)) {
-        searchRowData.push({ category: 'Promoted Searches', id: id, count: count });
-    }
+    const searchRowData = data.promoted_searches.map((item) => ({
+        id: item.id,
+        count: item.count,
+        last_used_epoch: item.last_used_epoch,
+        search_text: item.search_text || '',
+    }));
 
-    // Add the total tracked queries
-    const totalTrackedQueriesRow = { category: 'Total Tracked Queries', id: '', count: data.total_tracked_queries, specialRow: true };
-    searchRowData.push(totalTrackedQueriesRow);
+    const searchTotalRow = {
+        id: 'Total Tracked Searches',
+        count: searchRowData.length,
+        last_used_epoch: '',
+        search_text: '',
+    };
 
     const searchGridOptions = {
         columnDefs: columnDefs,
         rowData: searchRowData,
-        postSortRows: function (params) {
-            // Stick the Total Tracked Queries row at the bottom of the table
-            let rowNodes = params.nodes;
-            let specialRowIndex = rowNodes.findIndex((node) => node.data.specialRow);
-            if (specialRowIndex > -1) {
-                let specialRow = rowNodes.splice(specialRowIndex, 1)[0];
-                rowNodes.push(specialRow);
-            }
-        },
         onRowClicked: function (event) {
-            if (event.data.id) {
+            if (event.data.id && event.data.id !== 'Total Tracked Searches') {
                 fetchDetails(event.data.id);
             }
         },
         defaultColDef: {
-            flex: 1,
-            minWidth: 100,
             resizable: true,
             cellClass: 'align-center-grid',
         },
         headerHeight: 32,
         rowHeight: 42,
+        pinnedBottomRowData: [searchTotalRow],
     };
 
     $('#ag-grid-promoted-aggregations').empty();

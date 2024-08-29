@@ -23,6 +23,7 @@ import (
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1530,34 +1531,6 @@ func Test_StringExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, "http://www.splunk.com/download?r=header")
 
-	strExpr1 :=
-		&StringExpr{
-			StringExprMode: SEMTextExpr,
-			TextExpr: &TextExpr{
-				IsTerminal: false,
-				Op:         "split",
-				Param: &StringExpr{
-					StringExprMode: SEMField,
-					FieldName:      "ident",
-				},
-				Delimiter: &StringExpr{
-					StringExprMode: SEMRawString,
-					RawString:      "-",
-				},
-			},
-		}
-	assert.Equal(t, strExpr1.GetFields(), []string{"ident"})
-
-	// Test Evaluate()
-	fieldToValue["ident"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
-		CVal:  "a111d29d-dd70-48b2-8987-a807b4b8bbae",
-	}
-
-	value, err = strExpr1.Evaluate(fieldToValue)
-	assert.Nil(t, err)
-	assert.Equal(t, value, "a111d29d&nbspdd70&nbsp48b2&nbsp8987&nbspa807b4b8bbae")
-
 	strMax :=
 		&StringExpr{
 			StringExprMode: SEMTextExpr,
@@ -1940,7 +1913,7 @@ func Test_StatisticExpr(t *testing.T) {
 		ByClause:  []string{"app_name"},
 	}
 
-	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetGroupByCols())
+	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetFields())
 
 	bucketResult := &BucketResult{
 		ElemCount:   333,
@@ -2095,4 +2068,118 @@ func TestParseTime(t *testing.T) {
 			t.Errorf("parseTime(%q, %q) = %v, want %v", test.dateStr, test.format, got, test.expected)
 		}
 	}
+}
+
+func Test_MultiValueExpr(t *testing.T) {
+	mvExpr := &MultiValueExpr{
+		MultiValueExprMode: MVEMMultiValueExpr,
+		Op:                 "split",
+		StringExprParams: []*StringExpr{
+			{
+				StringExprMode: SEMField,
+				FieldName:      "test_field",
+			},
+			{
+				StringExprMode: SEMRawString,
+				RawString:      ":",
+			},
+		},
+	}
+	assert.Equal(t, mvExpr.GetFields(), []string{"test_field"})
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue["test_field"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "a:dc:b2c:123",
+	}
+
+	value, err := mvExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"a", "dc", "b2c", "123"}))
+
+	strExpr := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvjoin",
+			MultiValueExpr: mvExpr,
+			Delimiter: &StringExpr{
+				StringExprMode: SEMRawString,
+				RawString:      "?",
+			},
+		},
+	}
+	assert.Equal(t, strExpr.GetFields(), []string{"test_field"})
+
+	joinedStr, err := strExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "a?dc?b2c?123", joinedStr)
+
+	strExpr2 := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvcount",
+			MultiValueExpr: mvExpr,
+		},
+	}
+	assert.Equal(t, strExpr.GetFields(), []string{"test_field"})
+
+	countVal, err := strExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "4", countVal)
+
+	gobRegex := toputils.GobbableRegex{}
+	err = gobRegex.SetRegex("b2*")
+	assert.Nil(t, err)
+
+	strExpr3 := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvfind",
+			MultiValueExpr: mvExpr,
+			Regex:          &gobRegex,
+		},
+	}
+	assert.Equal(t, strExpr3.GetFields(), []string{"test_field"})
+
+	foundVal, err := strExpr3.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "2", foundVal)
+
+	err = gobRegex.SetRegex("b3c")
+	assert.Nil(t, err)
+	strExpr3.TextExpr.Regex = &gobRegex
+
+	foundVal, err = strExpr3.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "", foundVal)
+
+	mvExpr2 := &MultiValueExpr{
+		MultiValueExprMode: MVEMMultiValueExpr,
+		Op:                 "mvindex",
+		MultiValueExprParams: []*MultiValueExpr{
+			mvExpr,
+		},
+		NumericExprParams: []*NumericExpr{
+			{
+				NumericExprMode: NEMNumber,
+				IsTerminal:      true,
+				Value:           "1",
+			},
+		},
+	}
+	assert.Equal(t, mvExpr2.GetFields(), []string{"test_field"})
+
+	value, err = mvExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"dc"}))
+
+	mvExpr2.NumericExprParams = append(mvExpr2.NumericExprParams, &NumericExpr{
+		NumericExprMode: NEMNumber,
+		IsTerminal:      true,
+		Value:           "2",
+	})
+
+	value, err = mvExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"dc", "b2c"}))
 }

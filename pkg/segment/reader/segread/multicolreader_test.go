@@ -39,7 +39,7 @@ func Test_multiSegReader(t *testing.T) {
 	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
@@ -47,6 +47,25 @@ func Test_multiSegReader(t *testing.T) {
 	multiReader := sharedReader.MultiColReaders[0]
 	var err error
 	var cKeyidx int
+
+	colsToReadIndices := make(map[int]struct{})
+	for colName := range cols {
+		if colName == config.GetTimeStampKey() {
+			continue
+		}
+
+		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
+		assert.True(t, exists)
+		colsToReadIndices[cKeyidx] = struct{}{}
+	}
+
+	// invalid block
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	assert.NotNil(t, err)
+
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
+	assert.Nil(t, err)
+
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
@@ -55,11 +74,6 @@ func Test_multiSegReader(t *testing.T) {
 		cKeyidx, _ = multiReader.GetColKeyIndex(colName)
 
 		var cValEnc utils.CValueEnclosure
-
-		// invalid block
-		err = multiReader.ExtractValueFromColumnFile(cKeyidx, uint16(numBlocks), 0, 0, false,
-			&cValEnc)
-		assert.NotNil(t, err)
 
 		// correct block, incorrect recordNum
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,
@@ -97,13 +111,13 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 
 	cols["*"] = true
-	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, 9)
+	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedAsteriskReader.MultiColReaders, sharedAsteriskReader.numReaders)
 	assert.Equal(t, 3, sharedAsteriskReader.numReaders)

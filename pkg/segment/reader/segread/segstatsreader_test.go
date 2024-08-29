@@ -23,7 +23,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -35,12 +34,6 @@ func Test_sstReadWrite(t *testing.T) {
 	fname := "segkey-1.sst"
 
 	_ = os.MkdirAll(path.Dir(fname), 0755)
-
-	myHll := hyperloglog.New16()
-
-	for i := 0; i < 3200; i++ {
-		myHll.Insert([]byte(fmt.Sprintf("mystr:%v", i)))
-	}
 
 	myNums := structs.NumericStats{
 		Min: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
@@ -54,8 +47,12 @@ func Test_sstReadWrite(t *testing.T) {
 	inSst := structs.SegStats{
 		IsNumeric: true,
 		Count:     2345,
-		Hll:       myHll,
 		NumStats:  &myNums,
+	}
+	inSst.CreateNewHll()
+
+	for i := 0; i < 3200; i++ {
+		inSst.InsertIntoHll([]byte(fmt.Sprintf("mystr:%v", i)))
 	}
 
 	allSst := make(map[string]*structs.SegStats)
@@ -63,8 +60,9 @@ func Test_sstReadWrite(t *testing.T) {
 	allSst["col-a"] = &inSst
 	allSst["col-b"] = &inSst
 
-	ss := writer.SegStore{SegmentKey: "segkey-1",
-		AllSst: allSst}
+	ss := writer.NewSegStore(0)
+	ss.SegmentKey = "segkey-1"
+	ss.AllSst = allSst
 
 	err := ss.FlushSegStats()
 	assert.Nil(t, err)
@@ -82,7 +80,7 @@ func Test_sstReadWrite(t *testing.T) {
 
 	assert.Equal(t, inSst.NumStats, outSst.NumStats)
 
-	assert.Equal(t, inSst.Hll.Estimate(), outSst.Hll.Estimate())
+	assert.Equal(t, inSst.GetHllCardinality(), outSst.GetHllCardinality())
 
 	_ = os.RemoveAll(fname)
 }
