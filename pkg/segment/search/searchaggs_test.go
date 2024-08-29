@@ -380,12 +380,11 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 	}
 }
 
-// Tests the case where the size limit is zero and the number of segments is 2.
-// Normal case where sizelimit should not be considered.
+// Tests the case where number or records exceed list size limit.
 func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
-	recsSize := 200
+	recsSize := utils.MAX_SPL_LIST_SIZE * 2
 	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "measure1",
@@ -414,7 +413,8 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 	}
 }
 
-func Test_PerformMeasureAggsOnRecsSizeLimit_WithLimitedList(t *testing.T) {
+// Tests the normal list aggregation.
+func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
 	recsSize := 20

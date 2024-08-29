@@ -656,20 +656,26 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
 			finalCols[colName] = true
-			if value.Dtype == utils.SS_DT_FLOAT {
+			switch value.Dtype {
+			case utils.SS_DT_FLOAT:
 				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
-			} else if value.Dtype == utils.SS_DT_STRING_SLICE {
+			case utils.SS_DT_STRING_SLICE:
 				strVal, err := value.GetString()
 				if err != nil {
 					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
+					value.CVal = ""
+				} else {
+					value.CVal = strVal
 				}
-				value.CVal = strVal
-			} else {
+			case utils.SS_DT_SIGNED_NUM:
 				value.CVal = humanize.Comma(value.CVal.(int64))
+			default:
+				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", value.Dtype)
+				value.CVal = ""
+				continue
 			}
 			finalSegment[colName] = value.CVal
 		}
-
 		recs[firstRecInden] = finalSegment
 	}
 
