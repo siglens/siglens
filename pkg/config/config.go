@@ -638,7 +638,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config.AgileAggsEnabledConverted = AgileAggsEnabled
 
 	if len(config.DualCaseCheck) <= 0 {
-		config.DualCaseCheck = "false"
+		config.DualCaseCheck = "true"
 	}
 	dualCaseCheck, err := strconv.ParseBool(config.DualCaseCheck)
 	if err != nil {
