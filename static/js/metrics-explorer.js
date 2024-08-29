@@ -154,6 +154,7 @@ function getUrlParameter(name) {
 }
 // Updates saved Metrics Url on changing in metrics Explorer
 function updateMetricsQueryParamsInUrl() {
+    if(!isAlertScreen && !isDashboardScreen){
     let metricsQueryParamsData = getMetricsQData();
     const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
     const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
@@ -162,6 +163,7 @@ function updateMetricsQueryParamsInUrl() {
     const baseUrl = currentUrl.split('?')[0];
     const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
     window.history.replaceState(null, '', newUrl);
+    }
 }
 
 let formulaDetailsMap = {};
