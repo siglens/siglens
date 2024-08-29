@@ -76,7 +76,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		case utils.VERSION_SEGSTATS[0]:
 			sstlen = toputils.BytesToUint32LittleEndian(fdata[rIdx : rIdx+4])
 			rIdx += 4
-		case utils.VERSION_SEGSTATS_OLD[0]:
+		case utils.VERSION_SEGSTATS_LEGACY[0]:
 			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
 			rIdx += 2
 		default:
@@ -121,7 +121,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	case utils.VERSION_SEGSTATS_BUF[0]:
 		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
 		idx += 4
-	case utils.VERSION_SEGSTATS_BUF_OLD_2[0], utils.VERSION_SEGSTATS_BUF_OLD_1[0]:
+	case utils.VERSION_SEGSTATS_BUF_LEGACY_2[0], utils.VERSION_SEGSTATS_BUF_LEGACY_1[0]:
 		hllSize = uint32(toputils.BytesToUint16LittleEndian(fdata[idx : idx+2]))
 		idx += 2
 	default:
@@ -129,7 +129,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 		return nil, errors.New("readSingleSst: unknown version")
 	}
 
-	if version == utils.VERSION_SEGSTATS_BUF_OLD_1[0] {
+	if version == utils.VERSION_SEGSTATS_BUF_LEGACY_1[0] {
 		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
 	} else {
 		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
