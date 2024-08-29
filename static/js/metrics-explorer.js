@@ -2126,16 +2126,16 @@ async function getMetricsData(queryName, metricName, state) {
 
     try {
         const res = await fetchTimeSeriesData(data);
-    if (res) {
-        rawTimeSeriesData = res;
-        updateDownloadButtons();
-        updateMetricsQueryParamsInUrl();
-        metricsQueryParams = data; // For alerts page
-    } 
-}catch (error) {
+        if (res) {
+            rawTimeSeriesData = res;
+            updateDownloadButtons();
+            updateMetricsQueryParamsInUrl();
+            metricsQueryParams = data; // For alerts page
+        }
+    } catch (error) {
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
-    }    
+    }
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
