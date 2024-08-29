@@ -23,7 +23,7 @@ import (
 	"encoding/gob"
 	"regexp"
 
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	log "github.com/sirupsen/logrus"
 )
 

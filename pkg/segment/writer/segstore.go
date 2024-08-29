@@ -1510,15 +1510,32 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
-	hllData := sst.GetHllBytes()
+	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))
+	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
 	idx += 2
 
 	// HLL_Data
-	copy(buf[idx:], hllData)
-	idx += uint16(len(hllData))
+	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+
+	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
+	// This is necessary because we're using the slice to get the HLL bytes in place,
+	// and the HLL package relies on cap(slice) to determine where to write the bytes.
+	// It expects the slice to be exactly the size of hllDataSize. But the slice we're
+	// using is larger than that, so we need to ensure that the slice is exactly the size
+	// of hllDataSize.
+	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)]
+
+	hllByteSlice = sst.GetHllBytesInPlace(hllByteSlice)
+	hllByteSliceLen := len(hllByteSlice)
+	if hllByteSliceLen != hllDataSize {
+		// This case should not happen, but if it does, we need to adjust the size
+		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
+		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+	}
+	copy(buf[idx:], hllByteSlice)
+	idx += uint16(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
