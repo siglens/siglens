@@ -570,7 +570,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         $(`#panel${panelId} #empty-response`).hide();
         $(`#panel${panelId} .panEdit-panel`).show();
     }
-    let chartType = currentPanel.chartType;
+    var chartType = currentPanel.chartType;
     if (chartType === 'number') {
         let bigNumVal = null;
         let dataType = currentPanel.dataType;
@@ -633,6 +633,8 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         }
         if (currentPanel && currentPanel.style) {
             toggleLineOptions(currentPanel.style.display);
+            chartType=currentPanel.style.display;
+            toggleChartType(chartType);
             updateChartTheme(currentPanel.style.color);
             updateLineCharts(
                 currentPanel.style.lineStyle,

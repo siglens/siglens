@@ -2052,7 +2052,7 @@ async function getMetricNames() {
     };
     const res = await $.ajax({
         method: 'post',
-        url: 'metrics-explorer/api/v1/metric_names',
+        url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/metric_names',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -2151,7 +2151,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 async function fetchTimeSeriesData(data) {
     return $.ajax({
         method: 'post',
-        url: 'metrics-explorer/api/v1/timeseries',
+        url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/timeseries',
         headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
         crossDomain: true,
         dataType: 'json',
@@ -2170,7 +2170,7 @@ function getTagKeyValue(metricName) {
 
         $.ajax({
             method: 'post',
-            url: 'metrics-explorer/api/v1/all_tags',
+            url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/all_tags',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
@@ -2275,7 +2275,7 @@ function createQueryString(queryObject) {
 async function getFunctions() {
     const res = await $.ajax({
         method: 'get',
-        url: 'metrics-explorer/api/v1/functions',
+        url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/functions',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',

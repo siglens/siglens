@@ -1197,6 +1197,13 @@ function resetOptions() {
     });
     if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === -1) {
         toggleLineOptions('Line chart');
+        chartType='Line chart';
+        toggleChartType('Line chart');
+        updateChartTheme('Classic');
+            updateLineCharts(
+                'Solid',
+                'Normal'
+            );
         document.getElementById('display-input').value = 'Line chart';
         document.getElementById('color-input').value = 'Classic';
         document.getElementById('line-style-input').value ='Solid';
