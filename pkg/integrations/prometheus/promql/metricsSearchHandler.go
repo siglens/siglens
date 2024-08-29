@@ -977,7 +977,9 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 				return
 			}
 
+			// Err is nil, so tsids is not nil, so we can safely iterate over it
 			for tsid := range tsids {
+				// AddRaw is safe to use because tsid is not nil
 				allTsids.AddRaw(tsid)
 			}
 		}
