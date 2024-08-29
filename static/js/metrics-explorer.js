@@ -104,7 +104,12 @@ $(document).ready(async function () {
     if (currentPage.startsWith('/dashboard.html')) {
         isDashboardScreen = true;
     }
-
+    if (currentPage.startsWith('/metrics-explorer.html')) {
+        //eslint-disable-next-line no-undef
+        isMetricsScreen = true;
+         //eslint-disable-next-line no-undef
+        isMetricsURL=true;
+    }
     $('#metrics-container #date-start').on('change', getStartDateHandler);
     $('#metrics-container #date-end').on('change', getEndDateHandler);
     $('#metrics-container #time-start').on('change', getStartTimeHandler);
@@ -2060,30 +2065,50 @@ async function getMetricNames() {
 }
 
 function displayErrorMessage(container, message) {
-    const mergedContainer = document.querySelector('#merged-graph-container');
-    var graphCanvas = container.find('.graph-canvas');
-    var mergedGraph = mergedContainer.querySelector('.merged-graph');
-    var mergedSpan = document.createElement('span');
-    graphCanvas.innerHTML = '';
-    var errorSpan = $('<span></span>').addClass('error-message').text(message);
-    graphCanvas.append(errorSpan);
-    mergedGraph.innerHTML = '';
-    mergedGraph.appendChild(mergedSpan);
-    mergedSpan.classList.add('error-message');
-    mergedSpan.textContent = message;
+    if (isMetricsURL) {
+        const mergedContainer = document.querySelector('#merged-graph-container');
+        var graphCanvas = container.find('.graph-canvas');
+        graphCanvas.find('.error-message').each(function() {
+            $(this).remove();
+        });
+        var mergedGraph = mergedContainer.querySelector('.merged-graph');
+        mergedGraph.querySelectorAll('.error-message').forEach(errorSpan => errorSpan.remove());
+        var mergedSpan = document.createElement('span');
+        var errorSpan = $('<span></span>').addClass('error-message').text(message);
+        graphCanvas.append(errorSpan);
+        mergedGraph.innerHTML = '';
+        mergedGraph.appendChild(mergedSpan);
+        mergedSpan.classList.add('error-message');
+        mergedSpan.textContent = message;
+    }
+    if(isAlertScreen){
+        var graphCanvas = container.find('.graph-canvas');
+        graphCanvas.find('.error-message').each(function() {
+            $(this).remove();
+        });
+        var errorSpan = $('<span></span>').addClass('error-message').text(message);
+        graphCanvas.append(errorSpan);
+    }
 }
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-
-    // Remove error-related elements
-    const errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
-    if (errorCanvas.length > 0) {
-        errorCanvas.remove();
-        mergedContainer.find('canvas').remove();
-
-        delete chartDataCollection[queryName];
-        delete lineCharts[queryName];
+    let errorCanvas;
+    if(isAlertScreen){
+        errorCanvas = $(`.metrics-graph .graph-canvas canvas`);
+        if (errorCanvas.length > 0) {
+            errorCanvas.remove();
+        }
     }
+    else{
+        errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
+        if (errorCanvas.length > 0) {
+            errorCanvas.remove();
+            mergedContainer.find('canvas').remove();
+        }
+    }
+        
+    delete chartDataCollection[queryName];
+    delete lineCharts[queryName];
 
     // Remove loaders
     container.find('#panel-loading').remove();
@@ -2123,6 +2148,9 @@ async function getMetricsData(queryName, metricName, state) {
             updateDownloadButtons();
         }
     } catch (error) {
+        if(isAlertScreen){
+            container=$('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
+        }
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
     }
@@ -2192,7 +2220,10 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             updateDownloadButtons();
         }
     } catch (error) {
-        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
+        if(isAlertScreen){
+            container=$('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
+        }
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);        
         displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
 }
@@ -2264,7 +2295,13 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
             addVisualizationContainer(queryName, chartData, queryString);
         }
     } catch (errorMessage) {
-        displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
+        if(isAlertScreen){
+            displayErrorMessage($('#metrics-graphs').find('.metrics-graph'), errorMessage);
+        }
+        else{
+            displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
+        }
+        
     }
 }
 
