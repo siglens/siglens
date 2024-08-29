@@ -1064,13 +1064,9 @@ func TestProcessGetMetricSeriesCardinalityRequest(t *testing.T) {
 		SeriesCardinality uint64 `json:"seriesCardinality"`
 	}
 	err := json.Unmarshal(ctx.Response.Body(), &output)
-	if err != nil {
-		t.Errorf("Failed to parse response body: %v", err)
-	}
+	assert.Nil(t, err)
 
 	// Perform assertions on the output
 	expectedCardinality := uint64(0)
-	if output.SeriesCardinality != expectedCardinality {
-		t.Errorf("Expected series cardinality %d, but got %d", expectedCardinality, output.SeriesCardinality)
-	}
+	assert.Equal(t, expectedCardinality, output.SeriesCardinality)
 }
