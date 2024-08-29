@@ -2158,26 +2158,37 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
-        let queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
+        let queryString;
+        let state = queryDetails.state;
+        if (queryDetails.state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
 
         const query = {
             name: queryName,
             query: queryString,
             qlType: 'promql',
-            state: queryDetails.state,
+            state: state,
         };
         queriesData.push(query);
 
+        // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
+    let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
         functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
+            formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = { formula: formulaString };
+    const formula = {
+        formula: formwithfun,
+    };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
 
@@ -2210,7 +2221,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     updateDownloadButtons();
     updateMetricsQueryParamsInUrl();
 }
-
 async function fetchTimeSeriesData(data) {
     return await $.ajax({
         method: 'post',
