@@ -252,6 +252,10 @@ func IsAggregationsEnabled() bool {
 	return runningConfig.AgileAggsEnabledConverted
 }
 
+func IsDualCaseCheckEnabled() bool {
+	return runningConfig.DualCaseCheckConverted
+}
+
 func SetAggregationsFlag(enabled bool) {
 	runningConfig.AgileAggsEnabledConverted = enabled
 	runningConfig.AgileAggsEnabled = strconv.FormatBool(enabled)
@@ -495,6 +499,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 		AnalyticsEnabledConverted:  false,
 		AgileAggsEnabled:           "true",
 		AgileAggsEnabledConverted:  true,
+		DualCaseCheck:              "false",
+		DualCaseCheckConverted:     false,
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
@@ -630,6 +636,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.AgileAggsEnabled = "true"
 	}
 	config.AgileAggsEnabledConverted = AgileAggsEnabled
+
+	if len(config.DualCaseCheck) <= 0 {
+		config.DualCaseCheck = "false"
+	}
+	dualCaseCheck, err := strconv.ParseBool(config.DualCaseCheck)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse DualCaseCheck flag. Defaulting to false. Error: %v", err)
+		dualCaseCheck = false
+		config.DualCaseCheck = "false"
+	}
+	config.DualCaseCheckConverted = dualCaseCheck
 
 	if len(config.DataPath) <= 0 {
 		config.DataPath = "data/"

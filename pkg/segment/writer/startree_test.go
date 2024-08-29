@@ -265,11 +265,13 @@ func TestStarTree(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
@@ -281,7 +283,8 @@ func TestStarTree(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
@@ -363,11 +366,13 @@ func TestStarTreeMedium(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
@@ -379,7 +384,7 @@ func TestStarTreeMedium(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
@@ -462,11 +467,13 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 		ss.RecordCount++
 	}
@@ -479,7 +486,8 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
@@ -562,11 +570,14 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
+
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
@@ -578,7 +589,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
-	var builder StarTreeBuilder
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 1; trial += 1 {
 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
