@@ -90,7 +90,6 @@ function updateDownloadButtons() {
         jsonButton.addClass('disabled-tab');
     }
 }
-
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
@@ -131,6 +130,7 @@ $(document).ready(async function () {
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
+        updateMetricsQueryParamsInUrl();
         setSaveQueriesDialog();
     }
 });
@@ -153,6 +153,23 @@ function getUrlParameter(name) {
     let results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
+// Updates saved Metrics Url on changing in metrics Explorer
+function updateMetricsQueryParamsInUrl() {
+    var currentPage = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (currentPage.includes('metrics-explorer.html') && urlParams.has('queryString')) {
+        let metricsQueryParamsData = getMetricsQData();
+        const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+        const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
+        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
+        window.history.replaceState(null, '', newUrl);
+    }
+}
+
 let formulaDetailsMap = {};
 async function initializeFormulaFunction(formulaElement, uniqueId) {
     if (!formulaDetailsMap[uniqueId] || !formulaDetailsMap[uniqueId].formula) {
@@ -196,6 +213,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
                 let validationResult = validateFormula(formula, uniqueId);
                 if (validationResult !== false) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
+                    updateMetricsQueryParamsInUrl();
                 }
                 $(this).val('');
             },
@@ -238,6 +256,7 @@ async function initializeFormulaFunction(formulaElement, uniqueId) {
         // If the validation passes, call the getMetricsDataForFormula with the updated details
         if (validationResult !== false) {
             await getMetricsDataForFormula(uniqueId, validationResult);
+            updateMetricsQueryParamsInUrl();
         }
     });
 }
@@ -336,6 +355,7 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             removeVisualizationContainer(uniqueId);
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
         }
+        updateMetricsQueryParamsInUrl();
     });
 
     // Hide the functions dropdown
@@ -347,6 +367,7 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
         if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
             optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
+        updateMetricsQueryParamsInUrl();
     });
 }
 
@@ -380,6 +401,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 updateTooltipForFormulaFunctions(uniqueId, validationResult);
                 if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0) {
                     await getMetricsDataForFormula(uniqueId, validationResult);
+                    updateMetricsQueryParamsInUrl();
                 }
             } else {
                 errorMessage.show();
@@ -486,6 +508,7 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
     initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
+    updateMetricsQueryParamsInUrl();
 }
 
 function debounce(func, wait) {
@@ -702,12 +725,14 @@ function setupQueryElementEventListeners(queryElement) {
                 }
             }
         }
+        updateMetricsQueryParamsInUrl();
     });
 
     // Alias button
     queryElement.find('.as-btn').on('click', function () {
         $(this).hide(); // Hide the "as..." button
         $(this).siblings('.alias-filling-box').show(); // Show alias input box
+        updateMetricsQueryParamsInUrl();
     });
 
     // Alias close button
@@ -717,6 +742,7 @@ function setupQueryElementEventListeners(queryElement) {
         .on('click', function () {
             $(this).parent().hide();
             $(this).parent().siblings('.as-btn').show();
+            updateMetricsQueryParamsInUrl();
         });
 
     // Hide or Show query element and graph on click on query name
@@ -736,6 +762,7 @@ function setupQueryElementEventListeners(queryElement) {
         } else {
             $('.metrics-graph').removeClass('full-width');
         }
+        updateMetricsQueryParamsInUrl();
     });
 
     // Show functions dropdown
@@ -786,7 +813,9 @@ function setupQueryElementEventListeners(queryElement) {
             queryDetails.state = 'builder';
             getQueryDetails(queryName, queryDetails);
         }
+        updateMetricsQueryParamsInUrl();
     });
+
 
     // Run the raw query
     queryElement.find('.raw-query').on('click', '#run-filter-btn', async function () {
@@ -797,6 +826,7 @@ function setupQueryElementEventListeners(queryElement) {
         queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
         // Perform the search with the raw query
         await getQueryDetails(queryName, queryDetails);
+        updateMetricsQueryParamsInUrl();
     });
 }
 
@@ -852,6 +882,7 @@ async function addQueryElement() {
     setupQueryElementEventListeners(queryElement);
 
     queryIndex++;
+    updateMetricsQueryParamsInUrl();
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -884,6 +915,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     if (queryDetails.rawQueryExecuted && queryDetails.rawQueryInput) {
         getQueryDetails(queryName, queryDetails);
+        updateMetricsQueryParamsInUrl();
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
@@ -904,6 +936,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             }
         });
         getQueryDetails(queryName, queryDetails);
+        updateMetricsQueryParamsInUrl();
     }
 
     queryElement
@@ -925,6 +958,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
                 $(this).blur();
                 adjustInputWidth(this);
+                updateMetricsQueryParamsInUrl();
             },
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
@@ -1002,6 +1036,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 }
                 $(this).val('');
                 updateAutocompleteSource();
+                updateMetricsQueryParamsInUrl();
                 return false;
             },
             classes: {
@@ -1071,6 +1106,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
             getQueryDetails(queryName, queryDetails);
+            updateMetricsQueryParamsInUrl();
         }
         availableEverywhere.push(tagValue);
         availableEverywhere.sort();
@@ -1083,6 +1119,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.css('width', '100%');
         }
         updateAutocompleteSource();
+        updateMetricsQueryParamsInUrl();
     });
 
     // Aggregation input
@@ -1094,6 +1131,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             select: function (event, ui) {
                 queryDetails.aggFunction = ui.item.value;
                 getQueryDetails(queryName, queryDetails);
+                updateMetricsQueryParamsInUrl();
                 $(this).blur();
             },
             classes: {
@@ -1127,6 +1165,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 addValue(queryElement, ui.item.value);
                 queryDetails.everything.push(ui.item.value);
                 getQueryDetails(queryName, queryDetails);
+                updateMetricsQueryParamsInUrl();
                 var index = availableEverything.indexOf(ui.item.value);
                 if (index !== -1) {
                     availableEverything.splice(index, 1);
@@ -1176,6 +1215,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         if (index !== -1) {
             queryDetails.everything.splice(index, 1);
             getQueryDetails(queryName, queryDetails);
+            updateMetricsQueryParamsInUrl();
         }
         availableEverything.push(value);
         availableEverything.sort();
@@ -1213,6 +1253,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryDetails.functions.push(selectedItem.fn);
                 appendFunctionDiv(queryElement, selectedItem.fn);
                 getQueryDetails(queryName, queryDetails);
+                updateMetricsQueryParamsInUrl();
 
                 queryElement.find('.options-container').hide();
                 $(this).val('');
@@ -1245,6 +1286,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         if (indexToRemove !== -1) {
             queryDetails.functions.splice(indexToRemove, 1);
             getQueryDetails(queryName, queryDetails);
+            updateMetricsQueryParamsInUrl();
         }
         $(this).parent('.selected-function').remove();
     });
@@ -1471,6 +1513,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         lineCharts[queryName] = lineChart;
         updateGraphWidth();
         mergeGraphs(chartType);
+        updateMetricsQueryParamsInUrl();
     }
     addOrUpdateFormulaCache(queryName, queryString);
 }
@@ -2767,7 +2810,6 @@ function formatMetricsForUrlParams(panelMetricsQueryParams) {
 //eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
     let metricsQueryParamsData = getMetricsQData();
-
     // Transform the structure to match `metricsQueryParams`
     const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
 
