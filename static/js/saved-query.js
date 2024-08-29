@@ -19,7 +19,6 @@
 
 let sqgridDiv = null;
 let sqRowData = [];
-let isMetricsScreen;
 //eslint-disable-next-line no-unused-vars
 function setSaveQueriesDialog() {
     let dialog = null;
@@ -65,6 +64,7 @@ function setSaveQueriesDialog() {
 
         if (valid) {
             let data;
+            //eslint-disable-next-line no-undef
             if (isMetricsScreen) {
                 data = getMetricsDataForSave(qname.val(), description.val());
             } else {
@@ -158,8 +158,8 @@ class linkCellRenderer {
         this.eGui = document.createElement('span');
         let href;
         if (params.data.dataSource === 'metrics') {
-            //todo fix this to load metrics explorer
-            this.eGui.innerHTML = '<a class="query-link" href="metrics-explorer.html" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+            let href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
+            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block;">' + params.data.qname + '</a>';
         } else {
             href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
             this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
@@ -211,6 +211,7 @@ class btnCellRenderer {
 $(document).ready(function () {
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/metrics-explorer.html')) {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
     $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
@@ -267,6 +268,18 @@ let queriesColumnDefs = [
         field: 'qdescription',
         headerName: 'Description',
         resizable: true,
+    },
+    {
+        field: 'type',
+        headerName: 'Type',
+        resizable: true,
+        valueFormatter: (params) => {
+            if (params.value) {
+                return params.value.charAt(0).toUpperCase() + params.value.slice(1).toLowerCase();
+            } else {
+                return '';
+            }
+        },
     },
     {
         field: 'queryLanguage',
@@ -327,6 +340,7 @@ function displaySavedQueries(res, flag) {
             newRow.set('qdescription', res[key].description);
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
+            newRow.set('type', res.dataSource);
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
@@ -357,6 +371,7 @@ function displaySavedQueries(res, flag) {
             newRow.set('qname', key);
             newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
+            newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
             newRow.set('start', value.startTime);

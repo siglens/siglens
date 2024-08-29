@@ -248,6 +248,7 @@ func TestStarTree(t *testing.T) {
 	ss.numBlocks = 0
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
@@ -265,7 +266,7 @@ func TestStarTree(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -277,7 +278,7 @@ func TestStarTree(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
 	var builder StarTreeBuilder
@@ -292,10 +293,12 @@ func TestStarTree(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, root.aggValues[agSumIdx].IntgrVal,
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, iv,
 			int64(34),
 			fmt.Sprintf("expected sum of 34 for sum of column f; got %d",
-				root.aggValues[agSumIdx].IntgrVal))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
@@ -344,6 +347,7 @@ func TestStarTreeMedium(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -360,7 +364,7 @@ func TestStarTreeMedium(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -372,7 +376,7 @@ func TestStarTreeMedium(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
 	var builder StarTreeBuilder
@@ -388,10 +392,12 @@ func TestStarTreeMedium(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, root.aggValues[agSumIdx].IntgrVal,
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, iv,
 			int64(34*1000),
 			fmt.Sprintf("expected sum of 340000 for sum of column f; got %d",
-				root.aggValues[agSumIdx].IntgrVal))
+				iv))
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
 	_ = os.RemoveAll(fName)
@@ -440,6 +446,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -456,7 +463,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -469,7 +476,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
 	var builder StarTreeBuilder
@@ -484,10 +491,13 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, root.aggValues[agSumIdx].IntgrVal,
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+
+		assert.Equal(t, iv,
 			int64(1700),
 			fmt.Sprintf("expected sum of 3400 for sum of column f; got %d",
-				root.aggValues[agSumIdx].IntgrVal))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
@@ -536,6 +546,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -552,7 +563,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
-			cnameCacheByteHashToStr)
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
 		ss.wipBlock.maxIdx = maxIdx
@@ -564,7 +575,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 
 	gcWorkBuf := make([][]string, len(groupByCols))
 	for colNum := 0; colNum < len(groupByCols); colNum++ {
-		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCount)
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
 	}
 
 	var builder StarTreeBuilder
@@ -580,24 +591,32 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agidx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, int64(17*100), root.aggValues[agidx].IntgrVal,
+		iv, err := root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(17*100), iv,
 			fmt.Sprintf("expected 17000 for sum of column f; got %d",
-				root.aggValues[agidx].IntgrVal))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnMinIdx
-		assert.Equal(t, int64(2), root.aggValues[agidx].IntgrVal,
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), iv,
 			fmt.Sprintf("expected 2 for min of column f; got %d",
-				root.aggValues[agidx].IntgrVal))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnMaxIdx
-		assert.Equal(t, int64(4), root.aggValues[agidx].IntgrVal,
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(4), iv,
 			fmt.Sprintf("expected 4 for max of column f; got %d",
-				root.aggValues[agidx].IntgrVal))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnCountIdx
-		assert.Equal(t, int64(800), root.aggValues[agidx].IntgrVal,
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(800), iv,
 			fmt.Sprintf("expected 800 for count of column f; got %d",
-				root.aggValues[agidx].IntgrVal))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)

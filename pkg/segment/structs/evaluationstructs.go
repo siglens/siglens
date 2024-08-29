@@ -32,7 +32,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
@@ -314,7 +313,7 @@ type Cluster struct {
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
 	GroupValScoreMap map[string]*utils.CValueEnclosure
-	Hll              *hyperloglog.Sketch
+	Hll              *toputils.GobbableHll
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
 }
