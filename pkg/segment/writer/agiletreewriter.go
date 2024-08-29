@@ -81,12 +81,27 @@ func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 	return size, nil
 }
 
+func (stb *StarTreeBuilder) numOfActiveCols() uint16 {
+	totalCols := uint16(0)
+	for i := uint16(0); i < stb.numGroupByCols; i++ {
+		if !stb.droppedCols[i] {
+			totalCols++
+		}
+	}
+	return totalCols
+}
+
 func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	writer := bufio.NewWriter(strMFd)
 	if writer == nil {
 		err := fmt.Errorf("StarTreeBuilder.encodeMetadata: failed to create writer for %v", strMFd.Name())
 		log.Errorf(err.Error())
 		return 0, err
+	}
+
+	totalCols := stb.numOfActiveCols()
+	if totalCols == 0 {
+		return 0, fmt.Errorf("StarTreeBuilder.encodeMetadata: no groupby columns")
 	}
 
 	metadataSize := uint32(0)
@@ -100,7 +115,7 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	metadataSize += 4
 
 	// Len of groupByKeys
-	_, err = writer.Write(utils.Uint16ToBytesLittleEndian(stb.numGroupByCols))
+	_, err = writer.Write(utils.Uint16ToBytesLittleEndian(totalCols))
 	if err != nil {
 		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write number of groupby columns; err=%v", err)
 		return 0, err
@@ -109,6 +124,9 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 
 	// each groupbyKey
 	for i := uint16(0); i < stb.numGroupByCols; i++ {
+		if stb.droppedCols[i] {
+			continue
+		}
 		// copy strlen
 		l1 := uint16(len(stb.groupByKeys[i]))
 		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(l1))
@@ -156,6 +174,9 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	}
 
 	for colNum, cName := range stb.groupByKeys {
+		if stb.droppedCols[colNum] {
+			continue
+		}
 		size, err := stb.encodeDictEnc(cName, uint16(colNum), writer)
 		if err != nil {
 			log.Errorf("StarTreeBuilder.encodeMetadata: failed to encodeDictEnc; err=%v", err)
@@ -305,6 +326,11 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 
 	strMetaFname := fmt.Sprintf("%s.strm", segKey)
 
+	totalCols := stb.numOfActiveCols()
+	if totalCols == 0 {
+		return 0, fmt.Errorf("StarTreeBuilder.EncodeStarTree: no groupby columns")
+	}
+
 	err := stb.Aggregate(stb.tree.Root)
 	if err != nil {
 		return 0, err
@@ -331,8 +357,8 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 		return 0, err
 	}
 
-	levsOffsets := make([]int64, stb.numGroupByCols+1)
-	levsSizes := make([]uint32, stb.numGroupByCols+1)
+	levsOffsets := make([]int64, totalCols+1)
+	levsSizes := make([]uint32, totalCols+1)
 
 	nddSize, err := stb.encodeNddWrapper(segKey, levsOffsets, levsSizes)
 	if err != nil {

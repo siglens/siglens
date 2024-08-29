@@ -831,21 +831,31 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
-func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
+func (segstore *SegStore) getColsAboveCardLimit() ([]string, []uint64) {
 
-	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
+	highCardCols := []string{}
+	highCardVals := []uint64{}
+
+	for i, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
+		if segstore.stbHolder.stbPtr.droppedCols[i] {
+			continue // ignore already dropped columns
+		}
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
-			return cname, true, 0
+			highCardCols = append(highCardCols, cname)
+			highCardVals = append(highCardVals, 0)
+			continue
 		}
 
 		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
-			return cname, true, colCardinalityEstimate
+			highCardCols = append(highCardCols, cname)
+			highCardVals = append(highCardVals, colCardinalityEstimate)
 		}
 	}
-	return "", false, 0
+
+	return highCardCols, highCardVals
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
@@ -938,17 +948,27 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	if segstore.numBlocks != 0 {
-		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
-		if found {
-			// todo when we implement dropping of columns from atree,
-			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
-				cname, cardinality, segstore.numBlocks)
-
+		highCardCols, highCardVals := segstore.getColsAboveCardLimit()
+		activeCols := segstore.stbHolder.stbPtr.numOfActiveCols()
+		if int(activeCols)-len(highCardCols) <= 0 {
+			log.Warnf("computeStarTree: Dropping SegTree All remaining cols %v found with high card: %v, blockNum: %v",
+				highCardCols, highCardVals, segstore.numBlocks)
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 			return
+		}
+		for idx, cname := range highCardCols {
+			log.Warnf("computeStarTree: Dropping column, found cname: %v with high card: %v, blockNum: %v",
+				cname, highCardVals[idx], segstore.numBlocks)
+			err := segstore.stbHolder.stbPtr.DropColumn(cname)
+			if err != nil {
+				log.Errorf("computeStarTree: Dropping SegTree and release STB, Failed to drop column %v, err: %v", cname, err)
+				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+				segstore.stbHolder.ReleaseSTB()
+				segstore.stbHolder = nil
+				return
+			}
 		}
 	}
 

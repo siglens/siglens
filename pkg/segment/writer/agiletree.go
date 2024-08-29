@@ -129,6 +129,7 @@ type StarTreeBuilder struct {
 	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
 	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
 	buf               []byte
+	droppedCols       []bool
 }
 
 func (stb *StarTreeBuilder) GetGroupByKeys() []string {
@@ -142,7 +143,11 @@ func (stb *StarTreeBuilder) GetNodeCount() int {
 func (stb *StarTreeBuilder) GetEachColNodeCount() map[string]uint32 {
 	res := make(map[string]uint32)
 	for colIdx, lastNum := range stb.segDictLastNum {
-		res[stb.groupByKeys[colIdx]] = lastNum
+		if stb.droppedCols[colIdx] {
+			res[stb.groupByKeys[colIdx]] = 0
+		} else {
+			res[stb.groupByKeys[colIdx]] = lastNum
+		}
 	}
 	return res
 }
@@ -170,6 +175,7 @@ func (stb *StarTreeBuilder) ResetSegTree(groupByKeys []string,
 
 	stb.groupByKeys = groupByKeys
 	numGroupByCols := uint16(len(groupByKeys))
+	stb.droppedCols = make([]bool, len(groupByKeys))
 	stb.numGroupByCols = numGroupByCols
 	stb.mColNames = mColNames
 
@@ -217,26 +223,27 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 }
 
 func (stb *StarTreeBuilder) DropColumn(colToDrop string) error {
-	newGrpByKeys := make([]string, 0, len(stb.groupByKeys)-1)
 	dropLevel := -1
 	for idx, col := range stb.groupByKeys {
 		if col == colToDrop {
 			dropLevel = idx
 			continue
 		}
-		newGrpByKeys = append(newGrpByKeys, col)
 	}
 
 	if dropLevel == -1 {
 		return fmt.Errorf("DropColumn: column to drop %v not found", colToDrop)
 	}
-	err := stb.removeLevelFromTree(stb.tree.Root, 0, uint(dropLevel))
+	nextLevel := stb.getNextLevel(-1)
+	if nextLevel == -1 {
+		return fmt.Errorf("DropColumn: cannot drop last column")
+	}
+	err := stb.removeLevelFromTree(stb.tree.Root, uint(nextLevel), uint(dropLevel))
 	if err != nil {
 		return err
 	}
 
-	stb.numGroupByCols--
-	stb.groupByKeys = newGrpByKeys
+	stb.droppedCols[dropLevel] = true
 
 	return nil
 }
@@ -470,9 +477,21 @@ func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
 	return nil
 }
 
+func (stb *StarTreeBuilder) getNextLevel(curLevel int) int {
+	for i := curLevel + 1; i < int(stb.numGroupByCols); i++ {
+		if !stb.droppedCols[i] {
+			return i
+		}
+	}
+
+	return -1
+}
+
 func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, colIdxToRemove uint) error {
+	nextLevel := stb.getNextLevel(int(currColIdx))
+
 	if currColIdx == colIdxToRemove {
-		if currColIdx == uint(len(stb.groupByKeys)-1) {
+		if nextLevel == -1 {
 			// if last column needs to be removed, accumulation of children is not required as they will be unique.
 			// just combine the aggs at parent.
 			return stb.updateLastLevel(node)
@@ -512,7 +531,7 @@ func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, col
 	}
 
 	for _, child := range node.children {
-		err := stb.removeLevelFromTree(child, currColIdx+1, colIdxToRemove)
+		err := stb.removeLevelFromTree(child, uint(nextLevel), colIdxToRemove)
 		if err != nil {
 			return err
 		}
@@ -526,6 +545,9 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 	numRecs := wip.blockSummary.RecCount
 
 	for colNum, colName := range stb.groupByKeys {
+		if stb.droppedCols[colNum] {
+			continue
+		}
 		stb.wipRecNumToColEnc[colNum] = toputils.ResizeSlice(stb.wipRecNumToColEnc[colNum], int(numRecs))
 
 		cwip := wip.colWips[colName]
@@ -569,17 +591,22 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 
 	numRecs := wip.blockSummary.RecCount
 
-	curColValues := make([]uint32, stb.numGroupByCols)
+	numActiveCols := stb.numOfActiveCols()
+	curColValues := make([]uint32, numActiveCols)
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
 	num := &utils.Number{}
 
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
+		curColNum := 0
 		for colNum := range stb.groupByKeys {
-			curColValues[colNum] = stb.wipRecNumToColEnc[colNum][recNum]
+			if !stb.droppedCols[colNum] {
+				curColValues[curColNum] = stb.wipRecNumToColEnc[colNum][recNum]
+				curColNum++
+			}
 		}
-		node := stb.insertIntoTree(stb.tree.Root, curColValues[:stb.numGroupByCols], recNum, 0)
+		node := stb.insertIntoTree(stb.tree.Root, curColValues[:numActiveCols], recNum, 0)
 		for mcNum, mcName := range stb.mColNames {
 			cwip := wip.colWips[mcName]
 			midx := mcNum * TotalMeasFns
