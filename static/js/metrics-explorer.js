@@ -2065,11 +2065,11 @@ async function getMetricNames() {
 }
 
 function displayErrorMessage(container, message) {
-    var graphCanvas,errorSpan;
+    var graphCanvas, errorSpan;
     if (isMetricsURL) {
         const mergedContainer = document.querySelector('#merged-graph-container');
         graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').each(function() {
+        graphCanvas.find('.error-message').each(function () {
             $(this).remove();
         });
         var mergedGraph = mergedContainer.querySelector('.merged-graph');
@@ -2082,9 +2082,9 @@ function displayErrorMessage(container, message) {
         mergedSpan.classList.add('error-message');
         mergedSpan.textContent = message;
     }
-    if(isAlertScreen){
+    if (isAlertScreen) {
         graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').each(function() {
+        graphCanvas.find('.error-message').each(function () {
             $(this).remove();
         });
         errorSpan = $('<span></span>').addClass('error-message').text(message);
