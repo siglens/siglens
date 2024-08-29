@@ -200,17 +200,17 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
+		for _, cwip := range segstore.wipBlock.colWips {
+			wipCbufPool.Put(&cwip.cbuf)
+		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for dword := range cwip.deData.deToRecnumIdx {
-				delete(cwip.deData.deToRecnumIdx, dword)
-			}
-			for cvalHash := range cwip.deData.deHashToRecnumIdx {
-				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			for cvalHash := range cwip.deData.hashToDci {
+				delete(cwip.deData.hashToDci, cvalHash)
 			}
 			for idx := range cwip.deData.deRecNums {
 				cwip.deData.deRecNums[idx] = nil
@@ -303,6 +303,11 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqNonEmptyResults = make(map[string]bool)
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		wipCbufPool.Put(&cwip.cbuf)
+	}
+
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
@@ -435,6 +440,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -504,6 +510,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -551,6 +558,10 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						bsizeNeeded)
 				}
 			}
+		}
+
+		if config.IsAggregationsEnabled() {
+			segstore.computeStarTree()
 		}
 
 		compBufIdx := 0
@@ -603,9 +614,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
 				compBufIdx++
 			}
-		}
-		if config.IsAggregationsEnabled() {
-			segstore.computeStarTree()
 		}
 
 		allColsToFlush.Wait()
@@ -1043,12 +1051,11 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
-	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
@@ -1063,7 +1070,10 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
-	segstore.wipBlock.maxIdx = maxIdx
+	for _, cwip := range segstore.wipBlock.colWips {
+		segstore.wipBlock.maxIdx = utils.MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+	}
+
 	segstore.wipBlock.blockSummary.RecCount += 1
 	segstore.RecordCount++
 	segstore.lastUpdated = time.Now()
