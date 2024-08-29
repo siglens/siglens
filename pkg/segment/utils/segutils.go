@@ -253,6 +253,13 @@ func MaxInt64(a1 int64, b1 int64) int64 {
 	return a1
 }
 
+func MaxUint32(a1 uint32, b1 uint32) uint32 {
+	if a1 < b1 {
+		return b1
+	}
+	return a1
+}
+
 func MaxUint16(a1 uint16, b1 uint16) uint16 {
 	if a1 < b1 {
 		return b1
