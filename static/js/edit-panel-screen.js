@@ -1206,8 +1206,8 @@ function resetOptions() {
             );
         document.getElementById('display-input').value = 'Line chart';
         document.getElementById('color-input').value = 'Classic';
-        document.getElementById('line-style-input').value ='Solid';
-        document.getElementById('stroke-input').value ='Normal';
+        document.getElementById('line-style-input').value = 'Solid';
+        document.getElementById('stroke-input').value = 'Normal';
     }
 }
 
