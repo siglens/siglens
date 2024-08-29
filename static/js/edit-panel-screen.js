@@ -1199,16 +1199,13 @@ function resetOptions() {
         //eslint-disable-next-line no-undef
         toggleLineOptions('Line chart');
         //eslint-disable-next-line no-undef
-        chartType='Line chart';
+        chartType = 'Line chart';
         //eslint-disable-next-line no-undef
         toggleChartType('Line chart');
         //eslint-disable-next-line no-undef
         updateChartTheme('Classic');
         //eslint-disable-next-line no-undef
-            updateLineCharts(
-                'Solid',
-                'Normal'
-            );
+        updateLineCharts('Solid', 'Normal');
         document.getElementById('display-input').value = 'Line chart';
         document.getElementById('color-input').value = 'Classic';
         document.getElementById('line-style-input').value = 'Solid';
