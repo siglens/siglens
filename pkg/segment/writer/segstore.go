@@ -60,12 +60,7 @@ const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
-const MaxConcurrentAgileTrees = 5
-
 const BS_INITIAL_SIZE = uint32(1000)
-
-var currentAgileTreeCount int
-var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 // SegStore Individual stream buffer
 type SegStore struct {
@@ -75,31 +70,31 @@ type SegStore struct {
 	wipBlock          WipBlock
 	pqNonEmptyResults map[string]bool // map pqid => true if segstream matched > 0 records
 	// segment related data
-	SegmentKey         string
-	segbaseDir         string
-	suffix             uint64
-	lastUpdated        time.Time
-	VirtualTableName   string
-	RecordCount        int
-	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
-	pqTracker          *PQTracker
-	pqMatches          map[string]*pqmr.PQMatchResults
-	LastSegPqids       map[string]struct{}
-	numBlocks          uint16
-	BytesReceivedCount uint64
-	OnDiskBytes        uint64 // running sum of cmi/csg/bsu file sizes
-	skipDe             bool   // kibana docs dont need dict enc, hence this flag
-	timeCreated        time.Time
-	AllSst             map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
-	sbuilder           StarTreeBuilder
-	usingSegTree       bool
-	OrgId              uint64
-	firstTime          bool
-	stbDictEncWorkBuf  [][]string
-	segStatsWorkBuf    []byte
-	SegmentErrors      map[string]*structs.SearchErrorInfo
-	bsPool             []*bitset.BitSet
-	bsPoolCurrIdx      uint32
+	SegmentKey            string
+	segbaseDir            string
+	suffix                uint64
+	lastUpdated           time.Time
+	VirtualTableName      string
+	RecordCount           int
+	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
+	pqTracker             *PQTracker
+	pqMatches             map[string]*pqmr.PQMatchResults
+	LastSegPqids          map[string]struct{}
+	numBlocks             uint16
+	BytesReceivedCount    uint64
+	OnDiskBytes           uint64 // running sum of cmi/csg/bsu file sizes
+	skipDe                bool   // kibana docs dont need dict enc, hence this flag
+	timeCreated           time.Time
+	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
+	stbHolder             *STBHolder
+	OrgId                 uint64
+	firstTime             bool
+	stbDictEncWorkBuf     [][]string
+	segStatsWorkBuf       []byte
+	SegmentErrors         map[string]*structs.SearchErrorInfo
+	bsPool                []*bitset.BitSet
+	bsPoolCurrIdx         uint32
+	workBufForCompression [][]byte // A work buf for each column
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -109,7 +104,26 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
+func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string,
+	skipDe bool, orgId uint64, highTs uint64, lowTs uint64) *SegStore {
+
+	segStore := NewSegStore(orgId)
+	segStore.SegmentKey = segmentKey
+	segStore.segbaseDir = segbaseDir
+	segStore.suffix = suffix
+	segStore.VirtualTableName = virtualTableName
+	segStore.skipDe = skipDe
+	segStore.OrgId = orgId
+
+	segStore.initWipBlock()
+	segStore.wipBlock.blockSummary.HighTs = highTs
+	segStore.wipBlock.blockSummary.LowTs = lowTs
+
+	return segStore
+}
+
 func NewSegStore(orgId uint64) *SegStore {
+	now := time.Now()
 	segstore := &SegStore{
 		Lock:               sync.Mutex{},
 		pqNonEmptyResults:  make(map[string]bool),
@@ -117,7 +131,8 @@ func NewSegStore(orgId uint64) *SegStore {
 		pqTracker:          initPQTracker(),
 		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		LastSegPqids:       make(map[string]struct{}),
-		timeCreated:        time.Now(),
+		timeCreated:        now,
+		lastUpdated:        now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -178,7 +193,6 @@ func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
 }
 
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
-
 	segstore.wipBlock.maxIdx = 0
 	segstore.bsPoolCurrIdx = 0
 
@@ -186,17 +200,17 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
+		for _, cwip := range segstore.wipBlock.colWips {
+			wipCbufPool.Put(&cwip.cbuf)
+		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for dword := range cwip.deData.deToRecnumIdx {
-				delete(cwip.deData.deToRecnumIdx, dword)
-			}
-			for cvalHash := range cwip.deData.deHashToRecnumIdx {
-				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			for cvalHash := range cwip.deData.hashToDci {
+				delete(cwip.deData.hashToDci, cvalHash)
 			}
 			for idx := range cwip.deData.deRecNums {
 				cwip.deData.deRecNums[idx] = nil
@@ -280,12 +294,20 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.LastSegPqids = make(map[string]struct{})
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
-	segstore.usingSegTree = false
+	if segstore.stbHolder != nil {
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
+	}
 
 	segstore.AllSst = make(map[string]*structs.SegStats)
 	segstore.pqNonEmptyResults = make(map[string]bool)
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		wipCbufPool.Put(&cwip.cbuf)
+	}
+
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
@@ -418,6 +440,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -487,6 +510,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -495,7 +519,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
 	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
-
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
 		var totalMetadata uint64 = 0
@@ -521,10 +544,31 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			return err
 		}
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
+
+		//readjust workBufComp size based on num of columns in this wip
+		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
+		if sizeNeeded > 0 {
+			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+				sizeNeeded)
+			// now make each of these bufs of atleast WIP_SIZE
+			for i := 0; i < len(segstore.workBufForCompression); i++ {
+				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
+				if bsizeNeeded > 0 {
+					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+						bsizeNeeded)
+				}
+			}
+		}
+
+		if config.IsAggregationsEnabled() {
+			segstore.computeStarTree()
+		}
+
+		compBufIdx := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
 				allColsToFlush.Add(1)
-				go func(cname string, colWip *ColWip) {
+				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
 					if cname == config.GetTimeStampKey() {
@@ -540,7 +584,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_COMLUNAR_BLOCK
 					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType)
+					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
 					if err != nil {
 						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return
@@ -567,11 +611,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							atomic.AddUint64(&totalMetadata, writtenBytes)
 						}
 					}
-				}(colName, colInfo)
+				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
+				compBufIdx++
 			}
-		}
-		if config.IsAggregationsEnabled() {
-			segstore.computeStarTree()
 		}
 
 		allColsToFlush.Wait()
@@ -682,27 +724,14 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
 
 	onTreeRotate := false
-	if config.IsAggregationsEnabled() && segstore.usingSegTree {
-		nc := segstore.sbuilder.GetNodeCount()
+	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+		nc := segstore.stbHolder.stbPtr.GetNodeCount()
 		if nc > MaxAgileTreeNodeCount {
 			onTreeRotate = true
 		}
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
-
-		if config.IsAggregationsEnabled() && segstore.usingSegTree {
-			nc := segstore.sbuilder.GetNodeCount()
-			cnc := segstore.sbuilder.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
-				nc, cnc)
-
-			// give back the tree
-			atreeCounterLock.Lock()
-			currentAgileTreeCount--
-			atreeCounterLock.Unlock()
-		}
-
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
@@ -718,6 +747,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		instrumentation.IncrementInt64Counter(instrumentation.SEGFILE_ROTATE_COUNT, 1)
 		bytesWritten := segstore.flushStarTree()
 		segstore.OnDiskBytes += uint64(bytesWritten)
+
+		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+			nc := segstore.stbHolder.stbPtr.GetNodeCount()
+			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
+			log.Infof("checkAndRotateColFiles: Release STB, segkey: %v, stree node count: %v , Each Col NodeCount: %v",
+				segstore.SegmentKey, nc, cnc)
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
+		}
 
 		activeBasedir := segstore.segbaseDir
 		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
@@ -823,14 +861,14 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 
 func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 
-	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
+	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
 			return cname, true, 0
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			return cname, true, colCardinalityEstimate
 		}
@@ -862,7 +900,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			continue
@@ -896,26 +934,15 @@ func (segstore *SegStore) computeStarTree() {
 	if segstore.numBlocks == 0 {
 		sortedGrpCols, mCols := segstore.initStarTreeCols()
 		if len(sortedGrpCols) == 0 || len(mCols) == 0 {
-			segstore.usingSegTree = false
 			return
 		}
 
-		hasTreeSpace := false
-		atreeCounterLock.Lock()
-		if currentAgileTreeCount < MaxConcurrentAgileTrees {
-			// for now the first MaxConcurrentAgileTrees segstores will get to AgileTree but
-			// we should add some smart logic on how we can rotate this
-			// amongst other indices/segstores
-			currentAgileTreeCount++
-			hasTreeSpace = true
-		}
-		atreeCounterLock.Unlock()
-		if !hasTreeSpace {
-			segstore.usingSegTree = false
+		segstore.stbHolder = GetSTB()
+		// nil stbHolder indicates that no tree is available
+		if segstore.stbHolder == nil {
 			return
 		}
 
-		segstore.usingSegTree = true
 		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
 		if sizeToAdd > 0 {
 			newArr := make([][]string, sizeToAdd)
@@ -929,11 +956,12 @@ func (segstore *SegStore) computeStarTree() {
 			}
 		}
 
-		segstore.sbuilder.ResetSegTree(sortedGrpCols, mCols,
-			segstore.stbDictEncWorkBuf)
+		segstore.stbHolder.stbPtr.ResetSegTree(sortedGrpCols, mCols, segstore.stbDictEncWorkBuf)
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	// nil stbHolder represents that the tree is either not available or
+	// the tree creation failed on first block, so need to skip it
+	if segstore.stbHolder == nil {
 		return
 	}
 
@@ -942,18 +970,22 @@ func (segstore *SegStore) computeStarTree() {
 		if found {
 			// todo when we implement dropping of columns from atree,
 			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
+			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
 				cname, cardinality, segstore.numBlocks)
-			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
-			segstore.usingSegTree = false
+
+			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
 			return
 		}
 	}
 
-	err := segstore.sbuilder.ComputeStarTree(&segstore.wipBlock)
+	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
+
 	if err != nil {
-		segstore.usingSegTree = false
-		log.Errorf("computeStarTree: Failed to compute star tree: %v", err)
+		log.Errorf("computeStarTree: Release STB, Failed to compute star tree: %v", err)
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
 		return
 	}
 }
@@ -964,11 +996,11 @@ func (segstore *SegStore) flushStarTree() uint32 {
 		return 0
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	if segstore.stbHolder == nil {
 		return 0
 	}
 
-	size, err := segstore.sbuilder.EncodeStarTree(segstore.SegmentKey)
+	size, err := segstore.stbHolder.stbPtr.EncodeStarTree(segstore.SegmentKey)
 	if err != nil {
 		log.Errorf("flushStarTree: Failed to encode star tree: %v", err)
 		return 0
@@ -1019,12 +1051,11 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
-	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
@@ -1039,7 +1070,10 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
-	segstore.wipBlock.maxIdx = maxIdx
+	for _, cwip := range segstore.wipBlock.colWips {
+		segstore.wipBlock.maxIdx = utils.MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+	}
+
 	segstore.wipBlock.blockSummary.RecCount += 1
 	segstore.RecordCount++
 	segstore.lastUpdated = time.Now()
@@ -1475,7 +1509,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx := uint16(0)
 
 	// version
-	copy(buf[idx:], []byte{1})
+	copy(buf[idx:], utils.VERSION_SEGSTATS)
 	idx++
 
 	// isNumeric
@@ -1486,19 +1520,32 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
-	hllData, err := sst.Hll.MarshalBinary()
-	if err != nil {
-		log.Errorf("writeSstToBuf: HLL marshal failed err=%v", err)
-		return idx, err
-	}
+	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))
+	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
 	idx += 2
 
 	// HLL_Data
-	copy(buf[idx:], hllData)
-	idx += uint16(len(hllData))
+	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+
+	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
+	// This is necessary because we're using the slice to get the HLL bytes in place,
+	// and the HLL package relies on cap(slice) to determine where to write the bytes.
+	// It expects the slice to be exactly the size of hllDataSize. But the slice we're
+	// using is larger than that, so we need to ensure that the slice is exactly the size
+	// of hllDataSize.
+	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)]
+
+	hllByteSlice = sst.GetHllBytesInPlace(hllByteSlice)
+	hllByteSliceLen := len(hllByteSlice)
+	if hllByteSliceLen != hllDataSize {
+		// This case should not happen, but if it does, we need to adjust the size
+		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
+		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+	}
+	copy(buf[idx:], hllByteSlice)
+	idx += uint16(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric

@@ -308,9 +308,9 @@ func (ri *RangeIndex) copyRangeIndex() *RangeIndex {
 // does CMI check on unrotated segment info for inputted request. Assumes UnrotatedInfoLock has been acquired
 // returns the final blocks to search, total unrotated blocks, num filtered blocks, and errors if any
 func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.SearchQuery, tRange *dtu.TimeRange,
-	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
+	blkTracker *structs.BlockTracker, bloomWords map[string]bool, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool,
-	qid uint64, dualCaseCheckEnabled bool) (map[uint16]map[string]bool, uint64, uint64, error) {
+	qid uint64) (map[uint16]map[string]bool, uint64, uint64, error) {
 
 	timeFilteredBlocks := metautils.FilterBlocksByTime(usi.blockSummaries, blkTracker, tRange)
 	totalPossibleBlocks := uint64(len(usi.blockSummaries))
@@ -327,7 +327,7 @@ func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.Searc
 	if isRange {
 		err = usi.doRangeCheckForCols(timeFilteredBlocks, rangeFilter, rangeOp, colsToCheck, qid)
 	} else if !wildcardValue {
-		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, originalBloomWords, bloomOp, colsToCheck, qid, dualCaseCheckEnabled)
+		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, bloomOp, colsToCheck, qid)
 	}
 
 	numFinalBlocks := uint64(len(timeFilteredBlocks))
@@ -379,15 +379,12 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 }
 
 func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
-	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp segutils.LogicalOperator,
-	colsToCheck map[string]bool, qid uint64, dualCaseCheckEnabled bool) error {
+	bloomKeys map[string]bool, bloomOp segutils.LogicalOperator,
+	colsToCheck map[string]bool, qid uint64) error {
 
 	if !usi.isCmiLoaded {
 		return nil
 	}
-
-	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
-
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {
 		if blkNum > numUnrotatedBlks {
@@ -409,12 +406,6 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 					continue
 				}
 				needleExists := cmi.Bf.TestString(entry)
-				if !needleExists && checkInOriginalKeys {
-					originalEntry, ok := originalBloomKeys[entry]
-					if ok {
-						needleExists = cmi.Bf.TestString(originalEntry)
-					}
-				}
 				if needleExists {
 					atLeastOneFound = true
 					timeFilteredBlocks[blkNum][col] = true

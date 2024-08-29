@@ -62,10 +62,16 @@ const MULTINODE_SSM_MEM_PERCENT = 20
 
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000
+
+// Max recs that could fit in a wip is 20k,
+// if only 1 dict word then 20k *2 bytes for recnum + wordlen
+// if  2 dict word then (20k/2 *2 bytes for recnum)*2 words + wordlen
+// basically we need max of 20k * 2 bytes for recnum + some buffer
+const WIP_DE_PACKING_SIZE = 200_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
-const BLOCK_BLOOM_SIZE = 200 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
+const BLOCK_BLOOM_SIZE = 100 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
 const BLOCK_RI_MAP_SIZE = 100
 
 var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8         // 100MB
@@ -140,6 +146,8 @@ var VERSION_TAGSTREE = []byte{0x01}
 var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
+
+var VERSION_SEGSTATS = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
@@ -520,9 +528,9 @@ type DtypeEnclosure struct {
 	SignedVal      int64
 	FloatVal       float64
 	StringVal      string
-	StringValBytes []byte         // byte slice representation of StringVal
-	StringSliceVal []string       // used for array dict
-	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
+	StringValBytes []byte   // byte slice representation of StringVal
+	StringSliceVal []string // used for array dict
+	RexpCompiled   *regexp.Regexp
 }
 
 func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
@@ -537,7 +545,7 @@ func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
 		}
 	}
 
-	hasRegexp := dte.rexpCompiled != nil
+	hasRegexp := dte.RexpCompiled != nil
 	err := encoder.Encode(hasRegexp)
 	if err != nil {
 		log.Errorf("DtypeEnclosure.GobEncode: error encoding hasRegexp: %v", err)
@@ -545,9 +553,9 @@ func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
 	}
 
 	if hasRegexp {
-		err := encoder.Encode(dte.rexpCompiled.String())
+		err := encoder.Encode(dte.RexpCompiled.String())
 		if err != nil {
-			log.Errorf("DtypeEnclosure.GobEncode: error encoding rexpCompiled: %v", err)
+			log.Errorf("DtypeEnclosure.GobEncode: error encoding RexpCompiled: %v", err)
 			return nil, err
 		}
 	}
@@ -582,7 +590,7 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 			return err
 		}
 
-		dte.rexpCompiled, err = regexp.Compile(rexp)
+		dte.RexpCompiled, err = regexp.Compile(rexp)
 		if err != nil {
 			log.Errorf("DtypeEnclosure.GobDecode: error compiling rexp %v: %v", rexp, err)
 			return err
@@ -593,11 +601,11 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 }
 
 func (dte *DtypeEnclosure) SetRegexp(exp *regexp.Regexp) {
-	dte.rexpCompiled = exp
+	dte.RexpCompiled = exp
 }
 
 func (dte *DtypeEnclosure) GetRegexp() *regexp.Regexp {
-	return dte.rexpCompiled
+	return dte.RexpCompiled
 }
 
 // used for numeric calcs and promotions
@@ -631,6 +639,42 @@ func (nte *NumTypeEnclosure) Reset() {
 	nte.Ntype = SS_INVALID
 	nte.IntgrVal = 0
 	nte.FloatVal = 0
+}
+
+func (cval *CValueEnclosure) ToNumber(number *Number) error {
+
+	number.SetInvalidType()
+	if cval == nil {
+		return fmt.Errorf("ToNumber: cval is nil")
+	}
+
+	switch cval.Dtype {
+	case SS_DT_FLOAT:
+		val, ok := cval.CVal.(float64)
+		if !ok {
+			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetFloat64(val)
+	case SS_DT_SIGNED_NUM:
+		val, ok := cval.CVal.(int64)
+		if !ok {
+			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetInt64(int64(val))
+	case SS_DT_UNSIGNED_NUM:
+		val, ok := cval.CVal.(int64)
+		if !ok {
+			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+		}
+		number.SetInt64(val)
+	case SS_DT_BACKFILL:
+		number.SetBackfillType()
+		return nil
+	default:
+		return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
+	}
+
+	return nil
 }
 
 func (cval *CValueEnclosure) ToNumType(res *NumTypeEnclosure) error {
@@ -702,7 +746,7 @@ func (dte *DtypeEnclosure) Reset() {
 	dte.SignedVal = 0
 	dte.FloatVal = 0
 	dte.StringVal = ""
-	dte.rexpCompiled = nil
+	dte.RexpCompiled = nil
 }
 
 func (dte *DtypeEnclosure) IsFullWildcard() bool {
@@ -711,7 +755,7 @@ func (dte *DtypeEnclosure) IsFullWildcard() bool {
 		if dte.StringVal == "*" {
 			return true
 		}
-		return dte.rexpCompiled != nil && dte.rexpCompiled.String() == ".*"
+		return dte.RexpCompiled != nil && dte.RexpCompiled.String() == ".*"
 	default:
 		return false
 	}

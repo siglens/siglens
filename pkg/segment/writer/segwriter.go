@@ -71,6 +71,16 @@ var localSegmetaFname string
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
+var wipCbufPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]byte, WIP_SIZE)
+		return &slice
+	},
+}
+
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -84,21 +94,28 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
+// for holding DictWords and their indices inside wip.cbuf[]
+type DwordCbufIdxs struct {
+	sIdx     uint32 // startIndex of this dword inside the wip cbuf
+	wlen     uint16 // len of this dword includes the TLV
+	recBsIdx uint16 // index into the deRecNums bitset array
+}
+
 type DeData struct {
-	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
-	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
-	// kunal todo , we could potentially just use uint32 indexes here that could point to the pool
+	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
+	hashToDci map[uint64]*DwordCbufIdxs
 	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
 	deCount   uint16           // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
-	cbufidx               uint32         // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx             uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf                  [WIP_SIZE]byte // in progress bytes
-	csgFname              string         // file name of csg file
-	deData                *DeData
-	workBufForCompression []byte
+	cbufidx      uint32 // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx    uint32 // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf         []byte // in progress bytes
+	csgFname     string // file name of csg file
+	deData       *DeData
+	dePackingBuf [WIP_DE_PACKING_SIZE]byte
+	dciPool      []*DwordCbufIdxs
 }
 
 type RangeIndex struct {
@@ -435,16 +452,23 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
-	deData := DeData{deToRecnumIdx: make(map[string]uint16),
-		deHashToRecnumIdx: make(map[uint64]uint16),
-		deRecNums:         make([]*bitset.BitSet, MaxDeEntries),
-		deCount:           0,
+	deData := DeData{hashToDci: make(map[uint64]*DwordCbufIdxs),
+		deRecNums: make([]*bitset.BitSet, MaxDeEntries),
+		deCount:   0,
 	}
 
+	dciPool := make([]*DwordCbufIdxs, wipCardLimit)
+	for i := uint16(0); i < wipCardLimit; i++ {
+		dciPool[i] = &DwordCbufIdxs{}
+	}
+
+	cbuf := *wipCbufPool.Get().(*[]byte)
+
 	return &ColWip{
-		csgFname:              fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:                &deData,
-		workBufForCompression: make([]byte, WIP_SIZE),
+		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:   &deData,
+		dciPool:  dciPool,
+		cbuf:     cbuf,
 	}
 }
 
@@ -674,7 +698,7 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 */
 // returns number of written bytes, offset of block in file, and any errors
 
-func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
+func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, error) {
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
@@ -698,7 +722,7 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	}
 	blkLen += 1 // for compression type
 
-	compressed, compLen, err := compressWip(colWip, encType)
+	compressed, compLen, err := compressWip(colWip, encType, compBuf)
 	if err != nil {
 		log.Errorf("WriteWip: compression of wip failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, blkOffset, err
@@ -713,13 +737,13 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	return blkLen, blkOffset, nil
 }
 
-func compressWip(colWip *ColWip, encType []byte) ([]byte, uint32, error) {
+func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
 
 		// reduce the len to 0, but keep the cap of the underlying buffer
 		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx],
-			colWip.workBufForCompression[:0])
+			compBuf[:0])
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf[0:colWip.cbufidx]
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
@@ -951,13 +975,12 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint16,
-	deHashToRecnumIdx map[uint64]uint16, deRecNums []*bitset.BitSet) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, hashToDci map[uint64]*DwordCbufIdxs,
+	deRecNums []*bitset.BitSet) {
 
-	deData := DeData{deToRecnumIdx: deToRecnumIdx,
-		deHashToRecnumIdx: deHashToRecnumIdx,
-		deRecNums:         deRecNums,
-		deCount:           deCount,
+	deData := DeData{hashToDci: hashToDci,
+		deRecNums: deRecNums,
+		deCount:   deCount,
 	}
 	cw.deData = &deData
 }
@@ -1145,4 +1168,21 @@ func DeletePQSData() error {
 
 	// Delete PQS meta directory
 	return pqsmeta.DeletePQMetaDir()
+}
+
+func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
+
+	dci := &DwordCbufIdxs{
+		sIdx:     sIdx,
+		wlen:     wlen,
+		recBsIdx: recBsIdx,
+	}
+	return dci
+}
+
+func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
+
+	s := dci.sIdx
+	wl := uint32(dci.wlen)
+	return cw.cbuf[s : s+wl]
 }

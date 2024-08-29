@@ -160,6 +160,10 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.QUERY_UPDATE:
 				numRrcsAdded := processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
 				scrollFrom += int(numRrcsAdded)
+			case query.CANCELLED:
+				processCancelQuery(conn, qid)
+				query.DeleteQuery(qid)
+				return
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -230,6 +234,17 @@ func processTimeoutUpdate(conn *websocket.Conn, qid uint64) {
 	err := conn.WriteJSON(e)
 	if err != nil {
 		log.Errorf("qid=%d, processTimeoutUpdate: failed to write to websocket! err: %+v", qid, err)
+	}
+}
+
+func processCancelQuery(conn *websocket.Conn, qid uint64) {
+	e := map[string]interface{}{
+		"state": query.CANCELLED.String(),
+		"qid":   qid,
+	}
+	err := conn.WriteJSON(e)
+	if err != nil {
+		log.Errorf("qid=%d, processCancelQuery: failed to write to websocket! err: %+v", qid, err)
 	}
 }
 

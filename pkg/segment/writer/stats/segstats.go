@@ -25,7 +25,6 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
-	"github.com/axiomhq/hyperloglog"
 	bbp "github.com/valyala/bytebufferpool"
 )
 
@@ -49,10 +48,10 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			Hll:       hyperloglog.New16(),
 			NumStats:  numStats,
 			Records:   make([]*CValueEnclosure, 0),
 		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 
@@ -66,7 +65,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 
 	bb.Reset()
 	_, _ = bb.WriteString(numstr)
-	stats.Hll.Insert(bb.B)
+	stats.InsertIntoHll(bb.B)
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
 }
 
@@ -89,9 +88,9 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			Hll:       hyperloglog.New16(),
 			NumStats:  numStats,
 		}
+		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 	stats.Count += count
@@ -233,8 +232,9 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
-			Hll:       hyperloglog.New16(),
-			Records:   make([]*CValueEnclosure, 0)}
+			Records:   make([]*CValueEnclosure, 0),
+		}
+		stats.CreateNewHll()
 
 		segstats[cname] = stats
 	}
@@ -274,7 +274,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	bb.Reset()
 	_, _ = bb.WriteString(strVal)
-	stats.Hll.Insert(bb.B)
+	stats.InsertIntoHll(bb.B)
 }
 
 // adds all elements of m2 to m1 and returns m1

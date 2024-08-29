@@ -109,22 +109,33 @@ func HashString(x string) string {
 }
 
 // we are assumung that needleLen and haystackLen are both non zero
-func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bool {
+func IsSubWordPresent(haystack []byte, needle []byte) bool {
 	needleLen := len(needle)
 	haystackLen := len(haystack)
 
 	if needleLen > haystackLen {
 		return false
+	} else if needleLen == haystackLen {
+		return bytes.Equal(needle, haystack)
 	}
 
-	for i := 0; i <= haystackLen-needleLen; i++ {
-		haystackSlice := haystack[i : i+needleLen]
-
-		if PerformBytesEqualityCheck(isCaseInsensitive, haystackSlice, needle) {
-			// haystack[i:i+needleLen-1] was matched
-			// we need to check if haystack[i - 1] is a whitespace and if haystack[i + needleLen] is a whitespace
-			if (i == 0 || haystack[i-1] == single_whitespace[0]) && (i+needleLen == haystackLen || haystack[i+needleLen] == single_whitespace[0]) {
-				return true
+	for i := 0; i < haystackLen-needleLen+1; i += 1 {
+		if haystack[i] == needle[0] {
+			for j := needleLen - 1; j >= 1; j -= 1 {
+				if haystack[i+j] != needle[j] {
+					break
+				}
+				if j == 1 {
+					// haystack[i:i+needleLen-1] was matched
+					// we need to check if haystack[i - 1] is a whitespace and if haystack[i + needleLen] is a whitespace
+					if i-1 >= 0 && haystack[i-1] != single_whitespace[0] {
+						break
+					}
+					if i+needleLen < haystackLen && haystack[i+needleLen] != single_whitespace[0] {
+						break
+					}
+					return true
+				}
 			}
 		}
 	}

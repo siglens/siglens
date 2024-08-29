@@ -207,29 +207,3 @@ func SearchStr(needle string, haystack []string) bool {
 func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
-
-func isAlpha(c byte) bool {
-	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-}
-
-func BytesCaseInsensitiveEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			// Check if both are alphabetic characters and differ only by case
-			if !isAlpha(a[i]) || !isAlpha(b[i]) || a[i]^32 != b[i] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func PerformBytesEqualityCheck(isCaseInsensitive bool, a, b []byte) bool {
-	if isCaseInsensitive {
-		return BytesCaseInsensitiveEqual(a, b)
-	}
-	return bytes.Equal(a, b)
-}
