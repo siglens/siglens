@@ -154,15 +154,15 @@ function getUrlParameter(name) {
 }
 // Updates saved Metrics Url on changing in metrics Explorer
 function updateMetricsQueryParamsInUrl() {
-    if(!isAlertScreen && !isDashboardScreen){
-    let metricsQueryParamsData = getMetricsQData();
-    const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
-    const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
-    const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
-    const currentUrl = window.location.href;
-    const baseUrl = currentUrl.split('?')[0];
-    const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
-    window.history.replaceState(null, '', newUrl);
+    if (!isAlertScreen && !isDashboardScreen) {
+        let metricsQueryParamsData = getMetricsQData();
+        const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+        const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
+        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
+        window.history.replaceState(null, '', newUrl);
     }
 }
 
