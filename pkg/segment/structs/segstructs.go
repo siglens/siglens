@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -588,6 +588,23 @@ func (ss *SegStats) GetHllBytes() []byte {
 	}
 
 	return ss.Hll.ToBytes()
+}
+
+func (ss *SegStats) GetHllBytesInPlace(bytes []byte) []byte {
+	if ss == nil || ss.Hll == nil {
+		return nil
+	}
+
+	return ss.Hll.ToBytesInPlace(bytes)
+}
+
+func (ss *SegStats) GetHllDataSize() int {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	_, size := ss.Hll.GetStorageTypeAndSizeInBytes()
+	return size
 }
 
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
