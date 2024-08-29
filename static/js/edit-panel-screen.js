@@ -1195,6 +1195,13 @@ function resetOptions() {
             return;
         }
     });
+    if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === -1) {
+        toggleLineOptions('Line chart');
+        document.getElementById('display-input').value = 'Line chart';
+        document.getElementById('color-input').value = 'Classic';
+        document.getElementById('line-style-input').value ='Solid';
+        document.getElementById('stroke-input').value ='Normal';
+    }
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
