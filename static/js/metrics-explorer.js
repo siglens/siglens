@@ -2043,16 +2043,41 @@ function displayErrorMessage(container, message) {
     mergedSpan.classList.add('error-message');
     mergedSpan.textContent = message;
 }
+function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
+    const errorMessage = (error.responseJSON && error.responseJSON.error) || 
+                         (error.responseText && JSON.parse(error.responseText).error) || 
+                         'An unknown error occurred';
+
+    // Remove error-related elements
+    const errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
+    if (errorCanvas.length > 0) {
+        errorCanvas.remove();
+        mergedContainer.find('canvas').remove();
+
+        delete chartDataCollection[queryName];
+        delete lineCharts[queryName];
+    }
+
+    // Remove loaders
+    container.find('#panel-loading').remove();
+    mergedContainer.find('#panel-loading').remove();
+    if (isDashboardScreen) {
+        panelEditContainer.find('#panel-loading').remove();
+    }
+
+    return errorMessage;
+}
+
 
 async function getMetricsData(queryName, metricName, state) {
-    var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"] .graph-canvas');
+    var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
     var mergedContainer = $('#merged-graph-container').find('.merged-graph');
     mergedContainer.append('<div id="panel-loading"></div>');
     container.append('<div id="panel-loading"></div>');
 
-    //loader for dashboard
+    let panelEditContainer;
     if (isDashboardScreen) {
-        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
+        panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
@@ -2072,78 +2097,50 @@ async function getMetricsData(queryName, metricName, state) {
             updateDownloadButtons();
         }
     } catch (error) {
-        let errorMessage;
-        // Handle the error and throw it to be caught by the calling function
-        var errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
-        if (errorCanvas.length > 0) {
-            errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-            errorCanvas.remove();
-            let mergedErrorCanvas = mergedContainer.find('canvas');
-            mergedErrorCanvas.remove();
-
-            delete chartDataCollection[queryName];
-            delete lineCharts[queryName];
-        }
-        // Throw error to propagate it to the calling function
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
-    } finally {
-        container.find('#panel-loading').remove();
-        mergedContainer.find('#panel-loading').remove();
-        if (isDashboardScreen) {
-            panelEditContainer.find('#panel-loading').remove();
-        }
     }
 }
+
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
-    //eslint-disable-next-line no-unused-vars
-    var canvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
-    var container = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"] .graph-canvas');
+
+    var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
     container.append('<div id="panel-loading"></div>');
     var mergedContainer = $('#merged-graph-container').find('.merged-graph');
     mergedContainer.append('<div id="panel-loading"></div>');
 
+    let panelEditContainer;
     if (isDashboardScreen) {
-        var panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
+        panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
-        let queryString;
-        let state = queryDetails.state;
-        if (queryDetails.state === 'builder') {
-            queryString = createQueryString(queryDetails);
-        } else {
-            queryString = queryDetails.rawQueryInput;
-        }
+        let queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
 
         const query = {
             name: queryName,
             query: queryString,
             qlType: 'promql',
-            state: state,
+            state: queryDetails.state,
         };
         queriesData.push(query);
 
-        // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
-    let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
         functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
-            formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = {
-        formula: formwithfun,
-    };
+    const formula = { formula: formulaString };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
 
@@ -2160,35 +2157,21 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         const res = await fetchTimeSeriesData(data);
         if (res) {
             rawTimeSeriesData = res;
-        }
+            const chartData = await convertDataForChart(rawTimeSeriesData);
 
-        const chartData = await convertDataForChart(rawTimeSeriesData);
-
-        if (isAlertScreen) {
-            addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-        } else {
-            addVisualizationContainer(formulaId, chartData, formulaString);
+            if (isAlertScreen) {
+                addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+            } else {
+                addVisualizationContainer(formulaId, chartData, formulaString);
+            }
+            updateDownloadButtons();
         }
-        updateDownloadButtons();
     } catch (error) {
-        var errorCanvas = $(`.metrics-graph[data-query="${formulaId}"] .graph-canvas canvas`);
-        if (errorCanvas.length > 0) {
-            const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-            errorCanvas.remove();
-
-            delete chartDataCollection[formulaId];
-            delete lineCharts[formulaId];
-            var errorContainer = $('#metrics-graphs').find('.metrics-graph[data-query="' + formulaId + '"]');
-            displayErrorMessage(errorContainer, errorMessage);
-        }
-    } finally {
-        container.find('#panel-loading').remove();
-        mergedContainer.find('#panel-loading').remove();
-        if (isDashboardScreen) {
-            panelEditContainer.find('#panel-loading').remove();
-        }
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
+        displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
 }
+
 
 async function fetchTimeSeriesData(data) {
     return await $.ajax({
