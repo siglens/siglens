@@ -67,7 +67,7 @@ const WIP_SIZE = 2_000_000
 // if only 1 dict word then 20k *2 bytes for recnum + wordlen
 // if  2 dict word then (20k/2 *2 bytes for recnum)*2 words + wordlen
 // basically we need max of 20k * 2 bytes for recnum + some buffer
-const WIP_DE_PACKING_SIZE = 100_000
+const WIP_DE_PACKING_SIZE = 200_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
