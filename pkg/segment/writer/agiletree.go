@@ -230,9 +230,11 @@ func (stb *StarTreeBuilder) DropColumn(colToDrop string) error {
 			continue
 		}
 	}
-
 	if dropLevel == -1 {
 		return fmt.Errorf("DropColumn: column to drop %v not found", colToDrop)
+	}
+	if stb.droppedCols[dropLevel] {
+		return fmt.Errorf("DropColumn: column %v already dropped", colToDrop)
 	}
 	nextLevel := stb.getNextLevel(-1)
 	if nextLevel == -1 {
