@@ -289,6 +289,35 @@ input:checked + .slider:before {
     background: #a0a4a6;
     border-radius: 18px;
 }
+/* Styles for error messages */
+.error-message {
+    display: block;
+    font-family: 'DINpro', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--empty-response-text-color, #808080); 
+    text-align: center;
+    margin: auto;
+    padding: 20px;
+    width: 90%; 
+    white-space: pre-wrap; 
+    line-height: 30px; 
+}
+#panel-loading {
+    border: 4px solid var(--purple-1);
+    border-radius: 50%;
+    border-top: 4px solid var(--lavender-1);
+    border-bottom: 4px solid var(--lavender-1);
+    width: 30px;
+    height: 30px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    -webkit-animation: spin 2s linear infinite;
+    animation: spin 2s linear infinite;
+    z-index: 10; /* Ensure it stays above other content */
+}
 
 .show-functions-formula.disabled,
 .show-functions-formula.disabled:hover{
@@ -373,8 +402,13 @@ input:checked + .slider:before {
 }
 
 .graph-canvas, .merged-graph{
+    position: relative;
     height: 100%;
-    padding: 20px 10px 50px 20px
+    padding: 20px 10px 50px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 

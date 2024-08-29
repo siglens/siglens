@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -223,7 +223,7 @@ type RunningStreamStatsResults struct {
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
-	CardinalityHLL      *hll.Hll
+	CardinalityHLL      *sutils.GobbableHll
 	ValuesMap           map[string]struct{}
 }
 
@@ -451,7 +451,7 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	Hll         *hll.Hll
+	Hll         *sutils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
@@ -540,8 +540,8 @@ func initHllDefaultSettings() {
 }
 
 // Creates a new segmentio Hll with the defined HllSettings.
-func CreateNewHll() *hll.Hll {
-	return &hll.Hll{}
+func CreateNewHll() *sutils.GobbableHll {
+	return &sutils.GobbableHll{Hll: hll.Hll{}}
 }
 
 func CreateHllFromBytes(rawHll []byte) (*hll.Hll, error) {
@@ -558,7 +558,7 @@ func (ss *SegStats) CreateHllFromBytes(rawHll []byte) error {
 		return err
 	}
 
-	ss.Hll = hll
+	ss.Hll = &sutils.GobbableHll{Hll: *hll}
 	return nil
 }
 
@@ -588,6 +588,23 @@ func (ss *SegStats) GetHllBytes() []byte {
 	}
 
 	return ss.Hll.ToBytes()
+}
+
+func (ss *SegStats) GetHllBytesInPlace(bytes []byte) []byte {
+	if ss == nil || ss.Hll == nil {
+		return nil
+	}
+
+	return ss.Hll.ToBytesInPlace(bytes)
+}
+
+func (ss *SegStats) GetHllDataSize() int {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	_, size := ss.Hll.GetStorageTypeAndSizeInBytes()
+	return size
 }
 
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
@@ -636,7 +653,7 @@ func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
 	if ss.Hll != nil && other.Hll != nil {
-		err := ss.Hll.StrictUnion(*other.Hll)
+		err := ss.Hll.StrictUnion(other.Hll.Hll)
 		if err != nil {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
 		}
