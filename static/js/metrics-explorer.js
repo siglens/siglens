@@ -1511,7 +1511,15 @@ function toggleChartType(chartType) {
         }
     }
 
-    mergeGraphs(chartType);
+    if (mergedGraph) {
+        mergedGraph.config.type = chartJsType;
+        mergedGraph.data.datasets.forEach(function (dataset) {
+            dataset.type = chartJsType;
+            dataset.fill = chartType === 'Area chart';
+            console.log(dataset.fill);
+        });
+        mergedGraph.update();
+    }
 }
 
 var colorOptions = ['Classic', 'Purple', 'Cool', 'Green', 'Warm', 'Orange', 'Gray', 'Palette'];

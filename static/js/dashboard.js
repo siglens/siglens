@@ -121,6 +121,7 @@ $(document).ready(async function () {
         trigger: 'hover',
     });
     $('#favbutton').on('click', toggleFavorite);
+    
 });
 
 function enableJsonEditing() {
@@ -327,10 +328,20 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
-        document.getElementById('display-input').value = currentPanel.style.display || 'Line chart';
-        document.getElementById('color-input').value = currentPanel.style.color || 'Classic';
-        document.getElementById('line-style-input').value = currentPanel.style.lineStyle || 'Solid';
-        document.getElementById('stroke-input').value = currentPanel.style.lineStroke || 'Normal';
+        document.getElementById('display-input').value = currentPanel.style?.display || 'Line chart';
+        document.getElementById('color-input').value = currentPanel.style?.color || 'Classic';
+        document.getElementById('line-style-input').value = currentPanel.style?.lineStyle || 'Solid';
+        document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
+        if (currentPanel.style) {
+            toggleLineOptions(currentPanel.style.display);
+            chartType=currentPanel.style.display;
+            toggleChartType(currentPanel.style.display);
+            updateChartTheme(currentPanel.style.color);
+            updateLineCharts(
+                currentPanel.style.lineStyle,
+                currentPanel.style.lineStroke
+            );
+        }
     });
 }
 function handlePanelRemove(panelId) {
@@ -494,6 +505,18 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
+        localPanels.forEach(localPanel => {
+            if (localPanel.style) {
+                toggleLineOptions(localPanel.style.display);
+                chartType = localPanel.style.display;
+                toggleChartType(localPanel.style.display);
+                updateChartTheme(localPanel.style.color);
+                updateLineCharts(
+                    localPanel.style.lineStyle,
+                    localPanel.style.lineStroke
+                );
+            }
+        });
     }
 }
 
