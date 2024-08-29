@@ -57,6 +57,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	rIdx := uint32(0)
 
 	// version
+	version := fdata[rIdx]
 	rIdx++
 
 	for rIdx < uint32(len(fdata)) {
@@ -67,12 +68,24 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		// actual cname
 		cname := string(fdata[rIdx : rIdx+uint32(cnamelen)])
 		rIdx += uint32(cnamelen)
+
 		// sst len
-		sstlen := toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2])
-		rIdx += 2
+		var sstlen uint32
+
+		switch version {
+		case utils.VERSION_SEGSTATS[0]:
+			sstlen = toputils.BytesToUint32LittleEndian(fdata[rIdx : rIdx+4])
+			rIdx += 4
+		case utils.VERSION_SEGSTATS_OLD[0]:
+			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
+			rIdx += 2
+		default:
+			log.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
+			continue
+		}
 
 		// actual sst
-		sst, err := readSingleSst(fdata[rIdx:rIdx+uint32(sstlen)], qid)
+		sst, err := readSingleSst(fdata[rIdx:rIdx+sstlen], qid)
 		if err != nil {
 			log.Errorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
 				qid, cname, err)
@@ -88,7 +101,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	sst := structs.SegStats{}
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// read version
 	version := fdata[idx]
@@ -102,22 +115,30 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	sst.Count = toputils.BytesToUint64LittleEndian(fdata[idx : idx+8])
 	idx += 8
 
-	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
-	idx += 2
+	var hllSize uint32
 
 	switch version {
-	case utils.VERSION_SEGSTATS[0]:
+	case utils.VERSION_SEGSTATS_BUF[0]:
+		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
+		idx += 4
+	case utils.VERSION_SEGSTATS_BUF_OLD_2[0], utils.VERSION_SEGSTATS_BUF_OLD_1[0]:
+		hllSize = uint32(toputils.BytesToUint16LittleEndian(fdata[idx : idx+2]))
+		idx += 2
+	default:
+		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
+		return nil, errors.New("readSingleSst: unknown version")
+	}
+
+	if version == utils.VERSION_SEGSTATS_BUF_OLD_1[0] {
+		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
+	} else {
 		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
 		if err != nil {
 			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
 			return nil, err
 		}
-	case 1:
-		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
-	default:
-		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
-		return nil, errors.New("readSingleSst: unknown version")
 	}
+
 	idx += hllSize
 
 	if !sst.IsNumeric {

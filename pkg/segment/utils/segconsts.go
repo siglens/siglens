@@ -148,6 +148,11 @@ var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
 var VERSION_SEGSTATS = []byte{2}
+var VERSION_SEGSTATS_OLD = []byte{1}
+
+var VERSION_SEGSTATS_BUF = []byte{3}
+var VERSION_SEGSTATS_BUF_OLD_1 = []byte{1}
+var VERSION_SEGSTATS_BUF_OLD_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
