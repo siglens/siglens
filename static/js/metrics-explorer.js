@@ -2722,8 +2722,12 @@ function adjustInputWidth(input) {
     const minWidth = 230;
     const charWidth = 8;
     const padding = 5;
-    const width = Math.max(minWidth, input.value.length * charWidth + padding);
-    input.style.width = width + 'px';
+
+    // Check if the input has a value
+    if (input.value.length > 0) {
+        const width = Math.max(minWidth, input.value.length * charWidth + padding);
+        input.style.width = width + 'px';
+    }
 }
 
 //eslint-disable-next-line no-unused-vars
