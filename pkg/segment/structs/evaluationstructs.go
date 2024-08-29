@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/segmentio/go-hll"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -314,7 +313,7 @@ type Cluster struct {
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
 	GroupValScoreMap map[string]*utils.CValueEnclosure
-	Hll              *hll.Hll
+	Hll              *toputils.GobbableHll
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
 }
