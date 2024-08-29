@@ -2131,10 +2131,11 @@ async function getMetricsData(queryName, metricName, state) {
         updateDownloadButtons();
         updateMetricsQueryParamsInUrl();
         metricsQueryParams = data; // For alerts page
-    } catch (error) {
+    } 
+}catch (error) {
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
-    }
+    }    
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
