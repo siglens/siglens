@@ -32,12 +32,12 @@ jobs:
 
       - name: Install Playwright Dependencies
         run: |
-          cd playwright-test
+          cd playwright-tests
           npm init -y
           npm install @playwright/test
           npx playwright install --with-deps
 
       - name: Run Playwright tests
         run: |
-          cd playwright-test
+          cd playwright-tests
           npx playwright test
