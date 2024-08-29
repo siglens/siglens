@@ -799,7 +799,6 @@ function setupQueryElementEventListeners(queryElement) {
         }
     });
 
-
     // Run the raw query
     queryElement.find('.raw-query').on('click', '#run-filter-btn', async function () {
         var queryName = queryElement.find('.query-name').text();
