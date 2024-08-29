@@ -18,6 +18,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,8 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+var errCMIColNotFound = errors.New("column not found in cmi")
 
 // Top level segment metadata for access of cmis/search metadata
 type SegmentMicroIndex struct {
@@ -119,7 +122,7 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 	}
 	retVal, ok := allCmis[cname]
 	if !ok {
-		return nil, fmt.Errorf("failed to find column %+v in cmis for block %+v", cname, blkNum)
+		return nil, errCMIColNotFound
 	}
 	return retVal, nil
 }
@@ -205,9 +208,14 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 
 	for fName, cname := range bulkDownloadFiles {
 		fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
-		if err != nil {
-			log.Errorf("readCmis: open failed cname=%v, fname=%v, err=[%v], continuing with rest", cname, fName, err)
+		if os.IsNotExist(err) {
+			// This can happen if a query specifies a column that does not
+			// exist in the segment.
+			log.Infof("readCmis: no CMI file for column %v", cname)
 			continue
+		}
+		if err != nil {
+			return nil, toputils.TeeErrorf("readCmis: cannot open fname=%v, cname=%v, err=[%v]", fName, cname, err)
 		}
 		defer fd.Close()
 

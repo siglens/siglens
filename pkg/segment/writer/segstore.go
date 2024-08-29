@@ -18,10 +18,9 @@
 package writer
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"sort"
@@ -30,6 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -54,13 +54,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// For Last wip we do not know how many nodes this wip will add, hence we
+// leave a room for one wip's worth of recs.
+const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
-const MaxConcurrentAgileTrees = 5
-
-var currentAgileTreeCount int
-var atreeCounterLock sync.Mutex = sync.Mutex{}
+const BS_INITIAL_SIZE = uint32(1000)
 
 // SegStore Individual stream buffer
 type SegStore struct {
@@ -70,29 +70,31 @@ type SegStore struct {
 	wipBlock          WipBlock
 	pqNonEmptyResults map[string]bool // map pqid => true if segstream matched > 0 records
 	// segment related data
-	SegmentKey         string
-	segbaseDir         string
-	suffix             uint64
-	lastUpdated        time.Time
-	VirtualTableName   string
-	RecordCount        int
-	AllSeenColumnSizes map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
-	pqTracker          *PQTracker
-	pqMatches          map[string]*pqmr.PQMatchResults
-	LastSegPqids       map[string]struct{}
-	numBlocks          uint16
-	BytesReceivedCount uint64
-	OnDiskBytes        uint64 // running sum of cmi/csg/bsu file sizes
-	skipDe             bool   // kibana docs dont need dict enc, hence this flag
-	timeCreated        time.Time
-	AllSst             map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
-	sbuilder           StarTreeBuilder
-	usingSegTree       bool
-	OrgId              uint64
-	firstTime          bool
-	stbDictEncWorkBuf  [][]string
-	segStatsWorkBuf    []byte
-	SegmentErrors      map[string]*structs.SearchErrorInfo
+	SegmentKey            string
+	segbaseDir            string
+	suffix                uint64
+	lastUpdated           time.Time
+	VirtualTableName      string
+	RecordCount           int
+	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
+	pqTracker             *PQTracker
+	pqMatches             map[string]*pqmr.PQMatchResults
+	LastSegPqids          map[string]struct{}
+	numBlocks             uint16
+	BytesReceivedCount    uint64
+	OnDiskBytes           uint64 // running sum of cmi/csg/bsu file sizes
+	skipDe                bool   // kibana docs dont need dict enc, hence this flag
+	timeCreated           time.Time
+	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
+	stbHolder             *STBHolder
+	OrgId                 uint64
+	firstTime             bool
+	stbDictEncWorkBuf     [][]string
+	segStatsWorkBuf       []byte
+	SegmentErrors         map[string]*structs.SearchErrorInfo
+	bsPool                []*bitset.BitSet
+	bsPoolCurrIdx         uint32
+	workBufForCompression [][]byte // A work buf for each column
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -102,7 +104,26 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
+func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string,
+	skipDe bool, orgId uint64, highTs uint64, lowTs uint64) *SegStore {
+
+	segStore := NewSegStore(orgId)
+	segStore.SegmentKey = segmentKey
+	segStore.segbaseDir = segbaseDir
+	segStore.suffix = suffix
+	segStore.VirtualTableName = virtualTableName
+	segStore.skipDe = skipDe
+	segStore.OrgId = orgId
+
+	segStore.initWipBlock()
+	segStore.wipBlock.blockSummary.HighTs = highTs
+	segStore.wipBlock.blockSummary.LowTs = lowTs
+
+	return segStore
+}
+
 func NewSegStore(orgId uint64) *SegStore {
+	now := time.Now()
 	segstore := &SegStore{
 		Lock:               sync.Mutex{},
 		pqNonEmptyResults:  make(map[string]bool),
@@ -110,7 +131,8 @@ func NewSegStore(orgId uint64) *SegStore {
 		pqTracker:          initPQTracker(),
 		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		LastSegPqids:       make(map[string]struct{}),
-		timeCreated:        time.Now(),
+		timeCreated:        now,
+		lastUpdated:        now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -119,6 +141,22 @@ func NewSegStore(orgId uint64) *SegStore {
 	}
 
 	return segstore
+}
+
+func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
+	lastKnownLen := uint32(len(ss.bsPool))
+	if ss.bsPoolCurrIdx >= lastKnownLen {
+		newCount := BS_INITIAL_SIZE
+		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
+		for i := uint32(0); i < newCount; i++ {
+			newBs := bitset.New(bsSize)
+			ss.bsPool[lastKnownLen+i] = newBs
+		}
+	}
+	retVal := ss.bsPool[ss.bsPoolCurrIdx]
+	retVal.ClearAll()
+	ss.bsPoolCurrIdx++
+	return retVal
 }
 
 func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, err error) {
@@ -155,8 +193,8 @@ func (segStore *SegStore) GetSegStorePQMatchSize() uint64 {
 }
 
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
-
 	segstore.wipBlock.maxIdx = 0
+	segstore.bsPoolCurrIdx = 0
 
 	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
@@ -256,7 +294,10 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.LastSegPqids = make(map[string]struct{})
 	segstore.numBlocks = 0
 	segstore.timeCreated = time.Now()
-	segstore.usingSegTree = false
+	if segstore.stbHolder != nil {
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
+	}
 
 	segstore.AllSst = make(map[string]*structs.SegStats)
 	segstore.pqNonEmptyResults = make(map[string]bool)
@@ -471,7 +512,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
 	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
-
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
 		var totalMetadata uint64 = 0
@@ -497,10 +537,27 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			return err
 		}
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
+
+		//readjust workBufComp size based on num of columns in this wip
+		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
+		if sizeNeeded > 0 {
+			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+				sizeNeeded)
+			// now make each of these bufs of atleast WIP_SIZE
+			for i := 0; i < len(segstore.workBufForCompression); i++ {
+				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
+				if bsizeNeeded > 0 {
+					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+						bsizeNeeded)
+				}
+			}
+		}
+
+		compBufIdx := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
 				allColsToFlush.Add(1)
-				go func(cname string, colWip *ColWip) {
+				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
 					if cname == config.GetTimeStampKey() {
@@ -516,7 +573,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_COMLUNAR_BLOCK
 					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType)
+					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
 					if err != nil {
 						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return
@@ -543,7 +600,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							atomic.AddUint64(&totalMetadata, writtenBytes)
 						}
 					}
-				}(colName, colInfo)
+				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
+				compBufIdx++
 			}
 		}
 		if config.IsAggregationsEnabled() {
@@ -658,27 +716,14 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
 
 	onTreeRotate := false
-	if config.IsAggregationsEnabled() && segstore.usingSegTree {
-		nc := segstore.sbuilder.GetNodeCount()
+	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+		nc := segstore.stbHolder.stbPtr.GetNodeCount()
 		if nc > MaxAgileTreeNodeCount {
 			onTreeRotate = true
 		}
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
-
-		if config.IsAggregationsEnabled() && segstore.usingSegTree {
-			nc := segstore.sbuilder.GetNodeCount()
-			cnc := segstore.sbuilder.GetEachColNodeCount()
-			log.Infof("checkAndRotateColFiles: stree node count: %v , Each Col NodeCount: %v",
-				nc, cnc)
-
-			// give back the tree
-			atreeCounterLock.Lock()
-			currentAgileTreeCount--
-			atreeCounterLock.Unlock()
-		}
-
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
@@ -694,6 +739,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		instrumentation.IncrementInt64Counter(instrumentation.SEGFILE_ROTATE_COUNT, 1)
 		bytesWritten := segstore.flushStarTree()
 		segstore.OnDiskBytes += uint64(bytesWritten)
+
+		if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
+			nc := segstore.stbHolder.stbPtr.GetNodeCount()
+			cnc := segstore.stbHolder.stbPtr.GetEachColNodeCount()
+			log.Infof("checkAndRotateColFiles: Release STB, segkey: %v, stree node count: %v , Each Col NodeCount: %v",
+				segstore.SegmentKey, nc, cnc)
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
+		}
 
 		activeBasedir := segstore.segbaseDir
 		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
@@ -799,14 +853,14 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 
 func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
 
-	for _, cname := range segstore.sbuilder.GetGroupByKeys() {
+	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
 			return cname, true, 0
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			return cname, true, colCardinalityEstimate
 		}
@@ -838,7 +892,7 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 			continue
 		}
 
-		colCardinalityEstimate := segstore.AllSst[cname].Hll.Estimate()
+		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 
 		if colCardinalityEstimate > uint64(wipCardLimit) {
 			continue
@@ -872,26 +926,15 @@ func (segstore *SegStore) computeStarTree() {
 	if segstore.numBlocks == 0 {
 		sortedGrpCols, mCols := segstore.initStarTreeCols()
 		if len(sortedGrpCols) == 0 || len(mCols) == 0 {
-			segstore.usingSegTree = false
 			return
 		}
 
-		hasTreeSpace := false
-		atreeCounterLock.Lock()
-		if currentAgileTreeCount < MaxConcurrentAgileTrees {
-			// for now the first MaxConcurrentAgileTrees segstores will get to AgileTree but
-			// we should add some smart logic on how we can rotate this
-			// amongst other indices/segstores
-			currentAgileTreeCount++
-			hasTreeSpace = true
-		}
-		atreeCounterLock.Unlock()
-		if !hasTreeSpace {
-			segstore.usingSegTree = false
+		segstore.stbHolder = GetSTB()
+		// nil stbHolder indicates that no tree is available
+		if segstore.stbHolder == nil {
 			return
 		}
 
-		segstore.usingSegTree = true
 		sizeToAdd := len(sortedGrpCols) - len(segstore.stbDictEncWorkBuf)
 		if sizeToAdd > 0 {
 			newArr := make([][]string, sizeToAdd)
@@ -905,11 +948,12 @@ func (segstore *SegStore) computeStarTree() {
 			}
 		}
 
-		segstore.sbuilder.ResetSegTree(sortedGrpCols, mCols,
-			segstore.stbDictEncWorkBuf)
+		segstore.stbHolder.stbPtr.ResetSegTree(sortedGrpCols, mCols, segstore.stbDictEncWorkBuf)
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	// nil stbHolder represents that the tree is either not available or
+	// the tree creation failed on first block, so need to skip it
+	if segstore.stbHolder == nil {
 		return
 	}
 
@@ -918,18 +962,22 @@ func (segstore *SegStore) computeStarTree() {
 		if found {
 			// todo when we implement dropping of columns from atree,
 			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: found cname: %v with high card: %v, blockNum: %v, dropping this Atree",
+			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
 				cname, cardinality, segstore.numBlocks)
-			segstore.sbuilder.DropSegTree(segstore.stbDictEncWorkBuf)
-			segstore.usingSegTree = false
+
+			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+			segstore.stbHolder.ReleaseSTB()
+			segstore.stbHolder = nil
 			return
 		}
 	}
 
-	err := segstore.sbuilder.ComputeStarTree(&segstore.wipBlock)
+	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
+
 	if err != nil {
-		segstore.usingSegTree = false
-		log.Errorf("computeStarTree: Failed to compute star tree: %v", err)
+		log.Errorf("computeStarTree: Release STB, Failed to compute star tree: %v", err)
+		segstore.stbHolder.ReleaseSTB()
+		segstore.stbHolder = nil
 		return
 	}
 }
@@ -940,11 +988,11 @@ func (segstore *SegStore) flushStarTree() uint32 {
 		return 0
 	}
 
-	if !segstore.usingSegTree { // if tree creation had failed on first block, then skip it
+	if segstore.stbHolder == nil {
 		return 0
 	}
 
-	size, err := segstore.sbuilder.EncodeStarTree(segstore.SegmentKey)
+	size, err := segstore.stbHolder.stbPtr.EncodeStarTree(segstore.SegmentKey)
 	if err != nil {
 		log.Errorf("flushStarTree: Failed to encode star tree: %v", err)
 		return 0
@@ -991,14 +1039,17 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 
 }
 
-func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, signalType utils.SIGNAL_TYPE) error {
+func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
+	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType)
+		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err
@@ -1029,56 +1080,65 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	fname := fmt.Sprintf("%s_%v.cmi", ss.SegmentKey, xxhash.Sum64String(cname))
 
-	bffd, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	bffd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("flushBloomIndex: open failed fname=%v, err=%v", fname, err)
 		return 0
 	}
-
 	defer bffd.Close()
 
-	var buf bytes.Buffer
-	bufWriter := bufio.NewWriter(&buf)
-
-	// there is no accurate way to find exactly how many bytes the write.to is going to write
-	// and we need that number , so that we write it first and then the actual bloom data
-	// hence this messiness to write it to some buffer, get the bytesWritten count and then do
-	// the actual write
-	bytesWritten, bferr := bi.Bf.WriteTo(bufWriter)
-	if bferr != nil {
-		log.Errorf("flushBloomIndex: write buf failed fname=%v, err=%v", fname, bferr)
+	startOffset, err := bffd.Seek(0, io.SeekEnd)
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to seek at the end of the file fname=%v, err=%v", fname, err)
 		return 0
 	}
 
-	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE // for blkNum
-	bytesWritten += 1                         // reserver for CMI_Type
+	// There is no accurate way to find the size of bloom before writing it to the file.
+	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
+	bytesWritten := uint32(0)
 
-	// copy the size of blockBloom in uint32
-	if _, err = bffd.Write(toputils.Uint32ToBytesLittleEndian(uint32(bytesWritten))); err != nil {
-		log.Errorf("flushBloomIndex: bloomsize write failed fname=%v, err=%v", fname, err)
+	_, err = bffd.Write([]byte{0, 0, 0, 0})
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += 4
 
 	// copy the blockNum
 	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
-		log.Errorf("flushBloomIndex: bloomsize write failed fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
 
 	// write CMI type
 	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
 		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
+	bytesWritten += 1
 
 	// write the blockBloom
-	_, bferr = bi.Bf.WriteTo(bffd)
-	if bferr != nil {
-		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, bferr)
+	bloomSize, err := bi.Bf.WriteTo(bffd)
+	if err != nil {
+		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	bytesWritten += uint32(bloomSize)
+
+	err = bffd.Sync()
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
 		return 0
 	}
 
-	finalBytesWritten := bytesWritten + 4 // add 4 for size
+	// write the correct bloom size
+	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
+	if err != nil {
+		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
+		return 0
+	}
+
 	if len(bi.HistoricalCount) == 0 {
 		bi.HistoricalCount = make([]uint32, 0)
 	}
@@ -1088,7 +1148,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
 
 	}
-	return uint64(finalBytesWritten)
+	return uint64(bytesWritten)
 }
 
 // returns the number of bytes written
@@ -1439,7 +1499,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx := uint16(0)
 
 	// version
-	copy(buf[idx:], []byte{1})
+	copy(buf[idx:], utils.VERSION_SEGSTATS)
 	idx++
 
 	// isNumeric
@@ -1450,19 +1510,32 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
 	idx += 8
 
-	hllData, err := sst.Hll.MarshalBinary()
-	if err != nil {
-		log.Errorf("writeSstToBuf: HLL marshal failed err=%v", err)
-		return idx, err
-	}
+	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(len(hllData))))
+	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
 	idx += 2
 
 	// HLL_Data
-	copy(buf[idx:], hllData)
-	idx += uint16(len(hllData))
+	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+
+	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
+	// This is necessary because we're using the slice to get the HLL bytes in place,
+	// and the HLL package relies on cap(slice) to determine where to write the bytes.
+	// It expects the slice to be exactly the size of hllDataSize. But the slice we're
+	// using is larger than that, so we need to ensure that the slice is exactly the size
+	// of hllDataSize.
+	hllByteSlice := hllDataSliceFullCap[:len(hllDataSliceFullCap):len(hllDataSliceFullCap)]
+
+	hllByteSlice = sst.GetHllBytesInPlace(hllByteSlice)
+	hllByteSliceLen := len(hllByteSlice)
+	if hllByteSliceLen != hllDataSize {
+		// This case should not happen, but if it does, we need to adjust the size
+		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
+		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+	}
+	copy(buf[idx:], hllByteSlice)
+	idx += uint16(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric

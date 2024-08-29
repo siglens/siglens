@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -131,7 +130,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var mFunc utils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case utils.Sum, utils.Max, utils.Min:
+		case utils.Sum, utils.Max, utils.Min, utils.List:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -530,7 +529,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 	bucketNum := 0
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
-	tmLimitResult.Hll = hyperloglog.New14()
+	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
 	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations)
 	for key, idx := range gb.StringBucketIdx {
@@ -605,7 +604,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 		}
 
-		var hllToMerge *hyperloglog.Sketch
+		var hllToMerge *toputils.GobbableHll
 		var strSetToMerge map[string]struct{}
 		var eVal utils.CValueEnclosure
 		switch mInfo.MeasureFunc {
@@ -733,7 +732,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				}
 				eVal = utils.CValueEnclosure{CVal: uint64(len(strSet)), Dtype: utils.SS_DT_UNSIGNED_NUM}
 			} else {
-				finalVal := runningStats[valIdx].hll.Estimate()
+				finalVal := runningStats[valIdx].hll.Cardinality()
 				eVal = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
 				hllToMerge = runningStats[valIdx].hll
 			}
@@ -767,6 +766,27 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				CVal:  uniqueStrings,
 			}
 
+			idx++
+		case utils.List:
+			if mInfo.ValueColRequest != nil {
+				if len(mInfo.ValueColRequest.GetFields()) == 0 {
+					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+					continue
+				}
+			}
+			valIdx := gb.reverseMeasureIndex[idx]
+			strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
+			if !ok {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+			if len(strList) > utils.MAX_SPL_LIST_SIZE {
+				strList = strList[:utils.MAX_SPL_LIST_SIZE]
+			}
+			eVal = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  strList,
+			}
 			idx++
 		case utils.Sum, utils.Max, utils.Min:
 			if mInfo.ValueColRequest != nil {
@@ -825,11 +845,7 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 		retVals := make([]interface{}, 0, len(bucket.currStats))
 		for idx, rs := range bucket.runningStats {
 			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
-				encoded, err := rs.hll.MarshalBinary()
-				if err != nil {
-					log.Errorf("GroupByBuckets.ConvertToJson: failed to marshal hll, err: %v", err)
-					return nil, err
-				}
+				encoded := rs.hll.ToBytes()
 				retVals = append(retVals, encoded)
 			} else {
 				retVals = append(retVals, rs.rawVal.CVal)
@@ -855,11 +871,7 @@ func (tb *TimeBuckets) ConvertToJson() (*TimeBucketsJSON, error) {
 		retVals := make([]interface{}, 0, len(bucket.currStats))
 		for idx, rs := range bucket.runningStats {
 			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
-				encoded, err := rs.hll.MarshalBinary()
-				if err != nil {
-					log.Errorf("TimeBuckets.ConvertToJson: failed to marshal hll, err: %v", err)
-					return nil, err
-				}
+				encoded := rs.hll.ToBytes()
 				retVals = append(retVals, encoded)
 			} else {
 				retVals = append(retVals, rs.rawVal.CVal)
@@ -924,7 +936,6 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 	currRunningStats := make([]runningStats, 0, len(rb.RunningStats))
 	for statsIdx, rs := range rb.RunningStats {
 		if rb.CurrStats[statsIdx].MeasureFunc == utils.Cardinality {
-			hll := hyperloglog.New()
 			hllString, ok := rs.(string)
 			if !ok {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to string, hll: %+v of type %T", rs, rs)
@@ -935,12 +946,12 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to decode hllString, err: %v", err)
 				return nil, err
 			}
-			err = hll.UnmarshalBinary(hllBytes)
+			hll, err := structs.CreateHllFromBytes(hllBytes)
 			if err != nil {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hllBytes, err: %v", err)
 				return nil, err
 			}
-			currRunningStats = append(currRunningStats, runningStats{hll: hll})
+			currRunningStats = append(currRunningStats, runningStats{hll: &toputils.GobbableHll{Hll: *hll}})
 		} else {
 			newVal := utils.CValueEnclosure{}
 			err := newVal.ConvertValue(rs)

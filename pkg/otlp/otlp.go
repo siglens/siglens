@@ -87,6 +87,8 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	orgId := uint64(0)
 
 	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	// Go through the request data and ingest each of the spans.
 	numSpans := 0       // The total number of spans sent in this request.
@@ -114,7 +116,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				}
 
 				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache)
+				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to process ingest request with err: %v. JSON Data: %s", err, string(jsonData))
 					numFailedSpans++

@@ -1538,6 +1538,9 @@ func Test_unrotatedQuery(t *testing.T) {
 	// disable dict encoding globally
 	writer.SetCardinalityLimit(0)
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for batch := 0; batch < numBatch; batch++ {
 		for rec := 0; rec < numRec; rec++ {
 			record := make(map[string]interface{})
@@ -1554,7 +1557,7 @@ func Test_unrotatedQuery(t *testing.T) {
 			rawJson, err := json.Marshal(record)
 			assert.Nil(t, err)
 			err = writer.AddEntryToInMemBuf("test1", rawJson, uint64(rec)+1, "test", 10, false,
-				SIGNAL_EVENTS, 0, 0)
+				SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 			assert.Nil(t, err)
 		}
 

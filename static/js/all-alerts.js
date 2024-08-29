@@ -125,6 +125,9 @@ class btnRenderer {
             $('.popupOverlay, .popupContent').addClass('active');
             $('#delete-alert-name').html(confirmationMessage);
 
+            $('#cancel-btn, .popupOverlay').off('click');
+            $('#delete-btn').off('click');
+
             $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
                 $('.popupOverlay, .popupContent').removeClass('active');
             });

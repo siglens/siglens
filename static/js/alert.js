@@ -92,15 +92,14 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
-    //eslint-disable-next-line no-undef
+
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-    const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(urlParams.get('alertRule_name'));
+
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -213,6 +212,33 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+function updateChartColorsBasedOnTheme() {
+    //eslint-disable-next-line no-undef
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    //eslint-disable-next-line no-undef
+    if (mergedGraph) {
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.update();
+    }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            //eslint-disable-next-line no-undef
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+}
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
@@ -242,8 +268,9 @@ async function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
+        const filterTab = urlParams.get('filterTab');
 
-        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
+        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
     }
 
     if (!alertEditFlag && !alertFromMetricsExplorerFlag && !window.location.href.includes('alert-details.html')) {
@@ -818,19 +845,36 @@ function alertDetailsFunctions() {
     });
 }
 
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
-    $('#alert-rule-name').focus();
-    $('#query').val(query);
-    $(`.ranges .inner-range #${startEpoch}`).addClass('active');
+function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
+    const urlParams = new URLSearchParams(window.location.search);
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+
+    if (filterTab === '0') {
+        codeToBuilderParsing(searchText);
+    } else if (filterTab === '1') {
+        $('#custom-code-tab').tabs('option', 'active', 1);
+        $('#filter-input').val(searchText);
+    }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
+    let data = {
+        state: wsState,
+        searchText: searchText,
+        startEpoch: startEpoch,
+        endEpoch: endEpoch,
+        indexName: selectedSearchIndex,
+        queryLanguage: queryLanguage,
+    };
+    fetchLogsPanelData(data, -1).then((res) => {
+        alertChart(res);
+    });
 }
+
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';
     logsExplorer.innerHTML = '';
 
     if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
-        alert('This query does not support bar graph visualization.');
         $('#logs-explorer').hide();
         return;
     }
