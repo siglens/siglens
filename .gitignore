@@ -88,10 +88,3 @@ siglens.db
 
 # Alerting Scale testing output
 vector_log_lib/
-
-
-# MacOS
-.DS_Store
-
-# VS Code
-.vscode/
