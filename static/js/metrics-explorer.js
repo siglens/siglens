@@ -107,8 +107,8 @@ $(document).ready(async function () {
     if (currentPage.startsWith('/metrics-explorer.html')) {
         //eslint-disable-next-line no-undef
         isMetricsScreen = true;
-         //eslint-disable-next-line no-undef
-        isMetricsURL=true;
+        //eslint-disable-next-line no-undef
+        isMetricsURL = true;
     }
     $('#metrics-container #date-start').on('change', getStartDateHandler);
     $('#metrics-container #date-end').on('change', getEndDateHandler);
@@ -2073,7 +2073,7 @@ function displayErrorMessage(container, message) {
             $(this).remove();
         });
         var mergedGraph = mergedContainer.querySelector('.merged-graph');
-        mergedGraph.querySelectorAll('.error-message').forEach(errorSpan => errorSpan.remove());
+        mergedGraph.querySelectorAll('.error-message').forEach((errorSpan) => errorSpan.remove());
         var mergedSpan = document.createElement('span');
         errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
@@ -2094,20 +2094,19 @@ function displayErrorMessage(container, message) {
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
     let errorCanvas;
-    if(isAlertScreen){
+    if (isAlertScreen) {
         errorCanvas = $(`.metrics-graph .graph-canvas canvas`);
         if (errorCanvas.length > 0) {
             errorCanvas.remove();
         }
-    }
-    else{
+    } else {
         errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
         if (errorCanvas.length > 0) {
             errorCanvas.remove();
             mergedContainer.find('canvas').remove();
         }
     }
-        
+
     delete chartDataCollection[queryName];
     delete lineCharts[queryName];
 
@@ -2149,8 +2148,8 @@ async function getMetricsData(queryName, metricName, state) {
             updateDownloadButtons();
         }
     } catch (error) {
-        if(isAlertScreen){
-            container=$('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
+        if (isAlertScreen) {
+            container = $('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
         }
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
@@ -2221,10 +2220,10 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             updateDownloadButtons();
         }
     } catch (error) {
-        if(isAlertScreen){
-            container=$('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
+        if (isAlertScreen) {
+            container = $('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
         }
-        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);        
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
         displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
 }
@@ -2296,13 +2295,11 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
             addVisualizationContainer(queryName, chartData, queryString);
         }
     } catch (errorMessage) {
-        if(isAlertScreen){
+        if (isAlertScreen) {
             displayErrorMessage($('#metrics-graphs').find('.metrics-graph'), errorMessage);
-        }
-        else{
+        } else {
             displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
         }
-        
     }
 }
 
