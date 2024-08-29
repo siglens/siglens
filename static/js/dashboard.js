@@ -121,7 +121,6 @@ $(document).ready(async function () {
         trigger: 'hover',
     });
     $('#favbutton').on('click', toggleFavorite);
-    
 });
 
 function enableJsonEditing() {
@@ -334,13 +333,10 @@ function handlePanelEdit() {
         document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
         if (currentPanel.style) {
             toggleLineOptions(currentPanel.style.display);
-            chartType=currentPanel.style.display;
+            chartType = currentPanel.style.display;
             toggleChartType(currentPanel.style.display);
             updateChartTheme(currentPanel.style.color);
-            updateLineCharts(
-                currentPanel.style.lineStyle,
-                currentPanel.style.lineStroke
-            );
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
         }
     });
 }
@@ -505,16 +501,13 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
-        localPanels.forEach(localPanel => {
+        localPanels.forEach((localPanel) => {
             if (localPanel.style) {
                 toggleLineOptions(localPanel.style.display);
                 chartType = localPanel.style.display;
                 toggleChartType(localPanel.style.display);
                 updateChartTheme(localPanel.style.color);
-                updateLineCharts(
-                    localPanel.style.lineStyle,
-                    localPanel.style.lineStroke
-                );
+                updateLineCharts(localPanel.style.lineStyle, localPanel.style.lineStroke);
             }
         });
     }
