@@ -367,10 +367,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		if deData.deCount < wipCardLimit {
 			for _, dci := range deData.hashToDci {
 
-				s := dci.sIdx
-				wl := uint32(dci.wlen)
-
-				dword := cwip.cbuf[s : s+wl]
+				dword := cwip.GetDictword(dci)
 
 				enc := stb.setColValEnc(colNum, dword)
 				recNumsBitset := deData.deRecNums[dci.recBsIdx]
@@ -555,10 +552,7 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 	if deData.deCount < wipCardLimit {
 		for _, dci := range deData.hashToDci {
 
-			s := dci.sIdx
-			wl := uint32(dci.wlen)
-
-			dword := cwip.cbuf[s : s+wl]
+			dword := cwip.GetDictword(dci)
 
 			recNumsBitSet := deData.deRecNums[dci.recBsIdx]
 			if recNumsBitSet.Test(uint(recNum)) {

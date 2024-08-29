@@ -1179,3 +1179,10 @@ func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
 	}
 	return dci
 }
+
+func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
+
+	s := dci.sIdx
+	wl := uint32(dci.wlen)
+	return cw.cbuf[s : s+wl]
+}
