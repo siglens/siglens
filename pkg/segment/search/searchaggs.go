@@ -672,7 +672,6 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			default:
 				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", value.Dtype)
 				value.CVal = ""
-				continue
 			}
 			finalSegment[colName] = value.CVal
 		}
