@@ -410,7 +410,7 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 		return &res, nil
 	}
 
-	err := runningSegStat.Hll.StrictUnion(*currSegStat.Hll)
+	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
 	if err != nil {
 		log.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
 		return nil, err
