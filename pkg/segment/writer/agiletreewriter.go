@@ -27,6 +27,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// write in 128k chunks so we avoid accumulating too much in stb.buf
+const ATREE_FD_CHUNK_SIZE = 128_000
+
 func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 	writer *bufio.Writer) (uint32, error) {
 
@@ -267,8 +270,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 			clBufIdx += 9
 		}
 
-		// write in 128k chunks so we avoid accumulating too much in stb.buf
-		if clBufIdx >= 128_000 {
+		if clBufIdx >= ATREE_FD_CHUNK_SIZE {
 			_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
 			if err != nil {
 				log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)

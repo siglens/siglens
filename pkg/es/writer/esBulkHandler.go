@@ -139,6 +139,8 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	items := *respItemsPool.Get().(*[]interface{})
 	// if we end up extending items, then save the orig pointer, so that we can put it back
 	origItems := items
+	defer respItemsPool.Put(&origItems)
+
 	// kunal todo check , if items gets extended and we put back origitems then does the os
 	// delete the old items array ?
 	itemsLen := len(items)
@@ -248,7 +250,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	response["errors"] = overallError
 	response["items"] = items[0:inCount]
 
-	respItemsPool.Put(&origItems)
 	if atleastOneSuccess {
 		return processedCount, response, nil
 	} else {
