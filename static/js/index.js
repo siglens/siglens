@@ -31,7 +31,9 @@ async function getListIndices() {
             return response.json();
         })
         .then(function (res) {
-            // processListIndicesResult(res);
+            if (!res) {
+                return null;
+            }
             sortedListIndices = res.sort();
             if (Cookies.get('IndexList')) {
                 selectedSearchIndex = Cookies.get('IndexList');
