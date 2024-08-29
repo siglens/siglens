@@ -2065,16 +2065,17 @@ async function getMetricNames() {
 }
 
 function displayErrorMessage(container, message) {
+    var graphCanvas,errorSpan;
     if (isMetricsURL) {
         const mergedContainer = document.querySelector('#merged-graph-container');
-        var graphCanvas = container.find('.graph-canvas');
+        graphCanvas = container.find('.graph-canvas');
         graphCanvas.find('.error-message').each(function() {
             $(this).remove();
         });
         var mergedGraph = mergedContainer.querySelector('.merged-graph');
         mergedGraph.querySelectorAll('.error-message').forEach(errorSpan => errorSpan.remove());
         var mergedSpan = document.createElement('span');
-        var errorSpan = $('<span></span>').addClass('error-message').text(message);
+        errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
         mergedGraph.innerHTML = '';
         mergedGraph.appendChild(mergedSpan);
@@ -2082,11 +2083,11 @@ function displayErrorMessage(container, message) {
         mergedSpan.textContent = message;
     }
     if(isAlertScreen){
-        var graphCanvas = container.find('.graph-canvas');
+        graphCanvas = container.find('.graph-canvas');
         graphCanvas.find('.error-message').each(function() {
             $(this).remove();
         });
-        var errorSpan = $('<span></span>').addClass('error-message').text(message);
+        errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
     }
 }
