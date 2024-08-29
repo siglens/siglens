@@ -2044,9 +2044,7 @@ function displayErrorMessage(container, message) {
     mergedSpan.textContent = message;
 }
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
-    const errorMessage = (error.responseJSON && error.responseJSON.error) || 
-                         (error.responseText && JSON.parse(error.responseText).error) || 
-                         'An unknown error occurred';
+    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
 
     // Remove error-related elements
     const errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
@@ -2067,7 +2065,6 @@ function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, q
 
     return errorMessage;
 }
-
 
 async function getMetricsData(queryName, metricName, state) {
     var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
@@ -2101,7 +2098,6 @@ async function getMetricsData(queryName, metricName, state) {
         throw new Error(errorMessage);
     }
 }
-
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
@@ -2171,7 +2167,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
 }
-
 
 async function fetchTimeSeriesData(data) {
     return await $.ajax({
