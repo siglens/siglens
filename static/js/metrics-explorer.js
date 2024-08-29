@@ -2069,19 +2069,72 @@ async function getMetricNames() {
     return res;
 }
 
+function displayErrorMessage(container, message) {
+    const mergedContainer = document.querySelector('#merged-graph-container');
+    var graphCanvas = container.find('.graph-canvas');
+    var mergedGraph = mergedContainer.querySelector('.merged-graph');
+    var mergedSpan = document.createElement('span');
+    graphCanvas.innerHTML = '';
+    var errorSpan = $('<span></span>').addClass('error-message').text(message);
+    graphCanvas.append(errorSpan);
+    mergedGraph.innerHTML = '';
+    mergedGraph.appendChild(mergedSpan);
+    mergedSpan.classList.add('error-message');
+    mergedSpan.textContent = message;
+}
+function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
+    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+
+    // Remove error-related elements
+    const errorCanvas = $(`.metrics-graph[data-query="${queryName}"] .graph-canvas canvas`);
+    if (errorCanvas.length > 0) {
+        errorCanvas.remove();
+        mergedContainer.find('canvas').remove();
+
+        delete chartDataCollection[queryName];
+        delete lineCharts[queryName];
+    }
+
+    // Remove loaders
+    container.find('#panel-loading').remove();
+    mergedContainer.find('#panel-loading').remove();
+    if (isDashboardScreen) {
+        panelEditContainer.find('#panel-loading').remove();
+    }
+
+    return errorMessage;
+}
+
 async function getMetricsData(queryName, metricName, state) {
+    var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
+    var mergedContainer = $('#merged-graph-container').find('.merged-graph');
+    mergedContainer.append('<div id="panel-loading"></div>');
+    container.append('<div id="panel-loading"></div>');
+
+    let panelEditContainer;
+    if (isDashboardScreen) {
+        panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
+        panelEditContainer.append('<div id="panel-loading"></div>');
+    }
+
     const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
     const queries = [query];
     const formula = { formula: queryName };
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
-    const res = await fetchTimeSeriesData(data);
-    metricsQueryParams = data; // For alerts page
+    try {
+        const res = await fetchTimeSeriesData(data);
 
-    if (res) {
-        rawTimeSeriesData = res;
-        updateDownloadButtons();
+        metricsQueryParams = data; // For alerts page
+
+        if (res) {
+            rawTimeSeriesData = res;
+            updateDownloadButtons();
+        }
+    } catch (error) {
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+        throw new Error(errorMessage);
     }
 }
 
@@ -2090,40 +2143,42 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let formulas = [];
     let formulaString = formulaDetails.formula;
 
+    var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${formulaId}"] .graph-canvas`);
+    container.append('<div id="panel-loading"></div>');
+    var mergedContainer = $('#merged-graph-container').find('.merged-graph');
+    mergedContainer.append('<div id="panel-loading"></div>');
+
+    let panelEditContainer;
+    if (isDashboardScreen) {
+        panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
+        panelEditContainer.append('<div id="panel-loading"></div>');
+    }
+
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
-        let queryString;
-        let state = queryDetails.state;
-        if (queryDetails.state === 'builder') {
-            queryString = createQueryString(queryDetails);
-        } else {
-            queryString = queryDetails.rawQueryInput;
-        }
+        let queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
 
         const query = {
             name: queryName,
             query: queryString,
             qlType: 'promql',
-            state: state,
+            state: queryDetails.state,
         };
         queriesData.push(query);
 
-        // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
-    let formwithfun = formulaDetails.formula;
+
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
         functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
-            formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = {
-        formula: formwithfun,
-    };
+    const formula = { formula: formulaString };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
+
     const data = {
         start: filterStartDate,
         end: filterEndDate,
@@ -2133,23 +2188,27 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     metricsQueryParams = data;
 
-    const res = await fetchTimeSeriesData(data);
-    if (res) {
-        rawTimeSeriesData = res;
-    }
+    try {
+        const res = await fetchTimeSeriesData(data);
+        if (res) {
+            rawTimeSeriesData = res;
+            const chartData = await convertDataForChart(rawTimeSeriesData);
 
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    } else {
-        addVisualizationContainer(formulaId, chartData, formulaString);
+            if (isAlertScreen) {
+                addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+            } else {
+                addVisualizationContainer(formulaId, chartData, formulaString);
+            }
+            updateDownloadButtons();
+        }
+    } catch (error) {
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
+        displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
-    updateDownloadButtons();
 }
 
 async function fetchTimeSeriesData(data) {
-    return $.ajax({
+    return await $.ajax({
         method: 'post',
         url: 'metrics-explorer/api/v1/timeseries',
         headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
@@ -2200,17 +2259,22 @@ function getTagKeyValue(metricName) {
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
     let state = queryDetails.state;
-    if (queryDetails.state === 'builder') {
-        queryString = createQueryString(queryDetails);
-    } else {
-        queryString = queryDetails.rawQueryInput;
-    }
-    await getMetricsData(queryName, queryString, state);
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-    if (isAlertScreen) {
-        addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    } else {
-        addVisualizationContainer(queryName, chartData, queryString);
+
+    try {
+        if (state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
+        await getMetricsData(queryName, queryString, state);
+        const chartData = await convertDataForChart(rawTimeSeriesData);
+        if (isAlertScreen) {
+            addVisualizationContainerToAlerts(queryName, chartData, queryString);
+        } else {
+            addVisualizationContainer(queryName, chartData, queryString);
+        }
+    } catch (errorMessage) {
+        displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
     }
 }
 
