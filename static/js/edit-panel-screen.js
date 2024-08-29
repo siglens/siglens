@@ -1196,10 +1196,15 @@ function resetOptions() {
         }
     });
     if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === -1) {
+        //eslint-disable-next-line no-undef
         toggleLineOptions('Line chart');
+        //eslint-disable-next-line no-undef
         chartType='Line chart';
+        //eslint-disable-next-line no-undef
         toggleChartType('Line chart');
+        //eslint-disable-next-line no-undef
         updateChartTheme('Classic');
+        //eslint-disable-next-line no-undef
             updateLineCharts(
                 'Solid',
                 'Normal'

@@ -332,10 +332,15 @@ function handlePanelEdit() {
         document.getElementById('line-style-input').value = currentPanel.style?.lineStyle || 'Solid';
         document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
         if (currentPanel.style) {
+            //eslint-disable-next-line no-undef
             toggleLineOptions(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
             chartType = currentPanel.style.display;
+            //eslint-disable-next-line no-undef
             toggleChartType(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
             updateChartTheme(currentPanel.style.color);
+            //eslint-disable-next-line no-undef
             updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
         }
     });
@@ -503,10 +508,15 @@ async function getDashboardData() {
         setRefreshItemHandler();
         localPanels.forEach((localPanel) => {
             if (localPanel.style) {
+                //eslint-disable-next-line no-undef
                 toggleLineOptions(localPanel.style.display);
+                //eslint-disable-next-line no-undef
                 chartType = localPanel.style.display;
+                //eslint-disable-next-line no-undef
                 toggleChartType(localPanel.style.display);
+                //eslint-disable-next-line no-undef
                 updateChartTheme(localPanel.style.color);
+                //eslint-disable-next-line no-undef
                 updateLineCharts(localPanel.style.lineStyle, localPanel.style.lineStroke);
             }
         });
