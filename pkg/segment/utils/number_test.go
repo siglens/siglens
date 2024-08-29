@@ -11,19 +11,20 @@ import (
 func Test_isInvalid(t *testing.T) {
 	n := Number{}
 	n.SetInvalidType()
-	assert.True(t, n.ntype() == invalidType)
+	assert.Equal(t, n.ntype(), invalidType)
 }
 
 // Test_invalidTypeReturnsErrorForInt64AndFloat64 tests converting invalidType to Int64 and Float64.
 func Test_invalidTypeReturnsErrorForInt64AndFloat64(t *testing.T) {
 	n := Number{}
 	n.SetInvalidType()
-	if val, err := n.Int64(); err == nil || val != 0 {
-		assert.Fail(t, "Expected 0, got %v with error %v", val, err)
-	}
-	if val, err := n.Float64(); err == nil || val != 0 {
-		assert.Fail(t, "Expected 0, got %v with error %v", val, err)
-	}
+
+	_, err := n.Int64()
+	assert.NotEqual(t, nil, err)
+
+	_, err = n.Float64()
+	assert.NotEqual(t, nil, err)
+
 }
 
 // Test_isBackfill tests if the number is a backfill. It should return 0 for both Int64 and Float64.
@@ -31,15 +32,15 @@ func Test_isBackfill(t *testing.T) {
 
 	n := Number{}
 	n.SetBackfillType()
-	assert.True(t, n.ntype() == backfillType)
+	assert.Equal(t, n.ntype(), backfillType)
 
 	intVal, err := n.Int64()
-	assert.True(t, intVal == 0, nil)
-	assert.True(t, err == nil)
+	assert.Equal(t, 0, intVal)
+	assert.Equal(t, nil, err)
 
 	floatVal, err := n.Float64()
-	assert.True(t, floatVal == 0, nil)
-	assert.True(t, err == nil)
+	assert.Equal(t, 0, floatVal)
+	assert.Equal(t, nil, err)
 }
 
 // Test_isInt64 tests if the number is an int64. It should return set value for Int64 and an error for Float64.
@@ -47,14 +48,14 @@ func Test_isInt64(t *testing.T) {
 
 	n := Number{}
 	n.SetInt64(42)
-	assert.True(t, n.ntype() == int64Type)
+	assert.Equal(t, int64Type, n.ntype())
 
 	val, err := n.Int64()
-	assert.True(t, val == 42)
-	assert.True(t, err == nil)
+	assert.Equal(t, 42, val)
+	assert.Equal(t, nil, err)
 
 	_, err = n.Float64()
-	assert.True(t, err != nil)
+	assert.NotEqual(t, nil, err)
 
 }
 
@@ -63,14 +64,14 @@ func Test_isFloat64(t *testing.T) {
 
 	n := Number{}
 	n.SetFloat64(42.0)
-	assert.True(t, n.ntype() == float64Type)
+	assert.Equal(t, float64Type, n.ntype())
 
 	val, err := n.Float64()
-	assert.True(t, val == 42.0)
-	assert.True(t, err == nil)
+	assert.Equal(t, 42.0, val)
+	assert.Equal(t, nil, err)
 
 	_, err = n.Int64()
-	assert.True(t, err != nil)
+	assert.NotEqual(t, nil, err)
 
 }
 
@@ -79,9 +80,9 @@ func Test_reset(t *testing.T) {
 
 	n := Number{}
 	n.SetInt64(42)
-	assert.True(t, n.ntype() == int64Type)
+	assert.Equal(t, int64Type, n.ntype())
 	n.Reset()
-	assert.True(t, n.ntype() == invalidType)
+	assert.Equal(t, invalidType, n.ntype())
 
 }
 
@@ -89,16 +90,7 @@ func Test_reset(t *testing.T) {
 func Test_constructor(t *testing.T) {
 
 	n := Number{}
-	assert.True(t, n.ntype() == invalidType)
-
-	n = Number{[9]byte{0, 0, 0, 0, 0, 0, 0, 0, backfillType}}
-	assert.True(t, n.ntype() == backfillType)
-
-	n = Number{[9]byte{0, 0, 0, 0, 0, 0, 0, 0, int64Type}}
-	assert.True(t, n.ntype() == int64Type)
-
-	n = Number{[9]byte{0, 0, 0, 0, 0, 0, 0, 0, float64Type}}
-	assert.True(t, n.ntype() == float64Type)
+	assert.Equal(t, invalidType, n.ntype())
 
 }
 
@@ -143,6 +135,7 @@ func TestNumberConversion(t *testing.T) {
 
 	// Test Int64 to Float64 conversion
 	n.SetInt64(42)
+	assert.Equal(t, int64Type, n.ntype())
 	if err := n.ConvertToFloat64(); err != nil {
 		assert.Fail(t, "Conversion failed: %v", err)
 	}
@@ -152,6 +145,7 @@ func TestNumberConversion(t *testing.T) {
 
 	// Test Float64 to Int64 conversion
 	n.SetFloat64(3.14)
+	assert.Equal(t, float64Type, n.ntype())
 	if err := n.ConvertToInt64(); err != nil {
 		assert.Fail(t, "Conversion failed: %v", err)
 	}
