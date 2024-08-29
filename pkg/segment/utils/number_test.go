@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Using LessOrEqual to compare float64 values to avoid floating point errors.
+
 // Test_isInvalid tests if the number is invalid. It should return invalidType.
 func Test_isInvalid(t *testing.T) {
 	n := Number{}
@@ -20,10 +22,10 @@ func Test_invalidTypeReturnsErrorForInt64AndFloat64(t *testing.T) {
 	n.SetInvalidType()
 
 	_, err := n.Int64()
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err, "Expected error for invalidType while converting to int64")
 
 	_, err = n.Float64()
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err, "Expected error for invalidType while converting to float64")
 
 }
 
@@ -35,12 +37,12 @@ func Test_isBackfill(t *testing.T) {
 	assert.Equal(t, n.ntype(), backfillType)
 
 	intVal, err := n.Int64()
-	assert.Equal(t, 0, intVal)
-	assert.Equal(t, nil, err)
+	assert.Equal(t, int64(0), intVal)
+	assert.Nil(t, err, "No error expected for backfillType while converting to int64")
 
 	floatVal, err := n.Float64()
-	assert.Equal(t, 0, floatVal)
-	assert.Equal(t, nil, err)
+	assert.LessOrEqual(t, math.Abs(floatVal-0.0), 1e-6)
+	assert.Nil(t, err, "No error expected for backfillType while converting to float64")
 }
 
 // Test_isInt64 tests if the number is an int64. It should return set value for Int64 and an error for Float64.
@@ -51,11 +53,11 @@ func Test_isInt64(t *testing.T) {
 	assert.Equal(t, int64Type, n.ntype())
 
 	val, err := n.Int64()
-	assert.Equal(t, 42, val)
-	assert.Equal(t, nil, err)
+	assert.Equal(t, int64(42), val)
+	assert.Nil(t, err, "No error expected for int64Type while retrieving value as int64")
 
 	_, err = n.Float64()
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err, "Expected error for int64Type while retrieving as float64")
 
 }
 
@@ -67,11 +69,11 @@ func Test_isFloat64(t *testing.T) {
 	assert.Equal(t, float64Type, n.ntype())
 
 	val, err := n.Float64()
-	assert.Equal(t, 42.0, val)
-	assert.Equal(t, nil, err)
+	assert.LessOrEqual(t, math.Abs(val-42.0), 1e-6)
+	assert.Nil(t, err, "No error expected for float64Type while retrieving value as float64")
 
 	_, err = n.Int64()
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err, "Expected error for float64Type while retrieving as int64")
 
 }
 
@@ -94,41 +96,6 @@ func Test_constructor(t *testing.T) {
 
 }
 
-// Test_numberSetAndGet tests setting and getting the number. It should return the correct value.
-func Test_numberSetAndGet(t *testing.T) {
-	n := Number{}
-
-	// Test Int64
-	n.SetInt64(42)
-	if val, err := n.Int64(); err != nil || val != 42 {
-		assert.Fail(t, "Expected 42, got %v with error %v", val, err)
-	}
-
-	// Test Float64
-	n.SetFloat64(3.14)
-	if val, err := n.Float64(); err != nil || math.Abs(val-3.14) > 1e-6 {
-		assert.Fail(t, "Expected 3.14, got %v with error %v", val, err)
-	}
-
-	// Test Invalid Type
-	n.SetInvalidType()
-	if _, err := n.Int64(); err == nil {
-		assert.Fail(t, "Expected error for invalid type")
-	}
-	if _, err := n.Float64(); err == nil {
-		assert.Fail(t, "Expected error for invalid type")
-	}
-
-	// Test Backfill Type
-	n.SetBackfillType()
-	if val, err := n.Int64(); err != nil || val != 0 {
-		assert.Fail(t, "Expected 0 for backfill, got %v with error %v", val, err)
-	}
-	if val, err := n.Float64(); err != nil || val != 0 {
-		assert.Fail(t, "Expected 0 for backfill, got %v with error %v", val, err)
-	}
-}
-
 // Test_numberConversion tests converting the number. It should return the correct value.
 func TestNumberConversion(t *testing.T) {
 	n := Number{}
@@ -136,22 +103,27 @@ func TestNumberConversion(t *testing.T) {
 	// Test Int64 to Float64 conversion
 	n.SetInt64(42)
 	assert.Equal(t, int64Type, n.ntype())
-	if err := n.ConvertToFloat64(); err != nil {
-		assert.Fail(t, "Conversion failed: %v", err)
-	}
-	if val, err := n.Float64(); err != nil || math.Abs(val-42.0) > 1e-6 {
-		assert.Fail(t, "Expected 42.0, got %v with error %v", val, err)
-	}
+
+	err := n.ConvertToFloat64()
+	assert.Nil(t, err, "No error expected for int64Type while converting to float64")
+	assert.Equal(t, float64Type, n.ntype())
+
+	floatFromInt, err := n.Float64()
+	assert.LessOrEqual(t, math.Abs(floatFromInt-42.0), 1e-6)
+	assert.Nil(t, err, "No error expected while retrieving as float64 after converting from int64")
 
 	// Test Float64 to Int64 conversion
 	n.SetFloat64(3.14)
 	assert.Equal(t, float64Type, n.ntype())
-	if err := n.ConvertToInt64(); err != nil {
-		assert.Fail(t, "Conversion failed: %v", err)
-	}
-	if val, err := n.Int64(); err != nil || val != 3 {
-		assert.Fail(t, "Expected 3, got %v with error %v", val, err)
-	}
+
+	err = n.ConvertToInt64()
+	assert.Nil(t, err, "Expected no error for float64Type while converting to int64")
+	assert.Equal(t, int64Type, n.ntype())
+
+	intFromFloat, err := n.Int64()
+	assert.Equal(t, int64(3), intFromFloat)
+	assert.Nil(t, err, "Expected no error while retrieving as int64 after converting from float64")
+
 }
 
 // Test_numberCopyToBuffer tests copying the number to a buffer. It should return the correct value.
@@ -160,9 +132,8 @@ func Test_numberCopyToBuffer(t *testing.T) {
 	n.SetFloat64(3.14)
 	buf := make([]byte, 9)
 	n.CopyToBuffer(buf)
-	if buf[8] != float64Type {
-		assert.Fail(t, "Expected float64Type, got %v", buf[8])
-	}
+
+	assert.Equal(t, float64Type, buf[8])
 }
 
 type reduceTest struct {
@@ -182,172 +153,129 @@ func getTests() []reduceTest {
 	}
 }
 
-// Test_numberReduceFast tests aggregating functions on Int64 numbers using ReduceFast.
-func Test_numberReduceFastInt(t *testing.T) {
+// Test_numberReduceFast tests aggregating functions on numbers using ReduceFast.
+func Test_numberReduceFast(t *testing.T) {
 	tests := getTests()
 
+	testCases := []struct {
+		name  string
+		setup func(*Number, *Number, *Number, string)
+	}{
+		{
+			name: "Int64",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetInt64(10)
+				n2.SetInt64(20)
+				expected.SetInt64(30)
+
+				if name == "Min" {
+					expected.SetInt64(10)
+				}
+				if name == "Max" {
+					expected.SetInt64(20)
+				}
+			},
+		},
+		{
+			name: "Float64",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetFloat64(10.5)
+				n2.SetFloat64(20.5)
+				expected.SetFloat64(31.0)
+
+				if name == "Min" {
+					expected.SetFloat64(10.5)
+				}
+				if name == "Max" {
+					expected.SetFloat64(20.5)
+				}
+			},
+		},
+		{
+			name: "InvalidType",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetInvalidType()
+				n2.SetInvalidType()
+				expected.SetInvalidType()
+			},
+		},
+		{
+			name: "BackfillType",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetBackfillType()
+				n2.SetBackfillType()
+				expected.SetBackfillType()
+			},
+		},
+		{
+			name: "MixedIntWithFloat",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetInt64(10)
+				n2.SetFloat64(20.5)
+				expected.SetFloat64(30.5)
+
+				if name == "Min" {
+					expected.SetFloat64(10.0)
+				}
+				if name == "Max" {
+					expected.SetFloat64(20.5)
+				}
+			},
+		},
+		{
+			name: "MixedFloatWithInt",
+			setup: func(n1, n2, expected *Number, name string) {
+				n1.SetFloat64(10.5)
+				n2.SetInt64(20)
+				expected.SetFloat64(30.5)
+
+				if name == "Min" {
+					expected.SetFloat64(10.5)
+				}
+				if name == "Max" {
+					expected.SetFloat64(20.0)
+				}
+			},
+		},
+	}
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.n1.SetInt64(10)
-			tt.n2.SetInt64(20)
-			tt.expected.SetInt64(30)
-			if tt.name == "Min" {
-				tt.expected.SetInt64(10)
-			} else if tt.name == "Max" {
-				tt.expected.SetInt64(20)
-			}
+		for _, tc := range testCases {
 
-			err := tt.n1.ReduceFast(&tt.n2, tt.fun)
-			if err != nil {
-				assert.Fail(t, "ReduceFast failed: %v", err)
-			}
+			t.Run(tt.name+"_"+tc.name, func(t *testing.T) {
+				tc.setup(&tt.n1, &tt.n2, &tt.expected, tt.name)
 
-			if tt.n1.ntype() != tt.expected.ntype() {
-				assert.Fail(t, "Expected %v, got %v", tt.expected.ntype(), tt.n1.ntype())
-			}
+				err := tt.n1.ReduceFast(&tt.n2, tt.fun)
+				assert.Nil(t, err, "Expected no error for ReduceFast")
 
-			v1, _ := tt.n1.Int64()
-			v2, _ := tt.expected.Int64()
-			if v1 != v2 {
-				assert.Fail(t, "Expected %v, got %v", v2, v1)
-			}
-		})
+				assert.Equal(t, tt.n1.ntype(), tt.expected.ntype())
+
+				if tt.n1.ntype() == int64Type {
+					v1, _ := tt.n1.Int64()
+					v2, _ := tt.expected.Int64()
+					assert.Equal(t, v1, v2)
+				}
+
+				if tt.n1.ntype() == float64Type {
+					v1, _ := tt.n1.Float64()
+					v2, _ := tt.expected.Float64()
+					assert.LessOrEqual(t, math.Abs(v1-v2), 1e-6)
+				}
+			})
+
+		}
 	}
 }
 
-// Test_numberReduceFastFloat tests aggregating functions on Float64 numbers using ReduceFast.
-func Test_numberReduceFastFloat(t *testing.T) {
-	tests := getTests()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.n1.SetFloat64(10.5)
-			tt.n2.SetFloat64(20.5)
-			tt.expected.SetFloat64(31.0)
-			if tt.name == "Min" {
-				tt.expected.SetFloat64(10.5)
-			} else if tt.name == "Max" {
-				tt.expected.SetFloat64(20.5)
-			}
-
-			err := tt.n1.ReduceFast(&tt.n2, tt.fun)
-			if err != nil {
-				assert.Fail(t, "ReduceFast failed: %v", err)
-			}
-
-			if tt.n1.ntype() != tt.expected.ntype() {
-				assert.Fail(t, "Expected %v, got %v", tt.expected.ntype(), tt.n1.ntype())
-			}
-
-			v1, _ := tt.n1.Float64()
-			v2, _ := tt.expected.Float64()
-			if v1 != v2 {
-				assert.Fail(t, "Expected %v, got %v", v2, v1)
-			}
-		})
-	}
-}
-
-// Test_numberReduceFastInvalid tests aggregating functions on invalid numbers using ReduceFast.
-func Test_numberReduceFastInvalid(t *testing.T) {
-	tests := getTests()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.n1.SetInvalidType()
-			tt.n2.SetInvalidType()
-			tt.expected.SetInvalidType()
-			if tt.name == "Min" {
-				tt.expected.SetInvalidType()
-			} else if tt.name == "Max" {
-				tt.expected.SetInvalidType()
-			}
-
-			err := tt.n1.ReduceFast(&tt.n2, tt.fun)
-			if err != nil {
-				assert.Fail(t, "ReduceFast failed: %v", err)
-			}
-
-			if tt.n1.ntype() != tt.expected.ntype() {
-				assert.Fail(t, "Expected %v, got %v", tt.expected.ntype(), tt.n1.ntype())
-			}
-		})
-	}
-}
-
-// Test_numberReduceFastBackfill tests aggregating functions on backfill numbers using ReduceFast.
-func Test_numberReduceFastBackfill(t *testing.T) {
-	tests := getTests()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.n1.SetBackfillType()
-			tt.n2.SetBackfillType()
-			tt.expected.SetBackfillType()
-
-			err := tt.n1.ReduceFast(&tt.n2, tt.fun)
-			if err != nil {
-				assert.Fail(t, "ReduceFast failed: %v", err)
-			}
-
-			if tt.n1.ntype() != tt.expected.ntype() {
-				assert.Fail(t, "Expected %v, got %v", tt.expected.ntype(), tt.n1.ntype())
-			}
-
-			v1, _ := tt.n1.Int64()
-			v2, _ := tt.expected.Int64()
-			if v1 != v2 {
-				assert.Fail(t, "Expected %v, got %v", v2, v1)
-			}
-
-		})
-	}
-}
-
-// Test_numberReduceFastMixed tests aggregating functions on mixed numbers using ReduceFast.
-func Test_numberReduceFastMixed(t *testing.T) {
-	tests := getTests()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.n1.SetInt64(10)
-			tt.n2.SetFloat64(20.5)
-			tt.expected.SetFloat64(30.5)
-			if tt.name == "Min" {
-				tt.expected.SetFloat64(10.0)
-			} else if tt.name == "Max" {
-				tt.expected.SetFloat64(20.5)
-			}
-
-			err := tt.n1.ReduceFast(&tt.n2, tt.fun)
-			if err != nil {
-				assert.Fail(t, "ReduceFast failed: %v", err)
-			}
-
-			if tt.n1.ntype() != tt.expected.ntype() {
-				assert.Fail(t, "Expected %v, got %v", tt.expected.ntype(), tt.n1.ntype())
-			}
-
-			if tt.n1.ntype() == int64Type {
-				assert.Fail(t, "Expected float64Type, got int64Type")
-			}
-
-			v1, _ := tt.n1.Float64()
-			v2, _ := tt.expected.Float64()
-			if v1 != v2 {
-				assert.Fail(t, "Expected %v, got %v", v2, v1)
-			}
-		})
-	}
-}
-
-// Test_numberReduceFastUnsupported tests aggregating functions on unsupported numbers using ReduceFast.
-func Test_numberReduceFastUnsupported(t *testing.T) {
+// Test_numberReduceFastUnsupported tests unsupported aggregating functions on numbers using ReduceFast.
+func Test_numberReduceFastUnsupportedFunction(t *testing.T) {
 	const unsupportedType = 0xFF
-	n1 := Number{[9]byte{0, 0, 0, 0, 0, 0, 0, 0, unsupportedType}}
+	n1 := Number{}
+	n1.SetInt64(10)
 	n2 := Number{}
-	n1.SetInvalidType()
-	n2.SetInvalidType()
-	err := n1.ReduceFast(&n2, Sum)
-	if err != nil {
-		assert.Fail(t, "ReduceFast failed: %v", err)
-	}
+	n2.SetInt64(20)
+	err := n1.ReduceFast(&n2, unsupportedType)
+	assert.NotNil(t, err, "Expected error for unsupported function type")
 }
 
 // Test_convertBytesToNumber tests converting bytes to number. It should return the correct value.
@@ -378,19 +306,20 @@ func Test_convertBytesToNumber(t *testing.T) {
 			}
 
 			intVal, floatVal, dtype := ConvertBytesToNumber(tt.input)
-			if intVal != tt.intVal || math.Abs(floatVal-tt.floatVal) > 1e-6 || dtype != tt.dtype {
-				assert.Fail(t, "Expected %v, %v, %v, got %v, %v, %v",
-					tt.intVal, tt.floatVal, tt.dtype, intVal, floatVal, dtype)
-			}
+
+			assert.Equal(t, tt.intVal, intVal)
+			assert.LessOrEqual(t, math.Abs(tt.floatVal-floatVal), 1e-6)
+			assert.Equal(t, tt.dtype, dtype)
+
 		})
 	}
 }
 
 // Test_convertInvalidBytesToNumber tests converting invalid bytes to number. It should return 0 for both Int64 and Float64.
-
 func Test_convertInvalidBytesToNumber(t *testing.T) {
 	intVal, floatVal, dtype := ConvertBytesToNumber(nil)
-	if intVal != 0 || floatVal != 0 || dtype != SS_INVALID {
-		assert.Fail(t, "Expected 0, 0, SS_INVALID, got %v, %v, %v", intVal, floatVal, dtype)
-	}
+
+	assert.Equal(t, int64(0), intVal)
+	assert.LessOrEqual(t, math.Abs(floatVal-0.0), 1e-6)
+	assert.Equal(t, SS_INVALID, dtype)
 }
