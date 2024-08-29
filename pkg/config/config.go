@@ -642,9 +642,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 	dualCaseCheck, err := strconv.ParseBool(config.DualCaseCheck)
 	if err != nil {
-		log.Errorf("ExtractConfigData: failed to parse DualCaseCheck flag. Defaulting to false. Error: %v", err)
-		dualCaseCheck = false
-		config.DualCaseCheck = "false"
+		log.Errorf("ExtractConfigData: failed to parse DualCaseCheck flag. Defaulting to true. Error: %v", err)
+		dualCaseCheck = true
+		config.DualCaseCheck = "true"
 	}
 	config.DualCaseCheckConverted = dualCaseCheck
 
