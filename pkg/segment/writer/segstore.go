@@ -180,6 +180,9 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
+		for _, cwip := range segstore.wipBlock.colWips {
+			wipCbufPool.Put(&cwip.cbuf)
+		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
@@ -280,6 +283,11 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqNonEmptyResults = make(map[string]bool)
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		wipCbufPool.Put(&cwip.cbuf)
+	}
+
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
@@ -412,6 +420,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -481,6 +490,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 

@@ -71,6 +71,16 @@ var localSegmetaFname string
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
+var wipCbufPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]byte, WIP_SIZE)
+		return &slice
+	},
+}
+
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -99,10 +109,10 @@ type DeData struct {
 }
 
 type ColWip struct {
-	cbufidx      uint32         // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx    uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf         [WIP_SIZE]byte // in progress bytes
-	csgFname     string         // file name of csg file
+	cbufidx      uint32 // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx    uint32 // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf         []byte // in progress bytes
+	csgFname     string // file name of csg file
 	deData       *DeData
 	dePackingBuf [WIP_DE_PACKING_SIZE]byte
 	dciPool      []*DwordCbufIdxs
@@ -452,10 +462,13 @@ func InitColWip(segKey string, colName string) *ColWip {
 		dciPool[i] = &DwordCbufIdxs{}
 	}
 
+	cbuf := *wipCbufPool.Get().(*[]byte)
+
 	return &ColWip{
 		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:   &deData,
 		dciPool:  dciPool,
+		cbuf:     cbuf,
 	}
 }
 

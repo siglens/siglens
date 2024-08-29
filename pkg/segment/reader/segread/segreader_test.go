@@ -181,7 +181,8 @@ func Benchmark_readColumnarFile(b *testing.B) {
 
 func Test_packUnpackDictEnc(t *testing.T) {
 
-	colWip := &writer.ColWip{}
+	cname := "muycname"
+	colWip := writer.InitColWip("mysegkey", cname)
 
 	deCount := uint16(100)
 
@@ -193,7 +194,6 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
 	allBlockSummaries[0] = &structs.BlockSummary{RecCount: recCounts}
 
-	cname := "muycname"
 	sfr := &SegmentFileReader{
 		blockSummaries: allBlockSummaries,
 		deTlv:          make([][]byte, 0),
