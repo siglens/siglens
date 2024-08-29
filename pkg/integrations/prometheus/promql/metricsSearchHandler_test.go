@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/stretchr/testify/assert"
+	"github.com/valyala/fasthttp"
 )
 
 func Test_parseMetricTimeSeriesRequest(t *testing.T) {
@@ -1036,5 +1037,40 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v2(t *testing.T)
 		for ts, val := range tsMap {
 			assert.Equal(t, expectedResults[seriesId][ts], val, "At timestamp %d", ts)
 		}
+	}
+}
+
+func TestProcessGetMetricSeriesCardinalityRequest(t *testing.T) {
+	// Create a new fasthttp.RequestCtx for testing
+	ctx := &fasthttp.RequestCtx{}
+
+	// Set the request body with the input JSON
+	inputJSON := []byte(`{
+		"startEpoch": 1625248200,
+		"endEpoch": 1625248300
+	}`)
+	ctx.Request.SetBody(inputJSON)
+
+	// Call the function being tested
+	ProcessGetMetricSeriesCardinalityRequest(ctx, 123)
+
+	// Check the response status code
+	if ctx.Response.StatusCode() != fasthttp.StatusOK {
+		t.Errorf("Expected status code %d, but got %d", fasthttp.StatusOK, ctx.Response.StatusCode())
+	}
+
+	// Parse the response body
+	var output struct {
+		SeriesCardinality uint64 `json:"seriesCardinality"`
+	}
+	err := json.Unmarshal(ctx.Response.Body(), &output)
+	if err != nil {
+		t.Errorf("Failed to parse response body: %v", err)
+	}
+
+	// Perform assertions on the output
+	expectedCardinality := uint64(0)
+	if output.SeriesCardinality != expectedCardinality {
+		t.Errorf("Expected series cardinality %d, but got %d", expectedCardinality, output.SeriesCardinality)
 	}
 }
