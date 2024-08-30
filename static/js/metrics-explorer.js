@@ -1572,7 +1572,6 @@ function toggleChartType(chartType) {
         mergedGraph.data.datasets.forEach(function (dataset) {
             dataset.type = chartJsType;
             dataset.fill = chartType === 'Area chart';
-            console.log(dataset.fill);
         });
         mergedGraph.update();
     }

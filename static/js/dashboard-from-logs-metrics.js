@@ -23,7 +23,7 @@ const newDashboard = $('.new-dashboard');
 const existingDashboard = $('.existing-dashboard');
 let newDashboardFlag = true;
 let dashboardID;
-
+let isMetricsScreen;
 $(document).ready(function () {
     existingDashboard.hide();
     $('#create-panel').hide();
