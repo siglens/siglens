@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJson(t *testing.T) {
@@ -280,17 +281,15 @@ func TestFlatten(t *testing.T) {
 	}
 }
 
-func TestGetString_BufferResizing(t *testing.T) {
+func TestGetStringFromJson(t *testing.T) {
     data := []byte(`{"key": "value"}`)
-    var workBuf []byte // Initialize an empty buffer
+    workBuf := make([]byte, 0) // or nil if applicable
 
     result, err := GetString(data, workBuf, "key")
-    if err != nil {
-        t.Fatalf("expected no error, got %v", err)
-    }
 
-    expected := "value"
-    if string(result) != expected {
-        t.Errorf("expected %s, got %s", expected, result)
-    }
+    // Use assert to check for errors
+    assert.NoError(t, err, "expected no error, got: %v", err)
+    
+    // Assert that the result matches the expected value
+    assert.Equal(t, []byte("value"), result, "expected result to be 'value', got: %s", result)
 }

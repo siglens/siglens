@@ -21,6 +21,7 @@ import (
 	"fmt"
     "github.com/buger/jsonparser"
 	"strings"
+	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
 // Flatten takes a map and returns a new one where nested maps are replaced
@@ -61,10 +62,10 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 	}
 }
 
-// GetString extracts a string value from JSON data based on the provided keys.
+// GetStringFromJson extracts a string value from JSON data based on the provided keys.
 // It uses the supplied workBuf to avoid unnecessary allocations and resizing.
 // If the value is not a string or if an error occurs, it returns an appropriate error.
-func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
+func GetStringFromJson(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
     v, dataType, _, err := jsonparser.Get(data, keys...)
     if err != nil {
         return nil, err
@@ -73,15 +74,12 @@ func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
     if dataType != jsonparser.String {
         if dataType == jsonparser.Null {
             return nil, fmt.Errorf("key %s has a null value", strings.Join(keys, ", "))
-        }
-        return nil, fmt.Errorf("value is not a string: %s", string(v))
+		}
+        return nil, fmt.Errorf("expected string value for key(s) %s but got %s", strings.Join(keys, ", "), dataType)
     }
 
-    if cap(workBuf) < len(v) {
-        workBuf = make([]byte, len(v))
-    } else {
-        workBuf = workBuf[:len(v)]
-    }
+    // Use ResizeSlice to extend workBuf
+    workBuf = ResizeSlice(workBuf, len(v))
 
     copy(workBuf, v)
     return workBuf, nil
