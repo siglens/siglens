@@ -1134,12 +1134,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 	bytesWritten += uint32(bloomSize)
 
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
-		return 0
-	}
-
 	// write the correct bloom size
 	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
 	if err != nil {
