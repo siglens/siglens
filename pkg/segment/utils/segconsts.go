@@ -142,7 +142,12 @@ var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
-var VERSION_SEGSTATS = []byte{2}
+var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
+var VERSION_SEGSTATS_LEGACY = []byte{1}
+
+var VERSION_SEGSTATS_BUF = []byte{3} // version of the single column Seg Stats in a Segment
+var VERSION_SEGSTATS_BUF_LEGACY_1 = []byte{1}
+var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 

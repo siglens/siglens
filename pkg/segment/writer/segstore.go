@@ -1433,7 +1433,7 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 /*
 Encoding Scheme for all columns single file
 
-[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 2B] [ColSegEncoding xB]....
+[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 4B] [ColSegEncoding xB]....
 */
 func (ss *SegStore) FlushSegStats() error {
 
@@ -1469,7 +1469,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write([]byte{1})
+	_, err = fd.Write(utils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1498,7 +1498,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(idx))
+		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
@@ -1517,15 +1517,15 @@ func (ss *SegStore) FlushSegStats() error {
 
 /*
 Encoding Schema for SegStats Single Column Data
-[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 2B] [HLL_Data xB]
+[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
 [N_type 1B] [Min 8B] [N_type 1B] [Max 8B] [N_type 1B] [Sum 8B]
 */
-func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
+func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS)
+	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF)
 	idx++
 
 	// isNumeric
@@ -1539,11 +1539,11 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
-	idx += 2
+	copy(buf[idx:], toputils.Uint32ToBytesLittleEndian(uint32(hllDataSize)))
+	idx += 4
 
 	// HLL_Data
-	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+	hllDataSliceFullCap := buf[idx : idx+uint32(hllDataSize)]
 
 	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
 	// This is necessary because we're using the slice to get the HLL bytes in place,
@@ -1558,10 +1558,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+		copy(buf[idx-4:idx], toputils.Uint32ToBytesLittleEndian(uint32(hllByteSliceLen)))
 	}
 	copy(buf[idx:], hllByteSlice)
-	idx += uint16(hllByteSliceLen)
+	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
