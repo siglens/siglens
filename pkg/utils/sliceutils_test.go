@@ -34,3 +34,16 @@ func Test_ResizeSlice(t *testing.T) {
 	assert.Len(t, newSlice, 10)
 	assert.Equal(t, newSlice[:5], originalSlice)
 }
+
+func Test_RemoveElements(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	idxsToRemove := map[int]struct{}{
+		1: {},
+		3: {},
+	}
+
+	newSlice, err := RemoveElements(slice, idxsToRemove)
+	assert.Nil(t, err)
+	assert.Len(t, newSlice, 3)
+	assert.Equal(t, newSlice, []int{1, 3, 5})
+}

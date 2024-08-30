@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -89,4 +90,28 @@ func CompareStringSlices(a []string, b []string) bool {
 		}
 	}
 	return true
+}
+
+// idxsToRemove should contain only valid indexes in the array
+func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) ([]T, error) {
+	if len(arr) < len(idxsToRemove) {
+		return []T{}, fmt.Errorf("RemoveElements: array size less than idxs")
+	}
+
+	if len(arr) == len(idxsToRemove) {
+		arr = arr[:0]
+		return arr, nil
+	}
+
+	newArr := make([]T, len(arr)-len(idxsToRemove))
+	i := 0
+	for idx, element := range arr {
+		_, exists := idxsToRemove[idx]
+		if !exists {
+			newArr[i] = element
+			i++
+		}
+	}
+
+	return newArr, nil
 }

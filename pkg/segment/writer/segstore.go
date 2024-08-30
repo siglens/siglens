@@ -836,10 +836,7 @@ func (segstore *SegStore) getColsAboveCardLimit() ([]string, []uint64) {
 	highCardCols := []string{}
 	highCardVals := []uint64{}
 
-	for i, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
-		if segstore.stbHolder.stbPtr.droppedCols[i] {
-			continue // ignore already dropped columns
-		}
+	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
@@ -949,8 +946,7 @@ func (segstore *SegStore) computeStarTree() {
 
 	if segstore.numBlocks != 0 {
 		highCardCols, highCardVals := segstore.getColsAboveCardLimit()
-		activeCols := segstore.stbHolder.stbPtr.numOfActiveCols()
-		if int(activeCols)-len(highCardCols) <= 0 {
+		if len(segstore.stbHolder.stbPtr.groupByKeys)-len(highCardCols) <= 0 {
 			log.Warnf("computeStarTree: Dropping SegTree All remaining cols %v found with high card: %v, blockNum: %v",
 				highCardCols, highCardVals, segstore.numBlocks)
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
@@ -958,12 +954,11 @@ func (segstore *SegStore) computeStarTree() {
 			segstore.stbHolder = nil
 			return
 		}
-		for idx, cname := range highCardCols {
-			log.Warnf("computeStarTree: Dropping column, found cname: %v with high card: %v, blockNum: %v",
-				cname, highCardVals[idx], segstore.numBlocks)
-			err := segstore.stbHolder.stbPtr.DropColumn(cname)
+		if len(highCardCols) > 0 {
+			log.Warnf("computeStarTree: Dropping SegTree high card cols %v found with high card: %v, blockNum: %v", highCardCols, highCardVals, segstore.numBlocks)
+			err := segstore.stbHolder.stbPtr.DropColumns(highCardCols)
 			if err != nil {
-				log.Errorf("computeStarTree: Dropping SegTree and release STB, Failed to drop column %v, err: %v", cname, err)
+				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
 				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 				segstore.stbHolder.ReleaseSTB()
 				segstore.stbHolder = nil
