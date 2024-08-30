@@ -1436,6 +1436,9 @@ func (ss *SegStore) FlushSegStats() error {
 	if len(ss.AllSst) <= 0 {
 		found := 0
 		tsKey := config.GetTimeStampKey()
+		// Flush is called once one of the cbufidx is >0, but if we find no columns
+		// with cbufidx > 0 other than timestamp column, only then declare this as an error
+		// else we won't create a sst file
 		for cname, cwip := range ss.wipBlock.colWips {
 			if cwip.cbufidx > 0 {
 				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v, segkey: %v",
@@ -1445,9 +1448,6 @@ func (ss *SegStore) FlushSegStats() error {
 				}
 			}
 		}
-		// Flush is called only one of the cbufidx is >0, but if we find no columns
-		// with cbufidx > 0 other than timestamp column, only then declare this as an error
-		// else we won;t create a sst file
 		if found == 0 {
 			log.Errorf("FlushSegStats: no segstats to flush, found: %v cwips with data", found)
 			return errors.New("FlushSegStats: no segstats to flush")
