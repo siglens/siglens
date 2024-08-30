@@ -18,14 +18,18 @@
 package bench
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/linvon/cuckoo-filter"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -40,6 +44,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastrand"
 
@@ -608,4 +613,147 @@ func Benchmark_S3_segupload(b *testing.B) {
 
 	*/
 
+}
+
+func AddToBlockBloom(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
+
+	copy := fullWord[:]
+	cnt := uint32(0)
+	if !blockBloom.TestAndAdd(copy) {
+		cnt++
+	}
+
+	for {
+		i := bytes.Index(copy, utils.BYTE_SPACE)
+		if i == -1 {
+			break
+		}
+		if !blockBloom.TestAndAdd(copy[:i]) {
+			cnt++
+		}
+		copy = copy[i+utils.BYTE_SPACE_LEN:]
+	}
+
+	return cnt
+}
+
+func WriteBloom(strs [][]byte) {
+	bloom := bloom.NewWithEstimates(5000000, utils.BLOOM_COLL_PROBABILITY)
+
+	wordCount := uint32(0)
+	
+	for _, str := range strs {
+		wordCount += AddToBlockBloom(bloom, str)
+	}
+	fmt.Println("Added", wordCount, " to bloom filter")
+
+	fname := "bloomfilter.bin"
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// Create a buffered writer for better performance
+	writer := bufio.NewWriter(file)
+
+	// Write the Bloom filter to the file
+	_, err = bloom.WriteTo(writer)
+	if err != nil {
+		panic(err)
+	}
+
+	// Flush the writer to ensure all data is written to the file
+	err = writer.Flush()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func AddToCuckoo(cuckoo *cuckoo.Filter, fullWord []byte) uint32 {
+
+	cnt := uint32(0)
+	copy := fullWord[:]
+	if !cuckoo.Contain(copy) {
+		cnt++
+	}
+	cuckoo.Add(copy)
+	
+
+	for {
+		i := bytes.Index(copy, utils.BYTE_SPACE)
+		if i == -1 {
+			break
+		}
+		if !cuckoo.Contain(copy[:i]) {
+			cnt++
+		}
+		cuckoo.Add(copy[:i])
+		copy = copy[i+utils.BYTE_SPACE_LEN:]
+	}
+
+	return cnt
+}
+
+
+func WriteCuckoo(strs [][]byte) {
+	cuckoo := cuckoo.NewFilter(4, 8, 5000000, cuckoo.TableTypePacked)
+
+	wordCount := uint32(0)
+	
+	for _, str := range strs {
+		wordCount += AddToCuckoo(cuckoo, str)
+	}
+	fmt.Println("Added", wordCount, " to cuckoo filter")
+	
+	// Open a file for writing
+	fname := "cuckoo_filter.bin"
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		// Handle error
+		panic(err)
+	}
+	defer file.Close()
+
+	// Create a buffered writer
+    writer := bufio.NewWriter(file)
+
+    // Serialize the filter to bytes
+    data, err := cuckoo.Encode()
+    if err != nil {
+        panic(err)
+    }
+
+    // Write the serialized data to the file using the buffered writer
+    _, err = writer.Write(data)
+    if err != nil {
+        panic(err)
+    }
+
+    // Flush the buffer to ensure all data is written to the file
+    err = writer.Flush()
+    if err != nil {
+        panic(err)
+    }
+}
+
+func Benchmark_Bloom_Filters(b *testing.B) {
+	N := 10_000_000
+
+	randomStrs := make([][]byte, N)
+	for i := 0; i < N; i++ {
+		randomStrs[i] = []byte(putils.GetRandomString(100, putils.AlphaNumeric))
+	}
+
+	WriteBloom(randomStrs)	
+	WriteCuckoo(randomStrs)
+	
+	/*
+	   go test -run=Bench -bench=Benchmark_Bloom_Filters  -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go tool pprof ./rawsearch_cpu
+
+	   (for mem profile)
+	   go test -run=Bench -bench=Benchmark_Bloom_Filters -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go tool pprof ./rawsearch_mem memprofile.out
+	*/
 }
