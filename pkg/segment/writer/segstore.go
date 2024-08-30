@@ -202,6 +202,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 		for _, cwip := range segstore.wipBlock.colWips {
 			wipCbufPool.Put(&cwip.cbuf)
+			wipCbufPool.Put(&cwip.dePackingBuf)
 		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
@@ -306,6 +307,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 
 	for _, cwip := range segstore.wipBlock.colWips {
 		wipCbufPool.Put(&cwip.cbuf)
+		wipCbufPool.Put(&cwip.dePackingBuf)
 	}
 
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
@@ -441,6 +443,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
 	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -511,6 +514,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
 	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 

@@ -465,12 +465,14 @@ func InitColWip(segKey string, colName string) *ColWip {
 	}
 
 	cbuf := *wipCbufPool.Get().(*[]byte)
+	dePack := *wipCbufPool.Get().(*[]byte)
 
 	return &ColWip{
-		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:   &deData,
-		dciPool:  dciPool,
-		cbuf:     cbuf,
+		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:       &deData,
+		dciPool:      dciPool,
+		cbuf:         cbuf,
+		dePackingBuf: dePack,
 	}
 }
 
