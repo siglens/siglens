@@ -19,9 +19,9 @@ package utils
 
 import (
 	"fmt"
-    "github.com/buger/jsonparser"
 	"strings"
-	"github.com/siglens/siglens/pkg/segment/utils"
+
+	"github.com/buger/jsonparser"
 )
 
 // Flatten takes a map and returns a new one where nested maps are replaced
@@ -66,21 +66,39 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 // It uses the supplied workBuf to avoid unnecessary allocations and resizing.
 // If the value is not a string or if an error occurs, it returns an appropriate error.
 func GetStringFromJson(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
-    v, dataType, _, err := jsonparser.Get(data, keys...)
-    if err != nil {
-        return nil, err
-    }
-
-    if dataType != jsonparser.String {
-        if dataType == jsonparser.Null {
-            return nil, fmt.Errorf("key %s has a null value", strings.Join(keys, ", "))
+	// Estimate the size needed for workBuf before copying the value
+	estimatedSize := 0
+	for _, key := range keys {
+		if len(key) > estimatedSize {
+			estimatedSize = len(key)
 		}
-        return nil, fmt.Errorf("expected string value for key(s) %s but got %s", strings.Join(keys, ", "), dataType)
-    }
+	}
 
-    // Use ResizeSlice to extend workBuf
-    workBuf = ResizeSlice(workBuf, len(v))
+	// Resize workBuf to fit the estimated size
+	workBuf = ResizeSlice(workBuf, estimatedSize)
 
-    copy(workBuf, v)
-    return workBuf, nil
+	// Extract the value directly into workBuf
+	var err error
+	var value []byte
+	var dataType jsonparser.ValueType
+
+	value, dataType, _, err = jsonparser.Get(data, keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	if dataType != jsonparser.String {
+		if dataType == jsonparser.Null {
+			return nil, fmt.Errorf("key %s has a null value", strings.Join(keys, ", "))
+		}
+		return nil, fmt.Errorf("expected string value for key(s) %s but got %s", strings.Join(keys, ", "), dataType)
+	}
+
+	// Resize workBuf again to fit the actual length of the extracted value
+	workBuf = ResizeSlice(workBuf, len(value))
+
+	// Copy the extracted value directly into workBuf
+	copy(workBuf, value)
+
+	return workBuf, nil
 }

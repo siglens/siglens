@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -282,14 +283,14 @@ func TestFlatten(t *testing.T) {
 }
 
 func TestGetStringFromJson(t *testing.T) {
-    data := []byte(`{"key": "value"}`)
-    workBuf := make([]byte, 0) // or nil if applicable
+	data := []byte(`{"key": "value"}`)
+	workBuf := make([]byte, 0) // or nil if applicable
 
-    result, err := GetString(data, workBuf, "key")
+	result, err := GetString(data, workBuf, "key")
 
-    // Use assert to check for errors
-    assert.NoError(t, err, "expected no error, got: %v", err)
-    
-    // Assert that the result matches the expected value
-    assert.Equal(t, []byte("value"), result, "expected result to be 'value', got: %s", result)
+	// Use assert to check for errors
+	assert.NoError(t, err, "expected no error, got: %v", err)
+
+	// Assert that the result matches the expected value
+	assert.Equal(t, []byte("value"), result, "expected result to be 'value', got: %s", result)
 }
