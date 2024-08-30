@@ -984,7 +984,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"invalid"})
+	colsToDrop := map[string]uint64{"invalid": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NotNil(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1034,7 +1035,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"brand"})
+	colsToDrop = map[string]uint64{"brand": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number, 0)
@@ -1084,7 +1086,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"color"})
+	colsToDrop = map[string]uint64{"color": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1127,7 +1130,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"type"})
+	colsToDrop = map[string]uint64{"type": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1171,7 +1175,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"brand", "color"})
+	colsToDrop = map[string]uint64{"brand": 10000, "color": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1201,7 +1206,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"color", "type"})
+	colsToDrop = map[string]uint64{"color": 10000, "type": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)
@@ -1231,7 +1237,8 @@ func TestStarTree2(t *testing.T) {
 	encMap, err = builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	err = builder.DropColumns([]string{"brand", "type"})
+	colsToDrop = map[string]uint64{"brand": 10000, "type": 10000}
+	err = builder.DropColumns(colsToDrop)
 	assert.NoError(t, err)
 
 	aggValues = make(map[string][]*utils.Number)

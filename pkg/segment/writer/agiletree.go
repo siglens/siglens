@@ -216,7 +216,7 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
-func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
+func (stb *StarTreeBuilder) DropColumns(colsToDrop map[string]uint64) error {
 	if len(colsToDrop) == 0 {
 		return nil
 	}
@@ -230,12 +230,16 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
 	}
 
 	// check if all columns to drop are present
-	for _, colToDrop := range colsToDrop {
-		colIdx, exists := mapColNameToIdx[colToDrop]
-		if !exists {
-			return fmt.Errorf("DropColumns: column to drop %v not found", colToDrop)
+	for colcolsToDrop := range colsToDrop {
+		if _, exists := mapColNameToIdx[colcolsToDrop]; !exists {
+			return fmt.Errorf("DropColumns: column to drop %v not found", colcolsToDrop)
 		}
-		err := stb.DropColumn(colToDrop)
+	}
+
+	// drop the columns
+	for colToDrop := range colsToDrop {
+		colIdx := mapColNameToIdx[colToDrop]
+		err := stb.dropColumn(colToDrop)
 		if err != nil {
 			return fmt.Errorf("DropColumns: Error while dropping column %v, err: %v", colToDrop, err)
 		}
@@ -246,13 +250,14 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
 	stb.segDictEncRev = toputils.RemoveElements(stb.segDictEncRev, dropIndexes)
 	stb.segDictLastNum = toputils.RemoveElements(stb.segDictLastNum, dropIndexes)
 
-	// No need to update wipRecNumToColEnc, since it will be reset in each ComputeStarTree based on groupByKeys
+	// No need to update wipRecNumToColEnc based on index, since it will be repopulated based on update groupByKeys in creatEnc
 	stb.wipRecNumToColEnc = stb.wipRecNumToColEnc[:stb.numGroupByCols]
 
 	return nil
 }
 
-func (stb *StarTreeBuilder) DropColumn(colToDrop string) error {
+// This method is not for external use, always use DropColumns
+func (stb *StarTreeBuilder) dropColumn(colToDrop string) error {
 	newGrpByKeys := make([]string, 0, len(stb.groupByKeys)-1)
 	dropLevel := -1
 	for idx, col := range stb.groupByKeys {
