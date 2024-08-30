@@ -114,7 +114,7 @@ type ColWip struct {
 	cbuf         []byte // in progress bytes
 	csgFname     string // file name of csg file
 	deData       *DeData
-	dePackingBuf [WIP_DE_PACKING_SIZE]byte
+	dePackingBuf []byte
 	dciPool      []*DwordCbufIdxs
 }
 
@@ -181,8 +181,10 @@ func GetInMemorySize() uint64 {
 
 	totalSize := uint64(0)
 	for _, s := range allSegStores {
+		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
 		totalSize += s.GetSegStorePQMatchSize()
+		s.Lock.Unlock()
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
@@ -463,12 +465,14 @@ func InitColWip(segKey string, colName string) *ColWip {
 	}
 
 	cbuf := *wipCbufPool.Get().(*[]byte)
+	dePack := *wipCbufPool.Get().(*[]byte)
 
 	return &ColWip{
-		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:   &deData,
-		dciPool:  dciPool,
-		cbuf:     cbuf,
+		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:       &deData,
+		dciPool:      dciPool,
+		cbuf:         cbuf,
+		dePackingBuf: dePack,
 	}
 }
 
