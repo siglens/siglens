@@ -184,7 +184,8 @@ var QUERY_MAX_BUCKETS = uint64(10_000)
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
 var TIMESTAMP_TOPDIFF_VARENC = []byte{2}
-var STAR_TREE_BLOCK = []byte{3}
+var STAR_TREE_BLOCK = []byte{4}
+var STAR_TREE_BLOCK_LEGACY = []byte{3}
 
 type SS_IntUintFloatTypes int
 
