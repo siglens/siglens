@@ -265,6 +265,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats values(eval(http_status > 400)) as values",now-1d,now,*,group:values:*,eq,[1],Splunk QL
 "app_name=Bracecould | stats values(eval(""abc"")) as values",now-1d,now,*,group:values:*,eq,"[abc]",Splunk QL
 "app_name=Bracecould | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
+"app_name=Bracecould | sort http_status | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
 "app_name=Bracecould | stats values(eval(if(http_status > 400, 100, ""abc""))) as values",now-1d,now,*,group:values:*,eq,"[100 abc]",Splunk QL
 "app_name=Bracecould | stats values(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as values",now-1d,now,*,group:values:*,eq,"[HEAD PATCH PUT]",Splunk QL
 "city=Boston | stats avg(eval(if(http_status > 400, ""100"", ""10""))) as avg BY http_method",now-1d,now,*,group:avg:GET,eq,44.5,Splunk QL
@@ -398,3 +399,4 @@ NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
 "app_name=Grayeye | stats list(eval(http_status + 10)) as list",now-1d,now,*,group:list:*,eq,[311],Splunk QL
 "app_name=Grayeye | stats list(eval(if(http_status > 300, 100, ""abc""))) as list",now-1d,now,*,group:list:*,eq,[100],Splunk QL
 "app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
+"app_name=Grayeye | sort http_status | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
