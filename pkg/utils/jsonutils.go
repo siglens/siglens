@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"errors"
     "github.com/buger/jsonparser"
+	"strings"
 )
 
 // Flatten takes a map and returns a new one where nested maps are replaced
@@ -61,6 +62,9 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 	}
 }
 
+// GetString extracts a string value from JSON data based on the provided keys.
+// It uses the supplied workBuf to avoid unnecessary allocations and resizing.
+// If the value is not a string or if an error occurs, it returns an appropriate error.
 func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
     v, dataType, _, err := jsonparser.Get(data, keys...)
     if err != nil {
@@ -69,7 +73,7 @@ func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
 
     if dataType != jsonparser.String {
         if dataType == jsonparser.Null {
-            return nil, errors.New("Null value")
+            return nil, fmt.Errorf("key %s has a null value", strings.Join(keys, ", "))
         }
         return nil, fmt.Errorf("value is not a string: %s", string(v))
     }
@@ -81,7 +85,5 @@ func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
     }
 
     copy(workBuf, v)
-
     return workBuf, nil
 }
-

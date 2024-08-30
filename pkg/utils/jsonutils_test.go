@@ -279,3 +279,18 @@ func TestFlatten(t *testing.T) {
 		})
 	}
 }
+
+func TestGetString_BufferResizing(t *testing.T) {
+    data := []byte(`{"key": "value"}`)
+    var workBuf []byte // Initialize an empty buffer
+
+    result, err := GetString(data, workBuf, "key")
+    if err != nil {
+        t.Fatalf("expected no error, got %v", err)
+    }
+
+    expected := "value"
+    if string(result) != expected {
+        t.Errorf("expected %s, got %s", expected, result)
+    }
+}
