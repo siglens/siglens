@@ -955,7 +955,7 @@ func (segstore *SegStore) computeStarTree() {
 			return
 		}
 		if len(highCardCols) > 0 {
-			log.Warnf("computeStarTree: Dropping high card cols %v found with high card: %v, blockNum: %v", highCardCols, highCardVals, segstore.numBlocks)
+			log.Warnf("computeStarTree: Dropping cols %v with high cardinality: %v, blockNum: %v", highCardCols, highCardVals, segstore.numBlocks)
 			err := segstore.stbHolder.stbPtr.DropColumns(highCardCols)
 			if err != nil {
 				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)

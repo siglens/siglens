@@ -42,8 +42,11 @@ func Test_RemoveElements(t *testing.T) {
 		3: {},
 	}
 
-	newSlice, err := RemoveElements(slice, idxsToRemove)
-	assert.Nil(t, err)
+	newSlice := RemoveElements(slice, idxsToRemove)
 	assert.Len(t, newSlice, 3)
 	assert.Equal(t, newSlice, []int{1, 3, 5})
+
+	newSlice = RemoveElements(newSlice, idxsToRemove)
+	assert.Len(t, newSlice, 2)
+	assert.Equal(t, newSlice, []int{1, 5})
 }

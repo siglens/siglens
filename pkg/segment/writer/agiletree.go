@@ -221,7 +221,6 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
 		return nil
 	}
 
-	var err error
 	mapColNameToIdx := make(map[string]int)
 	dropIndexes := make(map[int]struct{})
 
@@ -243,18 +242,10 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
 		dropIndexes[colIdx] = struct{}{}
 	}
 
-	stb.segDictMap, err = toputils.RemoveElements(stb.segDictMap, dropIndexes)
-	if err != nil {
-		return fmt.Errorf("DropColumns: error in cleaning segDictMap err:%v", err)
-	}
-	stb.segDictEncRev, err = toputils.RemoveElements(stb.segDictEncRev, dropIndexes)
-	if err != nil {
-		return fmt.Errorf("DropColumns: error in cleaning segDictEncRev err:%v", err)
-	}
-	stb.segDictLastNum, err = toputils.RemoveElements(stb.segDictLastNum, dropIndexes)
-	if err != nil {
-		return fmt.Errorf("DropColumns: error in cleaning segDictLastNum err:%v", err)
-	}
+	stb.segDictMap = toputils.RemoveElements(stb.segDictMap, dropIndexes)
+	stb.segDictEncRev = toputils.RemoveElements(stb.segDictEncRev, dropIndexes)
+	stb.segDictLastNum = toputils.RemoveElements(stb.segDictLastNum, dropIndexes)
+
 	// No need to update wipRecNumToColEnc, since it will be reset in each ComputeStarTree based on groupByKeys
 	stb.wipRecNumToColEnc = stb.wipRecNumToColEnc[:stb.numGroupByCols]
 
@@ -281,6 +272,8 @@ func (stb *StarTreeBuilder) DropColumn(colToDrop string) error {
 	}
 	stb.numGroupByCols--
 	stb.groupByKeys = newGrpByKeys
+
+	// Rest of the cleanup is done in DropColumns for efficiency
 
 	return nil
 }
