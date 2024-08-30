@@ -546,18 +546,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
-		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
-		if sizeNeeded > 0 {
-			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
-				sizeNeeded)
-			// now make each of these bufs of atleast WIP_SIZE
-			for i := 0; i < len(segstore.workBufForCompression); i++ {
-				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
-				if bsizeNeeded > 0 {
-					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
-						bsizeNeeded)
-				}
-			}
+		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+			len(segstore.wipBlock.colWips))
+		// now make each of these bufs of atleast WIP_SIZE
+		for i := 0; i < len(segstore.workBufForCompression); i++ {
+			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+				utils.WIP_SIZE)
 		}
 
 		if config.IsAggregationsEnabled() {
