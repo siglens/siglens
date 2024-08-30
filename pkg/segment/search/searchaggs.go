@@ -663,7 +663,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				strVal, err := value.GetString()
 				if err != nil {
 					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
-					value.CVal = ""
+					value.Dtype = utils.SS_INVALID
 				} else {
 					value.CVal = strVal
 				}
@@ -671,9 +671,13 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				value.CVal = humanize.Comma(value.CVal.(int64))
 			default:
 				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", value.Dtype)
-				value.CVal = ""
+				value.Dtype = utils.SS_INVALID
 			}
-			finalSegment[colName] = value.CVal
+			if value.Dtype != utils.SS_INVALID {
+				finalSegment[colName] = value.CVal
+			} else {
+				finalSegment[colName] = ""
+			}
 		}
 		recs[firstRecInden] = finalSegment
 	}
