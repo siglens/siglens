@@ -19,6 +19,8 @@ package utils
 
 import (
 	"fmt"
+	"errors"
+    "github.com/buger/jsonparser"
 )
 
 // Flatten takes a map and returns a new one where nested maps are replaced
@@ -58,3 +60,28 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 		m[key] = child
 	}
 }
+
+func GetString(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
+    v, dataType, _, err := jsonparser.Get(data, keys...)
+    if err != nil {
+        return nil, err
+    }
+
+    if dataType != jsonparser.String {
+        if dataType == jsonparser.Null {
+            return nil, errors.New("Null value")
+        }
+        return nil, fmt.Errorf("value is not a string: %s", string(v))
+    }
+
+    if cap(workBuf) < len(v) {
+        workBuf = make([]byte, len(v))
+    } else {
+        workBuf = workBuf[:len(v)]
+    }
+
+    copy(workBuf, v)
+
+    return workBuf, nil
+}
+
