@@ -546,18 +546,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
-		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
-		if sizeNeeded > 0 {
-			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
-				sizeNeeded)
-			// now make each of these bufs of atleast WIP_SIZE
-			for i := 0; i < len(segstore.workBufForCompression); i++ {
-				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
-				if bsizeNeeded > 0 {
-					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
-						bsizeNeeded)
-				}
-			}
+		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+			len(segstore.wipBlock.colWips))
+		// now make each of these bufs of atleast WIP_SIZE
+		for i := 0; i < len(segstore.workBufForCompression); i++ {
+			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+				utils.WIP_SIZE)
 		}
 
 		if config.IsAggregationsEnabled() {
@@ -1440,8 +1434,26 @@ Encoding Scheme for all columns single file
 func (ss *SegStore) FlushSegStats() error {
 
 	if len(ss.AllSst) <= 0 {
-		log.Errorf("FlushSegStats: no segstats to flush")
-		return errors.New("FlushSegStats: no segstats to flush")
+		found := 0
+		tsKey := config.GetTimeStampKey()
+		for cname, cwip := range ss.wipBlock.colWips {
+			if cwip.cbufidx > 0 {
+				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v", cname,
+					cwip.cbufidx)
+				if cname != tsKey {
+					found += 1
+				}
+			}
+		}
+		// Flush is called only one of the cbufidx is >0, but if we find no columns
+		// with cbufidx > 0 other than timestamp column, only then declare this as an error
+		// else we won;t create a sst file
+		if found == 0 {
+			log.Errorf("FlushSegStats: no segstats to flush, found: %v cwips with data", found)
+			return errors.New("FlushSegStats: no segstats to flush")
+		} else {
+			return nil
+		}
 	}
 
 	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
