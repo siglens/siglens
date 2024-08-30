@@ -284,9 +284,9 @@ func TestFlatten(t *testing.T) {
 
 func TestGetStringFromJson(t *testing.T) {
 	data := []byte(`{"key": "value"}`)
-	workBuf := make([]byte, 0) // or nil if applicable
+	workBuf := make([]byte, 0)
 
-	result, err := GetString(data, workBuf, "key")
+	result, err := GetStringFromJson(data, workBuf, "key")
 
 	// Use assert to check for errors
 	assert.NoError(t, err, "expected no error, got: %v", err)
