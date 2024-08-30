@@ -123,6 +123,21 @@ func (str *AgileTreeReader) resetBlkVars() {
 	str.isMetaLoaded = false
 }
 
+func validateTreeEncodingVersion(version byte) error {
+	switch version {
+	case utils.VERSION_STAR_TREE_BLOCK[0]:
+		// do nothing, this is the expected encoding
+	case utils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
+		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
+		return errors.New("received legacy agileTree encoding")
+	default:
+		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
+		return errors.New("received non-agileTree encoding")
+	}
+
+	return nil
+}
+
 /*
 parameters:
 
@@ -156,16 +171,9 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 
 	encodingVersion := str.metaFileBuffer[0]
-
-	switch encodingVersion {
-	case utils.STAR_TREE_BLOCK[0]:
-		// do nothing, this is the expected encoding
-	case utils.STAR_TREE_BLOCK_LEGACY[0]:
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", encodingVersion)
-		return errors.New("received legacy agileTree encoding")
-	default:
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", encodingVersion)
-		return errors.New("received non-agileTree encoding")
+	err = validateTreeEncodingVersion(encodingVersion)
+	if err != nil {
+		return err
 	}
 
 	idx := uint32(0)
