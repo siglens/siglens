@@ -90,7 +90,6 @@ function updateDownloadButtons() {
         jsonButton.addClass('disabled-tab');
     }
 }
-
 $(document).ready(async function () {
     updateDownloadButtons();
     var currentPage = window.location.pathname;
@@ -153,6 +152,20 @@ function getUrlParameter(name) {
     let results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
+// Updates saved Metrics Url on changing in metrics Explorer
+function updateMetricsQueryParamsInUrl() {
+    if (!isAlertScreen && !isDashboardScreen) {
+        let metricsQueryParamsData = getMetricsQData();
+        const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
+        const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
+        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
+        window.history.replaceState(null, '', newUrl);
+    }
+}
+
 let formulaDetailsMap = {};
 async function initializeFormulaFunction(formulaElement, uniqueId) {
     if (!formulaDetailsMap[uniqueId] || !formulaDetailsMap[uniqueId].formula) {
@@ -2115,12 +2128,11 @@ async function getMetricsData(queryName, metricName, state) {
 
     try {
         const res = await fetchTimeSeriesData(data);
-
-        metricsQueryParams = data; // For alerts page
-
         if (res) {
             rawTimeSeriesData = res;
             updateDownloadButtons();
+            updateMetricsQueryParamsInUrl();
+            metricsQueryParams = data; // For alerts page
         }
     } catch (error) {
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
@@ -2146,26 +2158,37 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
-        let queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
+        let queryString;
+        let state = queryDetails.state;
+        if (queryDetails.state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
 
         const query = {
             name: queryName,
             query: queryString,
             qlType: 'promql',
-            state: queryDetails.state,
+            state: state,
         };
         queriesData.push(query);
 
+        // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
+    let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
         functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
+            formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = { formula: formulaString };
+    const formula = {
+        formula: formwithfun,
+    };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
 
@@ -2195,8 +2218,9 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
         displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
     }
+    updateDownloadButtons();
+    updateMetricsQueryParamsInUrl();
 }
-
 async function fetchTimeSeriesData(data) {
     return await $.ajax({
         method: 'post',
@@ -2831,7 +2855,6 @@ function formatMetricsForUrlParams(panelMetricsQueryParams) {
 //eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
     let metricsQueryParamsData = getMetricsQData();
-
     // Transform the structure to match `metricsQueryParams`
     const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
 

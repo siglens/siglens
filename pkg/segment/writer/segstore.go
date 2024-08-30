@@ -200,17 +200,17 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
+		for _, cwip := range segstore.wipBlock.colWips {
+			wipCbufPool.Put(&cwip.cbuf)
+		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for dword := range cwip.deData.deToRecnumIdx {
-				delete(cwip.deData.deToRecnumIdx, dword)
-			}
-			for cvalHash := range cwip.deData.deHashToRecnumIdx {
-				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			for cvalHash := range cwip.deData.hashToDci {
+				delete(cwip.deData.hashToDci, cvalHash)
 			}
 			for idx := range cwip.deData.deRecNums {
 				cwip.deData.deRecNums[idx] = nil
@@ -303,6 +303,11 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqNonEmptyResults = make(map[string]bool)
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		wipCbufPool.Put(&cwip.cbuf)
+	}
+
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
@@ -435,6 +440,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -504,6 +510,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -539,18 +546,16 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
-		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
-		if sizeNeeded > 0 {
-			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
-				sizeNeeded)
-			// now make each of these bufs of atleast WIP_SIZE
-			for i := 0; i < len(segstore.workBufForCompression); i++ {
-				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
-				if bsizeNeeded > 0 {
-					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
-						bsizeNeeded)
-				}
-			}
+		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+			len(segstore.wipBlock.colWips))
+		// now make each of these bufs of atleast WIP_SIZE
+		for i := 0; i < len(segstore.workBufForCompression); i++ {
+			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+				utils.WIP_SIZE)
+		}
+
+		if config.IsAggregationsEnabled() {
+			segstore.computeStarTree()
 		}
 
 		compBufIdx := 0
@@ -603,9 +608,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
 				compBufIdx++
 			}
-		}
-		if config.IsAggregationsEnabled() {
-			segstore.computeStarTree()
 		}
 
 		allColsToFlush.Wait()
@@ -1043,12 +1045,11 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
-	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
@@ -1063,7 +1064,10 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
-	segstore.wipBlock.maxIdx = maxIdx
+	for _, cwip := range segstore.wipBlock.colWips {
+		segstore.wipBlock.maxIdx = utils.MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+	}
+
 	segstore.wipBlock.blockSummary.RecCount += 1
 	segstore.RecordCount++
 	segstore.lastUpdated = time.Now()
@@ -1430,8 +1434,26 @@ Encoding Scheme for all columns single file
 func (ss *SegStore) FlushSegStats() error {
 
 	if len(ss.AllSst) <= 0 {
-		log.Errorf("FlushSegStats: no segstats to flush")
-		return errors.New("FlushSegStats: no segstats to flush")
+		found := 0
+		tsKey := config.GetTimeStampKey()
+		for cname, cwip := range ss.wipBlock.colWips {
+			if cwip.cbufidx > 0 {
+				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v", cname,
+					cwip.cbufidx)
+				if cname != tsKey {
+					found += 1
+				}
+			}
+		}
+		// Flush is called only one of the cbufidx is >0, but if we find no columns
+		// with cbufidx > 0 other than timestamp column, only then declare this as an error
+		// else we won;t create a sst file
+		if found == 0 {
+			log.Errorf("FlushSegStats: no segstats to flush, found: %v cwips with data", found)
+			return errors.New("FlushSegStats: no segstats to flush")
+		} else {
+			return nil
+		}
 	}
 
 	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
