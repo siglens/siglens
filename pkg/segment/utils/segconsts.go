@@ -63,11 +63,6 @@ const MULTINODE_SSM_MEM_PERCENT = 20
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000
 
-// Max recs that could fit in a wip is 20k,
-// if only 1 dict word then 20k *2 bytes for recnum + wordlen
-// if  2 dict word then (20k/2 *2 bytes for recnum)*2 words + wordlen
-// basically we need max of 20k * 2 bytes for recnum + some buffer
-const WIP_DE_PACKING_SIZE = 200_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
@@ -147,7 +142,12 @@ var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
-var VERSION_SEGSTATS = []byte{2}
+var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
+var VERSION_SEGSTATS_LEGACY = []byte{1}
+
+var VERSION_SEGSTATS_BUF = []byte{3} // version of the single column Seg Stats in a Segment
+var VERSION_SEGSTATS_BUF_LEGACY_1 = []byte{1}
+var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
@@ -184,7 +184,8 @@ var QUERY_MAX_BUCKETS = uint64(10_000)
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
 var TIMESTAMP_TOPDIFF_VARENC = []byte{2}
-var STAR_TREE_BLOCK = []byte{3}
+var VERSION_STAR_TREE_BLOCK = []byte{4}
+var VERSION_STAR_TREE_BLOCK_LEGACY = []byte{3}
 
 type SS_IntUintFloatTypes int
 
