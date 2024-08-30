@@ -19,7 +19,6 @@ package utils
 
 import (
 	"fmt"
-	"errors"
     "github.com/buger/jsonparser"
 	"strings"
 )
