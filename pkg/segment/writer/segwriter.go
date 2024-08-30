@@ -114,7 +114,7 @@ type ColWip struct {
 	cbuf         []byte // in progress bytes
 	csgFname     string // file name of csg file
 	deData       *DeData
-	dePackingBuf [WIP_DE_PACKING_SIZE]byte
+	dePackingBuf []byte
 	dciPool      []*DwordCbufIdxs
 }
 

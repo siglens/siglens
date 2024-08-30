@@ -1489,7 +1489,9 @@ func SetCardinalityLimit(val uint16) {
 func PackDictEnc(colWip *ColWip) {
 
 	localIdx := 0
-	// reuse the existing cbuf
+	colWip.dePackingBuf = *wipCbufPool.Get().(*[]byte)
+	defer wipCbufPool.Put(&colWip.dePackingBuf)
+
 	// copy num of dict words
 	copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
 	localIdx += 2
