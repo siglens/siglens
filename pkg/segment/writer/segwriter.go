@@ -181,8 +181,10 @@ func GetInMemorySize() uint64 {
 
 	totalSize := uint64(0)
 	for _, s := range allSegStores {
+		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
 		totalSize += s.GetSegStorePQMatchSize()
+		s.Lock.Unlock()
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()

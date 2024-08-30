@@ -1438,8 +1438,8 @@ func (ss *SegStore) FlushSegStats() error {
 		tsKey := config.GetTimeStampKey()
 		for cname, cwip := range ss.wipBlock.colWips {
 			if cwip.cbufidx > 0 {
-				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v", cname,
-					cwip.cbufidx)
+				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v, segkey: %v",
+					cname, cwip.cbufidx, ss.SegmentKey)
 				if cname != tsKey {
 					found += 1
 				}
