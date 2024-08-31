@@ -842,7 +842,8 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v5(t *testing.T) {
 	queryResultsMap[xxhash.Sum64String("node_memory_MemTotal_bytes")] = queryResult2
 	queryResultsMap[xxhash.Sum64String("node_disk_reads_completed_total")] = queryResult3
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	opLabelsDoNotNeedToMatch := false // Since there are multiple results that have more than one series, the labels need to match.
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, opLabelsDoNotNeedToMatch)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 	fmt.Println(mResult.Results)
