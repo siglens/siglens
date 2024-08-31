@@ -103,7 +103,7 @@ $('#clear-pqs-info').on('click', function () {
     $('#clear-pqs').on('click', function () {
         $.ajax({
             url: '/api/pqs/clear',
-            method: 'GET',
+            method: 'POST',
             success: function () {
                 $('.pqs-grid').empty();
                 showToast('PQS Info cleared successfully', 'success');

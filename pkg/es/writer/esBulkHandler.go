@@ -22,7 +22,9 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -54,7 +56,20 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
+const MAX_INDEX_NAME_LEN = 256
+const RESP_ITEMS_INITIAL_LEN = 4000
+
 var resp_status_201 map[string]interface{}
+
+var respItemsPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
+		return &slice
+	},
+}
 
 func init() {
 	resp_status_201 = make(map[string]interface{})
@@ -120,9 +135,16 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	scanner.Split(bufio.ScanLines)
 
 	var bytesReceived int
-	// store all request index
-	itemsLen := 1000
-	var items = make([]interface{}, itemsLen)
+
+	items := *respItemsPool.Get().(*[]interface{})
+	// if we end up extending items, then save the orig pointer, so that we can put it back
+	origItems := items
+	defer respItemsPool.Put(&origItems)
+
+	// kunal todo check , if items gets extended and we put back origitems then does the os
+	// delete the old items array ?
+	itemsLen := len(items)
+
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
 
@@ -131,15 +153,20 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// stack-allocated array for allocation-free unescaping of small strings
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
+	// we will accept indexnames only upto 256 bytes
+	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
+
 	for scanner.Scan() {
 		inCount++
 		if inCount >= itemsLen {
-			newArr := make([]interface{}, 1000)
+			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
 			itemsLen += 1000
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
+		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
+			idxNameParsingBuf)
+
 		switch esAction {
 
 		case INDEX, CREATE:
@@ -230,7 +257,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
+func extractIndexAndValidateAction(rawJson []byte,
+	idxNameParsingBuf []byte) (int, string, string) {
+
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
@@ -238,11 +267,14 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 			idVal = ""
 		}
 
-		idxVal, err := jp.GetString(val, INDEX_UNDER_STR)
-		if err != nil {
-			idxVal = ""
+		idxVal, idxDType, _, err := jp.Get(val, INDEX_UNDER_STR)
+		if err != nil || idxDType != jp.String {
+			idxVal = []byte("")
 		}
-		return INDEX, idxVal, idVal
+		copy(idxNameParsingBuf[:], idxVal[:])
+		idxNameParsingBuf = idxNameParsingBuf[0:len(idxVal)]
+
+		return INDEX, *(*string)(unsafe.Pointer(&idxNameParsingBuf)), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)

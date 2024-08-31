@@ -27,6 +27,7 @@ require (
 	github.com/rogpeppe/fastuuid v1.2.0
 	github.com/segmentio/analytics-go/v3 v3.2.1
 	github.com/shirou/gopsutil/v3 v3.24.1
+	github.com/siglens/go-hll v0.0.0-20240828170019-5e666abc6309
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/bytebufferpool v1.0.0
@@ -99,7 +100,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/go-co-op/gocron v1.31.1
 	github.com/prometheus/common v0.46.0
-	github.com/segmentio/go-hll v1.0.1
 	github.com/slack-go/slack v0.12.2
 	golang.org/x/net v0.23.0 // indirect
 	gorm.io/driver/sqlite v1.5.4

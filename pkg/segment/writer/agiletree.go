@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -35,6 +36,29 @@ var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 type StarTree struct {
 	Root *Node
+}
+
+type Node struct {
+	myKey     uint32
+	parent    *Node
+	children  map[uint32]*Node
+	aggValues []*utils.Number
+}
+
+type StarTreeBuilder struct {
+	groupByKeys       []string
+	numGroupByCols    uint16
+	mColNames         []string
+	nodeCount         int
+	nodePool          []*Node
+	tree              *StarTree
+	segDictMap        []map[string]uint32 // "mac" ==> enc-2
+	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
+	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
+	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
+	buf               []byte
+	// array to keep reusing for tree traversal. [level][*Node Array]
+	treeTravNodePtrs [][]*Node
 }
 
 // its ok for this to be int, since this will be used as an index in arrays
@@ -66,7 +90,9 @@ func GetSTB() *STBHolder {
 	for i := 0; i < MaxConcurrentAgileTrees; i++ {
 		if STBHolderPool[i] == nil {
 			STBHolderPool[i] = &STBHolder{
-				stbPtr: &StarTreeBuilder{},
+				stbPtr: &StarTreeBuilder{
+					// 1 extra for the root level
+					treeTravNodePtrs: make([][]*Node, querytracker.MAX_NUM_GROUPBY_COLS+1)},
 			}
 		}
 
@@ -107,27 +133,6 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	}
 	log.Errorf("AgFnToIdx: invalid fn: %v", fn)
 	return MeasFnCountIdx
-}
-
-type Node struct {
-	myKey     uint32
-	parent    *Node
-	children  map[uint32]*Node
-	aggValues []*utils.Number
-}
-
-type StarTreeBuilder struct {
-	groupByKeys       []string
-	numGroupByCols    uint16
-	mColNames         []string
-	nodeCount         int
-	nodePool          []*Node
-	tree              *StarTree
-	segDictMap        []map[string]uint32 // "mac" ==> enc-2
-	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
-	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
-	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
-	buf               []byte
 }
 
 func (stb *StarTreeBuilder) GetGroupByKeys() []string {
@@ -215,8 +220,12 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
-func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
+func (stb *StarTreeBuilder) setColValEnc(colNum int, colValBytes []byte) uint32 {
+
 	// todo a zero copy version of map lookups needed
+	// todo the key in these maps could be hash of the byte array and then
+	// we store a reverse hash map lookup
+	colVal := string(colValBytes)
 	enc, ok := stb.segDictMap[colNum][colVal]
 	if !ok {
 		enc = stb.segDictLastNum[colNum]
@@ -356,10 +365,12 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		cwip := wip.colWips[colName]
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
-			for rawKey, recIdx := range deData.deToRecnumIdx {
-				enc := stb.setColValEnc(colNum, rawKey)
+			for _, dci := range deData.hashToDci {
 
-				recNumsBitset := deData.deRecNums[recIdx]
+				dword := cwip.GetDictword(dci)
+
+				enc := stb.setColValEnc(colNum, dword)
+				recNumsBitset := deData.deRecNums[dci.recBsIdx]
 				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
 					if recNumsBitset.Test(uint(recNum)) {
 						stb.wipRecNumToColEnc[colNum][recNum] = enc
@@ -379,7 +390,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 				return err
 			}
 			idx += uint32(endIdx)
-			enc := stb.setColValEnc(colNum, string(cValBytes))
+			enc := stb.setColValEnc(colNum, cValBytes)
 			stb.wipRecNumToColEnc[colNum][recNum] = enc
 		}
 		if idx < cwip.cbufidx {
@@ -408,19 +419,12 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 		for mcNum, mcName := range stb.mColNames {
 			cwip := wip.colWips[mcName]
 			midx := mcNum * TotalMeasFns
-			cVal, err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName)
+			err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName, num)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not get measure for cname: %v, err: %v",
 					mcName, err)
 				continue
 			}
-			err = cVal.ToNumber(num)
-			if err != nil {
-				log.Errorf("buildTreeStructure: Could not convert cval: %v for cname: %v, err: %v",
-					cVal, mcName, err)
-				continue
-			}
-
 			err = stb.addMeasures(num, lenAggValues, midx, node)
 			if err != nil {
 				log.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
@@ -542,33 +546,34 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 */
 
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
-	colName string) (utils.CValueEnclosure, error) {
+	colName string, num *utils.Number) error {
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
-		for dword, recsIdx := range deData.deToRecnumIdx {
-			recNumsBitSet := deData.deRecNums[recsIdx]
+		for _, dci := range deData.hashToDci {
+
+			dword := cwip.GetDictword(dci)
+
+			recNumsBitSet := deData.deRecNums[dci.recBsIdx]
 			if recNumsBitSet.Test(uint(recNum)) {
-				var mcVal utils.CValueEnclosure
-				_, err := GetCvalFromRec([]byte(dword)[0:], 0, &mcVal)
+				_, err := GetNumValFromRec(dword[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
-					return utils.CValueEnclosure{}, err
+					return err
 				}
-				return mcVal, nil
+				return nil
 			}
 		}
-		return utils.CValueEnclosure{}, fmt.Errorf("could not find recNum: %v", recNum)
+		return fmt.Errorf("could not find recNum: %v", recNum)
 	}
 
-	var cVal utils.CValueEnclosure
-	endIdx, err := GetCvalFromRec(cwip.cbuf[cIdx[colNum]:], 0, &cVal) // todo pass qid
+	endIdx, err := GetNumValFromRec(cwip.cbuf[cIdx[colNum]:], 0, num) // todo pass qid
 	if err != nil {
 		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
-		return utils.CValueEnclosure{}, err
+		return err
 	}
 	cIdx[colNum] += uint32(endIdx)
-	return cVal, nil
+	return nil
 }
