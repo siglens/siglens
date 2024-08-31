@@ -351,17 +351,22 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 					strSet[str] = struct{}{}
 				}
 			}
+
 			if sr.runningSegStat[idx] != nil {
-
-				for str := range sr.runningSegStat[idx].StringStats.StrSet {
-					strSet[str] = struct{}{}
+				if sr.runningSegStat[idx].StringStats == nil {
+					sr.runningSegStat[idx].StringStats = &structs.StringStats{
+						StrSet: strSet,
+					}
+				} else {
+					for str := range sr.runningSegStat[idx].StringStats.StrSet {
+						strSet[str] = struct{}{}
+					}
+					sr.runningSegStat[idx].StringStats.StrSet = strSet
 				}
-
-				sr.runningSegStat[idx].StringStats.StrSet = strSet
+			} else {
+				sr.runningSegStat[idx] = currSst
 			}
-
 			sr.runningEvalStats[measureAgg.String()] = strSet
-
 			uniqueStrings := make([]string, 0)
 			for str := range strSet {
 				uniqueStrings = append(uniqueStrings, str)

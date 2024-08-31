@@ -469,7 +469,7 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 
 	// start with lower resolution and upgrade as necessary
 	rSst := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
+		Ntype:    utils.SS_DT_FLOAT,
 		IntgrVal: 0,
 	}
 	if currSegStat == nil {
@@ -487,10 +487,8 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 		switch currSegStat.NumStats.Sum.Ntype {
 		case utils.SS_DT_FLOAT:
 			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
 		default:
 			rSst.FloatVal = float64(currSegStat.NumStats.Sum.IntgrVal) / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
 		}
 		return &rSst, nil
 	}
@@ -501,22 +499,17 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + currSegStat.NumStats.Sum.FloatVal
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) + currSegStat.NumStats.Sum.FloatVal
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
 		}
 	default:
 		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + float64(currSegStat.NumStats.Sum.IntgrVal)
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
 		} else {
-			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
-			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
+			runningSegStat.NumStats.Sum.IntgrVal = runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal
+			rSst.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) / float64(runningSegStat.Count)
 		}
 	}
 
@@ -529,9 +522,9 @@ func GetSegList(runningSegStat *structs.SegStats,
 		Dtype: utils.SS_DT_STRING_SLICE,
 		CVal:  make([]string, 0),
 	}
-	if currSegStat == nil {
-		log.Errorf("GetSegList: currSegStat is nil")
-		return &res, errors.New("GetSegList: currSegStat is nil")
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+		log.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+		return &res, errors.New("GetSegList: currSegStat does not contain string list")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -551,13 +544,11 @@ func GetSegList(runningSegStat *structs.SegStats,
 	// Limit list size to match splunk.
 	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
 
-	if runningSegStat.StringStats != nil {
+	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
 		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 	}
 
-	if currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
-		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
-	}
+	strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 
 	res.CVal = strList
 	if runningSegStat.StringStats == nil {
