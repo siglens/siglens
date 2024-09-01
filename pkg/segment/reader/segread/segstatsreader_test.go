@@ -190,3 +190,209 @@ func TestGetSegList(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSegAvg_CurrSegStatIsNil(t *testing.T) {
+	runningSegStat := &structs.SegStats{}
+	currSegStat := (*structs.SegStats)(nil)
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		IntgrVal: 0,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.Error(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_CurrSegStatIsNonNumeric(t *testing.T) {
+	runningSegStat := &structs.SegStats{}
+	currSegStat := &structs.SegStats{
+		IsNumeric: false,
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		IntgrVal: 0,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.Error(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_FirstSegmentWithIntegerStats(t *testing.T) {
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 20,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	result, err := GetSegAvg(nil, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_FirstSegmentWithFloatStats(t *testing.T) {
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20.0,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	result, err := GetSegAvg(nil, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_RunningSegmentIntAndCurrentSegmentFloat(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     3,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 30,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20.0,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_RunningAndCurrentSegmentWithFloatStats(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20.0,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 10.0,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 7.5,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_RunningSegmentFloatAndCurrentSegmentInt(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20.0,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 10,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 7.5,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     3,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 30,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 20,
+			},
+		},
+	}
+
+	expected := &utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	result, err := GetSegAvg(runningSegStat, currSegStat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
