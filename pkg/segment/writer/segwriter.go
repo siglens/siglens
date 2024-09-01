@@ -574,6 +574,7 @@ func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) ui
 	// had to convert
 	hasUpper := utils.HasUpper(copy)
 
+	// add the original full
 	if !blockBloom.TestAndAdd(copy) {
 		blockWordCount += 1
 	}
@@ -585,10 +586,12 @@ func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) ui
 			break
 		}
 		hasSubWords = true
+		// add original sub word
 		if !blockBloom.TestAndAdd(copy[:i]) {
 			blockWordCount += 1
 		}
 
+		// add original sub word lowercase
 		if hasUpper {
 			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy[:i])) {
 				blockWordCount += 1
@@ -607,10 +610,17 @@ func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) ui
 		}
 	}
 
-	// if there is no subword, then we have not added the lower case, add it
-	if !hasSubWords && hasUpper {
-		if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
-			blockWordCount += 1
+	if hasUpper {
+		if hasSubWords {
+			// if subwords, then add the original full's lowercase
+			// but have to use the original var, since the copy is pointing to last subword
+			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(fullWord[:])) {
+				blockWordCount += 1
+			}
+		} else {
+			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
+				blockWordCount += 1
+			}
 		}
 	}
 
