@@ -1223,7 +1223,6 @@ func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
 	return cw.cbuf[s : s+wl]
 }
 
-
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 	cw *ColWip) error {
 
@@ -1252,6 +1251,9 @@ func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 
 func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 
+	// todo a better way to size the bloom might be to count the num of space and
+	// then add to the cw.deData.deCount, that should be the optimal size
+	// we add twice to avoid undersizing for above reason.
 	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount), BLOOM_COLL_PROBABILITY)
 	for _, dci := range cw.deData.hashToDci {
 		dword := cw.GetDictword(dci)
@@ -1270,7 +1272,8 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 
 	// todo a better way to size the bloom might be to count the num of space and
 	// then add to the numRecs, that should be the optimal size
-	bi.Bf = bloom.NewWithEstimates(uint(numRecs), BLOOM_COLL_PROBABILITY)
+	// we add twice to avoid undersizing for above reason.
+	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
 	idx := uint32(0)
 	for recNum := uint16(0); recNum < numRecs; recNum++ {
 		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
@@ -1282,7 +1285,7 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 
 		// we are going to insert only strings in the bloom
 		if cValBytes[0] == VALTYPE_ENC_SMALL_STRING[0] {
-			word := cValBytes[3: endIdx]
+			word := cValBytes[3:endIdx]
 			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, word, buf)
 			if err != nil {
 				return err
@@ -1293,7 +1296,6 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 	}
 	return nil
 }
-
 
 /*
 Adds the fullWord and sub-words (lowercase as well) to the bloom

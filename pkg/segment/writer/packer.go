@@ -998,6 +998,12 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
+
+			err := segStore.writeToBloom(encType, compWorkBuf[:cap(compWorkBuf)], cname, colWip)
+			if err != nil {
+				log.Fatalf("WriteMockColSegFile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+			}
+
 			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)

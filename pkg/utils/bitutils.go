@@ -263,7 +263,7 @@ func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
 		return nil, fmt.Errorf("BytesToLower: passed in workbuf len was smaller than b")
 	}
 
-	for i:= 0; i < blen; i++ {
+	for i := 0; i < blen; i++ {
 		if b[i] >= 'A' && b[i] <= 'Z' {
 			workBuf[i] = b[i] + 32
 		} else {
