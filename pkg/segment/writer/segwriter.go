@@ -1222,3 +1222,157 @@ func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
 	wl := uint32(dci.wlen)
 	return cw.cbuf[s : s+wl]
 }
+
+
+func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
+	cw *ColWip) error {
+
+	// no bloom for timestamp column
+	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
+		return nil
+	}
+
+	bi, ok := ss.wipBlock.columnBlooms[cname]
+	if !ok {
+		// for non-strings columns, BI is not iniliazed. Maybe there should be an
+		// explicit way of saying what columnType is this so that we don't "overload" the BI var
+		return nil
+	}
+
+	switch encType[0] {
+	case ZSTD_COMLUNAR_BLOCK[0]:
+		return cw.writeNonDeBloom(buf, bi, ss.wipBlock.blockSummary.RecCount, cname)
+	case ZSTD_DICTIONARY_BLOCK[0]:
+		return cw.writeDeBloom(buf, bi)
+	default:
+		log.Errorf("writeToBloom got an unknown encoding type: %+v", encType)
+		return fmt.Errorf("got an unknown encoding type: %+v", encType)
+	}
+}
+
+func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
+
+	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount), BLOOM_COLL_PROBABILITY)
+	for _, dci := range cw.deData.hashToDci {
+		dword := cw.GetDictword(dci)
+		// the first 3 bytes are TL(type len)
+		numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
+		if err != nil {
+			return err
+		}
+		bi.uniqueWordCount += numAdded
+	}
+	return nil
+}
+
+func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+	cname string) error {
+
+	// todo a better way to size the bloom might be to count the num of space and
+	// then add to the numRecs, that should be the optimal size
+	bi.Bf = bloom.NewWithEstimates(uint(numRecs), BLOOM_COLL_PROBABILITY)
+	idx := uint32(0)
+	for recNum := uint16(0); recNum < numRecs; recNum++ {
+		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
+		if err != nil {
+			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
+				cname, idx)
+			return err
+		}
+
+		// we are going to insert only strings in the bloom
+		if cValBytes[0] == VALTYPE_ENC_SMALL_STRING[0] {
+			word := cValBytes[3: endIdx]
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, word, buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		}
+		idx += uint32(endIdx)
+	}
+	return nil
+}
+
+
+/*
+Adds the fullWord and sub-words (lowercase as well) to the bloom
+Subwords are gotten by splitting the fullWord by whitespace
+*/
+func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []byte,
+	workBuf []byte) (uint32, error) {
+
+	var blockWordCount uint32 = 0
+	copy := fullWord[:]
+
+	// we will add the lowercase to bloom only if there was an upperCase and we
+	// had to convert
+	hasUpper := utils.HasUpper(copy)
+
+	// add the original full
+	if !blockBloom.TestAndAdd(copy) {
+		blockWordCount += 1
+	}
+
+	var hasSubWords bool
+	for {
+		i := bytes.Index(copy, BYTE_SPACE)
+		if i == -1 {
+			break
+		}
+		hasSubWords = true
+		// add original sub word
+		if !blockBloom.TestAndAdd(copy[:i]) {
+			blockWordCount += 1
+		}
+
+		// add sub word lowercase
+		if hasUpper {
+			word, err := utils.BytesToLower(copy[:i], workBuf)
+			if err != nil {
+				return 0, err
+			}
+			if !blockBloom.TestAndAdd(word) {
+				blockWordCount += 1
+			}
+		}
+		copy = copy[i+BYTE_SPACE_LEN:]
+	}
+
+	// handle last word. If no word was found, then we have already added the full word
+	if hasSubWords && len(copy) > 0 {
+		if !blockBloom.TestAndAdd(copy) {
+			blockWordCount += 1
+		}
+		word, err := utils.BytesToLower(copy, workBuf)
+		if err != nil {
+			return 0, err
+		}
+		if !blockBloom.TestAndAdd(word) {
+			blockWordCount += 1
+		}
+	}
+
+	if hasUpper {
+		if hasSubWords {
+			// if subwords, then add the original full's lowercase
+			// but have to use the original var, since the copy is pointing to last subword
+			word, err := utils.BytesToLower(fullWord[:], workBuf)
+			if err != nil {
+				return 0, err
+			}
+			if !blockBloom.TestAndAdd(word) {
+				blockWordCount += 1
+			}
+		} else {
+			word, err := utils.BytesToLower(copy, workBuf)
+			if err != nil {
+				return 0, err
+			}
+			if !blockBloom.TestAndAdd(word) {
+				blockWordCount += 1
+			}
+		}
+	}
+	return blockWordCount, nil
+}

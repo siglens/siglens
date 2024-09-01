@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -222,8 +221,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {
@@ -580,6 +577,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
+					}
+
+					if !isKibana {
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
+						if err != nil {
+							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+							return
+						}
 					}
 
 					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)

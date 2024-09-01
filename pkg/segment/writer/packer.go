@@ -421,8 +421,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 		if !ok {
 			bi = &BloomIndex{}
 			bi.uniqueWordCount = 0
-			bCount := getBlockBloomSize(bi)
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 			colBlooms[key] = bi
 		}
 	}
@@ -448,15 +447,12 @@ func (ss *SegStore) encodeSingleString(key string,
 	var recNum uint16
 	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
-	var bi *BloomIndex
-	var ok bool
 	if key != "_type" && key != "_index" {
-		bi, ok = colBlooms[key]
+		_, ok := colBlooms[key]
 		if !ok {
-			bi = &BloomIndex{}
+			bi := &BloomIndex{}
 			bi.uniqueWordCount = 0
-			bCount := getBlockBloomSize(bi)
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 			colBlooms[key] = bi
 		}
 	}
@@ -465,9 +461,6 @@ func (ss *SegStore) encodeSingleString(key string,
 	recLen := colWip.cbufidx - s
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
-	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, valBytes)
-	}
 	if !ss.skipDe {
 		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s)
 	}
@@ -484,15 +477,13 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	var colWip *ColWip
 	colBlooms := ss.wipBlock.columnBlooms
 	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
-	var bi *BloomIndex
-	var ok bool
 
-	bi, ok = colBlooms[key]
+	// todo for bools, we really don't have to do BI, they will get encoded as DictEnc
+	_, ok := colBlooms[key]
 	if !ok {
-		bi = &BloomIndex{}
+		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := 10
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	}
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
@@ -501,9 +492,6 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
-	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, []byte(strconv.FormatBool(val)))
-	}
 	return matchedCol
 }
 
@@ -584,8 +572,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 	case SS_DT_STRING:
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		ri := &RangeIndex{}
@@ -595,8 +582,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		// todo kunal, for bool type we need to keep a inverted index
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := 10
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	}
 }
