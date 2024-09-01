@@ -352,6 +352,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				}
 			}
 
+			// update running stats
 			if sr.runningSegStat[idx] != nil {
 				if sr.runningSegStat[idx].StringStats == nil {
 					sr.runningSegStat[idx].StringStats = &structs.StringStats{
