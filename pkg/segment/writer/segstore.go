@@ -474,7 +474,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -483,7 +483,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
@@ -503,7 +503,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.

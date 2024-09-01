@@ -561,37 +561,59 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 }
 
 /*
-Adds the fullWord and sub-words to the bloom
+Adds the fullWord and sub-words (lowercase as well) to the bloom
 Subwords are gotten by splitting the fullWord by whitespace
+NOTE: This function may modify the incoming byte slice
 */
-func addToBlockBloom(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
+func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
 
 	var blockWordCount uint32 = 0
 	copy := fullWord[:]
+
+	// we will add the lowercase to bloom only if there was an upperCase and we
+	// had to convert
+	hasUpper := utils.HasUpper(copy)
 
 	if !blockBloom.TestAndAdd(copy) {
 		blockWordCount += 1
 	}
 
-	var foundWord bool
+	var hasSubWords bool
 	for {
 		i := bytes.Index(copy, BYTE_SPACE)
 		if i == -1 {
 			break
 		}
-		foundWord = true
+		hasSubWords = true
 		if !blockBloom.TestAndAdd(copy[:i]) {
 			blockWordCount += 1
+		}
+
+		if hasUpper {
+			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy[:i])) {
+				blockWordCount += 1
+			}
 		}
 		copy = copy[i+BYTE_SPACE_LEN:]
 	}
 
 	// handle last word. If no word was found, then we have already added the full word
-	if foundWord && len(copy) > 0 {
+	if hasSubWords && len(copy) > 0 {
 		if !blockBloom.TestAndAdd(copy) {
 			blockWordCount += 1
 		}
+		if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
+			blockWordCount += 1
+		}
 	}
+
+	// if there is no subword, then we have not added the lower case, add it
+	if !hasSubWords && hasUpper {
+		if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
+			blockWordCount += 1
+		}
+	}
+
 	return blockWordCount
 }
 

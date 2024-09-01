@@ -325,7 +325,7 @@ func Test_addToBlockBloom(t *testing.T) {
 
 	for i, test := range cases {
 		mockBloom := bloom.NewWithEstimates(uint(1000), BLOOM_COLL_PROBABILITY)
-		addedCount := addToBlockBloom(mockBloom, test.fullWord)
+		addedCount := addToBlockBloomBothCases(mockBloom, test.fullWord)
 		assert.Equal(t, addedCount, test.expectedAddCount)
 
 		for _, word := range test.expectedMatches {
@@ -372,7 +372,7 @@ func Benchmark_addToBloom(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		mockBloom.ClearAll()
-		addToBlockBloom(mockBloom, exampleWord)
+		addToBlockBloomBothCases(mockBloom, exampleWord)
 	}
 }
 

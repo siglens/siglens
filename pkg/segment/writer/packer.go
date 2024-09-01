@@ -359,10 +359,8 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			keyNameStr := string(keyName)
 			if bi != nil {
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyName)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyVal)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyName))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyVal))
+				bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, keyName)
+				bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, keyVal)
 			}
 			// get the copied key value bytes from the ColWip buffer,
 			// As the keyVal bytes are converted to lower case while adding to Bloom above.
@@ -468,8 +466,7 @@ func (ss *SegStore) encodeSingleString(key string,
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
 	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(valBytes))
+		bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, valBytes)
 	}
 	if !ss.skipDe {
 		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s)
@@ -505,7 +502,7 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
 	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strconv.FormatBool(val)))
+		bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, []byte(strconv.FormatBool(val)))
 	}
 	return matchedCol
 }

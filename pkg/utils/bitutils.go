@@ -243,3 +243,13 @@ func BytesToLowerInPlace(b []byte) []byte {
 	}
 	return b
 }
+
+// Checks if there is an upper case letter
+func HasUpper(b []byte) bool {
+	for _, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
