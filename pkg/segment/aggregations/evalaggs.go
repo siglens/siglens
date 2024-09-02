@@ -672,8 +672,21 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	return nil
 }
 
-func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
+func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
+
+	var strSet map[string]struct{}
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		strSet = make(map[string]struct{}, 0)
+		runningEvalStats[measureAgg.String()] = strSet
+	} else {
+		strSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForValues: can not convert strSet for measureAgg: %v", measureAgg.String())
+		}
+	}
+
 	if len(fields) == 0 {
 		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
 		if err != nil {
@@ -705,6 +718,8 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 		uniqueStrings = append(uniqueStrings, str)
 	}
 	sort.Strings(uniqueStrings)
+
+	runningEvalStats[measureAgg.String()] = strSet
 
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_STRING_SLICE,
@@ -757,6 +772,8 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 			finalList = append(finalList, list...)
 		}
 	}
+
+	runningEvalStats[measureAgg.String()] = finalList
 
 	// limit the list to MAX_SPL_LIST_SIZE
 	if len(finalList) > utils.MAX_SPL_LIST_SIZE {

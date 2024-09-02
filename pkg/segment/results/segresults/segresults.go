@@ -327,8 +327,6 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
 		case utils.Values:
 			// If value has to be evaluated use corresponding compute agg eval
-			strSet := make(map[string]struct{})
-			if sr.runningSegStat.
 			if measureAgg.ValueColRequest != nil {
 				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 				if err != nil {
