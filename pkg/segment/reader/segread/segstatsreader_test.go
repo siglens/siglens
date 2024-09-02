@@ -396,3 +396,124 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
+
+func TestGetAverage_IntegerSum(t *testing.T) {
+	sum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 20,
+	}
+	count := uint64(4)
+
+	expected := 5.0
+	result := getAverage(sum, count)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestGetAverage_FloatSum(t *testing.T) {
+	sum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 20.0,
+	}
+	count := uint64(4)
+
+	expected := 5.0
+	result := getAverage(sum, count)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestGetAverage_ZeroCount(t *testing.T) {
+	sum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 20.0,
+	}
+	count := uint64(0)
+
+	// Handle division by zero if your function has specific behavior, otherwise expect NaN
+	expected := 0.0
+	result := getAverage(sum, count)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestAccumulateSum_BothInteger(t *testing.T) {
+	runningSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 10,
+	}
+	currSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 20,
+	}
+
+	expected := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 30,
+	}
+
+	result := accumulateSum(runningSum, currSum)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestAccumulateSum_RunningIntegerCurrentFloat(t *testing.T) {
+	runningSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 10,
+	}
+	currSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 20.0,
+	}
+
+	expected := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 30.0,
+		IntgrVal: 10,
+	}
+
+	result := accumulateSum(runningSum, currSum)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestAccumulateSum_RunningFloatCurrentInteger(t *testing.T) {
+	runningSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	currSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 20,
+	}
+
+	expected := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 30.0,
+	}
+
+	result := accumulateSum(runningSum, currSum)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestAccumulateSum_BothFloat(t *testing.T) {
+	runningSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 10.0,
+	}
+	currSum := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 20.0,
+	}
+
+	expected := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 30.0,
+	}
+
+	result := accumulateSum(runningSum, currSum)
+
+	assert.Equal(t, expected, result)
+}
