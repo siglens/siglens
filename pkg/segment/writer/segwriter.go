@@ -1312,9 +1312,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	hasUpper := utils.HasUpper(copy)
 
 	// add the original full
-	if !blockBloom.TestAndAdd(copy) {
-		blockWordCount += 1
-	}
+	_ = blockBloom.Add(copy)
 
 	var hasSubWords bool
 	for {
@@ -1324,9 +1322,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		}
 		hasSubWords = true
 		// add original sub word
-		if !blockBloom.TestAndAdd(copy[:i]) {
-			blockWordCount += 1
-		}
+		_ = blockBloom.Add(copy[:i])
 
 		// add sub word lowercase
 		if hasUpper {
@@ -1334,25 +1330,19 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			if !blockBloom.TestAndAdd(word) {
-				blockWordCount += 1
-			}
+			_ = blockBloom.Add(word)
 		}
 		copy = copy[i+BYTE_SPACE_LEN:]
 	}
 
 	// handle last word. If no word was found, then we have already added the full word
 	if hasSubWords && len(copy) > 0 {
-		if !blockBloom.TestAndAdd(copy) {
-			blockWordCount += 1
-		}
+		_ = blockBloom.Add(copy)
 		word, err := utils.BytesToLower(copy, workBuf)
 		if err != nil {
 			return 0, err
 		}
-		if !blockBloom.TestAndAdd(word) {
-			blockWordCount += 1
-		}
+		_ = blockBloom.Add(word)
 	}
 
 	if hasUpper {
@@ -1363,17 +1353,13 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			if !blockBloom.TestAndAdd(word) {
-				blockWordCount += 1
-			}
+			_ = blockBloom.Add(word)
 		} else {
 			word, err := utils.BytesToLower(copy, workBuf)
 			if err != nil {
 				return 0, err
 			}
-			if !blockBloom.TestAndAdd(word) {
-				blockWordCount += 1
-			}
+			_ = blockBloom.Add(word)
 		}
 	}
 	return blockWordCount, nil
