@@ -836,6 +836,7 @@ function processTimeoutUpdate(res) {
 }
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} was cancelled`);
+    $('#show-record-intro-btn').hide();
 }
 function processErrorUpdate(res) {
     showError(`Message: ${res.message}`);
