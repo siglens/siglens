@@ -4709,8 +4709,7 @@ color: #C8C7CC;
     background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
     color: var(--text-color);
-    width: 300px;
-    padding: 0px;
+    width: 330px;
 }
 
 .delete-dialog #cancel-btn{

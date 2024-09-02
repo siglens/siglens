@@ -133,11 +133,27 @@ class btnRenderer {
                     <div id="now-24h" class="range-item">24 Hrs</div>
                     <div id="now-90d" class="range-item">90 Days</div>
                 </div>
+                <hr>
+                </hr>
+                <div class="dt-header">Custom Search <span id="reset-timepicker"
+                        type="reset">Reset</span></div>
+                <div id="daterange-to mt-0"> <span id="dt-to-text"> To </span> <br />
+                    <input type="date" id="date-end">
+                    <input type="time" id="time-end" value="00:00">
+                </div>
+                <div class="drp-buttons">
+                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                        type="button">Apply</button>
+                </div>
             </div>`;
 
         this.dropdown.querySelectorAll('.range-item').forEach(item => {
             item.addEventListener('click', this.handleSilenceSelection.bind(this));
         });
+
+        this.dropdown.querySelector('#customrange-btn').addEventListener('click', this.handleCustomSilence.bind(this));
+        
+        this.dropdown.querySelector('#reset-timepicker').addEventListener('click', this.resetCustomTime.bind(this));
 
         const gridContainer = document.querySelector('.ag-root-wrapper');
         gridContainer.appendChild(this.dropdown);
@@ -164,6 +180,34 @@ class btnRenderer {
         }
     }
 
+    handleCustomSilence(event) {
+        event.stopPropagation();
+        const endDate = this.dropdown.querySelector('#date-end').value;
+        const endTime = this.dropdown.querySelector('#time-end').value;
+        
+        if (!endDate || !endTime) {
+            showToast('Please select both date and time', 'error');
+            return;
+        }
+
+        const endDateTime = new Date(`${endDate}T${endTime}`);
+        const now = new Date();
+
+        if (endDateTime <= now) {
+            showToast('End time must be in the future', 'error');
+            return;
+        }
+
+        const diffMinutes = Math.floor((endDateTime - now) / 60000);
+        this.silenceAlert(diffMinutes);
+    }
+
+    resetCustomTime(event) {
+        event.stopPropagation();
+        this.dropdown.querySelector('#date-end').value = '';
+        this.dropdown.querySelector('#time-end').value = '00:00';
+    }
+
     updateDropdownPosition() {
         if (this.dropdown.style.display === 'block') {
             const buttonRect = this.mButton.getBoundingClientRect();
@@ -175,7 +219,7 @@ class btnRenderer {
             const left = buttonRect.right - gridRect.left + gridContainer.scrollLeft;
 
             this.dropdown.style.top = `${top}px`;
-            this.dropdown.style.left = `${left-300}px`;
+            this.dropdown.style.left = `${left-330}px`;
             this.dropdown.style.zIndex = '9999';
         }
     }
