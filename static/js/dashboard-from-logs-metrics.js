@@ -79,6 +79,7 @@ $(document).ready(function () {
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
 });
@@ -127,6 +128,7 @@ function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
     var timeRange;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         if (panelMetricsQueryParams.queriesData?.[0]?.start != undefined) {
@@ -303,6 +305,7 @@ function updateDashboard(dashboard) {
 function createPanel(panelIndex, startEpoch) {
     let panelId = uuidv4();
     let panel;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         panelMetricsQueryParams.start = startEpoch;

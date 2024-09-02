@@ -156,6 +156,7 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 // Updates saved Metrics Url on changing in metrics Explorer
+//eslint-disable-next-line no-unused-vars
 function updateMetricsQueryParamsInUrl() {
     if (!isAlertScreen && !isDashboardScreen) {
         let metricsQueryParamsData = getMetricsQData();
