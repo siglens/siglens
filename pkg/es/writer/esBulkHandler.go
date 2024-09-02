@@ -161,7 +161,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		if inCount >= itemsLen {
 			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
-			itemsLen += 1000
+			itemsLen += 100
 		}
 
 		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
