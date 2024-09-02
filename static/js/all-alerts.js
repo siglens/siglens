@@ -135,7 +135,7 @@ class btnRenderer {
                 </div>
                 <hr>
                 </hr>
-                <div class="dt-header">Custom Search <span id="reset-timepicker"
+                <div class="dt-header">Custom Range <span id="reset-timepicker"
                         type="reset">Reset</span></div>
                 <div id="daterange-to mt-0"> <span id="dt-to-text"> To </span> <br />
                     <input type="date" id="date-end">
