@@ -1485,7 +1485,7 @@ func PackDictEnc(colWip *ColWip) {
 
 	for _, dci := range colWip.deData.hashToDci {
 
-		dword := colWip.GetDictword(dci)
+		dword := colWip.GetDciWord(dci)
 
 		recNumsBitset := colWip.deData.deRecNums[dci.recBsIdx]
 		// copy the actual dict word , the TLV is packed inside the dword

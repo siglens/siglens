@@ -1216,7 +1216,7 @@ func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
 	return dci
 }
 
-func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
+func (cw *ColWip) GetDciWord(dci *DwordCbufIdxs) []byte {
 
 	s := dci.sIdx
 	wl := uint32(dci.wlen)
@@ -1256,13 +1256,29 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 	// we add twice to avoid undersizing for above reason.
 	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount), BLOOM_COLL_PROBABILITY)
 	for _, dci := range cw.deData.hashToDci {
-		dword := cw.GetDictword(dci)
-		// the first 3 bytes are TL(type len)
-		numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
-		if err != nil {
-			return err
+		dword := cw.GetDciWord(dci)
+		switch dword[0] {
+		case VALTYPE_ENC_BACKFILL[0]:
+			// we don't add backfill value to bloom since we are not going to search for it
+			continue
+		case VALTYPE_ENC_SMALL_STRING[0]:
+			// the first 3 bytes are TL(type len)
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		case VALTYPE_ENC_BOOL[0]:
+			// todo we should not be using bloom here, its expensive
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, []byte{dword[1]}, buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		default:
+			// just log and continue since we are only doing strings into blooms
+			log.Errorf("writeDeBloom: unhandled recType: %v", dword[0])
 		}
-		bi.uniqueWordCount += numAdded
 	}
 	return nil
 }
