@@ -147,12 +147,12 @@ class btnRenderer {
                 </div>
             </div>`;
 
-        this.dropdown.querySelectorAll('.range-item').forEach(item => {
+        this.dropdown.querySelectorAll('.range-item').forEach((item) => {
             item.addEventListener('click', this.handleSilenceSelection.bind(this));
         });
 
         this.dropdown.querySelector('#customrange-btn').addEventListener('click', this.handleCustomSilence.bind(this));
-        
+
         this.dropdown.querySelector('#reset-timepicker').addEventListener('click', this.resetCustomTime.bind(this));
 
         const gridContainer = document.querySelector('.ag-root-wrapper');
@@ -184,7 +184,7 @@ class btnRenderer {
         event.stopPropagation();
         const endDate = this.dropdown.querySelector('#date-end').value;
         const endTime = this.dropdown.querySelector('#time-end').value;
-        
+
         if (!endDate || !endTime) {
             showToast('Please select both date and time', 'error');
             return;
@@ -219,7 +219,7 @@ class btnRenderer {
             const left = buttonRect.right - gridRect.left + gridContainer.scrollLeft;
 
             this.dropdown.style.top = `${top}px`;
-            this.dropdown.style.left = `${left-330}px`;
+            this.dropdown.style.left = `${left - 330}px`;
             this.dropdown.style.zIndex = '9999';
         }
     }
@@ -242,15 +242,17 @@ class btnRenderer {
                 alert_id: this.params.data.alertId,
             }),
             crossDomain: true,
-        }).then((res) => {
-            let deletedRowID = this.params.data.rowId;
-            alertGridOptions.api.applyTransaction({
-                remove: [{ rowId: deletedRowID }],
+        })
+            .then((res) => {
+                let deletedRowID = this.params.data.rowId;
+                alertGridOptions.api.applyTransaction({
+                    remove: [{ rowId: deletedRowID }],
+                });
+                showToast(res.message, 'success');
+            })
+            .catch((err) => {
+                showToast('Failed to delete alert', 'error');
             });
-            showToast(res.message, 'success');
-        }).catch((err) => {
-            showToast('Failed to delete alert', 'error');
-        });
     }
 
     showPrompt(event) {
@@ -261,19 +263,23 @@ class btnRenderer {
         $('.popupOverlay, .popupContent').addClass('active');
         $('#delete-alert-name').html(confirmationMessage);
 
-        $('#cancel-btn, .popupOverlay').off('click').on('click', () => {
-            $('.popupOverlay, .popupContent').removeClass('active');
-        });
+        $('#cancel-btn, .popupOverlay')
+            .off('click')
+            .on('click', () => {
+                $('.popupOverlay, .popupContent').removeClass('active');
+            });
 
-        $('#delete-btn').off('click').on('click', () => {
-            $('.popupOverlay, .popupContent').removeClass('active');
-            this.deleteAlert();
-        });
+        $('#delete-btn')
+            .off('click')
+            .on('click', () => {
+                $('.popupOverlay, .popupContent').removeClass('active');
+                this.deleteAlert();
+            });
     }
 
     toggleMuteDropdown(event) {
         event.stopPropagation();
-        
+
         if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
             btnRenderer.activeDropdown.style.display = 'none';
         }
@@ -292,9 +298,18 @@ class btnRenderer {
         event.stopPropagation();
         const id = event.target.id;
         const minutesMap = {
-            'now-5m': 5, 'now-15m': 15, 'now-30m': 30, 'now-1h': 60,
-            'now-3h': 180, 'now-6h': 360, 'now-12h': 720, 'now-24h': 1440,
-            'now-2d': 2880, 'now-7d': 10080, 'now-30d': 43200, 'now-90d': 129600
+            'now-5m': 5,
+            'now-15m': 15,
+            'now-30m': 30,
+            'now-1h': 60,
+            'now-3h': 180,
+            'now-6h': 360,
+            'now-12h': 720,
+            'now-24h': 1440,
+            'now-2d': 2880,
+            'now-7d': 10080,
+            'now-30d': 43200,
+            'now-90d': 129600,
         };
         const minutes = minutesMap[id] || 0;
         this.silenceAlert(minutes);
@@ -311,20 +326,20 @@ class btnRenderer {
             },
             data: JSON.stringify({
                 alert_id: this.params.data.alertId,
-                silence_minutes: minutes
+                silence_minutes: minutes,
             }),
             crossDomain: true,
         })
-        .done((res) => {
-            showToast(res.message, 'success');
-        })
-        .fail((err) => {
-            showToast('Failed to silence alert', 'error');
-        })
-        .always(() => {
-            this.dropdown.style.display = 'none';
-            btnRenderer.activeDropdown = null;
-        });
+            .done((res) => {
+                showToast(res.message, 'success');
+            })
+            .fail((err) => {
+                showToast('Failed to silence alert', 'error');
+            })
+            .always(() => {
+                this.dropdown.style.display = 'none';
+                btnRenderer.activeDropdown = null;
+            });
     }
 
     getGui() {
