@@ -176,10 +176,10 @@ function createPanelToNewDashboard() {
                             {
                                 ...panelCreatedFromLogs,
                                 style: {
-                                    display: panelCreatedFromLogs.style.display,
-                                    color: panelCreatedFromLogs.style.color,
-                                    lineStyle: panelCreatedFromLogs.style.lineStyle,
-                                    lineStroke: panelCreatedFromLogs.style.lineStroke,
+                                    display: panelCreatedFromLogs.style?.display || 'Line chart',
+                                    color: panelCreatedFromLogs.style?.color || 'Classic',
+                                    lineStyle: panelCreatedFromLogs.style?.lineStyle || 'Solid',
+                                    lineStroke: panelCreatedFromLogs.style?.lineStroke || 'Normal',
                                 },
                             },
                         ],
