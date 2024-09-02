@@ -135,7 +135,7 @@ class btnRenderer {
                 </div>
                 <hr>
                 </hr>
-                <div class="dt-header">Custom Range <span id="reset-timepicker"
+                <div class="dt-header">Custom Range<span id="reset-timepicker"
                         type="reset">Reset</span></div>
                 <div id="daterange-to mt-0"> <span id="dt-to-text"> To </span> <br />
                     <input type="date" id="date-end">
@@ -250,7 +250,7 @@ class btnRenderer {
                 });
                 showToast(res.message, 'success');
             })
-            .catch((err) => {
+            .catch(() => {
                 showToast('Failed to delete alert', 'error');
             });
     }
@@ -333,7 +333,7 @@ class btnRenderer {
             .done((res) => {
                 showToast(res.message, 'success');
             })
-            .fail((err) => {
+            .fail(() => {
                 showToast('Failed to silence alert', 'error');
             })
             .always(() => {
