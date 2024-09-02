@@ -2024,6 +2024,10 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
 }
 
+.mute-icon:hover {
+    background-image: url(../assets/mute-active-icon.svg);
+}
+
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
     cursor: pointer;
