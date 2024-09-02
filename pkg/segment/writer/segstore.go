@@ -209,11 +209,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for cvalHash := range cwip.deData.hashToDci {
-				delete(cwip.deData.hashToDci, cvalHash)
-			}
-			for idx := range cwip.deData.deRecNums {
-				cwip.deData.deRecNums[idx] = nil
+			for dword := range cwip.deData.deMap {
+				delete(cwip.deData.deMap, dword)
 			}
 			cwip.deData.deCount = 0
 		}

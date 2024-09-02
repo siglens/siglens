@@ -593,24 +593,18 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
-	bs := ss.GetNewBitset(uint(recNum))
-	for i := uint(0); i < uint(recNum); i++ {
+	recArr := make([]uint16, recNum)
+
+	for i := uint16(0); i < recNum; i++ {
 		// only the type will be saved when we are backfilling
 		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		packedLen += 1
-		bs.Set(i)
+		recArr[i] = i
 	}
 	// we will also init dictEnc for backfilled recnums
 
-	dci := &DwordCbufIdxs{
-		sIdx:     colWip.cbufidx - 1,
-		wlen:     1,
-		recBsIdx: colWip.deData.deCount,
-	}
-
-	colWip.deData.hashToDci[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = dci
-	colWip.deData.deRecNums[colWip.deData.deCount] = bs
+	colWip.deData.deMap[string(VALTYPE_ENC_BACKFILL[:])] = recArr
 	colWip.deData.deCount++
 
 	return packedLen
@@ -1443,24 +1437,13 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 
 func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16, cbufIdx uint32) {
 	if colWip.deData.deCount < wipCardLimit {
-		cvalHash := xxhash.Sum64(cval)
-		dci, ok := colWip.deData.hashToDci[cvalHash]
+		recs, ok := colWip.deData.deMap[string(cval)]
 		if !ok {
-			// start bitset with len of the last RecNum*2
-			bs := ss.GetNewBitset(uint(recNum) * 2)
-
-			deData := colWip.deData
-
-			dci = colWip.dciPool[deData.deCount]
-			dci.sIdx = cbufIdx
-			dci.wlen = uint16(len(cval))
-			dci.recBsIdx = deData.deCount
-
-			deData.hashToDci[cvalHash] = dci
-			deData.deRecNums[dci.recBsIdx] = bs
-			deData.deCount++
+			recs = make([]uint16, 0)
+			colWip.deData.deCount++
 		}
-		colWip.deData.deRecNums[dci.recBsIdx].Set(uint(recNum))
+		recs = append(recs, recNum)
+		colWip.deData.deMap[string(cval)] = recs
 	}
 }
 
@@ -1483,26 +1466,21 @@ func PackDictEnc(colWip *ColWip) {
 	copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
 	localIdx += 2
 
-	for _, dci := range colWip.deData.hashToDci {
+	for dword, recNumsArr := range colWip.deData.deMap {
 
-		dword := colWip.GetDciWord(dci)
-
-		recNumsBitset := colWip.deData.deRecNums[dci.recBsIdx]
 		// copy the actual dict word , the TLV is packed inside the dword
-		copy(colWip.dePackingBuf[localIdx:], dword)
+		copy(colWip.dePackingBuf[localIdx:], []byte(dword))
 		localIdx += len(dword)
 
 		// copy num of records, by finding how many bits are set
-		numRecs := uint16(recNumsBitset.Count())
+		numRecs := uint16(len(recNumsArr))
 		copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(numRecs))
 		localIdx += 2
 
-		for i := uint16(0); i < uint16(recNumsBitset.Len()); i++ {
-			if recNumsBitset.Test(uint(i)) {
-				// copy the recNum
-				copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(i))
-				localIdx += 2
-			}
+		for i := uint16(0); i < numRecs; i++ {
+			// copy the recNum
+			copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(recNumsArr[i]))
+			localIdx += 2
 		}
 	}
 	copy(colWip.cbuf[:localIdx], colWip.dePackingBuf[:localIdx])

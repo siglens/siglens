@@ -32,7 +32,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -94,18 +93,10 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
-// for holding DictWords and their indices inside wip.cbuf[]
-type DwordCbufIdxs struct {
-	sIdx     uint32 // startIndex of this dword inside the wip cbuf
-	wlen     uint16 // len of this dword includes the TLV
-	recBsIdx uint16 // index into the deRecNums bitset array
-}
-
 type DeData struct {
 	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
-	hashToDci map[uint64]*DwordCbufIdxs
-	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
-	deCount   uint16           // keeps track of cardinality count for this COL_WIP
+	deMap   map[string][]uint16
+	deCount uint16 // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
@@ -115,7 +106,6 @@ type ColWip struct {
 	csgFname     string // file name of csg file
 	deData       *DeData
 	dePackingBuf []byte
-	dciPool      []*DwordCbufIdxs
 }
 
 type RangeIndex struct {
@@ -454,14 +444,8 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
-	deData := DeData{hashToDci: make(map[uint64]*DwordCbufIdxs),
-		deRecNums: make([]*bitset.BitSet, MaxDeEntries),
-		deCount:   0,
-	}
-
-	dciPool := make([]*DwordCbufIdxs, wipCardLimit)
-	for i := uint16(0); i < wipCardLimit; i++ {
-		dciPool[i] = &DwordCbufIdxs{}
+	deData := DeData{deMap: make(map[string][]uint16),
+		deCount: 0,
 	}
 
 	cbuf := *wipCbufPool.Get().(*[]byte)
@@ -470,7 +454,6 @@ func InitColWip(segKey string, colName string) *ColWip {
 	return &ColWip{
 		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:       &deData,
-		dciPool:      dciPool,
 		cbuf:         cbuf,
 		dePackingBuf: dePack,
 	}
@@ -1011,12 +994,10 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeDataForTest(deCount uint16, hashToDci map[uint64]*DwordCbufIdxs,
-	deRecNums []*bitset.BitSet) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, deMap map[string][]uint16) {
 
-	deData := DeData{hashToDci: hashToDci,
-		deRecNums: deRecNums,
-		deCount:   deCount,
+	deData := DeData{deMap: deMap,
+		deCount: deCount,
 	}
 	cw.deData = &deData
 }
@@ -1206,23 +1187,6 @@ func DeletePQSData() error {
 	return pqsmeta.DeletePQMetaDir()
 }
 
-func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
-
-	dci := &DwordCbufIdxs{
-		sIdx:     sIdx,
-		wlen:     wlen,
-		recBsIdx: recBsIdx,
-	}
-	return dci
-}
-
-func (cw *ColWip) GetDciWord(dci *DwordCbufIdxs) []byte {
-
-	s := dci.sIdx
-	wl := uint32(dci.wlen)
-	return cw.cbuf[s : s+wl]
-}
-
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 	cw *ColWip) error {
 
@@ -1250,13 +1214,12 @@ func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 }
 
 func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
-
 	// todo a better way to size the bloom might be to count the num of space and
 	// then add to the cw.deData.deCount, that should be the optimal size
 	// we add twice to avoid undersizing for above reason.
 	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount), BLOOM_COLL_PROBABILITY)
-	for _, dci := range cw.deData.hashToDci {
-		dword := cw.GetDciWord(dci)
+	for dwordkey := range cw.deData.deMap {
+		dword := []byte(dwordkey)
 		switch dword[0] {
 		case VALTYPE_ENC_BACKFILL[0]:
 			// we don't add backfill value to bloom since we are not going to search for it

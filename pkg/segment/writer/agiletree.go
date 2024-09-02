@@ -365,16 +365,11 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		cwip := wip.colWips[colName]
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
-			for _, dci := range deData.hashToDci {
+			for rawKey, indices := range deData.deMap {
 
-				dword := cwip.GetDciWord(dci)
-
-				enc := stb.setColValEnc(colNum, dword)
-				recNumsBitset := deData.deRecNums[dci.recBsIdx]
-				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
-					if recNumsBitset.Test(uint(recNum)) {
-						stb.wipRecNumToColEnc[colNum][recNum] = enc
-					}
+				enc := stb.setColValEnc(colNum, []byte(rawKey))
+				for _, recNum := range indices {
+					stb.wipRecNumToColEnc[colNum][recNum] = enc
 				}
 			}
 			continue // done with this dict encoded column
@@ -550,13 +545,10 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
-		for _, dci := range deData.hashToDci {
+		for dword, recNumsArr := range deData.deMap {
 
-			dword := cwip.GetDciWord(dci)
-
-			recNumsBitSet := deData.deRecNums[dci.recBsIdx]
-			if recNumsBitSet.Test(uint(recNum)) {
-				_, err := GetNumValFromRec(dword[0:], 0, num)
+			if toputils.BinarySearchUint16(recNum, recNumsArr) {
+				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
