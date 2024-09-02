@@ -112,6 +112,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				AnalyticsEnabledConverted:  false,
 				AgileAggsEnabled:           "false",
 				AgileAggsEnabledConverted:  false,
+				DualCaseCheck:              "true",
+				DualCaseCheckConverted:     true,
 				SafeServerStart:            true,
 				Log:                        common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
@@ -146,6 +148,7 @@ func Test_ExtractConfigData(t *testing.T) {
  S3IngestBufferSize: 1000
  MaxParallelS3IngestBuffers: 10
  PQSEnabled: F
+ dualCaseCheck: true
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
  tracing:
@@ -184,6 +187,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				QueryHostname:              "localhost:9000",
 				PQSEnabled:                 "true",
 				PQSEnabledConverted:        true,
+				DualCaseCheck:              "true",
+				DualCaseCheckConverted:     true,
 				AnalyticsEnabled:           "true",
 				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
@@ -227,6 +232,8 @@ invalid input, we should error out
 				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
+				DualCaseCheck:              "true",
+				DualCaseCheckConverted:     true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
 			},
@@ -266,6 +273,8 @@ a: b
 				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
+				DualCaseCheck:              "true",
+				DualCaseCheckConverted:     true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 			},

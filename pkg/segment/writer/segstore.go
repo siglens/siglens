@@ -200,17 +200,18 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
+		for _, cwip := range segstore.wipBlock.colWips {
+			wipCbufPool.Put(&cwip.cbuf)
+			wipCbufPool.Put(&cwip.dePackingBuf)
+		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for dword := range cwip.deData.deToRecnumIdx {
-				delete(cwip.deData.deToRecnumIdx, dword)
-			}
-			for cvalHash := range cwip.deData.deHashToRecnumIdx {
-				delete(cwip.deData.deHashToRecnumIdx, cvalHash)
+			for cvalHash := range cwip.deData.hashToDci {
+				delete(cwip.deData.hashToDci, cvalHash)
 			}
 			for idx := range cwip.deData.deRecNums {
 				cwip.deData.deRecNums[idx] = nil
@@ -303,6 +304,12 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqNonEmptyResults = make(map[string]bool)
 	// on reset, clear pqs info but before reset block
 	segstore.pqTracker = initPQTracker()
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		wipCbufPool.Put(&cwip.cbuf)
+		wipCbufPool.Put(&cwip.dePackingBuf)
+	}
+
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
@@ -435,6 +442,8 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -504,6 +513,8 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
+	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -539,18 +550,16 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
-		sizeNeeded := len(segstore.wipBlock.colWips) - len(segstore.workBufForCompression)
-		if sizeNeeded > 0 {
-			segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
-				sizeNeeded)
-			// now make each of these bufs of atleast WIP_SIZE
-			for i := 0; i < len(segstore.workBufForCompression); i++ {
-				bsizeNeeded := utils.WIP_SIZE - len(segstore.workBufForCompression[i])
-				if bsizeNeeded > 0 {
-					segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
-						bsizeNeeded)
-				}
-			}
+		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+			len(segstore.wipBlock.colWips))
+		// now make each of these bufs of atleast WIP_SIZE
+		for i := 0; i < len(segstore.workBufForCompression); i++ {
+			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
+				utils.WIP_SIZE)
+		}
+
+		if config.IsAggregationsEnabled() {
+			segstore.computeStarTree()
 		}
 
 		compBufIdx := 0
@@ -603,9 +612,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
 				compBufIdx++
 			}
-		}
-		if config.IsAggregationsEnabled() {
-			segstore.computeStarTree()
 		}
 
 		allColsToFlush.Wait()
@@ -1043,12 +1049,11 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
-	var maxIdx uint32
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
-		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
+		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
 			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
@@ -1063,7 +1068,10 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 	}
 
-	segstore.wipBlock.maxIdx = maxIdx
+	for _, cwip := range segstore.wipBlock.colWips {
+		segstore.wipBlock.maxIdx = utils.MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+	}
+
 	segstore.wipBlock.blockSummary.RecCount += 1
 	segstore.RecordCount++
 	segstore.lastUpdated = time.Now()
@@ -1125,12 +1133,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 	bytesWritten += uint32(bloomSize)
-
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
-		return 0
-	}
 
 	// write the correct bloom size
 	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
@@ -1425,13 +1427,31 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 /*
 Encoding Scheme for all columns single file
 
-[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 2B] [ColSegEncoding xB]....
+[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 4B] [ColSegEncoding xB]....
 */
 func (ss *SegStore) FlushSegStats() error {
 
 	if len(ss.AllSst) <= 0 {
-		log.Errorf("FlushSegStats: no segstats to flush")
-		return errors.New("FlushSegStats: no segstats to flush")
+		found := 0
+		tsKey := config.GetTimeStampKey()
+		// Flush is called once one of the cbufidx is >0, but if we find no columns
+		// with cbufidx > 0 other than timestamp column, only then declare this as an error
+		// else we won't create a sst file
+		for cname, cwip := range ss.wipBlock.colWips {
+			if cwip.cbufidx > 0 {
+				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v, segkey: %v",
+					cname, cwip.cbufidx, ss.SegmentKey)
+				if cname != tsKey {
+					found += 1
+				}
+			}
+		}
+		if found == 0 {
+			log.Errorf("FlushSegStats: no segstats to flush, found: %v cwips with data", found)
+			return errors.New("FlushSegStats: no segstats to flush")
+		} else {
+			return nil
+		}
 	}
 
 	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
@@ -1443,7 +1463,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write([]byte{1})
+	_, err = fd.Write(utils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1472,7 +1492,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(idx))
+		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
@@ -1491,15 +1511,15 @@ func (ss *SegStore) FlushSegStats() error {
 
 /*
 Encoding Schema for SegStats Single Column Data
-[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 2B] [HLL_Data xB]
+[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
 [N_type 1B] [Min 8B] [N_type 1B] [Max 8B] [N_type 1B] [Sum 8B]
 */
-func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
+func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS)
+	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF)
 	idx++
 
 	// isNumeric
@@ -1513,11 +1533,11 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
-	idx += 2
+	copy(buf[idx:], toputils.Uint32ToBytesLittleEndian(uint32(hllDataSize)))
+	idx += 4
 
 	// HLL_Data
-	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+	hllDataSliceFullCap := buf[idx : idx+uint32(hllDataSize)]
 
 	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
 	// This is necessary because we're using the slice to get the HLL bytes in place,
@@ -1532,10 +1552,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+		copy(buf[idx-4:idx], toputils.Uint32ToBytesLittleEndian(uint32(hllByteSliceLen)))
 	}
 	copy(buf[idx:], hllByteSlice)
-	idx += uint16(hllByteSliceLen)
+	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
