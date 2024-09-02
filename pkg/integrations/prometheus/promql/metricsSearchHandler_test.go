@@ -1040,7 +1040,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v2(t *testing.T)
 	}
 }
 
-func TestProcessGetMetricSeriesCardinalityRequest(t *testing.T) {
+func Test_processGetMetricSeriesCardinalityRequest(t *testing.T) {
 	// Create a new fasthttp.RequestCtx for testing
 	ctx := &fasthttp.RequestCtx{}
 
