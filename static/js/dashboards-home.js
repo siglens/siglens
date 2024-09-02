@@ -256,10 +256,10 @@ class btnRenderer {
                                     panels: duplicatedPanels.map((panel) => ({
                                         ...panel,
                                         style: {
-                                            display: panel.style.display,
-                                            color: panel.style.color,
-                                            lineStyle: panel.style.lineStyle,
-                                            lineStroke: panel.style.lineStroke,
+                                            display: panel.style?.display || 'Line chart',
+                                            color: panel.style?.color || 'Classic',
+                                            lineStyle: panel.style?.lineStyle || 'Solid',
+                                            lineStroke: panel.style?.lineStroke || 'Normal',
                                         },
                                     })),
                                     timeRange: duplicateTimeRange,
