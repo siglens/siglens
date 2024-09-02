@@ -92,13 +92,14 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+
+    $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-    const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(urlParams.get('alertRule_name'));
+
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -211,7 +212,33 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+function updateChartColorsBasedOnTheme() {
+    //eslint-disable-next-line no-undef
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    //eslint-disable-next-line no-undef
+    if (mergedGraph) {
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.update();
+    }
 
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            //eslint-disable-next-line no-undef
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+}
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
@@ -221,7 +248,6 @@ async function getAlertId() {
             originalIndexValues = indexes.map((item) => item.index);
             indexValues = [...originalIndexValues];
         }
-        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -242,8 +268,9 @@ async function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
+        const filterTab = urlParams.get('filterTab');
 
-        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
+        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
     }
 
     if (!alertEditFlag && !alertFromMetricsExplorerFlag && !window.location.href.includes('alert-details.html')) {
@@ -485,6 +512,7 @@ async function displayAlert(res) {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
+        initializeFilterInputEvents();
         let data = {
             state: wsState,
             searchText: queryText,
@@ -817,35 +845,43 @@ function alertDetailsFunctions() {
     });
 }
 
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
-    $('#alert-rule-name').focus();
-    $('#query').val(query);
-    $(`.ranges .inner-range #${startEpoch}`).addClass('active');
+function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
+    const urlParams = new URLSearchParams(window.location.search);
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+
+    if (filterTab === '0') {
+        codeToBuilderParsing(searchText);
+    } else if (filterTab === '1') {
+        $('#custom-code-tab').tabs('option', 'active', 1);
+        $('#filter-input').val(searchText);
+    }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
+    let data = {
+        state: wsState,
+        searchText: searchText,
+        startEpoch: startEpoch,
+        endEpoch: endEpoch,
+        indexName: selectedSearchIndex,
+        queryLanguage: queryLanguage,
+    };
+    fetchLogsPanelData(data, -1).then((res) => {
+        alertChart(res);
+    });
 }
 
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';
-    logsExplorer.innerHTML = ''; // Clear previous content
+    logsExplorer.innerHTML = '';
 
-    if (res.qtype === 'logs-query') {
-        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
-        return;
-    }
-
-    if (res.qtype === 'segstats-query') {
-        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
+    if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
+        $('#logs-explorer').hide();
         return;
     }
 
     if (res.qtype === 'aggs-query') {
         let columnOrder = [];
-        if (res.groupByCols.length > 1) {
-            $('#logs-explorer').hide(); // This query does not support bar graph visualization.
-            return;
-        }
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+        if (res.columnsOrder && res.columnsOrder.length > 0) {
             columnOrder = res.columnsOrder;
         } else {
             if (res.groupByCols) {
@@ -863,34 +899,54 @@ function alertChart(res) {
             return;
         }
 
-        let xAxisData = [];
-        let yAxisData = [];
         let hits = res.measure;
-        let columns = columnOrder;
-
-        // loop through the hits and create the data for the bar chart
-        for (let i = 0; i < hits.length; i++) {
-            let hit = hits[i];
-
-            let xAxisValue = hit.GroupByValues[0];
-            let yAxisValue;
-            let measureVal = hit.MeasureVal;
-            yAxisValue = measureVal[columns[1]];
-            xAxisData.push(xAxisValue);
-            yAxisData.push(yAxisValue);
+        if (!hits || hits.length === 0) {
+            $('#logs-explorer').hide();
+            return;
         }
 
-        let barOptions = loadBarOptions(xAxisData, yAxisData);
-        let chartDom = document.createElement('div');
-        chartDom.style.width = '100%';
-        chartDom.style.height = '100%';
-        logsExplorer.appendChild(chartDom);
-        let myChart = echarts.init(chartDom);
-        myChart.setOption(barOptions);
+        let xAxisData = [];
+        let multipleGroupBy = hits[0].GroupByValues.length > 1;
 
-        window.addEventListener('resize', () => {
-            myChart.resize();
-        });
+        if (columnOrder.length > 1) {
+            let measureFunctions = res.measureFunctions;
+            let seriesData = measureFunctions.map(function (measureFunction) {
+                return {
+                    name: measureFunction,
+                    data: hits.map(function (item) {
+                        return item.MeasureVal[measureFunction] || 0;
+                    }),
+                };
+            });
+
+            xAxisData = hits.map((item) => {
+                //eslint-disable-next-line no-undef
+                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
+                return groupByValue || 'NULL';
+            });
+
+            let barOptions = loadBarOptions(xAxisData, seriesData);
+            let chartDom = document.createElement('div');
+            chartDom.style.width = '100%';
+            chartDom.style.height = '100%';
+            logsExplorer.appendChild(chartDom);
+            let myChart = echarts.init(chartDom);
+            myChart.setOption(barOptions);
+
+            window.addEventListener('resize', () => {
+                myChart.resize();
+            });
+        } else if (columnOrder.length === 1) {
+            // Handle cases with only one column
+            let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
+            if (singleMeasure != null) {
+                displayBigNumber(singleMeasure, -1, 'dataType', 0);
+            } else {
+                $('#logs-explorer').hide();
+            }
+        } else {
+            $('#logs-explorer').hide();
+        }
     }
 }
 

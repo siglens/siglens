@@ -44,7 +44,8 @@ import (
 const MAX_QUERIES_TO_TRACK = 100     // this limits how many PQS searches we are doing
 const MAX_CANDIDATE_QUERIES = 10_000 // this limits how many unique queries we use in our stats calculations
 
-const STALE_QUERIES_EXPIRY_SECS = 21600 // queries will get booted out if they have not been seen in 6 hours
+// queries will get booted out if they have not been seen for below time
+const STALE_QUERIES_EXPIRY_SECS = 3 * 24 * 60 * 60
 const STALE_SLEEP_SECS = 1800
 
 const FLUSH_SLEEP_SECS = 120
@@ -214,13 +215,22 @@ type colUsage struct {
 	usage int
 }
 
+func SetTopPersistentAggsForTestOnly(table string, grpCols map[string]bool, measCols map[string]bool) {
+	pg := &PersistentGroupBy{}
+	pg.GroupByCols = grpCols
+	pg.MeasureCols = measCols
+	localGroupByOverride[table] = pg
+}
+
 // returns a sorted slice of most used group by columns, and all measure columns.
-func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
+func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 	groupByColsUsage := make(map[string]int)
 	measureInfoUsage := make(map[string]bool)
 
+	finalGrpCols := make(map[string]struct{})
+
 	if !config.IsPQSEnabled() {
-		return []string{}, measureInfoUsage
+		return finalGrpCols, measureInfoUsage
 	}
 	overrideGroupByCols := make([]string, 0)
 	persistentInfoLock.Lock()
@@ -254,7 +264,7 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 			continue
 		}
 		queryAggs := agginfo.QueryAggs
-		if queryAggs == nil || queryAggs.GroupByRequest == nil {
+		if queryAggs == nil || queryAggs.GroupByRequest == nil || queryAggs.HasValueColRequest() {
 			continue
 		}
 		cols := queryAggs.GroupByRequest.GroupByColumns
@@ -274,21 +284,32 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].usage > ss[j].usage
 	})
-	var finalCols []string
-	if len(overrideGroupByCols) >= MAX_NUM_GROUPBY_COLS {
-		finalCols = make([]string, MAX_NUM_GROUPBY_COLS)
-		finalCols = append(finalCols, overrideGroupByCols[:MAX_NUM_GROUPBY_COLS]...)
-	} else {
-		finalCols = append(finalCols, overrideGroupByCols[:]...)
-		for _, s := range ss {
-			if len(finalCols) <= MAX_NUM_GROUPBY_COLS {
-				finalCols = append(finalCols, s.col)
-			} else {
-				break
-			}
+
+	// First pick from the override upto MAX_NUM_GROUPBY_COLS
+	i := 0
+	for _, cname := range overrideGroupByCols {
+		finalGrpCols[cname] = struct{}{}
+		i++
+		if i > MAX_NUM_GROUPBY_COLS {
+			break
 		}
 	}
-	return finalCols, measureInfoUsage
+
+	// now pick based on usage
+	for _, s := range ss {
+		if len(finalGrpCols) <= MAX_NUM_GROUPBY_COLS {
+			finalGrpCols[s.col] = struct{}{}
+		} else {
+			break
+		}
+	}
+
+	colsToIgnoreForTracking := []string{config.GetTimeStampKey(), "*"}
+
+	utils.RemoveEntriesFromMap(finalGrpCols, colsToIgnoreForTracking)
+	utils.RemoveEntriesFromMap(measureInfoUsage, colsToIgnoreForTracking)
+
+	return finalGrpCols, measureInfoUsage
 }
 
 func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators, searchText string) {
@@ -353,7 +374,7 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchTex
 
 func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchText string) {
 
-	if aggs == nil || aggs.IsAggsEmpty() {
+	if aggs == nil || aggs.IsAggsEmpty() || aggs.HasValueColRequest() {
 		return
 	}
 
@@ -621,22 +642,37 @@ func getPQSSummary() map[string]interface{} {
 	response := make(map[string]interface{})
 	numQueriesInPQS := len(allNodesPQsSorted)
 	response["total_tracked_queries"] = numQueriesInPQS
-	pqidUsageCount := make(map[string]int)
+
+	promotedSearches := make([]map[string]interface{}, 0)
 	for idx, pqinfo := range allNodesPQsSorted {
 		if idx > MAX_QUERIES_TO_TRACK {
 			continue
 		}
-		pqidUsageCount[pqinfo.Pqid] = int(pqinfo.TotalUsage)
+		searchItem := map[string]interface{}{
+			"id":              pqinfo.Pqid,
+			"count":           int(pqinfo.TotalUsage),
+			"last_used_epoch": pqinfo.LastUsedEpoch,
+			"search_text":     pqinfo.SearchText,
+		}
+		promotedSearches = append(promotedSearches, searchItem)
 	}
-	response["promoted_searches"] = pqidUsageCount
-	aggsUsageCount := make(map[string]int)
+	response["promoted_searches"] = promotedSearches
+
+	promotedAggregations := make([]map[string]interface{}, 0)
 	for idx, pqinfo := range allPersistentAggsSorted {
 		if idx > MAX_QUERIES_TO_TRACK {
 			continue
 		}
-		aggsUsageCount[pqinfo.Pqid] = int(pqinfo.TotalUsage)
+		aggItem := map[string]interface{}{
+			"id":              pqinfo.Pqid,
+			"count":           int(pqinfo.TotalUsage),
+			"last_used_epoch": pqinfo.LastUsedEpoch,
+			"search_text":     pqinfo.SearchText,
+		}
+		promotedAggregations = append(promotedAggregations, aggItem)
 	}
-	response["promoted_aggregations"] = aggsUsageCount
+	response["promoted_aggregations"] = promotedAggregations
+
 	return response
 }
 

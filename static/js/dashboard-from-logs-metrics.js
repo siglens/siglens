@@ -44,6 +44,7 @@ $(document).ready(function () {
 
     $('#addrule-cancel-btn').click(function () {
         $('#rule-name').tooltip('hide');
+        $('#rule-name').val('');
         $('.rule-name-error').removeClass('active').text('');
         $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
     });
@@ -57,18 +58,25 @@ $(document).ready(function () {
         $('.rule-name-error').removeClass('active').text(''); // Clear error message if ruleName is not empty
 
         var encodedRuleName = encodeURIComponent(ruleName);
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterTab = urlParams.get('filterTab');
 
-        // Assuming you have the `data` object available
+        $('#rule-name').tooltip('hide');
+        $('#rule-name').val('');
+        $('.rule-name-error').removeClass('active').text('');
+        $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
+
         var queryParams = {
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
             startEpoch: data.startEpoch,
             endEpoch: data.endEpoch,
+            filterTab: filterTab,
             alertRule_name: encodedRuleName,
         };
 
         var queryString = $.param(queryParams);
-        window.open('../alert.html' + queryString, '_blank');
+        window.open('../alert.html?' + queryString, '_blank');
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
@@ -268,7 +276,11 @@ function handlePanelPosition(existingDashboard, newPanel) {
     const maxY = existingDashboard.panels.reduce((max, panel) => {
         return Math.max(max, panel.gridpos.y + panel.gridpos.h);
     }, 0);
+    const maxX = existingDashboard.panels.reduce((max, panel) => {
+        return Math.max(max, panel.gridpos.x + panel.gridpos.w);
+    });
     newPanel.gridpos.y = maxY + 20;
+    newPanel.gridpos.x = maxX + 20;
     existingDashboard.panels.push(newPanel);
     return existingDashboard;
 }

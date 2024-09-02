@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -70,6 +71,16 @@ var localSegmetaFname string
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
+var wipCbufPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]byte, WIP_SIZE)
+		return &slice
+	},
+}
+
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -83,13 +94,28 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
+// for holding DictWords and their indices inside wip.cbuf[]
+type DwordCbufIdxs struct {
+	sIdx     uint32 // startIndex of this dword inside the wip cbuf
+	wlen     uint16 // len of this dword includes the TLV
+	recBsIdx uint16 // index into the deRecNums bitset array
+}
+
+type DeData struct {
+	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
+	hashToDci map[uint64]*DwordCbufIdxs
+	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
+	deCount   uint16           // keeps track of cardinality count for this COL_WIP
+}
+
 type ColWip struct {
-	cbufidx   uint32              // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx uint32              // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf      [WIP_SIZE]byte      // in progress bytes
-	csgFname  string              // file name of csg file
-	deMap     map[string][]uint16 // dictWordKey ==> recordNums that match this key
-	deCount   uint16              // keeps track of cardinality count for this COL_WIP
+	cbufidx      uint32 // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx    uint32 // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf         []byte // in progress bytes
+	csgFname     string // file name of csg file
+	deData       *DeData
+	dePackingBuf []byte
+	dciPool      []*DwordCbufIdxs
 }
 
 type RangeIndex struct {
@@ -115,7 +141,6 @@ type WipBlock struct {
 	columnRangeIndexes map[string]*RangeIndex
 	colWips            map[string]*ColWip
 	columnsInBlock     map[string]bool
-	pqMatches          map[string]*pqmr.PQMatchResults
 	maxIdx             uint32
 	blockTs            []uint64
 	tomRollup          map[uint64]*RolledRecs // top-of-minute rollup
@@ -133,9 +158,7 @@ func (wp *WipBlock) getSize() uint64 {
 	size += wp.blockSummary.GetSize()
 	size += uint64(24 * len(wp.columnRangeIndexes))
 	size += uint64(WIP_SIZE * len(wp.colWips))
-	for _, v := range wp.pqMatches {
-		size += v.GetInMemSize()
-	}
+
 	return size
 }
 
@@ -158,7 +181,10 @@ func GetInMemorySize() uint64 {
 
 	totalSize := uint64(0)
 	for _, s := range allSegStores {
+		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
+		totalSize += s.GetSegStorePQMatchSize()
+		s.Lock.Unlock()
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
@@ -235,7 +261,9 @@ func cleanRecentlyRotatedInfo() {
 // place where we play with the locks
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
+	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -243,11 +271,14 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 
-	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush, signalType, orgid, rid)
+	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
+		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
 }
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
+	rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte) error {
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
@@ -264,7 +295,8 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType)
+	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr,
+		jsParsingStackbuf)
 	if err != nil {
 		return err
 	}
@@ -369,7 +401,7 @@ func rotateSegmentOnTime() {
 				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
 			} else {
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting the segstore for streamid=%s", streamid)
+					log.Infof("Deleting the segstore for streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 					delete(allSegStores, streamid)
 				} else {
 					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
@@ -414,7 +446,6 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)
 			}
-			log.Infof("Flushed WIP buffer due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 		}
 		segstore.Lock.Unlock()
 	}
@@ -423,10 +454,25 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
+	deData := DeData{hashToDci: make(map[uint64]*DwordCbufIdxs),
+		deRecNums: make([]*bitset.BitSet, MaxDeEntries),
+		deCount:   0,
+	}
+
+	dciPool := make([]*DwordCbufIdxs, wipCardLimit)
+	for i := uint16(0); i < wipCardLimit; i++ {
+		dciPool[i] = &DwordCbufIdxs{}
+	}
+
+	cbuf := *wipCbufPool.Get().(*[]byte)
+	dePack := *wipCbufPool.Get().(*[]byte)
+
 	return &ColWip{
-		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deMap:    make(map[string][]uint16),
-		deCount:  0,
+		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:       &deData,
+		dciPool:      dciPool,
+		cbuf:         cbuf,
+		dePackingBuf: dePack,
 	}
 }
 
@@ -447,7 +493,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
 		}
 
-		segstore = &SegStore{Lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
+		segstore = NewSegStore(orgId)
 		segstore.initWipBlock()
 
 		err := segstore.resetSegStore(streamid, table)
@@ -656,7 +702,7 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 */
 // returns number of written bytes, offset of block in file, and any errors
 
-func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
+func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, error) {
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
@@ -680,7 +726,7 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	}
 	blkLen += 1 // for compression type
 
-	compressed, compLen, err := compressWip(colWip, encType)
+	compressed, compLen, err := compressWip(colWip, encType, compBuf)
 	if err != nil {
 		log.Errorf("WriteWip: compression of wip failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, blkOffset, err
@@ -695,10 +741,13 @@ func writeWip(colWip *ColWip, encType []byte) (uint32, int64, error) {
 	return blkLen, blkOffset, nil
 }
 
-func compressWip(colWip *ColWip, encType []byte) ([]byte, uint32, error) {
+func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
-		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx], make([]byte, 0, colWip.cbufidx))
+
+		// reduce the len to 0, but keep the cap of the underlying buffer
+		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx],
+			compBuf[:0])
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf[0:colWip.cbufidx]
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
@@ -930,15 +979,21 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeCount(val uint16) {
-	cw.deCount = val
-}
+func (cw *ColWip) SetDeDataForTest(deCount uint16, hashToDci map[uint64]*DwordCbufIdxs,
+	deRecNums []*bitset.BitSet) {
 
-func (cw *ColWip) SetDeMap(val map[string][]uint16) {
-	cw.deMap = val
+	deData := DeData{hashToDci: hashToDci,
+		deRecNums: deRecNums,
+		deCount:   deCount,
+	}
+	cw.deData = &deData
 }
 
 func (cw *ColWip) WriteSingleString(value string) {
+	cw.WriteSingleStringBytes([]byte(value))
+}
+
+func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 	cw.cbufidx += 1
 	n := uint16(len(value))
@@ -1117,4 +1172,21 @@ func DeletePQSData() error {
 
 	// Delete PQS meta directory
 	return pqsmeta.DeletePQMetaDir()
+}
+
+func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
+
+	dci := &DwordCbufIdxs{
+		sIdx:     sIdx,
+		wlen:     wlen,
+		recBsIdx: recBsIdx,
+	}
+	return dci
+}
+
+func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
+
+	s := dci.sIdx
+	wl := uint32(dci.wlen)
+	return cw.cbuf[s : s+wl]
 }

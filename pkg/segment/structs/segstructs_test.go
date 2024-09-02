@@ -20,7 +20,6 @@ package structs
 import (
 	"testing"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -773,7 +772,6 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 				},
 				Dtype: utils.SS_DT_SIGNED_NUM,
 			},
-			Hll:         hyperloglog.New16(),
 			StringStats: nil,
 			Records:     nil,
 		},
@@ -781,11 +779,14 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 			IsNumeric: false,
 			Count:     42,
 			NumStats:  nil,
-			Hll:       hyperloglog.New16(),
 			StringStats: &StringStats{
 				StrSet: map[string]struct{}{
 					"str1": {},
 					"str2": {},
+				},
+				StrList: []string{
+					"str1",
+					"str2",
 				},
 			},
 			Records: nil,
@@ -793,6 +794,8 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 	}
 
 	for _, originalSegStats := range segStatsList {
+		originalSegStats.CreateNewHll()
+
 		segStatsJson, err := originalSegStats.ToJSON()
 		assert.NoError(t, err)
 		assert.NotNil(t, segStatsJson)
@@ -810,11 +813,14 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		IsNumeric: false,
 		Count:     42,
 		NumStats:  nil,
-		Hll:       hyperloglog.New16(),
 		StringStats: &StringStats{
 			StrSet: map[string]struct{}{
 				"str1": {},
 				"str2": {},
+			},
+			StrList: []string{
+				"str1",
+				"str2",
 			},
 		},
 		Records: nil,
@@ -824,15 +830,22 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		IsNumeric: false,
 		Count:     42,
 		NumStats:  nil,
-		Hll:       hyperloglog.New16(),
 		StringStats: &StringStats{
 			StrSet: map[string]struct{}{
 				"str1": {},
 				"str2": {},
 			},
+			StrList: []string{
+				"str1",
+				"str2",
+			},
 		},
 		Records: nil,
 	}
+
+	segStat1.CreateNewHll()
+
+	segStat2.CreateNewHll()
 
 	assert.Equal(t, segStat1, segStat2)
 
@@ -840,6 +853,19 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		"str1": {},
 		"str2": {},
 		"str3": {},
+	}
+
+	assert.NotEqual(t, segStat1, segStat2)
+
+	segStat2.StringStats.StrSet = map[string]struct{}{
+		"str1": {},
+		"str2": {},
+	}
+
+	segStat2.StringStats.StrList = []string{
+		"str1",
+		"str2",
+		"str3",
 	}
 
 	assert.NotEqual(t, segStat1, segStat2)

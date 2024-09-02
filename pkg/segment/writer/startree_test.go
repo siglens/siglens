@@ -25,7 +25,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -230,7 +229,6 @@ func TestStarTree(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -239,15 +237,19 @@ func TestStarTree(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey1",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+	allCols := make(map[string]uint32)
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	tsKey := config.GetTimeStampKey()
 	for i, test := range cases {
 
@@ -263,19 +265,28 @@ func TestStarTree(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
 	groupByCols := []string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
-	var builder StarTreeBuilder
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
+	}
+
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols, mColNames)
+		builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -285,10 +296,12 @@ func TestStarTree(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, root.aggValues[agSumIdx].CVal.(int64),
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, iv,
 			int64(34),
 			fmt.Sprintf("expected sum of 34 for sum of column f; got %d",
-				root.aggValues[agSumIdx].CVal.(int64)))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
@@ -316,7 +329,6 @@ func TestStarTreeMedium(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -325,16 +337,20 @@ func TestStarTreeMedium(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey2",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+	allCols := make(map[string]uint32)
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey2"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -350,20 +366,28 @@ func TestStarTreeMedium(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
-	var builder StarTreeBuilder
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
+	}
+
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -373,11 +397,12 @@ func TestStarTreeMedium(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-
-		assert.Equal(t, root.aggValues[agSumIdx].CVal.(int64),
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, iv,
 			int64(34*1000),
 			fmt.Sprintf("expected sum of 340000 for sum of column f; got %d",
-				root.aggValues[agSumIdx].CVal.(int64)))
+				iv))
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
 	_ = os.RemoveAll(fName)
@@ -404,7 +429,6 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -413,17 +437,21 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 
-	allCols := make(map[string]bool)
+	allCols := make(map[string]uint32)
 	segstats := make(map[string]*SegStats)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey3",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey1"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -439,10 +467,13 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 		ss.RecordCount++
 	}
@@ -450,9 +481,15 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
-	var builder StarTreeBuilder
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
+	}
+
+	builder := GetSTB().stbPtr
+
 	for trial := 0; trial < 10; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -462,10 +499,13 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agSumIdx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, root.aggValues[agSumIdx].CVal.(int64),
+		iv, err := root.aggValues[agSumIdx].Int64()
+		assert.NoError(t, err)
+
+		assert.Equal(t, iv,
 			int64(1700),
 			fmt.Sprintf("expected sum of 3400 for sum of column f; got %d",
-				root.aggValues[agSumIdx].CVal.(int64)))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
@@ -493,7 +533,6 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
 		colWips:            colWips,
-		pqMatches:          make(map[string]*pqmr.PQMatchResults),
 		columnsInBlock:     make(map[string]bool),
 		blockSummary:       blockSummary,
 		tomRollup:          make(map[uint64]*RolledRecs),
@@ -502,16 +541,20 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		bb:                 bbp.Get(),
 	}
 	segstats := make(map[string]*SegStats)
-	allCols := make(map[string]bool)
-	ss := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey4",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+	allCols := make(map[string]uint32)
+
+	ss := NewSegStore(0)
+	ss.wipBlock = wipBlock
+	ss.SegmentKey = "test-segkey4"
+	ss.AllSeenColumnSizes = allCols
+	ss.pqTracker = initPQTracker()
+	ss.AllSst = segstats
+	ss.numBlocks = 0
+
 	tsKey := config.GetTimeStampKey()
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for i, test := range currCases {
 
@@ -527,20 +570,29 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS)
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
+
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
 	groupByCols := [...]string{"a", "d"}
 	mColNames := []string{"e", "f"}
 
-	var builder StarTreeBuilder
+	gcWorkBuf := make([][]string, len(groupByCols))
+	for colNum := 0; colNum < len(groupByCols); colNum++ {
+		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
+	}
+
+	builder := GetSTB().stbPtr
 
 	for trial := 0; trial < 1; trial += 1 {
-		builder.ResetSegTree(&ss.wipBlock, groupByCols[:], mColNames)
+		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
 		err := builder.ComputeStarTree(&ss.wipBlock)
 		assert.NoError(t, err)
 		root := builder.tree.Root
@@ -550,24 +602,32 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 
 		// first TotalMeasFns will be for col "e"
 		agidx := 1*(TotalMeasFns) + MeasFnSumIdx
-		assert.Equal(t, int64(17*100), root.aggValues[agidx].CVal.(int64),
+		iv, err := root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(17*100), iv,
 			fmt.Sprintf("expected 17000 for sum of column f; got %d",
-				root.aggValues[agidx].CVal.(int64)))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnMinIdx
-		assert.Equal(t, int64(2), root.aggValues[agidx].CVal.(int64),
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), iv,
 			fmt.Sprintf("expected 2 for min of column f; got %d",
-				root.aggValues[agidx].CVal.(int64)))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnMaxIdx
-		assert.Equal(t, int64(4), root.aggValues[agidx].CVal.(int64),
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(4), iv,
 			fmt.Sprintf("expected 4 for max of column f; got %d",
-				root.aggValues[agidx].CVal.(int64)))
+				iv))
 
 		agidx = 1*(TotalMeasFns) + MeasFnCountIdx
-		assert.Equal(t, uint64(800), root.aggValues[agidx].CVal.(uint64),
+		iv, err = root.aggValues[agidx].Int64()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(800), iv,
 			fmt.Sprintf("expected 800 for count of column f; got %d",
-				root.aggValues[agidx].CVal.(uint64)))
+				iv))
 
 	}
 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)

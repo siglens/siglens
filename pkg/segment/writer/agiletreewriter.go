@@ -27,6 +27,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// write in 128k chunks so we avoid accumulating too much in stb.buf
+const ATREE_FD_CHUNK_SIZE = 128_000
+
 func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 	writer *bufio.Writer) (uint32, error) {
 
@@ -204,9 +207,6 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	// save current level offset
 	levsOffsets[level] = strLevFileOff
 
-	sizeNeeded := stb.estimateNodeSize(len(curLevNodes))
-	stb.buf = utils.ResizeSlice(stb.buf, sizeNeeded)
-
 	idx := uint32(0)
 	// encode levelNum
 	copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(uint16(level)))
@@ -216,18 +216,36 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(uint32(len(curLevNodes))))
 	idx += 4
 
-	nextLevelNodes := []*Node{}
+	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
+	if err != nil {
+		log.Errorf("encodeNodeDetails: meta write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+		return idx, err
+	}
+	strLevFileOff += int64(idx)
+
+	numNodesNeeded := 0
+	for _, n := range curLevNodes {
+		numNodesNeeded += len(n.children)
+	}
+
+	stb.treeTravNodePtrs[level] = utils.ResizeSlice(stb.treeTravNodePtrs[level], numNodesNeeded)
+
+	nextLevelNodes := stb.treeTravNodePtrs[level][:numNodesNeeded]
+	nlIdx := 0
+
+	clBufIdx := uint32(0) // cur level buf idx for intermediary writes
 	for _, n := range curLevNodes {
 
 		// save nextlevel children
 		for _, child := range n.children {
-			nextLevelNodes = append(nextLevelNodes, child)
+			nextLevelNodes[nlIdx] = child
+			nlIdx++
 		}
 		// encode curr nodes details
 
 		// mapKey
-		copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(n.myKey))
-		idx += 4
+		copy(stb.buf[clBufIdx:], utils.Uint32ToBytesLittleEndian(n.myKey))
+		clBufIdx += 4
 
 		// add Parent keys, don't add parents for root (level-0) and level-1 (since their parent is root)
 		ancestor := n.parent
@@ -237,8 +255,8 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 				break
 			}
 
-			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
-			idx += 4
+			copy(stb.buf[clBufIdx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
+			clBufIdx += 4
 			ancestor = ancestor.parent
 		}
 
@@ -247,31 +265,33 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 			log.Errorf("encodeNodeDetails: ancestor is not the root, level: %v, nodeKey: %+v", level, n.myKey)
 		}
 
-		for agIdx, e := range n.aggValues {
-			copy(stb.buf[idx:], []byte{uint8(e.Dtype)})
-			idx += 1
+		for _, e := range n.aggValues {
+			e.CopyToBuffer(stb.buf[clBufIdx:])
+			clBufIdx += 9
+		}
 
-			switch e.Dtype {
-			case SS_DT_UNSIGNED_NUM:
-				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(e.CVal.(uint64)))
-			case SS_DT_SIGNED_NUM:
-				copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(e.CVal.(int64)))
-			case SS_DT_FLOAT:
-				copy(stb.buf[idx:], utils.Float64ToBytesLittleEndian(e.CVal.(float64)))
-			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform
-			default:
-				return 0, fmt.Errorf("encodeNodeDetails: unsupported Dtype: %v, agIdx: %v, nodeKey: %+v, e: %+v",
-					e.Dtype, agIdx, n.myKey, e)
+		if clBufIdx >= ATREE_FD_CHUNK_SIZE {
+			_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
+			if err != nil {
+				log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+				return idx, err
 			}
-			idx += 8
+			strLevFileOff += int64(clBufIdx)
+			idx += clBufIdx
+			clBufIdx = 0
 		}
 	}
-	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
-	if err != nil {
-		log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
-		return idx, err
+
+	if clBufIdx > 0 {
+		_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
+		if err != nil {
+			log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+			return idx, err
+		}
+		strLevFileOff += int64(clBufIdx)
+		idx += clBufIdx
 	}
-	strLevFileOff += int64(idx)
+
 	levsSizes[level] = idx
 
 	if len(nextLevelNodes) > 0 {
@@ -323,7 +343,7 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 		return 0, err
 	}
 
-	_, err = strMFd.Write(STAR_TREE_BLOCK)
+	_, err = strMFd.Write(VERSION_STAR_TREE_BLOCK)
 	if err != nil {
 		log.Errorf("EncodeStarTree: compression Type write failed fname=%v, err=%v", strMetaFname, err)
 		strMFd.Close()
@@ -359,15 +379,6 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 
 	strMFd.Close()
 	return nddSize + metaSize, nil
-}
-
-func (stb *StarTreeBuilder) estimateNodeSize(numNodes int) int {
-
-	// 9 for CvalEnc
-	lenAggVals := len(stb.mColNames) * TotalMeasFns * 9
-	// 4 (for curNode mapkey) + 4 per parent path to root + 1000 for buffer
-	return numNodes*(lenAggVals+4+4*int(stb.numGroupByCols)) + 1000
-
 }
 
 func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,

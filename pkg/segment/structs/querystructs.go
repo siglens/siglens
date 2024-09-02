@@ -66,15 +66,17 @@ const (
 // MatchFilter searches for all words in matchWords in the column matchColumn
 // The matchOperator defines if all or any of the matchWords need to be present
 type MatchFilter struct {
-	MatchColumn    string                 // column to search for
-	MatchWords     [][]byte               // all words to search for
-	MatchOperator  utils.LogicalOperator  // how to combine matchWords
-	MatchPhrase    []byte                 //whole string to search for in case of MatchPhrase query
-	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
-	MatchType      MatchFilterType
-	NegateMatch    bool
-	RegexpString   string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
-	regexp         *regexp.Regexp
+	MatchColumn         string                 // column to search for
+	MatchWords          [][]byte               // all words to search for. The values will be normalized to Lower case if the query is case insensitive
+	MatchWordsOriginal  [][]byte               // all original words to search for. Will be set only if dualcasecheck is enabled and query is case insensitive.
+	MatchOperator       utils.LogicalOperator  // how to combine matchWords
+	MatchPhrase         []byte                 //whole string to search for in case of MatchPhrase query. The value will be normalized to Lower case if the query is case insensitive
+	MatchPhraseOriginal []byte                 //original string to search for in case of MatchPhrase query. Will be set only if dualcasecheck is enabled and query is case insensitive.
+	MatchDictArray      *MatchDictArrayRequest //array to search for in case of jaeger query
+	MatchType           MatchFilterType
+	NegateMatch         bool
+	RegexpString        string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
+	regexp              *regexp.Regexp
 }
 
 type MatchDictArrayRequest struct {
@@ -91,8 +93,9 @@ type ExpressionFilter struct {
 
 // Top level filter criteria condition that define either a MatchFilter or ExpressionFilter. Only one will be defined, never both
 type FilterCriteria struct {
-	MatchFilter      *MatchFilter      // match filter to check multiple words in a column
-	ExpressionFilter *ExpressionFilter // expression filter to check a single expression in a column
+	MatchFilter             *MatchFilter      // match filter to check multiple words in a column
+	ExpressionFilter        *ExpressionFilter // expression filter to check a single expression in a column
+	FilterIsCaseInsensitive bool              // if the filter is case sensitive
 }
 
 // A condition struct defines the FilterConditions and ASTNodes that exist as a part of a single condition
@@ -124,6 +127,11 @@ type TableInfo struct {
 type BlockTracker struct {
 	entireFile    bool
 	excludeBlocks map[uint16]bool
+}
+
+type SegmentByTimeAndColSizes struct {
+	TimeRange            *dtu.TimeRange
+	ConsistentCValLenMap map[string]uint32
 }
 
 func InitTableInfo(rawRequest string, orgid uint64, es bool) *TableInfo {

@@ -63,6 +63,7 @@ const (
 	RUNNING      QueryState = iota + 1
 	QUERY_UPDATE            // flush segment counts & aggs & records (if matched)
 	COMPLETE
+	CANCELLED
 	TIMEOUT
 	ERROR
 )
@@ -75,6 +76,8 @@ func (qs QueryState) String() string {
 		return "QUERY_UPDATE"
 	case COMPLETE:
 		return "COMPLETE"
+	case CANCELLED:
+		return "CANCELLED"
 	case TIMEOUT:
 		return "TIMEOUT"
 	case ERROR:
@@ -106,6 +109,7 @@ type RunningQueryState struct {
 	currentSearchResultCount int
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
+	AllColsInAggs            map[string]struct{}
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -147,7 +151,7 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 			arqMapLock.RUnlock()
 
 			if ok {
-				log.Infof("qid: %v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
 			}
@@ -264,7 +268,7 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return 0, fmt.Errorf("qid: %v does not exist", qid)
+		return 0, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -300,7 +304,7 @@ func IsRawSearchFinished(qid uint64) (bool, error) {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return false, fmt.Errorf("qid:%v does not exist", qid)
+		return false, fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -314,7 +318,7 @@ func SetRawSearchFinished(qid uint64) error {
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("IsRawSearchFinished: qid %+v does not exist!", qid)
-		return fmt.Errorf("qid:%v does not exist", qid)
+		return fmt.Errorf("qid=%v does not exist", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -404,7 +408,9 @@ func GetOrCreateQuerySearchNodeResult(qid uint64) (*structs.NodeResult, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.nodeResult == nil {
-		rQuery.nodeResult = &structs.NodeResult{}
+		rQuery.nodeResult = &structs.NodeResult{
+			GlobalSearchErrors: make(map[string]*structs.SearchErrorInfo),
+		}
 	}
 	return rQuery.nodeResult, nil
 }
@@ -449,6 +455,36 @@ func SetFinalStatsForQid(qid uint64, nodeResult *structs.NodeResult) error {
 	}
 
 	return rQuery.searchRes.SetFinalStatsFromNodeResult(nodeResult)
+}
+
+func SetAllColsInAggsForQid(qid uint64, allCols map[string]struct{}) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("SetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.AllColsInAggs = allCols
+	rQuery.rqsLock.Unlock()
+}
+
+func GetAllColsInAggsForQid(qid uint64) (map[string]struct{}, error) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("GetAllColsInAggsForQid: qid %+v does not exist!", qid)
+		return nil, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.AllColsInAggs, nil
 }
 
 // gets the measure results for the running query.
@@ -548,37 +584,39 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 	defer rQuery.rqsLock.Unlock()
 
 	if rQuery.isCancelled {
+		rQuery.StateChan <- &QueryStateChanData{StateName: CANCELLED}
+		CancelQuery(qid)
 		return true, nil
 	}
 	return false, nil
 }
 
 // returns the rrcs, query counts, map of segkey encoding, and errors
-func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, error) {
+func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, map[string]struct{}, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("GetRawRecordInforForQid: qid %+v does not exist!", qid)
-		return nil, 0, nil, fmt.Errorf("qid does not exist")
+		return nil, 0, nil, nil, fmt.Errorf("qid does not exist")
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 
 	if len(rQuery.rawRecords) <= scroll {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, 0, nil, nil
+		return eres, 0, nil, nil, nil
 	}
 	skCopy := make(map[uint16]string, len(rQuery.searchRes.SegEncToKey))
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
-	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, nil
+	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, rQuery.AllColsInAggs, nil
 }
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
@@ -821,13 +859,13 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 func LogGlobalSearchErrors(qid uint64) {
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
-		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid: %v", qid)
+		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
 		return
 	}
 	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {
 		if errInfo == nil {
 			continue
 		}
-		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v", qid, errMsg, errInfo.Count)
+		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
 	}
 }

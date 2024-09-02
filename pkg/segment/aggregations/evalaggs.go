@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -601,6 +600,28 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 	return float64(len(strSet)), nil
 }
 
+func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalList := []string{}
+
+	if len(fields) == 0 || measureAgg.ValueColRequest.BooleanExpr == nil {
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("PerformAggEvalForList: Error while evaluating value col request function: %v", err)
+		}
+		finalList = append(currentList, valueStr)
+	} else {
+		boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("PerformAggEvalForList: there are some errors in the eval function that is inside the values function: %v", err)
+		}
+		if boolResult {
+			finalList = append(currentList, "1")
+		}
+	}
+	return finalList, nil
+}
+
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	result := 0.0
@@ -653,7 +674,6 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-
 	if len(fields) == 0 {
 		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
 		if err != nil {
@@ -686,12 +706,66 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 	sort.Strings(uniqueStrings)
 
-	strVal := strings.Join(uniqueStrings, "&nbsp")
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  strVal,
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  uniqueStrings,
 	}
 
+	return nil
+}
+
+func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalList := []string{}
+
+	var strList []string
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		strList = make([]string, 0)
+		runningEvalStats[measureAgg.String()] = strList
+	} else {
+		strList, ok = runningEvalStats[measureAgg.String()].([]string)
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForList: can not convert to list for measureAgg: %v", measureAgg.String())
+		}
+	}
+
+	if len(fields) == 0 {
+		fieldToValue := make(map[string]utils.CValueEnclosure)
+		list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
+		}
+		finalList = list
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForList: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		for i := range sst.Records {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForList: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+
+			list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
+			}
+			finalList = append(finalList, list...)
+		}
+	}
+
+	// limit the list to MAX_SPL_LIST_SIZE
+	if len(finalList) > utils.MAX_SPL_LIST_SIZE {
+		finalList = finalList[:utils.MAX_SPL_LIST_SIZE]
+	}
+	measureResults[measureAgg.String()] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  finalList,
+	}
 	return nil
 }
 
@@ -810,7 +884,7 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 }
 
 // Determine if cols used by eval statements or not
-func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool) {
+func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {
 		for _, field := range measureAgg.ValueColRequest.GetFields() {
 			aggCols[field] = true
@@ -832,6 +906,8 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 		aggCols[measureAgg.MeasureCol] = true
 		if measureAgg.MeasureFunc == utils.Values {
 			valuesUsage[measureAgg.MeasureCol] = true
+		} else if measureAgg.MeasureFunc == utils.List {
+			listUsage[measureAgg.MeasureCol] = true
 		}
 
 		colUsage, exists := aggColUsage[measureAgg.MeasureCol]

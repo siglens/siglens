@@ -23,7 +23,6 @@ import (
 	"math"
 	"os"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -58,6 +57,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	rIdx := uint32(0)
 
 	// version
+	version := fdata[rIdx]
 	rIdx++
 
 	for rIdx < uint32(len(fdata)) {
@@ -68,12 +68,24 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		// actual cname
 		cname := string(fdata[rIdx : rIdx+uint32(cnamelen)])
 		rIdx += uint32(cnamelen)
+
 		// sst len
-		sstlen := toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2])
-		rIdx += 2
+		var sstlen uint32
+
+		switch version {
+		case utils.VERSION_SEGSTATS[0]:
+			sstlen = toputils.BytesToUint32LittleEndian(fdata[rIdx : rIdx+4])
+			rIdx += 4
+		case utils.VERSION_SEGSTATS_LEGACY[0]:
+			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
+			rIdx += 2
+		default:
+			log.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
+			continue
+		}
 
 		// actual sst
-		sst, err := readSingleSst(fdata[rIdx:rIdx+uint32(sstlen)], qid)
+		sst, err := readSingleSst(fdata[rIdx:rIdx+sstlen], qid)
 		if err != nil {
 			log.Errorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
 				qid, cname, err)
@@ -89,9 +101,10 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	sst := structs.SegStats{}
 
-	idx := uint16(0)
+	idx := uint32(0)
 
-	// read version, currently ignored
+	// read version
+	version := fdata[idx]
 	idx++
 
 	// read isNumeric
@@ -102,15 +115,30 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	sst.Count = toputils.BytesToUint64LittleEndian(fdata[idx : idx+8])
 	idx += 8
 
-	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
-	idx += 2
+	var hllSize uint32
 
-	sst.Hll = hyperloglog.New16()
-	err := sst.Hll.UnmarshalBinary(fdata[idx : idx+hllSize])
-	if err != nil {
-		log.Errorf("qid=%d, readSingleSst: unmarshal sst err: %v", qid, err)
-		return nil, err
+	switch version {
+	case utils.VERSION_SEGSTATS_BUF[0]:
+		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
+		idx += 4
+	case utils.VERSION_SEGSTATS_BUF_LEGACY_2[0], utils.VERSION_SEGSTATS_BUF_LEGACY_1[0]:
+		hllSize = uint32(toputils.BytesToUint16LittleEndian(fdata[idx : idx+2]))
+		idx += 2
+	default:
+		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
+		return nil, errors.New("readSingleSst: unknown version")
 	}
+
+	if version == utils.VERSION_SEGSTATS_BUF_LEGACY_1[0] {
+		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
+	} else {
+		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
+		if err != nil {
+			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
+			return nil, err
+		}
+	}
+
 	idx += hllSize
 
 	if !sst.IsNumeric {
@@ -399,16 +427,16 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		res.IntgrVal = int64(currSegStat.Hll.Estimate())
+		res.IntgrVal = int64(currSegStat.GetHllCardinality())
 		return &res, nil
 	}
 
-	err := runningSegStat.Hll.Merge(currSegStat.Hll)
+	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
 	if err != nil {
 		log.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
 		return nil, err
 	}
-	res.IntgrVal = int64(runningSegStat.Hll.Estimate())
+	res.IntgrVal = int64(runningSegStat.GetHllCardinality())
 
 	return &res, nil
 }
@@ -493,4 +521,51 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 	}
 
 	return &rSst, nil
+}
+
+func GetSegList(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	res := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  make([]string, 0),
+	}
+	if currSegStat == nil {
+		log.Errorf("GetSegList: currSegStat is nil")
+		return &res, errors.New("GetSegList: currSegStat is nil")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		if len(currSegStat.StringStats.StrList) > utils.MAX_SPL_LIST_SIZE {
+			finalStringList := make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(finalStringList, currSegStat.StringStats.StrList[:utils.MAX_SPL_LIST_SIZE])
+			res.CVal = finalStringList
+		} else {
+			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
+			copy(finalStringList, currSegStat.StringStats.StrList)
+			res.CVal = finalStringList
+		}
+		return &res, nil
+	}
+
+	// Limit list size to match splunk.
+	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
+
+	if runningSegStat.StringStats != nil {
+		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
+	if currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
+		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
+	res.CVal = strList
+	if runningSegStat.StringStats == nil {
+		runningSegStat.StringStats = &structs.StringStats{
+			StrList: strList,
+		}
+	} else {
+		runningSegStat.StringStats.StrList = strList
+	}
+	return &res, nil
 }

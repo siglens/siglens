@@ -781,6 +781,14 @@ body {
     width: 24px;
 }
 
+.icon-lookups:hover,
+.menu.nav-lookups.active .icon-search,
+.menu.nav-lookups:hover .icon-search {
+    background-image: url("../assets/search-icon-active.svg");
+    height: 19px;
+    width: 19px;
+}
+
 #cancel-loading,
 #live-tail-btn,
 #add-icon,
@@ -1935,6 +1943,19 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
+.download-button {
+    background-image: url(../assets/download-regular.svg);
+    height: 16px;
+    background-repeat: no-repeat;
+    width: 18px;
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+    padding-bottom: 0;
+    margin-top: 4px;
+    background-size: contain;
+}
+
 #editbutton {
     background-image: url(../assets/edit-alert-icon.svg);
     height: 16px;
@@ -1991,6 +2012,14 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
     margin-left: 35px;
 }
+
+.download-button:hover {
+    background-image: url(../assets/download-active.svg);
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+}
+
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
     cursor: pointer;
@@ -2013,18 +2042,18 @@ div.dts div.dataTables_scrollBody table {
 }
 .rule-name-error{
     color: #6449D6;
-    visibility: hidden;
+    display: none;
     font-size: 13px;
     margin-bottom: 6px;
 
 }
 .rule-name-error.active{
-    visibility: visible;
+    display: block;
     color: #6449D6;
     font-size: 13px;
-    margin-bottom: 20px;
+    margin-bottom: 4px;
 }
-.popupContent,.delete-dialog {
+.popupContent,.delete-dialog ,.mypopupContent{
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
     border: 1px solid var(--ui-widget-border-color);
@@ -2042,10 +2071,9 @@ div.dts div.dataTables_scrollBody table {
 }
 .delete-dialog{
     width: 564px !important;
-    left: 30%;
 }
 
-.usage-stats .popupContent {
+.usage-stats .popupContent{
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
     border: 1px solid var(--ui-widget-border-color);
@@ -2061,7 +2089,7 @@ div.dts div.dataTables_scrollBody table {
     z-index: 12;
 }
 
-.popupContent .header,.delete-dialog .header {
+.popupContent .header,.delete-dialog .header ,.mypopupContent .header{
   color: var(--text-color);
   margin-bottom: 25px;
   font-weight: bold;
@@ -2074,7 +2102,7 @@ div.dts div.dataTables_scrollBody table {
     margin-top: 24px;
 }
 
-.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active{
+.popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active,.mypopupContent.active{
   visibility: visible;
   position: fixed;
   overflow: hidden;
@@ -2113,7 +2141,7 @@ div.dts div.dataTables_scrollBody table {
   background: var(--btn-regular-bg-color);
 }
 
-[data-theme='dark'] .popupContent {
+[data-theme='dark'] .popupContent, [data-theme='dark'] .mypopupContent {
   background: var(--ui-widget-bg-color);
   border: 1px solid var(--ui-widget-border-color);
   color: var(--text-color);
@@ -2718,11 +2746,12 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     left: auto;
     right: 10px;
     position: absolute !important;
+    z-index: 1;
 }
 
 #filter-input{
     padding-left: 1rem;
-    padding-right: 3rem;
+    padding-right: 3.2rem;
 }
 
 .tooltip{
@@ -2800,10 +2829,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .ag-theme-mycustomtheme .ag-header-cell-resize {
     background-color: var(--bg-color) !important;
 }
- .ag-cell {
+#LogResultsGrid .ag-cell {
+    user-select: all;
+}
+
+.ag-cell{
     padding: 3px 15px !important;
     font-size: 14px;
-    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{
@@ -4938,8 +4970,6 @@ color: #C8C7CC;
 
 #add-new-contact-popup{
     position: absolute;
-    top: 10%;
-    left: 22%;
     height: 70%;
     width: 60% !important;
     overflow: hidden;
@@ -5054,7 +5084,7 @@ color: #C8C7CC;
   background-color: var(--alerting-table-bg-color);
 }
 
-#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute::after{
+#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute:not(.ag-row-pinned)::after{
   content: '';
   position: absolute;
   left: 10px;
@@ -5523,6 +5553,7 @@ input.form-control {
     background-color: var(--side-nav-bg-color-regular);
     font-size: 12px;
     box-shadow: var(--box-shadow);
+    text-align: center;
 }
 
 .tippy-box[data-placement^='top'] > .tippy-arrow::before {
@@ -5592,8 +5623,6 @@ input.form-control {
     flex-direction: column;
     justify-content: center;
     color: var(--text-color);
-    font-weight: 600;
-    
   }
   #addrule-cancel-btn {
     background: var(--component-bg-color);
@@ -5601,7 +5630,6 @@ input.form-control {
     width: 195px !important;
     height: 32px !important;
     border: none;
-    padding: 2%;
     border-radius: 5px;
 }
 
@@ -5613,7 +5641,6 @@ input.form-control {
     color: #ffffff; 
     border: none;
     padding: 8px 16px;
-    font-size: 16px; 
     cursor: pointer;
     text-align: center;
     width: 195px !important;
@@ -5657,8 +5684,7 @@ input.form-control {
 }
 
 #addrule-save-btn img {
-    width: 15px; 
-    height: 15px;
+    width: 13px;
     margin-right: 8px; 
 }
 
@@ -6003,4 +6029,59 @@ input.form-control {
     background-size: cover;
     cursor: pointer;
     margin-bottom: 10px;
+}
+
+.pqs-tables h3{
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.myOrg-inner-container .ag-row-pinned {
+    font-weight: bold;
+}
+
+.myOrg-inner-container .ag-row-pinned::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: var(--alerting-table-line-color);
+    top: 0;
+}
+
+.primary-btn{
+    margin: 0;
+    text-decoration: none;
+    border: none;
+    height: 30px;
+    color: var(--button-text-color) !important;
+    background: var(--btn-regular-bg-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grey-btn{
+    margin: 0;
+    text-decoration: none;
+    border: none;
+    height: 30px;
+    color: var(--button-text-color) !important;
+    background: var(--component-bg-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#file-input{
+    height: 60px !important;
+}
+
+#cancel-upload-btn, #cancel-overwrite-btn,
+#cancel-delete-btn{
+    margin-right: 10px;
+}
+
+#csvViewerModal{
+    width: 60% !important;
 }

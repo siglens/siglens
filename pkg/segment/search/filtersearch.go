@@ -18,6 +18,7 @@
 package search
 
 import (
+	"regexp"
 	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -31,12 +32,12 @@ import (
 // Search a single SearchQuery and returns which records passes the filter
 func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
-	allSearchResults *segresults.SearchResults) *SegmentSearchStatus {
+	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult) *SegmentSearchStatus {
 
 	queryType := query.GetQueryType()
 	searchCols := getAllColumnsNeededForSearch(query, searchReq.AllPossibleColumns)
 	sharedMultiReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, searchCols, searchReq.AllBlocksToSearch,
-		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), qid)
+		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid)
 
 	if err != nil {
 		// if we fail to read needed columns, we can convert it to a match none
@@ -61,7 +62,7 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 		runningBlockManagers.Add(1)
 		go filterBlockRequestFromQuery(sharedMultiReader.MultiColReaders[i], query, segmentSearch,
 			filterBlockRequestsChan, blockHelper, &runningBlockManagers, op, queryType, qid,
-			allSearchResults, searchReq)
+			allSearchResults, searchReq, nodeRes)
 	}
 	runningBlockManagers.Wait()
 	logSingleQuerySummary(segmentSearch, op, qid)
@@ -89,7 +90,8 @@ func getAllColumnsNeededForSearch(query *structs.SearchQuery, allCols map[string
 func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, query *structs.SearchQuery,
 	segmentSearch *SegmentSearchStatus, resultsChan chan *BlockSearchStatus, blockHelper *structs.BlockSearchHelper,
 	runningBlockManagers *sync.WaitGroup, op utils.LogicalOperator, queryType structs.SearchNodeType,
-	qid uint64, allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest) {
+	qid uint64, allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest,
+	nodeRes *structs.NodeResult) {
 
 	defer runningBlockManagers.Done() // defer in case of panics
 
@@ -112,7 +114,7 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 			}
 		case structs.ColumnValueQuery:
 			filterRecordsFromSearchQuery(query, segmentSearch, blockHelper, multiColReader, recIT,
-				blockReq.BlockNum, holderDte, qid, allSearchResults, searchReq)
+				blockReq.BlockNum, holderDte, qid, allSearchResults, searchReq, nodeRes)
 		case structs.InvalidQuery:
 			// don't match any records
 		}
@@ -127,15 +129,17 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 }
 
 func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *SegmentSearchStatus,
-	blockHelper *structs.BlockSearchHelper,
-	multiColReader *segread.MultiColSegmentReader, recIT *BlockRecordIterator, blockNum uint16,
-	holderDte *utils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
-	searchReq *structs.SegmentSearchRequest) {
+	blockHelper *structs.BlockSearchHelper, multiColReader *segread.MultiColSegmentReader, recIT *BlockRecordIterator,
+	blockNum uint16, holderDte *utils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
+	searchReq *structs.SegmentSearchRequest, nodeRes *structs.NodeResult) {
 
 	// first we walk through the search checking if this query can be satisfied by looking at the
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
 	checkAllCols := false
+	var compiledRegex *regexp.Regexp
+	var err error
+
 	if query.SearchType == structs.MatchWordsAllColumns ||
 		query.SearchType == structs.RegexExpressionAllColumns ||
 		query.SearchType == structs.MatchDictArrayAllColumns {
@@ -201,13 +205,35 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			queryInfoColKeyIndex = cKeyidx
 		}
 
+		if query.MatchFilter != nil && query.MatchFilter.MatchType == structs.MATCH_PHRASE {
+			compiledRegex, err = query.MatchFilter.GetRegexp()
+			if err != nil {
+				log.Errorf("filterRecordsFromSearchQuery: error getting match regex: %v", err)
+				return
+			}
+		}
+
+		colsToReadIndices, err := GetRequiredColsForSearchQuery(multiColReader, query, cmiPassedNonDictColKeyIndices, queryInfoColKeyIndex)
+		if err != nil {
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to get required cols for search query. err: %v", qid, err)
+			allSearchResults.AddError(err)
+			return
+		}
+
+		err = multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
+		if err != nil {
+			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to validate and read block: %d, err: %v", qid, blockNum, err)
+			allSearchResults.AddError(err)
+			return
+		}
+
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex)
+					queryInfoColKeyIndex, compiledRegex)
 				if err != nil {
-					allSearchResults.AddError(err)
+					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to ApplyColumnarSearchQuery", log.ErrorLevel, err)
 					break
 				}
 				if query.MatchFilter != nil && query.MatchFilter.NegateMatch {

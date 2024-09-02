@@ -133,8 +133,9 @@ func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]bool, blockIdx uint16,
-	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64) {
+	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockIdx uint16,
+	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64,
+	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()
 
@@ -164,7 +165,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 	var pqidSize uint64
 	if AllUnrotatedSegmentInfo[segkey].isCmiLoaded {
 		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockIdx, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
-		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, wipBlock.pqMatches)
+		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, pqMatches)
 	}
 
 	blkSumSize := blkSumCpy.GetSize()
@@ -307,9 +308,9 @@ func (ri *RangeIndex) copyRangeIndex() *RangeIndex {
 // does CMI check on unrotated segment info for inputted request. Assumes UnrotatedInfoLock has been acquired
 // returns the final blocks to search, total unrotated blocks, num filtered blocks, and errors if any
 func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.SearchQuery, tRange *dtu.TimeRange,
-	blkTracker *structs.BlockTracker, bloomWords map[string]bool, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
+	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool,
-	qid uint64) (map[uint16]map[string]bool, uint64, uint64, error) {
+	qid uint64, dualCaseCheckEnabled bool) (map[uint16]map[string]bool, uint64, uint64, error) {
 
 	timeFilteredBlocks := metautils.FilterBlocksByTime(usi.blockSummaries, blkTracker, tRange)
 	totalPossibleBlocks := uint64(len(usi.blockSummaries))
@@ -326,7 +327,7 @@ func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.Searc
 	if isRange {
 		err = usi.doRangeCheckForCols(timeFilteredBlocks, rangeFilter, rangeOp, colsToCheck, qid)
 	} else if !wildcardValue {
-		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, bloomOp, colsToCheck, qid)
+		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, originalBloomWords, bloomOp, colsToCheck, qid, dualCaseCheckEnabled)
 	}
 
 	numFinalBlocks := uint64(len(timeFilteredBlocks))
@@ -355,14 +356,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 		// As long as there is one column within the range, the value is equal to true
 		var matchedBlockRange bool
 		for col := range colsToCheck {
-			var cmi *structs.CmiContainer
-			var ok bool
-			if cmi, ok = currInfo[col]; !ok {
+			cmi, ok := currInfo[col]
+			if !ok || cmi == nil || cmi.Ranges == nil {
+				if rangeOp == segutils.NotEquals {
+					timeFilteredBlocks[blkNum][col] = true
+					matchedBlockRange = true
+				}
 				continue
 			}
-			if cmi.Ranges == nil {
-				continue
-			}
+
 			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
 			if isMatched {
 				timeFilteredBlocks[blkNum][col] = true
@@ -377,12 +379,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 }
 
 func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
-	bloomKeys map[string]bool, bloomOp segutils.LogicalOperator,
-	colsToCheck map[string]bool, qid uint64) error {
+	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp segutils.LogicalOperator,
+	colsToCheck map[string]bool, qid uint64, dualCaseCheckEnabled bool) error {
 
 	if !usi.isCmiLoaded {
 		return nil
 	}
+
+	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
+
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {
 		if blkNum > numUnrotatedBlks {
@@ -404,6 +409,12 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 					continue
 				}
 				needleExists := cmi.Bf.TestString(entry)
+				if !needleExists && checkInOriginalKeys {
+					originalEntry, ok := originalBloomKeys[entry]
+					if ok {
+						needleExists = cmi.Bf.TestString(originalEntry)
+					}
+				}
 				if needleExists {
 					atLeastOneFound = true
 					timeFilteredBlocks[blkNum][col] = true
@@ -509,10 +520,10 @@ func GetUnrotatedMetadataInfo() (uint64, uint64) {
 }
 
 // returns map[table]->map[segKey]->timeRange that pass index & time range check, total checked, total passed
-func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*dtu.TimeRange, uint64, uint64) {
+func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 	totalCount := uint64(0)
 	totalChecked := uint64(0)
-	retVal := make(map[string]map[string]*dtu.TimeRange)
+	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
 
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
@@ -532,9 +543,11 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			continue
 		}
 		if _, ok := retVal[usi.TableName]; !ok {
-			retVal[usi.TableName] = make(map[string]*dtu.TimeRange)
+			retVal[usi.TableName] = make(map[string]*structs.SegmentByTimeAndColSizes)
 		}
-		retVal[usi.TableName][segKey] = usi.tsRange
+		retVal[usi.TableName][segKey] = &structs.SegmentByTimeAndColSizes{
+			TimeRange: usi.tsRange,
+		}
 		totalCount++
 	}
 	return retVal, totalChecked, totalCount

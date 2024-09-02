@@ -176,7 +176,7 @@ func getVectorArithmeticResponse(queryResult *structs.NodeResult) map[string]int
 //		  }
 //		]
 //	}
-func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
 		if alreadyHandled {
@@ -229,6 +229,10 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	streams := jsonData["streams"]
 	allIngestData := make(map[string]interface{})
 
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
 		ingestCommonFields := parseLabels(labels)
@@ -271,11 +275,121 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */)
+				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
+					jsParsingStackbuf[:])
 				if err != nil {
 					utils.SendError(ctx, "Failed to ingest record", "", err)
 					return
 				}
+			}
+		}
+	}
+
+	responsebody["status"] = "Success"
+	utils.WriteJsonResponse(ctx, responsebody)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+// LokiLogStream represents log entry in format acceptable for Loki HTTP API: https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
+// Acceptable json example:
+//
+//	{
+//	 "streams": [
+//	   {
+//		 "stream": {
+//		   "label": "value"
+//		 },
+//		 "values": [
+//			 [ "<unix epoch in nanoseconds>", "<log line>"],
+//			 [ "<unix epoch in nanoseconds>", "<log line>", {"trace_id": "0242ac120002", "user_id": "superUser123"}]
+//		 ]
+//	   }
+//	 ]
+//	}
+func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		if alreadyHandled {
+			return
+		}
+	}
+	responsebody := make(map[string]interface{})
+	buf := ctx.PostBody()
+
+	var logData LokiLogData
+	err := json.Unmarshal(buf, &logData)
+	if err != nil {
+		utils.SendError(ctx, "Unable to unmarshal request", "", err)
+		return
+	}
+
+	tsNow := utils.GetCurrentTimeInMs()
+	indexNameIn := LOKIINDEX
+	if !vtable.IsVirtualTablePresent(&indexNameIn, myid) {
+		log.Errorf("ProcessLokiApiIngestRequest: Index name %v does not exist. Adding virtual table name and mapping.", indexNameIn)
+		err = vtable.AddVirtualTable(&indexNameIn, myid)
+		if err != nil {
+			utils.SendInternalError(ctx, "Failed to add virtual table for index", "", err)
+			return
+		}
+	}
+
+	localIndexMap := make(map[string]string)
+
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	for _, stream := range logData.Streams {
+		allIngestData := make(map[string]interface{})
+
+		// Extracting the labels and adding to the ingest data
+		for label, value := range stream.Stream {
+			allIngestData[label] = value
+		}
+
+		for _, value := range stream.Values {
+			if len(value) < 2 {
+				utils.SendError(ctx, "Invalid log entry format", "", nil)
+				return
+			}
+
+			timestamp, ok := value[0].(string)
+			if !ok {
+				utils.SendError(ctx, "Invalid timestamp format", "", nil)
+				return
+			}
+
+			line, ok := value[1].(string)
+			if !ok {
+				utils.SendError(ctx, "Invalid line format", "", nil)
+				return
+			}
+
+			allIngestData["timestamp"] = timestamp
+			allIngestData["line"] = line
+
+			// Handle optional fields
+			if len(value) > 2 {
+				if additionalFields, ok := value[2].(map[string]interface{}); ok {
+					for k, v := range additionalFields {
+						allIngestData[k] = v
+					}
+				}
+			}
+
+			// Marshal the map to JSON
+			allIngestDataBytes, err := json.Marshal(allIngestData)
+			if err != nil {
+				utils.SendError(ctx, "Unable to marshal json", fmt.Sprintf("allIngestData: %v", allIngestData), err)
+				return
+			}
+
+			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+				jsParsingStackbuf[:])
+			if err != nil {
+				utils.SendError(ctx, "Failed to ingest record", "", err)
+				return
 			}
 		}
 	}
@@ -383,7 +497,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if query != "" {
 		astNode, aggNode, err = pipesearch.ParseRequest(query, timeRange.StartEpochMs, timeRange.EndEpochMs, qid, "Log QL", indexName)
 		if err != nil {
-			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid: %v, QUERY: %v", qid, query), err)
+			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid=%v, QUERY: %v", qid, query), err)
 			return
 		}
 	}
@@ -477,7 +591,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 
 	if len(queryResult.MeasureResults) > 0 {
 		lokiMetricsResponse := getMetricsResponse(queryResult)
@@ -567,7 +681,7 @@ func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qc := structs.InitQueryContextWithTableInfo(ti, rutils.DefaultBucketCount, 0, myid, false)
 
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		writeEmptyIndexStatsResponse(ctx)
 		return
@@ -625,7 +739,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, DefaultLimit, 0, myid, false)
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
+	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs, queryResult.AllColumnsInAggs)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get matching records", "", err)
 		return

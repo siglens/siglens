@@ -52,12 +52,13 @@ type QueryInformation struct {
 
 type QuerySegmentRequest struct {
 	QueryInformation
-	segKey        string
-	segKeyTsRange *dtu.TimeRange
-	tableName     string
-	sType         structs.SegType
-	blkTracker    *structs.BlockTracker
-	HasMatchedRrc bool
+	segKey               string
+	segKeyTsRange        *dtu.TimeRange
+	tableName            string
+	sType                structs.SegType
+	blkTracker           *structs.BlockTracker
+	HasMatchedRrc        bool
+	ConsistentCValLenMap map[string]uint32
 }
 
 func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {

@@ -72,8 +72,6 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	fName := segKey + ".strm"
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("qid=%d, InitNewAgileTreeReader: failed to open STR %s for Error: %v.",
-			qid, fName, err)
 		return nil, err
 	}
 
@@ -125,6 +123,21 @@ func (str *AgileTreeReader) resetBlkVars() {
 	str.isMetaLoaded = false
 }
 
+func validateTreeEncodingVersion(version byte) error {
+	switch version {
+	case utils.VERSION_STAR_TREE_BLOCK[0]:
+		// do nothing, this is the expected encoding
+	case utils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
+		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
+		return errors.New("received legacy agileTree encoding")
+	default:
+		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
+		return errors.New("received non-agileTree encoding")
+	}
+
+	return nil
+}
+
 /*
 parameters:
 
@@ -157,10 +170,10 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 		return err
 	}
 
-	if str.metaFileBuffer[0] != utils.STAR_TREE_BLOCK[0] {
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v",
-			str.metaFileBuffer[0])
-		return errors.New("received non-agileTree encoding")
+	encodingVersion := str.metaFileBuffer[0]
+	err = validateTreeEncodingVersion(encodingVersion)
+	if err != nil {
+		return err
 	}
 
 	idx := uint32(0)
@@ -349,6 +362,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 	var wvInt64 int64
 	var wvFloat64 float64
+	var dtype utils.SS_DTYPE
 	idx := uint32(0)
 
 	// level
@@ -434,18 +448,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			agIdx := idx                           // set to the start of aggValue for this node's data
 			agIdx += uint32(measResIndices[j]) * 9 // jump to the AgValue for this meas's index
 
-			dtype := utils.SS_DTYPE(buf[agIdx])
-			agIdx += 1
-
-			switch dtype {
-			case utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_SIGNED_NUM:
-				wvInt64 = toputils.BytesToInt64LittleEndian(buf[agIdx : agIdx+8])
-			case utils.SS_DT_FLOAT:
-				wvFloat64 = toputils.BytesToFloat64LittleEndian(buf[agIdx : agIdx+8])
-			case utils.SS_DT_BACKFILL:
-			default:
-				return fmt.Errorf("AgileTreeReader.decodeNodeDetailsJit: unsupported Dtype: %v", dtype)
-			}
+			wvInt64, wvFloat64, dtype = utils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
 
 			// remainder will give us MeasFnIdx
 			fn := writer.IdxToAgFn[measResIndices[j]%writer.TotalMeasFns]
@@ -551,6 +554,15 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			case utils.SS_DT_FLOAT:
 				extVal.Dtype = utils.SS_DT_FLOAT
 				extVal.CVal = ntAgvals[i].FloatVal
+			case utils.SS_DT_BACKFILL:
+				extVal.Dtype = utils.SS_DT_SIGNED_NUM
+				extVal.CVal = ntAgvals[i].IntgrVal
+			case utils.SS_INVALID:
+				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+				continue
+			default:
+				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+				continue
 			}
 			// todo count is stored multiple times in the nodeAggvalue (per measCol), store only once
 			if i == 0 { // count is always at index 0

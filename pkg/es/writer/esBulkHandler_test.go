@@ -41,9 +41,15 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
 
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId, 0)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true,
+			localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+			jsParsingStackbuf[:])
 		assert.Nil(t, err)
 	}
 
@@ -61,7 +67,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 	}
 	flush()
@@ -80,7 +86,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 	}
 	flush()
