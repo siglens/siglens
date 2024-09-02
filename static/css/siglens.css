@@ -458,16 +458,15 @@ body {
     display: none;
 }
 .format-icon {
-    position: absolute;
-    top: 8px;
-    right: 53px;
     cursor: pointer;
     display: none;
-    background: var(--format-icon);
-    height: 16px;
-    width: 16.8px;
-    background-size: cover;
+    position: absolute;
+    right: 11%;
+    font-size: 12px !important;
+    padding: 3.5px;
+    color: grey !important;
 }
+
 .theme-btn-group {
     width: 60px;
     border-radius: 5px;
