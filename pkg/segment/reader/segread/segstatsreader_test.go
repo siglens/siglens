@@ -110,7 +110,7 @@ func TestGetSegList(t *testing.T) {
 			runningSegStat: nil,
 			currSegStat:    nil,
 			expectedRes:    &utils.CValueEnclosure{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{}},
-			expectedErr:    errors.New("GetSegList: currSegStat does not contain string list"),
+			expectedErr:    errors.New("GetSegList: currSegStat does not contain string list <nil>"),
 		},
 		{
 			name:           "runningSegStat is nil, currSegStat has small list",
