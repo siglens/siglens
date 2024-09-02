@@ -294,6 +294,7 @@ function doLiveTailSearch(data) {
                 console.log(`[message] CANCELLED state received from server: ${jsonEvent}`);
                 processCancelUpdate(jsonEvent);
                 console.timeEnd('CANCELLED');
+                break;
             case 'ERROR':
                 console.time('ERROR');
                 console.log(`[message] Error state received from server: ${jsonEvent}`);
