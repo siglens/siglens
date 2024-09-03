@@ -584,8 +584,6 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 	defer rQuery.rqsLock.Unlock()
 
 	if rQuery.isCancelled {
-		rQuery.StateChan <- &QueryStateChanData{StateName: CANCELLED}
-		CancelQuery(qid)
 		return true, nil
 	}
 	return false, nil
