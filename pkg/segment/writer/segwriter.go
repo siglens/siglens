@@ -543,73 +543,6 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
 }
 
-/*
-Adds the fullWord and sub-words (lowercase as well) to the bloom
-Subwords are gotten by splitting the fullWord by whitespace
-NOTE: This function may modify the incoming byte slice
-*/
-func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
-
-	var blockWordCount uint32 = 0
-	copy := fullWord[:]
-
-	// we will add the lowercase to bloom only if there was an upperCase and we
-	// had to convert
-	hasUpper := utils.HasUpper(copy)
-
-	// add the original full
-	if !blockBloom.TestAndAdd(copy) {
-		blockWordCount += 1
-	}
-
-	var hasSubWords bool
-	for {
-		i := bytes.Index(copy, BYTE_SPACE)
-		if i == -1 {
-			break
-		}
-		hasSubWords = true
-		// add original sub word
-		if !blockBloom.TestAndAdd(copy[:i]) {
-			blockWordCount += 1
-		}
-
-		// add original sub word lowercase
-		if hasUpper {
-			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy[:i])) {
-				blockWordCount += 1
-			}
-		}
-		copy = copy[i+BYTE_SPACE_LEN:]
-	}
-
-	// handle last word. If no word was found, then we have already added the full word
-	if hasSubWords && len(copy) > 0 {
-		if !blockBloom.TestAndAdd(copy) {
-			blockWordCount += 1
-		}
-		if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
-			blockWordCount += 1
-		}
-	}
-
-	if hasUpper {
-		if hasSubWords {
-			// if subwords, then add the original full's lowercase
-			// but have to use the original var, since the copy is pointing to last subword
-			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(fullWord[:])) {
-				blockWordCount += 1
-			}
-		} else {
-			if !blockBloom.TestAndAdd(utils.BytesToLowerInPlace(copy)) {
-				blockWordCount += 1
-			}
-		}
-	}
-
-	return blockWordCount
-}
-
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
 	uintVal uint64, fltVal float64) {
 	switch numType {
@@ -1217,7 +1150,7 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 	// todo a better way to size the bloom might be to count the num of space and
 	// then add to the cw.deData.deCount, that should be the optimal size
 	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount), BLOOM_COLL_PROBABILITY)
+	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount)*2, BLOOM_COLL_PROBABILITY)
 	for dwordkey := range cw.deData.deMap {
 		dword := []byte(dwordkey)
 		switch dword[0] {
@@ -1279,6 +1212,21 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 /*
 Adds the fullWord and sub-words (lowercase as well) to the bloom
 Subwords are gotten by splitting the fullWord by whitespace
+NOTE: This function may modify the incoming byte slice
+*/
+func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
+
+	blockWordCount, err := addToBlockBloomBothCasesWithBuf(blockBloom, fullWord, fullWord)
+	if err != nil {
+		log.Errorf("addToBlockBloomBothCases: err adding bloom: err: %v", err)
+	}
+
+	return blockWordCount
+}
+
+/*
+Adds the fullWord and sub-words (lowercase as well) to the bloom
+Subwords are gotten by splitting the fullWord by whitespace
 */
 func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []byte,
 	workBuf []byte) (uint32, error) {
@@ -1325,21 +1273,11 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	}
 
 	if hasUpper {
-		if hasSubWords {
-			// if subwords, then add the original full's lowercase
-			// but have to use the original var, since the copy is pointing to last subword
-			word, err := utils.BytesToLower(fullWord[:], workBuf)
-			if err != nil {
-				return 0, err
-			}
-			_ = blockBloom.Add(word)
-		} else {
-			word, err := utils.BytesToLower(copy, workBuf)
-			if err != nil {
-				return 0, err
-			}
-			_ = blockBloom.Add(word)
+		word, err := utils.BytesToLower(fullWord[:], workBuf)
+		if err != nil {
+			return 0, err
 		}
+		_ = blockBloom.Add(word)
 	}
 	return blockWordCount, nil
 }

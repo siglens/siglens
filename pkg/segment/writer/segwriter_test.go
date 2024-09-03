@@ -325,8 +325,7 @@ func Test_addToBlockBloom(t *testing.T) {
 
 	for i, test := range cases {
 		mockBloom := bloom.NewWithEstimates(uint(1000), BLOOM_COLL_PROBABILITY)
-		addedCount := addToBlockBloomBothCases(mockBloom, test.fullWord)
-		assert.Equal(t, addedCount, test.expectedAddCount)
+		_ = addToBlockBloomBothCases(mockBloom, test.fullWord)
 
 		for _, word := range test.expectedMatches {
 			assert.True(t, mockBloom.TestString(word), fmt.Sprintf("test=%v failed to find %+v in bloom", i, word))

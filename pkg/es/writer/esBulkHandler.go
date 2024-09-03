@@ -141,10 +141,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	origItems := items
 	defer respItemsPool.Put(&origItems)
 
-	// kunal todo check , if items gets extended and we put back origitems then does the os
-	// delete the old items array ?
-	itemsLen := len(items)
-
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
 
@@ -158,10 +154,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	for scanner.Scan() {
 		inCount++
-		if inCount >= itemsLen {
+		if inCount >= len(items) {
 			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
-			itemsLen += 100
 		}
 
 		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
