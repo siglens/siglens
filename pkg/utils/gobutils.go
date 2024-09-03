@@ -23,6 +23,7 @@ import (
 	"encoding/gob"
 	"regexp"
 
+	"github.com/siglens/go-hll"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -100,6 +101,42 @@ func (self *GobbableList) GobDecode(data []byte) error {
 	self.Init()
 	for _, element := range elements {
 		self.PushBack(element)
+	}
+
+	return nil
+}
+
+type GobbableHll struct {
+	hll.Hll
+}
+
+func (self *GobbableHll) GobEncode() ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	bytes := self.ToBytes()
+
+	if err := encoder.Encode(bytes); err != nil {
+		log.Errorf("GobbableHll.GobEncode: failed to encode; err=%v", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (self *GobbableHll) GobDecode(data []byte) error {
+	var err error
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+
+	var bytes []byte
+	if err = decoder.Decode(&bytes); err != nil {
+		log.Errorf("GobbableHll.GobDecode: failed to decode; err=%v", err)
+		return err
+	}
+
+	self.Hll, err = hll.FromBytes(bytes)
+	if err != nil {
+		log.Errorf("GobbableHll.GobDecode: failed to create Hll from bytes; err=%v", err)
+		return err
 	}
 
 	return nil

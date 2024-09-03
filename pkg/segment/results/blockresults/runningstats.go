@@ -22,10 +22,10 @@ import (
 	"math"
 
 	"github.com/cespare/xxhash"
-	"github.com/segmentio/go-hll"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -39,7 +39,7 @@ type RunningBucketResults struct {
 
 type runningStats struct {
 	rawVal    utils.CValueEnclosure // raw value
-	hll       *hll.Hll
+	hll       *putils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
 }
@@ -254,7 +254,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			}
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				err := (*runningStats)[i].hll.StrictUnion(*toJoinRunningStats[i].hll)
+				err := (*runningStats)[i].hll.StrictUnion(toJoinRunningStats[i].hll.Hll)
 				if err != nil {
 					log.Errorf("RunningBucketResults.mergeRunningStats: failed merge HLL!: %v", err)
 				}
@@ -582,6 +582,9 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	if len(result) > utils.MAX_SPL_LIST_SIZE {
+		result = result[:utils.MAX_SPL_LIST_SIZE]
 	}
 	(*runningStats)[i].rawVal.CVal = result
 

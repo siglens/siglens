@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -35,6 +36,30 @@ var atreeCounterLock sync.Mutex = sync.Mutex{}
 
 type StarTree struct {
 	Root *Node
+}
+
+type Node struct {
+	myKey          uint32
+	parent         *Node
+	children       map[uint32]*Node
+	aggValues      []*utils.Number
+	commonChildren map[uint32][]*Node
+}
+
+type StarTreeBuilder struct {
+	groupByKeys       []string
+	numGroupByCols    uint16
+	mColNames         []string
+	nodeCount         int
+	nodePool          []*Node
+	tree              *StarTree
+	segDictMap        []map[string]uint32 // "mac" ==> enc-2
+	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
+	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
+	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
+	buf               []byte
+	// array to keep reusing for tree traversal. [level][*Node Array]
+	treeTravNodePtrs [][]*Node
 }
 
 // its ok for this to be int, since this will be used as an index in arrays
@@ -66,7 +91,9 @@ func GetSTB() *STBHolder {
 	for i := 0; i < MaxConcurrentAgileTrees; i++ {
 		if STBHolderPool[i] == nil {
 			STBHolderPool[i] = &STBHolder{
-				stbPtr: &StarTreeBuilder{},
+				stbPtr: &StarTreeBuilder{
+					// 1 extra for the root level
+					treeTravNodePtrs: make([][]*Node, querytracker.MAX_NUM_GROUPBY_COLS+1)},
 			}
 		}
 
@@ -107,28 +134,6 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 	}
 	log.Errorf("AgFnToIdx: invalid fn: %v", fn)
 	return MeasFnCountIdx
-}
-
-type Node struct {
-	myKey          uint32
-	parent         *Node
-	children       map[uint32]*Node
-	aggValues      []*utils.Number
-	commonChildren map[uint32][]*Node
-}
-
-type StarTreeBuilder struct {
-	groupByKeys       []string
-	numGroupByCols    uint16
-	mColNames         []string
-	nodeCount         int
-	nodePool          []*Node
-	tree              *StarTree
-	segDictMap        []map[string]uint32 // "mac" ==> enc-2
-	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
-	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
-	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
-	buf               []byte
 }
 
 func (stb *StarTreeBuilder) GetGroupByKeys() []string {
@@ -284,8 +289,12 @@ func (stb *StarTreeBuilder) dropColumn(colToDrop string) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
+func (stb *StarTreeBuilder) setColValEnc(colNum int, colValBytes []byte) uint32 {
+
 	// todo a zero copy version of map lookups needed
+	// todo the key in these maps could be hash of the byte array and then
+	// we store a reverse hash map lookup
+	colVal := string(colValBytes)
 	enc, ok := stb.segDictMap[colNum][colVal]
 	if !ok {
 		enc = stb.segDictLastNum[colNum]
@@ -574,14 +583,11 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		cwip := wip.colWips[colName]
 		deData := cwip.deData
 		if deData.deCount < wipCardLimit {
-			for rawKey, recIdx := range deData.deToRecnumIdx {
-				enc := stb.setColValEnc(colNum, rawKey)
+			for rawKey, indices := range deData.deMap {
 
-				recNumsBitset := deData.deRecNums[recIdx]
-				for recNum := uint16(0); recNum < uint16(recNumsBitset.Len()); recNum++ {
-					if recNumsBitset.Test(uint(recNum)) {
-						stb.wipRecNumToColEnc[colNum][recNum] = enc
-					}
+				enc := stb.setColValEnc(colNum, []byte(rawKey))
+				for _, recNum := range indices {
+					stb.wipRecNumToColEnc[colNum][recNum] = enc
 				}
 			}
 			continue // done with this dict encoded column
@@ -597,7 +603,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 				return err
 			}
 			idx += uint32(endIdx)
-			enc := stb.setColValEnc(colNum, string(cValBytes))
+			enc := stb.setColValEnc(colNum, cValBytes)
 			stb.wipRecNumToColEnc[colNum][recNum] = enc
 		}
 		if idx < cwip.cbufidx {
@@ -757,9 +763,9 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {
-		for dword, recsIdx := range deData.deToRecnumIdx {
-			recNumsBitSet := deData.deRecNums[recsIdx]
-			if recNumsBitSet.Test(uint(recNum)) {
+		for dword, recNumsArr := range deData.deMap {
+
+			if toputils.BinarySearchUint16(recNum, recNumsArr) {
 				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",

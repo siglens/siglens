@@ -207,3 +207,68 @@ func SearchStr(needle string, haystack []string) bool {
 func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
+
+func isAlpha(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+}
+
+func BytesCaseInsensitiveEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			// Check if both are alphabetic characters and differ only by case
+			if !isAlpha(a[i]) || !isAlpha(b[i]) || a[i]^32 != b[i] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func PerformBytesEqualityCheck(isCaseInsensitive bool, a, b []byte) bool {
+	if isCaseInsensitive {
+		return BytesCaseInsensitiveEqual(a, b)
+	}
+	return bytes.Equal(a, b)
+}
+
+// This function converts the bytes to lower case in place
+func BytesToLowerInPlace(b []byte) []byte {
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 32
+		}
+	}
+	return b
+}
+
+// Checks if there is an upper case letter
+func HasUpper(b []byte) bool {
+	for _, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+// This function converts the bytes to lower case using the passed in bug
+func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
+
+	blen := len(b)
+
+	if len(workBuf) < blen {
+		return nil, fmt.Errorf("BytesToLower: passed in workbuf len was smaller than b")
+	}
+
+	for i := 0; i < blen; i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			workBuf[i] = b[i] + 32
+		} else {
+			workBuf[i] = b[i]
+		}
+	}
+	return workBuf[:blen], nil
+}
