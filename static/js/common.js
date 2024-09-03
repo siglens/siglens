@@ -620,8 +620,12 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
-                        displayErrorMessage($(`#panel${panelId} .panel-body .panEdit-panel`), errorMessage);
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
                     } else {
                         console.error('Error fetching time series data:', error);
                     }
@@ -643,8 +647,12 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
-                        displayErrorMessage($(`#panel${panelId} .panel-body .panEdit-panel`), errorMessage);
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
                     } else {
                         console.error('Error fetching time series data:', error);
                     }

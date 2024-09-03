@@ -2112,6 +2112,7 @@ function displayErrorMessage(container, message) {
         graphCanvas.append(errorSpan);
     }
     if (isDashboardScreen) {
+        container=container.find('.panEdit-panel');
         container.find('error-message').each(function () {
             $(this).remove();
         });
@@ -2184,7 +2185,7 @@ async function getMetricsData(queryName, metricName, state) {
             container = $('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
         }
         if (isDashboardScreen) {
-            container = $('.panelDisplay').find(`panEdit-panel`);
+            container = $('.panelDisplay');
         }
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
         throw new Error(errorMessage);
@@ -2265,10 +2266,15 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             container = $('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
         }
         if (isDashboardScreen) {
-            container = $('.panelDisplay').find(`panEdit-panel`);
+            container = $('.panelDisplay');
         }
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
-        displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
+        if(!isDashboardScreen){
+            displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
+        }
+        else{
+            displayErrorMessage(container, errorMessage);
+        }
     }
 }
 
@@ -2342,7 +2348,7 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
         if (isAlertScreen) {
             displayErrorMessage($('#metrics-graphs').find('.metrics-graph'), errorMessage);
         } else if (isDashboardScreen) {
-            displayErrorMessage($(`.panelDisplay .panEdit-panel`), errorMessage);
+            displayErrorMessage($(`.panelDisplay`), errorMessage);
         } else {
             displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
         }
