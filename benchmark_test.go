@@ -741,7 +741,7 @@ func benchmarkCuckooPanmari(strs [][]byte) {
 	// Default config: https://github.com/panmari/cuckoofilter
 	// b (bucket size): 4
 	// f (fingerprint): 16
-	// False positive rate: 0.001
+	// False positive rate: 0.0001
 	numKeys := uint(len(strs)) // num of keys the filter will store
 
 	cuckoo := cuckooPan.NewFilter(numKeys)
