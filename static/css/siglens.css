@@ -468,12 +468,24 @@ body {
 .format-icon {
     cursor: pointer;
     display: none;
-    position: absolute;
-    right: 11%;
     background-color: var(--alert-background);
     font-size: 12px !important;
-    padding: 3.5px;
+    padding: 2px 5px;
     color: grey;
+    margin-right: 5%;
+    border: none;
+    border-radius: 5px;
+}
+.logcontainer{
+    margin-left: auto !important;
+    margin-bottom: 6px !important;
+    width: 94px;
+    height: 26px;
+    border-radius: 5px;
+    background: var(--alert-background);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
 }
 .format-icon:hover{
     color:var(--text-color);
