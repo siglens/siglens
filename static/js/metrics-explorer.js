@@ -2112,7 +2112,7 @@ function displayErrorMessage(container, message) {
         graphCanvas.append(errorSpan);
     }
     if (isDashboardScreen) {
-        container=container.find('.panEdit-panel');
+        container = container.find('.panEdit-panel');
         container.find('error-message').each(function () {
             $(this).remove();
         });
@@ -2269,10 +2269,9 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             container = $('.panelDisplay');
         }
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, formulaId, error, isDashboardScreen);
-        if(!isDashboardScreen){
+        if (!isDashboardScreen) {
             displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
-        }
-        else{
+        } else {
             displayErrorMessage(container, errorMessage);
         }
     }
