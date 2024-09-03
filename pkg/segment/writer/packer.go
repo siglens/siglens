@@ -359,10 +359,8 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			keyNameStr := string(keyName)
 			if bi != nil {
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyName)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, keyVal)
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyName))
-				bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(keyVal))
+				bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, keyName)
+				bi.uniqueWordCount += addToBlockBloomBothCases(bi.Bf, keyVal)
 			}
 			// get the copied key value bytes from the ColWip buffer,
 			// As the keyVal bytes are converted to lower case while adding to Bloom above.
@@ -423,8 +421,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 		if !ok {
 			bi = &BloomIndex{}
 			bi.uniqueWordCount = 0
-			bCount := getBlockBloomSize(bi)
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 			colBlooms[key] = bi
 		}
 	}
@@ -450,15 +447,12 @@ func (ss *SegStore) encodeSingleString(key string,
 	var recNum uint16
 	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
-	var bi *BloomIndex
-	var ok bool
 	if key != "_type" && key != "_index" {
-		bi, ok = colBlooms[key]
+		_, ok := colBlooms[key]
 		if !ok {
-			bi = &BloomIndex{}
+			bi := &BloomIndex{}
 			bi.uniqueWordCount = 0
-			bCount := getBlockBloomSize(bi)
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 			colBlooms[key] = bi
 		}
 	}
@@ -467,10 +461,6 @@ func (ss *SegStore) encodeSingleString(key string,
 	recLen := colWip.cbufidx - s
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
-	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, valBytes)
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, utils.BytesToLowerInPlace(valBytes))
-	}
 	if !ss.skipDe {
 		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s)
 	}
@@ -487,15 +477,13 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	var colWip *ColWip
 	colBlooms := ss.wipBlock.columnBlooms
 	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
-	var bi *BloomIndex
-	var ok bool
 
-	bi, ok = colBlooms[key]
+	// todo for bools, we really don't have to do BI, they will get encoded as DictEnc
+	_, ok := colBlooms[key]
 	if !ok {
-		bi = &BloomIndex{}
+		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := 10
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	}
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
@@ -504,9 +492,6 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
-	if bi != nil {
-		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(strconv.FormatBool(val)))
-	}
 	return matchedCol
 }
 
@@ -587,8 +572,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 	case SS_DT_STRING:
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		ri := &RangeIndex{}
@@ -598,8 +582,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		// todo kunal, for bool type we need to keep a inverted index
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
-		bCount := 10
-		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	}
 }
@@ -610,24 +593,18 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
-	bs := ss.GetNewBitset(uint(recNum))
-	for i := uint(0); i < uint(recNum); i++ {
+	recArr := make([]uint16, recNum)
+
+	for i := uint16(0); i < recNum; i++ {
 		// only the type will be saved when we are backfilling
 		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		packedLen += 1
-		bs.Set(i)
+		recArr[i] = i
 	}
 	// we will also init dictEnc for backfilled recnums
 
-	dci := &DwordCbufIdxs{
-		sIdx:     colWip.cbufidx - 1,
-		wlen:     1,
-		recBsIdx: colWip.deData.deCount,
-	}
-
-	colWip.deData.hashToDci[xxhash.Sum64(VALTYPE_ENC_BACKFILL[:])] = dci
-	colWip.deData.deRecNums[colWip.deData.deCount] = bs
+	colWip.deData.deMap[string(VALTYPE_ENC_BACKFILL[:])] = recArr
 	colWip.deData.deCount++
 
 	return packedLen
@@ -1015,6 +992,12 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
+
+			err := segStore.writeToBloom(encType, compWorkBuf[:cap(compWorkBuf)], cname, colWip)
+			if err != nil {
+				log.Fatalf("WriteMockColSegFile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+			}
+
 			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
@@ -1454,24 +1437,13 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 
 func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16, cbufIdx uint32) {
 	if colWip.deData.deCount < wipCardLimit {
-		cvalHash := xxhash.Sum64(cval)
-		dci, ok := colWip.deData.hashToDci[cvalHash]
+		recs, ok := colWip.deData.deMap[string(cval)]
 		if !ok {
-			// start bitset with len of the last RecNum*2
-			bs := ss.GetNewBitset(uint(recNum) * 2)
-
-			deData := colWip.deData
-
-			dci = colWip.dciPool[deData.deCount]
-			dci.sIdx = cbufIdx
-			dci.wlen = uint16(len(cval))
-			dci.recBsIdx = deData.deCount
-
-			deData.hashToDci[cvalHash] = dci
-			deData.deRecNums[dci.recBsIdx] = bs
-			deData.deCount++
+			recs = make([]uint16, 0)
+			colWip.deData.deCount++
 		}
-		colWip.deData.deRecNums[dci.recBsIdx].Set(uint(recNum))
+		recs = append(recs, recNum)
+		colWip.deData.deMap[string(cval)] = recs
 	}
 }
 
@@ -1494,26 +1466,21 @@ func PackDictEnc(colWip *ColWip) {
 	copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
 	localIdx += 2
 
-	for _, dci := range colWip.deData.hashToDci {
+	for dword, recNumsArr := range colWip.deData.deMap {
 
-		dword := colWip.GetDictword(dci)
-
-		recNumsBitset := colWip.deData.deRecNums[dci.recBsIdx]
 		// copy the actual dict word , the TLV is packed inside the dword
-		copy(colWip.dePackingBuf[localIdx:], dword)
+		copy(colWip.dePackingBuf[localIdx:], []byte(dword))
 		localIdx += len(dword)
 
 		// copy num of records, by finding how many bits are set
-		numRecs := uint16(recNumsBitset.Count())
+		numRecs := uint16(len(recNumsArr))
 		copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(numRecs))
 		localIdx += 2
 
-		for i := uint16(0); i < uint16(recNumsBitset.Len()); i++ {
-			if recNumsBitset.Test(uint(i)) {
-				// copy the recNum
-				copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(i))
-				localIdx += 2
-			}
+		for i := uint16(0); i < numRecs; i++ {
+			// copy the recNum
+			copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(recNumsArr[i]))
+			localIdx += 2
 		}
 	}
 	copy(colWip.cbuf[:localIdx], colWip.dePackingBuf[:localIdx])
