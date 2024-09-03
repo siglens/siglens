@@ -172,7 +172,17 @@ function createPanelToNewDashboard() {
                         description: inputdbdescription,
                         timeRange: timeRange,
                         refresh: refresh,
-                        panels: [panelCreatedFromLogs],
+                        panels: [
+                            {
+                                ...panelCreatedFromLogs,
+                                style: {
+                                    display: panelCreatedFromLogs.style?.display || 'Line chart',
+                                    color: panelCreatedFromLogs.style?.color || 'Classic',
+                                    lineStyle: panelCreatedFromLogs.style?.lineStyle || 'Solid',
+                                    lineStroke: panelCreatedFromLogs.style?.lineStroke || 'Normal',
+                                },
+                            },
+                        ],
                     },
                 };
                 updateDashboard(dashboard);
@@ -323,6 +333,16 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
+            style: {
+                //eslint-disable-next-line no-undef
+                display: chartType,
+                //eslint-disable-next-line no-undef
+                color: selectedTheme,
+                //eslint-disable-next-line no-undef
+                lineStyle: selectedLineStyle,
+                //eslint-disable-next-line no-undef
+                lineStroke: selectedStroke,
+            },
         };
     } else {
         panel = {

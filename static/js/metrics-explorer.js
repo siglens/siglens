@@ -1562,27 +1562,36 @@ function toggleChartType(chartType) {
     }
 
     // Loop through each chart data
-    for (var queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            var lineChart = lineCharts[queryName];
+    if (!isDashboardScreen) {
+        for (var queryName in chartDataCollection) {
+            if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+                var lineChart = lineCharts[queryName];
 
-            lineChart.config.type = chartJsType;
+                lineChart.config.type = chartJsType;
 
-            if (chartType === 'Area chart') {
-                lineChart.config.data.datasets.forEach(function (dataset) {
-                    dataset.fill = true;
-                });
-            } else {
-                lineChart.config.data.datasets.forEach(function (dataset) {
-                    dataset.fill = false;
-                });
+                if (chartType === 'Area chart') {
+                    lineChart.config.data.datasets.forEach(function (dataset) {
+                        dataset.fill = true;
+                    });
+                } else {
+                    lineChart.config.data.datasets.forEach(function (dataset) {
+                        dataset.fill = false;
+                    });
+                }
+
+                lineChart.update();
             }
-
-            lineChart.update();
         }
     }
 
-    mergeGraphs(chartType);
+    if (mergedGraph) {
+        mergedGraph.config.type = chartJsType;
+        mergedGraph.data.datasets.forEach(function (dataset) {
+            dataset.type = chartJsType;
+            dataset.fill = chartType === 'Area chart';
+        });
+        mergedGraph.update();
+    }
 }
 
 var colorOptions = ['Classic', 'Purple', 'Cool', 'Green', 'Warm', 'Orange', 'Gray', 'Palette'];
