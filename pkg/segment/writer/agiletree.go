@@ -216,7 +216,8 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
-func (stb *StarTreeBuilder) DropColumns(colsToDrop map[string]uint64) error {
+// DropColumns assumes that caller will call ComputeStarTree after this
+func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
 	if len(colsToDrop) == 0 {
 		return nil
 	}
@@ -224,20 +225,19 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop map[string]uint64) error {
 	mapColNameToIdx := make(map[string]int)
 	dropIndexes := make(map[int]struct{})
 
-	// check if all columns to drop are present
 	for idx, colName := range stb.groupByKeys {
 		mapColNameToIdx[colName] = idx
 	}
 
 	// check if all columns to drop are present
-	for colcolsToDrop := range colsToDrop {
-		if _, exists := mapColNameToIdx[colcolsToDrop]; !exists {
-			return fmt.Errorf("DropColumns: column to drop %v not found", colcolsToDrop)
+	for _, colToDrop := range colsToDrop {
+		if _, exists := mapColNameToIdx[colToDrop]; !exists {
+			return fmt.Errorf("DropColumns: column to drop %v not found", colToDrop)
 		}
 	}
 
 	// drop the columns
-	for colToDrop := range colsToDrop {
+	for _, colToDrop := range colsToDrop {
 		colIdx := mapColNameToIdx[colToDrop]
 		err := stb.dropColumn(colToDrop)
 		if err != nil {
@@ -250,7 +250,8 @@ func (stb *StarTreeBuilder) DropColumns(colsToDrop map[string]uint64) error {
 	stb.segDictEncRev = toputils.RemoveElements(stb.segDictEncRev, dropIndexes)
 	stb.segDictLastNum = toputils.RemoveElements(stb.segDictLastNum, dropIndexes)
 
-	// No need to update wipRecNumToColEnc based on index, since it will be repopulated based on update groupByKeys in creatEnc
+	// No need to update wipRecNumToColEnc based on index,
+	// since it will be repopulated based on updated groupByKeys in creatEnc via ComputeStartree
 	stb.wipRecNumToColEnc = stb.wipRecNumToColEnc[:stb.numGroupByCols]
 
 	return nil

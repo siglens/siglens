@@ -953,7 +953,8 @@ func (segstore *SegStore) computeStarTree() {
 		}
 		if len(colsToDrop) > 0 {
 			log.Warnf("computeStarTree: Dropping cols with high cardinality: %v, blockNum: %v", colsToDrop, segstore.numBlocks)
-			err := segstore.stbHolder.stbPtr.DropColumns(colsToDrop)
+			colsToDropSlice := toputils.GetKeysOfMap(colsToDrop)
+			err := segstore.stbHolder.stbPtr.DropColumns(colsToDropSlice)
 			if err != nil {
 				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
 				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
