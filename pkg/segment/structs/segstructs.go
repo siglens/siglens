@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
-	"github.com/segmentio/go-hll"
+	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -310,6 +310,24 @@ type IncludeValue struct {
 	Label   string //new label of value in record
 }
 
+type AppendRequest struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+	Subsearch       interface{}
+}
+
+type AppendCmdOptions struct {
+	ExtendTimeRange bool
+	MaxTime         int
+	MaxOut          int
+}
+
+type AppendCmdOption struct {
+	OptionType string
+	Value      interface{}
+}
+
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
 	MultiColsRequest     *MultiColLetRequest
@@ -326,6 +344,7 @@ type LetColumnsRequest struct {
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
 	FillNullRequest      *FillNullExpr
+	AppendRequest        *AppendRequest
 }
 
 type FillNullExpr struct {
@@ -590,6 +609,23 @@ func (ss *SegStats) GetHllBytes() []byte {
 	return ss.Hll.ToBytes()
 }
 
+func (ss *SegStats) GetHllBytesInPlace(bytes []byte) []byte {
+	if ss == nil || ss.Hll == nil {
+		return nil
+	}
+
+	return ss.Hll.ToBytesInPlace(bytes)
+}
+
+func (ss *SegStats) GetHllDataSize() int {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	_, size := ss.Hll.GetStorageTypeAndSizeInBytes()
+	return size
+}
+
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
@@ -765,7 +801,16 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
-			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil || qa.OutputTransforms.LetColumns.AppendRequest != nil)
+}
+
+func (qa *QueryAggregators) hasAppendRequest() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		qa.OutputTransforms.LetColumns.AppendRequest != nil
+}
+
+func (qa *QueryAggregators) HasAppendInChain() bool {
+	return qa.HasInChain((*QueryAggregators).hasAppendRequest)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

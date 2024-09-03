@@ -63,6 +63,7 @@ const (
 	RUNNING      QueryState = iota + 1
 	QUERY_UPDATE            // flush segment counts & aggs & records (if matched)
 	COMPLETE
+	CANCELLED
 	TIMEOUT
 	ERROR
 )
@@ -75,6 +76,8 @@ func (qs QueryState) String() string {
 		return "QUERY_UPDATE"
 	case COMPLETE:
 		return "COMPLETE"
+	case CANCELLED:
+		return "CANCELLED"
 	case TIMEOUT:
 		return "TIMEOUT"
 	case ERROR:

@@ -583,6 +583,9 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
+	if len(result) > utils.MAX_SPL_LIST_SIZE {
+		result = result[:utils.MAX_SPL_LIST_SIZE]
+	}
 	(*runningStats)[i].rawVal.CVal = result
 
 	return len(fields) - 1, nil

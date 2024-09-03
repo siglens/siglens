@@ -570,7 +570,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         $(`#panel${panelId} #empty-response`).hide();
         $(`#panel${panelId} .panEdit-panel`).show();
     }
-    let chartType = currentPanel.chartType;
+    var chartType = currentPanel.chartType;
     if (chartType === 'number') {
         let bigNumVal = null;
         let dataType = currentPanel.dataType;
@@ -631,6 +631,16 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
             }
         }
+        if (currentPanel && currentPanel.style) {
+            toggleLineOptions(currentPanel.style.display);
+            chartType=currentPanel.style.display;
+            toggleChartType(chartType);
+            updateChartTheme(currentPanel.style.color);
+            updateLineCharts(
+                currentPanel.style.lineStyle,
+                currentPanel.style.lineStroke
+            );
+        } 
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {
