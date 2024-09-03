@@ -2221,8 +2221,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = { 
-        formula: formwithfun, 
+    const formula = {
+        formula: formwithfun,
     };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
