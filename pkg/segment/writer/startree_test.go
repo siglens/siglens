@@ -635,3 +635,103 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 	fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
 	_ = os.RemoveAll(fName)
 }
+
+// func Test_Aggregate(t *testing.T) {
+// 	rangeIndex = map[string]*structs.Numbers{}
+
+// 	var largeCases []struct {
+// 		input string
+// 	}
+
+// 	for i := 0; i < 50; i += 1 {
+// 		largeCases = append(largeCases, cases...)
+// 	}
+
+// 	currCases := largeCases
+
+// 	var blockSummary structs.BlockSummary
+// 	colWips := make(map[string]*ColWip)
+// 	wipBlock := WipBlock{
+// 		columnBlooms:       make(map[string]*BloomIndex),
+// 		columnRangeIndexes: make(map[string]*RangeIndex),
+// 		colWips:            colWips,
+// 		columnsInBlock:     make(map[string]bool),
+// 		blockSummary:       blockSummary,
+// 		tomRollup:          make(map[uint64]*RolledRecs),
+// 		tohRollup:          make(map[uint64]*RolledRecs),
+// 		todRollup:          make(map[uint64]*RolledRecs),
+// 		bb:                 bbp.Get(),
+// 	}
+// 	segstats := make(map[string]*SegStats)
+// 	allCols := make(map[string]uint32)
+
+// 	ss := NewSegStore(0)
+// 	ss.wipBlock = wipBlock
+// 	ss.SegmentKey = "test-segkey4"
+// 	ss.AllSeenColumnSizes = allCols
+// 	ss.pqTracker = initPQTracker()
+// 	ss.AllSst = segstats
+// 	ss.numBlocks = 0
+
+// 	tsKey := config.GetTimeStampKey()
+
+// 	cnameCacheByteHashToStr := make(map[uint64]string)
+// 	var jsParsingStackbuf [64]byte
+
+// 	for i, test := range currCases {
+
+// 		var record_json map[string]interface{}
+// 		var json = jsoniter.ConfigCompatibleWithStandardLibrary
+// 		decoder := json.NewDecoder(bytes.NewReader([]byte(test.input)))
+// 		decoder.UseNumber()
+// 		err := decoder.Decode(&record_json)
+// 		if err != nil {
+// 			t.Errorf("testid: %d: Failed to parse json err:%v", i+1, err)
+// 			continue
+// 		}
+// 		raw, err := json.Marshal(record_json)
+// 		assert.NoError(t, err)
+
+// 		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+// 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
+// 		assert.NoError(t, err)
+
+// 		for _, cwip := range ss.wipBlock.colWips {
+// 			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+// 		}
+
+// 		ss.wipBlock.blockSummary.RecCount += 1
+// 	}
+
+// 	groupByCols := [...]string{"a", "d"}
+// 	mColNames := []string{"e", "f"}
+
+// 	gcWorkBuf := make([][]string, len(groupByCols))
+// 	for colNum := 0; colNum < len(groupByCols); colNum++ {
+// 		gcWorkBuf[colNum] = make([]string, MaxAgileTreeNodeCountForAlloc)
+// 	}
+
+// 	builder := GetSTB().stbPtr
+
+// 	for trial := 0; trial < 10; trial += 1 {
+// 		builder.ResetSegTree(groupByCols[:], mColNames, gcWorkBuf)
+// 		err := builder.ComputeStarTree(&ss.wipBlock)
+// 		assert.NoError(t, err)
+// 		root := builder.tree.Root
+
+// 		if root.aggValues != nil {
+// 			// root aggValues should be invalid before EncodeStarTree
+// 			err := root.aggValues[0].ConvertToFloat64()
+// 			assert.Error(t, err)
+// 		}
+
+// 		_, err = builder.EncodeStarTree(ss.SegmentKey)
+// 		assert.NoError(t, err)
+
+// 	}
+
+// 	fName := fmt.Sprintf("%v.strl", ss.SegmentKey)
+// 	_ = os.RemoveAll(fName)
+// 	fName = fmt.Sprintf("%v.strm", ss.SegmentKey)
+// 	_ = os.RemoveAll(fName)
+// }
