@@ -19,17 +19,22 @@ package bench
 
 import (
 	"bufio"
-	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	xorfilter "github.com/FastFilter/xorfilter"
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/cespare/xxhash"
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/linvon/cuckoo-filter"
+	cuckooLin "github.com/linvon/cuckoo-filter"
+	cuckooPan "github.com/panmari/cuckoofilter"
+	cuckooSeif "github.com/seiflotfy/cuckoofilter"
+
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -615,37 +620,18 @@ func Benchmark_S3_segupload(b *testing.B) {
 
 }
 
-func AddToBlockBloom(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
-
-	copy := fullWord[:]
-	cnt := uint32(0)
-	if !blockBloom.TestAndAdd(copy) {
-		cnt++
-	}
-
-	for {
-		i := bytes.Index(copy, utils.BYTE_SPACE)
-		if i == -1 {
-			break
-		}
-		if !blockBloom.TestAndAdd(copy[:i]) {
-			cnt++
-		}
-		copy = copy[i+utils.BYTE_SPACE_LEN:]
-	}
-
-	return cnt
-}
-
-func WriteBloom(strs [][]byte) {
-	bloom := bloom.NewWithEstimates(5000000, utils.BLOOM_COLL_PROBABILITY)
+func benchmarkBloom(strs [][]byte) {
+	numItems := uint(len(strs)) // num of items the filter will store
+	// false positive rate (BLOOM_COLL_PROBABILITY): 0.001
+	bloom := bloom.NewWithEstimates(numItems, utils.BLOOM_COLL_PROBABILITY)
 
 	wordCount := uint32(0)
-	
 	for _, str := range strs {
-		wordCount += AddToBlockBloom(bloom, str)
+		if !bloom.TestAndAdd(str) {
+			wordCount++
+		}
 	}
-	fmt.Println("Added", wordCount, " to bloom filter")
+	log.Infof("Added %v to bloom filter", wordCount)
 
 	fname := "bloomfilter.bin"
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
@@ -654,60 +640,38 @@ func WriteBloom(strs [][]byte) {
 	}
 	defer file.Close()
 
-	// Create a buffered writer for better performance
 	writer := bufio.NewWriter(file)
 
-	// Write the Bloom filter to the file
 	_, err = bloom.WriteTo(writer)
 	if err != nil {
 		panic(err)
 	}
 
-	// Flush the writer to ensure all data is written to the file
 	err = writer.Flush()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func AddToCuckoo(cuckoo *cuckoo.Filter, fullWord []byte) uint32 {
+func benchmarkCuckooLinvon(strs [][]byte) {
+	tagsPerBucket := uint(4)      // b in paper (entries per bucket)
+	bitsPerItem := uint(8)        // f in paper (fingerprint)
+	maxNumKeys := uint(len(strs)) // num of keys the filter will store
 
-	cnt := uint32(0)
-	copy := fullWord[:]
-	if !cuckoo.Contain(copy) {
-		cnt++
-	}
-	cuckoo.Add(copy)
-	
-
-	for {
-		i := bytes.Index(copy, utils.BYTE_SPACE)
-		if i == -1 {
-			break
-		}
-		if !cuckoo.Contain(copy[:i]) {
-			cnt++
-		}
-		cuckoo.Add(copy[:i])
-		copy = copy[i+utils.BYTE_SPACE_LEN:]
-	}
-
-	return cnt
-}
-
-
-func WriteCuckoo(strs [][]byte) {
-	cuckoo := cuckoo.NewFilter(4, 8, 5000000, cuckoo.TableTypePacked)
+	cuckoo := cuckooLin.NewFilter(tagsPerBucket, bitsPerItem, maxNumKeys, cuckooLin.TableTypePacked)
 
 	wordCount := uint32(0)
-	
+
 	for _, str := range strs {
-		wordCount += AddToCuckoo(cuckoo, str)
+		if !cuckoo.Contain(str) {
+			wordCount++
+		}
+		cuckoo.Add(str)
 	}
-	fmt.Println("Added", wordCount, " to cuckoo filter")
-	
+	log.Infof("Added %v to linvon cuckoo filter", wordCount)
+
 	// Open a file for writing
-	fname := "cuckoo_filter.bin"
+	fname := "cuckoo_filter_lin.bin"
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		// Handle error
@@ -715,29 +679,169 @@ func WriteCuckoo(strs [][]byte) {
 	}
 	defer file.Close()
 
-	// Create a buffered writer
-    writer := bufio.NewWriter(file)
+	writer := bufio.NewWriter(file)
 
-    // Serialize the filter to bytes
-    data, err := cuckoo.Encode()
-    if err != nil {
-        panic(err)
-    }
+	data, err := cuckoo.Encode()
+	if err != nil {
+		panic(err)
+	}
 
-    // Write the serialized data to the file using the buffered writer
-    _, err = writer.Write(data)
-    if err != nil {
-        panic(err)
-    }
+	_, err = writer.Write(data)
+	if err != nil {
+		panic(err)
+	}
 
-    // Flush the buffer to ensure all data is written to the file
-    err = writer.Flush()
-    if err != nil {
-        panic(err)
-    }
+	err = writer.Flush()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func Benchmark_Bloom_Filters(b *testing.B) {
+func benchmarkCuckooSeiflotfy(strs [][]byte) {
+	// Default config: https://github.com/seiflotfy/cuckoofilter
+	// b (bucket size): 4
+	// f (fingerprint): 8
+	// False positive rate: 0.03
+	numKeys := uint(len(strs)) // num of keys the filter will store
+	cuckoo := cuckooSeif.NewFilter(numKeys)
+
+	wordCount := uint32(0)
+
+	for _, str := range strs {
+		if !cuckoo.Lookup(str) {
+			wordCount++
+		}
+		cuckoo.Insert(str) // Also try insert unique
+	}
+	log.Infof("Added %v to seiflotfy cuckoo filter", wordCount)
+
+	fname := "cuckoo_filter_seif.bin"
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	data := cuckoo.Encode()
+
+	_, err = writer.Write(data)
+	if err != nil {
+		panic(err)
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func benchmarkCuckooPanmari(strs [][]byte) {
+	// Default config: https://github.com/panmari/cuckoofilter
+	// b (bucket size): 4
+	// f (fingerprint): 16
+	// False positive rate: 0.001
+	numKeys := uint(len(strs)) // num of keys the filter will store
+
+	cuckoo := cuckooPan.NewFilter(numKeys)
+
+	wordCount := uint32(0)
+	for _, str := range strs {
+		if !cuckoo.Lookup(str) {
+			wordCount++
+		}
+		cuckoo.Insert(str) // Also try insert unique
+	}
+	log.Infof("Added %v to panmari cuckoo filter", wordCount)
+
+	fname := "cuckoo_filter_pan.bin"
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	data := cuckoo.Encode()
+
+	_, err = writer.Write(data)
+	if err != nil {
+		panic(err)
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		panic(err)
+	}
+}
+
+// // Function to deserialize binaryfuse8 filter from a file
+// func deserializeBinaryFuse8Filter(filename string) (*xorfilter.BinaryFuse8, error) {
+//     file, err := os.Open(filename)
+//     if err != nil {
+//         return nil, err
+//     }
+//     defer file.Close()
+
+//     var filter xorfilter.BinaryFuse8
+//     decoder := gob.NewDecoder(file)
+//     err = decoder.Decode(&filter)
+//     return &filter, err
+// }
+
+// // Function to deserialize xor8 filter from a file
+// func deserializeXor8Filter(filename string) (*xorfilter.Xor8, error) {
+//     file, err := os.Open(filename)
+//     if err != nil {
+//         return nil, err
+//     }
+//     defer file.Close()
+
+//     var filter xorfilter.Xor8
+//     decoder := gob.NewDecoder(file)
+//     err = decoder.Decode(&filter)
+//     return &filter, err
+// }
+
+func benchmarkXorFilter(strs [][]byte) {
+	// Configs: https://github.com/FastFilter/xorfilter
+
+	hashedKeys := make([]uint64, len(strs))
+	uniqueHashes := make(map[uint64]struct{})
+	wordCount := uint32(0)
+	for _, str := range strs {
+		hashKey := xxhash.Sum64(str)
+		hashedKeys = append(hashedKeys, hashKey)
+		if _, ok := uniqueHashes[hashKey]; !ok {
+			uniqueHashes[hashKey] = struct{}{}
+			wordCount++
+		}
+	}
+	xorfilter, err := xorfilter.Populate(hashedKeys) // Use PopulateBinaryFuse8 for binary fuse filter
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof("Added %v to xor filter", wordCount)
+
+	fname := "xor_filter.bin"
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(xorfilter)
+	if err != nil {
+		panic(err)
+	}
+
+}
+
+func Benchmark_Filters(b *testing.B) {
 	N := 10_000_000
 
 	randomStrs := make([][]byte, N)
@@ -745,15 +849,18 @@ func Benchmark_Bloom_Filters(b *testing.B) {
 		randomStrs[i] = []byte(putils.GetRandomString(100, putils.AlphaNumeric))
 	}
 
-	WriteBloom(randomStrs)	
-	WriteCuckoo(randomStrs)
-	
+	benchmarkBloom(randomStrs)
+	benchmarkCuckooLinvon(randomStrs)
+	benchmarkCuckooSeiflotfy(randomStrs)
+	benchmarkCuckooPanmari(randomStrs)
+	benchmarkXorFilter(randomStrs)
+
 	/*
-	   go test -run=Bench -bench=Benchmark_Bloom_Filters  -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go test -run=Bench -bench=Benchmark_Filters  -cpuprofile cpuprofile.out -o rawsearch_cpu
 	   go tool pprof ./rawsearch_cpu
 
 	   (for mem profile)
-	   go test -run=Bench -bench=Benchmark_Bloom_Filters -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go test -run=Bench -bench=Benchmark_Filters -benchmem -memprofile memprofile.out -o rawsearch_mem
 	   go tool pprof ./rawsearch_mem memprofile.out
 	*/
 }
