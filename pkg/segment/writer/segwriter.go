@@ -32,7 +32,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -94,18 +93,10 @@ type SegfileRotateInfo struct {
 	TimeRotated uint64
 }
 
-// for holding DictWords and their indices inside wip.cbuf[]
-type DwordCbufIdxs struct {
-	sIdx     uint32 // startIndex of this dword inside the wip cbuf
-	wlen     uint16 // len of this dword includes the TLV
-	recBsIdx uint16 // index into the deRecNums bitset array
-}
-
 type DeData struct {
 	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
-	hashToDci map[uint64]*DwordCbufIdxs
-	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
-	deCount   uint16           // keeps track of cardinality count for this COL_WIP
+	deMap   map[string][]uint16
+	deCount uint16 // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
@@ -115,7 +106,6 @@ type ColWip struct {
 	csgFname     string // file name of csg file
 	deData       *DeData
 	dePackingBuf []byte
-	dciPool      []*DwordCbufIdxs
 }
 
 type RangeIndex struct {
@@ -454,14 +444,8 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
-	deData := DeData{hashToDci: make(map[uint64]*DwordCbufIdxs),
-		deRecNums: make([]*bitset.BitSet, MaxDeEntries),
-		deCount:   0,
-	}
-
-	dciPool := make([]*DwordCbufIdxs, wipCardLimit)
-	for i := uint16(0); i < wipCardLimit; i++ {
-		dciPool[i] = &DwordCbufIdxs{}
+	deData := DeData{deMap: make(map[string][]uint16),
+		deCount: 0,
 	}
 
 	cbuf := *wipCbufPool.Get().(*[]byte)
@@ -470,7 +454,6 @@ func InitColWip(segKey string, colName string) *ColWip {
 	return &ColWip{
 		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:       &deData,
-		dciPool:      dciPool,
 		cbuf:         cbuf,
 		dePackingBuf: dePack,
 	}
@@ -558,41 +541,6 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 	}
 
 	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
-}
-
-/*
-Adds the fullWord and sub-words to the bloom
-Subwords are gotten by splitting the fullWord by whitespace
-*/
-func addToBlockBloom(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
-
-	var blockWordCount uint32 = 0
-	copy := fullWord[:]
-
-	if !blockBloom.TestAndAdd(copy) {
-		blockWordCount += 1
-	}
-
-	var foundWord bool
-	for {
-		i := bytes.Index(copy, BYTE_SPACE)
-		if i == -1 {
-			break
-		}
-		foundWord = true
-		if !blockBloom.TestAndAdd(copy[:i]) {
-			blockWordCount += 1
-		}
-		copy = copy[i+BYTE_SPACE_LEN:]
-	}
-
-	// handle last word. If no word was found, then we have already added the full word
-	if foundWord && len(copy) > 0 {
-		if !blockBloom.TestAndAdd(copy) {
-			blockWordCount += 1
-		}
-	}
-	return blockWordCount
 }
 
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
@@ -979,12 +927,10 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeDataForTest(deCount uint16, hashToDci map[uint64]*DwordCbufIdxs,
-	deRecNums []*bitset.BitSet) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, deMap map[string][]uint16) {
 
-	deData := DeData{hashToDci: hashToDci,
-		deRecNums: deRecNums,
-		deCount:   deCount,
+	deData := DeData{deMap: deMap,
+		deCount: deCount,
 	}
 	cw.deData = &deData
 }
@@ -1174,19 +1120,164 @@ func DeletePQSData() error {
 	return pqsmeta.DeletePQMetaDir()
 }
 
-func CreateDci(sIdx uint32, wlen uint16, recBsIdx uint16) *DwordCbufIdxs {
+func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
+	cw *ColWip) error {
 
-	dci := &DwordCbufIdxs{
-		sIdx:     sIdx,
-		wlen:     wlen,
-		recBsIdx: recBsIdx,
+	// no bloom for timestamp column
+	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
+		return nil
 	}
-	return dci
+
+	bi, ok := ss.wipBlock.columnBlooms[cname]
+	if !ok {
+		// for non-strings columns, BI is not iniliazed. Maybe there should be an
+		// explicit way of saying what columnType is this so that we don't "overload" the BI var
+		return nil
+	}
+
+	switch encType[0] {
+	case ZSTD_COMLUNAR_BLOCK[0]:
+		return cw.writeNonDeBloom(buf, bi, ss.wipBlock.blockSummary.RecCount, cname)
+	case ZSTD_DICTIONARY_BLOCK[0]:
+		return cw.writeDeBloom(buf, bi)
+	default:
+		log.Errorf("writeToBloom got an unknown encoding type: %+v", encType)
+		return fmt.Errorf("got an unknown encoding type: %+v", encType)
+	}
 }
 
-func (cw *ColWip) GetDictword(dci *DwordCbufIdxs) []byte {
+func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
+	// todo a better way to size the bloom might be to count the num of space and
+	// then add to the cw.deData.deCount, that should be the optimal size
+	// we add twice to avoid undersizing for above reason.
+	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount)*2, BLOOM_COLL_PROBABILITY)
+	for dwordkey := range cw.deData.deMap {
+		dword := []byte(dwordkey)
+		switch dword[0] {
+		case VALTYPE_ENC_BACKFILL[0]:
+			// we don't add backfill value to bloom since we are not going to search for it
+			continue
+		case VALTYPE_ENC_SMALL_STRING[0]:
+			// the first 3 bytes are the type and length
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		case VALTYPE_ENC_BOOL[0]:
+			// todo we should not be using bloom here, its expensive
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, []byte{dword[1]}, buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		default:
+			// just log and continue since we are only doing strings into blooms
+			log.Errorf("writeDeBloom: unhandled recType: %v", dword[0])
+		}
+	}
+	return nil
+}
 
-	s := dci.sIdx
-	wl := uint32(dci.wlen)
-	return cw.cbuf[s : s+wl]
+func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+	cname string) error {
+
+	// todo a better way to size the bloom might be to count the num of space and
+	// then add to the numRecs, that should be the optimal size
+	// we add twice to avoid undersizing for above reason.
+	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
+	idx := uint32(0)
+	for recNum := uint16(0); recNum < numRecs; recNum++ {
+		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
+		if err != nil {
+			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
+				cname, idx)
+			return err
+		}
+
+		// we are going to insert only strings in the bloom
+		if cValBytes[0] == VALTYPE_ENC_SMALL_STRING[0] {
+			word := cValBytes[3:endIdx]
+			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, word, buf)
+			if err != nil {
+				return err
+			}
+			bi.uniqueWordCount += numAdded
+		}
+		idx += uint32(endIdx)
+	}
+	return nil
+}
+
+/*
+Adds the fullWord and sub-words (lowercase as well) to the bloom
+Subwords are gotten by splitting the fullWord by whitespace
+NOTE: This function may modify the incoming byte slice
+*/
+func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
+
+	blockWordCount, err := addToBlockBloomBothCasesWithBuf(blockBloom, fullWord, fullWord)
+	if err != nil {
+		log.Errorf("addToBlockBloomBothCases: err adding bloom: err: %v", err)
+	}
+
+	return blockWordCount
+}
+
+/*
+Adds the fullWord and sub-words (lowercase as well) to the bloom
+Subwords are gotten by splitting the fullWord by whitespace
+*/
+func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []byte,
+	workBuf []byte) (uint32, error) {
+
+	var blockWordCount uint32 = 0
+	copy := fullWord[:]
+
+	// we will add the lowercase to bloom only if there was an upperCase and we
+	// had to convert
+	hasUpper := utils.HasUpper(copy)
+
+	// add the original full
+	_ = blockBloom.Add(copy)
+
+	var hasSubWords bool
+	for {
+		i := bytes.Index(copy, BYTE_SPACE)
+		if i == -1 {
+			break
+		}
+		hasSubWords = true
+		// add original sub word
+		_ = blockBloom.Add(copy[:i])
+
+		// add sub word lowercase
+		if hasUpper {
+			word, err := utils.BytesToLower(copy[:i], workBuf)
+			if err != nil {
+				return 0, err
+			}
+			_ = blockBloom.Add(word)
+		}
+		copy = copy[i+BYTE_SPACE_LEN:]
+	}
+
+	// handle last word. If no word was found, then we have already added the full word
+	if hasSubWords && len(copy) > 0 {
+		_ = blockBloom.Add(copy)
+		word, err := utils.BytesToLower(copy, workBuf)
+		if err != nil {
+			return 0, err
+		}
+		_ = blockBloom.Add(word)
+	}
+
+	if hasUpper {
+		word, err := utils.BytesToLower(fullWord[:], workBuf)
+		if err != nil {
+			return 0, err
+		}
+		_ = blockBloom.Add(word)
+	}
+	return blockWordCount, nil
 }
