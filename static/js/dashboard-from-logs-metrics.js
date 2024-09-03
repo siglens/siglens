@@ -24,7 +24,6 @@ const existingDashboard = $('.existing-dashboard');
 let newDashboardFlag = true;
 let dashboardID;
 let isMetricsScreen;
-
 $(document).ready(function () {
     existingDashboard.hide();
     $('#create-panel').hide();
@@ -80,6 +79,7 @@ $(document).ready(function () {
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
 });
@@ -128,6 +128,7 @@ function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
     var timeRange;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         if (panelMetricsQueryParams.queriesData?.[0]?.start != undefined) {
@@ -171,7 +172,17 @@ function createPanelToNewDashboard() {
                         description: inputdbdescription,
                         timeRange: timeRange,
                         refresh: refresh,
-                        panels: [panelCreatedFromLogs],
+                        panels: [
+                            {
+                                ...panelCreatedFromLogs,
+                                style: {
+                                    display: panelCreatedFromLogs.style?.display || 'Line chart',
+                                    color: panelCreatedFromLogs.style?.color || 'Classic',
+                                    lineStyle: panelCreatedFromLogs.style?.lineStyle || 'Solid',
+                                    lineStroke: panelCreatedFromLogs.style?.lineStroke || 'Normal',
+                                },
+                            },
+                        ],
                     },
                 };
                 updateDashboard(dashboard);
@@ -304,6 +315,7 @@ function updateDashboard(dashboard) {
 function createPanel(panelIndex, startEpoch) {
     let panelId = uuidv4();
     let panel;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         panelMetricsQueryParams.start = startEpoch;
@@ -321,6 +333,16 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
+            style: {
+                //eslint-disable-next-line no-undef
+                display: chartType,
+                //eslint-disable-next-line no-undef
+                color: selectedTheme,
+                //eslint-disable-next-line no-undef
+                lineStyle: selectedLineStyle,
+                //eslint-disable-next-line no-undef
+                lineStroke: selectedStroke,
+            },
         };
     } else {
         panel = {

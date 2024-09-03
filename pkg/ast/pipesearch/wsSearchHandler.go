@@ -160,10 +160,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.QUERY_UPDATE:
 				numRrcsAdded := processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
 				scrollFrom += int(numRrcsAdded)
-			case query.CANCELLED:
-				processCancelQuery(conn, qid)
-				query.DeleteQuery(qid)
-				return
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -183,6 +179,8 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			log.Infof("qid=%d, Got message from websocket: %+v", qid, readMsg)
 			if readMsg["state"] == "cancel" {
 				query.CancelQuery(qid)
+				processCancelQuery(conn, qid)
+				query.DeleteQuery(qid)
 			}
 		}
 	}
