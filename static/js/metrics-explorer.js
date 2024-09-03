@@ -2164,12 +2164,11 @@ async function getMetricsData(queryName, metricName, state) {
 
     try {
         const res = await fetchTimeSeriesData(data);
-
-        metricsQueryParams = data; // For alerts page
-
         if (res) {
             rawTimeSeriesData = res;
             updateDownloadButtons();
+            updateMetricsQueryParamsInUrl();
+            metricsQueryParams = data; // For alerts page
         }
     } catch (error) {
         if (isAlertScreen) {
@@ -2214,13 +2213,17 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
+    let formwithfun = formulaDetails.formula;
     if (!funcApplied) {
         let functions = formulaDetailsMap[formulaId].functions;
         functions.forEach((fn) => {
             formulaString = `${fn}(${formulaString})`;
+            formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = { formula: formulaString };
+    const formula = { 
+        formula: formwithfun, 
+    };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
 
@@ -2245,6 +2248,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
                 addVisualizationContainer(formulaId, chartData, formulaString);
             }
             updateDownloadButtons();
+            updateMetricsQueryParamsInUrl();
         }
     } catch (error) {
         if (isAlertScreen) {
