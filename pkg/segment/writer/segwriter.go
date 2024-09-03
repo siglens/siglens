@@ -1225,7 +1225,7 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 			// we don't add backfill value to bloom since we are not going to search for it
 			continue
 		case VALTYPE_ENC_SMALL_STRING[0]:
-			// the first 3 bytes are TL(type len)
+			// the first 3 bytes are the type and length
 			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
 			if err != nil {
 				return err
