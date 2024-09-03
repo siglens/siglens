@@ -2210,6 +2210,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         };
         queriesData.push(query);
 
+        // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
@@ -2221,8 +2222,8 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             formwithfun = `${fn}(${formwithfun})`;
         });
     }
-    const formula = { 
-        formula: formwithfun, 
+    const formula = {
+        formula: formwithfun,
     };
     formulas.push(formula);
     addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
