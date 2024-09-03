@@ -954,6 +954,38 @@ function toggleClearButtonVisibility() {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
+    // Function to check the visibility of the Format button
+    function checkFormatButtonVisibility() {
+        const selectedLanguage = $('#query-language-btn span').text().trim();
+        const selectedTab = $('.tab-list .tab-li.active').attr('id');
+        const formatButton = $('#formatInput');
+
+        if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
+            formatButton.show();
+        } else {
+            formatButton.hide();
+        }
+    }
+
+    // Function to handle tab clicks
+    function handleTabClick() {
+        $('.tab-li').removeClass('active');
+        $(this).addClass('active');
+        checkFormatButtonVisibility();
+    }
+
+    // Initial visibility check
+    checkFormatButtonVisibility();
+
+    // Event listener for tab clicks
+    $('.tab-list .tab-li').click(handleTabClick);
+
+    // Event listeners for query language changes
+    $('#query-language-options').on('click', '.query-language-option', function() {
+        setTimeout(checkFormatButtonVisibility, 10);
+    });
+
+    // Handle input focus
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
             $(this).val('');
@@ -964,6 +996,7 @@ function initializeFilterInputEvents() {
     const MAX_VISIBLE_LINES = 5;
     const PADDING = 8;
 
+    // Create a clone of the textarea to measure its height
     function createTextAreaClone($textarea) {
         const $clone = $('<div id="textarea-clone"></div>')
             .css({
@@ -986,6 +1019,7 @@ function initializeFilterInputEvents() {
         return $clone;
     }
 
+    // Update the textarea height and ellipsis
     function updateTextarea() {
         const $textarea = $('#filter-input');
         const $clone = $('#textarea-clone');
@@ -1025,12 +1059,14 @@ function initializeFilterInputEvents() {
         }
     }
 
+    // Event listeners for input and window resize
     $('#filter-input').on('focus blur input', updateTextarea);
     $(window).on('resize', updateTextarea);
 
-    // Initial setup
+    // Initial setup for textarea
     updateTextarea();
 
+    // Toggle visibility of the clear button
     $('#filter-input').on('input', function () {
         toggleClearButtonVisibility();
     });
@@ -1040,10 +1076,30 @@ function initializeFilterInputEvents() {
         toggleClearButtonVisibility();
     });
 
+    // Format button click event
+    $('#formatInput').click(function() {
+        let input = $("#filter-input");
+        let value = input.val();
+
+        // Format the input value by ensuring each '|' is preceded by a newline
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (value[i] === '|' && (i === 0 || value[i - 1] !== '\n')) {
+                formattedValue += '\n|';
+            } else {
+                formattedValue += value[i];
+            }
+        }
+
+        input.val(formattedValue);
+    });
+
     $('#filter-input').keydown(function (e) {
         toggleClearButtonVisibility();
     });
 }
+
+
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {

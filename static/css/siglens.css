@@ -465,7 +465,19 @@ body {
     justify-content: center;
     margin-right: 6px !important;
 }
-
+.format-icon {
+    cursor: pointer;
+    display: none;
+    position: absolute;
+    right: 11%;
+    background-color: var(--alert-background);
+    font-size: 12px !important;
+    padding: 3.5px;
+    color: grey;
+}
+.format-icon:hover{
+    color:var(--text-color);
+}
 #theme-btn {
     box-sizing: border-box;
     width: 36px;
