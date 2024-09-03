@@ -115,6 +115,8 @@ func Main() {
 		os.Exit(1)
 	}
 
+	checkAndMigrateSiglensDB()
+
 	serverCfg := *config.GetRunningConfig() // Init the Configuration
 	var logOut string
 	if config.GetLogPrefix() == "" {
@@ -192,6 +194,22 @@ func Main() {
 		ShutdownSiglensServer()
 		log.Errorf("Server shutdown")
 		os.Exit(1)
+	}
+}
+
+func checkAndMigrateSiglensDB() {
+	_, err := os.Stat("siglens.db")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Errorf("Error checking siglens.db file: %v", err)
+		return
+	}
+	newLocation := config.GetDataPath() + "siglens.db"
+	err = os.Rename("siglens.db", newLocation)
+	if err != nil {
+		log.Errorf("Error moving siglens.db to new location: %v", err)
 	}
 }
 

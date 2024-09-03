@@ -718,11 +718,11 @@ chmod a+rwx data || {
     print_error_and_exit "Failed to change permissions for directory 'data'. Please check your file permissions."
 }
 
-touch siglens.db || {
+touch data/siglens.db || {
     post_event "install_failed" "Failed to create file 'siglens.db'."
     print_error_and_exit "Failed to create file 'siglens.db'. Please check your permissions."
 }
-chmod a+rwx siglens.db || {
+chmod a+rwx data/siglens.db || {
     post_event "install_failed" "Failed to change permissions for file 'siglens.db'."
     print_error_and_exit "Failed to change permissions for file 'siglens.db'. Please check your file permissions."
 }
