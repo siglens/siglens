@@ -223,15 +223,16 @@ func parsedEncJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64,
 	switch numType {
 	case SS_INT64:
 		copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_INT64[:])
-		ple.allCvals[ple.numCols] = utils.Int64ToBytesLittleEndian(int64(intVal))
+		utils.Int64ToBytesLittleEndianInplace(int64(intVal), ple.allCvalsTypeLen[ple.numCols][1:])
 		valSize = 1 + 8
 	case SS_UINT64:
 		copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_UINT64[:])
+		// kunal todo implement a in place version of this utils function
 		ple.allCvals[ple.numCols] = utils.Uint64ToBytesLittleEndian(uintVal)
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_FLOAT64[:])
-		ple.allCvals[ple.numCols] = utils.Float64ToBytesLittleEndian(fltVal)
+		utils.Float64ToBytesLittleEndianInplace(fltVal, ple.allCvalsTypeLen[ple.numCols][1:])
 		valSize = 1 + 8
 	default:
 		log.Errorf("parsedEncJsonNumber: unknown numType: %v", numType)
