@@ -343,7 +343,7 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 		return 0, err
 	}
 
-	_, err = strMFd.Write(STAR_TREE_BLOCK)
+	_, err = strMFd.Write(VERSION_STAR_TREE_BLOCK)
 	if err != nil {
 		log.Errorf("EncodeStarTree: compression Type write failed fname=%v, err=%v", strMetaFname, err)
 		strMFd.Close()
