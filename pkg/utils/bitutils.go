@@ -243,3 +243,32 @@ func BytesToLowerInPlace(b []byte) []byte {
 	}
 	return b
 }
+
+// Checks if there is an upper case letter
+func HasUpper(b []byte) bool {
+	for _, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+// This function converts the bytes to lower case using the passed in bug
+func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
+
+	blen := len(b)
+
+	if len(workBuf) < blen {
+		return nil, fmt.Errorf("BytesToLower: passed in workbuf len was smaller than b")
+	}
+
+	for i := 0; i < blen; i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			workBuf[i] = b[i] + 32
+		} else {
+			workBuf[i] = b[i]
+		}
+	}
+	return workBuf[:blen], nil
+}
