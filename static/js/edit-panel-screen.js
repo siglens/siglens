@@ -298,6 +298,8 @@ function checkChartType(currentPanel) {
 }
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
+    queries={};
+    formulas={};
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -1122,7 +1124,7 @@ function goToDashboard() {
         }
     }
     resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-    currentPanel = null;
+    currentPanel = {};
     resetEditPanelScreen();
 
     $('.panelEditor-container').hide();
