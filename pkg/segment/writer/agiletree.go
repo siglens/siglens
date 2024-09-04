@@ -39,10 +39,10 @@ type StarTree struct {
 }
 
 type Node struct {
-	myKey     uint32
-	parent    *Node
-	children  map[uint32]*Node
-	aggValues []*utils.Number
+	myKey          uint32
+	parent         *Node
+	children       map[uint32]*Node
+	aggValues      []*utils.Number
 	commonChildren map[uint32][]*Node
 }
 

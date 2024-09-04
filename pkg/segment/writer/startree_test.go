@@ -930,16 +930,19 @@ func TestStarTree2(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		maxIdx, _, err := ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		ss.wipBlock.maxIdx = maxIdx
+		for _, cwip := range ss.wipBlock.colWips {
+			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
 
+	builder := GetSTB().stbPtr
+
 	// basic test
-	var builder StarTreeBuilder
 	builder.ResetSegTree(groupByCols, mColNames, gcWorkBuf)
 	err := builder.ComputeStarTree(&ss.wipBlock)
 	assert.NoError(t, err)
