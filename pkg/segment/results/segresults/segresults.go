@@ -344,10 +344,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				return err
 			}
 
-			// Store the result in measureResults
 			sr.segStatsResults.measureResults[measureAgg.String()] = *res
 
-			// Update the running segment stats if necessary
 			if sr.runningSegStat[idx] == nil {
 				sr.runningSegStat[idx] = currSst
 			}

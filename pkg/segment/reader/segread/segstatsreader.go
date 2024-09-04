@@ -470,6 +470,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 	rSst := utils.NumTypeEnclosure{
 		Ntype:    utils.SS_DT_FLOAT,
 		IntgrVal: 0,
+		FloatVal: 0.0,
 	}
 
 	if currSegStat == nil {
@@ -484,51 +485,38 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 
 	// If running segment statistics are nil, return the current segment's average
 	if runningSegStat == nil {
-		rSst.FloatVal = getAverage(currSegStat.NumStats.Sum, currSegStat.Count)
-		return &rSst, nil
+		avg, err := getAverage(currSegStat.NumStats.Sum, currSegStat.Count)
+		rSst.FloatVal = avg
+		return &rSst, err
 	}
 
 	// Update running segment statistics
 	runningSegStat.Count += currSegStat.Count
-	runningSegStat.NumStats.Sum = accumulateSum(runningSegStat.NumStats.Sum, currSegStat.NumStats.Sum)
+	runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
 
 	// Calculate and return the average
-	rSst.FloatVal = getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
-	return &rSst, nil
+	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
+	rSst.FloatVal = avg
+	return &rSst, err
 }
 
 // Helper function to calculate the average
-func getAverage(sum utils.NumTypeEnclosure, count uint64) float64 {
+func getAverage(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
+	avg := 0.0
 	if count == 0 {
 		log.Errorf("getAverage: count is 0")
-		return 0.0
+		return avg, errors.New("getAverage: count is 0, cannot divide by 0")
 	}
 	switch sum.Ntype {
 	case utils.SS_DT_FLOAT:
-		return sum.FloatVal / float64(count)
+		avg = sum.FloatVal / float64(count)
+	case utils.SS_DT_SIGNED_NUM:
+		avg = float64(sum.IntgrVal) / float64(count)
 	default:
-		return float64(sum.IntgrVal) / float64(count)
+		log.Errorf("getAverage: invalid data type: %v", sum.Ntype)
+		return avg, fmt.Errorf("getAverage: invalid data type %v", sum.Ntype)
 	}
-}
-
-// Helper function to accumulate sum values
-func accumulateSum(runningSum, currSum utils.NumTypeEnclosure) utils.NumTypeEnclosure {
-	switch currSum.Ntype {
-	case utils.SS_DT_FLOAT:
-		if runningSum.Ntype == utils.SS_DT_FLOAT {
-			runningSum.FloatVal += currSum.FloatVal
-		} else {
-			runningSum.FloatVal = float64(runningSum.IntgrVal) + currSum.FloatVal
-			runningSum.Ntype = utils.SS_DT_FLOAT
-		}
-	default:
-		if runningSum.Ntype == utils.SS_DT_FLOAT {
-			runningSum.FloatVal += float64(currSum.IntgrVal)
-		} else {
-			runningSum.IntgrVal += currSum.IntgrVal
-		}
-	}
-	return runningSum
+	return avg, nil
 }
 
 func GetSegList(runningSegStat *structs.SegStats,

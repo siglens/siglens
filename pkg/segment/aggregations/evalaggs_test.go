@@ -68,7 +68,7 @@ func getDummySegStats() *structs.SegStats {
 
 func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
 	leftExpr := &structs.NumericExpr{
-		NumericExprMode: 2,
+		NumericExprMode: structs.NEMNumberField,
 		IsTerminal:      true,
 		ValueIsField:    true,
 		Value:           fieldName,
@@ -78,7 +78,7 @@ func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
 	}
 
 	rightExpr := &structs.NumericExpr{
-		NumericExprMode: 0,
+		NumericExprMode: structs.NEMNumber,
 		IsTerminal:      true,
 		ValueIsField:    false,
 		Value:           "2",
@@ -88,7 +88,7 @@ func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
 	}
 
 	expr := &structs.NumericExpr{
-		NumericExprMode: 4,
+		NumericExprMode: structs.NEMNumericExpr,
 		IsTerminal:      false,
 		ValueIsField:    false,
 		Value:           "",
@@ -99,13 +99,13 @@ func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
 
 	return &structs.ValueExpr{
 		NumericExpr:   expr,
-		ValueExprMode: 0,
+		ValueExprMode: structs.VEMNumericExpr,
 	}
 }
 
 func getDummyNumericValueExprWithoutField() *structs.ValueExpr {
 	expr := &structs.NumericExpr{
-		NumericExprMode: 0,
+		NumericExprMode: structs.NEMNumber,
 		IsTerminal:      true,
 		ValueIsField:    false,
 		Value:           "100",
@@ -116,14 +116,14 @@ func getDummyNumericValueExprWithoutField() *structs.ValueExpr {
 
 	return &structs.ValueExpr{
 		NumericExpr:   expr,
-		ValueExprMode: 0,
+		ValueExprMode: structs.VEMNumericExpr,
 	}
 }
 
 func TestComputeAggEvalForList_InvalidRunningEvalStatsConversion(t *testing.T) {
 	dummyMeasureAggr := getDummyMeasureAggregator()
 	runningEvalStats := map[string]interface{}{
-		"vals": 123, // Invalid type
+		"vals": 123, // Invalid type, cannot convert to a list.
 	}
 	sstMap := map[string]*structs.SegStats{dummyMeasureAggr.MeasureCol: getDummySegStats()}
 	measureResults := make(map[string]utils.CValueEnclosure)
@@ -242,7 +242,6 @@ func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
 
 }
 
-// Test cases
 func TestComputeAggEvalForValues_NoFields(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
