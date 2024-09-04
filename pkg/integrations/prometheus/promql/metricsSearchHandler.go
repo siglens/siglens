@@ -968,7 +968,7 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
 	}
 
-	allTsids := make(map[uint64]struct{})
+	allTsids := structs.CreateNewHll()
 	for _, segmentTagTreeReader := range tagsTreeReaders {
 		for tagKey := range tagKeys {
 			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
@@ -977,12 +977,14 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 				return
 			}
 
-			allTsids = utils.MergeMaps(allTsids, tsids)
+			for tsid := range tsids {
+				allTsids.AddRaw(tsid)
+			}
 		}
 	}
 
 	output := outputStruct{
-		SeriesCardinality: uint64(len(allTsids)),
+		SeriesCardinality: allTsids.Cardinality(),
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)

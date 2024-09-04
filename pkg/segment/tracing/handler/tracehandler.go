@@ -503,12 +503,17 @@ func DependencyGraphThread() {
 
 		time.Sleep(sleepDuration)
 
-		// Calculate startEpoch and endEpoch for the last hour
-		endEpoch := time.Now().UnixMilli()
-		startEpoch := time.Now().Add(-time.Hour).UnixMilli()
+		_, traceIndexCount, _, _ := health.GetTraceStatsForAllSegments(0)
+		if traceIndexCount > 0 {
+			// Calculate startEpoch and endEpoch for the last hour
+			endEpoch := time.Now().UnixMilli()
+			startEpoch := time.Now().Add(-time.Hour).UnixMilli()
 
-		depMatrix := MakeTracesDependancyGraph(startEpoch, endEpoch)
-		writeDependencyMatrix(depMatrix)
+			depMatrix := MakeTracesDependancyGraph(startEpoch, endEpoch)
+			if len(depMatrix) > 0 {
+				writeDependencyMatrix(depMatrix)
+			}
+		}
 	}
 }
 
