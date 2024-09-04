@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -210,11 +209,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for cvalHash := range cwip.deData.hashToDci {
-				delete(cwip.deData.hashToDci, cvalHash)
-			}
-			for idx := range cwip.deData.deRecNums {
-				cwip.deData.deRecNums[idx] = nil
+			for dword := range cwip.deData.deMap {
+				delete(cwip.deData.deMap, dword)
 			}
 			cwip.deData.deCount = 0
 		}
@@ -222,8 +218,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {
@@ -474,7 +468,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -483,7 +477,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
@@ -503,7 +497,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.
@@ -580,6 +574,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
+					}
+
+					if !isKibana {
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
+						if err != nil {
+							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+							return
+						}
 					}
 
 					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)

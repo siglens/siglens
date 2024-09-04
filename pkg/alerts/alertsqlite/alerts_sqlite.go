@@ -31,6 +31,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -55,7 +56,7 @@ func (p *Sqlite) CloseDb() {
 }
 
 func (p *Sqlite) Connect() error {
-	dbname := "siglens.db"
+	dbname := config.GetDataPath() + "siglens.db"
 	logger := log.New()
 	dbConnection, err := gorm.Open(sqlite.Open(dbname), &gorm.Config{
 		Logger: alertutils.NewGormLogrusLogger(logger.WithField("component", "gorm"), 100*time.Millisecond),
