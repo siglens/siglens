@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
@@ -180,18 +181,20 @@ func Benchmark_readColumnarFile(b *testing.B) {
 
 func Test_packUnpackDictEnc(t *testing.T) {
 
-	cname := "muycname"
-	colWip := writer.InitColWip("mysegkey", cname)
+	colWip := &writer.ColWip{}
 
 	deCount := uint16(100)
 
-	deMap := make(map[string][]uint16)
+	deToRecnumIdx := make(map[string]uint16)
+	deHashToRecnumIdx := make(map[uint64]uint16)
+	deRecNums := make([]*bitset.BitSet, 100)
 
 	recCounts := uint16(100)
 
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
 	allBlockSummaries[0] = &structs.BlockSummary{RecCount: recCounts}
 
+	cname := "muycname"
 	sfr := &SegmentFileReader{
 		blockSummaries: allBlockSummaries,
 		deTlv:          make([][]byte, 0),
@@ -201,8 +204,6 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	}
 
 	recNum := uint16(0)
-	tempWipCbuf := make([]byte, 2_000_000)
-	wipIdx := uint32(0)
 	for dwIdx := uint16(0); dwIdx < deCount; dwIdx++ {
 
 		cval := fmt.Sprintf("mycval-%v", dwIdx)
@@ -211,21 +212,21 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		copy(cvalBytes[1:], utils.Uint16ToBytesLittleEndian(uint16(len(cval))))
 		copy(cvalBytes[3:], cval)
 
-		cvTlvLen := uint32(len(cvalBytes))
-
-		copy(tempWipCbuf[wipIdx:], cvalBytes)
-		wipIdx += cvTlvLen
-
-		arr := make([]uint16, recCounts/deCount)
-		deMap[string(cvalBytes)] = arr
+		newBs := bitset.New(uint(recCounts))
 
 		for rn := uint16(0); rn < recCounts/deCount; rn++ {
-			arr[rn] = recNum + rn
+			newBs.Set(uint(recNum + rn))
 		}
+		cvalHash := xxhash.Sum64(cvalBytes)
+
+		deToRecnumIdx[string(cvalBytes)] = dwIdx
+		deHashToRecnumIdx[cvalHash] = dwIdx
+		deRecNums[dwIdx] = newBs
+
 		recNum += recCounts / deCount
 	}
-	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
-	colWip.SetDeDataForTest(deCount, deMap)
+
+	colWip.SetDeDataForTest(deCount, deToRecnumIdx, deHashToRecnumIdx, deRecNums)
 
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()

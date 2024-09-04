@@ -93,7 +93,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	_, _, isRange := baseQuery.ExtractRangeFilterFromQuery(1)
 	assert.False(t, isRange)
 
-	blockbloomKeywords, _, wildcard, blockOp := baseQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, wildcard, blockOp := baseQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 
 	assert.Len(t, blockbloomKeywords, 1)
@@ -106,7 +106,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(baseQuery, tRange, blkTracker,
-			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "one file at a time")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "checkedBlocks blocks is not as expected")
@@ -131,7 +131,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	blockbloomKeywords, _, wildcard, blockOp = fileNameQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, wildcard, blockOp = fileNameQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -143,7 +143,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(fileNameQuery, tRange, blkTracker,
-			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "all blocks will be checked")
 		if qsr.segKey == randomFile {
@@ -172,7 +172,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	qsrs = ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ = FilterSegKeysToQueryResults(qInfo, qsrs)
 
-	blockbloomKeywords, _, wildcard, blockOp = batchQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, wildcard, blockOp = batchQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -185,7 +185,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(batchQuery, tRange, blkTracker,
-			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "process single request at a time")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
@@ -206,7 +206,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 
 	// changing col name has no effect on block bloom keys
-	blockbloomKeywords, nil, wildcardValue, blockOp := batchWildcardQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, wildcardValue, blockOp := batchWildcardQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcardValue)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -219,7 +219,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(batchWildcardQuery, tRange, blkTracker,
-			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcardValue, 0, true, qsr.pqid)
+			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcardValue, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "one file at a time key7=batch-1")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
@@ -266,7 +266,7 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		finalRangeRequests, totalChecked, passedBlocks, errs := getAllSearchRequestsFromCmi(rangeQuery, tRange, blkTracker,
-			nil, nil, utils.And, rangeFilter, rangeOp, true, false, 0, true, qsr.pqid)
+			nil, utils.And, rangeFilter, rangeOp, true, false, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Equal(t, uint64(numBlocks), totalChecked)
 		assert.Equal(t, uint64(1), passedBlocks, "one block in each file matches")

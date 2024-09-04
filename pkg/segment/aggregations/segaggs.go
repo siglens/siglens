@@ -1121,19 +1121,11 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		if err := performFillNullRequest(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
-	} else if letColReq.AppendRequest != nil {
-		if err := performAppendRequest(); err != nil {
-			return fmt.Errorf("performAppendRequest: %v", err)
-		}
 	} else {
 		return errors.New("performLetColumnsRequest: expected one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest to have a value")
 	}
 
 	return nil
-}
-
-func performAppendRequest() error {
-	return errors.New("append command is not implemented yet")
 }
 
 func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},

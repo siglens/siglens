@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
-	"github.com/siglens/go-hll"
+	"github.com/segmentio/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
@@ -223,7 +223,7 @@ type RunningStreamStatsResults struct {
 	SecondaryWindow     *sutils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
-	CardinalityHLL      *sutils.GobbableHll
+	CardinalityHLL      *hll.Hll
 	ValuesMap           map[string]struct{}
 }
 
@@ -310,24 +310,6 @@ type IncludeValue struct {
 	Label   string //new label of value in record
 }
 
-type AppendRequest struct {
-	ExtendTimeRange bool
-	MaxTime         int
-	MaxOut          int
-	Subsearch       interface{}
-}
-
-type AppendCmdOptions struct {
-	ExtendTimeRange bool
-	MaxTime         int
-	MaxOut          int
-}
-
-type AppendCmdOption struct {
-	OptionType string
-	Value      interface{}
-}
-
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
 	MultiColsRequest     *MultiColLetRequest
@@ -344,7 +326,6 @@ type LetColumnsRequest struct {
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
 	FillNullRequest      *FillNullExpr
-	AppendRequest        *AppendRequest
 }
 
 type FillNullExpr struct {
@@ -470,7 +451,7 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	Hll         *sutils.GobbableHll
+	Hll         *hll.Hll
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
@@ -559,8 +540,8 @@ func initHllDefaultSettings() {
 }
 
 // Creates a new segmentio Hll with the defined HllSettings.
-func CreateNewHll() *sutils.GobbableHll {
-	return &sutils.GobbableHll{Hll: hll.Hll{}}
+func CreateNewHll() *hll.Hll {
+	return &hll.Hll{}
 }
 
 func CreateHllFromBytes(rawHll []byte) (*hll.Hll, error) {
@@ -577,7 +558,7 @@ func (ss *SegStats) CreateHllFromBytes(rawHll []byte) error {
 		return err
 	}
 
-	ss.Hll = &sutils.GobbableHll{Hll: *hll}
+	ss.Hll = hll
 	return nil
 }
 
@@ -607,23 +588,6 @@ func (ss *SegStats) GetHllBytes() []byte {
 	}
 
 	return ss.Hll.ToBytes()
-}
-
-func (ss *SegStats) GetHllBytesInPlace(bytes []byte) []byte {
-	if ss == nil || ss.Hll == nil {
-		return nil
-	}
-
-	return ss.Hll.ToBytesInPlace(bytes)
-}
-
-func (ss *SegStats) GetHllDataSize() int {
-	if ss == nil || ss.Hll == nil {
-		return 0
-	}
-
-	_, size := ss.Hll.GetStorageTypeAndSizeInBytes()
-	return size
 }
 
 func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
@@ -672,7 +636,7 @@ func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
 	if ss.Hll != nil && other.Hll != nil {
-		err := ss.Hll.StrictUnion(other.Hll.Hll)
+		err := ss.Hll.StrictUnion(*other.Hll)
 		if err != nil {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
 		}
@@ -801,16 +765,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
-			qa.OutputTransforms.LetColumns.FillNullRequest != nil || qa.OutputTransforms.LetColumns.AppendRequest != nil)
-}
-
-func (qa *QueryAggregators) hasAppendRequest() bool {
-	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
-		qa.OutputTransforms.LetColumns.AppendRequest != nil
-}
-
-func (qa *QueryAggregators) HasAppendInChain() bool {
-	return qa.HasInChain((*QueryAggregators).hasAppendRequest)
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

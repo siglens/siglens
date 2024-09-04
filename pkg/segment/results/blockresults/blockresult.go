@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/segmentio/go-hll"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -604,7 +605,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 		}
 
-		var hllToMerge *toputils.GobbableHll
+		var hllToMerge *hll.Hll
 		var strSetToMerge map[string]struct{}
 		var eVal utils.CValueEnclosure
 		switch mInfo.MeasureFunc {
@@ -951,7 +952,7 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hllBytes, err: %v", err)
 				return nil, err
 			}
-			currRunningStats = append(currRunningStats, runningStats{hll: &toputils.GobbableHll{Hll: *hll}})
+			currRunningStats = append(currRunningStats, runningStats{hll: hll})
 		} else {
 			newVal := utils.CValueEnclosure{}
 			err := newVal.ConvertValue(rs)

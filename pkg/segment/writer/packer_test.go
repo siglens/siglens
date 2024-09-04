@@ -153,10 +153,13 @@ func TestRecordEncodeDecode(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		_, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
+		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
+		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
+
 		assert.Nil(t, err)
+		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
 			var val CValueEnclosure
@@ -265,10 +268,13 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		_, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES,
+		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
+		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
+
 		assert.Nil(t, err)
+		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
 			var val CValueEnclosure

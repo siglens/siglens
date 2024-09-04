@@ -1932,21 +1932,6 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
-.mute-icon{
-    background-image: url(../assets/mute-regular-icon.svg);
-    height: 16px;
-    background-repeat: no-repeat;
-    width: 18px;
-    cursor: pointer;
-    background-color: transparent;
-    border-width: 0;
-    margin-left: 35px;
-    padding-bottom: 0;
-    margin-top: 0px;
-    background-size: contain;
-    position: relative;
-}
-
 .download-button {
     background-image: url(../assets/download-regular.svg);
     height: 16px;
@@ -2022,10 +2007,6 @@ div.dts div.dataTables_scrollBody table {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-}
-
-.mute-icon:hover {
-    background-image: url(../assets/mute-active-icon.svg);
 }
 
 #editbutton:hover {
@@ -4707,13 +4688,6 @@ color: #C8C7CC;
 
 #alerting .dropdown-menu.daterangepicker.show {
     height: 216px !important;
-}
-
-.custom-alert-dropdown-menu{
-    background: var(--timepicker-bg-color);
-    border: 1px solid var(--timepicker-border-color);
-    color: var(--text-color);
-    width: 330px;
 }
 
 .delete-dialog #cancel-btn{

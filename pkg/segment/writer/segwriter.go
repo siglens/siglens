@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
@@ -70,16 +71,6 @@ var localSegmetaFname string
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
-var wipCbufPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		slice := make([]byte, WIP_SIZE)
-		return &slice
-	},
-}
-
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -94,18 +85,19 @@ type SegfileRotateInfo struct {
 }
 
 type DeData struct {
-	// [hash(dictWordKey)] => {colWip.cbufidxStart, len(dword)}
-	deMap   map[string][]uint16
-	deCount uint16 // keeps track of cardinality count for this COL_WIP
+	deToRecnumIdx     map[string]uint16 // [dictWordKey] => index to recNums Array
+	deHashToRecnumIdx map[uint64]uint16 // [hash(dictWordKey)] => index to recNums Array
+	// kunal todo , we could potentially just use uint32 indexes here that could point to the pool
+	deRecNums []*bitset.BitSet // [De idx] ==> BitSet of recNums that match this de
+	deCount   uint16           // keeps track of cardinality count for this COL_WIP
 }
 
 type ColWip struct {
-	cbufidx      uint32 // end index of buffer, only cbuf[:cbufidx] exists
-	cstartidx    uint32 // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf         []byte // in progress bytes
-	csgFname     string // file name of csg file
-	deData       *DeData
-	dePackingBuf []byte
+	cbufidx   uint32         // end index of buffer, only cbuf[:cbufidx] exists
+	cstartidx uint32         // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
+	cbuf      [WIP_SIZE]byte // in progress bytes
+	csgFname  string         // file name of csg file
+	deData    *DeData
 }
 
 type RangeIndex struct {
@@ -171,10 +163,8 @@ func GetInMemorySize() uint64 {
 
 	totalSize := uint64(0)
 	for _, s := range allSegStores {
-		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
 		totalSize += s.GetSegStorePQMatchSize()
-		s.Lock.Unlock()
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
@@ -444,18 +434,15 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 
 func InitColWip(segKey string, colName string) *ColWip {
 
-	deData := DeData{deMap: make(map[string][]uint16),
-		deCount: 0,
+	deData := DeData{deToRecnumIdx: make(map[string]uint16),
+		deHashToRecnumIdx: make(map[uint64]uint16),
+		deRecNums:         make([]*bitset.BitSet, MaxDeEntries),
+		deCount:           0,
 	}
 
-	cbuf := *wipCbufPool.Get().(*[]byte)
-	dePack := *wipCbufPool.Get().(*[]byte)
-
 	return &ColWip{
-		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
-		deData:       &deData,
-		cbuf:         cbuf,
-		dePackingBuf: dePack,
+		csgFname: fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
+		deData:   &deData,
 	}
 }
 
@@ -541,6 +528,41 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 	}
 
 	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
+}
+
+/*
+Adds the fullWord and sub-words to the bloom
+Subwords are gotten by splitting the fullWord by whitespace
+*/
+func addToBlockBloom(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
+
+	var blockWordCount uint32 = 0
+	copy := fullWord[:]
+
+	if !blockBloom.TestAndAdd(copy) {
+		blockWordCount += 1
+	}
+
+	var foundWord bool
+	for {
+		i := bytes.Index(copy, BYTE_SPACE)
+		if i == -1 {
+			break
+		}
+		foundWord = true
+		if !blockBloom.TestAndAdd(copy[:i]) {
+			blockWordCount += 1
+		}
+		copy = copy[i+BYTE_SPACE_LEN:]
+	}
+
+	// handle last word. If no word was found, then we have already added the full word
+	if foundWord && len(copy) > 0 {
+		if !blockBloom.TestAndAdd(copy) {
+			blockWordCount += 1
+		}
+	}
+	return blockWordCount
 }
 
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
@@ -927,10 +949,13 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
 }
 
-func (cw *ColWip) SetDeDataForTest(deCount uint16, deMap map[string][]uint16) {
+func (cw *ColWip) SetDeDataForTest(deCount uint16, deToRecnumIdx map[string]uint16,
+	deHashToRecnumIdx map[uint64]uint16, deRecNums []*bitset.BitSet) {
 
-	deData := DeData{deMap: deMap,
-		deCount: deCount,
+	deData := DeData{deToRecnumIdx: deToRecnumIdx,
+		deHashToRecnumIdx: deHashToRecnumIdx,
+		deRecNums:         deRecNums,
+		deCount:           deCount,
 	}
 	cw.deData = &deData
 }
@@ -1118,166 +1143,4 @@ func DeletePQSData() error {
 
 	// Delete PQS meta directory
 	return pqsmeta.DeletePQMetaDir()
-}
-
-func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
-	cw *ColWip) error {
-
-	// no bloom for timestamp column
-	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
-		return nil
-	}
-
-	bi, ok := ss.wipBlock.columnBlooms[cname]
-	if !ok {
-		// for non-strings columns, BI is not iniliazed. Maybe there should be an
-		// explicit way of saying what columnType is this so that we don't "overload" the BI var
-		return nil
-	}
-
-	switch encType[0] {
-	case ZSTD_COMLUNAR_BLOCK[0]:
-		return cw.writeNonDeBloom(buf, bi, ss.wipBlock.blockSummary.RecCount, cname)
-	case ZSTD_DICTIONARY_BLOCK[0]:
-		return cw.writeDeBloom(buf, bi)
-	default:
-		log.Errorf("writeToBloom got an unknown encoding type: %+v", encType)
-		return fmt.Errorf("got an unknown encoding type: %+v", encType)
-	}
-}
-
-func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the cw.deData.deCount, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount)*2, BLOOM_COLL_PROBABILITY)
-	for dwordkey := range cw.deData.deMap {
-		dword := []byte(dwordkey)
-		switch dword[0] {
-		case VALTYPE_ENC_BACKFILL[0]:
-			// we don't add backfill value to bloom since we are not going to search for it
-			continue
-		case VALTYPE_ENC_SMALL_STRING[0]:
-			// the first 3 bytes are the type and length
-			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, dword[3:], buf)
-			if err != nil {
-				return err
-			}
-			bi.uniqueWordCount += numAdded
-		case VALTYPE_ENC_BOOL[0]:
-			// todo we should not be using bloom here, its expensive
-			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, []byte{dword[1]}, buf)
-			if err != nil {
-				return err
-			}
-			bi.uniqueWordCount += numAdded
-		default:
-			// just log and continue since we are only doing strings into blooms
-			log.Errorf("writeDeBloom: unhandled recType: %v", dword[0])
-		}
-	}
-	return nil
-}
-
-func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
-	cname string) error {
-
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the numRecs, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
-	idx := uint32(0)
-	for recNum := uint16(0); recNum < numRecs; recNum++ {
-		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
-		if err != nil {
-			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
-				cname, idx)
-			return err
-		}
-
-		// we are going to insert only strings in the bloom
-		if cValBytes[0] == VALTYPE_ENC_SMALL_STRING[0] {
-			word := cValBytes[3:endIdx]
-			numAdded, err := addToBlockBloomBothCasesWithBuf(bi.Bf, word, buf)
-			if err != nil {
-				return err
-			}
-			bi.uniqueWordCount += numAdded
-		}
-		idx += uint32(endIdx)
-	}
-	return nil
-}
-
-/*
-Adds the fullWord and sub-words (lowercase as well) to the bloom
-Subwords are gotten by splitting the fullWord by whitespace
-NOTE: This function may modify the incoming byte slice
-*/
-func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
-
-	blockWordCount, err := addToBlockBloomBothCasesWithBuf(blockBloom, fullWord, fullWord)
-	if err != nil {
-		log.Errorf("addToBlockBloomBothCases: err adding bloom: err: %v", err)
-	}
-
-	return blockWordCount
-}
-
-/*
-Adds the fullWord and sub-words (lowercase as well) to the bloom
-Subwords are gotten by splitting the fullWord by whitespace
-*/
-func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []byte,
-	workBuf []byte) (uint32, error) {
-
-	var blockWordCount uint32 = 0
-	copy := fullWord[:]
-
-	// we will add the lowercase to bloom only if there was an upperCase and we
-	// had to convert
-	hasUpper := utils.HasUpper(copy)
-
-	// add the original full
-	_ = blockBloom.Add(copy)
-
-	var hasSubWords bool
-	for {
-		i := bytes.Index(copy, BYTE_SPACE)
-		if i == -1 {
-			break
-		}
-		hasSubWords = true
-		// add original sub word
-		_ = blockBloom.Add(copy[:i])
-
-		// add sub word lowercase
-		if hasUpper {
-			word, err := utils.BytesToLower(copy[:i], workBuf)
-			if err != nil {
-				return 0, err
-			}
-			_ = blockBloom.Add(word)
-		}
-		copy = copy[i+BYTE_SPACE_LEN:]
-	}
-
-	// handle last word. If no word was found, then we have already added the full word
-	if hasSubWords && len(copy) > 0 {
-		_ = blockBloom.Add(copy)
-		word, err := utils.BytesToLower(copy, workBuf)
-		if err != nil {
-			return 0, err
-		}
-		_ = blockBloom.Add(word)
-	}
-
-	if hasUpper {
-		word, err := utils.BytesToLower(fullWord[:], workBuf)
-		if err != nil {
-			return 0, err
-		}
-		_ = blockBloom.Add(word)
-	}
-	return blockWordCount, nil
 }

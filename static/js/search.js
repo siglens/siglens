@@ -135,21 +135,12 @@ function doSearch(data) {
                     socket.close(1000);
                     break;
                 }
-                case 'CANCELLED':
-                    console.time('CANCELLED');
-                    console.log(`[message] CANCELLED state received from server: ${jsonEvent}`);
-                    processCancelUpdate(jsonEvent);
-                    console.timeEnd('CANCELLED');
-                    errorMessages.push(`CANCELLED: ${jsonEvent}`);
-                    socket.close(1000);
-                    break;
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
                     console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                     processTimeoutUpdate(jsonEvent);
                     console.timeEnd('TIMEOUT');
                     errorMessages.push(`Timeout: ${jsonEvent}`);
-                    socket.close(1000);
                     break;
                 case 'ERROR':
                     console.time('ERROR');
@@ -288,12 +279,6 @@ function doLiveTailSearch(data) {
                 console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                 processTimeoutUpdate(jsonEvent);
                 console.timeEnd('TIMEOUT');
-                break;
-            case 'CANCELLED':
-                console.time('CANCELLED');
-                console.log(`[message] CANCELLED state received from server: ${jsonEvent}`);
-                processCancelUpdate(jsonEvent);
-                console.timeEnd('CANCELLED');
                 break;
             case 'ERROR':
                 console.time('ERROR');
@@ -835,10 +820,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} reached the timeout limit of ${res.timeoutSeconds} seconds`);
 }
-function processCancelUpdate(res) {
-    showError(`Query ${res.qid} was cancelled`);
-    $('#show-record-intro-btn').hide();
-}
+
 function processErrorUpdate(res) {
     showError(`Message: ${res.message}`);
 }

@@ -123,21 +123,6 @@ func (str *AgileTreeReader) resetBlkVars() {
 	str.isMetaLoaded = false
 }
 
-func validateTreeEncodingVersion(version byte) error {
-	switch version {
-	case utils.VERSION_STAR_TREE_BLOCK[0]:
-		// do nothing, this is the expected encoding
-	case utils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
-		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
-		return errors.New("received legacy agileTree encoding")
-	default:
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
-		return errors.New("received non-agileTree encoding")
-	}
-
-	return nil
-}
-
 /*
 parameters:
 
@@ -170,10 +155,10 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 		return err
 	}
 
-	encodingVersion := str.metaFileBuffer[0]
-	err = validateTreeEncodingVersion(encodingVersion)
-	if err != nil {
-		return err
+	if str.metaFileBuffer[0] != utils.STAR_TREE_BLOCK[0] {
+		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v",
+			str.metaFileBuffer[0])
+		return errors.New("received non-agileTree encoding")
 	}
 
 	idx := uint32(0)
@@ -554,15 +539,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			case utils.SS_DT_FLOAT:
 				extVal.Dtype = utils.SS_DT_FLOAT
 				extVal.CVal = ntAgvals[i].FloatVal
-			case utils.SS_DT_BACKFILL:
-				extVal.Dtype = utils.SS_DT_SIGNED_NUM
-				extVal.CVal = ntAgvals[i].IntgrVal
-			case utils.SS_INVALID:
-				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
-				continue
-			default:
-				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
-				continue
 			}
 			// todo count is stored multiple times in the nodeAggvalue (per measCol), store only once
 			if i == 0 { // count is always at index 0

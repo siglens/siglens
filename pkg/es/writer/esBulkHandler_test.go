@@ -37,7 +37,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	// Setup ingestion parameters.
 	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
-	shouldFlush := true
+	shouldFlush := false
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
 
