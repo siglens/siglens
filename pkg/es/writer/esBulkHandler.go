@@ -71,7 +71,6 @@ var respItemsPool = sync.Pool{
 	},
 }
 
-
 var plePool = sync.Pool{
 	New: func() interface{} {
 		// The Pool's New function should generally only return pointer
@@ -81,7 +80,6 @@ var plePool = sync.Pool{
 		return slice
 	},
 }
-
 
 func init() {
 	resp_status_201 = make(map[string]interface{})
@@ -278,22 +276,21 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 
 	/*
-	   // kunal todo handle the leftover ples
-	if addedPleCount > 0 {
-		err := ProcessIndexRequestPle(rawJson, tsNow, indexName, uint64(numBytes),
-			false, localIndexMap, myid, rid, idxToStreamIdCache,
-			cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray[:addedPleCount])
-		if err != nil {
-			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-			success = false
+		   // kunal todo handle the leftover ples
+		if addedPleCount > 0 {
+			err := ProcessIndexRequestPle(rawJson, tsNow, indexName, uint64(numBytes),
+				false, localIndexMap, myid, rid, idxToStreamIdCache,
+				cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray[:addedPleCount])
+			if err != nil {
+				log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+				success = false
+			}
+			addedPleCount = 0
+			for np := 0; np < numPles; np++ {
+				writer.ResetPle(pleArray[np])
+			}
 		}
-		addedPleCount = 0
-		for np := 0; np < numPles; np++ {
-			writer.ResetPle(pleArray[np])
-		}
-	}
 	*/
-
 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)

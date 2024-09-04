@@ -44,6 +44,7 @@ import (
 )
 
 var wipCardLimit uint16 = 1001
+
 const MaxDeEntries = 2002 // this should be atleast 2x of wipCardLimit
 
 const FPARM_INT64 = int64(0)

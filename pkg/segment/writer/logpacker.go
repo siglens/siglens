@@ -101,7 +101,7 @@ func parseNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
 		i++
 		switch valueType {
 		case jp.Object:
-			 encErr = ParseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
+			encErr = ParseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
 			if encErr != nil {
 				finalErr = encErr
 				return
@@ -179,7 +179,7 @@ func parseSingleBool(key string, val bool, tsKey *string, ple *ParsedLogEvent) {
 
 	ple.allCnames[ple.numCols] = key
 	copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_BOOL[:])
-	ple.allCvals[ple.numCols] =  utils.BoolToBytesLittleEndian(val)
+	ple.allCvals[ple.numCols] = utils.BoolToBytesLittleEndian(val)
 	ple.numCols++
 }
 

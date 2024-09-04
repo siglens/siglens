@@ -140,10 +140,10 @@ type WipBlock struct {
 }
 
 type ParsedLogEvent struct {
-	allCnames []string   // array of all cnames
-	allCvals  [][]byte  // array of all column values byte slices
-	allCvalsTypeLen  [][]byte  // array of all column values type and len (3 bytes)
-	numCols   uint16    // number of columns in this log record
+	allCnames       []string // array of all cnames
+	allCvals        [][]byte // array of all column values byte slices
+	allCvalsTypeLen [][]byte // array of all column values type and len (3 bytes)
+	numCols         uint16   // number of columns in this log record
 }
 
 // returns in memory size of a single wip block
@@ -322,7 +322,6 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
 			colWip.cbufidx += 9
 
-
 			// kunal todo pass the correct numType here and the rest of the params
 			updateRangeIndex(cname, ri.Ranges, SS_INT64, 0, 0, 0)
 			// original call was
@@ -340,7 +339,6 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			log.Errorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
 	}
-
 
 	for colName, foundCol := range ss.wipBlock.columnsInBlock {
 		if foundCol {
@@ -382,12 +380,10 @@ func CreateDefaultPle() *ParsedLogEvent {
 	return ple
 }
 
-
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
 	rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
-
 
 	tsKey := config.GetTimeStampKey()
 
@@ -395,7 +391,7 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 	defer segstore.Lock.Unlock()
 
 	// use the same PLE N times to simulate
-	for  _, ple := range pleArray {
+	for _, ple := range pleArray {
 
 		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 			segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
@@ -424,7 +420,6 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 		segstore.wipBlock.blockSummary.RecCount += 1
 		segstore.RecordCount++
 		segstore.lastUpdated = time.Now()
-
 
 		segstore.adjustEarliestLatestTimes(ts_millis)
 		segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
