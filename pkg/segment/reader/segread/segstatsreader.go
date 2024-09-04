@@ -492,8 +492,11 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 
 	// Update running segment statistics
 	runningSegStat.Count += currSegStat.Count
-	runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
-
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
+	if err != nil {
+		log.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)
+		return &rSst, err
+	}
 	// Calculate and return the average
 	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
 	rSst.FloatVal = avg
