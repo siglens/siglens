@@ -196,6 +196,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	var silenceRequest struct {
 		AlertID        string `json:"alert_id"`
 		SilenceMinutes uint64 `json:"silence_minutes"`
+		SilenceEndTime uint64 `json:"silence_end_time"`
 	}
 	if err := json.Unmarshal(ctx.PostBody(), &silenceRequest); err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
@@ -210,6 +211,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	alertDataObj.SilenceMinutes = silenceRequest.SilenceMinutes
+	alertDataObj.SilenceEndTime = silenceRequest.SilenceEndTime
 	// Update the SilenceMinutes
 	err = databaseObj.UpdateAlert(alertDataObj)
 	if err != nil {

@@ -44,6 +44,7 @@ type AlertDetails struct {
 	ContactName              string              `json:"contact_name"`
 	Labels                   []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
 	SilenceMinutes           uint64              `json:"silence_minutes"`
+	SilenceEndTime           uint64              `json:"silence_end_time"`
 	QueryParams              QueryParams         `json:"queryParams" gorm:"embedded"`
 	MetricsQueryParamsString string              `json:"metricsQueryParams"`
 	Condition                AlertQueryCondition `json:"condition"`
@@ -217,6 +218,7 @@ type MinionSearch struct {
 	ContactName     string              `json:"contact_name"`
 	Labels          []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
 	SilenceMinutes  uint64              `json:"silence_minutes"`
+	SilenceEndTime  uint64              `json:"silence_end_time"`
 	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
 	Condition       AlertQueryCondition `json:"condition"`
 	Value           float64             `json:"value"`

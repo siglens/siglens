@@ -281,9 +281,9 @@ class btnRenderer {
 
     toggleMuteDropdown(event) {
         event.stopPropagation();
-    
+
         const muteButton = this.eGui.querySelector('#mute-icon');
-        if (muteButton.title === "Unmute Alert") {
+        if (muteButton.title === 'Unmute Alert') {
             // If it's currently muted, unmute it
             this.unmuteAlert();
         } else {
@@ -291,7 +291,7 @@ class btnRenderer {
             if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
                 btnRenderer.activeDropdown.style.display = 'none';
             }
-    
+
             if (this.dropdown.style.display === 'block') {
                 this.dropdown.style.display = 'none';
                 btnRenderer.activeDropdown = null;
@@ -329,14 +329,15 @@ class btnRenderer {
         const muteButton = this.eGui.querySelector('#mute-icon');
         if (isMuted) {
             muteButton.classList.add('muted');
-            muteButton.title = "Unmute Alert";
+            muteButton.title = 'Unmute Alert';
         } else {
             muteButton.classList.remove('muted');
-            muteButton.title = "Mute";
+            muteButton.title = 'Mute';
         }
     }
 
     silenceAlert(minutes) {
+        const endTime = Math.floor(Date.now() / 1000) + minutes * 60;
         $.ajax({
             method: 'PUT',
             url: 'api/alerts/silenceAlert',
@@ -347,6 +348,7 @@ class btnRenderer {
             data: JSON.stringify({
                 alert_id: this.params.data.alertId,
                 silence_minutes: minutes,
+                silence_end_time: endTime,
             }),
             crossDomain: true,
         })
@@ -476,7 +478,7 @@ function displayAllAlerts(res) {
         newRow.set('labels', allLabels);
         newRow.set('alertState', mapIndexToAlertState.get(value.state));
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
-        newRow.set('silenceMinutes', value.silence_minutes); 
+        newRow.set('silenceMinutes', value.silence_minutes);
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
     alertGridOptions.api.setRowData(alertRowData);
