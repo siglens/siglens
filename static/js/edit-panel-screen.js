@@ -298,8 +298,8 @@ function checkChartType(currentPanel) {
 }
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
-    queries={};
-    formulas={};
+    queries = {};
+    formulas = {};
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
         $('#viewPanel-container').show();
