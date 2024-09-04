@@ -482,7 +482,6 @@ body {
     width: 94px;
     height: 26px;
     border-radius: 5px;
-    background: var(--alert-background);
     display: flex;
     flex-direction: row;
     justify-content: space-between;

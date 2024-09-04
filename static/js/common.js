@@ -962,7 +962,7 @@ function initializeFilterInputEvents() {
 
         if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
             formatButton.show();
-        } else {
+        }else {
             formatButton.hide();
         }
     }
@@ -1092,6 +1092,7 @@ function initializeFilterInputEvents() {
         }
 
         input.val(formattedValue);
+        updateTextarea();
     });
 
     $('#filter-input').keydown(function (e) {

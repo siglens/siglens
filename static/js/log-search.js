@@ -191,3 +191,6 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
+window.onload = function() {
+    initializeFilterInputEvents();  // Called after the entire page (including assets) has fully loaded
+};
