@@ -381,20 +381,14 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				}
 				continue
 			}
-
-			// Splunk documentation specifies that if more than 100 values are in the field, only the first 100 are returned.
-			strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
-
-			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrList != nil {
-				strList = utils.AppendWithLimit(strList, currSst.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+			res, err := segread.GetSegList(sr.runningSegStat[idx], currSst)
+			if err != nil {
+				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+				return err
 			}
-
-			if sr.runningSegStat[idx] != nil && sr.runningSegStat[idx].StringStats != nil {
-				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
-			}
-			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  strList,
+			sr.segStatsResults.measureResults[measureAgg.String()] = *res
+			if sr.runningSegStat[idx] == nil {
+				sr.runningSegStat[idx] = currSst
 			}
 			continue
 		default:

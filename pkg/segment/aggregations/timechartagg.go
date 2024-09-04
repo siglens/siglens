@@ -22,9 +22,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/segmentio/go-hll"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -303,7 +303,7 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
-func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *hll.Hll, hllToMerge *hll.Hll,
+func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *putils.GobbableHll, hllToMerge *putils.GobbableHll,
 	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool) {
 
 	tmp := utils.CValueEnclosure{
@@ -328,7 +328,7 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		if useAdditionForMerge {
 			aggFunc = utils.Sum
 		} else {
-			err := hll.StrictUnion(*hllToMerge)
+			err := hll.StrictUnion(hllToMerge.Hll)
 			if err != nil {
 				log.Errorf("MergeVal: failed to merge hll stats: %v", err)
 			}
@@ -389,7 +389,7 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal utils.CValueEnclosure,
-	hllToMerge *hll.Hll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
+	hllToMerge *putils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
 	isRankBySum := IsRankBySum(timechart)

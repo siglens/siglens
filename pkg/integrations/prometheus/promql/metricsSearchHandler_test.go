@@ -19,6 +19,7 @@ package promql
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/stretchr/testify/assert"
+	"github.com/valyala/fasthttp"
 )
 
 func Test_parseMetricTimeSeriesRequest(t *testing.T) {
@@ -777,6 +779,88 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v4(t *testing.T) {
 	}
 }
 
+// Many to Many
+func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v5(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	// Test: query1 - query2 * query3 + query2
+	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
+
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+
+	queryResMap1 := make(map[string]map[uint32]float64)
+	queryResMap1["node_cpu_seconds_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 100.0,
+		2: 200.0,
+	}
+
+	queryResMap1["node_cpu_seconds_total{tk3:v1,tk4:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+	}
+
+	queryResult1 := &mresults.MetricsResult{
+		MetricName: "node_cpu_seconds_total",
+		Results:    queryResMap1,
+	}
+
+	queryResMap2 := make(map[string]map[uint32]float64)
+	queryResMap2["node_memory_MemTotal_bytes{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+	}
+	queryResMap2["node_memory_MemTotal_bytes{tk4:v1,tk5:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+	}
+	queryResult2 := &mresults.MetricsResult{
+		MetricName: "node_memory_MemTotal_bytes",
+		Results:    queryResMap2,
+	}
+
+	queryResMap3 := make(map[string]map[uint32]float64)
+	queryResMap3["node_disk_reads_completed_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 10.0,
+		2: 20.0,
+	}
+	queryResMap3["node_disk_reads_completed_total{tk4:v1,tk5:v2"] = map[uint32]float64{
+		1: 10.0,
+		2: 20.0,
+	}
+	queryResult3 := &mresults.MetricsResult{
+		MetricName: "node_disk_reads_completed_total",
+		Results:    queryResMap3,
+	}
+
+	queryResultsMap := make(map[uint64]*mresults.MetricsResult)
+	queryResultsMap[xxhash.Sum64String("node_cpu_seconds_total")] = queryResult1
+	queryResultsMap[xxhash.Sum64String("node_memory_MemTotal_bytes")] = queryResult2
+	queryResultsMap[xxhash.Sum64String("node_disk_reads_completed_total")] = queryResult3
+
+	opLabelsDoNotNeedToMatch := false // Since there are multiple results that have more than one series, the labels need to match.
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, opLabelsDoNotNeedToMatch)
+	assert.NotNil(t, mResult)
+	assert.Equal(t, 1, len(mResult.Results))
+	fmt.Println(mResult.Results)
+
+	expectedResults := map[uint32]float64{
+		1: 100.0 - (1000.0 * 10.0) + 1000.0,
+		2: 200.0 - (2000.0 * 20.0) + 2000.0,
+	}
+
+	for _, tsMap := range mResult.Results {
+		for ts, val := range tsMap {
+			assert.Equal(t, expectedResults[ts], val, "At timestamp %d", ts)
+		}
+	}
+}
+
 func getQueryResultMapForThreeTestQueries(query1, query2, query3 string) map[uint64]*mresults.MetricsResult {
 	queryHash1 := xxhash.Sum64String(query1)
 	queryHash2 := xxhash.Sum64String(query2)
@@ -1037,4 +1121,35 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v2(t *testing.T)
 			assert.Equal(t, expectedResults[seriesId][ts], val, "At timestamp %d", ts)
 		}
 	}
+}
+
+func Test_processGetMetricSeriesCardinalityRequest(t *testing.T) {
+	// Create a new fasthttp.RequestCtx for testing
+	ctx := &fasthttp.RequestCtx{}
+
+	// Set the request body with the input JSON
+	inputJSON := []byte(`{
+		"startEpoch": 1625248200,
+		"endEpoch": 1625248300
+	}`)
+	ctx.Request.SetBody(inputJSON)
+
+	// Call the function being tested
+	ProcessGetMetricSeriesCardinalityRequest(ctx, 123)
+
+	// Check the response status code
+	if ctx.Response.StatusCode() != fasthttp.StatusOK {
+		t.Errorf("Expected status code %d, but got %d", fasthttp.StatusOK, ctx.Response.StatusCode())
+	}
+
+	// Parse the response body
+	var output struct {
+		SeriesCardinality uint64 `json:"seriesCardinality"`
+	}
+	err := json.Unmarshal(ctx.Response.Body(), &output)
+	assert.Nil(t, err)
+
+	// Perform assertions on the output
+	expectedCardinality := uint64(0)
+	assert.Equal(t, expectedCardinality, output.SeriesCardinality)
 }

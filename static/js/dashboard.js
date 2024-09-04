@@ -66,7 +66,7 @@ $(document).ready(async function () {
         $('#add-widget-options').toggle();
         $('.add-icon').toggleClass('rotate-icon');
         $('#add-panel-btn').toggleClass('active');
-        $('.plus-icon').toggle();
+        $('.add-panel-div .plus-icon').toggle();
         $('.default-item').toggleClass('active');
 
         // Check if .add-panel-div is active and update text accordingly
@@ -94,7 +94,7 @@ $(document).ready(async function () {
             $('.add-icon').toggleClass('rotate-icon');
             $('#add-panel-btn').toggleClass('active');
             $(this).find('.text').text('Select the panel type');
-            $('.plus-icon').hide();
+            $('.add-panel-div .plus-icon').hide();
         }
     });
 
@@ -103,7 +103,7 @@ $(document).ready(async function () {
         if (!$(event.target).closest('.default-item').length && !$(event.target).closest('#add-widget-options').length && !$(event.target).closest('#add-panel-btn').length && !$(event.target).closest('.grid-stack-item').length && !$(event.target).closest('.panel-view-li').length) {
             $('.default-item').removeClass('active');
             $('.add-panel-div .text').text('Add Panel');
-            $('.plus-icon').show();
+            $('.add-panel-div .plus-icon').show();
             $('#add-widget-options').hide();
             $('.add-icon').removeClass('rotate-icon');
             $('#add-panel-btn').removeClass('active');
@@ -116,7 +116,6 @@ $(document).ready(async function () {
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
-
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',
@@ -159,7 +158,15 @@ function saveJsonChanges() {
                     name: dbName,
                     description: dbDescr,
                     timeRange: timeRange,
-                    panels: localPanels,
+                    panels: localPanels.map((panel) => ({
+                        ...panel,
+                        style: {
+                            display: panel.style.display,
+                            color: panel.style.color,
+                            lineStyle: panel.style.lineStyle,
+                            lineStroke: panel.style.lineStroke,
+                        },
+                    })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
                 },
@@ -246,7 +253,15 @@ async function updateDashboard() {
                 name: dbName,
                 description: dbDescr,
                 timeRange: timeRange,
-                panels: tempPanels,
+                panels: tempPanels.map((panel) => ({
+                    ...panel,
+                    style: {
+                        display: panel.style?.display || 'Line chart',
+                        color: panel.style?.color || 'Classic',
+                        lineStyle: panel.style?.lineStyle || 'Solid',
+                        lineStroke: panel.style?.lineStroke || 'Normal',
+                    },
+                })),
                 refresh: dbRefresh,
             },
         }),
@@ -312,6 +327,22 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
+        document.getElementById('display-input').value = currentPanel.style?.display || 'Line chart';
+        document.getElementById('color-input').value = currentPanel.style?.color || 'Classic';
+        document.getElementById('line-style-input').value = currentPanel.style?.lineStyle || 'Solid';
+        document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
+        if (currentPanel.style) {
+            //eslint-disable-next-line no-undef
+            toggleLineOptions(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
+            chartType = currentPanel.style.display;
+            //eslint-disable-next-line no-undef
+            toggleChartType(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
+            updateChartTheme(currentPanel.style.color);
+            //eslint-disable-next-line no-undef
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+        }
     });
 }
 function handlePanelRemove(panelId) {
@@ -475,6 +506,20 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
+        localPanels.forEach((localPanel) => {
+            if (localPanel.style) {
+                //eslint-disable-next-line no-undef
+                toggleLineOptions(localPanel.style.display);
+                //eslint-disable-next-line no-undef
+                chartType = localPanel.style.display;
+                //eslint-disable-next-line no-undef
+                toggleChartType(localPanel.style.display);
+                //eslint-disable-next-line no-undef
+                updateChartTheme(localPanel.style.color);
+                //eslint-disable-next-line no-undef
+                updateLineCharts(localPanel.style.lineStyle, localPanel.style.lineStroke);
+            }
+        });
     }
 }
 
@@ -754,7 +799,7 @@ async function displayPanels() {
         $('#add-widget-options').show();
         $('.add-icon').addClass('rotate-icon');
         $('#add-panel-btn').addClass('active');
-        $('.plus-icon').hide();
+        $('.add-panel-div .plus-icon').hide();
     } else {
         $('.default-item').removeClass('active');
         $('#add-widget-options').hide();
