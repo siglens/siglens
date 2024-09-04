@@ -165,6 +165,8 @@ class btnRenderer {
             document.addEventListener('click', btnRenderer.handleGlobalClick);
             btnRenderer.globalListenerAdded = true;
         }
+        console.log(params);
+        this.updateMuteIcon(params.data.silenceMinutes);
     }
 
     static handleGlobalClick(event) {
@@ -279,18 +281,25 @@ class btnRenderer {
 
     toggleMuteDropdown(event) {
         event.stopPropagation();
-
-        if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
-            btnRenderer.activeDropdown.style.display = 'none';
-        }
-
-        if (this.dropdown.style.display === 'block') {
-            this.dropdown.style.display = 'none';
-            btnRenderer.activeDropdown = null;
+    
+        const muteButton = this.eGui.querySelector('#mute-icon');
+        if (muteButton.title === "Unmute Alert") {
+            // If it's currently muted, unmute it
+            this.unmuteAlert();
         } else {
-            this.dropdown.style.display = 'block';
-            btnRenderer.activeDropdown = this.dropdown;
-            this.updateDropdownPosition();
+            // If it's not muted, show the dropdown to mute
+            if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
+                btnRenderer.activeDropdown.style.display = 'none';
+            }
+    
+            if (this.dropdown.style.display === 'block') {
+                this.dropdown.style.display = 'none';
+                btnRenderer.activeDropdown = null;
+            } else {
+                this.dropdown.style.display = 'block';
+                btnRenderer.activeDropdown = this.dropdown;
+                this.updateDropdownPosition();
+            }
         }
     }
 
@@ -316,6 +325,17 @@ class btnRenderer {
         btnRenderer.closeAllDropdowns();
     }
 
+    updateMuteIcon(isMuted) {
+        const muteButton = this.eGui.querySelector('#mute-icon');
+        if (isMuted) {
+            muteButton.classList.add('muted');
+            muteButton.title = "Unmute Alert";
+        } else {
+            muteButton.classList.remove('muted');
+            muteButton.title = "Mute";
+        }
+    }
+
     silenceAlert(minutes) {
         $.ajax({
             method: 'PUT',
@@ -332,6 +352,7 @@ class btnRenderer {
         })
             .done((res) => {
                 showToast(res.message, 'success');
+                this.updateMuteIcon(true);
             })
             .fail(() => {
                 showToast('Failed to silence alert', 'error');
@@ -339,6 +360,28 @@ class btnRenderer {
             .always(() => {
                 this.dropdown.style.display = 'none';
                 btnRenderer.activeDropdown = null;
+            });
+    }
+
+    unmuteAlert() {
+        $.ajax({
+            method: 'PUT',
+            url: 'api/alerts/unsilenceAlert',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            data: JSON.stringify({
+                alert_id: this.params.data.alertId,
+            }),
+            crossDomain: true,
+        })
+            .done((res) => {
+                showToast(res.message, 'success');
+                this.updateMuteIcon(false); // Update icon to show it's unmuted
+            })
+            .fail(() => {
+                showToast('Failed to unmute alert', 'error');
             });
     }
 
@@ -433,6 +476,7 @@ function displayAllAlerts(res) {
         newRow.set('labels', allLabels);
         newRow.set('alertState', mapIndexToAlertState.get(value.state));
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
+        newRow.set('silenceMinutes', value.silence_minutes); 
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
     alertGridOptions.api.setRowData(alertRowData);
