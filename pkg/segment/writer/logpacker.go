@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func parseRawJsonObject(currKey string, data []byte, tsKey *string,
+func ParseRawJsonObject(currKey string, data []byte, tsKey *string,
 	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
@@ -41,7 +41,7 @@ func parseRawJsonObject(currKey string, data []byte, tsKey *string,
 		}
 		switch valueType {
 		case jp.Object:
-			err = parseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
+			err = ParseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
 			if err != nil {
 				return fmt.Errorf("parseRawJsonObject: obj currKey: %v, err: %v", currKey, err)
 			}
@@ -101,7 +101,7 @@ func parseNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
 		i++
 		switch valueType {
 		case jp.Object:
-			 encErr = parseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
+			 encErr = ParseRawJsonObject(finalKey, value, tsKey, jsParsingStackbuf, ple)
 			if encErr != nil {
 				finalErr = encErr
 				return

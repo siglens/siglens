@@ -260,7 +260,7 @@ func cleanRecentlyRotatedInfo() {
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
 	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -269,7 +269,7 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	}
 
 	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, ple)
+		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 }
 
 func (ss *SegStore) doLogEventFilling(ts_millis uint64,
@@ -386,66 +386,63 @@ func CreateDefaultPle() *ParsedLogEvent {
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
 	rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
-	//	ple := CreateDefaultPle()
 
 	tsKey := config.GetTimeStampKey()
-
-	err := parseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf, ple)
-	if err != nil {
-		log.Errorf("AddEntry: failed to do parsing, err: %v", err)
-		return err
-	}
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
 
-	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
-		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
-		err := segstore.AppendWipToSegfile(streamid, false, false, false)
+	// use the same PLE N times to simulate
+	for  _, ple := range pleArray {
+
+		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
+			segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
+			err := segstore.AppendWipToSegfile(streamid, false, false, false)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+				return err
+			}
+			instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
+		}
+
+		matchedPCols, err := segstore.doLogEventFilling(ts_millis, ple, &tsKey)
 		if err != nil {
-			log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+			log.Errorf("AddEntry: failed to do parsed even filling, segkey: %v, err: %v", segstore.SegmentKey, err)
 			return err
 		}
-		instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
-	}
 
-	matchedPCols, err := segstore.doLogEventFilling(ts_millis, ple, &tsKey)
-	if err != nil {
-		log.Errorf("AddEntry: failed to do parsed even filling, segkey: %v, err: %v", segstore.SegmentKey, err)
-		return err
-	}
-
-	if matchedPCols {
-		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
-	}
-
-	for _, cwip := range segstore.wipBlock.colWips {
-		segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
-	}
-
-	segstore.wipBlock.blockSummary.RecCount += 1
-	segstore.RecordCount++
-	segstore.lastUpdated = time.Now()
-
-
-	segstore.adjustEarliestLatestTimes(ts_millis)
-	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	segstore.BytesReceivedCount += bytesReceived
-
-	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
-		err := hook(rid, segstore, rawJson, ts_millis, signalType)
-		if err != nil {
-			log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
+		if matchedPCols {
+			applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 		}
-	}
 
-	if flush {
-		err = segstore.AppendWipToSegfile(streamid, false, false, false)
-		if err != nil {
-			log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
-			return err
+		for _, cwip := range segstore.wipBlock.colWips {
+			segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+		}
+
+		segstore.wipBlock.blockSummary.RecCount += 1
+		segstore.RecordCount++
+		segstore.lastUpdated = time.Now()
+
+
+		segstore.adjustEarliestLatestTimes(ts_millis)
+		segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
+		segstore.BytesReceivedCount += bytesReceived
+
+		if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
+			err := hook(rid, segstore, rawJson, ts_millis, signalType)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
+			}
+		}
+
+		if flush {
+			err = segstore.AppendWipToSegfile(streamid, false, false, false)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
+				return err
+			}
 		}
 	}
 	return nil
