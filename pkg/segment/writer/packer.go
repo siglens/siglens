@@ -44,7 +44,6 @@ import (
 )
 
 var wipCardLimit uint16 = 1001
-
 const MaxDeEntries = 2002 // this should be atleast 2x of wipCardLimit
 
 const FPARM_INT64 = int64(0)
@@ -1266,7 +1265,6 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
 	tom := (recordTimeMS / MS_IN_MIN) * MS_IN_MIN
 	toh := (recordTimeMS / MS_IN_HOUR) * MS_IN_HOUR
 	tod := (recordTimeMS / MS_IN_DAY) * MS_IN_DAY
-	ss.wipBlock.adjustEarliestLatestTimes(recordTimeMS)
 	addRollup(ss.wipBlock.tomRollup, tom, ss.wipBlock.blockSummary.RecCount)
 	addRollup(ss.wipBlock.tohRollup, toh, ss.wipBlock.blockSummary.RecCount)
 	addRollup(ss.wipBlock.todRollup, tod, ss.wipBlock.blockSummary.RecCount)
