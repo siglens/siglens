@@ -139,6 +139,13 @@ type WipBlock struct {
 	bb                 *bbp.ByteBuffer        // byte buffer pool for HLL byte inserts
 }
 
+type ParsedLogEvent struct {
+	allCnames []string   // array of all cnames
+	allCvals  [][]byte  // array of all column values byte slices
+	allCvalsTypeLen  [][]byte  // array of all column values type and len (3 bytes)
+	numCols   uint16    // number of columns in this log record
+}
+
 // returns in memory size of a single wip block
 func (wp *WipBlock) getSize() uint64 {
 	size := uint64(0)
@@ -253,7 +260,7 @@ func cleanRecentlyRotatedInfo() {
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
 	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte) error {
+	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -262,13 +269,139 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	}
 
 	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
+		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, ple)
 }
+
+func (ss *SegStore) doLogEventFilling(ts_millis uint64,
+	ple *ParsedLogEvent, tsKey *string) (bool, error) {
+
+	ss.encodeTime(ts_millis, tsKey)
+
+	// kunal todo add sending of errors back
+	matchedCol := false
+	var colWip *ColWip
+	colBlooms := ss.wipBlock.columnBlooms
+	colRis := ss.wipBlock.columnRangeIndexes
+	segstats := ss.AllSst
+	for i := uint16(0); i < ple.numCols; i++ {
+		cname := ple.allCnames[i]
+		ctype := ple.allCvalsTypeLen[i][0]
+		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+
+		switch ctype {
+		case VALTYPE_ENC_SMALL_STRING[0]:
+			if cname != "_type" && cname != "_index" {
+				_, ok := colBlooms[cname]
+				if !ok {
+					bi := &BloomIndex{}
+					bi.uniqueWordCount = 0
+					bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
+					colBlooms[cname] = bi
+				}
+			}
+			s := colWip.cbufidx
+			recLen := uint32(utils.BytesToUint16LittleEndian(ple.allCvalsTypeLen[i][1:3]))
+			copy(colWip.cbuf[s:], ple.allCvalsTypeLen[i][:3])
+			colWip.cbufidx += 3
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:recLen])
+			colWip.cbufidx += recLen
+
+			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf[colWip.cbufidx-recLen:colWip.cbufidx])
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, s)
+			}
+		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
+			ri, ok := colRis[cname]
+			if !ok {
+				ri = &RangeIndex{}
+				ri.Ranges = make(map[string]*structs.Numbers)
+				colRis[cname] = ri
+			}
+
+			// 1 (for numTYpe) + 8 (for actual val of int64, uint64, float64)
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][:1])
+			colWip.cbufidx += 1
+
+			// kunal todo convert the byteSlice pointer that contains the incoming value into our encoding
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:8])
+			colWip.cbufidx += 8
+
+
+			// kunal todo pass the correct numType here and the rest of the params
+			updateRangeIndex(cname, ri.Ranges, SS_INT64, 0, 0, 0)
+			// original call was
+			//		updateRangeIndex(key, ri.Ranges, numType, intVal, uintVal, fltVal)
+
+			// kunal todo pass the correct params here
+			addSegStatsNums(segstats, cname, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, float64(1.23), []byte("1"))
+			// orignal calls were
+			//	addSegStatsNums(segstats, key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, valBytes) // for float
+			//	addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, valBytes) // for int64 and uint64 (we only store int64s to accormodate both postive and negative numbers
+
+
+		default:
+			log.Errorf("doLogEventFilling: unknown ctype: %v", ctype)
+		}
+
+		// kunal todo call with correct size here based on a above
+		//		ss.updateColValueSizeInAllSeenColumns(key, recLen)
+
+	}
+
+
+	for colName, foundCol := range ss.wipBlock.columnsInBlock {
+		if foundCol {
+			ss.wipBlock.columnsInBlock[colName] = false
+			continue
+		}
+		colWip, ok := ss.wipBlock.colWips[colName]
+		if !ok {
+			log.Errorf("doLogEventFilling: tried to add a backfill for a column with no colWip! %v. This should not happen", colName)
+			continue
+		}
+		colWip.cstartidx = colWip.cbufidx
+		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+		colWip.cbufidx += 1
+		ss.updateColValueSizeInAllSeenColumns(colName, 1)
+		// also do backfill dictEnc for this recnum
+		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
+			colWip.cbufidx-1)
+	}
+	return matchedCol, nil
+}
+
+func ResetPle(ple *ParsedLogEvent) {
+	ple.numCols = 0
+}
+
+func CreateDefaultPle() *ParsedLogEvent {
+	totalCols := 36
+	ple := &ParsedLogEvent{}
+	ple.allCnames = make([]string, totalCols)
+	ple.allCvals = make([][]byte, totalCols)
+	ple.allCvalsTypeLen = make([][]byte, totalCols)
+	for i := 0; i < totalCols; i++ {
+		ple.allCvalsTypeLen[i] = make([]byte, 3)
+	}
+	ple.numCols = 0
+	return ple
+}
+
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
 	rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte) error {
+	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
+
+	//	ple := CreateDefaultPle()
+
+	tsKey := config.GetTimeStampKey()
+
+	err := parseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf, ple)
+	if err != nil {
+		log.Errorf("AddEntry: failed to do parsing, err: %v", err)
+		return err
+	}
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
@@ -283,13 +416,27 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 		instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
 	}
 
-	segstore.adjustEarliestLatestTimes(ts_millis)
-	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr,
-		jsParsingStackbuf)
+	matchedPCols, err := segstore.doLogEventFilling(ts_millis, ple, &tsKey)
 	if err != nil {
+		log.Errorf("AddEntry: failed to do parsed even filling, segkey: %v, err: %v", segstore.SegmentKey, err)
 		return err
 	}
+
+	if matchedPCols {
+		applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
+	}
+
+	for _, cwip := range segstore.wipBlock.colWips {
+		segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+	}
+
+	segstore.wipBlock.blockSummary.RecCount += 1
+	segstore.RecordCount++
+	segstore.lastUpdated = time.Now()
+
+
+	segstore.adjustEarliestLatestTimes(ts_millis)
+	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
 	segstore.BytesReceivedCount += bytesReceived
 
 	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
