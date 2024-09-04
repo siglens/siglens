@@ -82,16 +82,17 @@ type SearchResults struct {
 	BlockResults *blockresults.BlockResults // stores information about the matched RRCs
 	remoteInfo   *remoteSearchResult        // stores information about remote raw logs and columns
 
-	runningSegStat   []*structs.SegStats
-	runningEvalStats map[string]interface{}
-	segStatsResults  *segStatsResults
-	convertedBuckets map[string]*structs.AggregationResult
-	allSSTS          map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
-	AllErrors        []error
-	SegKeyToEnc      map[string]uint16
-	SegEncToKey      map[uint16]string
-	MaxSegKeyEnc     uint16
-	ColumnsOrder     map[string]int
+	runningSegStat         []*structs.SegStats
+	runningEvalStats       map[string]interface{}
+	segStatsResults        *segStatsResults
+	convertedBuckets       map[string]*structs.AggregationResult
+	allSSTS                map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
+	AllErrors              []error
+	SegKeyToEnc            map[string]uint16
+	SegEncToKey            map[uint16]string
+	MaxSegKeyEnc           uint16
+	ColumnsOrder           map[string]int
+	ProcessedRemoteRecords map[string]map[string]struct{}
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -125,15 +126,16 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 			remoteLogs:    make(map[string]map[string]interface{}),
 			remoteColumns: make(map[string]struct{}),
 		},
-		qid:              qid,
-		sAggs:            aggs,
-		allSSTS:          make(map[uint16]map[string]*structs.SegStats),
-		runningSegStat:   runningSegStat,
-		runningEvalStats: make(map[string]interface{}),
-		AllErrors:        allErrors,
-		SegKeyToEnc:      make(map[string]uint16),
-		SegEncToKey:      make(map[uint16]string),
-		MaxSegKeyEnc:     1,
+		qid:                    qid,
+		sAggs:                  aggs,
+		allSSTS:                make(map[uint16]map[string]*structs.SegStats),
+		runningSegStat:         runningSegStat,
+		runningEvalStats:       make(map[string]interface{}),
+		AllErrors:              allErrors,
+		SegKeyToEnc:            make(map[string]uint16),
+		SegEncToKey:            make(map[uint16]string),
+		MaxSegKeyEnc:           1,
+		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
 }
 
@@ -500,13 +502,21 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	if sr.remoteInfo == nil {
 		return nil, nil, fmt.Errorf("GetRemoteInfo: log does not have remote info, qid=%v", sr.qid)
 	}
+	if sr.ProcessedRemoteRecords[remoteID] == nil {
+		sr.ProcessedRemoteRecords[remoteID] = make(map[string]struct{})
+	}
 	finalLogs := make([]map[string]interface{}, 0, len(inrrcs))
 	rawLogs := sr.remoteInfo.remoteLogs
 	remoteCols := sr.remoteInfo.remoteColumns
 	count := 0
 	for i := 0; i < len(inrrcs); i++ {
 		if inrrcs[i].SegKeyInfo.IsRemote && strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID) {
+			_, isProcessed := sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId]
+			if isProcessed {
+				continue
+			}
 			finalLogs = append(finalLogs, rawLogs[inrrcs[i].SegKeyInfo.RecordId])
+			sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId] = struct{}{}
 			count++
 		}
 	}
