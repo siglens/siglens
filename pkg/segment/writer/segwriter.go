@@ -310,6 +310,7 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, s)
 			}
+			ss.updateColValueSizeInAllSeenColumns(cname, recLen)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
 			ri, ok := colRis[cname]
 			if !ok {
@@ -318,13 +319,8 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 				colRis[cname] = ri
 			}
 
-			// 1 (for numTYpe) + 8 (for actual val of int64, uint64, float64)
-			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][:1])
-			colWip.cbufidx += 1
-
-			// kunal todo convert the byteSlice pointer that contains the incoming value into our encoding
-			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:8])
-			colWip.cbufidx += 8
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
+			colWip.cbufidx += 9
 
 
 			// kunal todo pass the correct numType here and the rest of the params
@@ -338,14 +334,11 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			//	addSegStatsNums(segstats, key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, valBytes) // for float
 			//	addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, valBytes) // for int64 and uint64 (we only store int64s to accormodate both postive and negative numbers
 
+			ss.updateColValueSizeInAllSeenColumns(cname, 9)
 
 		default:
 			log.Errorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
-
-		// kunal todo call with correct size here based on a above
-		//		ss.updateColValueSizeInAllSeenColumns(key, recLen)
-
 	}
 
 
@@ -381,7 +374,9 @@ func CreateDefaultPle() *ParsedLogEvent {
 	ple.allCvals = make([][]byte, totalCols)
 	ple.allCvalsTypeLen = make([][]byte, totalCols)
 	for i := 0; i < totalCols; i++ {
-		ple.allCvalsTypeLen[i] = make([]byte, 3)
+		// for strings: 1 (type), 2 (for strlen)
+		// for numbers (int64, uint64, float64): 1 (type), 8 (for actual value little endian encoded)
+		ple.allCvalsTypeLen[i] = make([]byte, 9)
 	}
 	ple.numCols = 0
 	return ple
