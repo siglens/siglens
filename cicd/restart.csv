@@ -379,4 +379,7 @@ NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
 "app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
 "app_name=Bracecould | sort http_status | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
 "app_name=Grayeye | sort http_status | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
+"app_name=Bracecould | fields latency | stats avg(latency) as field",now-1d,now,*,field,eq,"7,030,508.166",Splunk QL
+"app_name=Bracecould | fields latency | stats values(latency) as field",now-1d,now,*,field,eq,[6269746 7330203 8469275 892120 9552581 9669124],Splunk QL
+"app_name=Bracecould | fields latency | stats count as field",now-1d,now,*,field,eq,[6],Splunk QL
 
