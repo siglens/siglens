@@ -247,6 +247,11 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
+func GetMySegStore(streamid string, ts_millis uint64, table string, orgId uint64) (*SegStore, error) {
+	return getSegStore(streamid, ts_millis, table, orgId)
+}
+
+
 // This is the only function that needs to be exported from this package, since this is the only
 // place where we play with the locks
 
@@ -254,12 +259,13 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
 	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
+	return nil
+}
 
-	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
-	if err != nil {
-		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
-		return err
-	}
+func AddEntryToInMemBuf2(streamid string, rawJson []byte, ts_millis uint64,
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
+	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, segstore *SegStore) error {
 
 	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
 		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
@@ -269,9 +275,6 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
 	rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
-
-	segstore.Lock.Lock()
-	defer segstore.Lock.Unlock()
 
 	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {

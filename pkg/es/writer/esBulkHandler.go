@@ -61,6 +61,8 @@ const RESP_ITEMS_INITIAL_LEN = 4000
 
 var resp_status_201 map[string]interface{}
 
+var mySS *writer.SegStore
+
 var respItemsPool = sync.Pool{
 	New: func() interface{} {
 		// The Pool's New function should generally only return pointer
@@ -152,6 +154,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// we will accept indexnames only upto 256 bytes
 	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
 
+	getLock := true
 	for scanner.Scan() {
 		inCount++
 		if inCount >= len(items) {
@@ -196,13 +199,14 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
+					err := ProcessIndexRequestLock(rawJson, tsNow, indexName, uint64(numBytes),
 						false, localIndexMap, myid, rid, idxToStreamIdCache,
-						cnameCacheByteHashToStr, jsParsingStackbuf[:])
+						cnameCacheByteHashToStr, jsParsingStackbuf[:], getLock)
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
 					}
+					getLock = false
 				}
 			} else {
 				success = false
@@ -238,6 +242,10 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			atleastOneSuccess = true
 			items[inCount-1] = resp_status_201
 		}
+	}
+
+	if mySS != nil {
+		mySS.Lock.Unlock()
 	}
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
@@ -325,11 +333,18 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 	}
 	return indexNameConverted
 }
-
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
+	return nil
+}
+
+func ProcessIndexRequestLock(rawJson []byte, tsNow uint64, indexNameIn string,
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
+	rid uint64, idxToStreamIdCache map[string]string,
+	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte,
+	getLock bool) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -355,12 +370,25 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		idxToStreamIdCache[indexNameConverted] = streamid
 	}
 
+	var err error
+	if mySS == nil {
+		mySS, err = writer.GetMySegStore(streamid, ts_millis, indexNameConverted, myid)
+		if err != nil {
+			log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+			return err
+		}
+	}
+
+	if getLock {
+		mySS.Lock.Lock()
+	}
+
 	// TODO: we used to add _index in the json_source doc, since it is needed during
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
-	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
+	err = writer.AddEntryToInMemBuf2(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
+		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, mySS)
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
