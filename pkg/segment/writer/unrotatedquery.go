@@ -546,7 +546,8 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			retVal[usi.TableName] = make(map[string]*structs.SegmentByTimeAndColSizes)
 		}
 		retVal[usi.TableName][segKey] = &structs.SegmentByTimeAndColSizes{
-			TimeRange: usi.tsRange,
+			TimeRange:    usi.tsRange,
+			TotalRecords: uint32(usi.RecordCount),
 		}
 		totalCount++
 	}
