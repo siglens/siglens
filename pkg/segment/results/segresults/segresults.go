@@ -324,51 +324,26 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
 		case utils.Values:
-			strSet := make(map[string]struct{}, 0)
-			valuesStrSetVal, exists := sr.runningEvalStats[measureAgg.String()]
-			if !exists {
-				sr.runningEvalStats[measureAgg.String()] = strSet
-			} else {
-				strSet, ok = valuesStrSetVal.(map[string]struct{})
-				if !ok {
-					return fmt.Errorf("UpdateSegmentStats: can not convert strSet for aggCol: %v, qid=%v", measureAgg.String(), sr.qid)
-				}
-			}
-
+			// If value has to be evaluated use corresponding compute agg eval
 			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, strSet)
+				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 				if err != nil {
 					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
 				}
-				continue
+				return nil
 			}
 
-			// Merge two SegStat
-			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrSet != nil {
-				for str := range currSst.StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-			}
-			if sr.runningSegStat[idx] != nil {
-
-				for str := range sr.runningSegStat[idx].StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-
-				sr.runningSegStat[idx].StringStats.StrSet = strSet
+			// Use GetSegValue to process and get the segment value
+			res, err := segread.GetSegValue(sr.runningSegStat[idx], currSst)
+			if err != nil {
+				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+				return err
 			}
 
-			sr.runningEvalStats[measureAgg.String()] = strSet
+			sr.segStatsResults.measureResults[measureAgg.String()] = *res
 
-			uniqueStrings := make([]string, 0)
-			for str := range strSet {
-				uniqueStrings = append(uniqueStrings, str)
-			}
-			sort.Strings(uniqueStrings)
-
-			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  uniqueStrings,
+			if sr.runningSegStat[idx] == nil {
+				sr.runningSegStat[idx] = currSst
 			}
 			continue
 		case utils.List:
