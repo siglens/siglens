@@ -149,6 +149,9 @@ func (n *Number) ntype() numberType {
 func (n *Number) CopyToBuffer(buf []byte) {
 	copy(buf, n.bytes[:])
 }
+func (n *Number) Copy(other *Number) {
+	copy(n.bytes[:], other.bytes[:])
+}
 
 func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 
