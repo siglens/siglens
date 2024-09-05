@@ -212,7 +212,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	alertDataObj.SilenceMinutes = silenceRequest.SilenceMinutes
 	alertDataObj.SilenceEndTime = silenceRequest.SilenceEndTime
-	// Update the SilenceMinutes
+	// Update the SilenceMinutes and SilenceEndTime
 	err = databaseObj.UpdateAlert(alertDataObj)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
@@ -255,7 +255,8 @@ func ProcessUnsilenceAlertRequest(ctx *fasthttp.RequestCtx) {
     }
 
     alertDataObj.SilenceMinutes = 0
-    // Update the SilenceMinutes
+	alertDataObj.SilenceEndTime = 0
+    // Update the SilenceMinutes and SilenceEndTime
     err = databaseObj.UpdateAlert(alertDataObj)
     if err != nil {
         utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)

@@ -165,7 +165,6 @@ class btnRenderer {
             document.addEventListener('click', btnRenderer.handleGlobalClick);
             btnRenderer.globalListenerAdded = true;
         }
-        console.log(params);
         this.updateMuteIcon(params.data.silenceMinutes);
     }
 
@@ -355,6 +354,20 @@ class btnRenderer {
             .done((res) => {
                 showToast(res.message, 'success');
                 this.updateMuteIcon(true);
+
+                const rowNode = this.params.api.getRowNode(this.params.data.rowId);
+                if (rowNode) {
+                    rowNode.setDataValue('silenceEndTime', endTime);
+                    rowNode.setDataValue('silenceMinutes', minutes);
+
+                    const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                    if (mutedForColumn) {
+                        rowNode.setDataValue('mutedFor', calculateMutedFor(endTime));
+                        this.params.columnApi.setColumnVisible('mutedFor', true);
+                    }
+                }
+
+                this.params.api.sizeColumnsToFit();
             })
             .fail(() => {
                 showToast('Failed to silence alert', 'error');
@@ -380,7 +393,34 @@ class btnRenderer {
         })
             .done((res) => {
                 showToast(res.message, 'success');
-                this.updateMuteIcon(false); // Update icon to show it's unmuted
+                this.updateMuteIcon(false);
+
+                const rowNode = this.params.api.getRowNode(this.params.data.rowId);
+                if (rowNode) {
+                    rowNode.setDataValue('silenceEndTime', null);
+                    rowNode.setDataValue('silenceMinutes', 0);
+
+                    const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                    if (mutedForColumn) {
+                        rowNode.setDataValue('mutedFor', '');
+                    }
+                }
+
+                // Check if any alerts are still muted
+                let hasMutedAlerts = false;
+                this.params.api.forEachNode((node) => {
+                    if (node.data.silenceEndTime && node.data.silenceEndTime > Math.floor(Date.now() / 1000)) {
+                        hasMutedAlerts = true;
+                    }
+                });
+
+                // Hide the "Muted For" column if no alerts are muted
+                const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                if (mutedForColumn) {
+                    this.params.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+                }
+
+                this.params.api.sizeColumnsToFit();
             })
             .fail(() => {
                 showToast('Failed to unmute alert', 'error');
@@ -411,9 +451,25 @@ let alertColumnDefs = [
         cellRenderer: stateCellRenderer,
     },
     {
+        headerName: 'Muted For',
+        field: 'mutedFor',
+        width: 120,
+        hide: true, // Initially hidden
+    },
+    {
+        headerName: 'Silence End Time',
+        field: 'silenceEndTime',
+        hide: true, // Hidden column
+    },
+    {
+        headerName: 'Silence Minutes',
+        field: 'silenceMinutes',
+        hide: true, // Hidden column
+    },
+    {
         headerName: 'Alert Name',
         field: 'alertName',
-        width: 200,
+        width: 100,
     },
     {
         headerName: 'Alert Type',
@@ -423,7 +479,6 @@ let alertColumnDefs = [
     {
         headerName: 'Labels',
         field: 'labels',
-        width: 200,
     },
     {
         headerName: 'Actions',
@@ -465,6 +520,7 @@ function displayAllAlerts(res) {
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
+    let hasMutedAlerts = false;
     $.each(res, function (key, value) {
         newRow.set('rowId', key);
         newRow.set('alertId', value.alert_id);
@@ -479,9 +535,17 @@ function displayAllAlerts(res) {
         newRow.set('alertState', mapIndexToAlertState.get(value.state));
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         newRow.set('silenceMinutes', value.silence_minutes);
+        newRow.set('silenceEndTime', value.silence_end_time);
+        const mutedFor = calculateMutedFor(value.silence_end_time);
+        newRow.set('mutedFor', mutedFor);
+        if (mutedFor) hasMutedAlerts = true;
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
     alertGridOptions.api.setRowData(alertRowData);
+    const mutedForColumn = alertGridOptions.columnApi.getColumn('mutedFor');
+    if (mutedForColumn) {
+        alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+    }
     alertGridOptions.api.sizeColumnsToFit();
 }
 
@@ -490,3 +554,38 @@ function onRowClicked(event) {
     window.location.href = '../alert-details.html' + queryString;
     event.stopPropagation();
 }
+
+function calculateMutedFor(silenceEndTime) {
+    if (!silenceEndTime) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const remainingSeconds = silenceEndTime - now;
+    if (remainingSeconds <= 0) return '';
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+
+    let result = '';
+    if (days > 0) result += `${days} day${days > 1 ? 's' : ''} `;
+    if (hours > 0) result += `${hours} hr${hours > 1 ? 's' : ''} `;
+    if (minutes > 0) result += `${minutes} min${minutes > 1 ? 's' : ''}`;
+
+    return result.trim();
+}
+
+function updateMutedForValues() {
+    let hasMutedAlerts = false;
+    alertGridOptions.api.forEachNode((node) => {
+        if (node.data.silenceEndTime) {
+            const mutedFor = calculateMutedFor(node.data.silenceEndTime);
+            node.setDataValue('mutedFor', mutedFor);
+            if (mutedFor) hasMutedAlerts = true;
+        }
+    });
+
+    alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+    alertGridOptions.api.sizeColumnsToFit();
+}
+
+// Update muted for column every 2 minutes
+setInterval(updateMutedForValues, 20000);
