@@ -191,6 +191,6 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
-window.onload = function() {
-    initializeFilterInputEvents(); 
+window.onload = function () {
+    initializeFilterInputEvents();
 };
