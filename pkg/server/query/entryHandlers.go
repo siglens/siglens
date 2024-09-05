@@ -532,9 +532,9 @@ func silenceAlertHandler() func(ctx *fasthttp.RequestCtx) {
 }
 
 func unsilenceAlertHandler() fasthttp.RequestHandler {
-    return func(ctx *fasthttp.RequestCtx) {
-        alertsHandler.ProcessUnsilenceAlertRequest(ctx)
-    }
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessUnsilenceAlertRequest(ctx)
+	}
 }
 
 func testContactPointHandler() func(ctx *fasthttp.RequestCtx) {

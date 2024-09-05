@@ -224,47 +224,47 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func ProcessUnsilenceAlertRequest(ctx *fasthttp.RequestCtx) {
-    responseBody := make(map[string]interface{})
+	responseBody := make(map[string]interface{})
 
-    // Check if databaseObj is nil
-    if databaseObj == nil {
-        utils.SendError(ctx, invalidDatabaseProvider, "", nil)
-        return
-    }
+	// Check if databaseObj is nil
+	if databaseObj == nil {
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
+		return
+	}
 
-    // Check if request body is empty
-    if string(ctx.PostBody()) == "" {
-        utils.SendError(ctx, "Received empty request", "", nil)
-        return
-    }
+	// Check if request body is empty
+	if string(ctx.PostBody()) == "" {
+		utils.SendError(ctx, "Received empty request", "", nil)
+		return
+	}
 
-    // Parse request
-    var unsilenceRequest struct {
-        AlertID string `json:"alert_id"`
-    }
-    if err := json.Unmarshal(ctx.PostBody(), &unsilenceRequest); err != nil {
-        utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
-        return
-    }
+	// Parse request
+	var unsilenceRequest struct {
+		AlertID string `json:"alert_id"`
+	}
+	if err := json.Unmarshal(ctx.PostBody(), &unsilenceRequest); err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
+		return
+	}
 
-    // Find alert and update SilenceMinutes to 0
-    alertDataObj, err := databaseObj.GetAlert(unsilenceRequest.AlertID)
-    if err != nil {
-        utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", unsilenceRequest.AlertID), err)
-        return
-    }
+	// Find alert and update SilenceMinutes to 0
+	alertDataObj, err := databaseObj.GetAlert(unsilenceRequest.AlertID)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", unsilenceRequest.AlertID), err)
+		return
+	}
 
-    alertDataObj.SilenceMinutes = 0
+	alertDataObj.SilenceMinutes = 0
 	alertDataObj.SilenceEndTime = 0
-    // Update the SilenceMinutes and SilenceEndTime
-    err = databaseObj.UpdateAlert(alertDataObj)
-    if err != nil {
-        utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
-        return
-    }
-    ctx.SetStatusCode(fasthttp.StatusOK)
-    responseBody["message"] = "Successfully unsilenced the alert"
-    utils.WriteJsonResponse(ctx, responseBody)
+	// Update the SilenceMinutes and SilenceEndTime
+	err = databaseObj.UpdateAlert(alertDataObj)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	responseBody["message"] = "Successfully unsilenced the alert"
+	utils.WriteJsonResponse(ctx, responseBody)
 }
 
 func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
