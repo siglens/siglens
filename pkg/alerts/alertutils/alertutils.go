@@ -187,6 +187,17 @@ const (
 	ConfigChange         = "Config Modified"
 )
 
+type AlertSilenceRequest struct {
+	AlertID        string `json:"alert_id"`
+	SilenceMinutes uint64 `json:"silence_minutes"`
+	SilenceEndTime uint64 `json:"silence_end_time"`
+}
+
+const (
+	SilenceMode   = "silence"
+	UnsilenceMode = "unsilence"
+)
+
 // This MUST be synced with how https://github.com/sigscalr/logminion structures
 // its output JSON.
 type LogLinesFile struct {
