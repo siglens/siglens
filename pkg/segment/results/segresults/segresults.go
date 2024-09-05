@@ -248,12 +248,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		aggOp := measureAgg.MeasureFunc
 		aggCol := measureAgg.MeasureCol
 
-		if aggOp == utils.Count && aggCol == "*" {
-			// Choose the first column.
-			for key := range sstMap {
-				aggCol = key
-				break
-			}
+		if aggOp != utils.Count && aggCol == "*" {
+			return fmt.Errorf("UpdateSegmentStats: aggOp: %v cannot be applied with *, qid=%v", aggOp, sr.qid)
 		}
 		currSst, ok := sstMap[aggCol]
 		if !ok && measureAgg.ValueColRequest == nil {
