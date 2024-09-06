@@ -321,7 +321,6 @@ func AddEntryToInMemBuf(streamid string,
 func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool, error) {
 	ss.encodeTime(ple.timestampMillis, tsKey)
 
-	// kunal todo add sending of errors back
 	matchedCol := false
 	var colWip *ColWip
 	colBlooms := ss.wipBlock.columnBlooms
@@ -401,9 +400,8 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			updateRangeIndex(cname, ri.Ranges, numType, intVal, uintVal, floatVal)
 			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
 			ss.updateColValueSizeInAllSeenColumns(cname, 9)
-
 		default:
-			log.Errorf("doLogEventFilling: unknown ctype: %v", ctype)
+			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
 	}
 
@@ -414,8 +412,8 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 		}
 		colWip, ok := ss.wipBlock.colWips[colName]
 		if !ok {
-			log.Errorf("doLogEventFilling: tried to add a backfill for a column with no colWip! %v. This should not happen", colName)
-			continue
+			log.Errorf("doLogEventFilling: tried to backfill a column with no colWip! %v. This should not happen", colName)
+			return false, fmt.Errorf("tried to backfill a column with no colWip")
 		}
 		colWip.cstartidx = colWip.cbufidx
 		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
