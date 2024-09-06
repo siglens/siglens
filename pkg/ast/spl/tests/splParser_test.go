@@ -1771,11 +1771,11 @@ func Test_aggCountWithoutField(t *testing.T) {
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "*")
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Count)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -1807,11 +1807,11 @@ func Test_aggCountAlias(t *testing.T) {
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Count)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -1843,11 +1843,11 @@ func Test_aggDistinctCount(t *testing.T) {
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Cardinality)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -1879,11 +1879,11 @@ func Test_aggDistinctCountAlias(t *testing.T) {
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Cardinality)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -1961,11 +1961,11 @@ func Test_groupbyManyFields(t *testing.T) {
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[2], "city")
 	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2022,11 +2022,11 @@ func Test_timechartHasGroupby(t *testing.T) {
 		assert.Equal(t, 2, pipeCommands.TimeHistogram.Timechart.LimitExpr.Num)
 		assert.Equal(t, structs.LSMByFreq, int(pipeCommands.TimeHistogram.Timechart.LimitExpr.LimitScoreMode))
 
-		astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 		assert.Nil(t, err)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
-		assert.Equal(t, "", index)
+		assert.Equal(t, 0, len(indexNames))
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2090,11 +2090,11 @@ func Test_timechartWithoutGroupby(t *testing.T) {
 		assert.Equal(t, "", pipeCommands.TimeHistogram.Timechart.ByField)
 		assert.Nil(t, pipeCommands.TimeHistogram.Timechart.LimitExpr)
 
-		astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 		assert.Nil(t, err)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
-		assert.Equal(t, "", index)
+		assert.Equal(t, 0, len(indexNames))
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2152,11 +2152,11 @@ func Test_timechartWithoutGroupBy(t *testing.T) {
 		assert.NotNil(t, pipeCommands.TimeHistogram.Timechart)
 		assert.Equal(t, "http_status", pipeCommands.TimeHistogram.Timechart.ByField)
 
-		astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 		assert.Nil(t, err)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
-		assert.Equal(t, "", index)
+		assert.Equal(t, 0, len(indexNames))
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2190,12 +2190,12 @@ func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
 		res, err := spl.Parse("", query)
 		assert.Nil(t, err)
 
-		astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 
 		assert.Nil(t, err)
 		assert.NotNil(t, astNode)
 		assert.NotNil(t, aggregator)
-		assert.Equal(t, "", index)
+		assert.Equal(t, 0, len(indexNames))
 
 		assert.Equal(t, uint64(60_000), aggregator.TimeHistogram.IntervalMillis)
 
@@ -2328,11 +2328,11 @@ func Test_fieldSelectImplicitPlus(t *testing.T) {
 	assert.Len(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns, 1)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns[0], "weekday")
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2364,11 +2364,11 @@ func Test_fieldSelectExplicitPlus(t *testing.T) {
 	assert.Len(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns, 1)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns[0], "weekday")
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2400,11 +2400,11 @@ func Test_fieldSelectMinus(t *testing.T) {
 	assert.Len(t, pipeCommands.OutputTransforms.OutputColumns.ExcludeColumns, 1)
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.ExcludeColumns[0], "weekday")
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2438,11 +2438,11 @@ func Test_fieldSelectManyFields(t *testing.T) {
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns[1], "latency")
 	assert.Equal(t, pipeCommands.OutputTransforms.OutputColumns.IncludeColumns[2], "city")
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2618,11 +2618,11 @@ func Test_renameOneAggField(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2656,11 +2656,11 @@ func Test_renameManyAggFields(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2697,11 +2697,11 @@ func Test_renameFieldsWithGroupby(t *testing.T) {
 	assert.Equal(t, filterNode.Comparison.Op, "=")
 	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
@@ -2734,11 +2734,11 @@ func Test_rexBlockNewFieldWithoutGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.Nil(t, aggregator.Next)
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
@@ -2755,11 +2755,11 @@ func Test_rexBlockOverideExistingFieldWithoutGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.Nil(t, aggregator.Next)
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
@@ -2776,11 +2776,11 @@ func Test_rexBlockNewFieldWithGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns, []string{"user_email"})
 	assert.NotNil(t, aggregator.Next)
@@ -2799,11 +2799,11 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns, []string{"http_status", "weekday"})
 	assert.NotNil(t, aggregator.Next)
@@ -2822,11 +2822,11 @@ func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, []string{"http_method", "gender", "country", "http_status"}, aggregator.GroupByRequest.GroupByColumns)
 	assert.NotNil(t, aggregator.Next)
@@ -2855,11 +2855,11 @@ func Test_statisticBlockWithStatsGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.Equal(t, structs.GroupByType, aggregator.PipeCommandType)
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, []string{"http_status", "weekday", "gender", "state"}, aggregator.GroupByRequest.GroupByColumns)
@@ -2894,11 +2894,11 @@ func Test_renameBlockPhrase(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
@@ -2915,11 +2915,11 @@ func Test_renameBlockRegex(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -2937,11 +2937,11 @@ func Test_renameOverrideExistingField(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -2959,11 +2959,11 @@ func Test_evalNewField(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 
 	// Second agg is for renaming max(latency) to Max, the third is for eval.
@@ -2985,11 +2985,11 @@ func Test_evalReplaceField(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 
 	// Second agg is for renaming max(latency) to Max, the third is for eval.
@@ -3011,11 +3011,11 @@ func Test_evalAfterGroupBy(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 
 	// Second agg is for renaming max(latency) to Max, the third is for eval.
@@ -3039,11 +3039,11 @@ func Test_evalReplaceGroupByCol(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 
 	// Second agg is for renaming max(latency) to Max, the third is for eval.
@@ -3069,11 +3069,11 @@ func Test_evalFunctionsToNumber(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -3102,11 +3102,11 @@ func Test_evalFunctionsAbs(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -3131,11 +3131,11 @@ func Test_evalFunctionsCeil(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "weekday")
@@ -3160,11 +3160,11 @@ func Test_evalFunctionsRound(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -3188,11 +3188,11 @@ func Test_evalFunctionsRoundPrecision(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -3217,11 +3217,11 @@ func Test_evalFunctionsSqrt(t *testing.T) {
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
-	astNode, aggregator, index, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "", index)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
@@ -11194,11 +11194,11 @@ func Test_Index(t *testing.T) {
 	assert.Equal(t, "\"bar\"", filterNode.Comparison.Values)
 	assert.Nil(t, err)
 
-	boolNode, aggregator, indexName, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	boolNode, aggregator, indexNames, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, boolNode)
 	assert.Nil(t, aggregator)
-	assert.Equal(t, "main", indexName)
+	assert.ElementsMatch(t, []string{"main"}, indexNames)
 }
 
 func Test_Index_2(t *testing.T) {
@@ -11213,11 +11213,11 @@ func Test_Index_2(t *testing.T) {
 	assert.Equal(t, "\"bar\"", filterNode.Comparison.Values)
 	assert.Nil(t, err)
 
-	boolNode, aggregator, indexName, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	boolNode, aggregator, indexNames, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, boolNode)
 	assert.Nil(t, aggregator)
-	assert.Equal(t, "main,dual,dummy", indexName)
+	assert.ElementsMatch(t, []string{"main", "dual", "dummy"}, indexNames)
 }
 
 func Test_Index_3(t *testing.T) {
@@ -11232,11 +11232,11 @@ func Test_Index_3(t *testing.T) {
 	assert.Equal(t, "\"bar\"", filterNode.Comparison.Values)
 	assert.Nil(t, err)
 
-	boolNode, aggregator, indexName, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	boolNode, aggregator, indexNames, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, boolNode)
 	assert.Nil(t, aggregator)
-	assert.Equal(t, "", indexName)
+	assert.Equal(t, 0, len(indexNames))
 }
 
 func Test_Index_4(t *testing.T) {
@@ -11245,7 +11245,7 @@ func Test_Index_4(t *testing.T) {
 	assert.Nil(t, err)
 	queryStruct := res.(ast.QueryStruct)
 	filterNode := queryStruct.SearchFilter
-	assert.Equal(t, "main,dummy,dual", queryStruct.IndexName)
+	assert.ElementsMatch(t, []string{"main", "dummy", "dual"}, queryStruct.IndexNames)
 
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.NodeType, ast.NodeAnd)
@@ -11290,7 +11290,7 @@ func Test_Index_5(t *testing.T) {
 	assert.Nil(t, err)
 	queryStruct := res.(ast.QueryStruct)
 	filterNode := queryStruct.SearchFilter
-	assert.Equal(t, "main,dual", queryStruct.IndexName)
+	assert.ElementsMatch(t, []string{"main", "dual"}, queryStruct.IndexNames)
 
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, filterNode.NodeType, ast.NodeAnd)
@@ -11351,11 +11351,11 @@ func Test_Index_6(t *testing.T) {
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
 
-	astNode, aggregator, indexName, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Equal(t, "abc,d*", indexName)
+	assert.ElementsMatch(t, []string{"abc", "d*"}, indexNames)
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")

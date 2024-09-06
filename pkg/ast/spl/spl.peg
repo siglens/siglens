@@ -543,7 +543,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
     }
 
     if indexBlock != nil {
-        q.IndexName = indexBlock.(string)
+        q.IndexNames = indexBlock.([]string)
     }
 
     return q, nil
@@ -584,23 +584,30 @@ IndexAssign <- index:("_index") EQUAL indexName:String {
     return removeQuotes(indexName), nil
 }
 
+// TODO: Allow for multiple operators (AND, NOT, parenthesis) and make it flexible so that it can be used anywhere in the search filter.
 IndexExpression <- first:(IndexAssign) rest:(OR IndexAssign)* {
     
     if rest == nil {
-        return first, nil
+        if first.(string) == "" {
+            return []string{}, nil
+        }
+        return []string{first.(string)}, nil
     }
 
-    finalIndex := first.(string)
+    finalIndexes := []string{}
+    if first.(string) != "" {
+        finalIndexes = append(finalIndexes, first.(string))
+    }
     for _, v := range rest.([]any) {
         parts := v.([]any)  // This will be [OR, IndexAssign].
         index := parts[1].(string)
         if index == "" {
             continue
         }
-        finalIndex = fmt.Sprintf("%s,%s", finalIndex, index)
+        finalIndexes = append(finalIndexes, index)
     }
 
-    return finalIndex, nil
+    return finalIndexes, nil
 }
 
 IndexBlock <- SPACE? indexName:(IndexExpression) PIPE? {
