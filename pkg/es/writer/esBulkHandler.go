@@ -195,7 +195,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 		case INDEX, CREATE:
 			line, err = reader.ReadBytes('\n')
-			if err != nil {
+			if err == io.EOF && len(line) > 0 {
+				exitNextIteration = true
+			} else if err != nil {
 				success = false
 				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE but got err=%v", err)
 				break
@@ -248,8 +250,10 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			}
 		case UPDATE:
 			success = false
-			_, err = reader.ReadBytes('\n')
-			if err != nil {
+			line, err = reader.ReadBytes('\n')
+			if err == io.EOF && len(line) > 0 {
+				exitNextIteration = true
+			} else if err != nil {
 				log.Errorf("HandleBulkBody: expected another line after UPDATE but got err=%v", err)
 				break
 			}
