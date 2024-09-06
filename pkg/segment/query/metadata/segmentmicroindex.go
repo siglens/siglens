@@ -281,3 +281,7 @@ func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
 	}
 	return retVal
 }
+
+func (sm *SegmentMicroIndex) GetRecordCount() uint32 {
+	return uint32(sm.SegMeta.RecordCount)
+}
