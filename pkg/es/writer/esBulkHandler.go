@@ -229,6 +229,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					allPLEs = append(allPLEs, ple)
 
 					ple.SetIndexName(indexName)
+					ple.SetRawJson(line)
 
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
@@ -276,8 +277,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	})
 
 	for indexName, plesInBatch := range pleBatches {
-		// TODO: get the `line` from each PLE
-		err = ProcessIndexRequestPle(line, tsNow, indexName, uint64(len(line)),
+		err = ProcessIndexRequestPle(tsNow, indexName, uint64(len(line)),
 			false, localIndexMap, myid, rid, idxToStreamIdCache,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
@@ -380,7 +380,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	return nil
 }
 
-func ProcessIndexRequestPle(rawJson []byte, tsNow uint64, indexNameIn string,
+func ProcessIndexRequestPle(tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
@@ -393,19 +393,21 @@ func ProcessIndexRequestPle(rawJson []byte, tsNow uint64, indexNameIn string,
 	}
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
-	cfgkey := config.GetTimeStampKey()
+	tsKey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
 	if strings.HasPrefix(indexNameConverted, "jaeger-") {
 		docType = segment.SIGNAL_JAEGER_TRACES
-		cfgkey = "startTimeMillis"
+		tsKey = "startTimeMillis"
 	} else {
 		docType = segment.SIGNAL_EVENTS
 	}
 
-	ts_millis := utils.ExtractTimeStamp(rawJson, &cfgkey)
-	if ts_millis == 0 {
-		ts_millis = tsNow
+	for _, ple := range pleArray {
+		ple.SetTimestamp(utils.ExtractTimeStamp(ple.GetRawJson(), &tsKey))
+		if ple.GetTimestamp() == 0 {
+			ple.SetTimestamp(tsNow)
+		}
 	}
 
 	var streamid string
@@ -420,10 +422,10 @@ func ProcessIndexRequestPle(rawJson []byte, tsNow uint64, indexNameIn string,
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
-	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
+	err := writer.AddEntryToInMemBuf(streamid, indexNameConverted, bytesReceived, flush,
 		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, err=%v", streamid, err)
 		return err
 	}
 	return nil

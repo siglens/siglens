@@ -145,6 +145,8 @@ type ParsedLogEvent struct {
 	allCvalsTypeLen [][9]byte // array of all column values type and len (3 bytes for strings; 9 for numbers)
 	numCols         uint16    // number of columns in this log record
 	indexName       string
+	rawJson         []byte
+	timestampMillis uint64
 }
 
 func NewPLE() *ParsedLogEvent {
@@ -175,6 +177,22 @@ func (ple *ParsedLogEvent) SetIndexName(indexName string) {
 
 func (ple *ParsedLogEvent) GetIndexName() string {
 	return ple.indexName
+}
+
+func (ple *ParsedLogEvent) SetRawJson(rawJson []byte) {
+	ple.rawJson = rawJson
+}
+
+func (ple *ParsedLogEvent) GetRawJson() []byte {
+	return ple.rawJson
+}
+
+func (ple *ParsedLogEvent) SetTimestamp(timestampMillis uint64) {
+	ple.timestampMillis = timestampMillis
+}
+
+func (ple *ParsedLogEvent) GetTimestamp() uint64 {
+	return ple.timestampMillis
 }
 
 // returns in memory size of a single wip block
@@ -285,10 +303,7 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
-// This is the only function that needs to be exported from this package, since this is the only
-// place where we play with the locks
-
-func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
+func AddEntryToInMemBuf(streamid string,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
 	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
@@ -299,14 +314,12 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 
-	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
+	return segstore.AddEntry(streamid, indexName, bytesReceived, flush,
 		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 }
 
-func (ss *SegStore) doLogEventFilling(ts_millis uint64,
-	ple *ParsedLogEvent, tsKey *string) (bool, error) {
-
-	ss.encodeTime(ts_millis, tsKey)
+func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool, error) {
+	ss.encodeTime(ple.timestampMillis, tsKey)
 
 	// kunal todo add sending of errors back
 	matchedCol := false
@@ -392,7 +405,7 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 	return matchedCol, nil
 }
 
-func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
+func (segstore *SegStore) AddEntry(streamid string,
 	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
 	rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
@@ -415,7 +428,7 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 			instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
 		}
 
-		matchedPCols, err := segstore.doLogEventFilling(ts_millis, ple, &tsKey)
+		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
 			log.Errorf("AddEntry: failed to do parsed even filling, segkey: %v, err: %v", segstore.SegmentKey, err)
 			return err
@@ -433,12 +446,12 @@ func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis ui
 		segstore.RecordCount++
 		segstore.lastUpdated = time.Now()
 
-		segstore.adjustEarliestLatestTimes(ts_millis)
-		segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
+		segstore.adjustEarliestLatestTimes(ple.timestampMillis)
+		segstore.wipBlock.adjustEarliestLatestTimes(ple.timestampMillis)
 		segstore.BytesReceivedCount += bytesReceived
 
 		if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
-			err := hook(rid, segstore, rawJson, ts_millis, signalType)
+			err := hook(rid, segstore, ple.GetRawJson(), ple.GetTimestamp(), signalType)
 			if err != nil {
 				log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
 			}
