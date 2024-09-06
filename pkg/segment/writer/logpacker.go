@@ -160,6 +160,8 @@ func parseSingleString(key string, tsKey *string, valBytes []byte, ple *ParsedLo
 		return
 	}
 
+	ple.MakeSpaceForNewColumn()
+
 	ple.allCnames[ple.numCols] = key
 
 	cbufidx := 0
@@ -179,6 +181,8 @@ func parseSingleBool(key string, val bool, tsKey *string, ple *ParsedLogEvent) {
 		return
 	}
 
+	ple.MakeSpaceForNewColumn()
+
 	ple.allCnames[ple.numCols] = key
 	copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_BOOL[:])
 	ple.allCvals[ple.numCols] = utils.BoolToBytesLittleEndian(val)
@@ -190,6 +194,8 @@ func parseSingleNull(key string, tsKey *string, ple *ParsedLogEvent) {
 		return
 	}
 
+	ple.MakeSpaceForNewColumn()
+
 	ple.allCnames[ple.numCols] = key
 	copy(ple.allCvalsTypeLen[ple.numCols][0:], VALTYPE_ENC_BACKFILL[:])
 	ple.numCols++
@@ -199,6 +205,8 @@ func parseSingleNumber(key string, value interface{}, tsKey *string, valBytes []
 	if key == *tsKey {
 		return
 	}
+
+	ple.MakeSpaceForNewColumn()
 
 	switch cval := value.(type) {
 	case float64:

@@ -140,23 +140,32 @@ type WipBlock struct {
 }
 
 type ParsedLogEvent struct {
-	allCnames       []string // array of all cnames
-	allCvals        [][]byte // array of all column values byte slices
-	allCvalsTypeLen [][]byte // array of all column values type and len (3 bytes)
-	numCols         uint16   // number of columns in this log record
+	allCnames       []string  // array of all cnames
+	allCvals        [][]byte  // array of all column values byte slices
+	allCvalsTypeLen [][9]byte // array of all column values type and len (3 bytes for strings; 9 for numbers)
+	numCols         uint16    // number of columns in this log record
 }
 
 func NewPLE() *ParsedLogEvent {
 	return &ParsedLogEvent{
 		allCnames:       make([]string, 0),
 		allCvals:        make([][]byte, 0),
-		allCvalsTypeLen: make([][]byte, 0),
+		allCvalsTypeLen: make([][9]byte, 0),
 		numCols:         0,
 	}
 }
 
 func (ple *ParsedLogEvent) Reset() {
+	ple.allCnames = ple.allCnames[:0]
+	ple.allCvals = ple.allCvals[:0]
+	ple.allCvalsTypeLen = ple.allCvalsTypeLen[:0]
 	ple.numCols = 0
+}
+
+func (ple *ParsedLogEvent) MakeSpaceForNewColumn() {
+	ple.allCnames = append(ple.allCnames, "")
+	ple.allCvals = append(ple.allCvals, nil)
+	ple.allCvalsTypeLen = append(ple.allCvalsTypeLen, [9]byte{})
 }
 
 // returns in memory size of a single wip block
