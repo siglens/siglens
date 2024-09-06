@@ -254,14 +254,15 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	queryLanguageType := readJSON["queryLanguage"]
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
+	var parsedIndexNames []string
 	if queryLanguageType == "SQL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
 	} else if queryLanguageType == "Pipe QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 	} else if queryLanguageType == "Log QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
 			err = fmt.Errorf("qid=%v, ParseAndExecutePipeRequest: Error parsing query: %+v, err: %+v", qid, searchText, err)
 			log.Error(err.Error())
@@ -270,13 +271,17 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		err = structs.CheckUnsupportedFunctions(aggs)
 	} else {
 		log.Infof("ParseAndExecutePipeRequest: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
 	if err != nil {
 		err = fmt.Errorf("qid=%v, ParseAndExecutePipeRequest: Error parsing query:%+v, err: %+v", qid, searchText, err)
 		log.Error(err.Error())
 		return nil, false, nil, err
+	}
+	// This is for SPL queries where the index name is parsed from the query
+	if len(parsedIndexNames) > 0 {
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false)
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
