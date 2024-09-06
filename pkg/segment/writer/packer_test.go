@@ -147,7 +147,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
-		segstore, err := getSegStore(sId, cTime, "test", 0)
+		segstore, err := getSegStore(sId, "test", 0)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 			t.Errorf("failed to get segstore! %v", err)
@@ -259,7 +259,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
-		segstore, err := getSegStore(sId, cTime, "test", 0)
+		segstore, err := getSegStore(sId, "test", 0)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 			t.Errorf("failed to get segstore! %v", err)
@@ -552,7 +552,7 @@ func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 
 	cTime := uint64(time.Now().UnixMilli())
 	sId := fmt.Sprintf("test-%d", cTime)
-	segstore, err := getSegStore(sId, cTime, "test", 0)
+	segstore, err := getSegStore(sId, "test", 0)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 		t.Errorf("failed to get segstore! %v", err)

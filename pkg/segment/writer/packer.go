@@ -1303,7 +1303,6 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath()) // we just create a suffix file during segstore creation
 
-	cTime := uint64(time.Now().UnixMilli())
 	lencnames := uint8(2)
 	cnames := make([]string, lencnames)
 	for cidx := uint8(0); cidx < lencnames; cidx += 1 {
@@ -1311,7 +1310,7 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 		cnames[cidx] = currCol
 	}
 	sId := "ts-rollup"
-	segstore, err := getSegStore(sId, cTime, "test", 0)
+	segstore, err := getSegStore(sId, "test", 0)
 	if err != nil {
 		log.Errorf("createMockTsRollupWipBlock, getSegstore err=%v", err)
 		return nil
