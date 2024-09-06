@@ -163,17 +163,10 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// we will accept indexnames only upto 256 bytes
 	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
 
-	numPles := 10
-	pleArray := make([]*writer.ParsedLogEvent, numPles)
-	for np := 0; np < numPles; np++ {
-		ple := plePool.Get().(*writer.ParsedLogEvent)
-		pleArray[np] = ple
-		defer plePool.Put(ple)
-	}
+	allPLEs := make([]*writer.ParsedLogEvent, 0)
 
 	var err error
 	var line []byte
-	addedPleCount := 0
 	exitOnNext := false
 	for true {
 		if exitOnNext {
@@ -231,23 +224,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], pleArray[addedPleCount])
+					ple := plePool.Get().(*writer.ParsedLogEvent)
+					defer plePool.Put(ple)
+					allPLEs = append(allPLEs, ple)
+					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
 						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
 						success = false
-					} else {
-						addedPleCount++
-					}
-
-					if addedPleCount >= numPles {
-						err := ProcessIndexRequestPle(line, tsNow, indexName, uint64(numBytes),
-							false, localIndexMap, myid, rid, idxToStreamIdCache,
-							cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray[:addedPleCount])
-						if err != nil {
-							log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-							success = false
-						}
-						addedPleCount = 0
 					}
 				}
 			} else {
@@ -286,22 +269,15 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		}
 	}
 
-	/*
-		   // kunal todo handle the leftover ples
-		if addedPleCount > 0 {
-			err := ProcessIndexRequestPle(rawJson, tsNow, indexName, uint64(numBytes),
-				false, localIndexMap, myid, rid, idxToStreamIdCache,
-				cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray[:addedPleCount])
-			if err != nil {
-				log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-				success = false
-			}
-			addedPleCount = 0
-			for np := 0; np < numPles; np++ {
-				writer.ResetPle(pleArray[np])
-			}
-		}
-	*/
+	// TODO: store the line and index in the PLE
+	indexName := "todo-index" // todo andrew
+	err = ProcessIndexRequestPle(line, tsNow, indexName, uint64(len(line)),
+		false, localIndexMap, myid, rid, idxToStreamIdCache,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], allPLEs)
+	if err != nil {
+		log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+		success = false
+	}
 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
