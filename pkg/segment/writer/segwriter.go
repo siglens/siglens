@@ -360,8 +360,9 @@ func updateValuesFromConfig() {
 func timeBasedWIPFlushToFile() {
 	for {
 		sleepDuration := time.Duration(config.GetSegFlushIntervalSecs()) * time.Second
+		maxFlushDuration := time.Duration(config.GetSegWipFlushMaxIntervalSecs()) * time.Second
 		time.Sleep(sleepDuration)
-		FlushWipBufferToFile(&sleepDuration)
+		FlushWipBufferToFile(&sleepDuration, &maxFlushDuration)
 	}
 }
 
@@ -427,11 +428,11 @@ func timeBasedRotateSegment() {
 
 }
 
-func FlushWipBufferToFile(sleepDuration *time.Duration) {
+func FlushWipBufferToFile(sleepDuration *time.Duration, maxFlushDuration *time.Duration) {
 	allSegStoresLock.RLock()
 	for streamid, segstore := range allSegStores {
 		segstore.Lock.Lock()
-		if segstore.wipBlock.maxIdx > 0 && time.Since(segstore.lastUpdated) > *sleepDuration {
+		if segstore.wipBlock.maxIdx > 0 && (time.Since(segstore.lastUpdated) > *sleepDuration || time.Since(segstore.lastWipFlushTime) > *maxFlushDuration) {
 			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)

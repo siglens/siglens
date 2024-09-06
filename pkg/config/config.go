@@ -285,6 +285,14 @@ func GetSegFlushIntervalSecs() int {
 	return runningConfig.SegFlushIntervalSecs
 }
 
+func GetSegWipFlushMaxIntervalSecs() int {
+	if runningConfig.SegWipFlushMaxIntervalSecs > 60 {
+		log.Errorf("GetSegWipFlushMaxIntervalSecs: SegWipFlushMaxIntervalSecs cannot be more than 1 min")
+		runningConfig.SegWipFlushMaxIntervalSecs = 60
+	}
+	return runningConfig.SegWipFlushMaxIntervalSecs
+}
+
 func GetTimeStampKey() string {
 	return runningConfig.TimeStampKey
 }
@@ -591,6 +599,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 	if config.SegFlushIntervalSecs <= 0 {
 		config.SegFlushIntervalSecs = 5
+	}
+	if config.SegWipFlushMaxIntervalSecs <= 0 {
+		config.SegWipFlushMaxIntervalSecs = 30
 	}
 	if len(config.Log.LogPrefix) <= 0 {
 		config.Log.LogPrefix = ""

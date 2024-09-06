@@ -88,14 +88,15 @@ assignment in the following functions
 
 // If you add a new config parameters to the Configuration struct below, make sure to add a descriptive info in server.yaml
 type Configuration struct {
-	IngestListenIP             string   `yaml:"ingestListenIP"`       // Listen IP used for ingestion server
-	QueryListenIP              string   `yaml:"queryListenIP"`        // Listen IP used for query server
-	IngestPort                 uint64   `yaml:"ingestPort"`           // Port for ingestion server
-	QueryPort                  uint64   `yaml:"queryPort"`            // Port used for query server
-	EventTypeKeywords          []string `yaml:"eventTypeKeywords"`    //Required event type keyword
-	QueryNode                  string   `yaml:"queryNode"`            //Node to enable/disable all query endpoints
-	IngestNode                 string   `yaml:"ingestNode"`           //Node to enable/disable all ingest endpoints
-	SegFlushIntervalSecs       int      `yaml:"segFlushIntervalSecs"` // Time Interval after which to write to segfile
+	IngestListenIP             string   `yaml:"ingestListenIP"`             // Listen IP used for ingestion server
+	QueryListenIP              string   `yaml:"queryListenIP"`              // Listen IP used for query server
+	IngestPort                 uint64   `yaml:"ingestPort"`                 // Port for ingestion server
+	QueryPort                  uint64   `yaml:"queryPort"`                  // Port used for query server
+	EventTypeKeywords          []string `yaml:"eventTypeKeywords"`          //Required event type keyword
+	QueryNode                  string   `yaml:"queryNode"`                  //Node to enable/disable all query endpoints
+	IngestNode                 string   `yaml:"ingestNode"`                 //Node to enable/disable all ingest endpoints
+	SegFlushIntervalSecs       int      `yaml:"segFlushIntervalSecs"`       // Time Interval after which to write to segfile
+	SegWipFlushMaxIntervalSecs int      `yaml:"segWipFlushMaxIntervalSecs"` // Max time interval after which to write to segfile
 	DataPath                   string   `yaml:"dataPath"`
 	RetentionHours             int      `yaml:"retentionHours"`
 	TimeStampKey               string   `yaml:"timestampKey"`
