@@ -6011,7 +6011,7 @@ input.form-control {
     height: 80vh;
 }
 
-#clear-pqs-info, #close-popup, #delete-all-pqs-data{
+#clear-pqs-info, #close-popup{
     width: fit-content !important;
     padding: 0 20px;
     margin: 0px !important;
