@@ -120,11 +120,11 @@ func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNo
 	var aggNode *QueryAggregators
 	var err error
 
-	indexes := []string{}
+	parsedIndexNames := []string{}
 	if queryLanguageType == "SQL" {
 		boolNode, aggNode, _, err = sql.ConvertToASTNodeSQL(searchText, qid)
 	} else {
-		boolNode, aggNode, indexes, err = parsePipeSearch(searchText, queryLanguageType, qid)
+		boolNode, aggNode, parsedIndexNames, err = parsePipeSearch(searchText, queryLanguageType, qid)
 	}
 
 	if err != nil {
@@ -132,7 +132,7 @@ func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNo
 		return nil, nil, []string{}, err
 	}
 
-	return boolNode, aggNode, indexes, nil
+	return boolNode, aggNode, parsedIndexNames, nil
 }
 
 func createMatchAll(qid uint64) *ASTNode {
