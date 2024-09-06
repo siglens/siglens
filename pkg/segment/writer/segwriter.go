@@ -303,18 +303,18 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 					colBlooms[cname] = bi
 				}
 			}
-			s := colWip.cbufidx
+			startIdx := colWip.cbufidx
 			recLen := uint32(utils.BytesToUint16LittleEndian(ple.allCvalsTypeLen[i][1:3]))
-			copy(colWip.cbuf[s:], ple.allCvalsTypeLen[i][:3])
+			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][:3])
 			colWip.cbufidx += 3
 			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:recLen])
 			colWip.cbufidx += recLen
 
 			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf[colWip.cbufidx-recLen:colWip.cbufidx])
 			if !ss.skipDe {
-				ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, s)
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx)
 			}
-			ss.updateColValueSizeInAllSeenColumns(cname, recLen)
+			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
 			ri, ok := colRis[cname]
 			if !ok {
