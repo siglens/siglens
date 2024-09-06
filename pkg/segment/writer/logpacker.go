@@ -29,6 +29,8 @@ import (
 func ParseRawJsonObject(currKey string, data []byte, tsKey *string,
 	jsParsingStackbuf []byte, ple *ParsedLogEvent) error {
 
+	ple.Reset()
+
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		// Maybe push some state onto a stack here?
 		var finalKey string

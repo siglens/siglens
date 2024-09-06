@@ -146,6 +146,10 @@ type ParsedLogEvent struct {
 	numCols         uint16   // number of columns in this log record
 }
 
+func (ple *ParsedLogEvent) Reset() {
+	ple.numCols = 0
+}
+
 // returns in memory size of a single wip block
 func (wp *WipBlock) getSize() uint64 {
 	size := uint64(0)
@@ -359,10 +363,6 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			colWip.cbufidx-1)
 	}
 	return matchedCol, nil
-}
-
-func ResetPle(ple *ParsedLogEvent) {
-	ple.numCols = 0
 }
 
 func CreateDefaultPle() *ParsedLogEvent {
