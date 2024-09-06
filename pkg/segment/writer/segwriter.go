@@ -303,9 +303,8 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
-func AddEntryToInMemBuf(streamid string,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
-	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+func AddEntryToInMemBuf(streamid string, indexName string, bytesReceived uint64, flush bool,
+	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
 	segstore, err := getSegStore(streamid, indexName, orgid)

@@ -168,7 +168,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	var err error
 	var line []byte
 	exitNextIteration := false
-	for true {
+	for {
 		if exitNextIteration {
 			break
 		}
@@ -195,6 +195,11 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 		case INDEX, CREATE:
 			line, err = reader.ReadBytes('\n')
+			if err != nil {
+				success = false
+				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE but got err=%v", err)
+				break
+			}
 			numBytes := len(line)
 			bytesReceived += numBytes
 			//update only if body is less than MAX_RECORD_SIZE
@@ -244,6 +249,10 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		case UPDATE:
 			success = false
 			_, err = reader.ReadBytes('\n')
+			if err != nil {
+				log.Errorf("HandleBulkBody: expected another line after UPDATE but got err=%v", err)
+				break
+			}
 		default:
 			success = false
 		}
@@ -282,7 +291,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			cnameCacheByteHashToStr, jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
 			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-			success = false
+			// TODO: update `atleastOneSuccess`
 		}
 	}
 

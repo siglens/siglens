@@ -1556,8 +1556,14 @@ func Test_unrotatedQuery(t *testing.T) {
 			record["timestamp"] = uint64(rec)
 			rawJson, err := json.Marshal(record)
 			assert.Nil(t, err)
-			err = writer.AddEntryToInMemBuf("test1", rawJson, uint64(rec)+1, "test", 10, false,
-				SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+
+			index := "test"
+			ple := writer.NewPLE()
+			ple.SetRawJson(rawJson)
+			ple.SetTimestamp(uint64(rec) + 1)
+			ple.SetIndexName(index)
+			err = writer.AddEntryToInMemBuf("test1", index, 10, false, SIGNAL_EVENTS, 0, 0,
+				cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 			assert.Nil(t, err)
 		}
 

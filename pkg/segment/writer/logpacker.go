@@ -169,11 +169,9 @@ func parseSingleString(key string, tsKey *string, valBytes []byte, ple *ParsedLo
 	cbufidx += 1
 	n := uint16(len(valBytes))
 	copy(ple.allCvalsTypeLen[ple.numCols][cbufidx:], utils.Uint16ToBytesLittleEndian(n))
-	cbufidx += 2
 	ple.allCvals[ple.numCols] = valBytes
 
 	ple.numCols++
-	return
 }
 
 func parseSingleBool(key string, val bool, tsKey *string, ple *ParsedLogEvent) {

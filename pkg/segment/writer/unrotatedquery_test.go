@@ -79,9 +79,15 @@ func Test_writePQSFiles(t *testing.T) {
 			for stremNum := 0; stremNum < numStreams; stremNum++ {
 				record["col5"] = strconv.Itoa(stremNum)
 				streamid := fmt.Sprintf("stream-%d", stremNum)
+				index := "test"
 				raw, _ := json.Marshal(record)
-				err := AddEntryToInMemBuf(streamid, raw, uint64(rec), "test", 10, false,
-					utils.SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+
+				ple := NewPLE()
+				ple.SetRawJson(raw)
+				ple.SetTimestamp(uint64(rec) + 1)
+				ple.SetIndexName(index)
+				err := AddEntryToInMemBuf(streamid, index, 10, false, utils.SIGNAL_EVENTS, 0, 0,
+					cnameCacheByteHashToStr, jsParsingStackbuf[:], []*ParsedLogEvent{ple})
 				assert.Nil(t, err)
 			}
 		}
