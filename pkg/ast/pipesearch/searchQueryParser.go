@@ -139,7 +139,7 @@ func createMatchAll(qid uint64) *ASTNode {
 	rootNode := &ASTNode{}
 	colName := "*"
 	colValue := "*"
-	criteria := ast.CreateTermFilterCriteria(colName, colValue, Equals, qid, nil, false)
+	criteria := ast.CreateTermFilterCriteria(colName, colValue, Equals, qid, nil)
 	rootNode.AndFilterCondition = &Condition{FilterCriteria: []*FilterCriteria{criteria}}
 	return rootNode
 }
