@@ -495,7 +495,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	query := string(ctx.QueryArgs().Peek("query"))
 	if query != "" {
-		astNode, aggNode, err = pipesearch.ParseRequest(query, timeRange.StartEpochMs, timeRange.EndEpochMs, qid, "Log QL", indexName)
+		astNode, aggNode, _, err = pipesearch.ParseRequest(query, timeRange.StartEpochMs, timeRange.EndEpochMs, qid, "Log QL", indexName)
 		if err != nil {
 			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid=%v, QUERY: %v", qid, query), err)
 			return
@@ -551,7 +551,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SendError(ctx, "Failed to parse time range", "", err)
 		return
 	}
-	simpleNode, aggs, err := pipesearch.ParseRequest(query, startTimeMs, endTimeMs, qid, "Log QL", LOKIINDEX_STAR)
+	simpleNode, aggs, _, err := pipesearch.ParseRequest(query, startTimeMs, endTimeMs, qid, "Log QL", LOKIINDEX_STAR)
 	if err != nil {
 		utils.SendError(ctx, "Failed to parse request", "", err)
 		return
@@ -668,7 +668,7 @@ func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qid := rutils.GetNextQid()
 
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
-	simpleNode, aggs, err := pipesearch.ParseQuery(query, qid, "Log QL")
+	simpleNode, aggs, _, err := pipesearch.ParseQuery(query, qid, "Log QL")
 	if err != nil {
 		writeEmptyIndexStatsResponse(ctx)
 		return
@@ -724,7 +724,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qid := rutils.GetNextQid()
 
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
-	simpleNode, aggs, err := pipesearch.ParseQuery(query, qid, "Log QL")
+	simpleNode, aggs, _, err := pipesearch.ParseQuery(query, qid, "Log QL")
 	if err != nil {
 		utils.SendError(ctx, "Failed to parse query", fmt.Sprintf("query: %v", query), err)
 		return
