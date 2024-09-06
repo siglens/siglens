@@ -38,6 +38,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ValuesRangeConfig struct {
+	Min     int
+	Max     int
+	Default int
+}
+
 const MINUTES_REREAD_CONFIG = 15
 const RunModFilePath = "data/common/runmod.cfg"
 
@@ -49,6 +55,9 @@ var runningConfig common.Configuration
 var configFilePath string
 
 var parallelism int64
+
+var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
+var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
@@ -341,14 +350,14 @@ func SetEventTypeKeywords(val []string) {
 }
 
 func SetIdleWipFlushIntervalSecs(val int) {
-	if val < 1 {
-		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than 1s")
-		log.Infof("SetIdleWipFlushIntervalSecs: Setting IdleWipFlushIntervalSecs to 1 by default")
-		val = 1
+	if val < idleWipFlushRange.Min {
+		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than %vs", idleWipFlushRange.Min)
+		log.Infof("SetIdleWipFlushIntervalSecs: Setting IdleWipFlushIntervalSecs to the min allowed: %vs", idleWipFlushRange.Min)
+		val = idleWipFlushRange.Min
 	}
-	if val > 600 {
-		log.Warnf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs cannot be more than 10 mins. Defaulting to 10 mins")
-		val = 600
+	if val > idleWipFlushRange.Max {
+		log.Warnf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs cannot be more than %vs. Defaulting to max allowed: %vs", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		val = idleWipFlushRange.Max
 	}
 	runningConfig.IdleWipFlushIntervalSecs = val
 }
@@ -595,18 +604,26 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.EventTypeKeywords = []string{"eventType"}
 	}
 	if config.IdleWipFlushIntervalSecs <= 0 {
-		config.IdleWipFlushIntervalSecs = 5
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Default
 	}
-	if config.IdleWipFlushIntervalSecs > 600 {
-		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than 10 mins. Defaulting to 10 mins")
-		config.IdleWipFlushIntervalSecs = 600
+	if config.IdleWipFlushIntervalSecs < idleWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", idleWipFlushRange.Min, idleWipFlushRange.Min)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Min
+	}
+	if config.IdleWipFlushIntervalSecs > idleWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Max
 	}
 	if config.MaxWaitWipFlushIntervalSecs <= 0 {
-		config.MaxWaitWipFlushIntervalSecs = 30
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Default
 	}
-	if config.MaxWaitWipFlushIntervalSecs > 600 {
-		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs cannot be more than 10 min. Defaulting to 10 mins")
-		config.MaxWaitWipFlushIntervalSecs = 600
+	if config.MaxWaitWipFlushIntervalSecs < maxWaitWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", maxWaitWipFlushRange.Min, maxWaitWipFlushRange.Min)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Min
+	}
+	if config.MaxWaitWipFlushIntervalSecs > maxWaitWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", maxWaitWipFlushRange.Max, maxWaitWipFlushRange.Max)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Max
 	}
 	if config.IdleWipFlushIntervalSecs > config.MaxWaitWipFlushIntervalSecs {
 		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than MaxWaitWipFlushIntervalSecs. Setting IdleWipFlushIntervalSecs to MaxWaitWipFlushIntervalSecs")
