@@ -77,8 +77,8 @@ var plePool = sync.Pool{
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
 		// value without an allocation:
-		slice := writer.CreateDefaultPle()
-		return slice
+		ple := writer.NewPLE()
+		return ple
 	},
 }
 

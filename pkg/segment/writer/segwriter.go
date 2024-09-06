@@ -146,6 +146,15 @@ type ParsedLogEvent struct {
 	numCols         uint16   // number of columns in this log record
 }
 
+func NewPLE() *ParsedLogEvent {
+	return &ParsedLogEvent{
+		allCnames:       make([]string, 0),
+		allCvals:        make([][]byte, 0),
+		allCvalsTypeLen: make([][]byte, 0),
+		numCols:         0,
+	}
+}
+
 func (ple *ParsedLogEvent) Reset() {
 	ple.numCols = 0
 }
@@ -363,21 +372,6 @@ func (ss *SegStore) doLogEventFilling(ts_millis uint64,
 			colWip.cbufidx-1)
 	}
 	return matchedCol, nil
-}
-
-func CreateDefaultPle() *ParsedLogEvent {
-	totalCols := 36
-	ple := &ParsedLogEvent{}
-	ple.allCnames = make([]string, totalCols)
-	ple.allCvals = make([][]byte, totalCols)
-	ple.allCvalsTypeLen = make([][]byte, totalCols)
-	for i := 0; i < totalCols; i++ {
-		// for strings: 1 (type), 2 (for strlen)
-		// for numbers (int64, uint64, float64): 1 (type), 8 (for actual value little endian encoded)
-		ple.allCvalsTypeLen[i] = make([]byte, 9)
-	}
-	ple.numCols = 0
-	return ple
 }
 
 func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
