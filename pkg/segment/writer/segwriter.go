@@ -144,6 +144,7 @@ type ParsedLogEvent struct {
 	allCvals        [][]byte  // array of all column values byte slices
 	allCvalsTypeLen [][9]byte // array of all column values type and len (3 bytes for strings; 9 for numbers)
 	numCols         uint16    // number of columns in this log record
+	indexName       string
 }
 
 func NewPLE() *ParsedLogEvent {
@@ -166,6 +167,14 @@ func (ple *ParsedLogEvent) MakeSpaceForNewColumn() {
 	ple.allCnames = append(ple.allCnames, "")
 	ple.allCvals = append(ple.allCvals, nil)
 	ple.allCvalsTypeLen = append(ple.allCvalsTypeLen, [9]byte{})
+}
+
+func (ple *ParsedLogEvent) SetIndexName(indexName string) {
+	ple.indexName = indexName
+}
+
+func (ple *ParsedLogEvent) GetIndexName() string {
+	return ple.indexName
 }
 
 // returns in memory size of a single wip block

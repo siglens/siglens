@@ -227,6 +227,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					ple := plePool.Get().(*writer.ParsedLogEvent)
 					defer plePool.Put(ple)
 					allPLEs = append(allPLEs, ple)
+
+					ple.SetIndexName(indexName)
+
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
 						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
@@ -237,7 +240,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				success = false
 				maxRecordSizeExceeded = true
 			}
-
 		case UPDATE:
 			success = false
 			_, err = reader.ReadBytes('\n')
@@ -269,14 +271,19 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		}
 	}
 
-	// TODO: store the line and index in the PLE
-	indexName := "todo-index" // todo andrew
-	err = ProcessIndexRequestPle(line, tsNow, indexName, uint64(len(line)),
-		false, localIndexMap, myid, rid, idxToStreamIdCache,
-		cnameCacheByteHashToStr, jsParsingStackbuf[:], allPLEs)
-	if err != nil {
-		log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-		success = false
+	pleBatches := utils.ConvertSliceToMap(allPLEs, func(ple *writer.ParsedLogEvent) string {
+		return ple.GetIndexName()
+	})
+
+	for indexName, plesInBatch := range pleBatches {
+		// TODO: get the `line` from each PLE
+		err = ProcessIndexRequestPle(line, tsNow, indexName, uint64(len(line)),
+			false, localIndexMap, myid, rid, idxToStreamIdCache,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:], plesInBatch)
+		if err != nil {
+			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+			success = false
+		}
 	}
 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
@@ -377,6 +384,13 @@ func ProcessIndexRequestPle(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
+
+	for _, ple := range pleArray {
+		if ple.GetIndexName() != indexNameIn {
+			return utils.TeeErrorf("ProcessIndexRequestPle: indexName mismatch; want %v, got %v",
+				indexNameIn, ple.GetIndexName())
+		}
+	}
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()

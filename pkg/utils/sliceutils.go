@@ -90,3 +90,13 @@ func CompareStringSlices(a []string, b []string) bool {
 	}
 	return true
 }
+
+func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K][]V {
+	result := make(map[K][]V)
+	for _, v := range slice {
+		key := keyFunc(v)
+		result[key] = append(result[key], v)
+	}
+
+	return result
+}
