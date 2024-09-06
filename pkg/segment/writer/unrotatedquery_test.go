@@ -86,7 +86,11 @@ func Test_writePQSFiles(t *testing.T) {
 				ple.SetRawJson(raw)
 				ple.SetTimestamp(uint64(rec) + 1)
 				ple.SetIndexName(index)
-				err := AddEntryToInMemBuf(streamid, index, 10, false, utils.SIGNAL_EVENTS, 0, 0,
+				tsKey := "timestamp"
+				err := ParseRawJsonObject("", raw, &tsKey, jsParsingStackbuf[:], ple)
+				assert.Nil(t, err)
+
+				err = AddEntryToInMemBuf(streamid, index, uint64(len(raw)), false, utils.SIGNAL_EVENTS, 0, 0,
 					cnameCacheByteHashToStr, jsParsingStackbuf[:], []*ParsedLogEvent{ple})
 				assert.Nil(t, err)
 			}
