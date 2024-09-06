@@ -167,9 +167,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	var err error
 	var line []byte
-	exitOnNext := false
+	exitNextIteration := false
 	for true {
-		if exitOnNext {
+		if exitNextIteration {
 			break
 		}
 
@@ -179,7 +179,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			break
 		}
 		if err == io.EOF {
-			exitOnNext = true
+			exitNextIteration = true
 		}
 
 		inCount++
