@@ -281,7 +281,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 	// This is for SPL queries where the index name is parsed from the query
 	if parsedIndex != "" {
-		ti = structs.InitTableInfo(indexNameIn, myid, false)
+		ti = structs.InitTableInfo(parsedIndex, myid, false)
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
