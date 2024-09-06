@@ -167,7 +167,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	pleArray := make([]*writer.ParsedLogEvent, numPles)
 	for np := 0; np < numPles; np++ {
 		ple := plePool.Get().(*writer.ParsedLogEvent)
-		ple.Reset()
 		pleArray[np] = ple
 		defer plePool.Put(ple)
 	}
@@ -249,9 +248,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 							success = false
 						}
 						addedPleCount = 0
-						for np := 0; np < numPles; np++ {
-							pleArray[np].Reset()
-						}
 					}
 				}
 			} else {
