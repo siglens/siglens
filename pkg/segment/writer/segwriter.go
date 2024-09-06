@@ -366,17 +366,40 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
 			colWip.cbufidx += 9
 
-			// kunal todo pass the correct numType here and the rest of the params
-			updateRangeIndex(cname, ri.Ranges, SS_INT64, 0, 0, 0)
-			// original call was
-			//		updateRangeIndex(key, ri.Ranges, numType, intVal, uintVal, fltVal)
+			var numType SS_IntUintFloatTypes
+			var intVal int64
+			var uintVal uint64
+			var floatVal float64
+			// TODO: store the ascii in ple.allCvals to avoid recomputation
+			var asciiBytesBuf bytes.Buffer
+			switch ctype {
+			case VALTYPE_ENC_INT64[0]:
+				numType = SS_INT64
+				intVal = utils.BytesToInt64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", intVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write intVal %v: %v", intVal, err)
+				}
+			case VALTYPE_ENC_UINT64[0]:
+				numType = SS_UINT64
+				uintVal = utils.BytesToUint64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", uintVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write uintVal %v: %v", uintVal, err)
+				}
+			case VALTYPE_ENC_FLOAT64[0]:
+				numType = SS_FLOAT64
+				floatVal = utils.BytesToFloat64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%f", floatVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write floatVal %v: %v", floatVal, err)
+				}
+			default:
+				return false, utils.TeeErrorf("doLogEventFilling: shouldn't get here; ctype: %v", ctype)
+			}
 
-			// kunal todo pass the correct params here
-			addSegStatsNums(segstats, cname, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, float64(1.23), []byte("1"))
-			// orignal calls were
-			//	addSegStatsNums(segstats, key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, valBytes) // for float
-			//	addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, valBytes) // for int64 and uint64 (we only store int64s to accormodate both postive and negative numbers
-
+			updateRangeIndex(cname, ri.Ranges, numType, intVal, uintVal, floatVal)
+			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
 			ss.updateColValueSizeInAllSeenColumns(cname, 9)
 
 		default:
