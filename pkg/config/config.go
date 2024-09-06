@@ -277,20 +277,12 @@ func GetRunningConfigAsJsonStr() (string, error) {
 	return buffer.String(), err
 }
 
-func GetSegFlushIntervalSecs() int {
-	if runningConfig.SegFlushIntervalSecs > 600 {
-		log.Errorf("GetSegFlushIntervalSecs: SegFlushIntervalSecs cannot be more than 10 mins")
-		runningConfig.SegFlushIntervalSecs = 600
-	}
-	return runningConfig.SegFlushIntervalSecs
+func GetIdleWipFlushIntervalSecs() int {
+	return runningConfig.IdleWipFlushIntervalSecs
 }
 
-func GetSegWipFlushMaxIntervalSecs() int {
-	if runningConfig.SegWipFlushMaxIntervalSecs > 60 {
-		log.Errorf("GetSegWipFlushMaxIntervalSecs: SegWipFlushMaxIntervalSecs cannot be more than 1 min")
-		runningConfig.SegWipFlushMaxIntervalSecs = 60
-	}
-	return runningConfig.SegWipFlushMaxIntervalSecs
+func GetMaxWaitWipFlushIntervalSecs() int {
+	return runningConfig.MaxWaitWipFlushIntervalSecs
 }
 
 func GetTimeStampKey() string {
@@ -348,13 +340,17 @@ func SetEventTypeKeywords(val []string) {
 	runningConfig.EventTypeKeywords = val
 }
 
-func SetSegFlushIntervalSecs(val int) {
+func SetIdleWipFlushIntervalSecs(val int) {
 	if val < 1 {
-		log.Errorf("SetSegFlushIntervalSecs: SegFlushIntervalSecs should not be less than 1s")
-		log.Infof("SetSegFlushIntervalSecs: Setting SegFlushIntervalSecs to 1 by default")
+		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than 1s")
+		log.Infof("SetIdleWipFlushIntervalSecs: Setting IdleWipFlushIntervalSecs to 1 by default")
 		val = 1
 	}
-	runningConfig.SegFlushIntervalSecs = val
+	if val > 600 {
+		log.Warnf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs cannot be more than 10 mins. Defaulting to 10 mins")
+		val = 600
+	}
+	runningConfig.IdleWipFlushIntervalSecs = val
 }
 
 func SetRetention(val int) {
@@ -476,45 +472,46 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:             "0.0.0.0",
-		QueryListenIP:              "0.0.0.0",
-		IngestPort:                 8081,
-		QueryPort:                  5122,
-		IngestUrl:                  "",
-		EventTypeKeywords:          []string{"eventType"},
-		QueryNode:                  "true",
-		IngestNode:                 "true",
-		SegFlushIntervalSecs:       5,
-		DataPath:                   dataPath,
-		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-		RetentionHours:             24 * 90,
-		TimeStampKey:               "timestamp",
-		MaxSegFileSize:             1_073_741_824,
-		LicenseKeyPath:             "./",
-		ESVersion:                  "",
-		Debug:                      false,
-		MemoryThresholdPercent:     80,
-		DataDiskThresholdPercent:   85,
-		S3IngestQueueName:          "",
-		S3IngestQueueRegion:        "",
-		S3IngestBufferSize:         1000,
-		MaxParallelS3IngestBuffers: 10,
-		SSInstanceName:             "",
-		PQSEnabled:                 "false",
-		PQSEnabledConverted:        false,
-		SafeServerStart:            false,
-		AnalyticsEnabled:           "false",
-		AnalyticsEnabledConverted:  false,
-		AgileAggsEnabled:           "true",
-		AgileAggsEnabledConverted:  true,
-		DualCaseCheck:              "false",
-		DualCaseCheckConverted:     false,
-		QueryHostname:              "",
-		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
-		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
-		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
-		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		IngestListenIP:              "0.0.0.0",
+		QueryListenIP:               "0.0.0.0",
+		IngestPort:                  8081,
+		QueryPort:                   5122,
+		IngestUrl:                   "",
+		EventTypeKeywords:           []string{"eventType"},
+		QueryNode:                   "true",
+		IngestNode:                  "true",
+		IdleWipFlushIntervalSecs:    5,
+		MaxWaitWipFlushIntervalSecs: 30,
+		DataPath:                    dataPath,
+		S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
+		RetentionHours:              24 * 90,
+		TimeStampKey:                "timestamp",
+		MaxSegFileSize:              1_073_741_824,
+		LicenseKeyPath:              "./",
+		ESVersion:                   "",
+		Debug:                       false,
+		MemoryThresholdPercent:      80,
+		DataDiskThresholdPercent:    85,
+		S3IngestQueueName:           "",
+		S3IngestQueueRegion:         "",
+		S3IngestBufferSize:          1000,
+		MaxParallelS3IngestBuffers:  10,
+		SSInstanceName:              "",
+		PQSEnabled:                  "false",
+		PQSEnabledConverted:         false,
+		SafeServerStart:             false,
+		AnalyticsEnabled:            "false",
+		AnalyticsEnabledConverted:   false,
+		AgileAggsEnabled:            "true",
+		AgileAggsEnabledConverted:   true,
+		DualCaseCheck:               "false",
+		DualCaseCheckConverted:      false,
+		QueryHostname:               "",
+		Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                         common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
+		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
 
 	return testConfig
@@ -597,11 +594,23 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.EventTypeKeywords) <= 0 {
 		config.EventTypeKeywords = []string{"eventType"}
 	}
-	if config.SegFlushIntervalSecs <= 0 {
-		config.SegFlushIntervalSecs = 5
+	if config.IdleWipFlushIntervalSecs <= 0 {
+		config.IdleWipFlushIntervalSecs = 5
 	}
-	if config.SegWipFlushMaxIntervalSecs <= 0 {
-		config.SegWipFlushMaxIntervalSecs = 30
+	if config.IdleWipFlushIntervalSecs > 600 {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than 10 mins. Defaulting to 10 mins")
+		config.IdleWipFlushIntervalSecs = 600
+	}
+	if config.MaxWaitWipFlushIntervalSecs <= 0 {
+		config.MaxWaitWipFlushIntervalSecs = 30
+	}
+	if config.MaxWaitWipFlushIntervalSecs > 600 {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs cannot be more than 10 min. Defaulting to 10 mins")
+		config.MaxWaitWipFlushIntervalSecs = 600
+	}
+	if config.IdleWipFlushIntervalSecs > config.MaxWaitWipFlushIntervalSecs {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than MaxWaitWipFlushIntervalSecs. Setting IdleWipFlushIntervalSecs to MaxWaitWipFlushIntervalSecs")
+		config.IdleWipFlushIntervalSecs = config.MaxWaitWipFlushIntervalSecs
 	}
 	if len(config.Log.LogPrefix) <= 0 {
 		config.Log.LogPrefix = ""

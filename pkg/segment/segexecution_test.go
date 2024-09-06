@@ -1563,11 +1563,11 @@ func Test_unrotatedQuery(t *testing.T) {
 
 		sleep := time.Duration(1)
 		time.Sleep(sleep)
-		writer.FlushWipBufferToFile(&sleep, &sleep)
+		writer.FlushWipBufferToFile(&sleep, nil)
 	}
 	sleep := time.Duration(1)
 	time.Sleep(sleep)
-	writer.FlushWipBufferToFile(&sleep, &sleep)
+	writer.FlushWipBufferToFile(&sleep, nil)
 	aggs := &QueryAggregators{
 		EarlyExit: false,
 	}
