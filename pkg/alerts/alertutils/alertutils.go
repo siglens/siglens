@@ -191,6 +191,7 @@ type AlertSilenceRequest struct {
 	AlertID        string `json:"alert_id"`
 	SilenceMinutes uint64 `json:"silence_minutes"`
 }
+
 // This MUST be synced with how https://github.com/sigscalr/logminion structures
 // its output JSON.
 type LogLinesFile struct {
