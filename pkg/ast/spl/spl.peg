@@ -482,7 +482,7 @@ type StringSearchRequest struct {
 
 }
 
-Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
     q.SearchFilter = initialSearch.(*ast.Node)
 
@@ -542,6 +542,10 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
         }
     }
 
+    if indexBlock != nil {
+        q.IndexName = indexBlock.(string)
+    }
+
     return q, nil
 }
 / SPACE? PIPE CMD_GENTIMES SPACE genTimesOption:(GenTimesOptionList) queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -574,6 +578,33 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
     }
 
     return q, nil
+}
+
+IndexAssign <- index:("_index") EQUAL indexName:String {
+    return removeQuotes(indexName), nil
+}
+
+IndexExpression <- first:(IndexAssign) rest:(OR IndexAssign)* {
+    
+    if rest == nil {
+        return first, nil
+    }
+
+    finalIndex := first.(string)
+    for _, v := range rest.([]any) {
+        parts := v.([]any)  // This will be [OR, IndexAssign].
+        index := parts[1].(string)
+        if index == "" {
+            continue
+        }
+        finalIndex = fmt.Sprintf("%s,%s", finalIndex, index)
+    }
+
+    return finalIndex, nil
+}
+
+IndexBlock <- SPACE? indexName:(IndexExpression) PIPE? {
+    return indexName, nil
 }
 
 PartialTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] {

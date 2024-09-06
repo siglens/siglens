@@ -100,15 +100,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	queryLanguageType := event["queryLanguage"]
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
-
+	var parsedIndex string
 	if queryLanguageType == "SQL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
+		simpleNode, aggs, parsedIndex, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
 	} else if queryLanguageType == "Pipe QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
+		simpleNode, aggs, parsedIndex, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 	} else if queryLanguageType == "Log QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
+		simpleNode, aggs, parsedIndex, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndex, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
 			wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 			if wErr != nil {
@@ -119,7 +119,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		}
 	} else {
 		log.Infof("ProcessPipeSearchWebsocket: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndex, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
 	if err != nil {
@@ -129,6 +129,11 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
+	}
+
+	// This is for SPL queries where the index name is parsed from the query
+	if parsedIndex != "" {
+		ti = structs.InitTableInfo(parsedIndex, orgid, false)
 	}
 
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
