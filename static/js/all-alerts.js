@@ -336,7 +336,6 @@ class btnRenderer {
     }
 
     silenceAlert(minutes) {
-        const endTime = Math.floor(Date.now() / 1000) + minutes * 60;
         $.ajax({
             method: 'PUT',
             url: 'api/alerts/silenceAlert',
@@ -347,7 +346,6 @@ class btnRenderer {
             data: JSON.stringify({
                 alert_id: this.params.data.alertId,
                 silence_minutes: minutes,
-                silence_end_time: endTime,
             }),
             crossDomain: true,
         })

@@ -177,7 +177,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func processAlertSilence(ctx *fasthttp.RequestCtx, mode string) {
+func processAlertSilence(ctx *fasthttp.RequestCtx, isSilence bool) {
 	responseBody := make(map[string]interface{})
 
 	// Check if databaseObj is nil
@@ -206,19 +206,16 @@ func processAlertSilence(ctx *fasthttp.RequestCtx, mode string) {
 		return
 	}
 
-	// Handle Silence or Unsilence based on mode
-	if mode == alertutils.SilenceMode {
+	now := time.Now()
+
+	if isSilence {
 		if request.SilenceMinutes == 0 {
 			utils.SendError(ctx, "SilenceMinutes must be greater than zero", "", nil)
 			return
 		}
-		if request.SilenceEndTime == 0 {
-			utils.SendError(ctx, "SilenceEndTime must be greater than zero", "", nil)
-			return
-		}
 		alertDataObj.SilenceMinutes = request.SilenceMinutes
-		alertDataObj.SilenceEndTime = request.SilenceEndTime
-	} else if mode == alertutils.UnsilenceMode {
+		alertDataObj.SilenceEndTime = uint64(now.Add(time.Duration(request.SilenceMinutes) * time.Minute).Unix())
+	} else {
 		alertDataObj.SilenceMinutes = 0
 		alertDataObj.SilenceEndTime = 0
 	}
@@ -230,7 +227,7 @@ func processAlertSilence(ctx *fasthttp.RequestCtx, mode string) {
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	if mode == alertutils.SilenceMode {
+	if isSilence {
 		responseBody["message"] = "Successfully updated silence period"
 	} else {
 		responseBody["message"] = "Successfully unsilenced the alert"
@@ -239,11 +236,11 @@ func processAlertSilence(ctx *fasthttp.RequestCtx, mode string) {
 }
 
 func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
-	processAlertSilence(ctx, alertutils.SilenceMode)
+	processAlertSilence(ctx, true)
 }
 
 func ProcessUnsilenceAlertRequest(ctx *fasthttp.RequestCtx) {
-	processAlertSilence(ctx, alertutils.UnsilenceMode)
+	processAlertSilence(ctx, false)
 }
 
 func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
