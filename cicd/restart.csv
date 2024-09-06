@@ -382,4 +382,4 @@ NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
 "app_name=Bracecould | fields latency | stats avg(latency) as field",now-1d,now,*,field,eq,"7,030,508.166",Splunk QL
 "app_name=Bracecould | fields latency | stats values(latency) as field",now-1d,now,*,field,eq,[6269746 7330203 8469275 892120 9552581 9669124],Splunk QL
 "app_name=Bracecould | fields latency | stats count as field",now-1d,now,*,field,eq,[6],Splunk QL
-
+"* | regex app_name=""Bracec.*d"" | stats count",now-1d,now,*,group:count(*):*,eq,6,Splunk QL

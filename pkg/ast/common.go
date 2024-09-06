@@ -104,7 +104,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
 						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
-					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion)
+					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion, valueIsRegex)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					negateMatch := (opr == NotEquals)
@@ -121,7 +121,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 						andFilterCondition = append(andFilterCondition, criteria)
 					} else {
 						if strings.Contains(t, "*") {
-							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
+							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion, valueIsRegex)
 							andFilterCondition = append(andFilterCondition, criteria)
 						} else {
 							criteria := createMatchFilterCriteria(colName, colValue, And, negateMatch, qid, caseConversion)
@@ -136,14 +136,14 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
 						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
-					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion)
+					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion, valueIsRegex)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
 					if originalColValue != nil {
 						caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
 					}
-					criteria := CreateTermFilterCriteria(colName, cleanedColVal, opr, qid, caseConversion)
+					criteria := CreateTermFilterCriteria(colName, cleanedColVal, opr, qid, caseConversion, valueIsRegex)
 					andFilterCondition = append(andFilterCondition, criteria)
 				}
 			}
@@ -151,14 +151,14 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case bool:
-		criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
+		criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion, false)
 		andFilterCondition = append(andFilterCondition, criteria)
 	case json.Number:
 		if colValue.(json.Number) != "" {
 			if colName == "" {
 				colName = "*"
 			}
-			criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
+			criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion, false)
 			andFilterCondition = append(andFilterCondition, criteria)
 
 		} else {
@@ -167,7 +167,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 	case GrepValue:
 		caseConversion.IsString = true
 		cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t.Field), "\"", "")
-		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid, caseConversion)
+		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid, caseConversion, false)
 		andFilterCondition = append(andFilterCondition, criteria)
 	default:
 		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
@@ -258,19 +258,19 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 	return &criteria
 }
 
-func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64, cci *CaseConversionInfo) *FilterCriteria {
+func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64, cci *CaseConversionInfo, valueIsRegex bool) *FilterCriteria {
 	cVal, err := CreateDtypeEnclosure(colValue, qid)
 	if err != nil {
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
-		if cci != nil {
+		if cci != nil && !valueIsRegex {
 			cVal.UpdateRegexp(cci.caseInsensitive)
 		}
 	}
 
 	var originalCVal *DtypeEnclosure
 
-	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
+	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() && !valueIsRegex {
 		originalCVal, err = CreateDtypeEnclosure(cci.originalColValue, qid)
 		if err != nil {
 			log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for OriginalColValue=%v. Error=%+v", qid, cci.originalColValue, err)
