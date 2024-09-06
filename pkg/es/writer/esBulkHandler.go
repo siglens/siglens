@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -141,8 +142,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	var inCount int = 0
 	var processedCount int = 0
 	tsNow := utils.GetCurrentTimeInMs()
-	scanner := bufio.NewScanner(r)
-	scanner.Split(bufio.ScanLines)
+	reader := bufio.NewReader(r)
 	tsKey := config.GetTimeStampKey()
 
 	var bytesReceived int
@@ -171,24 +171,38 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		defer plePool.Put(ple)
 	}
 
-	var rawJson []byte
+	var err error
+	var line []byte
 	addedPleCount := 0
-	for scanner.Scan() {
+	exitOnNext := false
+	for true {
+		if exitOnNext {
+			break
+		}
+
+		line, err = reader.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			log.Errorf("HandleBulkBody: failed to read bytes, err=%v", err)
+			break
+		}
+		if err == io.EOF {
+			exitOnNext = true
+		}
+
 		inCount++
 		if inCount >= len(items) {
 			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
+		esAction, indexName, idVal := extractIndexAndValidateAction(line,
 			idxNameParsingBuf)
 
 		switch esAction {
 
 		case INDEX, CREATE:
-			scanner.Scan()
-			rawJson = scanner.Bytes()
-			numBytes := len(rawJson)
+			line, err = reader.ReadBytes('\n')
+			numBytes := len(line)
 			bytesReceived += numBytes
 			//update only if body is less than MAX_RECORD_SIZE
 			if numBytes < segment.MAX_RECORD_SIZE {
@@ -201,7 +215,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 					request := make(map[string]interface{})
 					var json = jsoniter.ConfigCompatibleWithStandardLibrary
-					decoder := json.NewDecoder(bytes.NewReader(rawJson))
+					decoder := json.NewDecoder(bytes.NewReader(line))
 					decoder.UseNumber()
 					err := decoder.Decode(&request)
 					if err != nil {
@@ -217,7 +231,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := writer.ParseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf[:], pleArray[addedPleCount])
+					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], pleArray[addedPleCount])
 					if err != nil {
 						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
 						success = false
@@ -226,7 +240,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 
 					if addedPleCount >= numPles {
-						err := ProcessIndexRequestPle(rawJson, tsNow, indexName, uint64(numBytes),
+						err := ProcessIndexRequestPle(line, tsNow, indexName, uint64(numBytes),
 							false, localIndexMap, myid, rid, idxToStreamIdCache,
 							cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray[:addedPleCount])
 						if err != nil {
@@ -246,7 +260,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 		case UPDATE:
 			success = false
-			scanner.Scan()
+			_, err = reader.ReadBytes('\n')
 		default:
 			success = false
 		}
