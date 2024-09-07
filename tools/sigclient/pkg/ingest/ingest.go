@@ -327,7 +327,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
@@ -344,14 +344,14 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
 		seed := int64(fastrand.Uint32n(1_000))
-		rdr = utils.InitDynamicUserGenerator(ts, seed)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()
 	case "benchmark":
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
-		rdr = utils.InitDynamicUserGenerator(ts, seed)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -363,9 +363,13 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
+func GetGeneratorDataConfig(numColumns int, variableColums bool, minColumns int) *utils.GeneratorDataConfig {
+	return utils.InitGeneratorDataConfig(numColumns, variableColums, minColumns)
+}
+
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
-	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64) {
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
@@ -374,6 +378,12 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 			return
 		}
 	}
+
+	var dataGeneratorConfig *utils.GeneratorDataConfig
+	if iDataGeneratorConfig != nil {
+		dataGeneratorConfig = iDataGeneratorConfig.(*utils.GeneratorDataConfig)
+	}
+
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
 	eventsPerDayPerProcess := int(eventsPerDay) / processCount
@@ -384,7 +394,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	totalBytes := uint64(0)
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}

@@ -57,6 +57,10 @@ var esBulkCmd = &cobra.Command{
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		randomColumns, _ := cmd.Flags().GetBool("randomColumns")
+		numColumns, _ := cmd.Flags().GetInt("numColumns")
+		minColumns, _ := cmd.Flags().GetInt("minColumns")
+		variableColumns, _ := cmd.Flags().GetBool("variableColumns")
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -64,6 +68,11 @@ var esBulkCmd = &cobra.Command{
 				return
 			}
 			continuous = true
+		}
+
+		var dataGeneratorConfig interface{}
+		if randomColumns {
+			dataGeneratorConfig = ingest.GetGeneratorDataConfig(numColumns, variableColumns, minColumns)
 		}
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -77,7 +86,7 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
 	},
 }
 
@@ -114,7 +123,7 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
 	},
 }
 
@@ -356,6 +365,10 @@ func init() {
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
+	esBulkCmd.PersistentFlags().BoolP("randomColumns", "", false, "generate a set number of random columns")
+	esBulkCmd.PersistentFlags().IntP("numColumns", "", 200, "number of columns to generate")
+	esBulkCmd.PersistentFlags().IntP("minColumns", "", 30, "minimum number of columns to generate")
+	esBulkCmd.PersistentFlags().BoolP("variableColumns", "", false, "generate a variable number of columns. Each record will have a random number of columns between minColumns and numColumns")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

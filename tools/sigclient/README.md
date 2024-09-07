@@ -50,6 +50,10 @@ Options:
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
   -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
+      --randomColumns bool   Set this to true to generate random number of columns. By Default this will generate 200 Columns.
+      --numColumns  int      Set this value to generate the set number of random Columns. Will only be considered when randomColumns is set to true.
+      --variableColums bool  Set this to true to generate variable number of columns per record. Will only be considered when randomColumns is set to true.
+      --minColumns int       Set this value to make sure that each record will have this many number of Columns. Only Considered when variableColumns is set to true
 ```
 
 ## Query

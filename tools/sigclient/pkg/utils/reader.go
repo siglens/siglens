@@ -74,17 +74,36 @@ type K8sGenerator struct {
 }
 
 type DynamicUserGenerator struct {
-	baseBody  map[string]interface{}
-	tNowEpoch uint64
-	ts        bool
-	faker     *gofakeit.Faker
-	seed      int64
+	baseBody   map[string]interface{}
+	tNowEpoch  uint64
+	ts         bool
+	faker      *gofakeit.Faker
+	seed       int64
+	DataConfig *GeneratorDataConfig
 }
 
-func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
+type GeneratorDataConfig struct {
+	NumColumns      int  // Number of columns per record. Also used as the maximum number of columns when variableColumns is true
+	VariableColumns bool // Flag to indicate variable columns per record
+	MinColumns      int  // Minimum number of columns per record (used when variableColumns is true)
+}
+
+func InitGeneratorDataConfig(numColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
+	if minColumns > numColumns {
+		minColumns = numColumns
+	}
+	return &GeneratorDataConfig{
+		NumColumns:      numColumns,
+		VariableColumns: variableColumns,
+		MinColumns:      minColumns,
+	}
+}
+
+func InitDynamicUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
 	return &DynamicUserGenerator{
-		ts:   ts,
-		seed: seed,
+		ts:         ts,
+		seed:       seed,
+		DataConfig: dataConfig,
 	}
 }
 
@@ -157,45 +176,76 @@ func replacePlaceholders(template string) string {
 	return template
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
+func getColumnName(name string, colIndex int) string {
+	if colIndex == 0 {
+		return name
+	}
+	return fmt.Sprintf("%s_c%d", name, colIndex)
+}
 
-	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	dynamicUserColumnsLen := len(dynamicUserColumnNames)
+	dynamicUserColIndex := 0
+
+	numColumns := 0
+
+	colSuffix := 1
+
+	var skipIndexes map[int]struct{}
+
+	if config != nil {
+		numColumns = config.NumColumns
+		if config.VariableColumns {
+			columnsToBeInserted := rng.Intn(config.NumColumns-config.MinColumns+1) + config.MinColumns
+			delta := config.NumColumns - columnsToBeInserted
+			skipIndexes = make(map[int]struct{}, delta)
+			for delta > 0 {
+				index := rng.Intn(config.NumColumns)
+				if _, ok := skipIndexes[index]; !ok {
+					skipIndexes[index] = struct{}{}
+					delta--
+				}
+			}
+		}
+	}
+
+	colCount := 0
+
+	loopCount := numColumns
+
+	if numColumns == 0 {
+		loopCount = len(dynamicUserColumnNames)
+		colSuffix = 0
+	}
+
 	p := f.Person()
-	m["first_name"] = p.FirstName
-	m["last_name"] = p.LastName
-	m["gender"] = p.Gender
-	m["ssn"] = p.SSN
-	m["image"] = p.Image
-	m["hobby"] = p.Hobby
 
-	m["job_description"] = p.Job.Descriptor
-	m["job_level"] = p.Job.Level
-	m["job_title"] = p.Job.Title
-	m["job_company"] = p.Job.Company
+	for colCount < loopCount {
 
-	m["address"] = p.Address.Address
-	m["street"] = p.Address.Street
-	m["city"] = p.Address.City
-	m["state"] = p.Address.State
-	m["zip"] = p.Address.Zip
-	m["country"] = p.Address.Country
-	m["latitude"] = p.Address.Latitude
-	m["longitude"] = p.Address.Longitude
-	m["user_phone"] = p.Contact.Phone
-	m["user_email"] = p.Contact.Email
+		if dynamicUserColIndex >= dynamicUserColumnsLen {
+			dynamicUserColIndex = 0
+			colSuffix++
+			p = f.Person()
+		}
 
-	m["user_color"] = f.Color()
-	m["weekday"] = f.WeekDay()
-	m["http_method"] = f.HTTPMethod()
-	m["http_status"] = f.HTTPStatusCodeSimple()
-	m["app_name"] = f.AppName()
-	m["app_version"] = f.AppVersion()
-	m["ident"] = f.UUID()
-	m["user_agent"] = f.UserAgent()
-	m["url"] = f.URL()
-	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
-	m["question"] = f.Question()
-	m["latency"] = f.Number(0, 10_000_000)
+		cname := dynamicUserColumnNames[dynamicUserColIndex]
+		insertColName := getColumnName(cname, colSuffix)
+
+		if skipIndexes != nil {
+			if _, ok := skipIndexes[colCount]; ok {
+				colCount++
+				dynamicUserColIndex++
+				delete(m, insertColName)
+				continue
+			}
+		}
+
+		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
+		colCount++
+		dynamicUserColIndex++
+	}
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
@@ -203,7 +253,7 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 }
 
 func (r *DynamicUserGenerator) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.ts)
+	randomizeBody(r.faker, r.baseBody, r.ts, r.DataConfig)
 }
 
 func (r *K8sGenerator) createK8sBody() {
@@ -278,7 +328,7 @@ func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, r.ts)
+	randomizeBody(f, m, r.ts, nil)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
