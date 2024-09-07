@@ -684,39 +684,38 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
-	workingDirectory, err := os.Getwd()
+
+	pqFname := fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
+	err := os.Remove(pqFname)
 	if err != nil {
-		log.Errorf("Error fetching current workingDirectory")
+		log.Errorf("removePqmrFilesAndDirectory:Cannot delete file: %v,  err: %v", pqFname, err)
 		return err
 	}
-	pqFname := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
-	err = os.Remove(pqFname)
-	if err != nil {
-		log.Errorf("Cannot delete file at %v", err)
-		return err
-	}
-	pqmrDirectory := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/", segKey)
+	pqmrDirectory := fmt.Sprintf("%v/pqmr/", segKey)
 	files, err := os.ReadDir(pqmrDirectory)
 	if err != nil {
-		log.Errorf("Cannot PQMR directory at %v", pqmrDirectory)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot PQMR directory: %v, err: %v",
+			pqmrDirectory, err)
 		return err
 	}
 	if len(files) == 0 {
 		err := os.Remove(pqmrDirectory)
 		if err != nil {
-			log.Errorf("Error deleting Pqmr directory at %v", pqmrDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr directory: %v, err: %v",
+				pqmrDirectory, err)
 			return err
 		}
-		pqmrParentDirectory := workingDirectory + "/" + fmt.Sprintf("%v/", segKey)
+		pqmrParentDirectory := fmt.Sprintf("%v/", segKey)
 		files, err = os.ReadDir(pqmrParentDirectory)
 		if err != nil {
-			log.Errorf("Cannot PQMR parent directory at %v", pqmrParentDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Cannot read PQMR parent: %v, err: %v",
+				pqmrParentDirectory, err)
 			return err
 		}
 		if len(files) == 0 {
 			err := os.Remove(pqmrParentDirectory)
 			if err != nil {
-				log.Errorf("Error deleting Pqmr directory at %v", pqmrParentDirectory)
+				log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr parent: %v, err: %v", pqmrParentDirectory, err)
 				return err
 			}
 		}
