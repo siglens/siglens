@@ -263,7 +263,7 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 	if err != nil {
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
-		if cci != nil {
+		if cci != nil && !cci.valueIsRegex {
 			cVal.UpdateRegexp(cci.caseInsensitive)
 		}
 	}
