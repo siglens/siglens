@@ -165,7 +165,9 @@ class btnRenderer {
             document.addEventListener('click', btnRenderer.handleGlobalClick);
             btnRenderer.globalListenerAdded = true;
         }
-        this.updateMuteIcon(params.data.silenceMinutes);
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isMuted = params.data.silenceEndTime && params.data.silenceEndTime > currentTime;
+        this.updateMuteIcon(isMuted);
     }
 
     static handleGlobalClick(event) {
@@ -368,8 +370,8 @@ class btnRenderer {
 
                 this.params.api.sizeColumnsToFit();
             })
-            .fail(() => {
-                showToast('Failed to silence alert', 'error');
+            .fail((err) => {
+                showToast(`Failed to silence alert: ${err.responseJSON?.error}`, 'error');
             })
             .always(() => {
                 this.dropdown.style.display = 'none';
@@ -556,11 +558,29 @@ function onRowClicked(event) {
 
 function updateMutedForValues() {
     let hasMutedAlerts = false;
+    const currentTime = Math.floor(Date.now() / 1000);
     alertGridOptions.api.forEachNode((node) => {
         if (node.data.silenceEndTime) {
             const mutedFor = calculateMutedFor(node.data.silenceEndTime);
             node.setDataValue('mutedFor', mutedFor);
-            if (mutedFor) hasMutedAlerts = true;
+
+            if (node.data.silenceEndTime > currentTime) {
+                hasMutedAlerts = true;
+            } else {
+                // Silence period has ended
+                node.setDataValue('silenceEndTime', null);
+                node.setDataValue('silenceMinutes', 0);
+                node.setDataValue('mutedFor', '');
+
+                // Update the mute icon
+                const cellRenderer = alertGridOptions.api.getCellRendererInstances({
+                    rowNodes: [node],
+                    columns: ['Actions'],
+                })[0];
+                if (cellRenderer && cellRenderer.instance instanceof btnRenderer) {
+                    cellRenderer.instance.updateMuteIcon(false);
+                }
+            }
         }
     });
 
@@ -568,5 +588,5 @@ function updateMutedForValues() {
     alertGridOptions.api.sizeColumnsToFit();
 }
 
-// Update muted for column every 2 minutes
-setInterval(updateMutedForValues, 20000);
+// Update muted for column every 1 minutes
+setInterval(updateMutedForValues, 60000);
