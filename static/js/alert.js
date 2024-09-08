@@ -653,7 +653,10 @@ function fetchAlertProperties() {
                 }
 
                 propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
-
+                if (alert.silence_end_time) {
+                    let mutedFor = calculateMutedFor(alert.silence_end_time);
+                    propertiesData.push({ name: 'Silenced For', value: mutedFor });
+                }
                 if (alert.labels && alert.labels.length > 0) {
                     const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
                     propertiesData.push({ name: 'Label', value: labelsValue });

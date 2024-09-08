@@ -1164,3 +1164,21 @@ function updateQueryModeUI(queryMode) {
         $('#query-mode-btn span').html('Code');
     }
 }
+
+function calculateMutedFor(silenceEndTime) {
+    if (!silenceEndTime) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const remainingSeconds = silenceEndTime - now;
+    if (remainingSeconds <= 0) return '';
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+
+    let result = '';
+    if (days > 0) result += `${days} day${days > 1 ? 's' : ''} `;
+    if (hours > 0) result += `${hours} hr${hours > 1 ? 's' : ''} `;
+    if (minutes > 0) result += `${minutes} min${minutes > 1 ? 's' : ''}`;
+
+    return result.trim();
+}
