@@ -130,7 +130,7 @@ func checkAvailableDiskSpace() {
 
 func allowIngest() bool {
 	diskUsageUpperThreshold := config.GetDataDiskThresholdPercent()
-	diskUsageLowerThreshold := diskUsageUpperThreshold - 2 // to avoid rapid switch between ingest-start and ingest-stop
+	diskUsageLowerThreshold := config.GetDataDiskLowerThresholdPercent() // to avoid rapid switch between ingest-start and ingest-stop
 	s, err := disk.Usage(config.GetDataPath())
 	if err != nil {
 		log.Errorf("getUsedDiskSpace: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)

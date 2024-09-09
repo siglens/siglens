@@ -91,6 +91,9 @@ func GetParallelism() int64 {
 func GetDataDiskThresholdPercent() uint64 {
 	return runningConfig.DataDiskThresholdPercent
 }
+func GetDataDiskLowerThresholdPercent() uint64 {
+	return runningConfig.DataDiskLowerThresholdPercent
+}
 
 func GetRunningConfig() *common.Configuration {
 	return &runningConfig
@@ -385,6 +388,10 @@ func SetDataDiskThresholdPercent(percent uint64) {
 	runningConfig.DataDiskThresholdPercent = percent
 }
 
+func SetDataDiskLowerThresholdPercent(percent uint64) {
+	runningConfig.DataDiskLowerThresholdPercent = percent
+}
+
 func SetMaxParallelS3IngestBuffers(maxBuf uint64) {
 	runningConfig.MaxParallelS3IngestBuffers = maxBuf
 }
@@ -468,45 +475,46 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:             "0.0.0.0",
-		QueryListenIP:              "0.0.0.0",
-		IngestPort:                 8081,
-		QueryPort:                  5122,
-		IngestUrl:                  "",
-		EventTypeKeywords:          []string{"eventType"},
-		QueryNode:                  "true",
-		IngestNode:                 "true",
-		SegFlushIntervalSecs:       5,
-		DataPath:                   dataPath,
-		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-		RetentionHours:             24 * 90,
-		TimeStampKey:               "timestamp",
-		MaxSegFileSize:             1_073_741_824,
-		LicenseKeyPath:             "./",
-		ESVersion:                  "",
-		Debug:                      false,
-		MemoryThresholdPercent:     80,
-		DataDiskThresholdPercent:   85,
-		S3IngestQueueName:          "",
-		S3IngestQueueRegion:        "",
-		S3IngestBufferSize:         1000,
-		MaxParallelS3IngestBuffers: 10,
-		SSInstanceName:             "",
-		PQSEnabled:                 "false",
-		PQSEnabledConverted:        false,
-		SafeServerStart:            false,
-		AnalyticsEnabled:           "false",
-		AnalyticsEnabledConverted:  false,
-		AgileAggsEnabled:           "true",
-		AgileAggsEnabledConverted:  true,
-		DualCaseCheck:              "false",
-		DualCaseCheckConverted:     false,
-		QueryHostname:              "",
-		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
-		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
-		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
-		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		IngestListenIP:                "0.0.0.0",
+		QueryListenIP:                 "0.0.0.0",
+		IngestPort:                    8081,
+		QueryPort:                     5122,
+		IngestUrl:                     "",
+		EventTypeKeywords:             []string{"eventType"},
+		QueryNode:                     "true",
+		IngestNode:                    "true",
+		SegFlushIntervalSecs:          5,
+		DataPath:                      dataPath,
+		S3:                            common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
+		RetentionHours:                24 * 90,
+		TimeStampKey:                  "timestamp",
+		MaxSegFileSize:                1_073_741_824,
+		LicenseKeyPath:                "./",
+		ESVersion:                     "",
+		Debug:                         false,
+		MemoryThresholdPercent:        80,
+		DataDiskThresholdPercent:      85,
+		DataDiskLowerThresholdPercent: 80,
+		S3IngestQueueName:             "",
+		S3IngestQueueRegion:           "",
+		S3IngestBufferSize:            1000,
+		MaxParallelS3IngestBuffers:    10,
+		SSInstanceName:                "",
+		PQSEnabled:                    "false",
+		PQSEnabledConverted:           false,
+		SafeServerStart:               false,
+		AnalyticsEnabled:              "false",
+		AnalyticsEnabledConverted:     false,
+		AgileAggsEnabled:              "true",
+		AgileAggsEnabledConverted:     true,
+		DualCaseCheck:                 "false",
+		DualCaseCheckConverted:        false,
+		QueryHostname:                 "",
+		Log:                           common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                           common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		Tracing:                       common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
+		DatabaseConfig:                common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                   common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
 
 	return testConfig
@@ -703,6 +711,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if config.DataDiskThresholdPercent == 0 {
 		config.DataDiskThresholdPercent = 85
+	}
+	if config.DataDiskLowerThresholdPercent == 0 {
+		config.DataDiskLowerThresholdPercent = 80
 	}
 
 	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
