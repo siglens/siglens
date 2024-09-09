@@ -164,6 +164,11 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
 
 	allPLEs := make([]*writer.ParsedLogEvent, 0)
+	defer func() {
+		for _, ple := range allPLEs {
+			plePool.Put(ple)
+		}
+	}()
 
 	var err error
 	var line []byte
@@ -232,7 +237,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 				} else {
 					ple := plePool.Get().(*writer.ParsedLogEvent)
-					defer plePool.Put(ple)
 					allPLEs = append(allPLEs, ple)
 
 					ple.SetIndexName(indexName)
