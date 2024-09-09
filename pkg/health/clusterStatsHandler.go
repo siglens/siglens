@@ -321,6 +321,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 	allVTableCounts := segwriter.GetVTableCountsForAll(myid, allSegMetas)
 
 	allIndexCols := make(map[string]map[string]struct{})
+	totalCols := make(map[string]struct{})
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
@@ -340,6 +341,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 		for col := range segMeta.ColumnNames {
 			allIndexCols[indexName][col] = struct{}{}
+			totalCols[col] = struct{}{}
 		}
 	}
 
@@ -375,13 +377,6 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 
 		stats.IndexToStats[indexName] = indexStats
-	}
-
-	totalCols := make(map[string]struct{})
-	for _, indexCols := range allIndexCols {
-		for col := range indexCols {
-			totalCols[col] = struct{}{}
-		}
 	}
 
 	return stats, totalEventCount, totalBytes, totalOnDiskBytes, uint64(len(totalCols))
