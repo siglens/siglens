@@ -363,6 +363,7 @@ class btnRenderer {
 
                     const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
                     if (mutedForColumn) {
+                        //eslint-disable-next-line no-undef
                         rowNode.setDataValue('mutedFor', calculateMutedFor(endTime));
                         this.params.columnApi.setColumnVisible('mutedFor', true);
                     }
@@ -537,6 +538,7 @@ function displayAllAlerts(res) {
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         newRow.set('silenceMinutes', value.silence_minutes);
         newRow.set('silenceEndTime', value.silence_end_time);
+        //eslint-disable-next-line no-undef
         const mutedFor = calculateMutedFor(value.silence_end_time);
         newRow.set('mutedFor', mutedFor);
         if (mutedFor) hasMutedAlerts = true;
@@ -561,6 +563,7 @@ function updateMutedForValues() {
     const currentTime = Math.floor(Date.now() / 1000);
     alertGridOptions.api.forEachNode((node) => {
         if (node.data.silenceEndTime) {
+            //eslint-disable-next-line no-undef
             const mutedFor = calculateMutedFor(node.data.silenceEndTime);
             node.setDataValue('mutedFor', mutedFor);
 
