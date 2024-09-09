@@ -72,10 +72,10 @@ jobs:
           uses: docker/build-push-action@v3
           continue-on-error: true
           with:
-              context: .
-              file: tools/sigclient/Dockerfile
+              context: tools/sigclient
+              file: Dockerfile
               push: true
-              tags: sigclient/sigclient:latest
+              tags: siglens/sigclient:latest
   sigscalr-release-assets:
       runs-on: ubuntu-latest
       environment: build-environment
