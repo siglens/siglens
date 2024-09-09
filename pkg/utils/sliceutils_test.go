@@ -69,3 +69,19 @@ func Test_ConvertSliceToMapWithTransform(t *testing.T) {
 	assert.Equal(t, result[4], []int{42, 47})
 	assert.Equal(t, result[10], []int{100})
 }
+
+func Test_RemoveElements(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	idxsToRemove := map[int]struct{}{
+		1: {},
+		3: {},
+	}
+
+	newSlice := RemoveElements(slice, idxsToRemove)
+	assert.Len(t, newSlice, 3)
+	assert.Equal(t, newSlice, []int{1, 3, 5})
+
+	newSlice = RemoveElements(newSlice, idxsToRemove)
+	assert.Len(t, newSlice, 2)
+	assert.Equal(t, newSlice, []int{1, 5})
+}

@@ -246,7 +246,10 @@ func InitWriterNode() {
 
 	initSmr()
 
-	go timeBasedWIPFlushToFile()
+	// timeBasedWIPFlushToFile
+	go idleWipFlushToFile()
+	go maxWaitWipFlushToFile()
+
 	go timeBasedRotateSegment()
 	go cleanRecentlyRotatedInfo()
 	go timeBasedUploadIngestNodeDir()
@@ -535,11 +538,19 @@ func updateValuesFromConfig() {
 	maxSegFileSize = *config.GetMaxSegFileSize()
 }
 
-func timeBasedWIPFlushToFile() {
+func idleWipFlushToFile() {
 	for {
-		sleepDuration := time.Duration(config.GetSegFlushIntervalSecs()) * time.Second
-		time.Sleep(sleepDuration)
-		FlushWipBufferToFile(&sleepDuration)
+		idleWipFlushDuration := time.Duration(config.GetIdleWipFlushIntervalSecs()) * time.Second
+		time.Sleep(idleWipFlushDuration)
+		FlushWipBufferToFile(&idleWipFlushDuration, nil)
+	}
+}
+
+func maxWaitWipFlushToFile() {
+	for {
+		maxWaitWipFlushDuration := time.Duration(config.GetMaxWaitWipFlushIntervalSecs()) * time.Second
+		time.Sleep(maxWaitWipFlushDuration)
+		FlushWipBufferToFile(nil, &maxWaitWipFlushDuration)
 	}
 }
 
@@ -568,11 +579,11 @@ func rotateSegmentOnTime() {
 			if err != nil {
 				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
 			} else {
+				// remove unused segstores if its has been twice
+				// the segrotation time since we last updated it
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting the segstore for streamid=%s and table=%s", streamid, segstore.VirtualTableName)
+					log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
 					delete(allSegStores, streamid)
-				} else {
-					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 				}
 			}
 			segstore.Lock.Unlock()
@@ -605,16 +616,32 @@ func timeBasedRotateSegment() {
 
 }
 
-func FlushWipBufferToFile(sleepDuration *time.Duration) {
+func FlushWipBufferToFile(idleWipFlushDuration *time.Duration, maxWaitWipFlushDuration *time.Duration) {
 	allSegStoresLock.RLock()
 	for streamid, segstore := range allSegStores {
 		segstore.Lock.Lock()
-		if segstore.wipBlock.maxIdx > 0 && time.Since(segstore.lastUpdated) > *sleepDuration {
+		if segstore.wipBlock.maxIdx == 0 {
+			segstore.Lock.Unlock()
+			continue
+		}
+
+		shouldFlush := false
+
+		if idleWipFlushDuration != nil && time.Since(segstore.lastUpdated) > *idleWipFlushDuration {
+			shouldFlush = true
+		}
+
+		if !shouldFlush && maxWaitWipFlushDuration != nil && time.Since(segstore.lastWipFlushTime) > *maxWaitWipFlushDuration {
+			shouldFlush = true
+		}
+
+		if shouldFlush {
 			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)
 			}
 		}
+
 		segstore.Lock.Unlock()
 	}
 	allSegStoresLock.RUnlock()

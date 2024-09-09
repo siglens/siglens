@@ -98,7 +98,7 @@ func Test_writePQSFiles(t *testing.T) {
 
 		sleep := time.Duration(1 * time.Millisecond)
 		time.Sleep(sleep)
-		FlushWipBufferToFile(&sleep)
+		FlushWipBufferToFile(&sleep, nil)
 	}
 
 	assert.Greaterf(t, TotalUnrotatedMetadataSizeBytes, uint64(0), "data in unrotated metadata == 0")

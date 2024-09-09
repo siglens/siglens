@@ -190,3 +190,45 @@ func Test_RemoveEntriesFromMap(t *testing.T) {
 	RemoveEntriesFromMap(map2, []string{"key2", "key3"})
 	assert.Equal(t, 0, len(map2))
 }
+
+func Test_GetKeysOfMap(t *testing.T) {
+	map1 := map[string]int{
+		"z": 1,
+		"a": 2,
+		"b": 3,
+	}
+
+	keys := GetKeysOfMap(map1)
+
+	assert.Equal(t, 3, len(keys))
+	assert.ElementsMatch(t, []string{"z", "a", "b"}, keys)
+
+	delete(map1, "a")
+	keys = GetKeysOfMap(map1)
+
+	assert.Equal(t, 2, len(keys))
+	assert.ElementsMatch(t, []string{"z", "b"}, keys)
+
+	map2 := map[int]string{
+		1: "abc",
+		2: "def",
+		3: "ghi",
+		4: "jkl",
+	}
+
+	keys2 := GetKeysOfMap(map2)
+	assert.Equal(t, 4, len(keys2))
+	assert.ElementsMatch(t, []int{1, 2, 3, 4}, keys2)
+
+	delete(map2, 3)
+	keys2 = GetKeysOfMap(map2)
+	assert.Equal(t, 3, len(keys2))
+	assert.ElementsMatch(t, []int{1, 2, 4}, keys2)
+
+	for _, key := range keys2 {
+		delete(map2, key)
+	}
+
+	keys2 = GetKeysOfMap(map2)
+	assert.Equal(t, 0, len(keys2))
+}

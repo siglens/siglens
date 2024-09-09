@@ -100,3 +100,17 @@ func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K]
 
 	return result
 }
+
+// idxsToRemove should contain only valid indexes in the array
+func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
+
+	newArr := make([]T, 0)
+	for idx, element := range arr {
+		_, exists := idxsToRemove[idx]
+		if !exists {
+			newArr = append(newArr, element)
+		}
+	}
+
+	return newArr
+}
