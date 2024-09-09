@@ -188,7 +188,6 @@ $(document).ready(async () => {
             $('#info-icon-spl').tooltip('hide');
         }
     });
-    
 
     initializeFilterInputEvents();
 });
