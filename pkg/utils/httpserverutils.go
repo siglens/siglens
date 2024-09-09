@@ -378,6 +378,7 @@ type IndexStats struct {
 	NumBytesIngested uint64
 	NumRecords       uint64
 	NumSegments      uint64
+	NumColumns       uint64
 }
 
 type ClusterStatsResponseInfo struct {

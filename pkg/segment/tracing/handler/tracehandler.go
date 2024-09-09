@@ -313,7 +313,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 func MonitorSpansHealth() {
 	time.Sleep(1 * time.Minute) // Wait for initial traces ingest first
 	for {
-		_, traceIndexCount, _, _ := health.GetTraceStatsForAllSegments(0)
+		_, traceIndexCount, _, _, _ := health.GetTraceStatsForAllSegments(0)
 		if traceIndexCount > 0 {
 			ProcessRedTracesIngest()
 		}
@@ -503,7 +503,7 @@ func DependencyGraphThread() {
 
 		time.Sleep(sleepDuration)
 
-		_, traceIndexCount, _, _ := health.GetTraceStatsForAllSegments(0)
+		_, traceIndexCount, _, _, _ := health.GetTraceStatsForAllSegments(0)
 		if traceIndexCount > 0 {
 			// Calculate startEpoch and endEpoch for the last hour
 			endEpoch := time.Now().UnixMilli()
