@@ -445,3 +445,78 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 		}
 	}
 }
+
+func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
+	leftExpr := &structs.NumericExpr{
+		NumericExprMode: structs.NEMNumberField,
+		IsTerminal:      true,
+		ValueIsField:    true,
+		Value:           fieldName,
+		Op:              "",
+		Left:            nil,
+		Right:           nil,
+	}
+
+	rightExpr := &structs.NumericExpr{
+		NumericExprMode: structs.NEMNumber,
+		IsTerminal:      true,
+		ValueIsField:    false,
+		Value:           "2",
+		Op:              "",
+		Left:            nil,
+		Right:           nil,
+	}
+
+	expr := &structs.NumericExpr{
+		NumericExprMode: structs.NEMNumericExpr,
+		IsTerminal:      false,
+		ValueIsField:    false,
+		Value:           "",
+		Op:              "/",
+		Left:            leftExpr,
+		Right:           rightExpr,
+	}
+
+	return &structs.ValueExpr{
+		NumericExpr:   expr,
+		ValueExprMode: structs.VEMNumericExpr,
+	}
+}
+
+func getDummyMeasureAggregator(field string) *structs.MeasureAggregator {
+	return &structs.MeasureAggregator{
+		MeasureCol:      "",
+		MeasureFunc:     utils.List,
+		StrEnc:          "list(eval(" + field + "/2))",
+		ValueColRequest: getDummyNumericValueExpr(field),
+	}
+}
+
+func Test_PerformMeasureAggsOnRecs_WithEvalWithField(t *testing.T) {
+	numSegments := 1
+	sizeLimit := 0
+	recsSize := 20
+	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
+		getDummyMeasureAggregator("measure1"),
+	}}
+	nodeResult.MeasureOperations[0].MeasureCol = ""
+	aggs := &structs.QueryAggregators{Limit: sizeLimit}
+	for i := 0; i < numSegments; i++ {
+		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
+		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
+
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+
+		if i == numSegments-1 {
+			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
+			assert.True(t, resultMap["CHECK_NEXT_AGG"], "The last Segment should return a resultMap with a key CHECK_NEXT_AGG set to true.")
+			assert.Equal(t, 1, len(recs), "MeasureAggs: Should return only a single record containing result of the aggregation.")
+			for _, record := range recs {
+				len := len(strings.Split(record["list(eval(measure1/2))"].(string), " "))
+				assert.Equal(t, 20, len, "The list(eval(measure1/2)) to the value")
+			}
+		} else {
+			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")
+		}
+	}
+}

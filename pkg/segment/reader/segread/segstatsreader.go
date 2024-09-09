@@ -574,7 +574,7 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 		CVal:  make([]string, 0),
 	}
 
-	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrSet == nil {
 		log.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 	}

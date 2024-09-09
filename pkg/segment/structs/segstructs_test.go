@@ -870,3 +870,65 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 
 	assert.NotEqual(t, segStat1, segStat2)
 }
+
+func TestHasNumTypeAggForColumn_MatchWithNumAgg(t *testing.T) {
+	measureOps := []*MeasureAggregator{
+		{
+			MeasureFunc: utils.Sum,
+			MeasureCol:  "col1",
+		},
+	}
+
+	result := HasNumTypeAggForColumn(measureOps, "col1")
+	assert.True(t, result)
+}
+
+func TestHasNumTypeAggForColumn_NoMatchWithNumAgg(t *testing.T) {
+	measureOps := []*MeasureAggregator{
+		{
+			MeasureFunc: utils.Sum,
+			MeasureCol:  "col1",
+		},
+	}
+
+	result := HasNumTypeAggForColumn(measureOps, "col2")
+	assert.False(t, result)
+}
+
+func TestHasNumTypeAggForColumn_WithNonNumAgg(t *testing.T) {
+	measureOps := []*MeasureAggregator{
+		{
+			MeasureFunc: utils.Count,
+			MeasureCol:  "col1",
+		},
+	}
+
+	result := HasNumTypeAggForColumn(measureOps, "col1")
+	assert.False(t, result)
+}
+
+func TestHasNumTypeAggForColumn_MultipleOperations(t *testing.T) {
+	measureOps := []*MeasureAggregator{
+		{
+			MeasureFunc: utils.Min,
+			MeasureCol:  "col1",
+		},
+		{
+			MeasureFunc: utils.Max,
+			MeasureCol:  "col2",
+		},
+		{
+			MeasureFunc: utils.List,
+			MeasureCol:  "col3",
+		},
+	}
+
+	result := HasNumTypeAggForColumn(measureOps, "col1")
+	assert.True(t, result)
+
+	result = HasNumTypeAggForColumn(measureOps, "col2")
+	assert.True(t, result)
+
+	result = HasNumTypeAggForColumn(measureOps, "col3")
+	assert.False(t, result)
+}

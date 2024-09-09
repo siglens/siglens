@@ -553,66 +553,79 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		firstRecInden = recInden
 		break
 	}
+	bb := bbp.Get()
+	defer bbp.Put(bb)
+
+	_, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(nodeResult.MeasureOperations)
 
 	for recInden, record := range recs {
 		sstMap := make(map[string]*structs.SegStats, 0)
 
 		for _, mOp := range nodeResult.MeasureOperations {
-			dtypeVal, err := utils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
-			if err != nil {
-				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
-				continue
+			columns := make(map[string]struct{}, 0)
+			if mOp.ValueColRequest != nil {
+				fields := mOp.ValueColRequest.GetFields()
+				for _, field := range fields {
+					columns[field] = struct{}{}
+				}
+			} else {
+				columns[mOp.MeasureCol] = struct{}{}
 			}
 
-			// Create a base structure for SegStats to store result aggregates.
-			segStat := &structs.SegStats{
-				IsNumeric: dtypeVal.IsNumeric(),
-				Count:     1,
+			for column := range columns {
+				_, ok := sstMap[column]
+				if ok {
+					// we have already processed this column
+					continue
+				}
+				if column == "*" {
+					stats.AddSegStatsCount(sstMap, column, 1)
+					continue
+				}
+				value, exists := record[column]
+				if !exists {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to find column %s in record %v", column, record)
+					continue
+				}
+				dtypeVal, err := utils.CreateDtypeEnclosure(value, qid)
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
+					continue
+				}
+
+				hasValuesFunc, exists := valuesUsage[column]
+				if !exists {
+					hasValuesFunc = false
+				}
+
+				hasListFunc, exists := listUsage[column]
+				if !exists {
+					hasListFunc = false
+				}
+
+				// Convert to float if necessary and perform numeric aggregation.
+				if structs.HasNumTypeAggForColumn(nodeResult.MeasureOperations, column) {
+					if !dtypeVal.IsNumeric() {
+						floatVal, err := dtu.ConvertToFloat(record[column], 64)
+						if err != nil {
+							log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
+							continue
+						}
+						dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
+					}
+				}
+
+				switch dtypeVal.Dtype {
+				case utils.SS_DT_STRING:
+					stats.AddSegStatsStr(sstMap, column, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case utils.SS_DT_SIGNED_NUM:
+					stats.AddSegStatsNums(sstMap, column, utils.SS_INT64, dtypeVal.SignedVal, 0, 0, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case utils.SS_DT_FLOAT:
+					stats.AddSegStatsNums(sstMap, column, utils.SS_FLOAT64, 0, 0, dtypeVal.FloatVal, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+				default:
+					log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", dtypeVal.Dtype)
+				}
 			}
-
-			// Convert to float if necessary and perform numeric aggregation.
-			if utils.IsNumTypeAgg(mOp.MeasureFunc) {
-				if !dtypeVal.IsNumeric() {
-					floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
-					if err != nil {
-						log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
-						continue
-					}
-					dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
-					segStat.IsNumeric = true
-				}
-
-				// Populate numeric stats if dtypeVal holds a numeric type now.
-				if dtypeVal.IsNumeric() {
-					nTypeEnclosure := &utils.NumTypeEnclosure{
-						Ntype:    dtypeVal.Dtype,
-						IntgrVal: int64(dtypeVal.FloatVal),
-						FloatVal: dtypeVal.FloatVal,
-					}
-					segStat.NumStats = &structs.NumericStats{
-						Min:   *nTypeEnclosure,
-						Max:   *nTypeEnclosure,
-						Sum:   *nTypeEnclosure,
-						Dtype: dtypeVal.Dtype,
-					}
-				}
-			} else if mOp.MeasureFunc != utils.Count {
-				// Handle string stats aggregation.
-				stringStat := &structs.StringStats{
-					StrSet:  make(map[string]struct{}),
-					StrList: make([]string, 0),
-				}
-
-				if dtypeVal.Dtype == utils.SS_DT_STRING_SLICE {
-					stringStat.StrList = dtypeVal.StringSliceVal
-				} else {
-					stringStat.StrList = append(stringStat.StrList, dtypeVal.StringVal)
-				}
-				stringStat.StrSet[dtypeVal.StringVal] = struct{}{}
-				segStat.StringStats = stringStat
-			}
-			// Map the result to the measure column.
-			sstMap[mOp.MeasureCol] = segStat
 		}
 
 		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations)

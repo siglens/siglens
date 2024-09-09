@@ -444,3 +444,74 @@ func TestGetAverage_InvalidType(t *testing.T) {
 	_, err := getAverage(sum, count)
 	assert.Error(t, err)
 }
+
+func TestGetSegValue_CurrStatNil(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"test": {}},
+		},
+	}
+	_, err := GetSegValue(runningSegStat, nil)
+	assert.Error(t, err)
+}
+
+func TestGetSegValue_RunningStatNil(t *testing.T) {
+	currSegStat := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"hello": {}},
+		},
+	}
+	result, err := GetSegValue(nil, currSegStat)
+	assert.NoError(t, err)
+	if !reflect.DeepEqual(result.CVal, []string{"hello"}) {
+		t.Errorf("Expected ['hello'], but got %v", result.CVal)
+	}
+}
+
+func TestGetSegValue_UniqueAndSortedValues(t *testing.T) {
+	currSegStat := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"alpha": {}, "charlie": {}},
+		},
+	}
+	runningSegStat := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"bravo": {}, "alpha": {}},
+		},
+	}
+	result, err := GetSegValue(runningSegStat, currSegStat)
+	assert.NoError(t, err)
+	expected := []string{"alpha", "bravo", "charlie"}
+	if !reflect.DeepEqual(result.CVal, expected) {
+		t.Errorf("Expected %v, but got %v", expected, result.CVal)
+	}
+}
+
+func TestGetSegValue_UpdateRunningStat(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"initial": {}},
+		},
+	}
+	firstUpdate := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"second": {}},
+		},
+	}
+	secondUpdate := &structs.SegStats{
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{"third": {}},
+		},
+	}
+
+	_, err := GetSegValue(runningSegStat, firstUpdate)
+	assert.NoError(t, err)
+
+	result, err := GetSegValue(runningSegStat, secondUpdate)
+	assert.NoError(t, err)
+
+	expected := []string{"initial", "second", "third"}
+	if !reflect.DeepEqual(result.CVal, expected) {
+		t.Errorf("TestGetSegValue_UpdateRunningStat: Expected running stat to be updated to %v, but got %v", expected, result.CVal)
+	}
+}
