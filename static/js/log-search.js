@@ -69,7 +69,7 @@ $(document).ready(async () => {
     }
 
     // Call the updateTooltip function whenever the class is added/removed
-    $(document).on('classChange', '#run-filter-btn, #query-builder-btn', function() {
+    $(document).on('classChange', '#run-filter-btn, #query-builder-btn', function () {
         updateTooltip();
     });
 

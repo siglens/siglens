@@ -533,7 +533,7 @@ $(document).ready(async function () {
     displayDashboards(allDBs);
 
     $('#create-db-btn').click(createDashboard);
-    $('.search-db-input').on('input',searchDB);
+    $('.search-db-input').on('input', searchDB);
     $('.search-db-input').on('keyup', displayOriginalDashboards);
 
     let stDate = 'now-1h';
