@@ -556,75 +556,57 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 	bb := bbp.Get()
 	defer bbp.Put(bb)
 
-	_, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(nodeResult.MeasureOperations)
+	aggCols, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(nodeResult.MeasureOperations)
 
 	for recInden, record := range recs {
 		sstMap := make(map[string]*structs.SegStats, 0)
-
-		for _, mOp := range nodeResult.MeasureOperations {
-			columns := make(map[string]struct{}, 0)
-			if mOp.ValueColRequest != nil {
-				fields := mOp.ValueColRequest.GetFields()
-				for _, field := range fields {
-					columns[field] = struct{}{}
-				}
-			} else {
-				columns[mOp.MeasureCol] = struct{}{}
+		for column := range aggCols {
+			if column == "*" {
+				stats.AddSegStatsCount(sstMap, column, 1)
+				continue
+			}
+			value, exists := record[column]
+			if !exists {
+				log.Errorf("PerformMeasureAggsOnRecs: failed to find column %s in record %v", column, record)
+				continue
+			}
+			dtypeVal, err := utils.CreateDtypeEnclosure(value, qid)
+			if err != nil {
+				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
+				continue
 			}
 
-			for column := range columns {
-				_, ok := sstMap[column]
-				if ok {
-					// we have already processed this column
-					continue
-				}
-				if column == "*" {
-					stats.AddSegStatsCount(sstMap, column, 1)
-					continue
-				}
-				value, exists := record[column]
-				if !exists {
-					log.Errorf("PerformMeasureAggsOnRecs: failed to find column %s in record %v", column, record)
-					continue
-				}
-				dtypeVal, err := utils.CreateDtypeEnclosure(value, qid)
-				if err != nil {
-					log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
-					continue
-				}
+			hasValuesFunc, exists := valuesUsage[column]
+			if !exists {
+				hasValuesFunc = false
+			}
 
-				hasValuesFunc, exists := valuesUsage[column]
-				if !exists {
-					hasValuesFunc = false
-				}
+			hasListFunc, exists := listUsage[column]
+			if !exists {
+				hasListFunc = false
+			}
 
-				hasListFunc, exists := listUsage[column]
-				if !exists {
-					hasListFunc = false
-				}
-
-				// Convert to float if necessary and perform numeric aggregation.
-				if structs.HasNumTypeAggForColumn(nodeResult.MeasureOperations, column) {
-					if !dtypeVal.IsNumeric() {
-						floatVal, err := dtu.ConvertToFloat(record[column], 64)
-						if err != nil {
-							log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
-							continue
-						}
-						dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
+			// Convert to float if necessary
+			if structs.HasNumTypeAggForColumn(nodeResult.MeasureOperations, column) {
+				if !dtypeVal.IsNumeric() {
+					floatVal, err := dtu.ConvertToFloat(record[column], 64)
+					if err != nil {
+						log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
+						continue
 					}
+					dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
 				}
+			}
 
-				switch dtypeVal.Dtype {
-				case utils.SS_DT_STRING:
-					stats.AddSegStatsStr(sstMap, column, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
-				case utils.SS_DT_SIGNED_NUM:
-					stats.AddSegStatsNums(sstMap, column, utils.SS_INT64, dtypeVal.SignedVal, 0, 0, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
-				case utils.SS_DT_FLOAT:
-					stats.AddSegStatsNums(sstMap, column, utils.SS_FLOAT64, 0, 0, dtypeVal.FloatVal, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
-				default:
-					log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", dtypeVal.Dtype)
-				}
+			switch dtypeVal.Dtype {
+			case utils.SS_DT_STRING:
+				stats.AddSegStatsStr(sstMap, column, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+			case utils.SS_DT_SIGNED_NUM:
+				stats.AddSegStatsNums(sstMap, column, utils.SS_INT64, dtypeVal.SignedVal, 0, 0, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+			case utils.SS_DT_FLOAT:
+				stats.AddSegStatsNums(sstMap, column, utils.SS_FLOAT64, 0, 0, dtypeVal.FloatVal, dtypeVal.StringVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+			default:
+				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", dtypeVal.Dtype)
 			}
 		}
 
