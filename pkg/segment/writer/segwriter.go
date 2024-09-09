@@ -401,11 +401,11 @@ func rotateSegmentOnTime() {
 			if err != nil {
 				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
 			} else {
+				// remove unused segstores if its has been twice
+				// the segrotation time since we last updated it
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting the segstore for streamid=%s and table=%s", streamid, segstore.VirtualTableName)
+					log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
 					delete(allSegStores, streamid)
-				} else {
-					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 				}
 			}
 			segstore.Lock.Unlock()
