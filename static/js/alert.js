@@ -653,7 +653,7 @@ function fetchAlertProperties() {
                 }
 
                 propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
-                if (alert.silence_end_time) {
+                if (alert.silence_end_time > Math.floor(Date.now() / 1000)) {
                     //eslint-disable-next-line no-undef
                     let mutedFor = calculateMutedFor(alert.silence_end_time);
                     propertiesData.push({ name: 'Silenced For', value: mutedFor });
