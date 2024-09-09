@@ -57,10 +57,9 @@ var esBulkCmd = &cobra.Command{
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
-		randomColumns, _ := cmd.Flags().GetBool("randomColumns")
-		numColumns, _ := cmd.Flags().GetInt("numColumns")
-		minColumns, _ := cmd.Flags().GetInt("minColumns")
-		variableColumns, _ := cmd.Flags().GetBool("variableColumns")
+		maxColumns, _ := cmd.Flags().GetUint32("maxColumns")
+		minColumns, _ := cmd.Flags().GetUint32("minColumns")
+		enableVariableNumColumns, _ := cmd.Flags().GetBool("enableVariableNumColumns")
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -71,8 +70,12 @@ var esBulkCmd = &cobra.Command{
 		}
 
 		var dataGeneratorConfig interface{}
-		if randomColumns {
-			dataGeneratorConfig = ingest.GetGeneratorDataConfig(numColumns, variableColumns, minColumns)
+		if enableVariableNumColumns {
+			if maxColumns == 0 {
+				log.Fatalf("maxColumns must be greater than 0")
+				return
+			}
+			dataGeneratorConfig = ingest.GetGeneratorDataConfig(int(maxColumns), enableVariableNumColumns, int(minColumns))
 		}
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -85,6 +88,9 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		if enableVariableNumColumns {
+			log.Infof("Variable number of columns per record enabled. Config:%v\n", dataGeneratorConfig)
+		}
 
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
 	},
@@ -365,10 +371,9 @@ func init() {
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
-	esBulkCmd.PersistentFlags().BoolP("randomColumns", "", false, "generate a set number of random columns")
-	esBulkCmd.PersistentFlags().IntP("numColumns", "", 100, "number of columns to generate")
-	esBulkCmd.PersistentFlags().IntP("minColumns", "", 30, "minimum number of columns to generate")
-	esBulkCmd.PersistentFlags().BoolP("variableColumns", "", false, "generate a variable number of columns. Each record will have a random number of columns between minColumns and numColumns")
+	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate")
+	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate")
+	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

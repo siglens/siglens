@@ -83,17 +83,25 @@ type DynamicUserGenerator struct {
 }
 
 type GeneratorDataConfig struct {
-	NumColumns      int  // Number of columns per record. Also used as the maximum number of columns when variableColumns is true
+	MaxColumns      int  // Mximumn Number of columns per record.
 	VariableColumns bool // Flag to indicate variable columns per record
-	MinColumns      int  // Minimum number of columns per record (used when variableColumns is true)
+	MinColumns      int  // Minimum number of columns per record
 }
 
-func InitGeneratorDataConfig(numColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
-	if minColumns > numColumns {
-		minColumns = numColumns
+func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
+	if minColumns > maxColumns {
+		minColumns = maxColumns
+	}
+
+	if minColumns == 0 {
+		minColumns = maxColumns
+	}
+
+	if minColumns == maxColumns {
+		variableColumns = false
 	}
 	return &GeneratorDataConfig{
-		NumColumns:      numColumns,
+		MaxColumns:      maxColumns,
 		VariableColumns: variableColumns,
 		MinColumns:      minColumns,
 	}
@@ -202,17 +210,17 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 	var skipIndexes map[int]struct{}
 
 	if config != nil {
-		numColumns = config.NumColumns
+		numColumns = config.MaxColumns
 		if config.VariableColumns {
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-			columnsToBeInserted := rng.Intn(config.NumColumns-config.MinColumns+1) + config.MinColumns
-			delta := config.NumColumns - columnsToBeInserted
-			skipIndexes = make(map[int]struct{}, delta)
-			for delta > 0 {
-				index := rng.Intn(config.NumColumns)
+			columnsToBeInserted := rng.Intn(config.MaxColumns-config.MinColumns+1) + config.MinColumns
+			skipColumnsCount := config.MaxColumns - columnsToBeInserted
+			skipIndexes = make(map[int]struct{}, skipColumnsCount)
+			for skipColumnsCount > 0 {
+				index := rng.Intn(config.MaxColumns)
 				if _, ok := skipIndexes[index]; !ok {
 					skipIndexes[index] = struct{}{}
-					delta--
+					skipColumnsCount--
 				}
 			}
 		}

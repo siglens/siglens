@@ -26,6 +26,9 @@ Options:
   -c  continuous             If true, ignores -t and will continuously send docs to the destination
   -o  --outputFile           filepath to output the query response Time results in csv format.
   -t  --runResponseTime      If true, then the queries will be run and the response time will be recorded in the given/default outputFile in CSV Format.
+      --variableColums bool  Set this to true to generate variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns
+      --maxColumns  int      Maximum number of Columns to generate. By Default this value is set to 100.
+      --minColumns int       Minimum number of Columns to generate. Default value is 0.
 ```
 
 Different Types of Readers:
@@ -33,6 +36,18 @@ Different Types of Readers:
 1. Static: Sends the same payload over and over
 2. Dynamic User: Randomly Generates user events. These random events are generated using [gofakeit](github.com/brianvoe/gofakeit/v6).
 3. File: Reads a file line by line. Expects each line is a new json. Will loop over file if necessary
+
+To Ingest 200 columns per record:
+
+```bash
+go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 1000 -p 1 --enableVariableNumColumns true --maxColumns 200
+```
+
+To Ingest variable number of Columns between 50 to 200. Each record will have columns count between 50 and 200.
+
+```bash
+go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 1000 -p 1 --enableVariableNumColumns true --maxColumns 200 --minColumns 50
+```
 
 
 ### OTSDB
@@ -50,10 +65,6 @@ Options:
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
   -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
-      --randomColumns bool   Set this to true to generate random number of columns. By Default this will generate 100 Columns.
-      --numColumns  int      Set this value to generate the set number of random Columns. Will only be considered when randomColumns is set to true.
-      --variableColums bool  Set this to true to generate variable number of columns per record. Will only be considered when randomColumns is set to true.
-      --minColumns int       Set this value to make sure that each record will have this many number of Columns. Only Considered when variableColumns is set to true
 ```
 
 ## Query
