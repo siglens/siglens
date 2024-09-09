@@ -957,9 +957,8 @@ function initializeFilterInputEvents() {
     // Function to check the visibility of the Format button
     function checkFormatButtonVisibility() {
         const selectedLanguage = $('#query-language-btn span').text().trim();
-        const selectedTab = $('.tab-list .tab-li.active').attr('id');
+        const selectedTab = $('.tab-list .tab-li.ui-tabs-active').attr('id');
         const formatButton = $('#formatInput');
-
         if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
             formatButton.show();
         }else {

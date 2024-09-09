@@ -184,6 +184,7 @@ function doSearch(data) {
                 reject(errorMessages);
             }
             console.timeEnd(timerName);
+            initializeFilterInputEvents();
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
         };
