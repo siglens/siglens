@@ -2503,8 +2503,8 @@ input[type="submit" i] {
     color: white;
     font-size: 13px;
     position: absolute;
-    left: 3px;
-    top: -2px;
+    left: 2px;
+    top: -3px;
     transform: scale(1);
 }
 
