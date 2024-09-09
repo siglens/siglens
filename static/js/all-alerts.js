@@ -165,6 +165,9 @@ class btnRenderer {
             document.addEventListener('click', btnRenderer.handleGlobalClick);
             btnRenderer.globalListenerAdded = true;
         }
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isMuted = params.data.silenceEndTime && params.data.silenceEndTime > currentTime;
+        this.updateMuteIcon(isMuted);
     }
 
     static handleGlobalClick(event) {
@@ -280,17 +283,24 @@ class btnRenderer {
     toggleMuteDropdown(event) {
         event.stopPropagation();
 
-        if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
-            btnRenderer.activeDropdown.style.display = 'none';
-        }
-
-        if (this.dropdown.style.display === 'block') {
-            this.dropdown.style.display = 'none';
-            btnRenderer.activeDropdown = null;
+        const muteButton = this.eGui.querySelector('#mute-icon');
+        if (muteButton.title === 'Unmute Alert') {
+            // If it's currently muted, unmute it
+            this.unmuteAlert();
         } else {
-            this.dropdown.style.display = 'block';
-            btnRenderer.activeDropdown = this.dropdown;
-            this.updateDropdownPosition();
+            // If it's not muted, show the dropdown to mute
+            if (btnRenderer.activeDropdown && btnRenderer.activeDropdown !== this.dropdown) {
+                btnRenderer.activeDropdown.style.display = 'none';
+            }
+
+            if (this.dropdown.style.display === 'block') {
+                this.dropdown.style.display = 'none';
+                btnRenderer.activeDropdown = null;
+            } else {
+                this.dropdown.style.display = 'block';
+                btnRenderer.activeDropdown = this.dropdown;
+                this.updateDropdownPosition();
+            }
         }
     }
 
@@ -316,7 +326,19 @@ class btnRenderer {
         btnRenderer.closeAllDropdowns();
     }
 
+    updateMuteIcon(isMuted) {
+        const muteButton = this.eGui.querySelector('#mute-icon');
+        if (isMuted) {
+            muteButton.classList.add('muted');
+            muteButton.title = 'Unmute Alert';
+        } else {
+            muteButton.classList.remove('muted');
+            muteButton.title = 'Mute';
+        }
+    }
+
     silenceAlert(minutes) {
+        const endTime = Math.floor(Date.now() / 1000) + minutes * 60;
         $.ajax({
             method: 'PUT',
             url: 'api/alerts/silenceAlert',
@@ -332,13 +354,78 @@ class btnRenderer {
         })
             .done((res) => {
                 showToast(res.message, 'success');
+                this.updateMuteIcon(true);
+
+                const rowNode = this.params.api.getRowNode(this.params.data.rowId);
+                if (rowNode) {
+                    rowNode.setDataValue('silenceEndTime', endTime);
+                    rowNode.setDataValue('silenceMinutes', minutes);
+
+                    const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                    if (mutedForColumn) {
+                        //eslint-disable-next-line no-undef
+                        rowNode.setDataValue('mutedFor', calculateMutedFor(endTime));
+                        this.params.columnApi.setColumnVisible('mutedFor', true);
+                    }
+                }
+
+                this.params.api.sizeColumnsToFit();
             })
-            .fail(() => {
-                showToast('Failed to silence alert', 'error');
+            .fail((err) => {
+                showToast(`Failed to silence alert: ${err.responseJSON?.error}`, 'error');
             })
             .always(() => {
                 this.dropdown.style.display = 'none';
                 btnRenderer.activeDropdown = null;
+            });
+    }
+
+    unmuteAlert() {
+        $.ajax({
+            method: 'PUT',
+            url: 'api/alerts/unsilenceAlert',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            data: JSON.stringify({
+                alert_id: this.params.data.alertId,
+            }),
+            crossDomain: true,
+        })
+            .done((res) => {
+                showToast(res.message, 'success');
+                this.updateMuteIcon(false);
+
+                const rowNode = this.params.api.getRowNode(this.params.data.rowId);
+                if (rowNode) {
+                    rowNode.setDataValue('silenceEndTime', null);
+                    rowNode.setDataValue('silenceMinutes', 0);
+
+                    const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                    if (mutedForColumn) {
+                        rowNode.setDataValue('mutedFor', '');
+                    }
+                }
+
+                // Check if any alerts are still muted
+                let hasMutedAlerts = false;
+                this.params.api.forEachNode((node) => {
+                    if (node.data.silenceEndTime && node.data.silenceEndTime > Math.floor(Date.now() / 1000)) {
+                        hasMutedAlerts = true;
+                    }
+                });
+
+                // Hide the "Muted For" column if no alerts are muted
+                const mutedForColumn = this.params.columnApi.getColumn('mutedFor');
+                if (mutedForColumn) {
+                    this.params.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+                }
+
+                this.params.api.sizeColumnsToFit();
+            })
+            .fail(() => {
+                showToast('Failed to unmute alert', 'error');
             });
     }
 
@@ -366,9 +453,25 @@ let alertColumnDefs = [
         cellRenderer: stateCellRenderer,
     },
     {
+        headerName: 'Silenced For',
+        field: 'mutedFor',
+        width: 120,
+        hide: true, // Initially hidden
+    },
+    {
+        headerName: 'Silence End Time',
+        field: 'silenceEndTime',
+        hide: true, // Hidden column
+    },
+    {
+        headerName: 'Silence Minutes',
+        field: 'silenceMinutes',
+        hide: true, // Hidden column
+    },
+    {
         headerName: 'Alert Name',
         field: 'alertName',
-        width: 200,
+        width: 100,
     },
     {
         headerName: 'Alert Type',
@@ -378,7 +481,6 @@ let alertColumnDefs = [
     {
         headerName: 'Labels',
         field: 'labels',
-        width: 200,
     },
     {
         headerName: 'Actions',
@@ -420,6 +522,7 @@ function displayAllAlerts(res) {
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
+    let hasMutedAlerts = false;
     $.each(res, function (key, value) {
         newRow.set('rowId', key);
         newRow.set('alertId', value.alert_id);
@@ -433,9 +536,19 @@ function displayAllAlerts(res) {
         newRow.set('labels', allLabels);
         newRow.set('alertState', mapIndexToAlertState.get(value.state));
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
+        newRow.set('silenceMinutes', value.silence_minutes);
+        newRow.set('silenceEndTime', value.silence_end_time);
+        //eslint-disable-next-line no-undef
+        const mutedFor = calculateMutedFor(value.silence_end_time);
+        newRow.set('mutedFor', mutedFor);
+        if (mutedFor) hasMutedAlerts = true;
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
     alertGridOptions.api.setRowData(alertRowData);
+    const mutedForColumn = alertGridOptions.columnApi.getColumn('mutedFor');
+    if (mutedForColumn) {
+        alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+    }
     alertGridOptions.api.sizeColumnsToFit();
 }
 
@@ -444,3 +557,39 @@ function onRowClicked(event) {
     window.location.href = '../alert-details.html' + queryString;
     event.stopPropagation();
 }
+
+function updateMutedForValues() {
+    let hasMutedAlerts = false;
+    const currentTime = Math.floor(Date.now() / 1000);
+    alertGridOptions.api.forEachNode((node) => {
+        if (node.data.silenceEndTime) {
+            //eslint-disable-next-line no-undef
+            const mutedFor = calculateMutedFor(node.data.silenceEndTime);
+            node.setDataValue('mutedFor', mutedFor);
+
+            if (node.data.silenceEndTime > currentTime) {
+                hasMutedAlerts = true;
+            } else {
+                // Silence period has ended
+                node.setDataValue('silenceEndTime', null);
+                node.setDataValue('silenceMinutes', 0);
+                node.setDataValue('mutedFor', '');
+
+                // Update the mute icon
+                const cellRenderer = alertGridOptions.api.getCellRendererInstances({
+                    rowNodes: [node],
+                    columns: ['Actions'],
+                })[0];
+                if (cellRenderer && cellRenderer.instance instanceof btnRenderer) {
+                    cellRenderer.instance.updateMuteIcon(false);
+                }
+            }
+        }
+    });
+
+    alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
+    alertGridOptions.api.sizeColumnsToFit();
+}
+
+// Update muted for column every 1 minutes
+setInterval(updateMutedForValues, 60000);
