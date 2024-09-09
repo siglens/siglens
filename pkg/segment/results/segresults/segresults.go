@@ -103,6 +103,18 @@ type segStatsResults struct {
 	groupByCols      []string
 }
 
+type RemoteStats struct {
+	EvalStats map[string]interface{}
+	SegStats  []*structs.SegStats
+	MeasureRes map[string]utils.CValueEnclosure
+}
+
+type RemoteStatsJSON struct {
+	EvalStats map[string]interface{} `json:"EvalStats"`
+	SegStats  []*structs.SegStats `json:"SegStats"`
+	MeasureRes map[string]utils.CValueEnclosure `json:"MeasureRes"`
+}
+
 func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType structs.QueryType, qid uint64) (*SearchResults, error) {
 	lock := &sync.Mutex{}
 	blockResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
@@ -477,16 +489,21 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	return nil
 }
 
-func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error {
-	sstMap := make(map[string]*structs.SegStats, len(allJSON.AllSegStats))
-	for k, v := range allJSON.AllSegStats {
-		rawStats, err := v.ToStats()
-		if err != nil {
-			return err
-		}
-		sstMap[k] = rawStats
-	}
-	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations)
+// func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error {
+// 	sstMap := make(map[string]*structs.SegStats, len(allJSON.AllSegStats))
+// 	for k, v := range allJSON.AllSegStats {
+// 		rawStats, err := v.ToStats()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		sstMap[k] = rawStats
+// 	}
+// 	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations)
+// }
+
+func (sr *SearchResults) AddSegmentStats(remoteStatsJSON *RemoteStatsJSON) error {
+	remoteStats := remoteStatsJSON.ToRemoteStats()
+	return sr.MergeSegmentStats(sr.sAggs.MeasureOperations, *remoteStats)
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
@@ -947,4 +964,170 @@ func CreateMeasResultsFromAggResults(limit int,
 	}
 
 	return bucketHolderArr, retMFuns, added
+}
+
+
+
+func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregator, remoteStats RemoteStats) error {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	for idx, measureAgg := range measureOps {
+		aggOp := measureAgg.MeasureFunc
+		if idx >= len(remoteStats.SegStats) {
+			return fmt.Errorf("MergeSegmentStats: remoteStats.SegStats is smaller than measureOps, qid=%v", sr.qid)
+		}
+		remoteSegStat := remoteStats.SegStats[idx]
+
+		var err error
+		var sstResult *utils.NumTypeEnclosure
+		// For eval statements in aggregate functions, there should be only one field for min and max
+		switch aggOp {
+		case utils.Min:
+			if measureAgg.ValueColRequest != nil {
+				currRes := sr.segStatsResults.measureResults[measureAgg.String()]
+				remoteRes := remoteStats.MeasureRes[measureAgg.String()]
+				sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteRes, aggOp)
+				if err != nil {
+					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+			}
+			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Max:
+			if measureAgg.ValueColRequest != nil {
+				currRes := sr.segStatsResults.measureResults[measureAgg.String()]
+				remoteRes := remoteStats.MeasureRes[measureAgg.String()]
+				sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteRes, aggOp)
+				if err != nil {
+					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+			}
+			sstResult, err = segread.GetSegMax(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Range:
+			if measureAgg.ValueColRequest != nil {
+				var remoteRangeStat *structs.RangeStat
+				var currRangeStat *structs.RangeStat
+				remoteVal, exist := remoteStats.EvalStats[measureAgg.String()]
+				if exist {
+					remoteRangeStat = remoteVal.(*structs.RangeStat)
+				}
+				currVal, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					currRangeStat = currVal.(*structs.RangeStat)
+				}
+				finalRangeStat := blockresults.ReduceRange(currRangeStat, remoteRangeStat)
+				sr.runningEvalStats[measureAgg.String()] = finalRangeStat
+				if finalRangeStat != nil {
+					sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+						Dtype: utils.SS_DT_FLOAT,
+						CVal:  finalRangeStat.Max - finalRangeStat.Min,
+					}
+				}
+				continue
+			}
+			sstResult, err = segread.GetSegRange(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Cardinality:
+			if measureAgg.ValueColRequest != nil {
+				currSet, exist := sr.runningEvalStats[measureAgg.String()]
+				if !exist {
+					currSet = make(map[string]struct{})
+					sr.runningEvalStats[measureAgg.String()] = currSet
+				}
+				remoteSet := remoteStats.EvalStats[measureAgg.String()]
+
+				utils.Reduce(utils.CValueEnclosure{
+								Dtype: utils.SS_DT_STRING_SET,
+								CVal:  currSet,
+							},
+							utils.CValueEnclosure{
+								Dtype: utils.SS_DT_STRING_SET,
+								CVal:  remoteSet,
+							},
+							aggOp)
+				
+				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_SIGNED_NUM,
+					CVal:  len(currSet.(map[string]struct{})),
+				}
+				continue
+			}
+			sstResult, err = segread.GetSegCardinality(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Count:
+			if measureAgg.ValueColRequest != nil {
+				currRes := sr.segStatsResults.measureResults[measureAgg.String()]
+				remoteRes := remoteStats.MeasureRes[measureAgg.String()]
+				sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteRes, aggOp)
+				if err != nil {
+					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+			}
+			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Sum:
+			if measureAgg.ValueColRequest != nil {
+				currRes := sr.segStatsResults.measureResults[measureAgg.String()]
+				remoteRes := remoteStats.MeasureRes[measureAgg.String()]
+				sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteRes, aggOp)
+				if err != nil {
+					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
+				}
+			}
+			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Avg:
+			if measureAgg.ValueColRequest != nil {
+				
+				continue
+			}
+			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], remoteSegStat)
+		case utils.Values:
+			
+			continue
+		case utils.List:
+			
+			continue
+		default:
+			log.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
+			return err
+		}
+		if err != nil {
+			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+			return err
+		}
+
+		enclosure, err := sstResult.ToCValueEnclosure()
+		if err != nil {
+			log.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
+			return err
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
+	}
+	return nil
+}
+
+func (sr *SearchResults) GetRemoteStats() RemoteStats {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	return RemoteStats{
+		SegStats:   sr.runningSegStat,
+		MeasureRes: sr.segStatsResults.measureResults,
+		EvalStats:  sr.runningEvalStats,
+	}
+}
+
+func (rs *RemoteStats) RemoteStatsToJSON() *RemoteStatsJSON {
+	log.Warnf("%v", rs.MeasureRes)
+	log.Warnf("%v", rs.EvalStats)
+	return &RemoteStatsJSON{
+		SegStats:   rs.SegStats,
+		MeasureRes: rs.MeasureRes,
+		EvalStats:  rs.EvalStats,
+	}
+} 
+
+func (rj *RemoteStatsJSON) ToRemoteStats() *RemoteStats {
+	log.Warnf("%v", rj.MeasureRes)
+	log.Warnf("%v", rj.EvalStats)
+	return &RemoteStats{
+		SegStats:   rj.SegStats,
+		MeasureRes: rj.MeasureRes,
+		EvalStats:  rj.EvalStats,
+	}
 }

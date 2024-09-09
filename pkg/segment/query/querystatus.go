@@ -619,18 +619,18 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContai
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
 func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContainer, *blockresults.TimeBuckets,
-	*blockresults.GroupByBuckets, map[uint16]string, error) {
+	*blockresults.GroupByBuckets, *segresults.RemoteStats, map[uint16]string, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("GetQueryResponseForRPC: qid %+v does not exist!", qid)
-		return nil, nil, nil, nil, fmt.Errorf("qid does not exist")
+		return nil, nil, nil, nil, nil, fmt.Errorf("qid does not exist")
 	}
 
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
 		eres := make([]*utils.RecordResultContainer, 0)
-		return eres, nil, nil, nil, nil
+		return eres, nil, nil, nil, nil, nil
 	}
 	var eres []*utils.RecordResultContainer
 	if rQuery.rawRecords == nil {
@@ -647,12 +647,13 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContai
 	switch rQuery.QType {
 	case structs.SegmentStatsCmd:
 		// SegStats will be streamed back on each query update. So, we don't need to return anything here
-		return eres, nil, nil, skCopy, nil
+		remoteStats := rQuery.searchRes.GetRemoteStats()
+		return eres, nil, nil, &remoteStats, skCopy, nil
 	case structs.GroupByCmd:
 		timeBuckets, groupBuckets := rQuery.searchRes.GetRunningBuckets()
-		return eres, timeBuckets, groupBuckets, skCopy, nil
+		return eres, timeBuckets, groupBuckets, nil, skCopy, nil
 	default:
-		return eres, nil, nil, skCopy, nil
+		return eres, nil, nil, nil, skCopy, nil
 	}
 }
 
