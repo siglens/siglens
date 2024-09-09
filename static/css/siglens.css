@@ -2471,6 +2471,47 @@ input[type="submit" i] {
     align-items: center;
     width: 18px;
 }
+
+#hide-null-columns-checkbox[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--purple-1);
+} 
+
+#hide-null-columns-checkbox[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    padding: 0.1rem;
+    background-color: white; 
+    border: 1.5px solid var(--purple-1);
+    border-radius: 2px;
+} 
+
+#hide-null-columns-checkbox[type="checkbox"]:not(:checked)::before {
+    content: '';
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:checked {
+    background-color: var(--purple-1);
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:checked::before {
+    content: '\2713'; /* Unicode for checkmark */
+    color: white;
+    font-size: 13px;
+    position: absolute;
+    left: 3px;
+    top: -2px;
+    transform: scale(1);
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:hover {
+    cursor: pointer;
+}
+      
 /* datepicker */
 
 #date-picker-btn {
