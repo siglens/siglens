@@ -48,6 +48,36 @@ $(document).ready(async () => {
     createTooltip('#log-opt-table-btn', 'Tabular View');
     createTooltip('.avail-fields-btn', 'Select field names to display');
     createTooltip('#run-filter-btn', 'Run query');
+
+    // Function to update tooltip based on the cancel-search class
+    function updateTooltip() {
+        const runFilterBtn = $('#run-filter-btn');
+        const queryBuilderBtn = $('#query-builder-btn');
+
+        // Check for the cancel-search class and update the tooltip accordingly
+        if (runFilterBtn.hasClass('cancel-search')) {
+            runFilterBtn[0]._tippy.setContent('Cancel Query');
+        } else {
+            runFilterBtn[0]._tippy.setContent('Run Query');
+        }
+
+        if (queryBuilderBtn.hasClass('cancel-search')) {
+            queryBuilderBtn[0]._tippy.setContent('Cancel Query');
+        } else {
+            queryBuilderBtn[0]._tippy.setContent('Run Query');
+        }
+    }
+
+    // Call the updateTooltip function whenever the class is added/removed
+    $(document).on('classChange', '#run-filter-btn, #query-builder-btn', function() {
+        updateTooltip();
+    });
+
+    // Or use a mutation observer to detect class changes
+    const observer = new MutationObserver(updateTooltip);
+
+    observer.observe(document.getElementById('run-filter-btn'), { attributes: true });
+    observer.observe(document.getElementById('query-builder-btn'), { attributes: true });
     setSaveQueriesDialog();
     let indexes = await getListIndices();
     if (indexes) {

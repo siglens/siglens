@@ -250,7 +250,7 @@ $(document).ready(function () {
             displayOriginalSavedQueries();
         }
     });
-    $('#search-query-btn').on('click', searchSavedQueryHandler);
+    $('#sq-filter-input').on('input', searchSavedQueryHandler);
 });
 
 let queriesColumnDefs = [
@@ -305,8 +305,15 @@ const sqgridOptions = {
     rowData: sqRowData,
     animateRows: true,
     headerHeight: 32,
+    rowHeight: 44,
     defaultColDef: {
         initialWidth: 200,
+        icons: {
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+        },
+        cellClass: 'align-center-grid',
+        resizable: true,
         sortable: true,
     },
     enableCellTextSelection: true,
@@ -369,7 +376,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
             newRow.set('qname', key);
-            newRow.set('queryLanguage', value.queryLanguage);
+            if (value.dataSource === "metrics") {
+                newRow.set('queryLanguage', 'PromQL');
+            } else {
+                newRow.set('queryLanguage', value.queryLanguage);
+            }            
             newRow.set('filterTab', value.filterTab);
             newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);

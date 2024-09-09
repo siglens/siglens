@@ -162,7 +162,6 @@ $(document).ready(async function () {
     if (window.location.href.includes('alert-details.html')) {
         alertDetailsFunctions();
         fetchAlertProperties();
-        displayHistoryData();
     }
 
     // Enable the save button when a contact point is selected
@@ -596,10 +595,7 @@ function setDataSourceHandler(alertType) {
     }
 }
 
-$('#search-history-btn').on('click', function () {
-    performSearch();
-});
-
+$('#history-filter-input').on('input',performSearch);
 $('#history-filter-input').on('keypress', function (e) {
     if (e.which === 13) {
         performSearch();

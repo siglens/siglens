@@ -91,6 +91,29 @@ function updateDownloadButtons() {
     }
 }
 $(document).ready(async function () {
+    function createTooltip(selector, content) {
+        //eslint-disable-next-line no-undef
+        tippy(selector, {
+            content: content, // Tooltip content
+            placement: 'top', // Tooltip placement (top, bottom, left, right)
+            arrow: true, // Show an arrow
+            animation: 'fade', // Tooltip animation
+        });
+    }
+
+    // Call the function for each tooltip
+    createTooltip('#date-picker-btn', 'Pick the Time Window');
+    createTooltip('#saveq-btn', 'Save query');
+    createTooltip('.add-metrics-to-db-btn', 'Add to dashboards');
+    createTooltip('.alert-from-metrics-btn', 'Create alert');
+    createTooltip('.raw-query-btn', 'Raw query');
+    createTooltip('.alias-box', 'As');
+    createTooltip('#run-filter-btn', 'Run query');
+    createTooltip('.download-all-logs-btn', 'Download logs');
+    createTooltip('#show-record-intro-btn', 'Query Response Information');
+    createTooltip('.show-functions', 'Add functions');
+    createTooltip('.show-functions-formula', 'Add functions');
+    createTooltip('.refresh-btn', 'Refresh');
     updateDownloadButtons();
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
