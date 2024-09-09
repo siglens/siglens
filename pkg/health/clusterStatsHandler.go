@@ -86,8 +86,8 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	httpResp.IngestionStats["Metrics Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
 
-	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsColumnCount))
-	httpResp.IngestionStats["Segment Count"] = humanize.Comma(int64(logsColumnCount))
+	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsEventCount))
+	httpResp.IngestionStats["Column Count"] = humanize.Comma(int64(logsColumnCount))
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
@@ -158,8 +158,8 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 		nextVal[index] = make(map[string]interface{})
 		nextVal[index][volumeField] = convertBytesToGB(float64(indexStats.NumBytesIngested))
 		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
-		// nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
-		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumColumns))
+		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
+		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
 
 		retVal = append(retVal, nextVal)
 	}
