@@ -366,7 +366,7 @@ func init() {
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 	esBulkCmd.PersistentFlags().BoolP("randomColumns", "", false, "generate a set number of random columns")
-	esBulkCmd.PersistentFlags().IntP("numColumns", "", 200, "number of columns to generate")
+	esBulkCmd.PersistentFlags().IntP("numColumns", "", 100, "number of columns to generate")
 	esBulkCmd.PersistentFlags().IntP("minColumns", "", 30, "minimum number of columns to generate")
 	esBulkCmd.PersistentFlags().BoolP("variableColumns", "", false, "generate a variable number of columns. Each record will have a random number of columns between minColumns and numColumns")
 

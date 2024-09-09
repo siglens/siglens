@@ -134,3 +134,44 @@ func getDynamicUserColumnValue(f *gofakeit.Faker, columnName string, p *gofakeit
 	log.Infof("getDynamicUserColumnValue: returning BuzzWord")
 	return f.BuzzWord()
 }
+
+func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}) {
+
+	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
+	p := f.Person()
+	m["first_name"] = p.FirstName
+	m["last_name"] = p.LastName
+	m["gender"] = p.Gender
+	m["ssn"] = p.SSN
+	m["image"] = p.Image
+	m["hobby"] = p.Hobby
+
+	m["job_description"] = p.Job.Descriptor
+	m["job_level"] = p.Job.Level
+	m["job_title"] = p.Job.Title
+	m["job_company"] = p.Job.Company
+
+	m["address"] = p.Address.Address
+	m["street"] = p.Address.Street
+	m["city"] = p.Address.City
+	m["state"] = p.Address.State
+	m["zip"] = p.Address.Zip
+	m["country"] = p.Address.Country
+	m["latitude"] = p.Address.Latitude
+	m["longitude"] = p.Address.Longitude
+	m["user_phone"] = p.Contact.Phone
+	m["user_email"] = p.Contact.Email
+
+	m["user_color"] = f.Color()
+	m["weekday"] = f.WeekDay()
+	m["http_method"] = f.HTTPMethod()
+	m["http_status"] = f.HTTPStatusCodeSimple()
+	m["app_name"] = f.AppName()
+	m["app_version"] = f.AppVersion()
+	m["ident"] = f.UUID()
+	m["user_agent"] = f.UserAgent()
+	m["url"] = f.URL()
+	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
+	m["question"] = f.Question()
+	m["latency"] = f.Number(0, 10_000_000)
+}

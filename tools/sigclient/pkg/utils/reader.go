@@ -183,9 +183,15 @@ func getColumnName(name string, colIndex int) string {
 	return fmt.Sprintf("%s_c%d", name, colIndex)
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
+	getStaticUserColumnValue(f, m)
 
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
+}
+
+func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
 	dynamicUserColumnsLen := len(dynamicUserColumnNames)
 	dynamicUserColIndex := 0
 
@@ -198,6 +204,7 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, conf
 	if config != nil {
 		numColumns = config.NumColumns
 		if config.VariableColumns {
+			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			columnsToBeInserted := rng.Intn(config.NumColumns-config.MinColumns+1) + config.MinColumns
 			delta := config.NumColumns - columnsToBeInserted
 			skipIndexes = make(map[int]struct{}, delta)
@@ -253,7 +260,11 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, conf
 }
 
 func (r *DynamicUserGenerator) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.ts, r.DataConfig)
+	if r.DataConfig != nil {
+		randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
+	} else {
+		randomizeBody(r.faker, r.baseBody, r.ts)
+	}
 }
 
 func (r *K8sGenerator) createK8sBody() {
@@ -328,7 +339,7 @@ func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, r.ts, nil)
+	randomizeBody(f, m, r.ts)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
