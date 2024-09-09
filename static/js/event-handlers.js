@@ -29,6 +29,7 @@ function setupEventHandlers() {
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
+    $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
 
@@ -765,4 +766,105 @@ function themePickerHandler(evt) {
 function saveqInputHandler(evt) {
     evt.preventDefault();
     $(this).addClass('active');
+}
+
+function updateNullColumnsTracking(records) {
+    if (!records || records.length === 0) return;
+
+    records.forEach((record) => {
+        Object.keys(record).forEach((column) => {
+            allColumns.add(column);
+            if (record[column] !== null && record[column] !== undefined && record[column] !== '') {
+                columnsWithNonNullValues.add(column);
+            }
+        });
+    });
+}
+
+function finalizeNullColumnsHiding() {
+    const nullColumns = Array.from(allColumns).filter((column) => !columnsWithNonNullValues.has(column));
+    const checkbox = $('#hide-null-columns-checkbox');
+    const checkboxParent = $('#hide-null-column-box');
+    console.log(nullColumns);
+    if (nullColumns.length === 0) {
+        // No null columns, hide checkbox
+        checkboxParent.hide();
+        return;
+    }
+
+    checkboxParent.show();
+    // Update column visibility if the checkbox is checked
+    const hideNullColumns = checkbox.is(':checked');
+    updateColumnsVisibility(hideNullColumns, nullColumns);
+}
+
+function handleHideNullColumnsCheckbox(event) {
+    const hideNullColumns = event.target.checked;
+    updateColumnsVisibility(hideNullColumns);
+}
+
+function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
+    const columnDefs = gridOptions.columnApi.getColumns().map((col) => ({ field: col.getColId() }));
+    let updatedSelectedFieldsList = [...availColNames];
+
+    if (!nullColumns) {
+        nullColumns = Array.from(allColumns).filter((column) => !columnsWithNonNullValues.has(column));
+    }
+
+    if (nullColumns.length === 0) {
+        return;
+    }
+
+    columnDefs.forEach((colDef) => {
+        const colField = colDef.field;
+        if (colField !== 'timestamp' && colField !== 'logs') {
+            if (nullColumns.includes(colField) && hideNullColumns) {
+                // Hide the null column
+                gridOptions.columnApi.setColumnVisible(colField, false);
+                updatedSelectedFieldsList = updatedSelectedFieldsList.filter((field) => field !== colField);
+                $(`.toggle-${string2Hex(colField)}`).removeClass('active');
+            } else {
+                // Show the column
+                gridOptions.columnApi.setColumnVisible(colField, true);
+                if (!updatedSelectedFieldsList.includes(colField)) {
+                    updatedSelectedFieldsList.push(colField);
+                }
+                $(`.toggle-${string2Hex(colField)}`).addClass('active');
+            }
+        }
+    });
+
+    updateAvailableFieldsUI(updatedSelectedFieldsList);
+    gridOptions.api.sizeColumnsToFit();
+}
+
+function updateAvailableFieldsUI(updatedSelectedFieldsList) {
+    let visibleColumns = 0;
+    let totalColumns = availColNames.length;
+    if (updatedSelectedFieldsList && updatedSelectedFieldsList.length > 0) {
+        availColNames.forEach((colName) => {
+            if (updatedSelectedFieldsList.includes(colName)) {
+                visibleColumns++;
+                $(`.toggle-${string2Hex(colName)}`).addClass('active');
+            } else {
+                $(`.toggle-${string2Hex(colName)}`).removeClass('active');
+            }
+        });
+
+        let el = $('#available-fields .select-unselect-header');
+
+        // Update the toggle-all checkbox
+        if (visibleColumns === totalColumns - 2) {
+            // Excluding timestamp and logs
+            if (theme === 'light') {
+                el.find('.select-unselect-checkmark').remove();
+                el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
+            } else {
+                el.find('.select-unselect-checkmark').remove();
+                el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
+            }
+        } else {
+            el.find('.select-unselect-checkmark').remove();
+        }
+    }
 }

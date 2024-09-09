@@ -63,8 +63,13 @@ function resetDataTable(firstQUpdate) {
 }
 
 let doSearchCounter = 0;
+let columnsWithNonNullValues = new Set();
+let allColumns = new Set();
+
 //eslint-disable-next-line no-unused-vars
 function doSearch(data) {
+    columnsWithNonNullValues.clear();
+    allColumns.clear();
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
@@ -118,6 +123,7 @@ function doSearch(data) {
                     }
                     resetDataTable(firstQUpdate);
                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                    updateNullColumnsTracking(jsonEvent.hits.records);
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
@@ -131,6 +137,7 @@ function doSearch(data) {
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                    finalizeNullColumnsHiding();
                     console.timeEnd('COMPLETE');
                     socket.close(1000);
                     break;
