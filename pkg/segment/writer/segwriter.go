@@ -435,7 +435,6 @@ func (segstore *SegStore) AddEntry(streamid string,
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
 
-	// use the same PLE N times to simulate
 	for _, ple := range pleArray {
 
 		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
@@ -450,7 +449,7 @@ func (segstore *SegStore) AddEntry(streamid string,
 
 		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
-			log.Errorf("AddEntry: failed to do parsed even filling, segkey: %v, err: %v", segstore.SegmentKey, err)
+			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
 			return err
 		}
 
