@@ -73,6 +73,7 @@ type SegStore struct {
 	segbaseDir            string
 	suffix                uint64
 	lastUpdated           time.Time
+	lastWipFlushTime      time.Time
 	VirtualTableName      string
 	RecordCount           int
 	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
@@ -132,6 +133,7 @@ func NewSegStore(orgId uint64) *SegStore {
 		LastSegPqids:       make(map[string]struct{}),
 		timeCreated:        now,
 		lastUpdated:        now,
+		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -227,6 +229,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
 	segstore.wipBlock.blockSummary.RecCount = 0
+	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
 	for col := range segstore.wipBlock.columnsInBlock {

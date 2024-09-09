@@ -482,7 +482,7 @@ type StringSearchRequest struct {
 
 }
 
-Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
     q.SearchFilter = initialSearch.(*ast.Node)
 
@@ -542,6 +542,10 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
         }
     }
 
+    if indexBlock != nil {
+        q.IndexNames = indexBlock.([]string)
+    }
+
     return q, nil
 }
 / SPACE? PIPE CMD_GENTIMES SPACE genTimesOption:(GenTimesOptionList) queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -574,6 +578,40 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
     }
 
     return q, nil
+}
+
+IndexAssign <- index:("_index") EQUAL indexName:String {
+    return removeQuotes(indexName), nil
+}
+
+// TODO: Allow for multiple operators (AND, NOT, parenthesis) and make it flexible so that it can be used anywhere in the search filter.
+IndexExpression <- first:(IndexAssign) rest:(OR IndexAssign)* {
+    
+    if rest == nil {
+        if first.(string) == "" {
+            return []string{}, nil
+        }
+        return []string{first.(string)}, nil
+    }
+
+    finalIndexes := []string{}
+    if first.(string) != "" {
+        finalIndexes = append(finalIndexes, first.(string))
+    }
+    for _, v := range rest.([]any) {
+        parts := v.([]any)  // This will be [OR, IndexAssign].
+        index := parts[1].(string)
+        if index == "" {
+            continue
+        }
+        finalIndexes = append(finalIndexes, index)
+    }
+
+    return finalIndexes, nil
+}
+
+IndexBlock <- SPACE? indexName:(IndexExpression) PIPE? {
+    return indexName, nil
 }
 
 PartialTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] {
