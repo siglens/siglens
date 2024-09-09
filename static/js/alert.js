@@ -19,6 +19,7 @@
 
 let alertData = {};
 let alertID;
+let alertHistoryData = [];
 let alertEditFlag = 0;
 let alertFromMetricsExplorerFlag = 0;
 let messageTemplateInfo = '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
@@ -161,7 +162,6 @@ $(document).ready(async function () {
 
     if (window.location.href.includes('alert-details.html')) {
         alertDetailsFunctions();
-        fetchAlertProperties();
     }
 
     // Enable the save button when a contact point is selected
@@ -210,6 +210,7 @@ $(document).ready(async function () {
     $('#all-alerts-text').click(function () {
         window.location.href = '../all-alerts.html';
     });
+    fetchAlertHistory();
 });
 function updateChartColorsBasedOnTheme() {
     //eslint-disable-next-line no-undef
@@ -289,7 +290,7 @@ async function editAlert(alertId) {
         crossDomain: true,
     });
     if (window.location.href.includes('alert-details.html')) {
-        displayAlertProperties(res.alert);
+        fetchAlertProperties(res);
         return false;
     } else {
         alertEditFlag = true;
@@ -360,7 +361,6 @@ if (propertiesBtn) {
         document.getElementById('history-search-container').style.display = 'none';
         propertiesBtn.classList.add('active');
         historyBtn.classList.remove('active');
-        fetchAlertProperties();
         $('#alert-details .btn-container').show();
     });
 }
@@ -595,7 +595,7 @@ function setDataSourceHandler(alertType) {
     }
 }
 
-$('#history-filter-input').on('input',performSearch);
+$('#history-filter-input').on('input', performSearch);
 $('#history-filter-input').on('keypress', function (e) {
     if (e.which === 13) {
         performSearch();
@@ -617,57 +617,48 @@ function performSearch() {
     }
 }
 
-function fetchAlertProperties() {
-    if (alertID) {
-        $.ajax({
-            method: 'get',
-            url: 'api/alerts/' + alertID,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            dataType: 'json',
-            crossDomain: true,
-        })
-            .then(function (res) {
-                const alert = res.alert;
-                let propertiesData = [];
+function fetchAlertProperties(res) {
+    const alert = res.alert;
+    let propertiesData = [];
 
-                if (alert.alert_type === 1) {
-                    propertiesData.push({ name: 'Query', value: alert.queryParams.queryText }, { name: 'Type', value: alert.queryParams.data_source }, { name: 'Query Language', value: alert.queryParams.queryLanguage });
-                } else if (alert.alert_type === 2) {
-                    const metricsQueryParams = JSON.parse(alert.metricsQueryParams || '{}');
-                    let formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0 ? metricsQueryParams.formulas[0].formula : 'No formula';
+    if (alert.alert_type === 1) {
+        propertiesData.push({ name: 'Query', value: alert.queryParams.queryText }, { name: 'Type', value: alert.queryParams.data_source }, { name: 'Query Language', value: alert.queryParams.queryLanguage });
+    } else if (alert.alert_type === 2) {
+        const metricsQueryParams = JSON.parse(alert.metricsQueryParams || '{}');
+        let formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0 ? metricsQueryParams.formulas[0].formula : 'No formula';
 
-                    // Replace a, b, etc., with actual query values
-                    metricsQueryParams.queries.forEach((query) => {
-                        const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-                        formulaString = formulaString.replace(regex, query.query);
-                    });
+        // Replace a, b, etc., with actual query values
+        metricsQueryParams.queries.forEach((query) => {
+            const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+            formulaString = formulaString.replace(regex, query.query);
+        });
 
-                    propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
-                }
-
-                propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
-
-                if (alert.labels && alert.labels.length > 0) {
-                    const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
-                    propertiesData.push({ name: 'Label', value: labelsValue });
-                }
-
-                if (propertiesGridOptions.api) {
-                    propertiesGridOptions.api.setRowData(propertiesData);
-                } else {
-                    console.error('propertiesGridOptions.api is not defined');
-                }
-            })
-            .catch(function (err) {
-                console.error('Error fetching alert properties:', err);
-            });
+        propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
     }
+
+    propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
+
+    if (alert.labels && alert.labels.length > 0) {
+        const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
+        propertiesData.push({ name: 'Label', value: labelsValue });
+    }
+
+    if (propertiesGridOptions.api) {
+        propertiesGridOptions.api.setRowData(propertiesData);
+    } else {
+        console.error('propertiesGridOptions.api is not defined');
+    }
+
 }
 
 function displayHistoryData() {
+    if (historyGridOptions.api) {
+        historyGridOptions.api.setRowData(alertHistoryData);
+    } else {
+        console.error('historyGridOptions.api is not defined');
+    }
+}
+function fetchAlertHistory() {
     if (alertID) {
         $.ajax({
             method: 'get',
@@ -680,17 +671,15 @@ function displayHistoryData() {
             crossDomain: true,
         })
             .then(function (res) {
-                const historyData = res.alertHistory.map((item) => ({
+                // Store the data locally
+                alertHistoryData = res.alertHistory.map((item) => ({
                     timestamp: new Date(item.event_triggered_at).toLocaleString(),
                     action: item.event_description,
                     state: mapIndexToAlertState.get(item.alert_state),
                 }));
 
-                if (historyGridOptions.api) {
-                    historyGridOptions.api.setRowData(historyData);
-                } else {
-                    console.error('historyGridOptions.api is not defined');
-                }
+                // Display the history data initially
+                displayHistoryData();
             })
             .catch(function (err) {
                 console.error('Error fetching alert history:', err);
@@ -699,39 +688,16 @@ function displayHistoryData() {
 }
 
 function filterHistoryData(searchTerm) {
-    if (alertID) {
-        $.ajax({
-            method: 'get',
-            url: `api/alerts/${alertID}/history`,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            dataType: 'json',
-            crossDomain: true,
-        })
-            .then(function (res) {
-                const filteredData = res.alertHistory
-                    .filter((item) => {
-                        const description = item.event_description.toLowerCase();
-                        const state = mapIndexToAlertState.get(item.alert_state).toLowerCase();
-                        return description.includes(searchTerm) || state.includes(searchTerm);
-                    })
-                    .map((item) => ({
-                        timestamp: new Date(item.event_triggered_at).toLocaleString(),
-                        action: item.event_description,
-                        state: mapIndexToAlertState.get(item.alert_state),
-                    }));
+    const filteredData = alertHistoryData.filter((item) => {
+        const action = item.action.toLowerCase();
+        const state = item.state.toLowerCase();
+        return action.includes(searchTerm) || state.includes(searchTerm);
+    });
 
-                if (historyGridOptions.api) {
-                    historyGridOptions.api.setRowData(filteredData);
-                } else {
-                    console.error('historyGridOptions.api is not defined');
-                }
-            })
-            .catch(function (err) {
-                console.error('Error fetching alert history:', err);
-            });
+    if (historyGridOptions.api) {
+        historyGridOptions.api.setRowData(filteredData);
+    } else {
+        console.error('historyGridOptions.api is not defined');
     }
 }
 
@@ -742,40 +708,6 @@ function displayQueryToolTip(selectedQueryLang) {
     } else if (selectedQueryLang === 'Splunk QL') {
         $('#info-icon-spl').show();
     }
-}
-
-function displayAlertProperties(res) {
-    const queryParams = res.queryParams;
-    const metricsQueryParams = JSON.parse(res.metricsQueryParams || '{}');
-
-    $('.alert-name').text(res.alert_name);
-    $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    if (res.alert_type === 1) {
-        $('.alert-query').val(queryParams.queryText);
-        $('.alert-type').text(queryParams.data_source);
-        $('.alert-query-language').text(queryParams.queryLanguage);
-    } else if (res.alert_type === 2) {
-        $('.alert-type').text('Metrics');
-        $('.alert-query-language').text('PromQL');
-
-        // Extract and display the formula string
-        const formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0 ? metricsQueryParams.formulas[0].formula : 'No formula';
-
-        $('.alert-query').val(formulaString);
-    }
-
-    $('.alert-condition').text(mapIndexToConditionType.get(res.condition));
-    $('.alert-value').text(res.value);
-    $('.alert-every').text(res.eval_interval);
-    $('.alert-for').text(res.eval_for);
-    $('.alert-contact-point').text(res.contact_name);
-    const labelContainer = $('.alert-labels-container');
-    labelContainer.empty(); // Clear previous labels
-    const labels = res.labels;
-    labels.forEach((label) => {
-        const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
-        labelContainer.append(labelElement);
-    });
 }
 
 // Add Label
