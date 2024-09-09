@@ -109,9 +109,13 @@ type RemoteStats struct {
 	MeasureRes map[string]utils.CValueEnclosure
 }
 
+type EvalStatsStruct struct {
+	RangeStat *stats.RangeStat
+}
+
 type RemoteStatsJSON struct {
 	EvalStats map[string]interface{} `json:"EvalStats"`
-	SegStats  []*structs.SegStats `json:"SegStats"`
+	SegStats  []*structs.SegStatsJSON `json:"SegStats"`
 	MeasureRes map[string]utils.CValueEnclosure `json:"MeasureRes"`
 }
 
@@ -502,7 +506,11 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 // }
 
 func (sr *SearchResults) AddSegmentStats(remoteStatsJSON *RemoteStatsJSON) error {
-	remoteStats := remoteStatsJSON.ToRemoteStats()
+	remoteStats, err := remoteStatsJSON.ToRemoteStats()
+	if err != nil {
+		return fmt.Errorf("Error while converting RemoteStatsJSON to RemoteStats, qid=%v, err: %v", sr.qid, err)
+	}
+
 	return sr.MergeSegmentStats(sr.sAggs.MeasureOperations, *remoteStats)
 }
 
@@ -990,6 +998,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				if err != nil {
 					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
 				}
+				continue
 			}
 			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], remoteSegStat)
 		case utils.Max:
@@ -1059,6 +1068,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				if err != nil {
 					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
 				}
+				continue
 			}
 			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], remoteSegStat)
 		case utils.Sum:
@@ -1069,6 +1079,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				if err != nil {
 					return fmt.Errorf("MergeSegmentStats: qid=%v, err: %v", sr.qid, err)
 				}
+				continue
 			}
 			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], remoteSegStat)
 		case utils.Avg:
@@ -1112,22 +1123,48 @@ func (sr *SearchResults) GetRemoteStats() RemoteStats {
 	}
 }
 
-func (rs *RemoteStats) RemoteStatsToJSON() *RemoteStatsJSON {
+func (rs *RemoteStats) RemoteStatsToJSON() (*RemoteStatsJSON, error) {
 	log.Warnf("%v", rs.MeasureRes)
 	log.Warnf("%v", rs.EvalStats)
-	return &RemoteStatsJSON{
-		SegStats:   rs.SegStats,
+	var err error
+
+	remoteStatsJson := &RemoteStatsJSON{
 		MeasureRes: rs.MeasureRes,
 		EvalStats:  rs.EvalStats,
 	}
-} 
 
-func (rj *RemoteStatsJSON) ToRemoteStats() *RemoteStats {
+	remoteStatsJson.SegStats = make([]*structs.SegStatsJSON, len(rs.SegStats))
+	for idx, segStat := range rs.SegStats {
+		if segStat == nil {
+			continue
+		}
+		remoteStatsJson.SegStats[idx], err = segStat.ToJSON()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return remoteStatsJson, nil
+}
+
+func (rj *RemoteStatsJSON) ToRemoteStats() (*RemoteStats, error) {
 	log.Warnf("%v", rj.MeasureRes)
 	log.Warnf("%v", rj.EvalStats)
-	return &RemoteStats{
-		SegStats:   rj.SegStats,
+	var err error
+	remoteStats := &RemoteStats{
 		MeasureRes: rj.MeasureRes,
 		EvalStats:  rj.EvalStats,
 	}
+	remoteStats.SegStats = make([]*structs.SegStats, len(rj.SegStats))
+	for idx, segStatJSON := range rj.SegStats {
+		if segStatJSON == nil {
+			continue
+		}
+		remoteStats.SegStats[idx], err = segStatJSON.ToStats()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return remoteStats, nil
 }
