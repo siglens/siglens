@@ -1266,6 +1266,7 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
 	tom := (recordTimeMS / MS_IN_MIN) * MS_IN_MIN
 	toh := (recordTimeMS / MS_IN_HOUR) * MS_IN_HOUR
 	tod := (recordTimeMS / MS_IN_DAY) * MS_IN_DAY
+	ss.wipBlock.adjustEarliestLatestTimes(recordTimeMS)
 	addRollup(ss.wipBlock.tomRollup, tom, ss.wipBlock.blockSummary.RecCount)
 	addRollup(ss.wipBlock.tohRollup, toh, ss.wipBlock.blockSummary.RecCount)
 	addRollup(ss.wipBlock.todRollup, tod, ss.wipBlock.blockSummary.RecCount)
