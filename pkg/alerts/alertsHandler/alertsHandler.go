@@ -103,7 +103,7 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
 	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
-		_, queryAggs, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
+		_, queryAggs, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
 		if err != nil {
 			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
 		}

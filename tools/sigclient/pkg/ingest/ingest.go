@@ -411,7 +411,7 @@ readChannel:
 			mbCount := totalBytes / 1_000_000
 			mbPerSec := int64((mbCount - lastPrintedSize) / 60)
 
-			log.Infof("Elapsed time: %v EventCount: %v MBCount: %v Event/s: %v MB/s: %v",
+			log.Infof("Elapsed time: %v Total: %v events, %v MB, %v events/sec, %v MB/s",
 				totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(int64(mbCount)),
 				humanize.Comma(eventsPerSec), humanize.Comma(mbPerSec))
 
@@ -422,15 +422,23 @@ readChannel:
 			lastPrintedSize = mbCount
 		}
 	}
-	log.Printf("Total events ingested:%+d. Event type: %s", totalEvents, iType.String())
+	mbCount := totalBytes / 1_000_000
+	log.Printf("Total ingested: %v events, %v MB. Event type: %s",
+		humanize.Comma(int64(totalEvents)),
+		humanize.Comma(int64(mbCount)),
+		iType.String())
 	totalTimeTaken := time.Since(startTime)
 
 	numSeconds := totalTimeTaken.Seconds()
 	if numSeconds == 0 {
-		log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
+		log.Printf("Total Time Taken for ingestion %v", totalTimeTaken)
 	} else {
 		eventsPerSecond := int64(float64(totalEvents) / numSeconds)
-		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+		mbPerSec := int64(float64(mbCount) / numSeconds)
+		log.Printf("Total ingestion time: %v, %v events/sec, %v MB/s",
+			totalTimeTaken.Truncate(time.Second),
+			humanize.Comma(eventsPerSecond),
+			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 }

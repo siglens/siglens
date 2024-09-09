@@ -59,6 +59,7 @@ type QuerySegmentRequest struct {
 	blkTracker           *structs.BlockTracker
 	HasMatchedRrc        bool
 	ConsistentCValLenMap map[string]uint32
+	TotalRecords         uint32
 }
 
 func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {

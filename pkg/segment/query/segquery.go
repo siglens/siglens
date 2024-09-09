@@ -801,6 +801,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 				allSegFileResults.AddError(err)
 				continue
 			}
+			sstMap["*"] = &structs.SegStats{
+				Count: uint64(segReq.TotalRecords),
+			}
 		} else {
 			// run through micro index check for block tracker & generate SSR
 			blocksToRawSearch, err := segReq.GetMicroIndexFilter()
@@ -1066,6 +1069,7 @@ func FilterAggSegKeysToQueryResults(qInfo *QueryInformation, allPossibleKeys map
 				segKeyTsRange:        segTimeCs.TimeRange,
 				tableName:            tableName,
 				ConsistentCValLenMap: segTimeCs.ConsistentCValLenMap,
+				TotalRecords:         segTimeCs.TotalRecords,
 			}
 
 			qReq.sType = segType
@@ -1111,6 +1115,7 @@ func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[
 				segKeyTsRange:        segTimeCs.TimeRange,
 				tableName:            tableName,
 				ConsistentCValLenMap: segTimeCs.ConsistentCValLenMap,
+				TotalRecords:         segTimeCs.TotalRecords,
 			}
 			allSegRequests = append(allSegRequests, qReq)
 		}
