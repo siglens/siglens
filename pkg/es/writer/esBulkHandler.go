@@ -29,6 +29,7 @@ import (
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -95,6 +96,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 		}
 	}
 
+	checkAvailableDiskSpace()
 	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, rid, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
@@ -114,6 +116,35 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	} else {
 		utils.WriteJsonResponse(ctx, response)
 	}
+}
+func checkAvailableDiskSpace() {
+	for {
+		if !allowIngest() {
+			log.Infof("checkAvailableDiskSpace: Disk space usage is above threshold %+v, sleeping for 1 minute", config.GetDataDiskThresholdPercent())
+			time.Sleep(1 * time.Minute)
+		} else {
+			return
+		}
+	}
+}
+
+func allowIngest() bool {
+	diskUsageUpperThreshold := config.GetDataDiskThresholdPercent()
+	diskUsageLowerThreshold := diskUsageUpperThreshold - 2 // to avoid rapid switch between ingest-start and ingest-stop
+	s, err := disk.Usage(config.GetDataPath())
+	if err != nil {
+		log.Errorf("getUsedDiskSpace: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
+		return false
+	}
+	allowedVolumeUpperLimit := (s.Total * diskUsageUpperThreshold) / 100
+	allowedVolumeLowerLimit := (s.Total * diskUsageLowerThreshold) / 100
+
+	if s.Used < allowedVolumeLowerLimit {
+		return true
+	} else if s.Used > allowedVolumeUpperLimit {
+		return false
+	}
+	return true
 }
 
 func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
