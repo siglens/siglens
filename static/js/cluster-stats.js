@@ -478,7 +478,7 @@ function processClusterStats(res) {
             _.forEach(value, (v, k) => {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
-                if (k === 'Average Latency') {
+                if (k === 'Average Query Latency (since install)' || 'Average Query Latency (since restart)') {
                     const numericPart = parseFloat(v);
                     const avgLatency = Math.round(numericPart);
                     tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');

@@ -90,3 +90,17 @@ func CompareStringSlices(a []string, b []string) bool {
 	}
 	return true
 }
+
+// idxsToRemove should contain only valid indexes in the array
+func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
+
+	newArr := make([]T, 0)
+	for idx, element := range arr {
+		_, exists := idxsToRemove[idx]
+		if !exists {
+			newArr = append(newArr, element)
+		}
+	}
+
+	return newArr
+}

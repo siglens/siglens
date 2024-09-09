@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -74,6 +74,7 @@ type SegStore struct {
 	segbaseDir            string
 	suffix                uint64
 	lastUpdated           time.Time
+	lastWipFlushTime      time.Time
 	VirtualTableName      string
 	RecordCount           int
 	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
@@ -133,6 +134,7 @@ func NewSegStore(orgId uint64) *SegStore {
 		LastSegPqids:       make(map[string]struct{}),
 		timeCreated:        now,
 		lastUpdated:        now,
+		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -210,11 +212,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for cvalHash := range cwip.deData.hashToDci {
-				delete(cwip.deData.hashToDci, cvalHash)
-			}
-			for idx := range cwip.deData.deRecNums {
-				cwip.deData.deRecNums[idx] = nil
+			for dword := range cwip.deData.deMap {
+				delete(cwip.deData.deMap, dword)
 			}
 			cwip.deData.deCount = 0
 		}
@@ -222,8 +221,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {
@@ -233,6 +230,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
 	segstore.wipBlock.blockSummary.RecCount = 0
+	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
 	for col := range segstore.wipBlock.columnsInBlock {
@@ -474,7 +472,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -483,7 +481,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
@@ -503,7 +501,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.
@@ -580,6 +578,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
+					}
+
+					if !isKibana {
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
+						if err != nil {
+							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+							return
+						}
 					}
 
 					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
@@ -679,39 +685,38 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
-	workingDirectory, err := os.Getwd()
+
+	pqFname := filepath.Join(segKey, "pqmr", pqid+".pqmr")
+	err := os.Remove(pqFname)
 	if err != nil {
-		log.Errorf("Error fetching current workingDirectory")
+		log.Errorf("removePqmrFilesAndDirectory:Cannot delete file: %v,  err: %v", pqFname, err)
 		return err
 	}
-	pqFname := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
-	err = os.Remove(pqFname)
-	if err != nil {
-		log.Errorf("Cannot delete file at %v", err)
-		return err
-	}
-	pqmrDirectory := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/", segKey)
+	pqmrDirectory := filepath.Join(segKey, "pqmr") + string(filepath.Separator)
 	files, err := os.ReadDir(pqmrDirectory)
 	if err != nil {
-		log.Errorf("Cannot PQMR directory at %v", pqmrDirectory)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot PQMR directory: %v, err: %v",
+			pqmrDirectory, err)
 		return err
 	}
 	if len(files) == 0 {
 		err := os.Remove(pqmrDirectory)
 		if err != nil {
-			log.Errorf("Error deleting Pqmr directory at %v", pqmrDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr directory: %v, err: %v",
+				pqmrDirectory, err)
 			return err
 		}
-		pqmrParentDirectory := workingDirectory + "/" + fmt.Sprintf("%v/", segKey)
+		pqmrParentDirectory := filepath.Join(segKey) + string(filepath.Separator)
 		files, err = os.ReadDir(pqmrParentDirectory)
 		if err != nil {
-			log.Errorf("Cannot PQMR parent directory at %v", pqmrParentDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Cannot read Pqmr parent: %v, err: %v",
+				pqmrParentDirectory, err)
 			return err
 		}
 		if len(files) == 0 {
 			err := os.Remove(pqmrParentDirectory)
 			if err != nil {
-				log.Errorf("Error deleting Pqmr directory at %v", pqmrParentDirectory)
+				log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr parent: %v, err: %v", pqmrParentDirectory, err)
 				return err
 			}
 		}
@@ -857,21 +862,25 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
-func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
+func (segstore *SegStore) getColsAboveCardLimit() map[string]uint64 {
+
+	colsToDrop := make(map[string]uint64)
 
 	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
-			return cname, true, 0
+			colsToDrop[cname] = 0
+			continue
 		}
 
 		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
-			return cname, true, colCardinalityEstimate
+			colsToDrop[cname] = colCardinalityEstimate
 		}
 	}
-	return "", false, 0
+
+	return colsToDrop
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
@@ -964,17 +973,26 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	if segstore.numBlocks != 0 {
-		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
-		if found {
-			// todo when we implement dropping of columns from atree,
-			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
-				cname, cardinality, segstore.numBlocks)
-
+		colsToDrop := segstore.getColsAboveCardLimit()
+		if len(segstore.stbHolder.stbPtr.groupByKeys)-len(colsToDrop) <= 0 {
+			log.Warnf("computeStarTree: Dropping SegTree All remaining cols found with high cardinality: %v, blockNum: %v",
+				colsToDrop, segstore.numBlocks)
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 			return
+		}
+		if len(colsToDrop) > 0 {
+			log.Warnf("computeStarTree: Dropping cols with high cardinality: %v, blockNum: %v", colsToDrop, segstore.numBlocks)
+			colsToDropSlice := toputils.GetKeysOfMap(colsToDrop)
+			err := segstore.stbHolder.stbPtr.DropColumns(colsToDropSlice)
+			if err != nil {
+				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
+				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+				segstore.stbHolder.ReleaseSTB()
+				segstore.stbHolder = nil
+				return
+			}
 		}
 	}
 

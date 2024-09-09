@@ -1947,6 +1947,10 @@ div.dts div.dataTables_scrollBody table {
     position: relative;
 }
 
+.mute-icon.muted {
+    background-image: url(../assets/unmute-regular-icon.svg);
+}
+
 .download-button {
     background-image: url(../assets/download-regular.svg);
     height: 16px;
@@ -2026,6 +2030,10 @@ div.dts div.dataTables_scrollBody table {
 
 .mute-icon:hover {
     background-image: url(../assets/mute-active-icon.svg);
+}
+
+.mute-icon.muted:hover {
+    background-image: url(../assets/unmute-active-icon.svg);
 }
 
 #editbutton:hover {
@@ -6011,7 +6019,7 @@ input.form-control {
     height: 80vh;
 }
 
-#clear-pqs-info, #close-popup, #delete-all-pqs-data{
+#clear-pqs-info, #close-popup{
     width: fit-content !important;
     padding: 0 20px;
     margin: 0px !important;
