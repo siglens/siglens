@@ -26,9 +26,9 @@ Options:
   -c  continuous             If true, ignores -t and will continuously send docs to the destination
   -o  --outputFile           filepath to output the query response Time results in csv format.
   -t  --runResponseTime      If true, then the queries will be run and the response time will be recorded in the given/default outputFile in CSV Format.
-      --variableColums bool  Set this to true to generate variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns
+      --enableVariableNumColumns bool  Set this to true to generate variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns
       --maxColumns  int      Maximum number of Columns to generate. By Default this value is set to 100.
-      --minColumns int       Minimum number of Columns to generate. Default value is 0.
+      --minColumns int       Minimum number of Columns to generate. Default value is 0. If 0, it will be set to maxColumns value.
 ```
 
 Different Types of Readers:

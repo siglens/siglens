@@ -25,6 +25,7 @@ import (
 	"verifier/pkg/metricsbench"
 	"verifier/pkg/query"
 	"verifier/pkg/trace"
+	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 
@@ -69,7 +70,7 @@ var esBulkCmd = &cobra.Command{
 			continuous = true
 		}
 
-		var dataGeneratorConfig interface{}
+		var dataGeneratorConfig *utils.GeneratorDataConfig
 		if enableVariableNumColumns {
 			if maxColumns == 0 {
 				log.Fatalf("maxColumns must be greater than 0")
@@ -88,8 +89,10 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		log.Infof("enableVariableNumColumns : %+v\n", enableVariableNumColumns)
 		if enableVariableNumColumns {
-			log.Infof("Variable number of columns per record enabled. Config:%v\n", dataGeneratorConfig)
+			log.Infof("maxColumns : %+v\n", dataGeneratorConfig.MaxColumns)
+			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
@@ -371,8 +374,8 @@ func init() {
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
-	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate")
-	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate")
+	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate. Default is 100")
+	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
