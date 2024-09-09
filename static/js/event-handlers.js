@@ -767,7 +767,7 @@ function saveqInputHandler(evt) {
     evt.preventDefault();
     $(this).addClass('active');
 }
-
+//eslint-disable-next-line no-unused-vars
 function updateNullColumnsTracking(records) {
     if (!records || records.length === 0) return;
 
@@ -780,7 +780,7 @@ function updateNullColumnsTracking(records) {
         });
     });
 }
-
+//eslint-disable-next-line no-unused-vars
 function finalizeNullColumnsHiding() {
     const nullColumns = Array.from(allColumns).filter((column) => !columnsWithNonNullValues.has(column));
     const checkbox = $('#hide-null-columns-checkbox');
@@ -833,7 +833,6 @@ function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
             }
         }
     });
-
     updateAvailableFieldsUI(updatedSelectedFieldsList);
     gridOptions.api.sizeColumnsToFit();
 }
