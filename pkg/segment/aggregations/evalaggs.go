@@ -672,10 +672,23 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	return nil
 }
 
-func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
+func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
+
+	var valueSet map[string]struct{}
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		valueSet = make(map[string]struct{}, 0)
+		runningEvalStats[measureAgg.String()] = valueSet
+	} else {
+		valueSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForValues: can not convert strSet for measureAgg: %v", measureAgg.String())
+		}
+	}
+
 	if len(fields) == 0 {
-		_, err := PerformAggEvalForCardinality(measureAgg, strSet, nil)
+		_, err := PerformAggEvalForCardinality(measureAgg, valueSet, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 		}
@@ -693,7 +706,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			_, err = PerformAggEvalForCardinality(measureAgg, strSet, fieldToValue)
+			_, err = PerformAggEvalForCardinality(measureAgg, valueSet, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 			}
@@ -701,10 +714,12 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 
 	uniqueStrings := make([]string, 0)
-	for str := range strSet {
+	for str := range valueSet {
 		uniqueStrings = append(uniqueStrings, str)
 	}
 	sort.Strings(uniqueStrings)
+
+	runningEvalStats[measureAgg.String()] = valueSet
 
 	measureResults[measureAgg.String()] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_STRING_SLICE,
@@ -716,15 +731,13 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 
 func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	finalList := []string{}
-
-	var strList []string
+	var finalList []string
 	_, ok := runningEvalStats[measureAgg.String()]
 	if !ok {
-		strList = make([]string, 0)
-		runningEvalStats[measureAgg.String()] = strList
+		finalList = make([]string, 0)
+		runningEvalStats[measureAgg.String()] = finalList
 	} else {
-		strList, ok = runningEvalStats[measureAgg.String()].([]string)
+		finalList, ok = runningEvalStats[measureAgg.String()].([]string)
 		if !ok {
 			return fmt.Errorf("ComputeAggEvalForList: can not convert to list for measureAgg: %v", measureAgg.String())
 		}
@@ -732,7 +745,7 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 
 	if len(fields) == 0 {
 		fieldToValue := make(map[string]utils.CValueEnclosure)
-		list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+		list, err := PerformAggEvalForList(measureAgg, finalList, fieldToValue)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
 		}
@@ -750,11 +763,11 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 				return fmt.Errorf("ComputeAggEvalForList: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			list, err := PerformAggEvalForList(measureAgg, strList, fieldToValue)
+			list, err := PerformAggEvalForList(measureAgg, finalList, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
 			}
-			finalList = append(finalList, list...)
+			finalList = list
 		}
 	}
 
@@ -766,6 +779,7 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 		Dtype: utils.SS_DT_STRING_SLICE,
 		CVal:  finalList,
 	}
+	runningEvalStats[measureAgg.String()] = finalList
 	return nil
 }
 

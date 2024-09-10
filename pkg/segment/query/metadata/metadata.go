@@ -557,6 +557,7 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 						EndEpochMs:   smi.LatestEpochMS,
 					},
 					ConsistentCValLenMap: smi.GetAllColumnsRecSize(),
+					TotalRecords:         smi.GetRecordCount(),
 				}
 				timePassed++
 			}

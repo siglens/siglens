@@ -28,6 +28,7 @@ import (
 type QueryStruct struct {
 	SearchFilter *Node
 	PipeCommands *structs.QueryAggregators
+	IndexNames   []string
 }
 
 // NodeType represents the type of a node in the parse tree
