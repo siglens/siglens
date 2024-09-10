@@ -188,4 +188,13 @@ jobs:
             asset_path: podman-network_siglens.conflist
             asset_name: podman-network_siglens.conflist
             asset_content_type: application/octet-stream
-    
+
+  check-status:
+    runs-on: ubuntu-latest
+    needs: [siglens-docker, sigclient-docker, sigscalr-release-assets]
+    steps:
+      - name: Check previous jobs' results
+        if: ${{ failure() }}
+        run: |
+          echo "One or more jobs failed. Marking workflow as failed."
+          exit 1 
