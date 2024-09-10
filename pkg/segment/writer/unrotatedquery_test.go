@@ -90,7 +90,7 @@ func Test_writePQSFiles(t *testing.T) {
 				err := ParseRawJsonObject("", raw, &tsKey, jsParsingStackbuf[:], ple)
 				assert.Nil(t, err)
 
-				err = AddEntryToInMemBuf(streamid, index, uint64(len(raw)), false, utils.SIGNAL_EVENTS, 0, 0,
+				err = AddEntryToInMemBuf(streamid, index, false, utils.SIGNAL_EVENTS, 0, 0,
 					cnameCacheByteHashToStr, jsParsingStackbuf[:], []*ParsedLogEvent{ple})
 				assert.Nil(t, err)
 			}

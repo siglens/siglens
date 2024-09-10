@@ -1569,7 +1569,7 @@ func Test_unrotatedQuery(t *testing.T) {
 
 			err = writer.ParseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf[:], ple)
 			assert.Nil(t, err)
-			err = writer.AddEntryToInMemBuf("test1", index, uint64(len(rawJson)), false, SIGNAL_EVENTS, 0, 0,
+			err = writer.AddEntryToInMemBuf("test1", index, false, SIGNAL_EVENTS, 0, 0,
 				cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 			assert.Nil(t, err)
 		}

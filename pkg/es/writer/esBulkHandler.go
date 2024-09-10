@@ -294,9 +294,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	})
 
 	for indexName, plesInBatch := range pleBatches {
-		err = ProcessIndexRequestPle(tsNow, indexName, uint64(len(line)),
-			false, localIndexMap, myid, rid, idxToStreamIdCache,
-			cnameCacheByteHashToStr, jsParsingStackbuf[:], plesInBatch)
+		err = ProcessIndexRequestPle(tsNow, indexName, false, localIndexMap,
+			myid, rid, idxToStreamIdCache, cnameCacheByteHashToStr,
+			jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
 			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 			// TODO: update `atleastOneSuccess`
@@ -397,10 +397,10 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	return nil
 }
 
-func ProcessIndexRequestPle(tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
-	rid uint64, idxToStreamIdCache map[string]string,
-	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
+func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
+	localIndexMap map[string]string, myid uint64, rid uint64,
+	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
 
 	for _, ple := range pleArray {
 		if ple.GetIndexName() != indexNameIn {
@@ -439,7 +439,7 @@ func ProcessIndexRequestPle(tsNow uint64, indexNameIn string,
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
-	err := writer.AddEntryToInMemBuf(streamid, indexNameConverted, bytesReceived, flush,
+	err := writer.AddEntryToInMemBuf(streamid, indexNameConverted, flush,
 		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, err=%v", streamid, err)

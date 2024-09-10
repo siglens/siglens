@@ -306,7 +306,7 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
-func AddEntryToInMemBuf(streamid string, indexName string, bytesReceived uint64, flush bool,
+func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
 	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
@@ -316,8 +316,8 @@ func AddEntryToInMemBuf(streamid string, indexName string, bytesReceived uint64,
 		return err
 	}
 
-	return segstore.AddEntry(streamid, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
+	return segstore.AddEntry(streamid, indexName, flush, signalType, orgid, rid,
+		cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 }
 
 func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool, error) {
@@ -428,9 +428,8 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 	return matchedCol, nil
 }
 
-func (segstore *SegStore) AddEntry(streamid string,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
-	rid uint64, cnameCacheByteHashToStr map[uint64]string,
+func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool,
+	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
 	tsKey := config.GetTimeStampKey()
@@ -470,7 +469,7 @@ func (segstore *SegStore) AddEntry(streamid string,
 
 		segstore.adjustEarliestLatestTimes(ple.timestampMillis)
 		segstore.wipBlock.adjustEarliestLatestTimes(ple.timestampMillis)
-		segstore.BytesReceivedCount += bytesReceived
+		segstore.BytesReceivedCount += uint64(len(ple.rawJson))
 
 		if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
 			err := hook(rid, segstore, ple.GetRawJson(), ple.GetTimestamp(), signalType)
