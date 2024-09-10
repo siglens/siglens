@@ -529,31 +529,23 @@ func GetSegList(runningSegStat *structs.SegStats,
 		CVal:  make([]string, 0),
 	}
 
-	// if this is the first segment, then running will be nil, and we return the first seg's stats
-	if currSegStat != nil && currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
-		if len(currSegStat.StringStats.StrList) > utils.MAX_SPL_LIST_SIZE {
-			finalStringList := make([]string, utils.MAX_SPL_LIST_SIZE)
-			copy(finalStringList, currSegStat.StringStats.StrList[:utils.MAX_SPL_LIST_SIZE])
-			res.CVal = finalStringList
-		} else {
-			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
-			copy(finalStringList, currSegStat.StringStats.StrList)
-			res.CVal = finalStringList
-		}
-	}
-
-	if runningSegStat == nil {
-		return &res, nil
-	}
-
 	// Limit list size to match splunk.
 	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
 
-	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
+	if runningSegStat != nil && runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
 		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 	}
 
-	strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	if currSegStat != nil && currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
+		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
+	res.CVal = strList
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		return &res, nil
+	}
 
 	res.CVal = strList
 	if runningSegStat.StringStats == nil {
@@ -563,6 +555,7 @@ func GetSegList(runningSegStat *structs.SegStats,
 	} else {
 		runningSegStat.StringStats.StrList = strList
 	}
+
 	return &res, nil
 }
 
