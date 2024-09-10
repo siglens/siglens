@@ -18,10 +18,8 @@
 package writer
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -127,9 +125,8 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
-
-	r := bytes.NewReader(postBody)
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64,
+	useIngestHook bool) (int, map[string]interface{}, error) {
 
 	response := make(map[string]interface{})
 	//to have a check if there are any errors in the request
@@ -142,7 +139,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	var inCount int = 0
 	var processedCount int = 0
 	tsNow := utils.GetCurrentTimeInMs()
-	reader := bufio.NewReader(r)
 	tsKey := config.GetTimeStampKey()
 
 	var bytesReceived int
@@ -172,19 +168,11 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	var err error
 	var line []byte
-	exitNextIteration := false
+	remainingPostBody := postBody
 	for {
-		if exitNextIteration {
+		line, remainingPostBody = utils.ReadLine(remainingPostBody)
+		if len(remainingPostBody) == 0 {
 			break
-		}
-
-		line, err = reader.ReadBytes('\n')
-		if err != nil && err != io.EOF {
-			log.Errorf("HandleBulkBody: failed to read bytes, err=%v", err)
-			break
-		}
-		if err == io.EOF {
-			exitNextIteration = true
 		}
 
 		inCount++
@@ -199,14 +187,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		switch esAction {
 
 		case INDEX, CREATE:
-			line, err = reader.ReadBytes('\n')
-			if err == io.EOF && len(line) > 0 {
-				exitNextIteration = true
-			} else if err != nil {
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
 				success = false
-				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE but got err=%v", err)
+				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE")
 				break
 			}
+
 			numBytes := len(line)
 			bytesReceived += numBytes
 			//update only if body is less than MAX_RECORD_SIZE
@@ -254,11 +241,9 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			}
 		case UPDATE:
 			success = false
-			line, err = reader.ReadBytes('\n')
-			if err == io.EOF && len(line) > 0 {
-				exitNextIteration = true
-			} else if err != nil {
-				log.Errorf("HandleBulkBody: expected another line after UPDATE but got err=%v", err)
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
+				log.Errorf("HandleBulkBody: expected another line after UPDATE")
 				break
 			}
 		default:
