@@ -232,3 +232,22 @@ func Test_GetKeysOfMap(t *testing.T) {
 	keys2 = GetKeysOfMap(map2)
 	assert.Equal(t, 0, len(keys2))
 }
+
+func Test_GetSortedStringKeys(t *testing.T) {
+	map1 := map[string]bool{
+		"key1": false,
+		"key3": true,
+		"key2": false,
+	}
+	expected := []string{"key1", "key2", "key3"}
+	assert.True(t, CompareStringSlices(expected, GetSortedStringKeys(map1)))
+
+	map2 := map[string]struct{}{
+		"def": {},
+		"abc": {},
+		"ghi": {},
+	}
+
+	expected = []string{"abc", "def", "ghi"}
+	assert.True(t, CompareStringSlices(expected, GetSortedStringKeys(map2)))
+}

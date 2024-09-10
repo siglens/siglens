@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/stats"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -254,16 +255,6 @@ func (sr *SearchResults) AddError(err error) {
 	sr.updateLock.Lock()
 	sr.AllErrors = append(sr.AllErrors, err)
 	sr.updateLock.Unlock()
-}
-
-func getSortedString(strSet map[string]struct{}) []string {
-	uniqueStrings := make([]string, 0)
-	for str := range strSet {
-		uniqueStrings = append(uniqueStrings, str)
-	}
-	sort.Strings(uniqueStrings)
-
-	return uniqueStrings
 }
 
 func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats, incomingSegStat *structs.SegStats, measureAgg *structs.MeasureAggregator) (*structs.SegStats, error) {
@@ -1010,6 +1001,9 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 			if err != nil {
 				return fmt.Errorf("MergeSegmentStats: Error while merging string sets for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
 			}
+			if CValEnc.Dtype != utils.SS_DT_STRING_SET {
+				return fmt.Errorf("MergeSegmentStats: Error while merging string sets for %v qid=%v, dtype: %v", measureAgg.String(), sr.qid, CValEnc.Dtype)
+			}
 
 			sr.runningEvalStats[measureAgg.String()] = CValEnc.CVal.(map[string]struct{})
 
@@ -1021,7 +1015,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 			} else {
 				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
 					Dtype: utils.SS_DT_STRING_SLICE,
-					CVal:  getSortedString(CValEnc.CVal.(map[string]struct{})),
+					CVal:  putils.GetSortedStringKeys(CValEnc.CVal.(map[string]struct{})),
 				}
 			}
 		case utils.List:
