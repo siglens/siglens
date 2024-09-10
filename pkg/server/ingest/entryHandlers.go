@@ -18,6 +18,10 @@
 package ingestserver
 
 import (
+	"sync/atomic"
+	"time"
+
+	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/siglens/siglens/pkg/config"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -33,11 +37,50 @@ import (
 	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
+var diskUsageExceeded atomic.Bool
+
+func MonitorDiskUsage() {
+	for {
+		usage, err := getDiskUsagePercent()
+		if err != nil {
+			time.Sleep(30 * time.Second)
+			continue
+		}
+		if usage >= config.GetDataDiskThresholdPercent() {
+			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
+			diskUsageExceeded.Store(true)
+		} else {
+			diskUsageExceeded.Store(false)
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+func getDiskUsagePercent() (uint64, error) {
+	s, err := disk.Usage(config.GetDataPath())
+	if err != nil {
+		log.Errorf("getDiskUsagePercent: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
+		return 0, err
+	}
+	percentUsed := (s.Used * 100) / s.Total
+	return percentUsed, nil
+}
+
+func canIngest() bool {
+	return !diskUsageExceeded.Load()
+}
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		if !canIngest() {
+			utils.SendError(ctx, "Ingestion request rejected due to no storage available", "", nil)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
 		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
