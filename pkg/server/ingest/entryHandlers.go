@@ -37,25 +37,25 @@ import (
 	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
-var diskUsageExceeded int32
+var diskUsageExceeded atomic.Bool
 
 func MonitorDiskUsage() {
 	for {
 		usage, err := getDiskUsagePercent()
 		if err != nil {
-			log.Error("MonitorDiskUsage: Error getting disk usage:", err)
 			time.Sleep(30 * time.Second)
 			continue
 		}
 		if usage >= config.GetDataDiskThresholdPercent() {
-			log.Infof("MonitorDiskUsage: Disk usage exceeded the threshold of %v", config.GetDataDiskThresholdPercent())
-			atomic.StoreInt32(&diskUsageExceeded, 1)
+			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
+			diskUsageExceeded.Store(true)
 		} else {
-			atomic.StoreInt32(&diskUsageExceeded, 0)
+			diskUsageExceeded.Store(false)
 		}
 		time.Sleep(30 * time.Second)
 	}
@@ -72,12 +72,13 @@ func getDiskUsagePercent() (uint64, error) {
 }
 
 func canIngest() bool {
-	return atomic.LoadInt32(&diskUsageExceeded) == 0
+	return diskUsageExceeded.Load() == false
 }
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		if !canIngest() {
-			log.Debugf("esPostBulkHandler: Ingestion request rejected: disk usage exceeds threshold of %v", config.GetDataDiskThresholdPercent())
+			utils.SendError(ctx, "Ingestion request rejected", "", nil)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
