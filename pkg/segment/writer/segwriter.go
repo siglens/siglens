@@ -383,7 +383,10 @@ func rotateSegmentOnTime() {
 	for sid, ss := range allSegStores {
 
 		if ss.firstTime {
-			rnm := rand.Intn(SEGMENT_ROTATE_DURATION_SECONDS) + 60
+			// we want random rotation time check for each seg so that we don't lock up the system
+			// however we give N + randInt(N) so that we don't rotate too early on the first
+			// iteration when the system starts up
+			rnm := rand.Intn(SEGMENT_ROTATE_DURATION_SECONDS) + SEGMENT_ROTATE_DURATION_SECONDS
 			segRotateDuration = time.Duration(rnm) * time.Second
 		} else {
 			segRotateDuration = time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
