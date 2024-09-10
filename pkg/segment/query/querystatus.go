@@ -647,8 +647,11 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContai
 	switch rQuery.QType {
 	case structs.SegmentStatsCmd:
 		// SegStats will be streamed back on each query update. So, we don't need to return anything here
-		remoteStats := rQuery.searchRes.GetRemoteStats()
-		return eres, nil, nil, &remoteStats, skCopy, nil
+		remoteStats, err := rQuery.searchRes.GetRemoteStats()
+		if err != nil {
+			return nil, nil, nil, nil, nil, fmt.Errorf("Error while getting remote stats: %v", err)
+		}
+		return eres, nil, nil, remoteStats, skCopy, nil
 	case structs.GroupByCmd:
 		timeBuckets, groupBuckets := rQuery.searchRes.GetRunningBuckets()
 		return eres, timeBuckets, groupBuckets, nil, skCopy, nil

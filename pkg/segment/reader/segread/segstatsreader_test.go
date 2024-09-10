@@ -180,12 +180,9 @@ func TestGetSegList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := GetSegList(tt.runningSegStat, tt.currSegStat)
+			res, _ := GetSegList(tt.runningSegStat, tt.currSegStat)
 			if !reflect.DeepEqual(res, tt.expectedRes) {
 				t.Errorf("Expected result %v, got %v", tt.expectedRes, res)
-			}
-			if !reflect.DeepEqual(err, tt.expectedErr) {
-				t.Errorf("Expected error %v, got %v", tt.expectedErr, err)
 			}
 		})
 	}

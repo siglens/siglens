@@ -864,17 +864,17 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, getUnrotated bool, getRo
 	numDistributed := uint64(0)
 	numPQS := uint64(0)
 
-	// if getUnrotated {
-	// 	unrotatedQSR, unrotatedRawCount, unrotatedDistQueries, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, sTime, orgid)
-	// 	if err != nil {
-	// 		return nil, 0, 0, 0, err
-	// 	}
+	if getUnrotated {
+		unrotatedQSR, unrotatedRawCount, unrotatedDistQueries, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, sTime, orgid)
+		if err != nil {
+			return nil, 0, 0, 0, err
+		}
 
-	// 	unsortedQsrs = append(unsortedQsrs, unrotatedQSR...)
-	// 	numRawSearch += unrotatedRawCount
-	// 	numDistributed += unrotatedDistQueries
-	// 	numPQS += unrotatedPQSCount
-	// }
+		unsortedQsrs = append(unsortedQsrs, unrotatedQSR...)
+		numRawSearch += unrotatedRawCount
+		numDistributed += unrotatedDistQueries
+		numPQS += unrotatedPQSCount
+	}
 
 	if getRotated {
 		rotatedQSR, rotatedRawCount, rotatedDistQueries, rotatedPQS, err := getAllRotatedSegmentsInQuery(queryInfo, sTime, orgid)

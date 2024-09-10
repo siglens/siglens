@@ -508,31 +508,9 @@ type AllSegStatsJSON struct {
 }
 
 type RangeStat struct {
-	Min float64 
-	Max float64 
+	Min float64
+	Max float64
 }
-
-// func createRangeStat(JsonMap map[string]interface{}) (*RangeStat, error) {
-// 	min, exists := JsonMap["Min"]
-// 	if !exists {
-// 		return nil, fmt.Errorf("Min not found")
-// 	}
-// 	max, exists := JsonMap["Max"]
-// 	if !exists {
-// 		return nil, fmt.Errorf("Max not found")
-// 	}
-
-// 	minVal, ok := min.(float64)
-// 	if !ok {
-// 		return nil, fmt.Errorf("Min is not a float64")
-// 	}
-// 	maxVal, ok := max.(float64)
-// 	if !ok {
-// 		return nil, fmt.Errorf("Max is not a float64")
-// 	}
-
-// 	return 
-// }
 
 type AvgStat struct {
 	Count int64
@@ -652,11 +630,11 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
-	// err := ss.CreateHllFromBytes(ssj.RawHll)
-	// if err != nil {
-	// 	log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
-	// 	return nil, err
-	// }
+	err := ss.CreateHllFromBytes(ssj.RawHll)
+	if err != nil {
+		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
+		return nil, err
+	}
 	ss.NumStats = ssj.NumStats
 	ss.StringStats = ssj.StringStats
 	return ss, nil
@@ -667,8 +645,8 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson := &SegStatsJSON{}
 	segStatJson.IsNumeric = ss.IsNumeric
 	segStatJson.Count = ss.Count
-	// rawHll := ss.GetHllBytes()
-	// segStatJson.RawHll = rawHll
+	rawHll := ss.GetHllBytes()
+	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
 	segStatJson.StringStats = ss.StringStats
 	return segStatJson, nil
