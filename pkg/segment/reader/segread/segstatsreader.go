@@ -528,24 +528,33 @@ func GetSegList(runningSegStat *structs.SegStats,
 		Dtype: utils.SS_DT_STRING_SLICE,
 		CVal:  make([]string, 0),
 	}
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+		log.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+		return &res, fmt.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		if len(currSegStat.StringStats.StrList) > utils.MAX_SPL_LIST_SIZE {
+			finalStringList := make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(finalStringList, currSegStat.StringStats.StrList[:utils.MAX_SPL_LIST_SIZE])
+			res.CVal = finalStringList
+		} else {
+			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
+			copy(finalStringList, currSegStat.StringStats.StrList)
+			res.CVal = finalStringList
+		}
+		return &res, nil
+	}
 
 	// Limit list size to match splunk.
 	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
 
-	if runningSegStat != nil && runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
+	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
 		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 	}
 
-	if currSegStat != nil && currSegStat.StringStats != nil && currSegStat.StringStats.StrList != nil {
-		strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
-	}
-
-	res.CVal = strList
-
-	// if this is the first segment, then running will be nil, and we return the first seg's stats
-	if runningSegStat == nil {
-		return &res, nil
-	}
+	strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
 
 	res.CVal = strList
 	if runningSegStat.StringStats == nil {
@@ -555,7 +564,6 @@ func GetSegList(runningSegStat *structs.SegStats,
 	} else {
 		runningSegStat.StringStats.StrList = strList
 	}
-
 	return &res, nil
 }
 
@@ -566,11 +574,12 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 		CVal:  make([]string, 0),
 	}
 
-	// Initialize or retrieve the string set from running segment stats
-	strSet := make(map[string]struct{})
-	if currSegStat != nil && currSegStat.StringStats != nil && currSegStat.StringStats.StrSet != nil {
-		strSet = currSegStat.StringStats.StrSet
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrSet == nil {
+		log.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
+		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 	}
+	// Initialize or retrieve the string set from running segment stats
+	strSet := currSegStat.StringStats.StrSet
 
 	// Update running segment stats with the merged string set
 	if runningSegStat != nil {
