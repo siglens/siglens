@@ -266,6 +266,70 @@ func getSortedString(strSet map[string]struct{}) []string {
 	return uniqueStrings
 }
 
+func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats, incomingSegStat *structs.SegStats, measureAgg *structs.MeasureAggregator) (*structs.SegStats, error) {
+	var sstResult *utils.NumTypeEnclosure
+	var err error
+	switch measureAgg.MeasureFunc {
+	case utils.Min:
+		sstResult, err = segread.GetSegMin(runningSegStat, incomingSegStat)
+	case utils.Max:
+		sstResult, err = segread.GetSegMax(runningSegStat, incomingSegStat)
+	case utils.Range:
+		sstResult, err = segread.GetSegRange(runningSegStat, incomingSegStat)
+	case utils.Cardinality:
+		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case utils.Count:
+		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
+	case utils.Sum:
+		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
+	case utils.Avg:
+		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+	case utils.Values:
+		// Use GetSegValue to process and get the segment value
+		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+		}
+
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
+	case utils.List:
+		res, err := segread.GetSegList(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
+	default:
+		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.MeasureFunc, sr.qid)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+	}
+
+	// if this is the first segment, then set the running segment stat to the current segment stat
+	// else, segread.GetN will update the running segment stat
+	if runningSegStat == nil {
+		return incomingSegStat, nil
+	}
+
+	enclosure, err := sstResult.ToCValueEnclosure()
+	if err != nil {
+		return nil, fmt.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
+	}
+	sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
+	
+	return runningSegStat, nil
+}
+
 func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
@@ -285,136 +349,47 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
 			continue
 		}
+		
+		if measureAgg.ValueColRequest == nil {
+			// If the measure is not an eval statement, then update the segment stats
+			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], currSst, measureAgg)
+			if err != nil {
+				return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+			}
+			sr.runningSegStat[idx] = resSegStat
+			continue
+		}
+
 		var err error
-		var sstResult *utils.NumTypeEnclosure
 		// For eval statements in aggregate functions, there should be only one field for min and max
 		switch aggOp {
 		case utils.Min:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, true)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, true)
 		case utils.Max:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, false)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegMax(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, false)
 		case utils.Range:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegRange(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case utils.Cardinality:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegCardinality(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case utils.Count:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case utils.Sum:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case utils.Avg:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
+			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case utils.Values:
 			// If value has to be evaluated use corresponding compute agg eval
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-
-			// Use GetSegValue to process and get the segment value
-			res, err := segread.GetSegValue(sr.runningSegStat[idx], currSst)
-			if err != nil {
-				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
-				return err
-			}
-
-			sr.segStatsResults.measureResults[measureAgg.String()] = *res
-
-			if sr.runningSegStat[idx] == nil {
-				sr.runningSegStat[idx] = currSst
-			}
-			continue
+			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case utils.List:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			res, err := segread.GetSegList(sr.runningSegStat[idx], currSst)
-			if err != nil {
-				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
-				return err
-			}
-			sr.segStatsResults.measureResults[measureAgg.String()] = *res
-			if sr.runningSegStat[idx] == nil {
-				sr.runningSegStat[idx] = currSst
-			}
-			continue
+			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
-			log.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
-			return err
+			return fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
 		}
 		if err != nil {
-			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
-			return err
+			return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
 		}
-
-		// if this is the first segment, then set the running segment stat to the current segment stat
-		// else, segread.GetN will update the running segment stat
-		if sr.runningSegStat[idx] == nil {
-			sr.runningSegStat[idx] = currSst
-		}
-
-		enclosure, err := sstResult.ToCValueEnclosure()
-		if err != nil {
-			log.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
-			return err
-		}
-		sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
 	}
+
 	return nil
 }
 
