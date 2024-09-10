@@ -72,7 +72,7 @@ func getDiskUsagePercent() (uint64, error) {
 }
 
 func canIngest() bool {
-	return diskUsageExceeded.Load() == false
+	return !diskUsageExceeded.Load()
 }
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
