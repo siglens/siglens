@@ -397,9 +397,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		}
 	}
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
-	log.Warnf("COMPLETING QUERY")
 	setQidAsFinished(queryInfo.qid)
-
 	return &structs.NodeResult{
 		ErrList:          allSegFileResults.GetAllErrors(),
 		TotalResults:     allSegFileResults.GetQueryCount(),
