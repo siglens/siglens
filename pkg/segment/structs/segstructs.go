@@ -630,10 +630,12 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
-	err := ss.CreateHllFromBytes(ssj.RawHll)
-	if err != nil {
-		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
-		return nil, err
+	if ssj.RawHll != nil {
+		err := ss.CreateHllFromBytes(ssj.RawHll)
+		if err != nil {
+			log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
+			return nil, err
+		}
 	}
 	ss.NumStats = ssj.NumStats
 	ss.StringStats = ssj.StringStats
