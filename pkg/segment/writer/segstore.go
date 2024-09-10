@@ -769,9 +769,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix)
 
-		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v",
+		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
-			finalSegmentKey, segstore.OrgId)
+			finalSegmentKey, segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
 		// make sure the parent dir of final exists, the two path calls are because getFinal.. func
 		// returns a '/' at the end
