@@ -446,7 +446,7 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 	}
 }
 
-func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
+func getNumericValueExprFieldBy2(fieldName string) *structs.ValueExpr {
 	leftExpr := &structs.NumericExpr{
 		NumericExprMode: structs.NEMNumberField,
 		IsTerminal:      true,
@@ -483,21 +483,17 @@ func getDummyNumericValueExpr(fieldName string) *structs.ValueExpr {
 	}
 }
 
-func getDummyMeasureAggregator(field string) *structs.MeasureAggregator {
-	return &structs.MeasureAggregator{
-		MeasureCol:      "",
-		MeasureFunc:     utils.List,
-		StrEnc:          "list(eval(" + field + "/2))",
-		ValueColRequest: getDummyNumericValueExpr(field),
-	}
-}
-
-func Test_PerformMeasureAggsOnRecs_WithEvalWithField(t *testing.T) {
+func Test_PerformMeasureAggsOnRecs_WithEvalWithFieldBy2(t *testing.T) {
 	numSegments := 1
 	sizeLimit := 0
 	recsSize := 20
 	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		getDummyMeasureAggregator("measure1"),
+		{
+			MeasureCol:      "",
+			MeasureFunc:     utils.List,
+			StrEnc:          "list(eval(measure1/2))",
+			ValueColRequest: getNumericValueExprFieldBy2("measure1"),
+		},
 	}}
 	nodeResult.MeasureOperations[0].MeasureCol = ""
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
