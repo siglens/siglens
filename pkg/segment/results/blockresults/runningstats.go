@@ -44,6 +44,13 @@ type runningStats struct {
 	avgStat   *structs.AvgStat
 }
 
+type RunningStatsJSON struct {
+	RawVal   utils.CValueEnclosure `json:"rawVal"`
+	Hll      []byte  `json:"hll"`
+	RangeStat *structs.RangeStat `json:"rangeStat"`
+	AvgStat  *structs.AvgStat   `json:"avgStat"`
+}
+
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
@@ -597,4 +604,33 @@ func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnc
 		retVal[i] = rr.runningStats[i].rawVal
 	}
 	return retVal, rr.count
+}
+
+func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
+	rsJson := RunningStatsJSON{
+		RawVal:   rs.rawVal,
+		RangeStat: rs.rangeStat,
+		AvgStat:  rs.avgStat,
+	}
+	if rs.hll != nil {
+		rsJson.Hll = rs.hll.ToBytes()
+	}
+
+	return rsJson
+}
+
+func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
+	rs := runningStats{
+		rawVal:    rj.RawVal,
+		rangeStat: rj.RangeStat,
+		avgStat:   rj.AvgStat,
+	}
+	if rj.Hll != nil {
+		hll, err := structs.CreateHllFromBytes(rj.Hll)
+		if err != nil {
+			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
+		}
+		rs.hll = &putils.GobbableHll{Hll: *hll}
+	}
+	return rs, nil
 }
