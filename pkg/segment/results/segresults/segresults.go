@@ -114,7 +114,7 @@ type EvalStatsMetaData struct {
 	AvgStat       *structs.AvgStat
 	StrSet        map[string]struct{}
 	StrList       []string
-	MeasureResult utils.CValueEnclosure
+	MeasureResult interface{} // we should not use CValueEnclosure directly, because it treats interface having numbers as float64
 }
 
 type RemoteStatsJSON struct {
@@ -934,13 +934,16 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 			continue
 		}
 
-		var err error
 		// For eval statements in aggregate functions, there should be only one field for min and max
 		switch aggOp {
 		case utils.Min, utils.Max, utils.Sum, utils.Count:
 			currRes := sr.segStatsResults.measureResults[measureAgg.String()]
-			remoteRes := remoteRes.MeasureResult
-			sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteRes, aggOp)
+			remoteResCVal := utils.CValueEnclosure{}
+			err := remoteResCVal.ConvertValue(remoteRes.MeasureResult)
+			if err != nil {
+				return fmt.Errorf("MergeSegmentStats: Error while converting value for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
+			}
+			sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteResCVal, aggOp)
 			if err != nil {
 				return fmt.Errorf("MergeSegmentStats: Error while merging results for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
 			}
@@ -1037,9 +1040,6 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 		default:
 			return fmt.Errorf("MergeSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
 		}
-		if err != nil {
-			return fmt.Errorf("MergeSegmentStats: Error while merging stats for %v, qid=%v, err: %v", measureAgg.String(), err, sr.qid)
-		}
 	}
 	return nil
 }
@@ -1060,7 +1060,7 @@ func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
 				_, exist := sr.segStatsResults.measureResults[measureAgg.String()]
 				if exist {
 					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
-						MeasureResult: sr.segStatsResults.measureResults[measureAgg.String()],
+						MeasureResult: sr.segStatsResults.measureResults[measureAgg.String()].CVal,
 					}
 				}
 			case utils.Range:
