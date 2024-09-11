@@ -118,9 +118,8 @@ type EvalStatsMetaData struct {
 }
 
 type RemoteStatsJSON struct {
-	EvalStats  map[string]EvalStatsMetaData     `json:"EvalStats"`
-	SegStats   []*structs.SegStatsJSON          `json:"SegStats"`
-	MeasureRes map[string]utils.CValueEnclosure `json:"MeasureRes"`
+	EvalStats map[string]EvalStatsMetaData `json:"EvalStats"`
+	SegStats  []*structs.SegStatsJSON      `json:"SegStats"`
 }
 
 func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType structs.QueryType, qid uint64) (*SearchResults, error) {
