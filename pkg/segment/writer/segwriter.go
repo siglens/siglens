@@ -672,30 +672,46 @@ func InitColWip(segKey string, colName string) *ColWip {
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
 func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	updateValuesFromConfig()
 
+	segstore := getSegStore(streamid)
+	if segstore == nil {
+		return createSegStore(streamid, table, orgId)
+	}
+
+	return segstore, nil
+}
+
+func getSegStore(streamid string) *SegStore {
 	allSegStoresLock.Lock()
 	defer allSegStoresLock.Unlock()
 
-	var segstore *SegStore
 	segstore, present := allSegStores[streamid]
 	if !present {
-		if len(allSegStores) >= maxAllowedSegStores {
-			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
-		}
-
-		segstore = NewSegStore(orgId)
-		segstore.initWipBlock()
-
-		err := segstore.resetSegStore(streamid, table)
-		if err != nil {
-			return nil, err
-		}
-
-		allSegStores[streamid] = segstore
-		instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
+		return nil
 	}
 
-	updateValuesFromConfig()
+	return segstore
+}
+
+func createSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	if len(allSegStores) >= maxAllowedSegStores {
+		return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
+	}
+
+	segstore := NewSegStore(orgId)
+	segstore.initWipBlock()
+
+	err := segstore.resetSegStore(streamid, table)
+	if err != nil {
+		return nil, err
+	}
+
+	allSegStoresLock.Lock()
+	allSegStores[streamid] = segstore
+	instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
+	allSegStoresLock.Unlock()
+
 	return segstore, nil
 }
 
