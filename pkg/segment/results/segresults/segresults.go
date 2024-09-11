@@ -311,8 +311,6 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 	}
 	sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
 
-	// if this is the first segment, then set the running segment stat to the current segment stat
-	// else, segread.GetN will update the running segment stat
 	if runningSegStat == nil {
 		return incomingSegStat, nil
 	}

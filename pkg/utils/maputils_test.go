@@ -240,7 +240,7 @@ func Test_GetSortedStringKeys(t *testing.T) {
 		"key2": false,
 	}
 	expected := []string{"key1", "key2", "key3"}
-	assert.True(t, CompareStringSlices(expected, GetSortedStringKeys(map1)))
+	assert.Equal(t, expected, GetSortedStringKeys(map1))
 
 	map2 := map[string]struct{}{
 		"def": {},
@@ -249,5 +249,5 @@ func Test_GetSortedStringKeys(t *testing.T) {
 	}
 
 	expected = []string{"abc", "def", "ghi"}
-	assert.True(t, CompareStringSlices(expected, GetSortedStringKeys(map2)))
+	assert.Equal(t, expected, GetSortedStringKeys(map2))
 }
