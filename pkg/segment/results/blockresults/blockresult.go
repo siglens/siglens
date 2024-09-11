@@ -68,7 +68,7 @@ type TimeBucketsJSON struct {
 }
 
 type RunningBucketResultsJSON struct {
-	RunningStats []RunningStatsJSON                `json:"runningStats"`
+	RunningStats []RunningStatsJSON           `json:"runningStats"`
 	CurrStats    []*structs.MeasureAggregator `json:"currStats"`
 	Count        uint64                       `json:"count"`
 }

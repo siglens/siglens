@@ -45,11 +45,11 @@ type runningStats struct {
 }
 
 type RunningStatsJSON struct {
-	RawVal   utils.CValueEnclosure `json:"rawVal"`
-	Hll      []byte  `json:"hll"`
-	RangeStat *structs.RangeStat `json:"rangeStat"`
-	AvgStat  *structs.AvgStat   `json:"avgStat"`
-	StrSet   map[string]struct{} `json:"strSet"`
+	RawVal    utils.CValueEnclosure `json:"rawVal"`
+	Hll       []byte                `json:"hll"`
+	RangeStat *structs.RangeStat    `json:"rangeStat"`
+	AvgStat   *structs.AvgStat      `json:"avgStat"`
+	StrSet    map[string]struct{}   `json:"strSet"`
 }
 
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
@@ -609,9 +609,9 @@ func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnc
 
 func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
 	rsJson := RunningStatsJSON{
-		RawVal:   rs.rawVal,
+		RawVal:    rs.rawVal,
 		RangeStat: rs.rangeStat,
-		AvgStat:  rs.avgStat,
+		AvgStat:   rs.avgStat,
 	}
 	if rs.hll != nil {
 		rsJson.Hll = rs.hll.ToBytes()
