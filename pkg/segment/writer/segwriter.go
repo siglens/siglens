@@ -353,7 +353,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 
 			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf[colWip.cbufidx-recLen:colWip.cbufidx])
 			if !ss.skipDe {
-				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx)
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
@@ -423,7 +423,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
 		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
-			colWip.cbufidx-1)
+			colWip.cbufidx-1, true)
 	}
 	return matchedCol, nil
 }
