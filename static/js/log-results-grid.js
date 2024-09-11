@@ -185,7 +185,7 @@ const gridOptions = {
     suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         initialWidth: 100,
-        sortable: false,
+        sortable: true,
         resizable: true,
         suppressSizeToFit: true,
         suppressDragLeaveHidesColumns: true,
