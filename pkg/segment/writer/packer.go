@@ -43,9 +43,8 @@ import (
 	bbp "github.com/valyala/bytebufferpool"
 )
 
-var wipCardLimit uint16 = 1001
-
-const MaxDeEntries = 2002 // this should be atleast 2x of wipCardLimit
+var wipCardLimit uint16 = 501
+const MaxDeEntries = 1002 // this should be atleast 2x of wipCardLimit
 
 const FPARM_INT64 = int64(0)
 const FPARM_UINT64 = uint64(0)
@@ -102,7 +101,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
 		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
-			colWip.cbufidx-1)
+			colWip.cbufidx-1, true)
 	}
 
 	return matchedCol, nil
@@ -462,7 +461,7 @@ func (ss *SegStore) encodeSingleString(key string,
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
 	if !ss.skipDe {
-		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s)
+		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s, false)
 	}
 	valueLen := uint32(len(valBytes))
 	addSegStatsStrIngestion(ss.AllSst, key, colWip.cbuf[colWip.cbufidx-valueLen:colWip.cbufidx])
@@ -590,7 +589,6 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
-	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)
@@ -599,9 +597,11 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 		// only the type will be saved when we are backfilling
 		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
-		packedLen += 1
 		recArr[i] = i
 	}
+
+	packedLen += uint32(recNum)
+
 	// we will also init dictEnc for backfilled recnums
 
 	colWip.deData.deMap[string(VALTYPE_ENC_BACKFILL[:])] = recArr
@@ -628,7 +628,7 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 			valBytes)
 		valSize := encJsonNumber(key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, wipbuf[:],
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx, false)
 		return valSize
 	case int64:
 		addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64,
@@ -636,7 +636,7 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 
 		valSize := encJsonNumber(key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, wipbuf[:],
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx)
+		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx, false)
 		return valSize
 
 	default:
@@ -1435,15 +1435,27 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 	}
 }
 
-func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16, cbufIdx uint32) {
+func (ss *SegStore) checkAddDictEnc(colWip *ColWip, cval []byte, recNum uint16, cbufIdx uint32,
+	isBackfill bool) {
+
 	if colWip.deData.deCount < wipCardLimit {
-		recs, ok := colWip.deData.deMap[string(cval)]
+		var recs []uint16
+		var ok bool
+		if isBackfill {
+			recs, ok = colWip.deData.deMap[STR_VALTYPE_ENC_BACKFILL]
+		} else {
+			recs, ok = colWip.deData.deMap[string(cval)]
+		}
 		if !ok {
 			recs = make([]uint16, 0)
 			colWip.deData.deCount++
 		}
 		recs = append(recs, recNum)
-		colWip.deData.deMap[string(cval)] = recs
+		if isBackfill {
+			colWip.deData.deMap[STR_VALTYPE_ENC_BACKFILL] = recs
+		} else {
+			colWip.deData.deMap[string(cval)] = recs
+		}
 	}
 }
 
