@@ -62,7 +62,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-a-%d", i)
-		segstore, err := getSegStore(sId, cTime, "test", 0)
+		segstore, err := getOrCreateSegStore(sId, "test", 0)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 			t.Errorf("failed to get segstore! %v", err)

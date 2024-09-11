@@ -63,15 +63,10 @@ const MULTINODE_SSM_MEM_PERCENT = 20
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000
 
-// Max recs that could fit in a wip is 20k,
-// if only 1 dict word then 20k *2 bytes for recnum + wordlen
-// if  2 dict word then (20k/2 *2 bytes for recnum)*2 words + wordlen
-// basically we need max of 20k * 2 bytes for recnum + some buffer
-const WIP_DE_PACKING_SIZE = 200_000
 const PQMR_SIZE uint = 4000 // init size of pqs bitset
 const WIP_NUM_RECS = 4000
 const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's bloom size
-const BLOCK_BLOOM_SIZE = 200 // the default should be on the smaller side. Let dynamic bloom sizing fix the optimal one
+const BLOCK_BLOOM_SIZE = 10
 const BLOCK_RI_MAP_SIZE = 100
 
 var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8         // 100MB
@@ -139,6 +134,7 @@ var VALTYPE_ENC_INT64 = []byte{0x10}
 var VALTYPE_ENC_FLOAT64 = []byte{0x11}
 var VALTYPE_ENC_LARGE_STRING = []byte{0x12}
 var VALTYPE_ENC_BACKFILL = []byte{0x13}
+var STR_VALTYPE_ENC_BACKFILL = string([]byte{0x13})
 var VALTYPE_DICT_ARRAY = []byte{0x14}
 var VALTYPE_RAW_JSON = []byte{0x15}
 
@@ -147,7 +143,12 @@ var VERSION_TSOFILE = []byte{0x01}
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
-var VERSION_SEGSTATS = []byte{2}
+var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
+var VERSION_SEGSTATS_LEGACY = []byte{1}
+
+var VERSION_SEGSTATS_BUF = []byte{3} // version of the single column Seg Stats in a Segment
+var VERSION_SEGSTATS_BUF_LEGACY_1 = []byte{1}
+var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
@@ -176,7 +177,7 @@ const (
 const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
 const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 60           // 1 min
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
 var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
 var QUERY_MAX_BUCKETS = uint64(10_000)
@@ -184,7 +185,8 @@ var QUERY_MAX_BUCKETS = uint64(10_000)
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
 var TIMESTAMP_TOPDIFF_VARENC = []byte{2}
-var STAR_TREE_BLOCK = []byte{3}
+var VERSION_STAR_TREE_BLOCK = []byte{4}
+var VERSION_STAR_TREE_BLOCK_LEGACY = []byte{3}
 
 type SS_IntUintFloatTypes int
 

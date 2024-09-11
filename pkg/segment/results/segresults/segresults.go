@@ -82,16 +82,17 @@ type SearchResults struct {
 	BlockResults *blockresults.BlockResults // stores information about the matched RRCs
 	remoteInfo   *remoteSearchResult        // stores information about remote raw logs and columns
 
-	runningSegStat   []*structs.SegStats
-	runningEvalStats map[string]interface{}
-	segStatsResults  *segStatsResults
-	convertedBuckets map[string]*structs.AggregationResult
-	allSSTS          map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
-	AllErrors        []error
-	SegKeyToEnc      map[string]uint16
-	SegEncToKey      map[uint16]string
-	MaxSegKeyEnc     uint16
-	ColumnsOrder     map[string]int
+	runningSegStat         []*structs.SegStats
+	runningEvalStats       map[string]interface{}
+	segStatsResults        *segStatsResults
+	convertedBuckets       map[string]*structs.AggregationResult
+	allSSTS                map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
+	AllErrors              []error
+	SegKeyToEnc            map[string]uint16
+	SegEncToKey            map[uint16]string
+	MaxSegKeyEnc           uint16
+	ColumnsOrder           map[string]int
+	ProcessedRemoteRecords map[string]map[string]struct{}
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -125,15 +126,16 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 			remoteLogs:    make(map[string]map[string]interface{}),
 			remoteColumns: make(map[string]struct{}),
 		},
-		qid:              qid,
-		sAggs:            aggs,
-		allSSTS:          make(map[uint16]map[string]*structs.SegStats),
-		runningSegStat:   runningSegStat,
-		runningEvalStats: make(map[string]interface{}),
-		AllErrors:        allErrors,
-		SegKeyToEnc:      make(map[string]uint16),
-		SegEncToKey:      make(map[uint16]string),
-		MaxSegKeyEnc:     1,
+		qid:                    qid,
+		sAggs:                  aggs,
+		allSSTS:                make(map[uint16]map[string]*structs.SegStats),
+		runningSegStat:         runningSegStat,
+		runningEvalStats:       make(map[string]interface{}),
+		AllErrors:              allErrors,
+		SegKeyToEnc:            make(map[string]uint16),
+		SegEncToKey:            make(map[uint16]string),
+		MaxSegKeyEnc:           1,
+		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
 }
 
@@ -246,12 +248,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		aggOp := measureAgg.MeasureFunc
 		aggCol := measureAgg.MeasureCol
 
-		if aggOp == utils.Count && aggCol == "*" {
-			// Choose the first column.
-			for key := range sstMap {
-				aggCol = key
-				break
-			}
+		if aggOp != utils.Count && aggCol == "*" {
+			return fmt.Errorf("UpdateSegmentStats: aggOp: %v cannot be applied with *, qid=%v", aggOp, sr.qid)
 		}
 		currSst, ok := sstMap[aggCol]
 		if !ok && measureAgg.ValueColRequest == nil {
@@ -326,51 +324,26 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
 		case utils.Values:
-			strSet := make(map[string]struct{}, 0)
-			valuesStrSetVal, exists := sr.runningEvalStats[measureAgg.String()]
-			if !exists {
-				sr.runningEvalStats[measureAgg.String()] = strSet
-			} else {
-				strSet, ok = valuesStrSetVal.(map[string]struct{})
-				if !ok {
-					return fmt.Errorf("UpdateSegmentStats: can not convert strSet for aggCol: %v, qid=%v", measureAgg.String(), sr.qid)
-				}
-			}
-
+			// If value has to be evaluated use corresponding compute agg eval
 			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, strSet)
+				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 				if err != nil {
 					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
 				}
-				continue
+				return nil
 			}
 
-			// Merge two SegStat
-			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrSet != nil {
-				for str := range currSst.StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-			}
-			if sr.runningSegStat[idx] != nil {
-
-				for str := range sr.runningSegStat[idx].StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-
-				sr.runningSegStat[idx].StringStats.StrSet = strSet
+			// Use GetSegValue to process and get the segment value
+			res, err := segread.GetSegValue(sr.runningSegStat[idx], currSst)
+			if err != nil {
+				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+				return err
 			}
 
-			sr.runningEvalStats[measureAgg.String()] = strSet
+			sr.segStatsResults.measureResults[measureAgg.String()] = *res
 
-			uniqueStrings := make([]string, 0)
-			for str := range strSet {
-				uniqueStrings = append(uniqueStrings, str)
-			}
-			sort.Strings(uniqueStrings)
-
-			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  uniqueStrings,
+			if sr.runningSegStat[idx] == nil {
+				sr.runningSegStat[idx] = currSst
 			}
 			continue
 		case utils.List:
@@ -381,20 +354,14 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				}
 				continue
 			}
-
-			// Splunk documentation specifies that if more than 100 values are in the field, only the first 100 are returned.
-			strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
-
-			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrList != nil {
-				strList = utils.AppendWithLimit(strList, currSst.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+			res, err := segread.GetSegList(sr.runningSegStat[idx], currSst)
+			if err != nil {
+				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+				return err
 			}
-
-			if sr.runningSegStat[idx] != nil && sr.runningSegStat[idx].StringStats != nil {
-				strList = utils.AppendWithLimit(strList, sr.runningSegStat[idx].StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
-			}
-			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  strList,
+			sr.segStatsResults.measureResults[measureAgg.String()] = *res
+			if sr.runningSegStat[idx] == nil {
+				sr.runningSegStat[idx] = currSst
 			}
 			continue
 		default:
@@ -500,13 +467,21 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	if sr.remoteInfo == nil {
 		return nil, nil, fmt.Errorf("GetRemoteInfo: log does not have remote info, qid=%v", sr.qid)
 	}
+	if sr.ProcessedRemoteRecords[remoteID] == nil {
+		sr.ProcessedRemoteRecords[remoteID] = make(map[string]struct{})
+	}
 	finalLogs := make([]map[string]interface{}, 0, len(inrrcs))
 	rawLogs := sr.remoteInfo.remoteLogs
 	remoteCols := sr.remoteInfo.remoteColumns
 	count := 0
 	for i := 0; i < len(inrrcs); i++ {
 		if inrrcs[i].SegKeyInfo.IsRemote && strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID) {
+			_, isProcessed := sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId]
+			if isProcessed {
+				continue
+			}
 			finalLogs = append(finalLogs, rawLogs[inrrcs[i].SegKeyInfo.RecordId])
+			sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId] = struct{}{}
 			count++
 		}
 	}
