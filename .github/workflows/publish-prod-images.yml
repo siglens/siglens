@@ -73,7 +73,7 @@ jobs:
           continue-on-error: true
           with:
               context: tools/sigclient
-              file: Dockerfile
+              file: tool/sigclient/Dockerfile
               push: true
               tags: siglens/sigclient:latest
   sigscalr-release-assets:
