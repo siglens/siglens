@@ -48,7 +48,7 @@ func Test_writeSstToBuf(t *testing.T) {
 	assert.Nil(t, err)
 
 	idx := 0
-	assert.Equal(t, sutils.VERSION_SEGSTATS[0], buf[idx])
+	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF[0], buf[idx])
 	idx++
 
 	isNumeric := utils.BytesToBoolLittleEndian(buf[idx : idx+1])
@@ -61,9 +61,9 @@ func Test_writeSstToBuf(t *testing.T) {
 
 	hllDataExpectedSize := uint16(sst.GetHllDataSize())
 
-	hllDataSize := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
+	hllDataSize := utils.BytesToUint16LittleEndian(buf[idx : idx+4])
 	assert.Equal(t, hllDataExpectedSize, hllDataSize)
-	idx += 2
+	idx += 4
 
 	hllData := buf[idx : idx+int(hllDataSize)]
 	assert.Equal(t, sst.GetHllBytes(), hllData)

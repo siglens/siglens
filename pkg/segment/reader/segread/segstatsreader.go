@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -57,6 +58,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	rIdx := uint32(0)
 
 	// version
+	version := fdata[rIdx]
 	rIdx++
 
 	for rIdx < uint32(len(fdata)) {
@@ -67,12 +69,24 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		// actual cname
 		cname := string(fdata[rIdx : rIdx+uint32(cnamelen)])
 		rIdx += uint32(cnamelen)
+
 		// sst len
-		sstlen := toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2])
-		rIdx += 2
+		var sstlen uint32
+
+		switch version {
+		case utils.VERSION_SEGSTATS[0]:
+			sstlen = toputils.BytesToUint32LittleEndian(fdata[rIdx : rIdx+4])
+			rIdx += 4
+		case utils.VERSION_SEGSTATS_LEGACY[0]:
+			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
+			rIdx += 2
+		default:
+			log.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
+			continue
+		}
 
 		// actual sst
-		sst, err := readSingleSst(fdata[rIdx:rIdx+uint32(sstlen)], qid)
+		sst, err := readSingleSst(fdata[rIdx:rIdx+sstlen], qid)
 		if err != nil {
 			log.Errorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
 				qid, cname, err)
@@ -88,7 +102,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	sst := structs.SegStats{}
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// read version
 	version := fdata[idx]
@@ -102,22 +116,30 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	sst.Count = toputils.BytesToUint64LittleEndian(fdata[idx : idx+8])
 	idx += 8
 
-	hllSize := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
-	idx += 2
+	var hllSize uint32
 
 	switch version {
-	case utils.VERSION_SEGSTATS[0]:
+	case utils.VERSION_SEGSTATS_BUF[0]:
+		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
+		idx += 4
+	case utils.VERSION_SEGSTATS_BUF_LEGACY_2[0], utils.VERSION_SEGSTATS_BUF_LEGACY_1[0]:
+		hllSize = uint32(toputils.BytesToUint16LittleEndian(fdata[idx : idx+2]))
+		idx += 2
+	default:
+		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
+		return nil, errors.New("readSingleSst: unknown version")
+	}
+
+	if version == utils.VERSION_SEGSTATS_BUF_LEGACY_1[0] {
+		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
+	} else {
 		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
 		if err != nil {
 			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
 			return nil, err
 		}
-	case 1:
-		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
-	default:
-		log.Errorf("qid=%d, readSingleSst: unknown version: %v", qid, version)
-		return nil, errors.New("readSingleSst: unknown version")
 	}
+
 	idx += hllSize
 
 	if !sst.IsNumeric {
@@ -443,14 +465,14 @@ func GetSegCount(runningSegStat *structs.SegStats,
 	return &rSst, nil
 }
 
-func GetSegAvg(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
-
-	// start with lower resolution and upgrade as necessary
+func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+	// Initialize result with default values
 	rSst := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
+		Ntype:    utils.SS_DT_FLOAT,
 		IntgrVal: 0,
+		FloatVal: 0.0,
 	}
+
 	if currSegStat == nil {
 		log.Errorf("GetSegAvg: currSegStat is nil")
 		return &rSst, errors.New("GetSegAvg: currSegStat is nil")
@@ -461,43 +483,124 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 		return &rSst, errors.New("GetSegAvg: current segStat is non-numeric")
 	}
 
+	// If running segment statistics are nil, return the current segment's average
+	if runningSegStat == nil {
+		avg, err := getAverage(currSegStat.NumStats.Sum, currSegStat.Count)
+		rSst.FloatVal = avg
+		return &rSst, err
+	}
+
+	// Update running segment statistics
+	runningSegStat.Count += currSegStat.Count
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
+	if err != nil {
+		log.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)
+		return &rSst, err
+	}
+	// Calculate and return the average
+	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
+	rSst.FloatVal = avg
+	return &rSst, err
+}
+
+// Helper function to calculate the average
+func getAverage(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
+	avg := 0.0
+	if count == 0 {
+		log.Errorf("getAverage: count is 0")
+		return avg, errors.New("getAverage: count is 0, cannot divide by 0")
+	}
+	switch sum.Ntype {
+	case utils.SS_DT_FLOAT:
+		avg = sum.FloatVal / float64(count)
+	case utils.SS_DT_SIGNED_NUM:
+		avg = float64(sum.IntgrVal) / float64(count)
+	default:
+		log.Errorf("getAverage: invalid data type: %v", sum.Ntype)
+		return avg, fmt.Errorf("getAverage: invalid data type %v", sum.Ntype)
+	}
+	return avg, nil
+}
+
+func GetSegList(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	res := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  make([]string, 0),
+	}
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+		log.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+		return &res, fmt.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+	}
+
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		switch currSegStat.NumStats.Sum.Ntype {
-		case utils.SS_DT_FLOAT:
-			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		default:
-			rSst.FloatVal = float64(currSegStat.NumStats.Sum.IntgrVal) / float64(currSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		}
-		return &rSst, nil
-	}
-	runningSegStat.Count = runningSegStat.Count + currSegStat.Count
-
-	switch currSegStat.NumStats.Sum.Ntype {
-	case utils.SS_DT_FLOAT:
-		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + currSegStat.NumStats.Sum.FloatVal
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
+		if len(currSegStat.StringStats.StrList) > utils.MAX_SPL_LIST_SIZE {
+			finalStringList := make([]string, utils.MAX_SPL_LIST_SIZE)
+			copy(finalStringList, currSegStat.StringStats.StrList[:utils.MAX_SPL_LIST_SIZE])
+			res.CVal = finalStringList
 		} else {
-			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) + currSegStat.NumStats.Sum.FloatVal
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
+			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
+			copy(finalStringList, currSegStat.StringStats.StrList)
+			res.CVal = finalStringList
 		}
-	default:
-		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + float64(currSegStat.NumStats.Sum.IntgrVal)
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		} else {
-			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
-			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
-			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
-			rSst.Ntype = utils.SS_DT_FLOAT
-		}
+		return &res, nil
 	}
 
-	return &rSst, nil
+	// Limit list size to match splunk.
+	strList := make([]string, 0, utils.MAX_SPL_LIST_SIZE)
+
+	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
+		strList = utils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+	}
+
+	strList = utils.AppendWithLimit(strList, currSegStat.StringStats.StrList, utils.MAX_SPL_LIST_SIZE)
+
+	res.CVal = strList
+	if runningSegStat.StringStats == nil {
+		runningSegStat.StringStats = &structs.StringStats{
+			StrList: strList,
+		}
+	} else {
+		runningSegStat.StringStats.StrList = strList
+	}
+	return &res, nil
+}
+
+// Get merged values from running segement stats and current segment stats
+func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	res := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING_SLICE,
+		CVal:  make([]string, 0),
+	}
+
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+		log.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
+		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
+	}
+	// Initialize or retrieve the string set from running segment stats
+	strSet := currSegStat.StringStats.StrSet
+
+	// Update running segment stats with the merged string set
+	if runningSegStat != nil {
+		if runningSegStat.StringStats == nil {
+			runningSegStat.StringStats = &structs.StringStats{
+				StrSet: strSet,
+			}
+		} else {
+			for str := range runningSegStat.StringStats.StrSet {
+				strSet[str] = struct{}{}
+			}
+			runningSegStat.StringStats.StrSet = strSet
+		}
+	}
+
+	// Convert the string set to a sorted slice
+	uniqueStrings := make([]string, 0, len(strSet))
+	for str := range strSet {
+		uniqueStrings = append(uniqueStrings, str)
+	}
+	sort.Strings(uniqueStrings)
+	res.CVal = uniqueStrings
+	return &res, nil
 }

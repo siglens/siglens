@@ -478,7 +478,7 @@ function processClusterStats(res) {
             _.forEach(value, (v, k) => {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
-                if (k === 'Average Latency') {
+                if (k === 'Average Query Latency (since install)' || 'Average Query Latency (since restart)') {
                     const numericPart = parseFloat(v);
                     const avgLatency = Math.round(numericPart);
                     tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
@@ -488,7 +488,7 @@ function processClusterStats(res) {
         }
     });
 
-    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', ''];
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', ''];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
     let traceColumnOrder = ['Index Name', 'Incoming Volume', 'Span Count', 'Segment Count'];
 
@@ -572,7 +572,8 @@ function processClusterStats(res) {
                     currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString('en-US') : l}`) + '  GB';
                     currRow[2] = `${v.eventCount}`;
                     currRow[3] = `${v.segmentCount}`;
-                    currRow[4] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
+                    currRow[4] = `${v.columnCount}`;
+                    currRow[5] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
 
                     totalIngestVolume += parseFloat(`${v.ingestVolume}`);
                     totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',', ''));
@@ -616,6 +617,7 @@ function processClusterStats(res) {
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
         totalValRow[2] = `${totalEventCount.toLocaleString()}`;
         totalValRow[3] = `${totalLogSegmentCount.toLocaleString()}`;
+        totalValRow[4] = (res.ingestionStats['Column Count'].toLocaleString());
         indexDataTable.draw();
         metricsDataTable.draw();
         traceDataTable.draw();

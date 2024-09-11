@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -74,6 +74,7 @@ type SegStore struct {
 	segbaseDir            string
 	suffix                uint64
 	lastUpdated           time.Time
+	lastWipFlushTime      time.Time
 	VirtualTableName      string
 	RecordCount           int
 	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
@@ -133,6 +134,7 @@ func NewSegStore(orgId uint64) *SegStore {
 		LastSegPqids:       make(map[string]struct{}),
 		timeCreated:        now,
 		lastUpdated:        now,
+		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -202,6 +204,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 		for _, cwip := range segstore.wipBlock.colWips {
 			wipCbufPool.Put(&cwip.cbuf)
+			wipCbufPool.Put(&cwip.dePackingBuf)
 		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
@@ -209,11 +212,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for cvalHash := range cwip.deData.hashToDci {
-				delete(cwip.deData.hashToDci, cvalHash)
-			}
-			for idx := range cwip.deData.deRecNums {
-				cwip.deData.deRecNums[idx] = nil
+			for dword := range cwip.deData.deMap {
+				delete(cwip.deData.deMap, dword)
 			}
 			cwip.deData.deCount = 0
 		}
@@ -221,8 +221,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {
@@ -232,6 +230,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
 	segstore.wipBlock.blockSummary.RecCount = 0
+	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
 	for col := range segstore.wipBlock.columnsInBlock {
@@ -306,6 +305,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 
 	for _, cwip := range segstore.wipBlock.colWips {
 		wipCbufPool.Put(&cwip.cbuf)
+		wipCbufPool.Put(&cwip.dePackingBuf)
 	}
 
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
@@ -441,6 +441,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
 	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
@@ -471,7 +472,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -480,7 +481,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
@@ -500,7 +501,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.
@@ -511,6 +512,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
 	wipCbufPool.Put(&oldColWip.cbuf)
+	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -576,6 +578,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
+					}
+
+					if !isKibana {
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
+						if err != nil {
+							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+							return
+						}
 					}
 
 					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
@@ -675,39 +685,38 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
-	workingDirectory, err := os.Getwd()
+
+	pqFname := filepath.Join(segKey, "pqmr", pqid+".pqmr")
+	err := os.Remove(pqFname)
 	if err != nil {
-		log.Errorf("Error fetching current workingDirectory")
+		log.Errorf("removePqmrFilesAndDirectory:Cannot delete file: %v,  err: %v", pqFname, err)
 		return err
 	}
-	pqFname := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
-	err = os.Remove(pqFname)
-	if err != nil {
-		log.Errorf("Cannot delete file at %v", err)
-		return err
-	}
-	pqmrDirectory := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/", segKey)
+	pqmrDirectory := filepath.Join(segKey, "pqmr") + string(filepath.Separator)
 	files, err := os.ReadDir(pqmrDirectory)
 	if err != nil {
-		log.Errorf("Cannot PQMR directory at %v", pqmrDirectory)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot PQMR directory: %v, err: %v",
+			pqmrDirectory, err)
 		return err
 	}
 	if len(files) == 0 {
 		err := os.Remove(pqmrDirectory)
 		if err != nil {
-			log.Errorf("Error deleting Pqmr directory at %v", pqmrDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr directory: %v, err: %v",
+				pqmrDirectory, err)
 			return err
 		}
-		pqmrParentDirectory := workingDirectory + "/" + fmt.Sprintf("%v/", segKey)
+		pqmrParentDirectory := filepath.Join(segKey) + string(filepath.Separator)
 		files, err = os.ReadDir(pqmrParentDirectory)
 		if err != nil {
-			log.Errorf("Cannot PQMR parent directory at %v", pqmrParentDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Cannot read Pqmr parent: %v, err: %v",
+				pqmrParentDirectory, err)
 			return err
 		}
 		if len(files) == 0 {
 			err := os.Remove(pqmrParentDirectory)
 			if err != nil {
-				log.Errorf("Error deleting Pqmr directory at %v", pqmrParentDirectory)
+				log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr parent: %v, err: %v", pqmrParentDirectory, err)
 				return err
 			}
 		}
@@ -760,9 +769,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix)
 
-		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v",
+		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
-			finalSegmentKey, segstore.OrgId)
+			finalSegmentKey, segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
 		// make sure the parent dir of final exists, the two path calls are because getFinal.. func
 		// returns a '/' at the end
@@ -853,21 +862,25 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
-func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
+func (segstore *SegStore) getColsAboveCardLimit() map[string]uint64 {
+
+	colsToDrop := make(map[string]uint64)
 
 	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
-			return cname, true, 0
+			colsToDrop[cname] = 0
+			continue
 		}
 
 		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
-			return cname, true, colCardinalityEstimate
+			colsToDrop[cname] = colCardinalityEstimate
 		}
 	}
-	return "", false, 0
+
+	return colsToDrop
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
@@ -960,17 +973,26 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	if segstore.numBlocks != 0 {
-		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
-		if found {
-			// todo when we implement dropping of columns from atree,
-			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
-				cname, cardinality, segstore.numBlocks)
-
+		colsToDrop := segstore.getColsAboveCardLimit()
+		if len(segstore.stbHolder.stbPtr.groupByKeys)-len(colsToDrop) <= 0 {
+			log.Warnf("computeStarTree: Dropping SegTree All remaining cols found with high cardinality: %v, blockNum: %v",
+				colsToDrop, segstore.numBlocks)
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 			return
+		}
+		if len(colsToDrop) > 0 {
+			log.Warnf("computeStarTree: Dropping cols with high cardinality: %v, blockNum: %v", colsToDrop, segstore.numBlocks)
+			colsToDropSlice := toputils.GetKeysOfMap(colsToDrop)
+			err := segstore.stbHolder.stbPtr.DropColumns(colsToDropSlice)
+			if err != nil {
+				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
+				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+				segstore.stbHolder.ReleaseSTB()
+				segstore.stbHolder = nil
+				return
+			}
 		}
 	}
 
@@ -1129,12 +1151,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		return 0
 	}
 	bytesWritten += uint32(bloomSize)
-
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
-		return 0
-	}
 
 	// write the correct bloom size
 	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
@@ -1429,25 +1445,25 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 /*
 Encoding Scheme for all columns single file
 
-[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 2B] [ColSegEncoding xB]....
+[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 4B] [ColSegEncoding xB]....
 */
 func (ss *SegStore) FlushSegStats() error {
 
 	if len(ss.AllSst) <= 0 {
 		found := 0
 		tsKey := config.GetTimeStampKey()
+		// Flush is called once one of the cbufidx is >0, but if we find no columns
+		// with cbufidx > 0 other than timestamp column, only then declare this as an error
+		// else we won't create a sst file
 		for cname, cwip := range ss.wipBlock.colWips {
 			if cwip.cbufidx > 0 {
-				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v", cname,
-					cwip.cbufidx)
+				log.Infof("FlushSegStats: sst nil but cname: %v, cwip.cbufidx: %v, segkey: %v",
+					cname, cwip.cbufidx, ss.SegmentKey)
 				if cname != tsKey {
 					found += 1
 				}
 			}
 		}
-		// Flush is called only one of the cbufidx is >0, but if we find no columns
-		// with cbufidx > 0 other than timestamp column, only then declare this as an error
-		// else we won;t create a sst file
 		if found == 0 {
 			log.Errorf("FlushSegStats: no segstats to flush, found: %v cwips with data", found)
 			return errors.New("FlushSegStats: no segstats to flush")
@@ -1465,7 +1481,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write([]byte{1})
+	_, err = fd.Write(utils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1494,7 +1510,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(idx))
+		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
@@ -1513,15 +1529,15 @@ func (ss *SegStore) FlushSegStats() error {
 
 /*
 Encoding Schema for SegStats Single Column Data
-[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 2B] [HLL_Data xB]
+[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
 [N_type 1B] [Min 8B] [N_type 1B] [Max 8B] [N_type 1B] [Sum 8B]
 */
-func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
+func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS)
+	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF)
 	idx++
 
 	// isNumeric
@@ -1535,11 +1551,11 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
-	idx += 2
+	copy(buf[idx:], toputils.Uint32ToBytesLittleEndian(uint32(hllDataSize)))
+	idx += 4
 
 	// HLL_Data
-	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+	hllDataSliceFullCap := buf[idx : idx+uint32(hllDataSize)]
 
 	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
 	// This is necessary because we're using the slice to get the HLL bytes in place,
@@ -1554,10 +1570,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+		copy(buf[idx-4:idx], toputils.Uint32ToBytesLittleEndian(uint32(hllByteSliceLen)))
 	}
 	copy(buf[idx:], hllByteSlice)
-	idx += uint16(hllByteSliceLen)
+	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
