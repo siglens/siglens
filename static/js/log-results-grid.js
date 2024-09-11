@@ -178,7 +178,6 @@ let total_liveTail_searched = 0;
 const gridOptions = {
     columnDefs: logsColumnDefs,
     rowData: logsRowData,
-    animateRows: true,
     readOnlyEdit: true,
     singleClickEdit: true,
     headerHeight: 32,
