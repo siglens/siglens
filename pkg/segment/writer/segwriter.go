@@ -683,8 +683,8 @@ func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore
 }
 
 func getSegStore(streamid string) *SegStore {
-	allSegStoresLock.Lock()
-	defer allSegStoresLock.Unlock()
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
 
 	segstore, present := allSegStores[streamid]
 	if !present {
