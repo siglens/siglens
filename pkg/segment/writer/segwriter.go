@@ -310,7 +310,7 @@ func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
 	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
-	segstore, err := getSegStore(streamid, indexName, orgid)
+	segstore, err := getOrCreateSegStore(streamid, indexName, orgid)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 		return err
@@ -671,7 +671,7 @@ func InitColWip(segKey string, colName string) *ColWip {
 // varint stores length of Record , it would occupy 1-9 bytes
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
-func getSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
 
 	allSegStoresLock.Lock()
 	defer allSegStoresLock.Unlock()
