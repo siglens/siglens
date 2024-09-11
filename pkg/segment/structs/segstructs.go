@@ -1084,17 +1084,6 @@ func (qa *QueryAggregators) HasListFunc() bool {
 	return false
 }
 
-func HasNumTypeAggForColumn(measureOperations []*MeasureAggregator, column string) bool {
-	for _, measureOperation := range measureOperations {
-		if measureOperation.MeasureCol == column {
-			if utils.IsNumTypeAgg(measureOperation.MeasureFunc) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
@@ -1581,4 +1570,15 @@ func StoreError(errorStore map[string]*SearchErrorInfo, errMsg string, logLevel 
 	}
 
 	return errorStore
+}
+
+func HasNumTypeAggForColumn(measureOperations []*MeasureAggregator, column string) bool {
+	for _, measureOperation := range measureOperations {
+		if measureOperation.MeasureCol == column {
+			if utils.IsNumTypeAgg(measureOperation.MeasureFunc) {
+				return true
+			}
+		}
+	}
+	return false
 }
