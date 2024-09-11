@@ -44,6 +44,7 @@ import (
 )
 
 var wipCardLimit uint16 = 501
+
 const MaxDeEntries = 1002 // this should be atleast 2x of wipCardLimit
 
 const FPARM_INT64 = int64(0)
@@ -589,6 +590,7 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
+	initMicroIndices(key, valType, colBlooms, colRis)
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)
