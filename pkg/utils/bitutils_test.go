@@ -93,3 +93,36 @@ func Test_Uint16Conversion(t *testing.T) {
 		assert.Equal(t, value, result, "Uint16 conversion failed for %d", value)
 	}
 }
+
+func Test_InplaceInt64(t *testing.T) {
+	testValues := []int64{0, 42, -42, math.MaxInt64, math.MinInt64}
+	buf := make([]byte, 8)
+
+	for _, value := range testValues {
+		Int64ToBytesLittleEndianInplace(value, buf)
+		result := BytesToInt64LittleEndian(buf)
+		assert.Equal(t, value, result, "Int64 conversion failed for %d", value)
+	}
+}
+
+func Test_InplaceUint64(t *testing.T) {
+	testValues := []uint64{0, 42, math.MaxUint64}
+	buf := make([]byte, 8)
+
+	for _, value := range testValues {
+		Uint64ToBytesLittleEndianInplace(value, buf)
+		result := BytesToUint64LittleEndian(buf)
+		assert.Equal(t, value, result, "Uint64 conversion failed for %d", value)
+	}
+}
+
+func Test_InplaceFloat64(t *testing.T) {
+	testValues := []float64{0, 3.14159, -2.71828, math.MaxFloat64, math.SmallestNonzeroFloat64}
+	buf := make([]byte, 8)
+
+	for _, value := range testValues {
+		Float64ToBytesLittleEndianInplace(value, buf)
+		result := BytesToFloat64LittleEndian(buf)
+		assert.Equal(t, value, result, "Float64 conversion failed for %f", value)
+	}
+}

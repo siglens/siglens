@@ -18,7 +18,6 @@
 package writer
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"strings"
@@ -71,6 +70,16 @@ var respItemsPool = sync.Pool{
 	},
 }
 
+var plePool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		ple := writer.NewPLE()
+		return ple
+	},
+}
+
 func init() {
 	resp_status_201 = make(map[string]interface{})
 	statusbody := make(map[string]interface{})
@@ -116,9 +125,8 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
-
-	r := bytes.NewReader(postBody)
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64,
+	useIngestHook bool) (int, map[string]interface{}, error) {
 
 	response := make(map[string]interface{})
 	//to have a check if there are any errors in the request
@@ -131,8 +139,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	var inCount int = 0
 	var processedCount int = 0
 	tsNow := utils.GetCurrentTimeInMs()
-	scanner := bufio.NewScanner(r)
-	scanner.Split(bufio.ScanLines)
+	tsKey := config.GetTimeStampKey()
 
 	var bytesReceived int
 
@@ -152,22 +159,42 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// we will accept indexnames only upto 256 bytes
 	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
 
-	for scanner.Scan() {
+	allPLEs := make([]*writer.ParsedLogEvent, 0)
+	defer func() {
+		for _, ple := range allPLEs {
+			plePool.Put(ple)
+		}
+	}()
+
+	var err error
+	var line []byte
+	remainingPostBody := postBody
+	for {
+		line, remainingPostBody = utils.ReadLine(remainingPostBody)
+		if len(remainingPostBody) == 0 {
+			break
+		}
+
 		inCount++
 		if inCount >= len(items) {
 			newArr := make([]interface{}, 100)
 			items = append(items, newArr...)
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes(),
+		esAction, indexName, idVal := extractIndexAndValidateAction(line,
 			idxNameParsingBuf)
 
 		switch esAction {
 
 		case INDEX, CREATE:
-			scanner.Scan()
-			rawJson := scanner.Bytes()
-			numBytes := len(rawJson)
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
+				success = false
+				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE")
+				break
+			}
+
+			numBytes := len(line)
 			bytesReceived += numBytes
 			//update only if body is less than MAX_RECORD_SIZE
 			if numBytes < segment.MAX_RECORD_SIZE {
@@ -180,7 +207,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 					request := make(map[string]interface{})
 					var json = jsoniter.ConfigCompatibleWithStandardLibrary
-					decoder := json.NewDecoder(bytes.NewReader(rawJson))
+					decoder := json.NewDecoder(bytes.NewReader(line))
 					decoder.UseNumber()
 					err := decoder.Decode(&request)
 					if err != nil {
@@ -196,11 +223,15 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes),
-						false, localIndexMap, myid, rid, idxToStreamIdCache,
-						cnameCacheByteHashToStr, jsParsingStackbuf[:])
+					ple := plePool.Get().(*writer.ParsedLogEvent)
+					allPLEs = append(allPLEs, ple)
+
+					ple.SetIndexName(indexName)
+					ple.SetRawJson(line)
+
+					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
-						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
 						success = false
 					}
 				}
@@ -208,10 +239,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				success = false
 				maxRecordSizeExceeded = true
 			}
-
 		case UPDATE:
 			success = false
-			scanner.Scan()
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
+				log.Errorf("HandleBulkBody: expected another line after UPDATE")
+				break
+			}
 		default:
 			success = false
 		}
@@ -239,6 +273,21 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			items[inCount-1] = resp_status_201
 		}
 	}
+
+	pleBatches := utils.ConvertSliceToMap(allPLEs, func(ple *writer.ParsedLogEvent) string {
+		return ple.GetIndexName()
+	})
+
+	for indexName, plesInBatch := range pleBatches {
+		err = ProcessIndexRequestPle(tsNow, indexName, false, localIndexMap,
+			myid, rid, idxToStreamIdCache, cnameCacheByteHashToStr,
+			jsParsingStackbuf[:], plesInBatch)
+		if err != nil {
+			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+			// TODO: update `atleastOneSuccess`
+		}
+	}
+
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
@@ -330,21 +379,37 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
+	return nil
+}
+
+func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
+	localIndexMap map[string]string, myid uint64, rid uint64,
+	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
+
+	for _, ple := range pleArray {
+		if ple.GetIndexName() != indexNameIn {
+			return utils.TeeErrorf("ProcessIndexRequestPle: indexName mismatch; want %v, got %v",
+				indexNameIn, ple.GetIndexName())
+		}
+	}
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
-	cfgkey := config.GetTimeStampKey()
+	tsKey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
 	if strings.HasPrefix(indexNameConverted, "jaeger-") {
 		docType = segment.SIGNAL_JAEGER_TRACES
-		cfgkey = "startTimeMillis"
+		tsKey = "startTimeMillis"
 	} else {
 		docType = segment.SIGNAL_EVENTS
 	}
 
-	ts_millis := utils.ExtractTimeStamp(rawJson, &cfgkey)
-	if ts_millis == 0 {
-		ts_millis = tsNow
+	for _, ple := range pleArray {
+		ple.SetTimestamp(utils.ExtractTimeStamp(ple.GetRawJson(), &tsKey))
+		if ple.GetTimestamp() == 0 {
+			ple.SetTimestamp(tsNow)
+		}
 	}
 
 	var streamid string
@@ -359,10 +424,10 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
-	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
+	err := writer.AddEntryToInMemBuf(streamid, indexNameConverted, flush,
+		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, err=%v", streamid, err)
 		return err
 	}
 	return nil

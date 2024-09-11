@@ -139,6 +139,62 @@ type WipBlock struct {
 	bb                 *bbp.ByteBuffer        // byte buffer pool for HLL byte inserts
 }
 
+type ParsedLogEvent struct {
+	allCnames       []string  // array of all cnames
+	allCvals        [][]byte  // array of all column values byte slices
+	allCvalsTypeLen [][9]byte // array of all column values type and len (3 bytes for strings; 9 for numbers)
+	numCols         uint16    // number of columns in this log record
+	indexName       string
+	rawJson         []byte
+	timestampMillis uint64
+}
+
+func NewPLE() *ParsedLogEvent {
+	return &ParsedLogEvent{
+		allCnames:       make([]string, 0),
+		allCvals:        make([][]byte, 0),
+		allCvalsTypeLen: make([][9]byte, 0),
+		numCols:         0,
+	}
+}
+
+func (ple *ParsedLogEvent) Reset() {
+	ple.allCnames = ple.allCnames[:0]
+	ple.allCvals = ple.allCvals[:0]
+	ple.allCvalsTypeLen = ple.allCvalsTypeLen[:0]
+	ple.numCols = 0
+}
+
+func (ple *ParsedLogEvent) MakeSpaceForNewColumn() {
+	ple.allCnames = append(ple.allCnames, "")
+	ple.allCvals = append(ple.allCvals, nil)
+	ple.allCvalsTypeLen = append(ple.allCvalsTypeLen, [9]byte{})
+}
+
+func (ple *ParsedLogEvent) SetIndexName(indexName string) {
+	ple.indexName = indexName
+}
+
+func (ple *ParsedLogEvent) GetIndexName() string {
+	return ple.indexName
+}
+
+func (ple *ParsedLogEvent) SetRawJson(rawJson []byte) {
+	ple.rawJson = rawJson
+}
+
+func (ple *ParsedLogEvent) GetRawJson() []byte {
+	return ple.rawJson
+}
+
+func (ple *ParsedLogEvent) SetTimestamp(timestampMillis uint64) {
+	ple.timestampMillis = timestampMillis
+}
+
+func (ple *ParsedLogEvent) GetTimestamp() uint64 {
+	return ple.timestampMillis
+}
+
 // returns in memory size of a single wip block
 func (wp *WipBlock) getSize() uint64 {
 	size := uint64(0)
@@ -250,63 +306,184 @@ func cleanRecentlyRotatedInfo() {
 	}
 }
 
-// This is the only function that needs to be exported from this package, since this is the only
-// place where we play with the locks
+func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
+	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
-func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE,
-	orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte) error {
-
-	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
+	segstore, err := getOrCreateSegStore(streamid, indexName, orgid)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 		return err
 	}
 
-	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush,
-		signalType, orgid, rid, cnameCacheByteHashToStr, jsParsingStackbuf)
+	return segstore.AddEntry(streamid, indexName, flush, signalType, orgid, rid,
+		cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 }
 
-func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64,
-	rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte) error {
+func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool, error) {
+	ss.encodeTime(ple.timestampMillis, tsKey)
+
+	matchedCol := false
+	var colWip *ColWip
+	colBlooms := ss.wipBlock.columnBlooms
+	colRis := ss.wipBlock.columnRangeIndexes
+	segstats := ss.AllSst
+	for i := uint16(0); i < ple.numCols; i++ {
+		cname := ple.allCnames[i]
+		ctype := ple.allCvalsTypeLen[i][0]
+		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+
+		switch ctype {
+		case VALTYPE_ENC_SMALL_STRING[0]:
+			if cname != "_type" && cname != "_index" {
+				_, ok := colBlooms[cname]
+				if !ok {
+					bi := &BloomIndex{}
+					bi.uniqueWordCount = 0
+					bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
+					colBlooms[cname] = bi
+				}
+			}
+			startIdx := colWip.cbufidx
+			recLen := uint32(utils.BytesToUint16LittleEndian(ple.allCvalsTypeLen[i][1:3]))
+			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][:3])
+			colWip.cbufidx += 3
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:recLen])
+			colWip.cbufidx += recLen
+
+			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf[colWip.cbufidx-recLen:colWip.cbufidx])
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+			}
+			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
+		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
+			ri, ok := colRis[cname]
+			if !ok {
+				ri = &RangeIndex{}
+				ri.Ranges = make(map[string]*structs.Numbers)
+				colRis[cname] = ri
+			}
+
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
+			colWip.cbufidx += 9
+
+			var numType SS_IntUintFloatTypes
+			var intVal int64
+			var uintVal uint64
+			var floatVal float64
+			// TODO: store the ascii in ple.allCvals to avoid recomputation
+			var asciiBytesBuf bytes.Buffer
+			switch ctype {
+			case VALTYPE_ENC_INT64[0]:
+				numType = SS_INT64
+				intVal = utils.BytesToInt64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", intVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write intVal %v: %v", intVal, err)
+				}
+			case VALTYPE_ENC_UINT64[0]:
+				numType = SS_UINT64
+				uintVal = utils.BytesToUint64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", uintVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write uintVal %v: %v", uintVal, err)
+				}
+			case VALTYPE_ENC_FLOAT64[0]:
+				numType = SS_FLOAT64
+				floatVal = utils.BytesToFloat64LittleEndian(ple.allCvalsTypeLen[i][1:9])
+				_, err := fmt.Fprintf(&asciiBytesBuf, "%f", floatVal)
+				if err != nil {
+					return false, utils.TeeErrorf("doLogEventFilling: cannot write floatVal %v: %v", floatVal, err)
+				}
+			default:
+				return false, utils.TeeErrorf("doLogEventFilling: shouldn't get here; ctype: %v", ctype)
+			}
+
+			updateRangeIndex(cname, ri.Ranges, numType, intVal, uintVal, floatVal)
+			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
+			ss.updateColValueSizeInAllSeenColumns(cname, 9)
+		default:
+			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)
+		}
+	}
+
+	for colName, foundCol := range ss.wipBlock.columnsInBlock {
+		if foundCol {
+			ss.wipBlock.columnsInBlock[colName] = false
+			continue
+		}
+		colWip, ok := ss.wipBlock.colWips[colName]
+		if !ok {
+			log.Errorf("doLogEventFilling: tried to backfill a column with no colWip! %v. This should not happen", colName)
+			return false, fmt.Errorf("tried to backfill a column with no colWip")
+		}
+		colWip.cstartidx = colWip.cbufidx
+		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+		colWip.cbufidx += 1
+		ss.updateColValueSizeInAllSeenColumns(colName, 1)
+		// also do backfill dictEnc for this recnum
+		ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
+			colWip.cbufidx-1, true)
+	}
+	return matchedCol, nil
+}
+
+func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool,
+	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
+
+	tsKey := config.GetTimeStampKey()
 
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
 
-	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
-		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
-		err := segstore.AppendWipToSegfile(streamid, false, false, false)
+	for _, ple := range pleArray {
+
+		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
+			segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
+			err := segstore.AppendWipToSegfile(streamid, false, false, false)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+				return err
+			}
+			instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
+		}
+
+		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
-			log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
 			return err
 		}
-		instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
-	}
 
-	segstore.adjustEarliestLatestTimes(ts_millis)
-	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType, cnameCacheByteHashToStr,
-		jsParsingStackbuf)
-	if err != nil {
-		return err
-	}
-	segstore.BytesReceivedCount += bytesReceived
-
-	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
-		err := hook(rid, segstore, rawJson, ts_millis, signalType)
-		if err != nil {
-			log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
+		if matchedPCols {
+			applyStreamingSearchToRecord(segstore, segstore.pqTracker.PQNodes, segstore.wipBlock.blockSummary.RecCount)
 		}
-	}
 
-	if flush {
-		err = segstore.AppendWipToSegfile(streamid, false, false, false)
-		if err != nil {
-			log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
-			return err
+		for _, cwip := range segstore.wipBlock.colWips {
+			segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+		}
+
+		segstore.wipBlock.blockSummary.RecCount += 1
+		segstore.RecordCount++
+		segstore.lastUpdated = time.Now()
+
+		segstore.adjustEarliestLatestTimes(ple.timestampMillis)
+		segstore.wipBlock.adjustEarliestLatestTimes(ple.timestampMillis)
+		segstore.BytesReceivedCount += uint64(len(ple.rawJson))
+
+		if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
+			err := hook(rid, segstore, ple.GetRawJson(), ple.GetTimestamp(), signalType)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
+			}
+		}
+
+		if flush {
+			err = segstore.AppendWipToSegfile(streamid, false, false, false)
+			if err != nil {
+				log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
+				return err
+			}
 		}
 	}
 	return nil
@@ -494,31 +671,47 @@ func InitColWip(segKey string, colName string) *ColWip {
 // varint stores length of Record , it would occupy 1-9 bytes
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
-func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) (*SegStore, error) {
+func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	updateValuesFromConfig()
 
-	allSegStoresLock.Lock()
-	defer allSegStoresLock.Unlock()
-
-	var segstore *SegStore
-	segstore, present := allSegStores[streamid]
-	if !present {
-		if len(allSegStores) >= maxAllowedSegStores {
-			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
-		}
-
-		segstore = NewSegStore(orgId)
-		segstore.initWipBlock()
-
-		err := segstore.resetSegStore(streamid, table)
-		if err != nil {
-			return nil, err
-		}
-
-		allSegStores[streamid] = segstore
-		instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
+	segstore := getSegStore(streamid)
+	if segstore == nil {
+		return createSegStore(streamid, table, orgId)
 	}
 
-	updateValuesFromConfig()
+	return segstore, nil
+}
+
+func getSegStore(streamid string) *SegStore {
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+
+	segstore, present := allSegStores[streamid]
+	if !present {
+		return nil
+	}
+
+	return segstore
+}
+
+func createSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	if len(allSegStores) >= maxAllowedSegStores {
+		return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
+	}
+
+	segstore := NewSegStore(orgId)
+	segstore.initWipBlock()
+
+	err := segstore.resetSegStore(streamid, table)
+	if err != nil {
+		return nil, err
+	}
+
+	allSegStoresLock.Lock()
+	allSegStores[streamid] = segstore
+	instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
+	allSegStoresLock.Unlock()
+
 	return segstore, nil
 }
 
