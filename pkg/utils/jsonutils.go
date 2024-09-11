@@ -18,6 +18,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -62,43 +64,59 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 	}
 }
 
-// GetStringFromJson extracts a string value from JSON data based on the provided keys.
-// It uses the supplied workBuf to avoid unnecessary allocations and resizing.
-// If the value is not a string or if an error occurs, it returns an appropriate error.
-func GetStringFromJson(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
-	// Estimate the size needed for workBuf before copying the value
-	estimatedSize := 0
+func ExtractJsonValueBuffered(data []byte, workBuf []byte, keys ...string) ([]byte, jsonparser.ValueType, error) {
+	var err error
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var current interface{} = nil
 	for _, key := range keys {
-		if len(key) > estimatedSize {
-			estimatedSize = len(key)
+		if err = decoder.Decode(&current); err != nil {
+			return nil, jsonparser.NotExist, fmt.Errorf("error decoding JSON: %v", err)
+		}
+		switch obj := current.(type) {
+		case map[string]interface{}:
+			if value, found := obj[key]; found {
+				current = value
+			} else {
+				return nil, jsonparser.NotExist, fmt.Errorf("key %s not found", key)
+			}
+		case []interface{}:
+			return nil, jsonparser.NotExist, fmt.Errorf("unexpected array while traversing key %s", key)
+		default:
+			return nil, jsonparser.NotExist, fmt.Errorf("expected object for key %s but found %T", key, obj)
 		}
 	}
-
-	// Resize workBuf to fit the estimated size
-	workBuf = ResizeSlice(workBuf, estimatedSize)
-
-	// Extract the value directly into workBuf
-	var err error
-	var value []byte
-	var dataType jsonparser.ValueType
-
-	value, dataType, _, err = jsonparser.Get(data, keys...)
+	valueBytes, err := json.Marshal(current)
+	if err != nil {
+		return nil, jsonparser.NotExist, fmt.Errorf("error converting value to bytes: %v", err)
+	}
+	workBuf = ResizeSlice(workBuf, len(valueBytes))
+	copy(workBuf, valueBytes)
+	var valueType jsonparser.ValueType
+	switch current.(type) {
+	case string:
+		valueType = jsonparser.String
+	case json.Number:
+		valueType = jsonparser.Number
+	case bool:
+		valueType = jsonparser.Boolean
+	case nil:
+		valueType = jsonparser.Null
+	default:
+		valueType = jsonparser.Object
+	}
+	return workBuf, valueType, nil
+}
+func GetStringFromJson(data []byte, workBuf []byte, keys ...string) ([]byte, error) {
+	workBuf, dataType, err := ExtractJsonValueBuffered(data, workBuf, keys...)
 	if err != nil {
 		return nil, err
 	}
-
 	if dataType != jsonparser.String {
 		if dataType == jsonparser.Null {
 			return nil, fmt.Errorf("key %s has a null value", strings.Join(keys, ", "))
 		}
 		return nil, fmt.Errorf("expected string value for key(s) %s but got %s", strings.Join(keys, ", "), dataType)
 	}
-
-	// Resize workBuf again to fit the actual length of the extracted value
-	workBuf = ResizeSlice(workBuf, len(value))
-
-	// Copy the extracted value directly into workBuf
-	copy(workBuf, value)
-
 	return workBuf, nil
 }
