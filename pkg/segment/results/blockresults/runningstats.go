@@ -45,11 +45,11 @@ type runningStats struct {
 }
 
 type RunningStatsJSON struct {
-	RawVal    utils.CValueEnclosure `json:"rawVal"`
-	Hll       []byte                `json:"hll"`
-	RangeStat *structs.RangeStat    `json:"rangeStat"`
-	AvgStat   *structs.AvgStat      `json:"avgStat"`
-	StrSet    map[string]struct{}   `json:"strSet"`
+	RawVal    interface{}         `json:"rawVal"`
+	Hll       []byte              `json:"hll"`
+	RangeStat *structs.RangeStat  `json:"rangeStat"`
+	AvgStat   *structs.AvgStat    `json:"avgStat"`
+	StrSet    map[string]struct{} `json:"strSet"`
 }
 
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
@@ -609,7 +609,7 @@ func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnc
 
 func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
 	rsJson := RunningStatsJSON{
-		RawVal:    rs.rawVal,
+		RawVal:    rs.rawVal.CVal,
 		RangeStat: rs.rangeStat,
 		AvgStat:   rs.avgStat,
 	}
@@ -618,7 +618,7 @@ func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
 	}
 	if rs.rawVal.Dtype == utils.SS_DT_STRING_SET {
 		rsJson.StrSet = rs.rawVal.CVal.(map[string]struct{})
-		rs.rawVal.CVal = nil
+		rsJson.RawVal = nil
 	}
 
 	return rsJson
@@ -626,9 +626,22 @@ func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
 
 func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 	rs := runningStats{
-		rawVal:    rj.RawVal,
 		rangeStat: rj.RangeStat,
 		avgStat:   rj.AvgStat,
+	}
+	if rj.RawVal != nil {
+		CVal := utils.CValueEnclosure{}
+		err := CVal.ConvertValue(rj.RawVal)
+		if err != nil {
+			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to convert value, err: %v", err)
+		}
+		rs.rawVal = CVal
+	}
+	if rj.StrSet != nil {
+		rs.rawVal = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING_SET,
+			CVal:  rj.StrSet,
+		}
 	}
 	if rj.Hll != nil {
 		hll, err := structs.CreateHllFromBytes(rj.Hll)
@@ -636,12 +649,6 @@ func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
 		}
 		rs.hll = &putils.GobbableHll{Hll: *hll}
-	}
-	if rj.StrSet != nil {
-		rs.rawVal = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_STRING_SET,
-			CVal:  rj.StrSet,
-		}
 	}
 	return rs, nil
 }
