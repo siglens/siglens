@@ -118,5 +118,6 @@ func GetStringFromJson(data []byte, workBuf []byte, keys ...string) ([]byte, err
 		}
 		return nil, fmt.Errorf("expected string value for key(s) %s but got %s", strings.Join(keys, ", "), dataType)
 	}
-	return workBuf, nil
+
+	return []byte(strings.Trim(string(workBuf), "\"")), nil
 }
