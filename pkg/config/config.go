@@ -495,7 +495,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 		S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:              24 * 90,
 		TimeStampKey:                "timestamp",
-		MaxSegFileSize:              1_073_741_824,
+		MaxSegFileSize:              4_294_967_296,
 		LicenseKeyPath:              "./",
 		ESVersion:                   "",
 		Debug:                       false,
@@ -723,7 +723,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.LicenseKeyPath = "./"
 	}
 	if config.MaxSegFileSize <= 0 {
-		config.MaxSegFileSize = 1_073_741_824
+		config.MaxSegFileSize = 4_294_967_296
 	}
 	if len(config.ESVersion) <= 0 {
 		config.ESVersion = "6.8.20"
