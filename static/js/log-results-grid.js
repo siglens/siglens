@@ -185,8 +185,9 @@ const gridOptions = {
     suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         initialWidth: 100,
-        sortable: true,
+        sortable: false,
         resizable: true,
+        suppressSizeToFit: true,
         suppressDragLeaveHidesColumns: true,
         minWidth: 200,
         icons: {
@@ -221,7 +222,10 @@ const gridOptions = {
     suppressScrollOnNewData: true,
     suppressAnimationFrame: true,
     suppressFieldDotNotation: true,
-    onBodyScroll(evt) {
+    animateRows: false,
+    suppressColumnVirtualisation: false,
+    suppressRowVirtualisation: false,
+    onBodyScroll: _.debounce(function (evt) {
         if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
             // if we're less than 5 items from the end...fetch more data
@@ -256,7 +260,7 @@ const gridOptions = {
                     });
             }
         }
-    },
+    }, 250),
     overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
@@ -287,18 +291,13 @@ function hideLoadingIndicator() {
 }
 //eslint-disable-next-line no-unused-vars
 const myCellRenderer = (params) => {
-    let logString = '';
-    if (typeof params.data === 'object' && params.data !== null) {
-        let value = params.data[params.colName];
-        if (value !== '') {
-            if (Array.isArray(value)) {
-                logString = JSON.stringify(JSON.unflatten(value), null, 2);
-            } else {
-                logString = value;
-            }
-        }
+    if (typeof params.data !== 'object' || params.data === null) return '';
+    const value = params.data[params.colName];
+    if (value == null || value === '') return '';
+    if (Array.isArray(value)) {
+        return JSON.stringify(JSON.unflatten(value));
     }
-    return logString;
+    return value;
 };
 //eslint-disable-next-line no-unused-vars
 function updateColumns() {
