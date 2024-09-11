@@ -177,7 +177,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
+func processAlertSilence(ctx *fasthttp.RequestCtx, isSilence bool) {
 	responseBody := make(map[string]interface{})
 
 	// Check if databaseObj is nil
@@ -193,32 +193,54 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	// Parse request
-	var silenceRequest struct {
-		AlertID        string `json:"alert_id"`
-		SilenceMinutes uint64 `json:"silence_minutes"`
-	}
-	if err := json.Unmarshal(ctx.PostBody(), &silenceRequest); err != nil {
+	var request alertutils.AlertSilenceRequest
+	if err := json.Unmarshal(ctx.PostBody(), &request); err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
 		return
 	}
 
-	// Find alert and update SilenceMinutes
-	alertDataObj, err := databaseObj.GetAlert(silenceRequest.AlertID)
+	// Find alert in the database
+	alertDataObj, err := databaseObj.GetAlert(request.AlertID)
 	if err != nil {
-		utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", silenceRequest.AlertID), err)
+		utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", request.AlertID), err)
 		return
 	}
 
-	alertDataObj.SilenceMinutes = silenceRequest.SilenceMinutes
-	// Update the SilenceMinutes
+	now := time.Now()
+
+	if isSilence {
+		if request.SilenceMinutes == 0 {
+			utils.SendError(ctx, "SilenceMinutes must be greater than zero", "", nil)
+			return
+		}
+		alertDataObj.SilenceMinutes = request.SilenceMinutes
+		alertDataObj.SilenceEndTime = uint64(now.Add(time.Duration(request.SilenceMinutes) * time.Minute).Unix())
+	} else {
+		alertDataObj.SilenceMinutes = 0
+		alertDataObj.SilenceEndTime = 0
+	}
+
+	// Update alert in the database
 	err = databaseObj.UpdateAlert(alertDataObj)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	responseBody["message"] = "Successfully updated silence period"
+	if isSilence {
+		responseBody["message"] = "Successfully updated silence period"
+	} else {
+		responseBody["message"] = "Successfully unsilenced the alert"
+	}
 	utils.WriteJsonResponse(ctx, responseBody)
+}
+
+func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
+	processAlertSilence(ctx, true)
+}
+
+func ProcessUnsilenceAlertRequest(ctx *fasthttp.RequestCtx) {
+	processAlertSilence(ctx, false)
 }
 
 func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {

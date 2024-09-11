@@ -44,6 +44,7 @@ type AlertDetails struct {
 	ContactName              string              `json:"contact_name"`
 	Labels                   []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
 	SilenceMinutes           uint64              `json:"silence_minutes"`
+	SilenceEndTime           uint64              `json:"silence_end_time"`
 	QueryParams              QueryParams         `json:"queryParams" gorm:"embedded"`
 	MetricsQueryParamsString string              `json:"metricsQueryParams"`
 	Condition                AlertQueryCondition `json:"condition"`
@@ -186,6 +187,11 @@ const (
 	ConfigChange         = "Config Modified"
 )
 
+type AlertSilenceRequest struct {
+	AlertID        string `json:"alert_id"`
+	SilenceMinutes uint64 `json:"silence_minutes"`
+}
+
 // This MUST be synced with how https://github.com/sigscalr/logminion structures
 // its output JSON.
 type LogLinesFile struct {
@@ -217,6 +223,7 @@ type MinionSearch struct {
 	ContactName     string              `json:"contact_name"`
 	Labels          []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
 	SilenceMinutes  uint64              `json:"silence_minutes"`
+	SilenceEndTime  uint64              `json:"silence_end_time"`
 	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
 	Condition       AlertQueryCondition `json:"condition"`
 	Value           float64             `json:"value"`
