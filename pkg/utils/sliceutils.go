@@ -91,6 +91,16 @@ func CompareStringSlices(a []string, b []string) bool {
 	return true
 }
 
+func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K][]V {
+	result := make(map[K][]V)
+	for _, v := range slice {
+		key := keyFunc(v)
+		result[key] = append(result[key], v)
+	}
+
+	return result
+}
+
 // idxsToRemove should contain only valid indexes in the array
 func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
 
