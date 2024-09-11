@@ -49,6 +49,7 @@ type RunningStatsJSON struct {
 	Hll      []byte  `json:"hll"`
 	RangeStat *structs.RangeStat `json:"rangeStat"`
 	AvgStat  *structs.AvgStat   `json:"avgStat"`
+	StrSet   map[string]struct{} `json:"strSet"`
 }
 
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
@@ -615,6 +616,10 @@ func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
 	if rs.hll != nil {
 		rsJson.Hll = rs.hll.ToBytes()
 	}
+	if rs.rawVal.Dtype == utils.SS_DT_STRING_SET {
+		rsJson.StrSet = rs.rawVal.CVal.(map[string]struct{})
+		rs.rawVal.CVal = nil
+	}
 
 	return rsJson
 }
@@ -631,6 +636,12 @@ func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
 		}
 		rs.hll = &putils.GobbableHll{Hll: *hll}
+	}
+	if rj.StrSet != nil {
+		rs.rawVal = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING_SET,
+			CVal:  rj.StrSet,
+		}
 	}
 	return rs, nil
 }
