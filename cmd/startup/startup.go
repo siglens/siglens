@@ -45,6 +45,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
+
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
 	queryserver "github.com/siglens/siglens/pkg/server/query"
@@ -308,7 +310,7 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	fileutils.InitLogFiles()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
-
+	go entryHandler.MonitorDiskUsage()
 	return nil
 }
 
@@ -383,7 +385,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.2.35d"
+					return "0.2.35"
 				},
 			})
 			textTemplate := texttemplate.New("other")

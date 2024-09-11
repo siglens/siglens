@@ -1473,6 +1473,8 @@ func getMyIds() []uint64 {
 }
 
 func Test_Query(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("data/") })
+
 	config.InitializeDefaultConfig(t.TempDir())
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
@@ -1501,11 +1503,11 @@ func Test_Query(t *testing.T) {
 	asyncQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 
 	groupByQueryTestsForAsteriskQueries(t, numBuffers, numEntriesForBuffer, fileCount)
-
-	os.RemoveAll("data/")
 }
 
 func Test_Scroll(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("data/") })
+
 	config.InitializeDefaultConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	_ = localstorage.InitLocalStorage()
@@ -1520,10 +1522,11 @@ func Test_Scroll(t *testing.T) {
 	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
 	testESScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 	testPipesearchScroll(t, numBuffers, numEntriesForBuffer, fileCount)
-	os.RemoveAll("data/")
 }
 
 func Test_unrotatedQuery(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll(config.GetDataPath()) })
+
 	config.InitializeTestingConfig(t.TempDir())
 	config.SetDataPath("unrotatedtest/")
 	limit.InitMemoryLimiter()
@@ -1556,8 +1559,18 @@ func Test_unrotatedQuery(t *testing.T) {
 			record["timestamp"] = uint64(rec)
 			rawJson, err := json.Marshal(record)
 			assert.Nil(t, err)
-			err = writer.AddEntryToInMemBuf("test1", rawJson, uint64(rec)+1, "test", 10, false,
-				SIGNAL_EVENTS, 0, 0, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+
+			index := "test"
+			ple := writer.NewPLE()
+			ple.SetRawJson(rawJson)
+			ple.SetTimestamp(uint64(rec) + 1)
+			ple.SetIndexName(index)
+			tsKey := "timestamp"
+
+			err = writer.ParseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf[:], ple)
+			assert.Nil(t, err)
+			err = writer.AddEntryToInMemBuf("test1", index, false, SIGNAL_EVENTS, 0, 0,
+				cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 			assert.Nil(t, err)
 		}
 
@@ -1655,14 +1668,14 @@ func Test_unrotatedQuery(t *testing.T) {
 	result = ExecuteQuery(simpleNode, aggs, uint64(numBatch*numRec*2), qc)
 	assert.Equal(t, backfillExpectecd, result.TotalResults.TotalCount)
 	assert.Equal(t, Equals, result.TotalResults.Op)
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_EncodeDecodeBlockSummary(t *testing.T) {
+	dir := "data/"
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
 	batchSize := 10
 	entryCount := 10
-	dir := "data/"
 	err := os.MkdirAll(dir, os.FileMode(0755))
 	_ = localstorage.InitLocalStorage()
 
@@ -1676,7 +1689,6 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 	writer.WriteMockBlockSummary(blockSumFile, blockSummaries, allBmhInMem)
 	blockSums, readAllBmh, _, err := microreader.ReadBlockSummaries(blockSumFile, []byte{})
 	if err != nil {
-		os.RemoveAll(dir)
 		log.Fatal(err)
 	}
 
@@ -1691,7 +1703,6 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 		assert.Equal(t, uint32(30), readAllBmh[uint16(i)].ColumnBlockLen["key1"])
 		assert.Equal(t, int64(i*30), readAllBmh[uint16(i)].ColumnBlockOffset["key1"])
 	}
-	os.RemoveAll(dir)
 }
 
 func Benchmark_agileTreeQueryReader(t *testing.B) {
