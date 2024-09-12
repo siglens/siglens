@@ -513,6 +513,7 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
         }
 
         // Check if the selected/unselected column is a null column
+        //eslint-disable-next-line no-undef
         const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues?.has(column) && !columnsWithNonNullValues?.has(column));
         const isNullColumn = nullColumns.includes(colName);
 
@@ -585,6 +586,7 @@ function toggleAllAvailableFieldsHandler(_evt) {
     let el = $('#available-fields .select-unselect-header');
     let isChecked = el.find('.select-unselect-checkmark');
     const nullColumnCheckbox = $('#hide-null-columns-checkbox');
+    //eslint-disable-next-line no-undef
     const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
 
     if (isChecked.length === 0) {
@@ -835,6 +837,7 @@ function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
     let updatedSelectedFieldsList = [...selectedFieldsList]; // Use selectedFieldsList instead of availColNames
 
     if (!nullColumns) {
+        //eslint-disable-next-line no-undef
         nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
     }
 
