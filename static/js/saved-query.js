@@ -349,11 +349,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
             newRow.set('type', res[key].dataSource);
-            if (res[key].dataSource === "metrics") {
+            if (res[key].dataSource === 'metrics') {
                 newRow.set('queryLanguage', 'PromQL');
             } else {
                 newRow.set('queryLanguage', res[key].queryLanguage);
-            } 
+            }
             newRow.set('qname', key);
             newRow.set('filterTab', value.filterTab);
             newRow.set('dataSource', value.dataSource);
@@ -381,11 +381,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
             newRow.set('qname', key);
-            if (value.dataSource === "metrics") {
+            if (value.dataSource === 'metrics') {
                 newRow.set('queryLanguage', 'PromQL');
             } else {
                 newRow.set('queryLanguage', value.queryLanguage);
-            }            
+            }
             newRow.set('filterTab', value.filterTab);
             newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
