@@ -134,6 +134,8 @@ $(document).ready(async function () {
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
+    }
+    if (isMetricsScreen) {
         setSaveQueriesDialog();
     }
 });
