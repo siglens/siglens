@@ -19,6 +19,7 @@ package pipesearch
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -100,15 +101,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	queryLanguageType := event["queryLanguage"]
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
-
+	var parsedIndexNames []string
 	if queryLanguageType == "SQL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
 	} else if queryLanguageType == "Pipe QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 	} else if queryLanguageType == "Log QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
 			wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 			if wErr != nil {
@@ -119,7 +120,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		}
 	} else {
 		log.Infof("ProcessPipeSearchWebsocket: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
 	if err != nil {
@@ -129,6 +130,11 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
+	}
+
+	// This is for SPL queries where the index name is parsed from the query
+	if len(parsedIndexNames) > 0 {
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), orgid, false)
 	}
 
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
@@ -158,8 +164,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.RUNNING:
 				processRunningUpdate(conn, qid)
 			case query.QUERY_UPDATE:
-				numRrcsAdded := processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
-				scrollFrom += int(numRrcsAdded)
+				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -259,7 +264,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
-	aggs *structs.QueryAggregators) uint64 {
+	aggs *structs.QueryAggregators) {
 	searchPercent := qscd.PercentComplete
 
 	totalEventsSearched, totalPossibleEvents, err := query.GetTotalSearchedAndPossibleEventsForQid(qid)
@@ -269,7 +274,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
-		return 0
+		return
 	}
 
 	var wsResponse *PipeSearchWSUpdateResponse
@@ -279,24 +284,22 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
-		return 0
+		return
 	}
 
-	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
+	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
-		return 0
+		return
 	}
 
 	wErr := conn.WriteJSON(wsResponse)
 	if wErr != nil {
 		log.Errorf("qid=%d, processQueryUpdate: failed to write update response to websocket! err: %+v", qid, wErr)
 	}
-
-	return numRrcsAdded
 }
 
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
@@ -364,7 +367,7 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*PipeSearchWSUpdateResponse, uint64, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*PipeSearchWSUpdateResponse, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
@@ -375,7 +378,6 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
-	numRrcsAdded := uint64(0)
 
 	switch qType {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
@@ -411,7 +413,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		inrrcs, qc, segencmap, allColsInAggs, err := query.GetRawRecordInfoForQid(scrollFrom, qid)
 		if err != nil {
 			log.Errorf("qid=%d, createRecsWsResp: failed to get rrcs, err: %v", qid, err)
-			return nil, 0, err
+			return nil, err
 		}
 
 		// filter out the rrcs that don't match the segkey
@@ -422,22 +424,20 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			allJson, allCols, err = query.GetRemoteRawLogInfo(qUpdate.RemoteID, inrrcs, qid)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get remote raw logs and columns, err: %+v", qid, err)
-				return nil, 0, err
+				return nil, err
 			}
 		} else {
 			// handle local
 			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns, err: %+v", qid, err)
-				return nil, 0, err
+				return nil, err
 			}
 		}
 		if err != nil {
 			log.Errorf("qid=%d, createRecsWsResp: failed to convert rrcs to json, err: %+v", qid, err)
-			return nil, 0, err
+			return nil, err
 		}
-
-		numRrcsAdded = uint64(len(allJson))
 
 		wsResponse.Hits = PipeSearchResponse{
 			Hits:         allJson,
@@ -448,7 +448,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 
 		wsResponse.ColumnsOrder = allCols
 	}
-	return wsResponse, numRrcsAdded, nil
+	return wsResponse, nil
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
