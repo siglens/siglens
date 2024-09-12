@@ -276,9 +276,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 				continue
 			}
 
-			if cname == config.GetTimeStampKey() {
-				isTsCol = true
-			}
+			isTsCol = (config.GetTimeStampKey() == cname)
 
 			var cValEnc utils.CValueEnclosure
 

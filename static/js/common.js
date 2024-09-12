@@ -69,6 +69,8 @@ let initialSearchData = {};
 let columnsWithNonNullValues = new Set();
 let columnsWithNullValues = new Set();
 let allColumns = new Set();
+let isMetricsScreen = false;
+
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
     rowData: [],

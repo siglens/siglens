@@ -18,6 +18,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -91,4 +93,17 @@ func SigDebugExit(computeExtraMessage func() string) {
 func extractFuncName(funcName string) string {
 	funcNameSplit := strings.Split(funcName, ".")
 	return funcNameSplit[len(funcNameSplit)-1]
+}
+
+// Useful for estimating runtime size of structs.
+func GetGobSize(v interface{}) int {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+
+	err := encoder.Encode(v)
+	if err != nil {
+		return 0
+	}
+
+	return buffer.Len()
 }

@@ -261,7 +261,7 @@ a: b
 				S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 				RetentionHours:              15 * 24,
 				TimeStampKey:                "timestamp",
-				MaxSegFileSize:              1_073_741_824,
+				MaxSegFileSize:              4_294_967_296,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
 				DataDiskThresholdPercent:    85,
