@@ -1,15 +1,9 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('Dashboard Page Tests', () => {
-    let dashboardId;
-
-    test.beforeAll(async ({ browser }) => {
-        const page = await browser.newPage();
-        await createDashboard(page);
-        await page.close();
-    });
-
-    const createDashboard = async (page) => {
+    test('Dashboard Functionality Tests', async ({ page }) => {
+        let dashboardId;
+        // Create dashboard
         await page.goto('http://localhost:5122/dashboards-home.html');
         await page.click('#create-db-btn');
         const uniqueName = `Test Dashboard Playwright ${Date.now()}`;
@@ -19,9 +13,7 @@ test.describe('Dashboard Page Tests', () => {
         const url = page.url();
         dashboardId = url.split('id=')[1];
         if (!dashboardId) throw new Error('Failed to extract dashboard ID from URL');
-    };
 
-    test('Dashboard Functionality Tests', async ({ page }) => {
         // Navigate to the created dashboard
         await page.goto(`http://localhost:5122/dashboard.html?id=${dashboardId}`);
 
@@ -42,6 +34,7 @@ test.describe('Dashboard Page Tests', () => {
         await page.click('.panEdit-save');
         await expect(page.locator('.panel-header p')).toContainText('Updated Panel Name');
 
+        // Panel Header Buttons Check
         const panelHeader = page.locator('.panel-header').first();
         const editIcon = panelHeader.locator('img.panel-edit-li');
         const viewIcon = panelHeader.locator('img.panel-view-li');
@@ -51,6 +44,45 @@ test.describe('Dashboard Page Tests', () => {
         await expect(editIcon).toBeVisible();
         await expect(viewIcon).toBeVisible();
         await expect(optionsBtn).toBeVisible();
+
+        // Edit and View Panel
+        await editIcon.click();
+        const editPanel = page.locator('.panelEditor-container');
+        await expect(editPanel).toBeVisible();
+
+        const viewButton = page.locator('#overview-button');
+        await expect(viewButton).toBeVisible();
+        await viewButton.click();
+        const viewPanel = page.locator('#viewPanel-container');
+        await expect(viewPanel).toBeVisible();
+        await expect(page.locator('#overview-button')).toHaveClass(/active/);
+        const editButton = page.locator('#edit-button');
+        await editButton.click();
+        await expect(page.locator('#edit-button')).toHaveClass(/active/);
+        const cancelButton = editPanel.locator('#discard-btn');
+        await expect(cancelButton).toBeVisible();
+        await cancelButton.click();
+        await expect(editPanel).not.toBeVisible();
+        await expect(page.locator('#panel-container')).toBeVisible();
+
+        // Delete Panel
+        const initialPanelCount = await page.locator('.panel').count();
+        await panelHeader.hover();
+        await expect(optionsBtn).toBeVisible();
+        await optionsBtn.click();
+        const dropdownMenu = page.locator('#panel-dropdown-modal');
+        await expect(dropdownMenu).toBeVisible();
+        const deleteOption = dropdownMenu.locator('.panel-remove-li');
+        await expect(deleteOption).toBeVisible();
+        await deleteOption.click();
+        const deleteConfirmDialog = page.locator('#panel-del-prompt');
+        await expect(deleteConfirmDialog).toBeVisible();
+        const confirmDeleteBtn = deleteConfirmDialog.locator('#delete-btn-panel');
+        await expect(confirmDeleteBtn).toBeVisible();
+        await confirmDeleteBtn.click();
+        await page.waitForTimeout(2000);
+        const finalPanelCount = await page.locator('.panel').count();
+        expect(finalPanelCount).toBe(initialPanelCount - 1);
 
         // Change dashboard settings
         await page.click('#db-settings-btn');
@@ -69,8 +101,8 @@ test.describe('Dashboard Page Tests', () => {
 
         // Set refresh interval
         await page.click('#refresh-picker-btn');
-        const dropdownMenu = page.locator('.refresh-picker');
-        await expect(dropdownMenu).toBeVisible();
+        const refreshDropdownMenu = page.locator('.refresh-picker');
+        await expect(refreshDropdownMenu).toBeVisible();
         const refreshOption = page.locator('.refresh-range-item', { hasText: '5m' });
         await refreshOption.click();
         await expect(refreshOption).toHaveClass(/active/);
