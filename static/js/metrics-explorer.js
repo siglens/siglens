@@ -135,6 +135,7 @@ $(document).ready(async function () {
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
     }
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         setSaveQueriesDialog();
     }
