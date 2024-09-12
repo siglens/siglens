@@ -1229,7 +1229,6 @@ function saveDbSetting() {
         dbRefresh = dbSettings?.refresh || dbRefresh;
     }
 
-
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {
             $('#app-container').show();
