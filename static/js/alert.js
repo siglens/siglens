@@ -648,7 +648,6 @@ function fetchAlertProperties(res) {
     } else {
         console.error('propertiesGridOptions.api is not defined');
     }
-
 }
 
 function displayHistoryData() {
