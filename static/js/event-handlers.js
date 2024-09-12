@@ -776,19 +776,22 @@ function updateNullColumnsTracking(records) {
             allColumns.add(column);
             if (record[column] !== null && record[column] !== undefined && record[column] !== '') {
                 columnsWithNonNullValues.add(column);
+            } else {
+                columnsWithNullValues.add(column);
             }
         });
     });
 }
 //eslint-disable-next-line no-unused-vars
 function finalizeNullColumnsHiding() {
-    const nullColumns = Array.from(allColumns).filter((column) => !columnsWithNonNullValues.has(column));
+    const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
     const checkbox = $('#hide-null-columns-checkbox');
     const checkboxParent = $('#hide-null-column-box');
-    console.log(nullColumns);
+
     if (nullColumns.length === 0) {
         // No null columns, hide checkbox
         checkboxParent.hide();
+        updateColumnsVisibility(false, []); // Show all columns
         return;
     }
 

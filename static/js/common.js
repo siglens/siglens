@@ -167,6 +167,9 @@ function resetDashboard() {
     resetAvailableFields();
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
+    columnsWithNonNullValues.clear();
+    columnsWithNullValues.clear();
+    allColumns.clear();
     gridDiv = null;
     eGridDiv = null;
 }
