@@ -465,7 +465,30 @@ body {
     justify-content: center;
     margin-right: 6px !important;
 }
-
+.format-icon {
+    cursor: pointer;
+    display: none;
+    background-color: var(--alert-background);
+    font-size: 12px !important;
+    padding: 2px 5px;
+    color: grey;
+    margin-right: 5%;
+    border: none;
+    border-radius: 5px;
+}
+.logcontainer{
+    margin-left: auto !important;
+    margin-bottom: 6px !important;
+    width: 94px;
+    height: 26px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+.format-icon:hover{
+    color:var(--text-color);
+}
 #theme-btn {
     box-sizing: border-box;
     width: 36px;
