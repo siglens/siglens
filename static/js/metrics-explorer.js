@@ -35,7 +35,7 @@ let timeUnit;
 let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
-let isAlertScreen, isMetricsURL, isDashboardScreen, isMetricsScreen;
+let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
@@ -127,6 +127,7 @@ $(document).ready(async function () {
         isDashboardScreen = true;
     }
     if (currentPage === '/metrics-explorer.html') {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
 
@@ -156,6 +157,9 @@ $(document).ready(async function () {
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
         addQueryElement();
+    }
+    //eslint-disable-next-line no-undef
+    if (isMetricsScreen) {
         setSaveQueriesDialog();
     }
 });
@@ -2110,6 +2114,7 @@ async function getMetricNames() {
 
 function displayErrorMessage(container, message) {
     var graphCanvas, errorSpan;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         const mergedContainer = document.querySelector('#merged-graph-container');
         graphCanvas = container.find('.graph-canvas');

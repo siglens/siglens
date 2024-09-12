@@ -79,11 +79,12 @@ function setSaveQueriesDialog() {
                     Accept: '*/*',
                 },
                 crossDomain: true,
-                dataType: 'json',
+                dataType: 'text',
                 data: JSON.stringify(data),
             })
                 .then(function () {
                     dialog.dialog('close');
+                    showToast('Query saved successfully', 'success');
                 })
                 .catch(function (err) {
                     if (err.status !== 200) {
