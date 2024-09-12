@@ -106,13 +106,13 @@ $(document).ready(async function () {
     createTooltip('#saveq-btn', 'Save query');
     createTooltip('.add-metrics-to-db-btn', 'Add to dashboards');
     createTooltip('.alert-from-metrics-btn', 'Create alert');
-    createTooltip('.raw-query-btn', 'Raw query');
-    createTooltip('.alias-box', 'As');
+    createTooltip('raw-query-btn', 'Raw query');
+    createTooltip('alias-box', 'As');
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('.download-all-logs-btn', 'Download logs');
     createTooltip('#show-record-intro-btn', 'Query Response Information');
-    createTooltip('.show-functions', 'Add functions');
-    createTooltip('.show-functions-formula', 'Add functions');
+    createTooltip('.functions-container', 'Add functions');
+    createTooltip('.formula-functions-container', 'Add functions to formula');
     createTooltip('.refresh-btn', 'Refresh');
     updateDownloadButtons();
     var currentPage = window.location.pathname;

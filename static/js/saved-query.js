@@ -342,14 +342,19 @@ function displaySavedQueries(res, flag) {
         sqgridOptions.api.setColumnDefs(queriesColumnDefs);
         let idx = 0;
         let newRow = new Map();
+        console.log(res);
         $.each(res, function (key, value) {
             newRow.set('rowId', idx);
             newRow.set('qdescription', res[key].description);
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
-            newRow.set('type', res.dataSource);
+            newRow.set('type', res[key].dataSource);
+            if (res[key].dataSource === "metrics") {
+                newRow.set('queryLanguage', 'PromQL');
+            } else {
+                newRow.set('queryLanguage', res[key].queryLanguage);
+            } 
             newRow.set('qname', key);
-            newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
@@ -376,11 +381,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
             newRow.set('qname', key);
-            if (value.dataSource === 'metrics') {
+            if (value.dataSource === "metrics") {
                 newRow.set('queryLanguage', 'PromQL');
             } else {
                 newRow.set('queryLanguage', value.queryLanguage);
-            }
+            }            
             newRow.set('filterTab', value.filterTab);
             newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
