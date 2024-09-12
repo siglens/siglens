@@ -211,7 +211,6 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 		if os.IsNotExist(err) {
 			// This can happen if a query specifies a column that does not
 			// exist in the segment.
-			log.Infof("readCmis: no CMI file for column %v", cname)
 			continue
 		}
 		if err != nil {
@@ -280,4 +279,8 @@ func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
 		retVal[colName] = colSizeInfo.ConsistentCvalSize
 	}
 	return retVal
+}
+
+func (sm *SegmentMicroIndex) GetRecordCount() uint32 {
+	return uint32(sm.SegMeta.RecordCount)
 }

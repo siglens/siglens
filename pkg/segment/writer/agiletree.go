@@ -39,10 +39,11 @@ type StarTree struct {
 }
 
 type Node struct {
-	myKey     uint32
-	parent    *Node
-	children  map[uint32]*Node
-	aggValues []*utils.Number
+	myKey          uint32
+	parent         *Node
+	children       map[uint32]*Node
+	aggValues      []*utils.Number
+	commonChildren map[uint32][]*Node
 }
 
 type StarTreeBuilder struct {
@@ -220,6 +221,74 @@ func (stb *StarTreeBuilder) DropSegTree(stbDictEncWorkBuf [][]string) {
 	stb.ResetSegTree(stb.groupByKeys, stb.mColNames, stbDictEncWorkBuf)
 }
 
+// DropColumns assumes that caller will call ComputeStarTree after this
+func (stb *StarTreeBuilder) DropColumns(colsToDrop []string) error {
+	if len(colsToDrop) == 0 {
+		return nil
+	}
+
+	mapColNameToIdx := make(map[string]int)
+	dropIndexes := make(map[int]struct{})
+
+	for idx, colName := range stb.groupByKeys {
+		mapColNameToIdx[colName] = idx
+	}
+
+	// check if all columns to drop are present
+	for _, colToDrop := range colsToDrop {
+		if _, exists := mapColNameToIdx[colToDrop]; !exists {
+			return fmt.Errorf("DropColumns: column to drop %v not found", colToDrop)
+		}
+	}
+
+	// drop the columns
+	for _, colToDrop := range colsToDrop {
+		colIdx := mapColNameToIdx[colToDrop]
+		err := stb.dropColumn(colToDrop)
+		if err != nil {
+			return fmt.Errorf("DropColumns: Error while dropping column %v, err: %v", colToDrop, err)
+		}
+		dropIndexes[colIdx] = struct{}{}
+	}
+
+	stb.segDictMap = toputils.RemoveElements(stb.segDictMap, dropIndexes)
+	stb.segDictEncRev = toputils.RemoveElements(stb.segDictEncRev, dropIndexes)
+	stb.segDictLastNum = toputils.RemoveElements(stb.segDictLastNum, dropIndexes)
+
+	// No need to update wipRecNumToColEnc based on index,
+	// since it will be repopulated based on updated groupByKeys in creatEnc via ComputeStartree
+	stb.wipRecNumToColEnc = stb.wipRecNumToColEnc[:stb.numGroupByCols]
+
+	return nil
+}
+
+// This method is not for external use, always use DropColumns
+func (stb *StarTreeBuilder) dropColumn(colToDrop string) error {
+	newGrpByKeys := make([]string, 0, len(stb.groupByKeys)-1)
+	dropLevel := -1
+	for idx, col := range stb.groupByKeys {
+		if col == colToDrop {
+			dropLevel = idx
+			continue
+		}
+		newGrpByKeys = append(newGrpByKeys, col)
+	}
+
+	if dropLevel == -1 {
+		return fmt.Errorf("DropColumn: column to drop %v not found", colToDrop)
+	}
+	err := stb.removeLevelFromTree(stb.tree.Root, 0, uint(dropLevel))
+	if err != nil {
+		return err
+	}
+	stb.numGroupByCols--
+	stb.groupByKeys = newGrpByKeys
+
+	// Rest of the cleanup is done in DropColumns for efficiency
+
+	return nil
+}
+
 func (stb *StarTreeBuilder) setColValEnc(colNum int, colValBytes []byte) uint32 {
 
 	// todo a zero copy version of map lookups needed
@@ -302,7 +371,9 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 		}
 
 		if first {
-			copy(cur.aggValues[:lenAggValues], child.aggValues[:lenAggValues])
+			for i, aggVal := range child.aggValues {
+				cur.aggValues[i].Copy(aggVal)
+			}
 			first = false
 			continue
 		}
@@ -353,6 +424,153 @@ func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum 
 	} else {
 		return child
 	}
+}
+
+func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
+	if nodeToMerge.aggValues == nil {
+		return nil
+	}
+	if node.aggValues == nil {
+		node.aggValues = make([]*utils.Number, len(stb.mColNames)*TotalMeasFns)
+		for i := range node.aggValues {
+			node.aggValues[i] = &utils.Number{}
+		}
+	}
+
+	var err error
+	for mcNum := range stb.mColNames {
+		midx := mcNum * TotalMeasFns
+		agvidx := midx + MeasFnMinIdx
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Min)
+		if err != nil {
+			log.Errorf("updateAggVals: error in min err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnMaxIdx
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Max)
+		if err != nil {
+			log.Errorf("updateAggVals: error in max err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnSumIdx
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Sum)
+		if err != nil {
+			log.Errorf("updateAggVals: error in sum err:%v", err)
+			return err
+		}
+
+		agvidx = midx + MeasFnCountIdx
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Count)
+		if err != nil {
+			log.Errorf("updateAggVals: error in count err:%v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) mergeChildNodes(currNode *Node) error {
+	var err error
+
+	// delink the children from the current nodes and accumulate them as commonChildren
+	for _, nodes := range currNode.commonChildren {
+		fixedNode := nodes[0]
+		commonChildren := make(map[uint32][]*Node)
+		for _, node := range nodes {
+			for key, child := range node.children {
+				if commonChildren[key] == nil {
+					commonChildren[key] = []*Node{child}
+				} else {
+					commonChildren[key] = append(commonChildren[key], child)
+					err = stb.updateAggVals(commonChildren[key][0], child)
+					if err != nil {
+						return err
+					}
+				}
+				child.parent = fixedNode
+				delete(node.children, key)
+			}
+		}
+		fixedNode.commonChildren = commonChildren
+	}
+
+	// link parent and children properly and cleanup commonChildren
+	for _, children := range currNode.commonChildren {
+		err = stb.mergeChildNodes(children[0])
+		if err != nil {
+			return err
+		}
+		currNode.children[children[0].myKey] = children[0]
+	}
+	currNode.commonChildren = nil
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) updateLastLevel(node *Node) error {
+	for _, child := range node.children {
+		err := stb.updateAggVals(node, child)
+		if err != nil {
+			return err
+		}
+		delete(node.children, child.myKey)
+	}
+
+	return nil
+}
+
+func (stb *StarTreeBuilder) removeLevelFromTree(node *Node, currColIdx uint, colIdxToRemove uint) error {
+	if currColIdx == colIdxToRemove {
+		if currColIdx == uint(stb.numGroupByCols-1) {
+			// if last column needs to be removed, accumulation of children is not required as they will be unique.
+			// just combine the aggs at parent.
+			return stb.updateLastLevel(node)
+		}
+		commonChildren := make(map[uint32][]*Node)
+
+		// accumulate grandchildren as commonChildren
+		for childKey, childNode := range node.children {
+			for key, grandchild := range childNode.children {
+				grandchild.parent = node
+				if commonChildren[key] == nil {
+					commonChildren[key] = []*Node{grandchild}
+				} else {
+					commonChildren[key] = append(commonChildren[key], grandchild)
+					err := stb.updateAggVals(commonChildren[key][0], grandchild)
+					if err != nil {
+						return err
+					}
+				}
+				delete(childNode.children, key)
+			}
+
+			// add child aggs to parent
+			err := stb.updateAggVals(node, childNode)
+			if err != nil {
+				return err
+			}
+
+			// remove children
+			childNode.parent = nil
+			delete(node.children, childKey)
+		}
+
+		node.commonChildren = commonChildren
+
+		return stb.mergeChildNodes(node)
+	}
+
+	for _, child := range node.children {
+		err := stb.removeLevelFromTree(child, currColIdx+1, colIdxToRemove)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {

@@ -620,18 +620,16 @@ function performSearch() {
 function fetchAlertProperties(res) {
     const alert = res.alert;
     let propertiesData = [];
-
-    if (alert.alert_type === 1) {
-        propertiesData.push({ name: 'Query', value: alert.queryParams.queryText }, { name: 'Type', value: alert.queryParams.data_source }, { name: 'Query Language', value: alert.queryParams.queryLanguage });
-    } else if (alert.alert_type === 2) {
-        const metricsQueryParams = JSON.parse(alert.metricsQueryParams || '{}');
-        let formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0 ? metricsQueryParams.formulas[0].formula : 'No formula';
-
-        // Replace a, b, etc., with actual query values
-        metricsQueryParams.queries.forEach((query) => {
-            const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-            formulaString = formulaString.replace(regex, query.query);
-        });
+                propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
+                if (alert.silence_end_time > Math.floor(Date.now() / 1000)) {
+                    //eslint-disable-next-line no-undef
+                    let mutedFor = calculateMutedFor(alert.silence_end_time);
+                    propertiesData.push({ name: 'Silenced For', value: mutedFor });
+                }
+                if (alert.labels && alert.labels.length > 0) {
+                    const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
+                    propertiesData.push({ name: 'Label', value: labelsValue });
+                }
 
         propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
     }

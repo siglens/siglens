@@ -134,6 +134,7 @@ var VALTYPE_ENC_INT64 = []byte{0x10}
 var VALTYPE_ENC_FLOAT64 = []byte{0x11}
 var VALTYPE_ENC_LARGE_STRING = []byte{0x12}
 var VALTYPE_ENC_BACKFILL = []byte{0x13}
+var STR_VALTYPE_ENC_BACKFILL = string([]byte{0x13})
 var VALTYPE_DICT_ARRAY = []byte{0x14}
 var VALTYPE_RAW_JSON = []byte{0x15}
 
@@ -176,7 +177,7 @@ const (
 const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
 const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 60           // 1 min
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
 var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
 var QUERY_MAX_BUCKETS = uint64(10_000)
