@@ -66,6 +66,7 @@ let isQueryBuilderSearch = false;
 let sortByTimestampAtDefault = true;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
+let isMetricsScreen = false;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -613,23 +614,52 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = queryData.queries[0].query;
-                addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    const queryString = queryData.queries[0].query;
+                    addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
             }
-
+            
             for (const formulaData of data.formulasData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                let formulaString = formulaData.formulas[0].formula;
-                // Replace a, b, etc., with actual query values
-                formulaData.queries.forEach((query) => {
-                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-                    formulaString = formulaString.replace(regex, query.query);
-                });
-                addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    let formulaString = formulaData.formulas[0].formula;
+            
+                    // Replace a, b, etc., with actual query values
+                    formulaData.queries.forEach((query) => {
+                        const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                        formulaString = formulaString.replace(regex, query.query);
+                    });
+            
+                    addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
             }
+            
         }
         if (currentPanel && currentPanel.style) {
             toggleLineOptions(currentPanel.style.display);
@@ -1190,4 +1220,24 @@ function updateQueryModeUI(queryMode) {
         $('#query-mode-options #mode-option-2').addClass('active');
         $('#query-mode-btn span').html('Code');
     }
+}
+
+function calculateMutedFor(silenceEndTime) {
+    if (!silenceEndTime) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const remainingSeconds = silenceEndTime - now;
+    if (remainingSeconds <= 0) return '';
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = Math.floor(remainingSeconds % 60);
+
+    let result = '';
+    if (days > 0) result += `${days} day${days > 1 ? 's' : ''} `;
+    if (hours > 0) result += `${hours} hr${hours > 1 ? 's' : ''} `;
+    if (minutes > 0) result += `${minutes} min${minutes > 1 ? 's' : ''} `;
+    if (minutes === 0 && seconds > 0) result += `${seconds} sec${seconds > 1 ? 's' : ''}`;
+
+    return result.trim();
 }

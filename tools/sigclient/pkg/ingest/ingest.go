@@ -217,7 +217,8 @@ func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64)
 }
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
-	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int, eventsPerDayPerProcess int) {
+	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
+	eventsPerDayPerProcess int, totalBytes *uint64) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -294,6 +295,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		}
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
+		atomic.AddUint64(totalBytes, uint64(len(payload)))
 		if estimatedMilliSecsPerBatch > 0 {
 			timeTaken := int(time.Since(startTime).Milliseconds())
 			if timeTaken < estimatedMilliSecsPerBatch {
@@ -325,7 +327,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
@@ -342,14 +344,14 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
 		seed := int64(fastrand.Uint32n(1_000))
-		rdr = utils.InitDynamicUserGenerator(ts, seed)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()
 	case "benchmark":
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
-		rdr = utils.InitDynamicUserGenerator(ts, seed)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -361,9 +363,13 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
+func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int) *utils.GeneratorDataConfig {
+	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns)
+}
+
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
-	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64) {
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
@@ -372,6 +378,12 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 			return
 		}
 	}
+
+	var dataGeneratorConfig *utils.GeneratorDataConfig
+	if iDataGeneratorConfig != nil {
+		dataGeneratorConfig = iDataGeneratorConfig.(*utils.GeneratorDataConfig)
+	}
+
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
 	eventsPerDayPerProcess := int(eventsPerDay) / processCount
@@ -379,14 +391,15 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
+	totalBytes := uint64(0)
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
 		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess)
+			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
 	}
 
 	go func() {
@@ -396,30 +409,46 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	startTime := time.Now()
 
 	lastPrintedCount := uint64(0)
+	lastPrintedSize := uint64(0)
 readChannel:
 	for {
 		select {
 		case <-done:
 			break readChannel
 		case <-ticker.C:
-			totalTimeTaken := time.Since(startTime)
+			totalTimeTaken := time.Since(startTime).Truncate(time.Second)
 			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
-			log.Infof("Total elapsed time:%s. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
+			mbCount := totalBytes / 1_000_000
+			mbPerSec := int64((mbCount - lastPrintedSize) / 60)
+
+			log.Infof("Elapsed time: %v Total: %v events, %v MB, %v events/sec, %v MB/s",
+				totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(int64(mbCount)),
+				humanize.Comma(eventsPerSec), humanize.Comma(mbPerSec))
+
 			if iType == OpenTSDB {
 				log.Infof("HLL Approx so far of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 			}
 			lastPrintedCount = totalSent
+			lastPrintedSize = mbCount
 		}
 	}
-	log.Printf("Total events ingested:%+d. Event type: %s", totalEvents, iType.String())
+	mbCount := totalBytes / 1_000_000
+	log.Printf("Total ingested: %v events, %v MB. Event type: %s",
+		humanize.Comma(int64(totalEvents)),
+		humanize.Comma(int64(mbCount)),
+		iType.String())
 	totalTimeTaken := time.Since(startTime)
 
 	numSeconds := totalTimeTaken.Seconds()
 	if numSeconds == 0 {
-		log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
+		log.Printf("Total Time Taken for ingestion %v", totalTimeTaken)
 	} else {
 		eventsPerSecond := int64(float64(totalEvents) / numSeconds)
-		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+		mbPerSec := int64(float64(mbCount) / numSeconds)
+		log.Printf("Total ingestion time: %v, %v events/sec, %v MB/s",
+			totalTimeTaken.Truncate(time.Second),
+			humanize.Comma(eventsPerSecond),
+			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 }

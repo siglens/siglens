@@ -200,6 +200,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
+	hasStatsAggregator := aggs.IsStatsAggPresentInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 
@@ -230,7 +231,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 		nodeRes.ColumnsOrder = colsIndexMap
 
-		if hasQueryAggergatorBlock || transactionArgsExist {
+		if hasQueryAggergatorBlock || transactionArgsExist || hasStatsAggregator {
 
 			numTotalSegments, _, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
@@ -428,7 +429,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	}
 
 	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+	log.Debugf("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
 
 	return finalRecords, colsSlice, nil
 }

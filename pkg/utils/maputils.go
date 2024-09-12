@@ -121,3 +121,12 @@ func IntersectionWithFirstMapValues[K comparable, V1 any, V2 any](map1 map[K]V1,
 
 	return intersection
 }
+
+func GetKeysOfMap[K comparable, T any](map1 map[K]T) []K {
+	keys := make([]K, 0, len(map1))
+	for k := range map1 {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
