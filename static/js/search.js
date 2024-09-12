@@ -63,10 +63,6 @@ function resetDataTable(firstQUpdate) {
 }
 
 let doSearchCounter = 0;
-let columnsWithNonNullValues = new Set();
-let columnsWithNullValues = new Set();
-let allColumns = new Set();
-
 //eslint-disable-next-line no-unused-vars
 function doSearch(data) {
     return new Promise((resolve, reject) => {

@@ -775,8 +775,10 @@ function updateNullColumnsTracking(records) {
         Object.keys(record).forEach((column) => {
             allColumns.add(column);
             if (record[column] !== null && record[column] !== undefined && record[column] !== '') {
+                //eslint-disable-next-line no-undef
                 columnsWithNonNullValues.add(column);
             } else {
+                //eslint-disable-next-line no-undef
                 columnsWithNullValues.add(column);
             }
         });
@@ -784,6 +786,7 @@ function updateNullColumnsTracking(records) {
 }
 //eslint-disable-next-line no-unused-vars
 function finalizeNullColumnsHiding() {
+    //eslint-disable-next-line no-undef
     const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
     const checkbox = $('#hide-null-columns-checkbox');
     const checkboxParent = $('#hide-null-column-box');
