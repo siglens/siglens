@@ -85,15 +85,23 @@ func Test_Remote_Stats(t *testing.T) {
 		SegStats:  []*structs.SegStats{&segStat},
 	}
 
+	expectedHllBytes := segStat.Hll.ToBytes()
+
 	remoteStatsJson, err := remoteStats.RemoteStatsToJSON()
 	assert.Nil(t, err)
 	assert.NotNil(t, remoteStatsJson)
+	assert.Equal(t, remoteStats.EvalStats, remoteStatsJson.EvalStats)
 
-	remoteStats2, err := remoteStatsJson.ToRemoteStats()
+	assert.Equal(t, 1, len(remoteStatsJson.SegStats))
+	assert.Equal(t, remoteStats.SegStats[0].Count, remoteStatsJson.SegStats[0].Count)
+	assert.Equal(t, remoteStats.SegStats[0].IsNumeric, remoteStatsJson.SegStats[0].IsNumeric)
+	assert.Equal(t, remoteStats.SegStats[0].NumStats, remoteStatsJson.SegStats[0].NumStats)
+	assert.Equal(t, remoteStats.SegStats[0].StringStats, remoteStatsJson.SegStats[0].StringStats)
+	assert.Equal(t, expectedHllBytes, remoteStatsJson.SegStats[0].RawHll)
+
+	decodedRemoteStats, err := remoteStatsJson.ToRemoteStats()
 	assert.Nil(t, err)
-	assert.NotNil(t, remoteStats2)
+	assert.NotNil(t, decodedRemoteStats)
 
-	assert.Equal(t, evalStats, remoteStats.EvalStats)
-	assert.Equal(t, segStat, *remoteStats.SegStats[0])
-
+	assert.Equal(t, remoteStats, decodedRemoteStats)
 }
