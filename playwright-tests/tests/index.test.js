@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { testDateTimePicker, testThemeToggle } = require('./common-functions.test');
+const { testDateTimePicker, testThemeToggle } = require('./common-functions');
 
 test.describe('Logs Page Tests', () => {
     test.beforeEach(async ({ page }) => {

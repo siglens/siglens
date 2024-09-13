@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { testThemeToggle } = require('./common-functions.test');
+const { testThemeToggle } = require('./common-functions');
 
 test('Navigation Menu Functionality Tests', async ({ page }) => {
     await page.goto('http://localhost:5122/index.html');

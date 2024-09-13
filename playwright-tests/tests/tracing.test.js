@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { testDateTimePicker, testThemeToggle } = require('./common-functions.test');
+const { testDateTimePicker, testThemeToggle } = require('./common-functions');
 
 test('Service Health Page Test', async ({ page }) => {
     await page.goto('http://localhost:5122/service-health.html');
