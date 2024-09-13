@@ -118,6 +118,8 @@ function doSearch(data) {
                     }
                     resetDataTable(firstQUpdate);
                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                    //eslint-disable-next-line no-undef
+                    updateNullColumnsTracking(jsonEvent.hits.records);
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
@@ -131,6 +133,8 @@ function doSearch(data) {
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                    //eslint-disable-next-line no-undef
+                    finalizeNullColumnsHiding();
                     console.timeEnd('COMPLETE');
                     socket.close(1000);
                     break;
