@@ -558,20 +558,20 @@ func GetRemoteRawLogInfo(remoteID string, inrrcs []*utils.RecordResultContainer,
 	}
 	defer arqMapLock.RUnlock()
 
-	return rQuery.searchRes.GetRemoteInfo(remoteID, inrrcs)
+	return rQuery.searchRes.GetRemoteInfo(remoteID, inrrcs, false)
 }
 
-func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[string]interface{}, error) {
+func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
 		log.Errorf("GetAllRemoteLogs: qid %+v does not exist!", qid)
 		arqMapLock.RUnlock()
-		return nil, fmt.Errorf("qid does not exist")
+		return nil, nil, fmt.Errorf("qid does not exist")
 	}
 	defer arqMapLock.RUnlock()
 
-	return rQuery.searchRes.GetAllRemoteLogs(inrrcs), nil
+	return rQuery.searchRes.GetRemoteInfo("", inrrcs, true)
 }
 
 func round(num float64) int {

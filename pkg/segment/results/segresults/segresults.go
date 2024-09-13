@@ -461,7 +461,7 @@ func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
-func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordResultContainer) ([]map[string]interface{}, []string, error) {
+func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordResultContainer, fetchAll bool) ([]map[string]interface{}, []string, error) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	if sr.remoteInfo == nil {
@@ -475,7 +475,7 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	remoteCols := sr.remoteInfo.remoteColumns
 	count := 0
 	for i := 0; i < len(inrrcs); i++ {
-		if inrrcs[i].SegKeyInfo.IsRemote && strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID) {
+		if inrrcs[i].SegKeyInfo.IsRemote && (fetchAll || strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID)) {
 			_, isProcessed := sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId]
 			if isProcessed {
 				continue
@@ -496,27 +496,6 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	allCols = allCols[:idx]
 	sort.Strings(allCols)
 	return finalLogs, allCols, nil
-}
-
-func (sr *SearchResults) GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer) []map[string]interface{} {
-	sr.updateLock.Lock()
-	defer sr.updateLock.Unlock()
-
-	if sr.remoteInfo == nil {
-		return nil
-	}
-
-	finalLogs := make([]map[string]interface{}, 0, len(inrrcs))
-	rawLogs := sr.remoteInfo.remoteLogs
-	count := 0
-	for i := 0; i < len(inrrcs); i++ {
-		if inrrcs[i].SegKeyInfo.IsRemote {
-			finalLogs = append(finalLogs, rawLogs[inrrcs[i].SegKeyInfo.RecordId])
-			count++
-		}
-	}
-
-	return finalLogs
 }
 
 func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
