@@ -536,13 +536,13 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 
 func GetQueryType(qid uint64) structs.QueryType {
 	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
 		log.Errorf("GetQueryType: qid %+v does not exist!", qid)
-		arqMapLock.RUnlock()
 		return structs.InvalidCmd
 	}
-	defer arqMapLock.RUnlock()
 
 	return rQuery.QType
 }
@@ -550,15 +550,28 @@ func GetQueryType(qid uint64) structs.QueryType {
 // Get remote raw logs and columns based on the remoteID and all RRCs
 func GetRemoteRawLogInfo(remoteID string, inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
 	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
 		log.Errorf("GetRemoteRawLogInfo: qid %+v does not exist!", qid)
-		arqMapLock.RUnlock()
 		return nil, nil, fmt.Errorf("qid does not exist")
 	}
+
+	return rQuery.searchRes.GetRemoteInfo(remoteID, inrrcs, false)
+}
+
+func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
+	arqMapLock.RLock()
 	defer arqMapLock.RUnlock()
 
-	return rQuery.searchRes.GetRemoteInfo(remoteID, inrrcs)
+	rQuery, ok := allRunningQueries[qid]
+	if !ok {
+		log.Errorf("GetAllRemoteLogs: qid %+v does not exist!", qid)
+		return nil, nil, fmt.Errorf("qid does not exist")
+	}
+
+	return rQuery.searchRes.GetRemoteInfo("", inrrcs, true)
 }
 
 func round(num float64) int {
