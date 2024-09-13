@@ -63,6 +63,10 @@ $(document).ready(async function () {
     }
 
     $('#add-panel-btn, .close-widget-popup').click(() => {
+        let pflag = `{{ .PanelFlag }}`;
+        if (pflag === 'false' && localPanels.length >= 10) {
+            return;
+        }
         $('#add-widget-options').toggle();
         $('.add-icon').toggleClass('rotate-icon');
         $('#add-panel-btn').toggleClass('active');
@@ -89,6 +93,10 @@ $(document).ready(async function () {
         if ($(this).hasClass('active')) {
             return;
         } else {
+            let pflag = `{{ .PanelFlag }}`;
+            if (pflag === 'false' && localPanels.length >= 10) {
+                return;
+            }
             $(this).addClass('active');
             $('#add-widget-options').toggle();
             $('.add-icon').toggleClass('rotate-icon');
@@ -169,6 +177,7 @@ function saveJsonChanges() {
                     })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
+                    panelFlag: `{{ .PanelFlag }}`,
                 },
             }),
         })
@@ -263,6 +272,7 @@ async function updateDashboard() {
                     },
                 })),
                 refresh: dbRefresh,
+                panelFlag: `{{ .PanelFlag }}`,
             },
         }),
     })

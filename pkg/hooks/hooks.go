@@ -153,6 +153,7 @@ type JsSnippets struct {
 	OrgUpperNavUrls string
 
 	OrgAllSlos string
+	PanelFlag  bool
 }
 
 var GlobalHooks = Hooks{
