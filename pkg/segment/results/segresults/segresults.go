@@ -498,6 +498,27 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
+func (sr *SearchResults) GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer) []map[string]interface{} {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+
+	if sr.remoteInfo == nil {
+		return nil
+	}
+
+	finalLogs := make([]map[string]interface{}, 0, len(inrrcs))
+	rawLogs := sr.remoteInfo.remoteLogs
+	count := 0
+	for i := 0; i < len(inrrcs); i++ {
+		if inrrcs[i].SegKeyInfo.IsRemote {
+			finalLogs = append(finalLogs, rawLogs[inrrcs[i].SegKeyInfo.RecordId])
+			count++
+		}
+	}
+
+	return finalLogs
+}
+
 func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()

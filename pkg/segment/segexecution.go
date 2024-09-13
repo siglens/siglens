@@ -439,6 +439,11 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 		log.Errorf("qid=%d, ExecuteQuery: failed to get number of RRCs for qid! Error: %v", qid, err)
 	}
 
+	res.RemoteLogs, err = query.GetAllRemoteLogs(res.AllRecords, qid)
+	if err != nil {
+		log.Errorf("qid=%d, ExecuteQuery: failed to get remote logs for qid! Error: %v", qid, err)
+	}
+
 	query.DeleteQuery(qid)
 
 	return res
