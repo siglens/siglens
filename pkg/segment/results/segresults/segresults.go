@@ -437,10 +437,7 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 }
 
 func (sr *SearchResults) AddSegmentStats(remoteStatsJSON *RemoteStatsJSON) error {
-	remoteStats, err := remoteStatsJSON.ToRemoteStats()
-	if err != nil {
-		return fmt.Errorf("Error while converting RemoteStatsJSON to RemoteStats, qid=%v, err: %v", sr.qid, err)
-	}
+	remoteStats := remoteStatsJSON.ToRemoteStats()
 
 	return sr.MergeSegmentStats(sr.sAggs.MeasureOperations, *remoteStats)
 }
@@ -1133,8 +1130,7 @@ func (rs *RemoteStats) RemoteStatsToJSON() (*RemoteStatsJSON, error) {
 	return remoteStatsJson, nil
 }
 
-func (rj *RemoteStatsJSON) ToRemoteStats() (*RemoteStats, error) {
-	var err error
+func (rj *RemoteStatsJSON) ToRemoteStats() *RemoteStats {
 	remoteStats := &RemoteStats{
 		EvalStats: rj.EvalStats,
 	}
@@ -1143,11 +1139,8 @@ func (rj *RemoteStatsJSON) ToRemoteStats() (*RemoteStats, error) {
 		if segStatJSON == nil {
 			continue
 		}
-		remoteStats.SegStats[idx], err = segStatJSON.ToStats()
-		if err != nil {
-			return nil, err
-		}
+		remoteStats.SegStats[idx] = segStatJSON.ToStats()
 	}
 
-	return remoteStats, nil
+	return remoteStats
 }

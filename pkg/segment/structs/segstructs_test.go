@@ -800,8 +800,7 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, segStatsJson)
 
-		recoveredSegStats, err := segStatsJson.ToStats()
-		assert.NoError(t, err)
+		recoveredSegStats := segStatsJson.ToStats()
 		assert.NotNil(t, recoveredSegStats)
 
 		assert.Equal(t, originalSegStats, recoveredSegStats)

@@ -99,8 +99,7 @@ func Test_Remote_Stats(t *testing.T) {
 	assert.Equal(t, remoteStats.SegStats[0].StringStats, remoteStatsJson.SegStats[0].StringStats)
 	assert.Equal(t, expectedHllBytes, remoteStatsJson.SegStats[0].RawHll)
 
-	decodedRemoteStats, err := remoteStatsJson.ToRemoteStats()
-	assert.Nil(t, err)
+	decodedRemoteStats := remoteStatsJson.ToRemoteStats()
 	assert.NotNil(t, decodedRemoteStats)
 
 	assert.Equal(t, remoteStats, decodedRemoteStats)

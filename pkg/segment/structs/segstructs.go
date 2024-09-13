@@ -546,7 +546,6 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	err = ss.CreateHllFromBytes(segStatJson.RawHll)
 	if err != nil {
 		log.Errorf("SegStats.Init: Failed to create new segmentio Hll from raw bytes. error: %v data: %v", err, string(segStatJson.RawHll))
-		return err
 	}
 	ss.NumStats = segStatJson.NumStats
 	return nil
@@ -627,7 +626,7 @@ func (ss *SegStats) GetHllDataSize() int {
 	return size
 }
 
-func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
+func (ssj *SegStatsJSON) ToStats() *SegStats {
 	ss := &SegStats{}
 	ss.IsNumeric = ssj.IsNumeric
 	ss.Count = ssj.Count
@@ -635,12 +634,11 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 		err := ss.CreateHllFromBytes(ssj.RawHll)
 		if err != nil {
 			log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hll error: %v data: %v", err, string(ssj.RawHll))
-			return nil, err
 		}
 	}
 	ss.NumStats = ssj.NumStats
 	ss.StringStats = ssj.StringStats
-	return ss, nil
+	return ss
 }
 
 // convert SegStats to SegStatsJSON

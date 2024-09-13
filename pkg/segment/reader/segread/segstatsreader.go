@@ -135,7 +135,6 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
 		if err != nil {
 			log.Errorf("qid=%d, readSingleSst: unable to create Hll from raw bytes. sst err: %v", qid, err)
-			return nil, err
 		}
 	}
 
