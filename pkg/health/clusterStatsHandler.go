@@ -211,6 +211,12 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 
 	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+
+	if hook := hooks.GlobalHooks.AddMultinodeIngestStats; hook != nil {
+		log.Infof("Mani: Processing ClusterIngestStatsHandler: calling AddMultinodeIngestStats hook")
+		hook(rStats, pastXhours, uint8(granularity), orgId)
+	}
+
 	httpResp.ChartStats = make(map[string]map[string]interface{})
 
 	for k, entry := range rStats {
