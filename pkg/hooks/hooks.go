@@ -59,7 +59,7 @@ type Hooks struct {
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats
-	AddMultinodeIngestStats func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
+	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
 	// Retention
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
