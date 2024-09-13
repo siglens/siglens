@@ -13,12 +13,10 @@
     "lodash": "^4.17.21",
     "mocha": "^10.0.0",
     "prettier": "^3.3.2",
-    "puppeteer": "^22.11.2",
     "selenium-webdriver": "^4.15.0",
     "uuid": "^9.0.0"
   },
   "scripts": {
-    "test": "mocha ui-test/specs/common.js --recursive ui-test/specs",
     "prettier:format": "prettier static/js/*.js --write ",
     "lint:js": "eslint static/js/*.js --fix"
   }
