@@ -221,13 +221,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		return fmt.Errorf("nodeID cannot be empty")
 	}
 
-	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
-		err := hook(nodeID)
-		if err != nil {
-			return err
-		}
-	}
-
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
@@ -293,6 +286,13 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		err = dashboards.InitDashboards()
 		if err != nil {
 			log.Errorf("error in init Dashboards: %v", err)
+			return err
+		}
+	}
+
+	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
+		err := hook(nodeID)
+		if err != nil {
 			return err
 		}
 	}
