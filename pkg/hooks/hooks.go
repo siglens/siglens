@@ -46,6 +46,7 @@ type Hooks struct {
 	LogConfigHook             func()
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
+	ShutdownSiglensPreHook    func()
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
