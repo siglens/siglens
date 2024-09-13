@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -574,7 +573,7 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 		CVal:  make([]string, 0),
 	}
 
-	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
+	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrSet == nil {
 		log.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 	}
@@ -596,11 +595,6 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 	}
 
 	// Convert the string set to a sorted slice
-	uniqueStrings := make([]string, 0, len(strSet))
-	for str := range strSet {
-		uniqueStrings = append(uniqueStrings, str)
-	}
-	sort.Strings(uniqueStrings)
-	res.CVal = uniqueStrings
+	res.CVal = toputils.GetSortedStringKeys(strSet)
 	return &res, nil
 }
