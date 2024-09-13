@@ -29,6 +29,7 @@ function setupEventHandlers() {
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
+    $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
 
@@ -499,16 +500,29 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
     if (colName !== 'timestamp') {
         // toggle the column visibility
         $(`.toggle-${encColName}`).toggleClass('active');
-        if ($(`.toggle-${encColName}`).hasClass('active')) {
+        const isSelected = $(`.toggle-${encColName}`).hasClass('active');
+
+        if (isSelected) {
             // Update the selectedFieldsList everytime a field is selected
-            selectedFieldsList.push(colName);
+            if (!selectedFieldsList.includes(colName)) {
+                selectedFieldsList.push(colName);
+            }
         } else {
             // Everytime the field is unselected, remove it from selectedFieldsList
-            for (let i = 0; i < selectedFieldsList.length; i++) {
-                if (selectedFieldsList[i] === colName) {
-                    selectedFieldsList.splice(i, 1);
-                    i--;
-                }
+            selectedFieldsList = selectedFieldsList.filter((field) => field !== colName);
+        }
+
+        // Check if the selected/unselected column is a null column
+        //eslint-disable-next-line no-undef
+        const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues?.has(column) && !columnsWithNonNullValues?.has(column));
+        const isNullColumn = nullColumns.includes(colName);
+
+        if (isNullColumn) {
+            const $checkbox = $('#hide-null-columns-checkbox');
+            if (isSelected) {
+                $checkbox.prop('checked', false);
+            } else {
+                $checkbox.prop('checked', true);
             }
         }
     }
@@ -571,6 +585,10 @@ function toggleAllAvailableFieldsHandler(_evt) {
     processTableViewOption();
     let el = $('#available-fields .select-unselect-header');
     let isChecked = el.find('.select-unselect-checkmark');
+    const nullColumnCheckbox = $('#hide-null-columns-checkbox');
+    //eslint-disable-next-line no-undef
+    const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
+
     if (isChecked.length === 0) {
         if (theme === 'light') {
             el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
@@ -584,6 +602,11 @@ function toggleAllAvailableFieldsHandler(_evt) {
             gridOptions.columnApi.setColumnVisible(colName, true);
         });
         selectedFieldsList = tempFieldList;
+
+        // Uncheck the null column checkbox if there are any null columns
+        if (nullColumns.length > 0) {
+            nullColumnCheckbox.prop('checked', false);
+        }
     } else {
         let cmClass = el.find('.select-unselect-checkmark');
         cmClass.remove();
@@ -593,6 +616,7 @@ function toggleAllAvailableFieldsHandler(_evt) {
             gridOptions.columnApi.setColumnVisible(colName, false);
         });
         selectedFieldsList = [];
+        nullColumnCheckbox.prop('checked', true);
     }
     updatedSelFieldList = true;
     // Always hide the logs column
@@ -765,4 +789,111 @@ function themePickerHandler(evt) {
 function saveqInputHandler(evt) {
     evt.preventDefault();
     $(this).addClass('active');
+}
+//eslint-disable-next-line no-unused-vars
+function updateNullColumnsTracking(records) {
+    if (!records || records.length === 0) return;
+
+    records.forEach((record) => {
+        Object.keys(record).forEach((column) => {
+            allColumns.add(column);
+            if (record[column] !== null && record[column] !== undefined && record[column] !== '') {
+                //eslint-disable-next-line no-undef
+                columnsWithNonNullValues.add(column);
+            } else {
+                //eslint-disable-next-line no-undef
+                columnsWithNullValues.add(column);
+            }
+        });
+    });
+}
+//eslint-disable-next-line no-unused-vars
+function finalizeNullColumnsHiding() {
+    //eslint-disable-next-line no-undef
+    const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
+    const checkbox = $('#hide-null-columns-checkbox');
+    const checkboxParent = $('#hide-null-column-box');
+
+    if (nullColumns.length === 0) {
+        // No null columns, hide checkbox
+        checkboxParent.hide();
+        updateColumnsVisibility(false, []); // Show all columns
+        return;
+    }
+
+    checkboxParent.show();
+    // Update column visibility if the checkbox is checked
+    const hideNullColumns = checkbox.is(':checked');
+    updateColumnsVisibility(hideNullColumns, nullColumns);
+}
+
+function handleHideNullColumnsCheckbox(event) {
+    const hideNullColumns = event.target.checked;
+    updateColumnsVisibility(hideNullColumns);
+}
+
+function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
+    const columnDefs = gridOptions.columnApi?.getColumns().map((col) => ({ field: col.getColId() }));
+    let updatedSelectedFieldsList = [...selectedFieldsList]; // Use selectedFieldsList instead of availColNames
+
+    if (!nullColumns) {
+        //eslint-disable-next-line no-undef
+        nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
+    }
+
+    columnDefs?.forEach((colDef) => {
+        const colField = colDef.field;
+        if (colField !== 'timestamp' && colField !== 'logs') {
+            const isSelected = selectedFieldsList.includes(colField);
+            const isNullColumn = nullColumns.includes(colField);
+
+            let shouldBeVisible = isSelected;
+
+            if (hideNullColumns && isNullColumn && isSelected) {
+                shouldBeVisible = false;
+                updatedSelectedFieldsList = updatedSelectedFieldsList.filter((field) => field !== colField);
+            }
+
+            gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
+
+            if (shouldBeVisible) {
+                $(`.toggle-${string2Hex(colField)}`).addClass('active');
+            } else {
+                $(`.toggle-${string2Hex(colField)}`).removeClass('active');
+            }
+        }
+    });
+    updateAvailableFieldsUI(updatedSelectedFieldsList);
+    gridOptions.api?.sizeColumnsToFit();
+}
+
+function updateAvailableFieldsUI(updatedSelectedFieldsList) {
+    let visibleColumns = 0;
+    let totalColumns = availColNames.length;
+    if (updatedSelectedFieldsList && updatedSelectedFieldsList.length > 0) {
+        availColNames.forEach((colName) => {
+            if (updatedSelectedFieldsList.includes(colName)) {
+                visibleColumns++;
+                $(`.toggle-${string2Hex(colName)}`).addClass('active');
+            } else {
+                $(`.toggle-${string2Hex(colName)}`).removeClass('active');
+            }
+        });
+
+        let el = $('#available-fields .select-unselect-header');
+
+        // Update the toggle-all checkbox
+        if (visibleColumns === totalColumns - 2) {
+            // Excluding timestamp and logs
+            if (theme === 'light') {
+                el.find('.select-unselect-checkmark').remove();
+                el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
+            } else {
+                el.find('.select-unselect-checkmark').remove();
+                el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
+            }
+        } else {
+            el.find('.select-unselect-checkmark').remove();
+        }
+    }
 }

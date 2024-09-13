@@ -465,7 +465,30 @@ body {
     justify-content: center;
     margin-right: 6px !important;
 }
-
+.format-icon {
+    cursor: pointer;
+    display: none;
+    background-color: var(--alert-background);
+    font-size: 12px !important;
+    padding: 2px 5px;
+    color: grey;
+    margin-right: 5%;
+    border: none;
+    border-radius: 5px;
+}
+.logcontainer{
+    margin-left: auto !important;
+    margin-bottom: 6px !important;
+    width: 94px;
+    height: 26px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+.format-icon:hover{
+    color:var(--text-color);
+}
 #theme-btn {
     box-sizing: border-box;
     width: 36px;
@@ -2465,7 +2488,61 @@ input[type="submit" i] {
 
 /* end save query dialog  */
 
+#hide-null-column-box{
+    display: flex;
+    align-items: center;
+}
 
+#hide-null-columns-checkbox{
+    color: var(--select-unselect-header-text-color);
+    font-size: 14px;
+    position: relative;
+    margin-right: 6px;
+    display: flex;
+    align-items: center;
+    width: 18px;
+}
+
+#hide-null-columns-checkbox[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--purple-1);
+} 
+
+#hide-null-columns-checkbox[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    padding: 0.1rem;
+    background-color: white; 
+    border: 1.5px solid var(--purple-1);
+    border-radius: 2px;
+} 
+
+#hide-null-columns-checkbox[type="checkbox"]:not(:checked)::before {
+    content: '';
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:checked {
+    background-color: var(--purple-1);
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:checked::before {
+    content: '\2713'; /* Unicode for checkmark */
+    color: white;
+    font-size: 13px;
+    position: absolute;
+    left: 2px;
+    top: -3px;
+    transform: scale(1);
+}
+
+#hide-null-columns-checkbox[type="checkbox"]:hover {
+    cursor: pointer;
+}
+      
 /* datepicker */
 
 #date-picker-btn {
