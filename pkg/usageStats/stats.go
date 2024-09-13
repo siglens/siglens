@@ -81,7 +81,7 @@ type QueryStats struct {
 var QueryStatsMap = make(map[uint64]*QueryStats)
 
 type ReadStats struct {
-	BytesCount             uint64
+	TotalBytesCount        uint64
 	EventCount             uint64
 	MetricsDatapointsCount uint64
 	TimeStamp              time.Time
@@ -558,7 +558,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		if entry, ok := resultMap[bucketInterval]; ok {
 			entry.EventCount += rStat.EventCount
 			entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
-			entry.BytesCount += rStat.BytesCount
+			entry.TotalBytesCount += rStat.TotalBytesCount
 			entry.LogsBytesCount += rStat.LogsBytesCount
 			entry.MetricsBytesCount += rStat.MetricsBytesCount
 			entry.TimeStamp = rStat.TimeStamp
@@ -585,7 +585,7 @@ func parseStatsRecord(record []string) (ReadStats, error) {
 		return readStats, fmt.Errorf("parseStatsRecord: invalid record length: %d", len(record))
 	}
 
-	readStats.BytesCount, err = strconv.ParseUint(record[0], 10, 64)
+	readStats.TotalBytesCount, err = strconv.ParseUint(record[0], 10, 64)
 	if err != nil {
 		return readStats, fmt.Errorf("parseStatsRecord: could not parse BytesCount field '%v': %w", record[0], err)
 	}
@@ -601,7 +601,7 @@ func parseStatsRecord(record []string) (ReadStats, error) {
 			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[2], err)
 		}
 		readStats.TimeStamp = time.Unix(tsString, 0)
-		readStats.LogsBytesCount = readStats.BytesCount
+		readStats.LogsBytesCount = readStats.TotalBytesCount
 		readStats.MetricsBytesCount = 0
 
 	case 4:
@@ -614,7 +614,7 @@ func parseStatsRecord(record []string) (ReadStats, error) {
 			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[3], err)
 		}
 		readStats.TimeStamp = time.Unix(tsString, 0)
-		readStats.LogsBytesCount = readStats.BytesCount
+		readStats.LogsBytesCount = readStats.TotalBytesCount
 		readStats.MetricsBytesCount = 0
 
 	case 6:
