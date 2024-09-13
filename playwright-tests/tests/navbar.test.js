@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { testThemeToggle } = require('./common-functions.test');
 
 test('Navigation Menu Functionality Tests', async ({ page }) => {
     await page.goto('http://localhost:5122/index.html');
@@ -93,14 +94,5 @@ test('Navigation Menu Functionality Tests', async ({ page }) => {
     }
 
     //Theme button
-    const themeBtn = page.locator('#theme-btn');
-    const html = page.locator('html');
-  
-    const initialTheme = await html.getAttribute('data-theme');
-    
-    await themeBtn.click();
-    expect(await html.getAttribute('data-theme')).not.toBe(initialTheme);
-    
-    await themeBtn.click();
-    expect(await html.getAttribute('data-theme')).toBe(initialTheme);
+    await testThemeToggle(page);
 });
