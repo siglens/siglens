@@ -198,8 +198,8 @@ export default [
         "toggleClearButtonVisibility": true,
         "updateQueryModeUI": true,
         "queryMode": true,
-
-
+        "allColumns": true,
+        "columnsWithNonNullValues":true
       },
     },
     rules: {

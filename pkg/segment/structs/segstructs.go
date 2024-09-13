@@ -465,6 +465,7 @@ type NodeResult struct {
 	AllSearchColumnsByTimeRange map[string]bool
 	FinalColumns                map[string]bool
 	AllColumnsInAggs            map[string]struct{}
+	RemoteLogs                  []map[string]interface{}
 }
 
 type SegStats struct {
