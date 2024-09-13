@@ -315,6 +315,11 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 }
 
 func ShutdownSiglensServer() {
+
+	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
+		hook()
+	}
+
 	// force write unsaved data to segfile and flush bloom, range, updates to meta
 	writer.ForcedFlushToSegfile()
 	metrics.ForceFlushMetricsBlock()
