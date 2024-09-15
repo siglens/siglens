@@ -695,8 +695,18 @@ func getSegStore(streamid string) *SegStore {
 }
 
 func createSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	allSegStoresLock.Lock()
+	defer allSegStoresLock.Unlock()
+
 	if len(allSegStores) >= maxAllowedSegStores {
 		return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
+	}
+
+	// Now that we got the lock, we should check if someone else had already created
+	// a segstore for this streamid, if yes then return that, else continue on
+	ss, present := allSegStores[streamid]
+	if present {
+		return ss, nil
 	}
 
 	segstore := NewSegStore(orgId)
@@ -707,10 +717,8 @@ func createSegStore(streamid string, table string, orgId uint64) (*SegStore, err
 		return nil, err
 	}
 
-	allSegStoresLock.Lock()
 	allSegStores[streamid] = segstore
 	instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
-	allSegStoresLock.Unlock()
 
 	return segstore, nil
 }
