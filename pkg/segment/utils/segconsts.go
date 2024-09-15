@@ -49,8 +49,8 @@ import (
 // proportion of available to allocate for specific uses
 const MICRO_IDX_MEM_PERCENT = 35 // percent allocated for both rotated & unrotated metadata (cmi/searchmetadata)
 const SSM_MEM_PERCENT = 20
-const MICRO_IDX_CHECK_MEM_PERCENT = 5 // percent allocated for runtime checking & loading of cmis
-const RAW_SEARCH_MEM_PERCENT = 38     // minimum percent allocated for segsearch
+const MICRO_IDX_CHECK_MEM_PERCENT = 28 // percent allocated for runtime checking & loading of cmis
+const RAW_SEARCH_MEM_PERCENT = 15     // minimum percent allocated for segsearch
 const METRICS_MEMORY_MEM_PERCENT = 2
 
 // percent allocated for segmentsearchmeta (blocksummaries, blocklen/off)
