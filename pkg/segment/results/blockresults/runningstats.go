@@ -638,7 +638,7 @@ func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 		CVal := utils.CValueEnclosure{}
 		err := CVal.ConvertValue(rj.RawVal)
 		if err != nil {
-			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to convert value, err: %v", err)
+			return runningStats{}, putils.TeeErrorf("RunningStatsJSON.GetRunningStats: failed to convert value, err: %v", err)
 		}
 		rs.rawVal = CVal
 	}
@@ -651,7 +651,7 @@ func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 	if rj.Hll != nil {
 		hll, err := structs.CreateHllFromBytes(rj.Hll)
 		if err != nil {
-			return runningStats{}, fmt.Errorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
+			return runningStats{}, putils.TeeErrorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
 		}
 		rs.hll = &putils.GobbableHll{Hll: *hll}
 	}

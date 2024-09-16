@@ -842,7 +842,7 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 			Count:     bucket.count,
 			CurrStats: bucket.currStats,
 		}
-		retVals := make([]RunningStatsJSON, 0, len(bucket.currStats))
+		retVals := make([]RunningStatsJSON, 0, len(bucket.runningStats))
 		for _, rs := range bucket.runningStats {
 			retVals = append(retVals, rs.GetRunningStatJSON())
 		}
@@ -863,7 +863,7 @@ func (tb *TimeBuckets) ConvertToJson() (*TimeBucketsJSON, error) {
 			Count:     bucket.count,
 			CurrStats: bucket.currStats,
 		}
-		retVals := make([]RunningStatsJSON, 0, len(bucket.currStats))
+		retVals := make([]RunningStatsJSON, 0, len(bucket.runningStats))
 		for _, rs := range bucket.runningStats {
 			retVals = append(retVals, rs.GetRunningStatJSON())
 		}
@@ -927,7 +927,7 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 	for _, rs := range rb.RunningStats {
 		runningStat, err := rs.GetRunningStats()
 		if err != nil {
-			return nil, err
+			return nil, toputils.TeeErrorf("RunningBucketResultsJSON.Convert: Error while converting running stats, err: %v", err)
 		}
 		currRunningStats = append(currRunningStats, runningStat)
 	}
