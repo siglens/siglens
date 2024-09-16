@@ -573,8 +573,12 @@ function getValuesofColumn(chooseColumn) {
         if (res && res.hits && res.hits.records) {
             for (let i = 0; i < res.hits.records.length; i++) {
                 let cur = res.hits.records[i][chooseColumn];
-                if (typeof cur == 'string') valuesOfColumn.add(cur);
-                else valuesOfColumn.add(cur.toString());
+
+                // Check if cur is not null or undefined before processing
+                if (cur !== null && cur !== undefined) {
+                    if (typeof cur == 'string') valuesOfColumn.add(cur);
+                    else valuesOfColumn.add(cur.toString());
+                }
             }
         }
         let arr = Array.from(valuesOfColumn);

@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 )
 
 // If there are duplicate keys, values from the second map will overwrite those
@@ -127,6 +128,16 @@ func GetKeysOfMap[K comparable, T any](map1 map[K]T) []K {
 	for k := range map1 {
 		keys = append(keys, k)
 	}
+
+	return keys
+}
+
+func GetSortedStringKeys[T any](map1 map[string]T) []string {
+	keys := make([]string, 0)
+	for key := range map1 {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 
 	return keys
 }

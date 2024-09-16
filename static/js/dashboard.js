@@ -63,6 +63,10 @@ $(document).ready(async function () {
     }
 
     $('#add-panel-btn, .close-widget-popup').click(() => {
+        let pflag = `{{ .PanelFlag }}`;
+        if (pflag === 'false' && localPanels.length >= 10) {
+            return;
+        }
         $('#add-widget-options').toggle();
         $('.add-icon').toggleClass('rotate-icon');
         $('#add-panel-btn').toggleClass('active');
@@ -89,6 +93,10 @@ $(document).ready(async function () {
         if ($(this).hasClass('active')) {
             return;
         } else {
+            let pflag = `{{ .PanelFlag }}`;
+            if (pflag === 'false' && localPanels.length >= 10) {
+                return;
+            }
             $(this).addClass('active');
             $('#add-widget-options').toggle();
             $('.add-icon').toggleClass('rotate-icon');
@@ -169,6 +177,7 @@ function saveJsonChanges() {
                     })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
+                    panelFlag: `{{ .PanelFlag }}`,
                 },
             }),
         })
@@ -263,6 +272,7 @@ async function updateDashboard() {
                     },
                 })),
                 refresh: dbRefresh,
+                panelFlag: `{{ .PanelFlag }}`,
             },
         }),
     })
@@ -1196,35 +1206,38 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
-    let trimmedDbName = $('.dbSet-dbName').val().trim();
-    let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
+    if ($('.dbSet-generalHTML').is(':visible')) {
+        let trimmedDbName = $('.dbSet-dbName').val().trim();
+        let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
 
-    if (!trimmedDbName) {
-        // Show error message using error-tip and popupOverlay
-        $('.error-tip').addClass('active');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#error-message').text('Dashboard name cannot be empty.');
-        return;
+        if (!trimmedDbName) {
+            $('.error-tip').addClass('active');
+            $('.popupOverlay, .popupContent').addClass('active');
+            $('#error-message').text('Dashboard name cannot be empty.');
+            return;
+        }
+
+        dbName = trimmedDbName;
+        dbDescr = trimmedDbDescription;
     }
 
-    dbName = trimmedDbName;
-    dbDescr = trimmedDbDescription;
+    if ($('.dbSet-jsonModelHTML').is(':visible')) {
+        const jsonText = $('.dbSet-jsonModelData').val().trim();
+        let dbSettings;
+        try {
+            dbSettings = JSON.parse(jsonText);
+        } catch (e) {
+            console.error(e);
+            alert('Invalid JSON format. Please correct the JSON and try again.');
+            return;
+        }
 
-    const jsonText = $('.dbSet-jsonModelData').val().trim();
-    let dbSettings;
-    try {
-        dbSettings = JSON.parse(jsonText); // Parse the JSON to ensure its validity
-    } catch (e) {
-        console.error(e);
-        alert('Invalid JSON format. Please correct the JSON and try again.');
-        return;
+        dbName = dbSettings.name || dbName;
+        dbDescr = dbSettings.description || dbDescr;
+        timeRange = dbSettings?.timeRange || timeRange;
+        localPanels = dbSettings?.panels || localPanels;
+        dbRefresh = dbSettings?.refresh || dbRefresh;
     }
-
-    dbName = dbSettings.name;
-    dbDescr = dbSettings.description;
-    timeRange = dbSettings.timeRange;
-    localPanels = dbSettings.panels;
-    dbRefresh = dbSettings.refresh;
 
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {
