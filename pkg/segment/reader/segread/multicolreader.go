@@ -189,9 +189,15 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		fName := fName
 		currFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 		if err != nil {
-			log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for columns %s. Error: %v.",
-				qid, fName, colName, err)
-			continue
+			// This segment may have been recently rotated; try reading the
+			// rotated segment file.
+			rotatedFName := writer.GetRotatedVersion(fName)
+			currFd, err = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
+			if err != nil {
+				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for columns %s. Error: %v.",
+					qid, rotatedFName, colName, err)
+				continue
+			}
 		}
 		sharedReader.allFDs[colName] = currFd
 		allInUseSegSetFiles = append(allInUseSegSetFiles, fName)

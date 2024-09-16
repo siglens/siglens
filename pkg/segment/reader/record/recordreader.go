@@ -40,12 +40,37 @@ import (
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
-	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
-	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult, consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
+	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+
+	records, columns, err := getRecordsFromSegmentHelper(segKey, vTable, blkRecIndexes, tsKey,
+		esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
+	if err != nil {
+		// This may have failed because we're using the unrotated key, but the
+		// data has since been rotated. Try with the rotated key.
+		rotatedKey := writer.GetRotatedVersion(segKey)
+		records, columns, err = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
+			esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
+		if err != nil {
+			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v", rotatedKey, err)
+			return nil, nil, err
+		}
+	}
+
+	return records, columns, nil
+}
+
+func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
+	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
-		log.Errorf("qid=%d GetRecordsFromSegment failed to get recently rotated information for key %s table %s. err %+v", qid, segKey, vTable, err)
+		log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get recently rotated information for key %s table %s. err %+v",
+			qid, segKey, vTable, err)
 	}
 	var allCols map[string]bool
 	var exists bool
@@ -53,7 +78,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	if !exists {
 		allCols, exists = metadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			log.Errorf("GetRecordsFromSegment: failed to get column for key: %s, table %s", segKey, vTable)
+			log.Errorf("getRecordsFromSegmentHelper: failed to get column for key: %s, table %s", segKey, vTable)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}
@@ -69,7 +94,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	numOpenFds := int64(len(allCols))
 	err = fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFds, 10, fmt.Sprintf("GetRecordsFromSegment.qid=%d", qid))
 	if err != nil {
-		log.Errorf("qid=%d GetRecordsFromSegment failed to acquire lock for opening %+v file descriptors. err %+v", qid, numOpenFds, err)
+		log.Errorf("qid=%d getRecordsFromSegmentHelper failed to acquire lock for opening %+v file descriptors. err %+v", qid, numOpenFds, err)
 		return nil, map[string]bool{}, err
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFds)
@@ -83,21 +108,21 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	}
 	err = blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
 	if err != nil {
-		log.Errorf("qid=%d, GetRecordsFromSegment failed to download col file. err=%v", qid, err)
+		log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to download col file. err=%v", qid, err)
 		return nil, map[string]bool{}, err
 	}
 
 	defer func() {
 		err = blob.SetSegSetFilesAsNotInUse(allFiles)
 		if err != nil {
-			log.Errorf("qid=%d, GetRecordsFromSegment failed to set segset files as not in use. err=%v", qid, err)
+			log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to set segset files as not in use. err=%v", qid, err)
 		}
 	}()
 
 	for ssFile := range bulkDownloadFiles {
 		fd, err := os.Open(ssFile)
 		if err != nil {
-			log.Errorf("qid=%d, GetRecordsFromSegment failed to open col file. Tried to open file=%v, err=%v", qid, ssFile, err)
+			log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to open col file. Tried to open file=%v, err=%v", qid, ssFile, err)
 			return nil, map[string]bool{}, err
 		}
 		defer fd.Close()
@@ -107,13 +132,13 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	if writer.IsSegKeyUnrotated(segKey) {
 		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%d GetRecordsFromSegment failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
+			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
 	} else {
 		blockMetadata, err = metadata.GetBlockSearchInfoForKey(segKey)
 		if err != nil {
-			log.Errorf("GetRecordsFromSegment: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
 			return nil, map[string]bool{}, err
 		}
 	}
@@ -122,22 +147,21 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	if writer.IsSegKeyUnrotated(segKey) {
 		blockSum, err = writer.GetBlockSummaryForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%d GetRecordsFromSegment failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
+			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
 	} else {
 		blockSum, err = metadata.GetBlockSummariesForKey(segKey)
 		if err != nil {
-			log.Errorf("GetRecordsFromSegment: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
 			return nil, map[string]bool{}, err
 		}
 	}
 
 	result := make(map[string]map[string]interface{})
-
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid)
 	if err != nil {
-		log.Errorf("GetRecordsFromSegment: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
+		log.Errorf("getRecordsFromSegmentHelper: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err
 	}
 	defer sharedReader.Close()
