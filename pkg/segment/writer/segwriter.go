@@ -774,6 +774,11 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
 }
 
+// Take a valid segKey (rotated or unrotated), and return the rotated version.
+func GetRotatedSegKey(segKey string) string {
+	return strings.Replace(segKey, "/active/", "/final/", 1)
+}
+
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
 	uintVal uint64, fltVal float64) {
 	switch numType {
