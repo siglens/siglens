@@ -19,6 +19,7 @@
 
 let alertData = {};
 let alertID;
+let formulaString;
 let alertHistoryData = [];
 let alertEditFlag = 0;
 let alertFromMetricsExplorerFlag = 0;
