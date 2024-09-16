@@ -632,8 +632,7 @@ function fetchAlertProperties(res) {
         propertiesData.push({ name: 'Label', value: labelsValue });
     }
 
-    propertiesData.push({ name: 'Query', value: formulaString}, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
-
+    propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
 
     propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
 
