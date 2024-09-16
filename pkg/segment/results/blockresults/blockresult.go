@@ -68,7 +68,7 @@ type TimeBucketsJSON struct {
 }
 
 type RunningBucketResultsJSON struct {
-	RunningStats []interface{}                `json:"runningStats"`
+	RunningStats []RunningStatsJSON           `json:"runningStats"`
 	CurrStats    []*structs.MeasureAggregator `json:"currStats"`
 	Count        uint64                       `json:"count"`
 }
@@ -842,14 +842,9 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 			Count:     bucket.count,
 			CurrStats: bucket.currStats,
 		}
-		retVals := make([]interface{}, 0, len(bucket.currStats))
-		for idx, rs := range bucket.runningStats {
-			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
-				encoded := rs.hll.ToBytes()
-				retVals = append(retVals, encoded)
-			} else {
-				retVals = append(retVals, rs.rawVal.CVal)
-			}
+		retVals := make([]RunningStatsJSON, 0, len(bucket.runningStats))
+		for _, rs := range bucket.runningStats {
+			retVals = append(retVals, rs.GetRunningStatJSON())
 		}
 		newBucket.RunningStats = retVals
 		base64Key := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", key)))
@@ -868,14 +863,9 @@ func (tb *TimeBuckets) ConvertToJson() (*TimeBucketsJSON, error) {
 			Count:     bucket.count,
 			CurrStats: bucket.currStats,
 		}
-		retVals := make([]interface{}, 0, len(bucket.currStats))
-		for idx, rs := range bucket.runningStats {
-			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
-				encoded := rs.hll.ToBytes()
-				retVals = append(retVals, encoded)
-			} else {
-				retVals = append(retVals, rs.rawVal.CVal)
-			}
+		retVals := make([]RunningStatsJSON, 0, len(bucket.runningStats))
+		for _, rs := range bucket.runningStats {
+			retVals = append(retVals, rs.GetRunningStatJSON())
 		}
 		newBucket.RunningStats = retVals
 		retVal.AllTimeBuckets[key] = newBucket
@@ -934,33 +924,12 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 		currStats: rb.CurrStats,
 	}
 	currRunningStats := make([]runningStats, 0, len(rb.RunningStats))
-	for statsIdx, rs := range rb.RunningStats {
-		if rb.CurrStats[statsIdx].MeasureFunc == utils.Cardinality {
-			hllString, ok := rs.(string)
-			if !ok {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to string, hll: %+v of type %T", rs, rs)
-				return nil, fmt.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to byte array")
-			}
-			hllBytes, err := base64.StdEncoding.DecodeString(hllString)
-			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to decode hllString, err: %v", err)
-				return nil, err
-			}
-			hll, err := structs.CreateHllFromBytes(hllBytes)
-			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hllBytes, err: %v", err)
-				return nil, err
-			}
-			currRunningStats = append(currRunningStats, runningStats{hll: &toputils.GobbableHll{Hll: *hll}})
-		} else {
-			newVal := utils.CValueEnclosure{}
-			err := newVal.ConvertValue(rs)
-			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert value, err: %v", err)
-				return nil, err
-			}
-			currRunningStats = append(currRunningStats, runningStats{rawVal: newVal})
+	for _, rs := range rb.RunningStats {
+		runningStat, err := rs.GetRunningStats()
+		if err != nil {
+			return nil, toputils.TeeErrorf("RunningBucketResultsJSON.Convert: Error while converting running stats, err: %v", err)
 		}
+		currRunningStats = append(currRunningStats, runningStat)
 	}
 	newBucket.runningStats = currRunningStats
 	return newBucket, nil
