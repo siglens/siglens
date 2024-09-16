@@ -127,6 +127,15 @@ func Test_getFinalBaseSegDirFromActive(t *testing.T) {
 	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
 }
 
+func Test_GetRotatedVersion(t *testing.T) {
+	unrotatedSegKey := "data/test.abc/active/ind-0/0-0-17399183820399492381/4/4"
+	rotatedVersion := GetRotatedVersion(unrotatedSegKey)
+	assert.Equal(t, "data/test.abc/final/ind-0/0-0-17399183820399492381/4/4", rotatedVersion)
+
+	doubleRotatedVersion := GetRotatedVersion(rotatedVersion)
+	assert.Equal(t, "data/test.abc/final/ind-0/0-0-17399183820399492381/4/4", doubleRotatedVersion)
+}
+
 func Test_ReplaceSingleSegMeta(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	initSmr()

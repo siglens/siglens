@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -192,10 +191,8 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		if err != nil {
 			// This segment may have been recently rotated; try reading the
 			// rotated segment file.
-			rotatedFName := strings.Replace(fName, "/active/", "/final/", 1)
+			rotatedFName := writer.GetRotatedVersion(fName)
 			currFd, err = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
-
-			log.Errorf("andrew failed to open a file, but final err=%v", err)
 			if err != nil {
 				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for columns %s. Error: %v.",
 					qid, rotatedFName, colName, err)

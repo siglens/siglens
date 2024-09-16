@@ -771,11 +771,13 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 		return "", err
 	}
 
-	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
+	return GetRotatedVersion(activeBaseSegDir), nil
 }
 
-// Take a valid segKey (rotated or unrotated), and return the rotated version.
-func GetRotatedSegKey(segKey string) string {
+// Take a string that is based on a rotated/unrotated segkey (e.g., just a
+// segkey, or a filename that contains a segkey), and return the rotated
+// version of that string.
+func GetRotatedVersion(segKey string) string {
 	return strings.Replace(segKey, "/active/", "/final/", 1)
 }
 
