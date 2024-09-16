@@ -40,8 +40,10 @@ import (
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
-	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
-	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult, consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
+	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+
 	records, columns, err := getRecordsFromSegmentHelper(segKey, vTable, blkRecIndexes, tsKey, esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
 	if err != nil {
 		// This may have failed because we're using the unrotated key, but the
@@ -59,12 +61,15 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 }
 
 func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
-	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators, colsIndexMap map[string]int,
-	allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult, consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
+	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
+
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
-		log.Errorf("qid=%d GetRecordsFromSegment failed to get recently rotated information for key %s table %s. err %+v", qid, segKey, vTable, err)
+		log.Errorf("qid=%d GetRecordsFromSegment failed to get recently rotated information for key %s table %s. err %+v",
+			qid, segKey, vTable, err)
 	}
 	var allCols map[string]bool
 	var exists bool
