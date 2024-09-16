@@ -343,7 +343,6 @@ function displaySavedQueries(res, flag) {
         sqgridOptions.api.setColumnDefs(queriesColumnDefs);
         let idx = 0;
         let newRow = new Map();
-        console.log(res);
         $.each(res, function (key, value) {
             newRow.set('rowId', idx);
             newRow.set('qdescription', res[key].description);
