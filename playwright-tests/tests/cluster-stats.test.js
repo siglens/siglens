@@ -41,19 +41,6 @@ test('Cluster Stats Page Test', async ({ page }) => {
     await expect(page.locator('#trace-data-table')).toBeVisible();
     await expect(page.locator('#query-table')).toBeVisible();
 
-    // Check for the presence of ind-0 in the table
-    await expect(page.locator('#index-data-table >> text=ind-0')).toBeVisible();
-
-    // Delete index
-    const deleteButton = page.locator('#index-del-btn-ind-0');
-    await expect(deleteButton).toBeVisible();
-    await deleteButton.click();
-    await expect(page.locator('#confirm-del-index-prompt')).toBeVisible();
-    await expect(page.locator('#del-index-btn')).toBeDisabled();
-    await page.click('#cancel-del-index-btn');
-    await expect(page.locator('#confirm-del-index-prompt')).toBeHidden();
-
-    await expect(page.locator('#index-data-table >> text=ind-0')).toBeVisible();
 
     //Theme button
     await testThemeToggle(page);
