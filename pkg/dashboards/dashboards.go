@@ -762,6 +762,13 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
+	if panels, ok := dashboardDetails["panels"].([]interface{}); ok {
+		if pflag, ok := dashboardDetails["panelFlag"]; ok {
+			if pflag == "false" && len(panels) > 10 {
+				return
+			}
+		}
+	}
 	err = updateDashboard(dId, dName, dashboardDetails, myid)
 	if err != nil {
 		if err.Error() == "dashboard name already exists" {

@@ -211,11 +211,16 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 
 	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+
+	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
+		hook(rStats, pastXhours, uint8(granularity), orgId)
+	}
+
 	httpResp.ChartStats = make(map[string]map[string]interface{})
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.BytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.TotalBytesCount) / 1_000_000_000
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000

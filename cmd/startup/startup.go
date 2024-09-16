@@ -221,13 +221,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		return fmt.Errorf("nodeID cannot be empty")
 	}
 
-	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
-		err := hook(nodeID)
-		if err != nil {
-			return err
-		}
-	}
-
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
@@ -297,6 +290,13 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		}
 	}
 
+	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
+		err := hook(nodeID)
+		if err != nil {
+			return err
+		}
+	}
+
 	if ingestNode {
 		startIngestServer(ingestServer)
 	}
@@ -315,6 +315,11 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 }
 
 func ShutdownSiglensServer() {
+
+	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
+		hook()
+	}
+
 	// force write unsaved data to segfile and flush bloom, range, updates to meta
 	writer.ForcedFlushToSegfile()
 	metrics.ForceFlushMetricsBlock()
@@ -385,7 +390,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.2.35"
+					return "0.2.36"
 				},
 			})
 			textTemplate := texttemplate.New("other")
