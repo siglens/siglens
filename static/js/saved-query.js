@@ -179,7 +179,9 @@ class btnCellRenderer {
     // init method gets the details of the cell to be renderer
     init(params) {
         this.eGui = document.createElement('div');
-        this.eGui.innerHTML = `<input type="button" class="btn-simple" id="delbutton"  />`;
+        this.eGui.innerHTML = `
+        <div id="alert-grid-btn">
+        <input type="button" class="btn-simple" id="delbutton"  /></div>`;
 
         // get references to the elements we want
         this.eButton = this.eGui.querySelector('.btn-simple');

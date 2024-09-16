@@ -619,20 +619,21 @@ function performSearch() {
 
 function fetchAlertProperties(res) {
     const alert = res.alert;
+    console.log(JSON.stringify(res.alert));
     let propertiesData = [];
-                propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
-                if (alert.silence_end_time > Math.floor(Date.now() / 1000)) {
-                    //eslint-disable-next-line no-undef
-                    let mutedFor = calculateMutedFor(alert.silence_end_time);
-                    propertiesData.push({ name: 'Silenced For', value: mutedFor });
-                }
-                if (alert.labels && alert.labels.length > 0) {
-                    const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
-                    propertiesData.push({ name: 'Label', value: labelsValue });
-                }
-
-        propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
+    propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
+    if (alert.silence_end_time > Math.floor(Date.now() / 1000)) {
+        //eslint-disable-next-line no-undef
+        let mutedFor = calculateMutedFor(alert.silence_end_time);
+        propertiesData.push({ name: 'Silenced For', value: mutedFor });
     }
+    if (alert.labels && alert.labels.length > 0) {
+        const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
+        propertiesData.push({ name: 'Label', value: labelsValue });
+    }
+
+    propertiesData.push({ name: 'Query', value: formulaString}, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
+
 
     propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
 
@@ -651,8 +652,6 @@ function fetchAlertProperties(res) {
 function displayHistoryData() {
     if (historyGridOptions.api) {
         historyGridOptions.api.setRowData(alertHistoryData);
-    } else {
-        console.error('historyGridOptions.api is not defined');
     }
 }
 function fetchAlertHistory() {
