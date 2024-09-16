@@ -389,6 +389,9 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
 	}
+	if nodeResult.RemoteLogs != nil {
+		json = append(json, nodeResult.RemoteLogs...)
+	}
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {

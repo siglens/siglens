@@ -46,6 +46,7 @@ type Hooks struct {
 	LogConfigHook             func()
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
+	ShutdownSiglensPreHook    func()
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
@@ -58,6 +59,8 @@ type Hooks struct {
 		queryCount *uint64, totalResponseTime *float64)
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
+	// rStats is of type usageStats.ReadStats
+	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
 	// Retention
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
@@ -153,6 +156,7 @@ type JsSnippets struct {
 	OrgUpperNavUrls string
 
 	OrgAllSlos string
+	PanelFlag  bool
 }
 
 var GlobalHooks = Hooks{
