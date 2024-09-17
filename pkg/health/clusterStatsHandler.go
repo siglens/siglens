@@ -363,7 +363,22 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			counts = &structs.VtableCounts{}
 		}
 
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		currentIndexCols, _ := allIndexCols[indexName]
+		indexSegmentCount, _ := segmentCounts[indexName]
+		// Add the unrotated columns and segments to the current index
+		if len(columnNamesSet) > 0 {
+			if currentIndexCols == nil {
+				currentIndexCols = columnNamesSet
+				allIndexCols[indexName] = currentIndexCols
+				indexSegmentCount = 1
+				segmentCounts[indexName] = 1
+			} else {
+				utils.AddMapKeysToSet(currentIndexCols, columnNamesSet)
+				utils.AddMapKeysToSet(totalCols, columnNamesSet)
+				indexSegmentCount++
+			}
+		}
 
 		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)
 		totalEventCount += int64(totalEventsForIndex)
@@ -377,8 +392,8 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		indexStats := utils.IndexStats{
 			NumBytesIngested: uint64(totalBytesReceivedForIndex),
 			NumRecords:       totalEventsForIndex,
-			NumSegments:      uint64(segmentCounts[indexName]),
-			NumColumns:       uint64(len(allIndexCols[indexName])),
+			NumSegments:      uint64(indexSegmentCount),
+			NumColumns:       uint64(len(currentIndexCols)),
 		}
 
 		stats.IndexToStats[indexName] = indexStats
