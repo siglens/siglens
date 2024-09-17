@@ -53,7 +53,8 @@ type Hooks struct {
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
-	AddMultinodeStatsHook      func(indexData utils.AllIndexesStats, orgId uint64,
+	// TODO: There are too many arguments here. Consider refactoring by creating a struct.
+	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId uint64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64,
