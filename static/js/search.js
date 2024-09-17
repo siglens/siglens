@@ -656,8 +656,8 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     $('body').css('cursor', 'default');
 }
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
+    let columnOrder = [];
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
-        let columnOrder = [];
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
@@ -682,8 +682,9 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 
         // for sort function display
         sortByTimestampAtDefault = res.sortByTimestampAtDefault;
+        columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
 
-        renderAvailableFields(columnOrder);
+        renderAvailableFields(columnOrder, columnCount);
         renderLogsGrid(columnOrder, res.hits.records);
 
         $('#logs-result-container').show();
@@ -709,13 +710,14 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         aggsColumnDefs = [];
         segStatsRowData = [];
         $('#views-container').hide();
+        columnCount = Math.max(columnCount, columnOrder.length) - 1;
         renderMeasuresGrid(columnOrder, res);
     }
     timeChart(res.qtype);
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
     $('body').css('cursor', 'default');
 }
 
@@ -810,6 +812,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
             totalHits = res.bucketCount;
             $('#views-container').hide();
+            columnCount = Math.max(columnCount, columnOrder.length);
         }
     } else {
         measureInfo = [];
@@ -823,7 +826,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         totalRrcCount += res.total_rrc_count;
     }
     let totalPossibleEvents = res.total_possible_events;
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
     $('#run-filter-btn').html(' ');
     $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
@@ -885,7 +888,7 @@ function showErrorResponse(errorMsg, res) {
     wsState = 'query';
 }
 
-function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents) {
+function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents, columnCount) {
     //update chart title
     console.log(`rendering total hits: ${totalHits}. elapedTimeMS: ${elapedTimeMS}`);
     let startDate = displayStart;
@@ -925,6 +928,7 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
             <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
+            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else if (totalHits > 0) {
@@ -932,6 +936,7 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
             <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
+            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         } else {
@@ -939,6 +944,7 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
             <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
             <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
             <div>Records Searched: <span><b> ${totalEventsSearched} </b></span></div>
+            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
             <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
         }

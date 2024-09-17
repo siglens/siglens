@@ -70,6 +70,7 @@ let columnsWithNonNullValues = new Set();
 let columnsWithNullValues = new Set();
 let allColumns = new Set();
 let isMetricsScreen = false;
+let columnCount = 0;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -174,6 +175,8 @@ function resetDashboard() {
     columnsWithNonNullValues.clear();
     columnsWithNullValues.clear();
     allColumns.clear();
+    $('#hide-null-column-box').hide();
+    columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
 }

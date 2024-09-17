@@ -2190,9 +2190,7 @@ div.dts div.dataTables_scrollBody table {
 
 /*  start available fields dropdown overrides */
 #available-fields {
-    max-height: 204px;
     background: var(--index-drop-down-box-bg-color);
-    overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
     border: 1px solid var(--timepicker-border-color);
@@ -2246,8 +2244,16 @@ div.dts div.dataTables_scrollBody table {
     overflow: visible;
 }
 
-.fields{
+.fields {
     margin-left: 10px;
+    overflow: auto;
+    height: 172px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.fields::-webkit-scrollbar {
+    display: none;
 }
 
 .available-fields-dropdown-item.active img {
@@ -2264,7 +2270,16 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 11px;
     display: flex;
     align-items: center;
-    width:max-content;
+    width:162px;
+}
+
+.column-count-header{
+    margin-left: 11px;
+    color: var(--text-color);
+}
+
+.column-count-header span{
+    font-weight: 600;
 }
 
 .select-unselect-checkbox {
