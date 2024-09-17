@@ -2275,7 +2275,11 @@ div.dts div.dataTables_scrollBody table {
 
 .column-count-header{
     margin-left: 11px;
-    color: var(--text-color);
+    color: var(--hits-summary-small-text-color);
+    font-size: 10px;
+    font-family: "Source Code Pro", monospace;
+    font-weight: 200;
+    margin-top: 2px;
 }
 
 .column-count-header span{
