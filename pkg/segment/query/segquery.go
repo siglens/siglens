@@ -711,7 +711,7 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 
 	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
 	if err != nil {
-		log.Errorf("qid=%d, Error in distributing rotated requests %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
 		return nil, 0, 0, err
 	}
 
@@ -867,7 +867,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid u
 
 	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
 	if err != nil {
-		log.Errorf("qid=%d, Error in distributing rotated requests %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
 		return nil, 0, 0, 0, err
 	}
 
