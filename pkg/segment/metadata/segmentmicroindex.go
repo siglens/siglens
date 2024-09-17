@@ -34,7 +34,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var errCMIColNotFound = errors.New("column not found in cmi")
+var ErrCMIColNotFound = errors.New("column not found in cmi")
+
+const INITIAL_NUM_BLOCKS = 1000
 
 // Top level segment metadata for access of cmis/search metadata
 type SegmentMicroIndex struct {
@@ -51,12 +53,24 @@ type SegmentMicroIndices struct {
 	loadedMicroIndices bool
 }
 
+func (smi *SegmentMicroIndices) AreMicroIndicesLoaded() bool {
+	return smi.loadedMicroIndices
+}
+
+func (smi *SegmentMicroIndices) SetBlockCmis(blockCmis []map[string]*structs.CmiContainer) {
+	smi.blockCmis = blockCmis
+}
+
 // Holder structure for just the segment search metadata (blk summaries & blockSearchInfo)
 type SegmentSearchMetadata struct {
 	BlockSummaries       []*structs.BlockSummary
 	BlockSearchInfo      map[uint16]*structs.BlockMetadataHolder
 	SearchMetadataSize   uint64
 	loadedSearchMetadata bool
+}
+
+func (ssm *SegmentSearchMetadata) IsSearchMetadataLoaded() bool {
+	return ssm.loadedSearchMetadata
 }
 
 func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
@@ -89,13 +103,13 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 	sm.MicroIndexSize = microIndexSize
 }
 
-func (ssm *SegmentSearchMetadata) clearSearchMetadata() {
+func (ssm *SegmentSearchMetadata) ClearSearchMetadata() {
 	ssm.BlockSearchInfo = nil
 	ssm.BlockSummaries = nil
 	ssm.loadedSearchMetadata = false
 }
 
-func (smi *SegmentMicroIndices) clearMicroIndices() {
+func (smi *SegmentMicroIndices) ClearMicroIndices() {
 	smi.blockCmis = nil
 	smi.loadedMicroIndices = false
 }
@@ -122,7 +136,7 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 	}
 	retVal, ok := allCmis[cname]
 	if !ok {
-		return nil, errCMIColNotFound
+		return nil, ErrCMIColNotFound
 	}
 	return retVal, nil
 }
@@ -131,9 +145,9 @@ func (sm *SegmentMicroIndex) LoadSearchMetadata(rbuf []byte) ([]byte, error) {
 	if sm.loadedSearchMetadata {
 		return rbuf, nil
 	}
-	retbuf, blockSum, allBmh, err := sm.readBlockSummaries(rbuf)
+	retbuf, blockSum, allBmh, err := sm.ReadBlockSummaries(rbuf)
 	if err != nil {
-		sm.clearSearchMetadata()
+		sm.ClearSearchMetadata()
 		return rbuf, err
 	}
 	sm.loadedSearchMetadata = true
@@ -142,22 +156,22 @@ func (sm *SegmentMicroIndex) LoadSearchMetadata(rbuf []byte) ([]byte, error) {
 	return retbuf, nil
 }
 
-func (sm *SegmentMicroIndex) readBlockSummaries(rbuf []byte) ([]byte, []*structs.BlockSummary,
+func (sm *SegmentMicroIndex) ReadBlockSummaries(rbuf []byte) ([]byte, []*structs.BlockSummary,
 	map[uint16]*structs.BlockMetadataHolder, error) {
 
 	bsfname := structs.GetBsuFnameFromSegKey(sm.SegmentKey)
 	blockSum, allBmh, retbuf, err := microreader.ReadBlockSummaries(bsfname, rbuf)
 	if err != nil {
-		log.Errorf("Failed to read block summary file: %v, err:%+v", bsfname, err)
+		log.Errorf("ReadBlockSummaries: Failed to read block summary file: %v, err:%+v", bsfname, err)
 		return rbuf, blockSum, allBmh, err
 	}
 	return retbuf, blockSum, allBmh, nil
 }
 
 func (sm *SegmentMicroIndex) loadMicroIndices(blocksToLoad map[uint16]map[string]bool, allBlocks bool, colsToCheck map[string]bool, wildcardCol bool) error {
-	blkCmis, err := sm.readCmis(blocksToLoad, allBlocks, colsToCheck, wildcardCol)
+	blkCmis, err := sm.ReadCmis(blocksToLoad, allBlocks, colsToCheck, wildcardCol)
 	if err != nil {
-		sm.clearMicroIndices()
+		sm.ClearMicroIndices()
 		return err
 	}
 	sm.loadedMicroIndices = true
@@ -165,7 +179,7 @@ func (sm *SegmentMicroIndex) loadMicroIndices(blocksToLoad map[uint16]map[string
 	return nil
 }
 
-func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, allBlocks bool,
+func (sm *SegmentMicroIndex) ReadCmis(blocksToLoad map[uint16]map[string]bool, allBlocks bool,
 	colsToCheck map[string]bool, wildcardCol bool) ([]map[string]*structs.CmiContainer, error) {
 
 	if strings.Contains(sm.VirtualTableName, ".kibana") {
@@ -174,7 +188,7 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 	}
 	var allCols map[string]bool
 	if wildcardCol {
-		allCols = sm.getColumns()
+		allCols = sm.GetColumns()
 	} else {
 		allCols = colsToCheck
 	}
@@ -265,7 +279,7 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 	return blkCmis, nil
 }
 
-func (sm *SegmentMicroIndex) getColumns() map[string]bool {
+func (sm *SegmentMicroIndex) GetColumns() map[string]bool {
 	retVal := make(map[string]bool, len(sm.ColumnNames))
 	for colName := range sm.ColumnNames {
 		retVal[colName] = true

@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
+	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -55,6 +56,28 @@ var globalMetadata *allSegmentMetadata = &allSegmentMetadata{
 	segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
 	tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
 	updateLock:                  &sync.RWMutex{},
+}
+
+func ResetGlobalMetadataForTest() {
+	globalMetadata = &allSegmentMetadata{
+		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
+		segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
+		tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
+		updateLock:                  &sync.RWMutex{},
+	}
+}
+
+func ProcessSegmetaInfo(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
+	for pqid := range segMetaInfo.AllPQIDs {
+		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
+	}
+
+	return InitSegmentMicroIndex(segMetaInfo)
+}
+
+func AddSegMetaToMetadata(segMeta *structs.SegMeta) {
+	segMetaInfo := ProcessSegmetaInfo(segMeta)
+	BulkAddSegmentMicroIndex([]*SegmentMicroIndex{segMetaInfo})
 }
 
 func BulkAddSegmentMicroIndex(allMetadata []*SegmentMicroIndex) {
@@ -190,7 +213,7 @@ func (hm *allSegmentMetadata) evictCmiPastIndices(cmiIndex int) int {
 
 	if len(idxToClear) > 0 {
 		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].clearMicroIndices()
+			hm.allSegmentMicroIndex[idx].ClearMicroIndices()
 		}
 	}
 	return len(idxToClear)
@@ -353,6 +376,13 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 
 }
 
+func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
+	return globalMetadata.getMicroIndex(segKey)
+}
+
 func (hm *allSegmentMetadata) getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	blockMicroIndex, ok := hm.segmentMetadataReverseIndex[segKey]
 	return blockMicroIndex, ok
@@ -425,7 +455,7 @@ func (hm *allSegmentMetadata) evictSsmPastIndices(searchIndex int) int {
 
 	if len(idxToClear) > 0 {
 		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].clearSearchMetadata()
+			hm.allSegmentMicroIndex[idx].ClearSearchMetadata()
 		}
 	}
 	return len(idxToClear)
@@ -486,7 +516,7 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil
 		}
-		defer sMicroIdx.clearSearchMetadata()
+		defer sMicroIdx.ClearSearchMetadata()
 	}
 
 	var fRange *dtu.TimeRange
@@ -598,7 +628,7 @@ func CheckAndGetColsForSegKey(segKey string, vtable string) (map[string]bool, bo
 		return nil, false
 	}
 
-	return segmentMetadata.getColumns(), true
+	return segmentMetadata.GetColumns(), true
 }
 
 func DoesColumnExistForTable(cName string, indices []string) bool {

@@ -30,9 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
-	"github.com/siglens/siglens/pkg/segment/query/pqs"
-	"github.com/siglens/siglens/pkg/segment/structs"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 
@@ -239,12 +237,12 @@ func populateMicroIndices(smFile string) error {
 	// common case when we actually update the metadata.
 	slices.Reverse(allSegMetas)
 
-	allSmi := make([]*metadata.SegmentMicroIndex, len(allSegMetas))
+	allSmi := make([]*segmetadata.SegmentMicroIndex, len(allSegMetas))
 	for idx, segMetaInfo := range allSegMetas {
-		allSmi[idx] = processSegmetaInfo(segMetaInfo)
+		allSmi[idx] = segmetadata.ProcessSegmetaInfo(segMetaInfo)
 	}
 
-	metadata.BulkAddSegmentMicroIndex(allSmi)
+	segmetadata.BulkAddSegmentMicroIndex(allSmi)
 	updateLastModifiedTimeForMetaFile(smFile, metaModificationTimeMs)
 	return nil
 }
@@ -275,13 +273,13 @@ func populateMetricsMetadata(mName string) error {
 		return err
 	}
 
-	allMetricsSegmentMeta := make([]*metadata.MetricsSegmentMetadata, 0)
+	allMetricsSegmentMeta := make([]*segmetadata.MetricsSegmentMetadata, 0)
 	for _, mMetaInfo := range allMetricsMetas {
-		currMSegMetadata := metadata.InitMetricsMicroIndex(mMetaInfo)
+		currMSegMetadata := segmetadata.InitMetricsMicroIndex(mMetaInfo)
 		allMetricsSegmentMeta = append(allMetricsSegmentMeta, currMSegMetadata)
 	}
 
-	metadata.BulkAddMetricsSegment(allMetricsSegmentMeta)
+	segmetadata.BulkAddMetricsSegment(allMetricsSegmentMeta)
 	updateLastModifiedTimeForMetaFile(mName, metaModificationTimeMs)
 	return nil
 }
@@ -357,14 +355,6 @@ func updateLastModifiedTimeForMetaFile(metaFilename string, newTime uint64) {
 	metaFileLastModifiedLock.Lock()
 	defer metaFileLastModifiedLock.Unlock()
 	metaFileLastModified[metaFilename] = newTime
-}
-
-func processSegmetaInfo(segMetaInfo *structs.SegMeta) *metadata.SegmentMicroIndex {
-	for pqid := range segMetaInfo.AllPQIDs {
-		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
-	}
-
-	return metadata.InitSegmentMicroIndex(segMetaInfo)
 }
 
 func getExternalPqinfoFiles() ([]string, error) {
