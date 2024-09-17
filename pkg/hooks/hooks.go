@@ -56,7 +56,8 @@ type Hooks struct {
 	AddMultinodeStatsHook      func(indexData utils.AllIndexesStats, orgId uint64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
-		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64, totalQueryCountSinceInstall *uint64)
+		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64,
+		totalQueryCountSinceInstall *uint64, totalColumnsSet map[string]struct{})
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats

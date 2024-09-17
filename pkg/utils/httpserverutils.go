@@ -379,6 +379,7 @@ type IndexStats struct {
 	NumRecords       uint64
 	NumSegments      uint64
 	NumColumns       uint64
+	ColumnsSet       map[string]struct{}
 }
 
 type ClusterStatsResponseInfo struct {

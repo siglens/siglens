@@ -50,7 +50,6 @@ func ReadAllSegmetas() []*structs.SegMeta {
 	defer smrLock.RUnlock()
 
 	ingestDir := config.GetIngestNodeBaseDir()
-	log.Infof("Mani: ReadAllSegmetas: ingestDir=%v ", ingestDir)
 	files, err := os.ReadDir(ingestDir)
 	if err != nil {
 		log.Errorf("ReadAllSegmetas: read dir err=%v ", err)
