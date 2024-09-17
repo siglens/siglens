@@ -102,6 +102,14 @@ city=Boston | stats values(gender),now-1d,now,*,group:values(gender):*,eq,"[fema
 "batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,eq,89.228,Splunk QL
 batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):St. Louis,eq,2,Splunk QL
 "batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):St. Louis:200,eq,1,Splunk QL
+city=Boston | stats count BY http_method,now-1d,now,*,group:count(*):GET,eq,180,Splunk QL
+country=Sweden | stats avg(http_status) as avg by http_method,now-1d,now,*,group:avg:PATCH,eq,323.08,Splunk QL
+city=Boston | stats sum(http_status) as sum by http_method,now-1d,now,*,group:sum:DELETE,eq,64206,Splunk QL
+city=Boston | stats min(latitude) as min by http_method,now-1d,now,*,group:min:GET,eq,-89.8906,Splunk QL
+city=Boston | stats max(longitude) as max by http_method,now-1d,now,*,group:max:PUT,eq,177.442506,Splunk QL
+city=Boston | stats range(latitude) as range by http_method,now-1d,now,*,group:range:POST,eq,179.84536,Splunk QL
+app_name=Bracecould | stats dc(http_status) as dc by http_method,now-1d,now,*,group:dc:POST,eq,2,Splunk QL
+app_name=Bracecould | stats values(http_status) as values by http_method,now-1d,now,*,group:values:HEAD,eq,"301,500",Splunk QL
 "* | fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
 "* | ```Only keep city and weekday columns``` fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
 "* | fields http*",now-1d,now,*,total,gt,100,Splunk QL
@@ -379,6 +387,8 @@ NOT invalidColumn=123,now-1d,now,*,total,eq,100000,Splunk QL
 "app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
 "app_name=Bracecould | sort http_status | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
 "app_name=Grayeye | sort http_status | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
+"app_name=Bracecould | stats list(eval(if(http_status > 400, 1, 1))) as list BY http_method",now-1d,now,*,group:list:HEAD,eq,"1,1",Splunk QL
+app_name=Bracecould | stats list(http_status) as list BY http_method,now-1d,now,*,group:list:PUT,eq,302,Splunk QL
 "app_name=Bracecould | fields latency | stats avg(latency) as field",now-1d,now,*,field,eq,"7,030,508.166",Splunk QL
 "app_name=Bracecould | fields latency | stats values(latency) as field",now-1d,now,*,field,eq,[6269746 7330203 8469275 892120 9552581 9669124],Splunk QL
 "app_name=Bracecould | fields latency | stats count as field",now-1d,now,*,field,eq,[6],Splunk QL

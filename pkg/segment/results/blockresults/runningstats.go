@@ -44,6 +44,15 @@ type runningStats struct {
 	avgStat   *structs.AvgStat
 }
 
+type RunningStatsJSON struct {
+	RawVal    interface{}         `json:"rawVal"`
+	Hll       []byte              `json:"hll"`
+	RangeStat *structs.RangeStat  `json:"rangeStat"`
+	AvgStat   *structs.AvgStat    `json:"avgStat"`
+	StrSet    map[string]struct{} `json:"strSet"`
+	StrList   []string            `json:"strList"`
+}
+
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
@@ -597,4 +606,60 @@ func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnc
 		retVal[i] = rr.runningStats[i].rawVal
 	}
 	return retVal, rr.count
+}
+
+func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
+	rsJson := RunningStatsJSON{
+		RawVal:    rs.rawVal.CVal,
+		RangeStat: rs.rangeStat,
+		AvgStat:   rs.avgStat,
+	}
+	if rs.hll != nil {
+		rsJson.Hll = rs.hll.ToBytes()
+	}
+	if rs.rawVal.Dtype == utils.SS_DT_STRING_SET {
+		rsJson.StrSet = rs.rawVal.CVal.(map[string]struct{})
+		rsJson.RawVal = nil
+	}
+	if rs.rawVal.Dtype == utils.SS_DT_STRING_SLICE {
+		rsJson.StrList = rs.rawVal.CVal.([]string)
+		rsJson.RawVal = nil
+	}
+
+	return rsJson
+}
+
+func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
+	rs := runningStats{
+		rangeStat: rj.RangeStat,
+		avgStat:   rj.AvgStat,
+	}
+	if rj.RawVal != nil {
+		CVal := utils.CValueEnclosure{}
+		err := CVal.ConvertValue(rj.RawVal)
+		if err != nil {
+			return runningStats{}, putils.TeeErrorf("RunningStatsJSON.GetRunningStats: failed to convert value, err: %v", err)
+		}
+		rs.rawVal = CVal
+	}
+	if rj.StrSet != nil {
+		rs.rawVal = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING_SET,
+			CVal:  rj.StrSet,
+		}
+	}
+	if rj.Hll != nil {
+		hll, err := structs.CreateHllFromBytes(rj.Hll)
+		if err != nil {
+			return runningStats{}, putils.TeeErrorf("RunningStatsJSON.GetRunningStats: failed to create HLL from bytes, err: %v", err)
+		}
+		rs.hll = &putils.GobbableHll{Hll: *hll}
+	}
+	if rj.StrList != nil {
+		rs.rawVal = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING_SLICE,
+			CVal:  rj.StrList,
+		}
+	}
+	return rs, nil
 }
