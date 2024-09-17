@@ -371,8 +371,8 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-		currentIndexCols, _ := allIndexCols[indexName]
-		indexSegmentCount, _ := segmentCounts[indexName]
+		currentIndexCols := allIndexCols[indexName]
+		indexSegmentCount := segmentCounts[indexName]
 		// Add the unrotated columns and segments to the current index
 		if len(columnNamesSet) > 0 {
 			if currentIndexCols == nil {
