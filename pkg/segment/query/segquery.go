@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
@@ -94,7 +95,7 @@ func queryMetricsLooper() {
 	for {
 		time.Sleep(1 * time.Minute)
 		go func() {
-			instrumentation.SetSegmentMicroindexCountGauge(metadata.GetTotalSMICount())
+			instrumentation.SetSegmentMicroindexCountGauge(segmetadata.GetTotalSMICount())
 		}()
 	}
 }
@@ -321,7 +322,7 @@ func getTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
 	var totalRecsToSearch uint64
 	for _, qsr := range qsrs {
 		if qsr.sType == structs.RAW_SEARCH || qsr.sType == structs.PQS || qsr.sType == structs.SEGMENT_STATS_SEARCH {
-			totalRecsToSearch += metadata.GetNumOfSearchedRecordsRotated(qsr.segKey)
+			totalRecsToSearch += segmetadata.GetNumOfSearchedRecordsRotated(qsr.segKey)
 		} else {
 			totalRecsToSearch += writer.GetNumOfSearchedRecordsUnRotated(qsr.segKey)
 		}
@@ -542,7 +543,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 				str.Close()
 				timeElapsed := time.Since(sTime)
 				queryMetrics := &structs.QueryProcessingMetrics{}
-				numRecs := metadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
+				numRecs := segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
 				queryMetrics.SetNumRecordsToRawSearch(numRecs)
 				queryMetrics.SetNumRecordsMatched(numRecs)
 				qs.UpdateSummary(summary.STREE, timeElapsed, queryMetrics)
@@ -565,7 +566,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 		}
 		var recsSearched uint64
 		if segReq.sType == structs.RAW_SEARCH || segReq.sType == structs.PQS {
-			recsSearched = metadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
+			recsSearched = segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
 		} else {
 			recsSearched = writer.GetNumOfSearchedRecordsUnRotated(segReq.segKey)
 		}
@@ -738,7 +739,7 @@ func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Qu
 func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
 	qid uint64, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, error) {
 	// 1. metadata.FilterSegmentsByTime gives epoch range
-	allPossibleKeys, tsPassedCount, totalPossible := metadata.FilterSegmentsByTime(timeRange, indexNames, orgid)
+	allPossibleKeys, tsPassedCount, totalPossible := segmetadata.FilterSegmentsByTime(timeRange, indexNames, orgid)
 	log.Infof("qid=%d, Rotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", qid, tsPassedCount,
 		totalPossible, time.Since(sTime))
 
@@ -827,7 +828,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		}
 		totalRecsSearched := uint64(0)
 		if segReq.sType == structs.SEGMENT_STATS_SEARCH {
-			totalRecsSearched = metadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
+			totalRecsSearched = segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
 		} else if segReq.sType == structs.UNROTATED_SEGMENT_STATS_SEARCH {
 			totalRecsSearched = writer.GetNumOfSearchedRecordsUnRotated(segReq.segKey)
 		}
@@ -880,7 +881,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid u
 // returns sorted order of querySegmentRequests, count of keys to raw search, count of distributed queries, and count of pqs keys to raw search
 func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, error) {
 	// 1. metadata.FilterSegmentsByTime gives epoch range
-	allPossibleKeys, tsPassedCount, totalPossible := metadata.FilterSegmentsByTime(queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), orgid)
+	allPossibleKeys, tsPassedCount, totalPossible := segmetadata.FilterSegmentsByTime(queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), orgid)
 	log.Infof("qid=%d, Rotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", queryInfo.qid, tsPassedCount,
 		totalPossible, time.Since(sTime))
 	var err error

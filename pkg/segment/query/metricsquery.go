@@ -26,7 +26,7 @@ import (
 	"github.com/cespare/xxhash"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
@@ -40,7 +40,7 @@ import (
 )
 
 func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
-	rotatedMetricRequests, err := metadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
 	if err != nil {
 		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
 		log.Errorf(err.Error())
@@ -205,7 +205,7 @@ func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsS
 }
 
 func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid uint64) ([]string, error) {
-	mSgementsMeta := metadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
+	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
 
 	unrotatedMSegments, err := metrics.GetUnrotatedMetricSegmentsOverTheTimeRange(timeRange, orgid)
 	if err != nil {

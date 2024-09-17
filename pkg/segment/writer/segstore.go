@@ -39,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -827,6 +828,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		}
 
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, finalSegmentKey)
+		metadata.AddSegMetaToMetadata(&segmeta)
 
 		// upload ingest node dir to s3
 		err = blob.UploadIngestNodeDir()

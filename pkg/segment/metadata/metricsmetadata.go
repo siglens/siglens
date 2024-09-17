@@ -61,6 +61,14 @@ var globalMetricsMetadata *allMetricsSegmentMetadata = &allMetricsSegmentMetadat
 	updateLock:               &sync.RWMutex{},
 }
 
+func ResetGlobalMetricsMetadataForTest() {
+	globalMetricsMetadata = &allMetricsSegmentMetadata{
+		sortedMetricsSegmentMeta: make([]*MetricsSegmentMetadata, 0),
+		metricsSegmentMetaMap:    make(map[string]*MetricsSegmentMetadata),
+		updateLock:               &sync.RWMutex{},
+	}
+}
+
 type MetricsSegmentMetadata struct {
 	structs.MetricsMeta // original read metrics meta
 	MetricsSegmentSearchMetadata
