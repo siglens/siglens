@@ -18,10 +18,11 @@
  */
 
 //eslint-disable-next-line no-unused-vars
-function renderAvailableFields(columnOrder) {
+function renderAvailableFields(columnOrder, columnCount) {
     let el = $('#available-fields .fields');
     let columnsToIgnore = ['timestamp', 'logs'];
     el.empty();
+    $('.column-count').html(columnCount);
     columnOrder.forEach((colName, _index) => {
         if (columnsToIgnore.indexOf(colName) == -1) {
             if (!availColNames.includes(colName)) {
