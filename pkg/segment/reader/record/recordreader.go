@@ -50,10 +50,13 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 		// This may have failed because we're using the unrotated key, but the
 		// data has since been rotated. Try with the rotated key.
 		rotatedKey := writer.GetRotatedVersion(segKey)
-		records, columns, err = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
+		var rotatedErr error
+		records, columns, rotatedErr = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
 			esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
-		if err != nil {
-			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v", rotatedKey, err)
+		if rotatedErr != nil {
+			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v."+
+				" Also failed for rotated segkey=%v with err=%v.",
+				segKey, err, rotatedKey, rotatedErr)
 			return nil, nil, err
 		}
 	}
