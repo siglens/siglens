@@ -31,13 +31,13 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"

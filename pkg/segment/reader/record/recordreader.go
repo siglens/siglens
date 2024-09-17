@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -79,7 +80,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	var exists bool
 	allCols, exists = writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
-		allCols, exists = metadata.CheckAndGetColsForSegKey(segKey, vTable)
+		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
 			log.Errorf("getRecordsFromSegmentHelper: failed to get column for key: %s, table %s", segKey, vTable)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")

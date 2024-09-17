@@ -21,10 +21,10 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"sync"
 	"testing"
 
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -32,34 +32,29 @@ import (
 
 func Test_AddSementInfo(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
-	globalMetadata = &allSegmentMetadata{
-		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
-		segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
-		tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
-		updateLock:                  &sync.RWMutex{},
-	}
+	segmetadata.ResetGlobalMetadataForTest()
 	for i := uint64(0); i < 10; i++ {
-		currInfo := &SegmentMicroIndex{
+		currInfo := &segmetadata.SegmentMicroIndex{
 			SegMeta: structs.SegMeta{
 				LatestEpochMS:    i,
 				VirtualTableName: "test-1",
 				SegmentKey:       strconv.FormatUint(i, 10),
 			},
 		}
-		BulkAddSegmentMicroIndex([]*SegmentMicroIndex{currInfo})
+		segmetadata.BulkAddSegmentMicroIndex([]*segmetadata.SegmentMicroIndex{currInfo})
 	}
 
 	for i := int64(0); i < 10; i++ {
-		assert.Equal(t, uint64(i), globalMetadata.segmentMetadataReverseIndex[strconv.FormatInt(i, 10)].LatestEpochMS)
+		assert.Equal(t, uint64(i), segmetadata.GetSegmentMetadataReverseIndexForTest()[strconv.FormatInt(i, 10)].LatestEpochMS)
 	}
 	nextVal := uint64(9)
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, globalMetadata.allSegmentMicroIndex[i].LatestEpochMS, nextVal)
-		log.Infof("i %+v latest: %+v", i, globalMetadata.allSegmentMicroIndex[i].LatestEpochMS)
+		assert.Equal(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].LatestEpochMS, nextVal)
+		log.Infof("i %+v latest: %+v", i, segmetadata.GetAllSegmentMicroIndexForTest()[i].LatestEpochMS)
 		nextVal--
 	}
-	assert.Contains(t, globalMetadata.tableSortedMetadata, "test-1")
-	tableSorted := globalMetadata.tableSortedMetadata["test-1"]
+	assert.Contains(t, segmetadata.GetTableSortedMetadataForTest(), "test-1")
+	tableSorted := segmetadata.GetTableSortedMetadataForTest()["test-1"]
 	nextVal = uint64(9)
 	for i := 0; i < 10; i++ {
 		assert.Equal(t, tableSorted[i].LatestEpochMS, nextVal)
@@ -71,60 +66,55 @@ func Test_AddSementInfo(t *testing.T) {
 	})
 	assert.True(t, isTableSorted)
 
-	isAllDataSorted := sort.SliceIsSorted(globalMetadata.allSegmentMicroIndex, func(i, j int) bool {
-		return globalMetadata.allSegmentMicroIndex[i].LatestEpochMS > globalMetadata.allSegmentMicroIndex[j].LatestEpochMS
+	isAllDataSorted := sort.SliceIsSorted(segmetadata.GetAllSegmentMicroIndexForTest(), func(i, j int) bool {
+		return segmetadata.GetAllSegmentMicroIndexForTest()[i].LatestEpochMS > segmetadata.GetAllSegmentMicroIndexForTest()[j].LatestEpochMS
 	})
 	assert.True(t, isAllDataSorted)
 }
 
 func testBlockRebalance(t *testing.T, fileCount int) {
-	blockSizeToLoad := globalMetadata.allSegmentMicroIndex[0].MicroIndexSize + globalMetadata.allSegmentMicroIndex[0].SearchMetadataSize
-	RebalanceInMemoryCmi(blockSizeToLoad)
+	blockSizeToLoad := segmetadata.GetAllSegmentMicroIndexForTest()[0].MicroIndexSize + segmetadata.GetAllSegmentMicroIndexForTest()[0].SearchMetadataSize
+	segmetadata.RebalanceInMemoryCmi(blockSizeToLoad)
 
-	assert.True(t, globalMetadata.allSegmentMicroIndex[0].loadedMicroIndices)
-	loadedBlockFile := globalMetadata.allSegmentMicroIndex[0].SegmentKey
-	loadedBlockLatestTime := globalMetadata.allSegmentMicroIndex[0].LatestEpochMS
-	assert.True(t, globalMetadata.segmentMetadataReverseIndex[loadedBlockFile].loadedMicroIndices)
-	assert.Same(t, globalMetadata.allSegmentMicroIndex[0], globalMetadata.segmentMetadataReverseIndex[loadedBlockFile])
+	assert.True(t, segmetadata.GetAllSegmentMicroIndexForTest()[0].AreMicroIndicesLoaded())
+	loadedBlockFile := segmetadata.GetAllSegmentMicroIndexForTest()[0].SegmentKey
+	loadedBlockLatestTime := segmetadata.GetAllSegmentMicroIndexForTest()[0].LatestEpochMS
+	assert.True(t, segmetadata.GetSegmentMetadataReverseIndexForTest()[loadedBlockFile].AreMicroIndicesLoaded())
+	assert.Same(t, segmetadata.GetAllSegmentMicroIndexForTest()[0], segmetadata.GetSegmentMetadataReverseIndexForTest()[loadedBlockFile])
 
 	for i := 1; i < fileCount; i++ {
-		assert.False(t, globalMetadata.allSegmentMicroIndex[i].loadedMicroIndices)
-		currFile := globalMetadata.allSegmentMicroIndex[i].SegmentKey
-		assert.Same(t, globalMetadata.allSegmentMicroIndex[i], globalMetadata.segmentMetadataReverseIndex[currFile])
-		assert.LessOrEqual(t, globalMetadata.allSegmentMicroIndex[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
+		assert.False(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
+		currFile := segmetadata.GetAllSegmentMicroIndexForTest()[i].SegmentKey
+		assert.Same(t, segmetadata.GetAllSegmentMicroIndexForTest()[i], segmetadata.GetSegmentMetadataReverseIndexForTest()[currFile])
+		assert.LessOrEqual(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
 	}
 
 	// load just one more search metadata
-	blockSizeToLoad += globalMetadata.allSegmentMicroIndex[1].SearchMetadataSize
-	RebalanceInMemoryCmi(blockSizeToLoad)
-	assert.True(t, globalMetadata.allSegmentMicroIndex[0].loadedMicroIndices)
-	assert.False(t, globalMetadata.allSegmentMicroIndex[1].loadedMicroIndices, "only load search metadata for idx 1")
+	blockSizeToLoad += segmetadata.GetAllSegmentMicroIndexForTest()[1].SearchMetadataSize
+	segmetadata.RebalanceInMemoryCmi(blockSizeToLoad)
+	assert.True(t, segmetadata.GetAllSegmentMicroIndexForTest()[0].AreMicroIndicesLoaded())
+	assert.False(t, segmetadata.GetAllSegmentMicroIndexForTest()[1].AreMicroIndicesLoaded(), "only load search metadata for idx 1")
 	for i := 2; i < fileCount; i++ {
-		assert.False(t, globalMetadata.allSegmentMicroIndex[i].loadedMicroIndices)
-		assert.False(t, globalMetadata.allSegmentMicroIndex[i].loadedSearchMetadata)
-		currFile := globalMetadata.allSegmentMicroIndex[i].SegmentKey
-		assert.Same(t, globalMetadata.allSegmentMicroIndex[i], globalMetadata.segmentMetadataReverseIndex[currFile])
-		assert.LessOrEqual(t, globalMetadata.allSegmentMicroIndex[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
+		assert.False(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
+		assert.False(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].IsSearchMetadataLoaded())
+		currFile := segmetadata.GetAllSegmentMicroIndexForTest()[i].SegmentKey
+		assert.Same(t, segmetadata.GetAllSegmentMicroIndexForTest()[i], segmetadata.GetSegmentMetadataReverseIndexForTest()[currFile])
+		assert.LessOrEqual(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
 	}
 }
 
 func Test_RebalanceMetadata(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
-	globalMetadata = &allSegmentMetadata{
-		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
-		segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
-		tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
-		updateLock:                  &sync.RWMutex{},
-	}
+	segmetadata.ResetGlobalMetadataForTest()
 
 	fileCount := 3
 	InitMockColumnarMetadataStore("data/", fileCount, 10, 10)
-	assert.Len(t, globalMetadata.allSegmentMicroIndex, fileCount)
-	assert.Len(t, globalMetadata.segmentMetadataReverseIndex, fileCount)
+	assert.Len(t, segmetadata.GetAllSegmentMicroIndexForTest(), fileCount)
+	assert.Len(t, segmetadata.GetSegmentMetadataReverseIndexForTest(), fileCount)
 
-	RebalanceInMemoryCmi(0)
+	segmetadata.RebalanceInMemoryCmi(0)
 	for i := 0; i < fileCount; i++ {
-		assert.False(t, globalMetadata.allSegmentMicroIndex[i].loadedMicroIndices)
+		assert.False(t, segmetadata.GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
 	}
 
 	testBlockRebalance(t, fileCount)

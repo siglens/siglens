@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
@@ -33,8 +34,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const INITIAL_NUM_BLOCKS = 1000
-
 var GlobalBlockMicroIndexCheckLimiter *semaphore.WeightedSemaphore
 
 func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
@@ -44,7 +43,7 @@ func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
 // converts blocks to a search request. block summaries & column meta are not guaranteed to be in memory
 // if the block summaries & column meta are not in memory, then load right before query
 func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file string, indexName string,
-	segMicroIdx *SegmentMicroIndex) (*structs.SegmentSearchRequest, error) {
+	segMicroIdx *metadata.SegmentMicroIndex) (*structs.SegmentSearchRequest, error) {
 
 	if len(blocksForFile) == 0 {
 		return nil, errors.New("no matched blocks for search request")
@@ -58,7 +57,7 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 		searchMeta.BlockSummaries = segMicroIdx.BlockSummaries
 	}
 
-	columnCopy := segMicroIdx.getColumns()
+	columnCopy := segMicroIdx.GetColumns()
 	finalReq := &structs.SegmentSearchRequest{
 		SegmentKey:         file,
 		VirtualTableName:   indexName,
@@ -85,16 +84,14 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	isMatchAll := currQuery.IsMatchAll()
 
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
-	segMicroIndex, exists := globalMetadata.getMicroIndex(segkey)
+	segMicroIndex, exists := metadata.GetMicroIndex(segkey)
 	if !exists {
 		log.Errorf("qid=%d, Segment file %+v for table %+v does not exist in block meta, but existed in time filtering. This should not happen", qid, segkey, tableName)
 		return nil, 0, 0, fmt.Errorf("segment file %+v for table %+v does not exist in block meta, but existed in time filtering. This should not happen", segkey, tableName)
 	}
 
 	totalRequestedMemory := int64(0)
-	if !segMicroIndex.loadedSearchMetadata {
+	if !segMicroIndex.IsSearchMetadataLoaded() {
 		currSearchMetaSize := int64(segMicroIndex.SearchMetadataSize)
 		totalRequestedMemory += currSearchMetaSize
 		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(currSearchMetaSize, 10, segkey)
@@ -118,20 +115,20 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	}
 
 	var missingBlockCMI bool
-	if len(timeFilteredBlocks) > 0 && !isMatchAll && !segMicroIndex.loadedMicroIndices && !wildCardValue {
+	if len(timeFilteredBlocks) > 0 && !isMatchAll && !segMicroIndex.AreMicroIndicesLoaded() && !wildCardValue {
 		totalRequestedMemory += int64(segMicroIndex.MicroIndexSize)
 		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(segMicroIndex.MicroIndexSize), 10, segkey)
 		if err != nil {
 			log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
 			return nil, 0, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
 		}
-		blkCmis, err := segMicroIndex.readCmis(timeFilteredBlocks, false, colsToCheck, wildcardCol)
+		blkCmis, err := segMicroIndex.ReadCmis(timeFilteredBlocks, false, colsToCheck, wildcardCol)
 		if err != nil {
 			log.Errorf("qid=%d, Failed to cmi for blocks and columns. Num blocks %+v, Num columns %+v. Error: %+v",
 				qid, len(timeFilteredBlocks), len(colsToCheck), err)
 			missingBlockCMI = true
 		} else {
-			segMicroIndex.blockCmis = blkCmis
+			segMicroIndex.SetBlockCmis(blkCmis)
 		}
 	}
 
@@ -184,11 +181,11 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 		}
 	}
 
-	if !segMicroIndex.loadedMicroIndices {
-		segMicroIndex.clearMicroIndices()
+	if !segMicroIndex.AreMicroIndicesLoaded() {
+		segMicroIndex.ClearMicroIndices()
 	}
-	if !segMicroIndex.loadedSearchMetadata {
-		segMicroIndex.clearSearchMetadata()
+	if !segMicroIndex.IsSearchMetadataLoaded() {
+		segMicroIndex.ClearSearchMetadata()
 	}
 	if totalRequestedMemory > 0 {
 		GlobalBlockMicroIndexCheckLimiter.Release(totalRequestedMemory)
@@ -196,7 +193,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	return finalReq, totalBlockCount, filteredBlockCount, err
 }
 
-func doRangeCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, rangeFilter map[string]string,
+func doRangeCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, rangeFilter map[string]string,
 	rangeOp utils.FilterOperator, timeFilteredBlocks map[uint16]map[string]bool, qid uint64) {
 
 	allCMIs, err := segMicroIndex.GetCMIsForBlock(blockToCheck)
@@ -220,13 +217,13 @@ func doRangeCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	}
 }
 
-func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, rangeFilter map[string]string,
+func doRangeCheckForCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, rangeFilter map[string]string,
 	rangeOp utils.FilterOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool, qid uint64) {
 
 	var matchedBlockRange bool
 	for colName := range colsToCheck {
 		colCMI, err := segMicroIndex.GetCMIForBlockAndColumn(blockToCheck, colName)
-		if err == errCMIColNotFound && rangeOp == utils.NotEquals {
+		if err == metadata.ErrCMIColNotFound && rangeOp == utils.NotEquals {
 			matchedBlockRange = true
 			timeFilteredBlocks[blockToCheck][colName] = true
 			continue
@@ -254,7 +251,7 @@ func doRangeCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, r
 	}
 }
 
-func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
+func doBloomCheckForCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
 	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, colsToCheck map[string]bool, dualCaseEnabled bool) {
 
 	checkInOriginalKeys := dualCaseEnabled && len(originalBloomKeys) > 0
@@ -296,7 +293,7 @@ func doBloomCheckForCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 	}
 }
 
-func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
+func doBloomCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
 	bloomOp utils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, dualCaseCheckEnabled bool) {
 
 	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
@@ -356,19 +353,16 @@ func doBloomCheckAllCol(segMicroIndex *SegmentMicroIndex, blockToCheck uint16, b
 }
 
 func GetBlockSearchInfoForKey(key string) (map[uint16]*structs.BlockMetadataHolder, error) {
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
-
-	segmentMeta, ok := globalMetadata.getMicroIndex(key)
+	segmentMeta, ok := metadata.GetMicroIndex(key)
 	if !ok {
 		return nil, errors.New("failed to find key in all block micro")
 	}
 
-	if segmentMeta.loadedSearchMetadata {
+	if segmentMeta.IsSearchMetadataLoaded() {
 		return segmentMeta.BlockSearchInfo, nil
 	}
 
-	_, _, allBmh, err := segmentMeta.readBlockSummaries([]byte{})
+	_, _, allBmh, err := segmentMeta.ReadBlockSummaries([]byte{})
 	if err != nil {
 		log.Errorf("GetBlockSearchInfoForKey: failed to read column block sum infos for key %s: %v", key, err)
 		return nil, err
@@ -378,19 +372,16 @@ func GetBlockSearchInfoForKey(key string) (map[uint16]*structs.BlockMetadataHold
 }
 
 func GetBlockSummariesForKey(key string) ([]*structs.BlockSummary, error) {
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
-
-	segmentMeta, ok := globalMetadata.getMicroIndex(key)
+	segmentMeta, ok := metadata.GetMicroIndex(key)
 	if !ok {
 		return nil, errors.New("failed to find key in all block micro")
 	}
 
-	if segmentMeta.loadedSearchMetadata {
+	if segmentMeta.IsSearchMetadataLoaded() {
 		return segmentMeta.BlockSummaries, nil
 	}
 
-	_, blockSum, _, err := segmentMeta.readBlockSummaries([]byte{})
+	_, blockSum, _, err := segmentMeta.ReadBlockSummaries([]byte{})
 	if err != nil {
 		log.Errorf("GetBlockSearchInfoForKey: failed to read column block infos for key %s: %v", key, err)
 		return nil, err
@@ -402,20 +393,18 @@ func GetBlockSummariesForKey(key string) ([]*structs.BlockSummary, error) {
 // block search info will be loaded for all possible columns
 func GetSearchInfoForPQSQuery(key string, spqmr *pqmr.SegmentPQMRResults) (map[uint16]*structs.BlockMetadataHolder,
 	[]*structs.BlockSummary, error) {
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
 
-	segmentMeta, ok := globalMetadata.getMicroIndex(key)
+	segmentMeta, ok := metadata.GetMicroIndex(key)
 	if !ok {
 		return nil, nil, errors.New("failed to find key in all block micro")
 	}
 
-	if segmentMeta.loadedSearchMetadata {
+	if segmentMeta.IsSearchMetadataLoaded() {
 		return segmentMeta.BlockSearchInfo, segmentMeta.BlockSummaries, nil
 	}
 
 	// avoid caller having to clean up BlockSearchInfo
-	_, blockSum, allBmh, err := segmentMeta.readBlockSummaries([]byte{})
+	_, blockSum, allBmh, err := segmentMeta.ReadBlockSummaries([]byte{})
 	if err != nil {
 		log.Errorf("GetBlockSearchInfoForKey: failed to read block infos for segKey %+v: %v", key, err)
 		return nil, nil, err
