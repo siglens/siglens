@@ -63,6 +63,7 @@ function resetDataTable(firstQUpdate) {
 }
 
 let doSearchCounter = 0;
+let columnCount = 0;
 //eslint-disable-next-line no-unused-vars
 function doSearch(data) {
     return new Promise((resolve, reject) => {
