@@ -139,7 +139,7 @@ $(document).ready(async function () {
     if (isMetricsScreen) {
         setSaveQueriesDialog();
     }
-    
+
     // Call the function for each tooltip
     createTooltip('#date-picker-btn', 'Pick the Time Window');
     createTooltip('#saveq-btn', 'Save query');

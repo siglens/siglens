@@ -45,13 +45,13 @@ $(document).ready(async () => {
             element._tippy.setContent(newContent);
         }
     }
-    
+
     function handleClassChange(event) {
         updateTooltip(event.target);
     }
-    
+
     $(document).on('classChange', '#run-filter-btn, #query-builder-btn', handleClassChange);
-    
+
     const observerCallback = (mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
@@ -59,11 +59,11 @@ $(document).ready(async () => {
             }
         });
     };
-    
+
     const observer = new MutationObserver(observerCallback);
     const config = { attributes: true, attributeFilter: ['class'] };
-    
-    ['run-filter-btn', 'query-builder-btn'].forEach(id => {
+
+    ['run-filter-btn', 'query-builder-btn'].forEach((id) => {
         const element = document.getElementById(id);
         if (element) {
             observer.observe(element, config);
