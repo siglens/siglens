@@ -21,7 +21,7 @@ import (
 	"bufio"
 	"errors"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -233,16 +233,16 @@ func populateMicroIndices(smFile string) error {
 		return err
 	}
 
+	// Segmeta entries inside segmeta.json are added in increasing time order.
+	// we just reverse this and we get the latest segmeta entry first.
+	// This isn't required for correctness; it just avoids more sorting in the
+	// common case when we actually update the metadata.
+	slices.Reverse(allSegMetas)
+
 	allSmi := make([]*metadata.SegmentMicroIndex, len(allSegMetas))
 	for idx, segMetaInfo := range allSegMetas {
 		allSmi[idx] = processSegmetaInfo(segMetaInfo)
 	}
-
-	// segmeta entries inside segmeta.json are added in increasing time order. we just reverse this and we get
-	// the latest segmeta entry first
-	sort.SliceStable(allSmi, func(i, j int) bool {
-		return true
-	})
 
 	metadata.BulkAddSegmentMicroIndex(allSmi)
 	updateLastModifiedTimeForMetaFile(smFile, metaModificationTimeMs)
