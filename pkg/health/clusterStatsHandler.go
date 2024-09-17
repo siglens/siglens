@@ -63,7 +63,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	allSegMetas := writer.ReadAllSegmetas()
 
-	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, logsColumnCount := getIngestionStats(myid, allSegMetas)
+	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, logsColumnCount := GetIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
@@ -73,7 +73,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
 		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
 			&metricsIncomingBytes, &metricsOnDiskBytes, &metricsDatapointsCount,
-			&queryCount, &totalResponseTimeSinceRestart)
+			&queryCount, &totalResponseTimeSinceRestart, &totalResponseTimeSinceInstall, &queriesSinceInstall)
 	}
 
 	httpResp.IngestionStats = make(map[string]interface{})
@@ -363,7 +363,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			counts = &structs.VtableCounts{}
 		}
 
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 
 		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)
 		totalEventCount += int64(totalEventsForIndex)
@@ -387,7 +387,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 	return stats, totalEventCount, totalBytes, totalOnDiskBytes, uint64(len(totalCols))
 }
 
-func getIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, uint64) {
+func GetIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, uint64) {
 	return getStats(myid, func(indexName string) bool {
 		return !isTraceRelatedIndex(indexName)
 	}, allSegMetas)

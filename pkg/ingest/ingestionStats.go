@@ -51,7 +51,7 @@ func ingestionMetricsLooper() {
 				continue
 			}
 			byteCount, eventCount, onDiskBytes := segwriter.GetVTableCounts(indexName, 0)
-			unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytes := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+			unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytes, _ := segwriter.GetUnrotatedVTableCounts(indexName, 0)
 
 			totalEventsForIndex := uint64(eventCount) + uint64(unrotatedEventCount)
 			currentEventCount += int64(totalEventsForIndex)

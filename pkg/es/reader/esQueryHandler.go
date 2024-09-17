@@ -207,7 +207,7 @@ func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 			continue
 		}
 		_, eventCount, _ := segwriter.GetVTableCounts(indexName, myid)
-		_, unrotatedEventCount, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		_, unrotatedEventCount, _, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 		totalEventsForIndex := uint64(eventCount) + uint64(unrotatedEventCount)
 		totalHits += totalEventsForIndex
 		currBucket := &structs.BucketResult{
