@@ -141,3 +141,13 @@ func GetSortedStringKeys[T any](map1 map[string]T) []string {
 
 	return keys
 }
+
+func ShallowCopyMap[K comparable, V any](original map[K]V) map[K]V {
+	copiedMap := make(map[K]V, len(original))
+
+	for key, value := range original {
+		copiedMap[key] = value
+	}
+
+	return copiedMap
+}

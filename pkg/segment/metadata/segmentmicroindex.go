@@ -168,7 +168,7 @@ func (sm *SegmentMicroIndex) ReadBlockSummaries(rbuf []byte) ([]byte, []*structs
 	return retbuf, blockSum, allBmh, nil
 }
 
-func (sm *SegmentMicroIndex) loadMicroIndices(blocksToLoad map[uint16]map[string]bool, allBlocks bool, colsToCheck map[string]bool, wildcardCol bool) error {
+func (sm *SegmentMicroIndex) LoadMicroIndices(blocksToLoad map[uint16]map[string]bool, allBlocks bool, colsToCheck map[string]bool, wildcardCol bool) error {
 	blkCmis, err := sm.ReadCmis(blocksToLoad, allBlocks, colsToCheck, wildcardCol)
 	if err != nil {
 		sm.ClearMicroIndices()
