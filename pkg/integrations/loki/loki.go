@@ -816,7 +816,7 @@ func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid uint6
 	}
 
 	bytesReceivedCount, recordCount, onDiskBytesCount := segwriter.GetVTableCounts(LOKIINDEX_STAR, myid)
-	unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(LOKIINDEX_STAR, myid)
+	unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(LOKIINDEX_STAR, myid)
 
 	chunkCount := getChunkCount(queryResult)
 
