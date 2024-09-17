@@ -30,8 +30,8 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -349,8 +349,8 @@ func rotateMetricsDataAndClearSegStore(forceRotate bool) ([]*metrics.MetricsSegm
 }
 
 func cleanUp(t *testing.T) {
-	metadata.ResetMetricsMetadata_TestOnly() // reset the rotated segments data
-	metrics.ResetMetricsSegStore_TestOnly()  // reset the metrics segment store
+	segmetadata.ResetMetricsMetadata_TestOnly() // reset the rotated segments data
+	metrics.ResetMetricsSegStore_TestOnly()     // reset the metrics segment store
 
 	log.Infof("cleanUp: Removing data path: %s", config.GetDataPath())
 	err := os.RemoveAll(config.GetDataPath())

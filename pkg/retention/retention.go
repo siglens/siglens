@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -341,7 +341,7 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 	// Delete segment key from all SiglensMetadata structs
 	for _, segMetaEntry := range segmentsToDelete {
-		metadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
@@ -376,7 +376,7 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 
 	// Delete segment key from all SiglensMetadata structs
 	for _, metricsSegmentMeta := range metricSegmentsToDelete {
-		err := metadata.DeleteMetricsSegmentKey(metricsSegmentMeta.MSegmentDir)
+		err := segmetadata.DeleteMetricsSegmentKey(metricsSegmentMeta.MSegmentDir)
 		if err != nil {
 			log.Errorf("deleteMetricsSegmentData: failed to delete metrics segment. Error:%v", err)
 			return
