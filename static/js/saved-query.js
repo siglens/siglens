@@ -179,7 +179,10 @@ class btnCellRenderer {
     // init method gets the details of the cell to be renderer
     init(params) {
         this.eGui = document.createElement('div');
-        this.eGui.innerHTML = `<input type="button" class="btn-simple" id="delbutton"  />`;
+        this.eGui.innerHTML = `
+        <div id="alert-grid-btn">
+            <input type="button" class="btn-simple" id="delbutton"  />
+        </div>`;
 
         // get references to the elements we want
         this.eButton = this.eGui.querySelector('.btn-simple');
@@ -251,7 +254,7 @@ $(document).ready(function () {
             displayOriginalSavedQueries();
         }
     });
-    $('#search-query-btn').on('click', searchSavedQueryHandler);
+    $('#sq-filter-input').on('input', searchSavedQueryHandler);
 });
 
 let queriesColumnDefs = [
@@ -306,8 +309,15 @@ const sqgridOptions = {
     rowData: sqRowData,
     animateRows: true,
     headerHeight: 32,
+    rowHeight: 44,
     defaultColDef: {
         initialWidth: 200,
+        icons: {
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+        },
+        cellClass: 'align-center-grid',
+        resizable: true,
         sortable: true,
     },
     enableCellTextSelection: true,
@@ -341,9 +351,13 @@ function displaySavedQueries(res, flag) {
             newRow.set('qdescription', res[key].description);
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
-            newRow.set('type', res.dataSource);
+            newRow.set('type', res[key].dataSource);
+            if (res[key].dataSource === 'metrics') {
+                newRow.set('queryLanguage', 'PromQL');
+            } else {
+                newRow.set('queryLanguage', res[key].queryLanguage);
+            }
             newRow.set('qname', key);
-            newRow.set('queryLanguage', value.queryLanguage);
             newRow.set('filterTab', value.filterTab);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
@@ -370,7 +384,11 @@ function displaySavedQueries(res, flag) {
             newRow.set('searchText', value.searchText);
             newRow.set('indexName', value.indexName);
             newRow.set('qname', key);
-            newRow.set('queryLanguage', value.queryLanguage);
+            if (value.dataSource === 'metrics') {
+                newRow.set('queryLanguage', 'PromQL');
+            } else {
+                newRow.set('queryLanguage', value.queryLanguage);
+            }
             newRow.set('filterTab', value.filterTab);
             newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
