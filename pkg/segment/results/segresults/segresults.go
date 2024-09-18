@@ -414,7 +414,7 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	if len(rrcs) != len(rawLogs) {
-		return fmt.Errorf("MergeRemoteRRCResults: rrcs and rawLogs length mismatch, len(rrcs): %v, len(rawLogs): %v, qid=%v", len(rrcs), len(rawLogs), sr.qid)
+		return fmt.Errorf("qid=%v, MergeRemoteRRCResults: rrcs and rawLogs length mismatch, len(rrcs): %v, len(rawLogs): %v", sr.qid, len(rrcs), len(rawLogs))
 	}
 
 	for cName := range allCols {
@@ -433,7 +433,7 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	}
 	err := sr.BlockResults.MergeRemoteBuckets(grpByBuckets, timeBuckets)
 	if err != nil {
-		log.Errorf("MergeRemoteRRCResults: Error merging remote buckets, qid=%v, err: %v", sr.qid, err)
+		log.Errorf("qid=%v, MergeRemoteRRCResults: Error merging remote buckets, err: %v", sr.qid, err)
 		return err
 	}
 	sr.resultCount += remoteCount
