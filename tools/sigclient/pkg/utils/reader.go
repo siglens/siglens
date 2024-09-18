@@ -336,7 +336,7 @@ func (r *K8sGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (sr *K8sGenerator) GetUUIDList() ([]string, error) {
-	return nil, nil
+	return []string{}, nil
 }
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
@@ -375,7 +375,7 @@ func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (sr *StaticGenerator) GetUUIDList() ([]string, error) {
-	return nil, nil
+	return []string{}, nil
 }
 func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
 	final := make(map[string]interface{})
@@ -441,7 +441,7 @@ func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
 }
 
 func (sr *FileReader) GetUUIDList() ([]string, error) {
-	return nil, nil
+	return []string{}, nil
 }
 func (fr *FileReader) swapChunks() error {
 	err := fr.prefetchChunk(false)

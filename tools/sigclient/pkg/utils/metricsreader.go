@@ -75,7 +75,7 @@ func (mg *MetricsGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (sr *MetricsGenerator) GetUUIDList() ([]string, error) {
-	return nil, nil
+	return []string{}, nil
 }
 func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	retVal := make(map[string]interface{})
