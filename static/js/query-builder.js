@@ -617,6 +617,10 @@ function setShowColumnInfoDialog() {
                 text: 'OK',
                 click: function () {
                     $('#show-record-popup').dialog('close');
+                    const tooltipInstance = $('#show-record-intro-btn')[0]?._tippy;
+                    if (tooltipInstance) {
+                        tooltipInstance.hide();
+                    }
                 },
             },
         },
