@@ -794,12 +794,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		// move the whole dir in one shot
-		err = os.Rename(activeBasedir, finalBasedir)
+		err = symlinkRelativePaths(activeBasedir, finalBasedir)
 		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to mv active to final, err=%v", err)
+			log.Errorf("checkAndRotateColFiles: failed to symlink %v to %v; err=%v",
+				activeBasedir, finalBasedir, err)
 			return err
 		}
+
 		// Upload segment files to s3
 		filesToUpload := fileutils.GetAllFilesInDirectory(finalBasedir)
 
@@ -835,13 +836,31 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
-
-		err = CleanupUnrotatedSegment(segstore, streamid, !forceRotate)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
-			return err
-		}
 	}
+	return nil
+}
+
+func symlinkRelativePaths(oldPath string, newPath string) error {
+	absOldPath, err := filepath.Abs(oldPath)
+	if err != nil {
+		log.Errorf("symlinkRelativePaths: failed to get absolute path for oldPath %v; err=%v",
+			oldPath, err)
+		return err
+	}
+
+	absNewPath, err := filepath.Abs(newPath)
+	if err != nil {
+		log.Errorf("symlinkRelativePaths: failed to get absolute path for newPath %v; err=%v",
+			newPath, err)
+		return err
+	}
+
+	err = os.Symlink(absOldPath, absNewPath)
+	if err != nil {
+		log.Errorf("symlinkRelativePaths: failed to symlink %v to %v; err=%v", absOldPath, absNewPath, err)
+		return err
+	}
+
 	return nil
 }
 
