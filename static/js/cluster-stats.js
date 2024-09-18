@@ -547,6 +547,15 @@ function processClusterStats(res) {
     let indexDataTable = $('#index-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: indexDataTableColumns,
+        autoWidth: false,
+        columnDefs: [
+            { targets: 0, width: '20%' },   // Index Name
+            { targets: 1, width: '15%', className: 'dt-head-right dt-body-right' },   // Incoming Volume
+            { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' },   // Event Count
+            { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' },   // Segment Count
+            { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' },   // Column Count
+            { targets: 5, width: '15%', className: 'dt-body-center' }  // Delete
+        ],
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({

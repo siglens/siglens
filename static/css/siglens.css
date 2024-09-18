@@ -2623,6 +2623,10 @@ input[type="submit" i] {
     color: var(--timepicker-dt-hdr-color);
 }
 
+table.dataTable tbody td{
+    padding: 8px 15px;
+}
+
 .ranges {
     display: grid;
     grid-template-rows: repeat(4, 1fr);
