@@ -139,11 +139,8 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bo
 
 func IsSegmentRotated(segKey string) bool {
 	_, err := os.Stat(filepath.Join(segKey, SegmentValidityFname))
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 func IsFileForRotatedSegment(filename string) bool {
@@ -154,11 +151,7 @@ func IsFileForRotatedSegment(filename string) bool {
 	}
 
 	_, err = os.Stat(filepath.Join(segBaseDir, SegmentValidityFname))
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func getSegBaseDirFromFilename(filename string) (string, error) {
