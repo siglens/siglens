@@ -50,6 +50,10 @@ func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, erro
 		log.Infof("Initializing benchmark reader")
 		seed = int64(1001)
 		multiTimestampsEnabled = true
+	case "benchmark-ingest-query":
+		log.Infof("Initializing benchmark ingest and query")
+		seed = int64(1001)
+		multiTimestampsEnabled = true
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark]", gentype)
 	}

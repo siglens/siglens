@@ -50,7 +50,6 @@ const (
 	keyValueQuery
 	freeText
 	random
-	benchmarkQuery
 )
 
 func MigrateLookups(lookupFiles []string) error {
@@ -130,8 +129,6 @@ func (q logsQueryTypes) String() string {
 		return "free text"
 	case random:
 		return "random"
-	case benchmarkQuery:
-		return "benchmark"
 	default:
 		return "UNKNOWN"
 	}
@@ -160,25 +157,6 @@ func validateAndGetElapsedTime(qType logsQueryTypes, esOutput map[string]interfa
 			}
 		default:
 			log.Fatalf("hits is not a map[string]interface %+v", rawHits)
-		}
-	} else if qType.String() == "benchmark" {
-		hits := esOutput["hits"]
-		switch rawHits := hits.(type) {
-		case map[string]interface{}:
-			total := rawHits["total"]
-			switch rawTotal := total.(type) {
-			case map[string]interface{}:
-				value := rawTotal["value"]
-				relation := rawTotal["relation"]
-				if value.(float64) <= 0 {
-					log.Errorf("Benchmark query: [%+v]ms. Hits: %+v %+v", etime, relation, value)
-					return 0
-				}
-			default:
-				log.Errorf("Benchmark query: hits.total is not a map %+v", rawTotal)
-			}
-		default:
-			log.Errorf("Benchmark query: hits is not a map[string]interface %+v", rawHits)
 		}
 	}
 	return etime.(float64)
@@ -509,9 +487,7 @@ func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, u
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
 	}
-	if qType.String() != "benchmark" {
-		log.Printf("sendRequest: sending request to %s", url)
-	}
+	log.Printf("sendRequest: sending request to %s", url)
 	if authToken != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
 	}
@@ -934,56 +910,79 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
 
-func RunBenchmarkUUIDQuery(continuous bool, bearerToken string, uuid string) {
-	client := http.DefaultClient
-	requestStr := "http://localhost:5122/elastic/*/_search"
+func RunBenchmarkUUIDQuery(uuid string) {
 
-	rQuery := getUUIDQuery(uuid)
-	ret := sendSingleRequest(benchmarkQuery, client, rQuery, requestStr, false, bearerToken)
-	if ret == 0 {
-		log.Errorf("RunBenchmarkUUIDQuery:  Ident= %v , Actual Hits not gt than 0", uuid)
+	data := map[string]interface{}{
+		"state":         "query",
+		"searchText":    "ident=" + uuid,
+		"startEpoch":    "now-1d",
+		"endEpoch":      "now",
+		"indexName":     "*",
+		"queryLanguage": "Splunk QL",
 	}
-}
-
-func getUUIDQuery(uuid string) []byte {
-	time := time.Now().UnixMilli()
-	time1day := time - (1 * 24 * 60 * 60 * 1000)
-
-	must := make([]interface{}, 0)
-	var condition map[string]interface{}
-	column := "ident"
-	value := uuid
-
-	// Set the condition.
-	condition = map[string]interface{}{
-		"match": map[string]interface{}{
-			column: value,
-		},
-	}
-	must = append(must, condition)
-
-	var matchAllQuery = map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": must,
-				"filter": []interface{}{
-					map[string]interface{}{
-						"range": map[string]interface{}{
-							"timestamp": map[string]interface{}{
-								"gte":    time1day,
-								"lte":    time,
-								"format": "epoch_millis",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	raw, err := json.Marshal(matchAllQuery)
+	evaluationType := "total"
+	relation := "gt"
+	expectedValue := "0"
+	// create websocket connection
+	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
 	if err != nil {
-		log.Fatalf("error marshalling query: %+v", err)
+		log.Fatalf("RunBenchmarkUUIDQuery: Error connecting to WebSocket server: %v", err)
+		return
 	}
-	return raw
+	defer conn.Close()
+
+	err = conn.WriteJSON(data)
+	if err != nil {
+
+		log.Fatalf("RunBenchmarkUUIDQuery : Received err message from server: %+v\n", err)
+	}
+
+	readEvent := make(map[string]interface{})
+	for {
+		err = conn.ReadJSON(&readEvent)
+		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+			//WebSocket closed normally (1000).
+			break
+		} else if err != nil {
+			log.Infof("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
+			break
+		}
+		switch readEvent["state"] {
+		case "RUNNING", "QUERY_UPDATE":
+		case "COMPLETE":
+			for eKey, eValue := range readEvent {
+				if evaluationType == "total" && eKey == "totalMatched" {
+					var hits bool
+					var finalHits float64
+					var err error
+					switch eValue := eValue.(type) {
+					case float64:
+						finalHits = eValue
+						hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+					case map[string]interface{}:
+						for k, v := range eValue {
+							if k == "value" {
+								var ok bool
+								finalHits, ok = v.(float64)
+								if !ok {
+									log.Errorf("RunBenchmarkUUIDQuery: Returned total matched is not a float: %v", v)
+								}
+								hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+							}
+						}
+					}
+					if err != nil {
+						log.Errorf("RunBenchmarkUUIDQuery: Error in verifying hits: %v", err)
+					} else if !hits {
+						log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not gt than 0", data, finalHits)
+					} else {
+						//Query was succesful
+					}
+				}
+			}
+		default:
+			log.Infof("RunBenchmarkUUIDQuery : Received unknown message from server: %+v\n", readEvent)
+		}
+
+	}
 }

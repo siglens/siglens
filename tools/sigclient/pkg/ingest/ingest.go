@@ -354,6 +354,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+	case "benchmark-ingest-query":
+		log.Infof("Initializing benchmark-ingest-query reader")
+		seed := int64(1001)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -456,12 +460,28 @@ readChannel:
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 	//run search queries for all UUIDs
-	if generatorType == "benchmark" {
+	if generatorType == "benchmark-ingest-query" {
 		log.Info("Verifying benchmark ingestion by searching for ident column")
+		log.Info("Waiting for ingest data to be available")
+		time.Sleep(120 * time.Second)
+		log.Info("Starting queries for benchmark ident column")
 		startTime = time.Now()
 		uuidList, _ := reader.GetUUIDList()
+		ticker := time.NewTicker(30 * time.Second)
+		done := make(chan bool)
+		startTime := time.Now()
+		go func() {
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					log.Infof("Queries for benchmark ident column still running  %+v", time.Since(startTime))
+				}
+			}
+		}()
 		for i := 0; i < len(uuidList); i++ {
-			query.RunBenchmarkUUIDQuery(continuous, bearerToken, uuidList[i]) //, i, &wg)
+			query.RunBenchmarkUUIDQuery(uuidList[i])
 		}
 		totalTimeTaken = time.Since(startTime)
 		log.Printf("Total Benchmark query time: %v", totalTimeTaken.Truncate(time.Second))
