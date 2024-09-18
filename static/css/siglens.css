@@ -2623,6 +2623,10 @@ input[type="submit" i] {
     color: var(--timepicker-dt-hdr-color);
 }
 
+.dt-head-right{
+    padding-right: 26px !important;
+}
+
 .ranges {
     display: grid;
     grid-template-rows: repeat(4, 1fr);
