@@ -27,6 +27,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"verifier/pkg/query"
 	"verifier/pkg/utils"
 
 	"github.com/dustin/go-humanize"
@@ -392,9 +394,11 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	done := make(chan bool)
 	totalSent := uint64(0)
 	totalBytes := uint64(0)
+	var reader utils.Generator
+	var err error
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
+		reader, err = getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
@@ -450,5 +454,16 @@ readChannel:
 			humanize.Comma(eventsPerSecond),
 			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
+	}
+	//run search queries for all UUIDs
+	if generatorType == "benchmark" {
+		log.Info("Verifying benchmark ingestion by searching for ident column")
+		startTime = time.Now()
+		uuidList, _ := reader.GetUUIDList()
+		for i := 0; i < len(uuidList); i++ {
+			query.RunBenchmarkUUIDQuery(continuous, bearerToken, uuidList[i]) //, i, &wg)
+		}
+		totalTimeTaken = time.Since(startTime)
+		log.Printf("Total Benchmark query time: %v", totalTimeTaken.Truncate(time.Second))
 	}
 }

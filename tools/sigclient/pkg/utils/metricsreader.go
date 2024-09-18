@@ -70,6 +70,9 @@ func (mg *MetricsGenerator) GetLogLine() ([]byte, error) {
 	return nil, fmt.Errorf("metrics generator can only be used with GetRawLog")
 }
 
+func (sr *MetricsGenerator) GetUUIDList() ([]string, error) {
+	return nil, nil
+}
 func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	retVal := make(map[string]interface{})
 	mName := fmt.Sprintf("testmetric%d", mg.f.Rand.Intn(int(mg.nMetrics)))
