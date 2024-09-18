@@ -22,12 +22,17 @@ import (
 	"encoding/gob"
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/rogpeppe/fastuuid"
+	log "github.com/sirupsen/logrus"
 )
 
 const UnescapeStackBufSize = 64
+const SegmentValidityFname = "segment-validity.json"
 
 var UUID_GENERATOR *fastuuid.Generator
 
@@ -130,4 +135,49 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bo
 	}
 
 	return false
+}
+
+func IsSegmentRotated(segKey string) bool {
+	_, err := os.Stat(filepath.Join(segKey, SegmentValidityFname))
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func IsFileForRotatedSegment(filename string) bool {
+	segBaseDir, err := getSegBaseDirFromFilename(filename)
+	if err != nil {
+		log.Errorf("IsFileForRotatedSegment: cannot get segBaseDir from filename=%v; err=%v", filename, err)
+		return false
+	}
+
+	_, err = os.Stat(filepath.Join(segBaseDir, SegmentValidityFname))
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func getSegBaseDirFromFilename(filename string) (string, error) {
+	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
+	// should change too.
+	depth := 6 // getBaseSegDir has 6 components
+
+	pos := 0
+	curDepth := 0
+	for curDepth < depth {
+		pos = strings.Index(filename[pos:], "/")
+		if pos == -1 {
+			return "", TeeErrorf("getSegBaseDirFromFilename: cannot find %v parts in %v",
+				depth, filename)
+		}
+
+		pos += 1
+		curDepth += 1
+	}
+
+	return filename[:pos], nil
 }

@@ -752,11 +752,12 @@ func getBlockBloomSize(bi *BloomIndex) uint32 {
 	return nextBloomSize
 }
 
-func getActiveBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
+func getBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
+	// TODO: use filepath.Join to avoid "/" issues
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath())
 	sb.WriteString(config.GetHostID())
-	sb.WriteString("/active/")
+	sb.WriteString("/final/")
 	sb.WriteString(virtualTableName + "/")
 	sb.WriteString(streamid + "/")
 	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
@@ -764,21 +765,14 @@ func getActiveBaseSegDir(streamid string, virtualTableName string, suffix uint64
 	return basedir
 }
 
+// TODO: delete this function
 func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
-	if !strings.Contains(activeBaseSegDir, "/active/") {
-		err := fmt.Errorf("getFinalBaseSegDirFromActive: invalid activeBaseSegDir=%v does not contain /active/", activeBaseSegDir)
-		log.Errorf(err.Error())
-		return "", err
-	}
-
-	return GetRotatedVersion(activeBaseSegDir), nil
+	return activeBaseSegDir, nil
 }
 
-// Take a string that is based on a rotated/unrotated segkey (e.g., just a
-// segkey, or a filename that contains a segkey), and return the rotated
-// version of that string.
+// TODO: delete this function
 func GetRotatedVersion(segKey string) string {
-	return strings.Replace(segKey, "/active/", "/final/", 1)
+	return segKey
 }
 
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
@@ -993,7 +987,7 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
 	sb.WriteString(config.GetHostID())
-	sb.WriteString("/active/")
+	sb.WriteString("/final/")
 	sb.WriteString(virtualTableName + "/")
 	basedir := sb.String()
 	return basedir

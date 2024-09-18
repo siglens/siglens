@@ -339,13 +339,14 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 }
 
 /*
-Returns <<dataDir>>/<<hostname>>/active/ts/<<mid>>/{suffix}/suffix
+Returns <<dataDir>>/<<hostname>>/final/ts/<<mid>>/{suffix}/suffix
 */
 func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
+	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath())
 	sb.WriteString(config.GetHostID())
-	sb.WriteString("/active/ts/")
+	sb.WriteString("/final/ts/")
 	sb.WriteString(mId + "/")
 	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
 	basedir := sb.String()
@@ -355,6 +356,7 @@ func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
 /*
 Returns <<dataDir>>/<<hostname>>/final/<<mid>>/suffix
 */
+// TODO: delete this function
 func getFinalMetricsDir(mId string, suffix uint64) string {
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)

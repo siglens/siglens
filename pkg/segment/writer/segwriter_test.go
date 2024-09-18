@@ -111,8 +111,8 @@ func Test_getActiveBaseSegDir(t *testing.T) {
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
+	basedir := getBaseSegDir(streamid, virtualTableName, nextsuff_idx)
+	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
 }
 
 func Test_getFinalBaseSegDirFromActive(t *testing.T) {
@@ -121,19 +121,10 @@ func Test_getFinalBaseSegDirFromActive(t *testing.T) {
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
-	activeBasedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
+	activeBasedir := getBaseSegDir(streamid, virtualTableName, nextsuff_idx)
 	finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
 	assert.Nil(t, err)
 	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
-}
-
-func Test_GetRotatedVersion(t *testing.T) {
-	unrotatedSegKey := "data/test.abc/active/ind-0/0-0-17399183820399492381/4/4"
-	rotatedVersion := GetRotatedVersion(unrotatedSegKey)
-	assert.Equal(t, "data/test.abc/final/ind-0/0-0-17399183820399492381/4/4", rotatedVersion)
-
-	doubleRotatedVersion := GetRotatedVersion(rotatedVersion)
-	assert.Equal(t, "data/test.abc/final/ind-0/0-0-17399183820399492381/4/4", doubleRotatedVersion)
 }
 
 func Test_ReplaceSingleSegMeta(t *testing.T) {
