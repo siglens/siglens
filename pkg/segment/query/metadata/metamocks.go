@@ -22,10 +22,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -38,12 +38,7 @@ func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCo
 
 	_ = os.Remove(dir)
 
-	globalMetadata = &allSegmentMetadata{
-		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
-		segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
-		tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
-		updateLock:                  &sync.RWMutex{},
-	}
+	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
 	err := os.MkdirAll(dir, os.FileMode(0755))
@@ -101,8 +96,8 @@ func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCo
 			ColumnNames:      allColsSizes,
 			NumBlocks:        uint16(numBlocks),
 		}
-		segMetadata := InitSegmentMicroIndex(sInfo)
-		BulkAddSegmentMicroIndex([]*SegmentMicroIndex{segMetadata})
+		segMetadata := metadata.InitSegmentMicroIndex(sInfo)
+		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
 	}
 }
 

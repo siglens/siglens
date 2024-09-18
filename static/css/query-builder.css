@@ -627,9 +627,6 @@ textarea.form-control:focus{
     border: 1px solid var(--border-btn-color);
 }
 
-.fields{
-    margin-left: 10px;
-}
 .below-btn-img:hover,
 .add-con:hover,
 .cancel-enter:hover,

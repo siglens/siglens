@@ -34,7 +34,7 @@ import (
 	lokilog "github.com/siglens/siglens/pkg/integrations/loki/log"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -816,7 +816,7 @@ func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid uint6
 	}
 
 	bytesReceivedCount, recordCount, onDiskBytesCount := segwriter.GetVTableCounts(LOKIINDEX_STAR, myid)
-	unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(LOKIINDEX_STAR, myid)
+	unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(LOKIINDEX_STAR, myid)
 
 	chunkCount := getChunkCount(queryResult)
 

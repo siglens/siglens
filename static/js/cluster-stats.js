@@ -478,11 +478,17 @@ function processClusterStats(res) {
             _.forEach(value, (v, k) => {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
-                if (k === 'Average Query Latency (since install)' || 'Average Query Latency (since restart)') {
+
+                let formattedValue;
+                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
                     const numericPart = parseFloat(v);
                     const avgLatency = Math.round(numericPart);
-                    tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
-                } else tr.append('<td class="health-stats-value">' + v.toLocaleString() + '</td>');
+                    formattedValue = avgLatency.toLocaleString() + ' ms';
+                } else {
+                    const numericValue = parseInt(v, 10);
+                    formattedValue = numericValue.toLocaleString();
+                }
+                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
                 table.find('tbody').append(tr);
             });
         }
