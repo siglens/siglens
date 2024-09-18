@@ -836,21 +836,29 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
+
+		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
+			return err
+		}
 	}
 	return nil
 }
 
-func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
+func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {
 	removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
 
-	err := os.RemoveAll(segstore.segbaseDir)
-	if err != nil {
-		log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
-		return err
+	if removeDir {
+		err := os.RemoveAll(segstore.segbaseDir)
+		if err != nil {
+			log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
+			return err
+		}
 	}
 
 	if resetSegstore {
-		err = segstore.resetSegStore(streamId, segstore.VirtualTableName)
+		err := segstore.resetSegStore(streamId, segstore.VirtualTableName)
 		if err != nil {
 			return err
 		}
