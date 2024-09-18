@@ -271,24 +271,14 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		return err
 	}
 
+	querytracker.InitQT()
+	fileutils.InitLogFiles()
+
 	siglensStartupLog := fmt.Sprintf("----- Siglens server type %s starting up ----- \n", nodeType)
 	if config.GetLogPrefix() != "" {
 		StdOutLogger.Infof(siglensStartupLog)
 	}
 	log.Infof(siglensStartupLog)
-	if queryNode {
-		err := usq.InitUsq()
-		if err != nil {
-			log.Errorf("error in init UserSavedQueries: %v", err)
-			return err
-		}
-
-		err = dashboards.InitDashboards()
-		if err != nil {
-			log.Errorf("error in init Dashboards: %v", err)
-			return err
-		}
-	}
 
 	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
 		err := hook(nodeID)
@@ -305,12 +295,11 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	}
 
 	instrumentation.InitMetrics()
-	querytracker.InitQT()
 
-	fileutils.InitLogFiles()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 	go entryHandler.MonitorDiskUsage()
+
 	return nil
 }
 
