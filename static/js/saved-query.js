@@ -113,17 +113,22 @@ function setSaveQueriesDialog() {
                 text: 'Cancel',
                 click: function () {
                     dialog.dialog('close');
+                    hideTooltip();
                 },
             },
             Save: {
                 class: 'saveqButton',
                 text: 'Save',
-                click: saveQuery,
+                click: function () {
+                    saveQuery();
+                    hideTooltip();
+                },
             },
         },
         close: function () {
             form[0].reset();
             allFields.removeClass('ui-state-error');
+            hideTooltip();
         },
     });
 
@@ -139,6 +144,14 @@ function setSaveQueriesDialog() {
         return false;
     });
 }
+
+function hideTooltip() {
+    const tooltipInstance = $('#saveq-btn')[0]?._tippy;
+    if (tooltipInstance) {
+        tooltipInstance.hide();
+    }
+}
+
 //eslint-disable-next-line no-unused-vars
 function getSavedQueries() {
     $.ajax({
