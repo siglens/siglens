@@ -379,7 +379,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.2.38d"
+					return "0.2.38"
 				},
 			})
 			textTemplate := texttemplate.New("other")
