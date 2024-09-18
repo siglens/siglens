@@ -2623,8 +2623,8 @@ input[type="submit" i] {
     color: var(--timepicker-dt-hdr-color);
 }
 
-table.dataTable tbody td{
-    padding: 8px 15px;
+.dt-head-right{
+    padding-right: 26px !important;
 }
 
 .ranges {

@@ -561,11 +561,18 @@ function processClusterStats(res) {
     let metricsDataTable = $('#metrics-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: metricsDataTableColumns,
+        columnDefs: [
+            { targets: [1,2] , className: 'dt-head-right dt-body-right' }
+        ],
     });
 
     let traceDataTable = $('#trace-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: tracesDataTableColumns,
+        columnDefs: [
+            { targets: 0,width: '20%' },
+            { targets: [1,2,3] ,width: '20%', className: 'dt-head-right dt-body-right' }
+        ],
     });
 
     function displayIndexDataRows(res) {
