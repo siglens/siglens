@@ -31,8 +31,8 @@ import (
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -389,6 +389,9 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
 	}
+	if nodeResult.RemoteLogs != nil {
+		json = append(json, nodeResult.RemoteLogs...)
+	}
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {
@@ -520,7 +523,7 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	}
 
-	resp.ColumnNames = metadata.GetAllColNames(sortedIndices)
+	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
 	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality"}
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)

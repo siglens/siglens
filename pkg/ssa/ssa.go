@@ -344,7 +344,7 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 			continue
 		}
 		bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts(indexName, myid)
-		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 		bytesReceivedCount += unrotatedBytesCount
 		eventCount += unrotatedEventCount
 		onDiskBytesCount += unrotatedOnDiskBytesCount
@@ -357,7 +357,7 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 		}
 	}
 	_, eventCount, _ := segwriter.GetVTableCounts("traces", myid)
-	_, unrotatedEventCount, _ := segwriter.GetUnrotatedVTableCounts("traces", myid)
+	_, unrotatedEventCount, _, _ := segwriter.GetUnrotatedVTableCounts("traces", myid)
 
 	eventCount += unrotatedEventCount
 	totalTracesCount := uint64(eventCount)

@@ -45,6 +45,22 @@ func Test_MapToSet(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func Test_SetToMap(t *testing.T) {
+	set := map[string]struct{}{}
+	assert.Equal(t, 0, len(SetToMap(set, 1)))
+
+	set["key1"] = struct{}{}
+	set["key2"] = struct{}{}
+	set["key3"] = struct{}{}
+
+	m := SetToMap(set, true)
+	assert.Equal(t, 3, len(m))
+
+	assert.Equal(t, true, m["key1"])
+	assert.Equal(t, true, m["key2"])
+	assert.Equal(t, true, m["key3"])
+}
+
 func Test_ConvertToSetFromMap(t *testing.T) {
 	set := make(map[string]struct{})
 	sourceMap := map[string]int{
@@ -231,4 +247,23 @@ func Test_GetKeysOfMap(t *testing.T) {
 
 	keys2 = GetKeysOfMap(map2)
 	assert.Equal(t, 0, len(keys2))
+}
+
+func Test_GetSortedStringKeys(t *testing.T) {
+	map1 := map[string]bool{
+		"key1": false,
+		"key3": true,
+		"key2": false,
+	}
+	expected := []string{"key1", "key2", "key3"}
+	assert.Equal(t, expected, GetSortedStringKeys(map1))
+
+	map2 := map[string]struct{}{
+		"def": {},
+		"abc": {},
+		"ghi": {},
+	}
+
+	expected = []string{"abc", "def", "ghi"}
+	assert.Equal(t, expected, GetSortedStringKeys(map2))
 }

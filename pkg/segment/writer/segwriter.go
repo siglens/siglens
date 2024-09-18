@@ -695,8 +695,18 @@ func getSegStore(streamid string) *SegStore {
 }
 
 func createSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+	allSegStoresLock.Lock()
+	defer allSegStoresLock.Unlock()
+
 	if len(allSegStores) >= maxAllowedSegStores {
 		return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
+	}
+
+	// Now that we got the lock, we should check if someone else had already created
+	// a segstore for this streamid, if yes then return that, else continue on
+	ss, present := allSegStores[streamid]
+	if present {
+		return ss, nil
 	}
 
 	segstore := NewSegStore(orgId)
@@ -707,10 +717,8 @@ func createSegStore(streamid string, table string, orgId uint64) (*SegStore, err
 		return nil, err
 	}
 
-	allSegStoresLock.Lock()
 	allSegStores[streamid] = segstore
 	instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
-	allSegStoresLock.Unlock()
 
 	return segstore, nil
 }
@@ -763,7 +771,14 @@ func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
 		return "", err
 	}
 
-	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
+	return GetRotatedVersion(activeBaseSegDir), nil
+}
+
+// Take a string that is based on a rotated/unrotated segkey (e.g., just a
+// segkey, or a filename that contains a segkey), and return the rotated
+// version of that string.
+func GetRotatedVersion(segKey string) string {
+	return strings.Replace(segKey, "/active/", "/final/", 1)
 }
 
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
@@ -956,10 +971,11 @@ func writeRunningSegMeta(fname string, rsm *structs.SegMeta) error {
 	return nil
 }
 
-func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64) {
+func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64, map[string]struct{}) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := 0
+	allColumnsMap := make(map[string]struct{})
 	allSegStoresLock.RLock()
 	defer allSegStoresLock.RUnlock()
 	for _, segstore := range allSegStores {
@@ -967,9 +983,10 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64)
 			bytesCount += segstore.BytesReceivedCount
 			recCount += segstore.RecordCount
 			onDiskBytesCount += segstore.OnDiskBytes
+			utils.AddMapKeysToSet(allColumnsMap, segstore.AllSeenColumnSizes)
 		}
 	}
-	return bytesCount, recCount, onDiskBytesCount
+	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
 func getActiveBaseDirVTable(virtualTableName string) string {

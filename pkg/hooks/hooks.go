@@ -46,18 +46,23 @@ type Hooks struct {
 	LogConfigHook             func()
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
+	ShutdownSiglensPreHook    func()
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
-	AddMultinodeStatsHook      func(indexData utils.AllIndexesStats, orgId uint64,
+	// TODO: There are too many arguments here. Consider refactoring by creating a struct.
+	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId uint64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
-		queryCount *uint64, totalResponseTime *float64)
+		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64,
+		totalQueryCountSinceInstall *uint64, totalColumnsSet map[string]struct{})
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
+	// rStats is of type usageStats.ReadStats
+	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
 	// Retention
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
@@ -153,6 +158,7 @@ type JsSnippets struct {
 	OrgUpperNavUrls string
 
 	OrgAllSlos string
+	PanelFlag  bool
 }
 
 var GlobalHooks = Hooks{

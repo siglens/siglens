@@ -32,7 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -76,7 +76,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			queryAggs.EarlyExit = false
 			queryAggs.Sort = nil
 			if len(queryAggs.GroupByRequest.GroupByColumns) == 1 && queryAggs.GroupByRequest.GroupByColumns[0] == "*" {
-				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
+				queryAggs.GroupByRequest.GroupByColumns = segmetadata.GetAllColNames([]string{indexName})
 			}
 			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&

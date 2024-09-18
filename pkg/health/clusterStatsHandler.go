@@ -43,7 +43,7 @@ import (
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
 // GetTraceStatsForAllSegments retrieves all trace-related statistics.
-func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64, uint64) {
+func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	allSegMetas := writer.ReadAllSegmetas()
 	return GetTracesStats(myid, allSegMetas)
 }
@@ -63,7 +63,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	allSegMetas := writer.ReadAllSegmetas()
 
-	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, logsColumnCount := getIngestionStats(myid, allSegMetas)
+	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
@@ -73,7 +73,14 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
 		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
 			&metricsIncomingBytes, &metricsOnDiskBytes, &metricsDatapointsCount,
-			&queryCount, &totalResponseTimeSinceRestart)
+			&queryCount, &totalResponseTimeSinceRestart, &totalResponseTimeSinceInstall,
+			&queriesSinceInstall, totalColumnsSet)
+	}
+
+	logsColumnCount := len(totalColumnsSet)
+	// Remove the columns set from the index data
+	for _, idxData := range indexData.IndexToStats {
+		idxData.ColumnsSet = nil
 	}
 
 	httpResp.IngestionStats = make(map[string]interface{})
@@ -211,11 +218,16 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 
 	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+
+	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
+		hook(rStats, pastXhours, uint8(granularity), orgId)
+	}
+
 	httpResp.ChartStats = make(map[string]map[string]interface{})
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.BytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.TotalBytesCount) / 1_000_000_000
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
@@ -298,7 +310,7 @@ func isTraceRelatedIndex(indexName string) bool {
 	return false
 }
 
-func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, uint64) {
+func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
@@ -358,7 +370,22 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			counts = &structs.VtableCounts{}
 		}
 
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		currentIndexCols := allIndexCols[indexName]
+		indexSegmentCount := segmentCounts[indexName]
+		// Add the unrotated columns and segments to the current index
+		if len(columnNamesSet) > 0 {
+			if currentIndexCols == nil {
+				currentIndexCols = columnNamesSet
+				allIndexCols[indexName] = currentIndexCols
+				indexSegmentCount = 1
+				segmentCounts[indexName] = 1
+			} else {
+				utils.AddMapKeysToSet(currentIndexCols, columnNamesSet)
+				utils.AddMapKeysToSet(totalCols, columnNamesSet)
+				indexSegmentCount++
+			}
+		}
 
 		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)
 		totalEventCount += int64(totalEventsForIndex)
@@ -372,23 +399,24 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		indexStats := utils.IndexStats{
 			NumBytesIngested: uint64(totalBytesReceivedForIndex),
 			NumRecords:       totalEventsForIndex,
-			NumSegments:      uint64(segmentCounts[indexName]),
-			NumColumns:       uint64(len(allIndexCols[indexName])),
+			NumSegments:      uint64(indexSegmentCount),
+			NumColumns:       uint64(len(currentIndexCols)),
+			ColumnsSet:       currentIndexCols,
 		}
 
 		stats.IndexToStats[indexName] = indexStats
 	}
 
-	return stats, totalEventCount, totalBytes, totalOnDiskBytes, uint64(len(totalCols))
+	return stats, totalEventCount, totalBytes, totalOnDiskBytes, totalCols
 }
 
-func getIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, uint64) {
+func GetIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, func(indexName string) bool {
 		return !isTraceRelatedIndex(indexName)
 	}, allSegMetas)
 }
 
-func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, uint64) {
+func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, isTraceRelatedIndex, allSegMetas)
 }
 
