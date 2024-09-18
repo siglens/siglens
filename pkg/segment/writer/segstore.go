@@ -794,7 +794,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		err = symlinkRelativePaths(activeBasedir, finalBasedir)
+		err = toputils.SymlinkRelativePaths(activeBasedir, finalBasedir)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to symlink %v to %v; err=%v",
 				activeBasedir, finalBasedir, err)
@@ -837,30 +837,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 	}
-	return nil
-}
-
-func symlinkRelativePaths(oldPath string, newPath string) error {
-	absOldPath, err := filepath.Abs(oldPath)
-	if err != nil {
-		log.Errorf("symlinkRelativePaths: failed to get absolute path for oldPath %v; err=%v",
-			oldPath, err)
-		return err
-	}
-
-	absNewPath, err := filepath.Abs(newPath)
-	if err != nil {
-		log.Errorf("symlinkRelativePaths: failed to get absolute path for newPath %v; err=%v",
-			newPath, err)
-		return err
-	}
-
-	err = os.Symlink(absOldPath, absNewPath)
-	if err != nil {
-		log.Errorf("symlinkRelativePaths: failed to symlink %v to %v; err=%v", absOldPath, absNewPath, err)
-		return err
-	}
-
 	return nil
 }
 
