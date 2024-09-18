@@ -82,7 +82,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get column for key: %s, table %s", segKey, vTable)
+			log.Errorf("getRecordsFromSegmentHelper: globalMetadata does not have segKey: %s", segKey)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}

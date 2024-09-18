@@ -413,6 +413,10 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	remoteCount uint64, earlyExit bool) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
+	if len(rrcs) != len(rawLogs) {
+		return fmt.Errorf("MergeRemoteRRCResults: rrcs and rawLogs length mismatch, len(rrcs): %v, len(rawLogs): %v, qid=%v", len(rrcs), len(rawLogs), sr.qid)
+	}
+
 	for cName := range allCols {
 		sr.remoteInfo.remoteColumns[cName] = struct{}{}
 	}
