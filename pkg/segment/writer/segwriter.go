@@ -971,10 +971,11 @@ func writeRunningSegMeta(fname string, rsm *structs.SegMeta) error {
 	return nil
 }
 
-func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64) {
+func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64, map[string]struct{}) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := 0
+	allColumnsMap := make(map[string]struct{})
 	allSegStoresLock.RLock()
 	defer allSegStoresLock.RUnlock()
 	for _, segstore := range allSegStores {
@@ -982,9 +983,10 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64)
 			bytesCount += segstore.BytesReceivedCount
 			recCount += segstore.RecordCount
 			onDiskBytesCount += segstore.OnDiskBytes
+			utils.AddMapKeysToSet(allColumnsMap, segstore.AllSeenColumnSizes)
 		}
 	}
-	return bytesCount, recCount, onDiskBytesCount
+	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
 func getActiveBaseDirVTable(virtualTableName string) string {
