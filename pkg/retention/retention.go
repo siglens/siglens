@@ -315,7 +315,7 @@ func getSystemVolumeBytes() (uint64, error) {
 			continue
 		}
 		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
-		unrotatedByteCount, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
+		unrotatedByteCount, _, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
 
 		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
 		currentVolume += uint64(totalVolumeForIndex)
