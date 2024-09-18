@@ -364,6 +364,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 				colRis[cname] = ri
 			}
 
+			startIdx := colWip.cbufidx
 			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
 			colWip.cbufidx += 9
 
@@ -402,6 +403,9 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			updateRangeIndex(cname, ri.Ranges, numType, intVal, uintVal, floatVal)
 			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
 			ss.updateColValueSizeInAllSeenColumns(cname, 9)
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+			}
 		default:
 			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
