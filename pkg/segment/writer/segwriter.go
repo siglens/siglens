@@ -753,6 +753,8 @@ func getBlockBloomSize(bi *BloomIndex) uint32 {
 }
 
 func getBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
+	// Note: this is coupled to getSegBaseDirFromFilename. If the directory
+	// structure changes, change getSegBaseDirFromFilename too.
 	// TODO: use filepath.Join to avoid "/" issues
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath())

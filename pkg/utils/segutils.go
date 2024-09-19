@@ -157,7 +157,7 @@ func IsFileForRotatedSegment(filename string) bool {
 func getSegBaseDirFromFilename(filename string) (string, error) {
 	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
 	// should change too.
-	depth := 6 // getBaseSegDir has 6 components
+	depth := 6 // getBaseSegDir has 6 components: data/hostid/final/index/streamid/suffix
 
 	pos := 0
 	curDepth := 0
