@@ -174,3 +174,19 @@ func getSegBaseDirFromFilename(filename string) (string, error) {
 
 	return filename[:pos], nil
 }
+
+func WriteValidityFile(segBaseDir string) error {
+	err := os.MkdirAll(segBaseDir, 0755)
+	if err != nil {
+		log.Errorf("WriteValidityFile: cannot create dir=%v; err=%v", segBaseDir, err)
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(segBaseDir, SegmentValidityFname))
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	return nil
+}

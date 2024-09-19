@@ -765,6 +765,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
+		err := toputils.WriteValidityFile(segstore.SegmentKey)
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
+				segstore.SegmentKey, err)
+			return err
+		}
+
 		// delete pqmr files if empty and add to empty PQS
 		for pqid, hasMatchedAnyRecordInWip := range segstore.pqNonEmptyResults {
 			if !hasMatchedAnyRecordInWip {
@@ -777,13 +784,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		}
 
 		allColsSizes := segstore.getAllColsSizes()
-
-		_, err := os.Create(filepath.Join(segstore.segbaseDir, toputils.SegmentValidityFname))
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to create segment validity file for segkey=%v; err=%v",
-				segstore.SegmentKey, err)
-			return err
-		}
 
 		// Upload segment files to s3
 		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
