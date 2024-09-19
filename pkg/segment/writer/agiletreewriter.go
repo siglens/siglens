@@ -388,7 +388,7 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 
 	// encode level offsets and sizes
 	for i := range levsOffsets {
-		copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(levsOffsets[i]))
+		utils.Int64ToBytesLittleEndianInplace(levsOffsets[i], stb.buf[idx:])
 		idx += 8
 		utils.Uint32ToBytesLittleEndianInplace(levsSizes[i], stb.buf[idx:])
 		idx += 4

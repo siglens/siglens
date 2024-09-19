@@ -82,7 +82,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Int64ToBytesLittleEndian(colValue.(int64)))
+			utils.Int64ToBytesLittleEndianInplace(colValue.(int64), columnValueSummary[idx:])
 			idx += 8
 
 		case segutils.SS_DT_FLOAT:

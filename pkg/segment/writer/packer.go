@@ -1227,9 +1227,9 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 		case RNT_SIGNED_INT:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_SIGNED_INT[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Int64ToBytesLittleEndian(item.Min_int64))
+			utils.Int64ToBytesLittleEndianInplace(item.Min_int64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Int64ToBytesLittleEndian(item.Max_int64))
+			utils.Int64ToBytesLittleEndianInplace(item.Max_int64, blkRIBuf[idx:])
 			idx += 8
 		case RNT_FLOAT64:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_FLOAT64[:])
@@ -1395,7 +1395,7 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 		idx += 2
 		copy(blockSummBuf[idx:], cname)
 		idx += uint32(len(cname))
-		copy(blockSummBuf[idx:], utils.Int64ToBytesLittleEndian(cOff))
+		utils.Int64ToBytesLittleEndianInplace(cOff, blockSummBuf[idx:])
 		idx += 8
 		utils.Uint32ToBytesLittleEndianInplace(bmh.ColumnBlockLen[cname], blockSummBuf[idx:])
 		idx += 4
