@@ -94,7 +94,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Float64ToBytesLittleEndian(colValue.(float64)))
+			utils.Float64ToBytesLittleEndianInplace(colValue.(float64), columnValueSummary[idx:])
 			idx += 8
 		case segutils.SS_DT_USIGNED_32_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_USIGNED_32_NUM)

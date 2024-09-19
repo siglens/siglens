@@ -1234,9 +1234,9 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 		case RNT_FLOAT64:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_FLOAT64[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Float64ToBytesLittleEndian(item.Min_float64))
+			utils.Float64ToBytesLittleEndianInplace(item.Min_float64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Float64ToBytesLittleEndian(item.Max_float64))
+			utils.Float64ToBytesLittleEndianInplace(item.Max_float64, blkRIBuf[idx:])
 			idx += 8
 		}
 	}

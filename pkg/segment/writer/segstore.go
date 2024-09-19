@@ -407,7 +407,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
-				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
+				toputils.Float64ToBytesLittleEndianInplace(floatVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
 				continue
@@ -1587,7 +1587,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Min
 	if sst.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Min.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Min.FloatVal, buf[idx:])
 	} else {
 		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Min.IntgrVal, buf[idx:])
 	}
@@ -1599,7 +1599,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Max
 	if sst.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Max.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Max.FloatVal, buf[idx:])
 	} else {
 		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Max.IntgrVal, buf[idx:])
 	}
@@ -1611,7 +1611,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Sum
 	if sst.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Sum.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
 	} else {
 		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
 	}
