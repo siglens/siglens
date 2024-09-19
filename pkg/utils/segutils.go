@@ -157,18 +157,26 @@ func IsFileForRotatedSegment(filename string) bool {
 func getSegBaseDirFromFilename(filename string) (string, error) {
 	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
 	// should change too.
-	depth := 6 // getBaseSegDir has 6 components: data/hostid/final/index/streamid/suffix
+	// getBaseSegDir looks like path/to/data/hostid/final/index/streamid/suffix
+	// where path/to/data is the base data directory.
+	depthAfterFinal := 3
 
-	pos := 0
+	const finalStr = "/final/"
+	pos := strings.Index(filename, finalStr)
+	if pos == -1 {
+		return "", TeeErrorf("getSegBaseDirFromFilename: cannot find /final/ in %v", filename)
+	}
+	pos += len(finalStr)
+
 	curDepth := 0
-	for curDepth < depth {
-		pos = strings.Index(filename[pos:], "/")
-		if pos == -1 {
-			return "", TeeErrorf("getSegBaseDirFromFilename: cannot find %v parts in %v",
-				depth, filename)
+	for curDepth < depthAfterFinal {
+		nextPos := strings.Index(filename[pos:], "/")
+		if nextPos == -1 {
+			return "", TeeErrorf("getSegBaseDirFromFilename: cannot find %v parts in %v after /final/",
+				depthAfterFinal, filename)
 		}
 
-		pos += 1
+		pos += nextPos + 1
 		curDepth += 1
 	}
 
