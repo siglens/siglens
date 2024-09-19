@@ -19,12 +19,15 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/google/uuid"
 	"github.com/rogpeppe/fastuuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_IsSubWordPresent(t *testing.T) {
@@ -197,6 +200,32 @@ func Test_IsSubWordPresent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_SegmentValidityFile_SimpleBase(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("data") })
+
+	dataDir := "data"
+	segBaseDir := filepath.Join(dataDir, "hostid/final/index/streamid/suffix/")
+	filename := filepath.Join(segBaseDir, "foo/bar.txt")
+	assert.False(t, IsFileForRotatedSegment(filename))
+
+	err := WriteValidityFile(segBaseDir)
+	assert.NoError(t, err)
+	assert.True(t, IsFileForRotatedSegment(filename))
+}
+
+func Test_SegmentValidityFile_NestedBase(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("foo") })
+
+	dataDir := "foo/data/baz"
+	segBaseDir := filepath.Join(dataDir, "hostid/final/index/streamid/suffix/")
+	filename := filepath.Join(segBaseDir, "foo/bar.txt")
+	assert.False(t, IsFileForRotatedSegment(filename))
+
+	err := WriteValidityFile(segBaseDir)
+	assert.NoError(t, err)
+	assert.True(t, IsFileForRotatedSegment(filename))
 }
 
 func Benchmark_UUIDNew(b *testing.B) {

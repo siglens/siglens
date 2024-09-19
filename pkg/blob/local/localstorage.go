@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob/ssutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -128,7 +129,7 @@ func AddSegSetFileToLocal(fName string, segSetData *structs.SegSetData) {
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
 
-	if strings.Contains(fName, "/active/") {
+	if !utils.IsFileForRotatedSegment(fName) {
 		return
 	}
 	if _, exists := segSetKeys[fName]; !exists {
@@ -149,7 +150,7 @@ func SetBlobAsInUse(fName string) error {
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
 
-	if strings.Contains(fName, "/active/") {
+	if !utils.IsFileForRotatedSegment(fName) {
 		return nil
 	}
 	if _, exists := segSetKeys[fName]; exists {
@@ -178,10 +179,10 @@ func IsFilePresentOnLocal(fName string) bool {
 func DeleteLocal(fName string) error {
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
-	if strings.Contains(fName, "/active/") {
-		log.Debugf("DeleteLocal: Not deleting segset from active dir %v", fName)
+	if !utils.IsFileForRotatedSegment(fName) {
+		log.Debugf("DeleteLocal: Not deleting segset from unrotated dir %v", fName)
 		delete(segSetKeys, fName)
-		return fmt.Errorf("not deleting segset from active dir %v", fName)
+		return fmt.Errorf("not deleting segset from unrotated dir %v", fName)
 	}
 	if _, exists := segSetKeys[fName]; exists && fName != "" {
 		deleteLocalFile(fName)
@@ -248,7 +249,7 @@ Returns an error if SetSetData does not exist in SegSetKeys
 func SetBlobAsNotInUse(segSetFile string) error {
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
-	if strings.Contains(segSetFile, "/active/") {
+	if !utils.IsFileForRotatedSegment(segSetFile) {
 		return nil
 	}
 	if _, exists := segSetKeys[segSetFile]; exists {
