@@ -291,7 +291,10 @@ func Int32ToBytesLittleEndianInplace(val int32, buf []byte) {
 
 // This function converts uint32 to bytes in place
 func Uint32ToBytesLittleEndianInplace(val uint32, buf []byte) {
-	Int32ToBytesLittleEndianInplace(int32(val), buf)
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
 }
 
 // This function converts int16 to bytes in place
@@ -302,5 +305,6 @@ func Int16ToBytesLittleEndianInplace(val int16, buf []byte) {
 
 // This function converts uint16 to bytes in place
 func Uint16ToBytesLittleEndianInplace(val uint16, buf []byte) {
-	Int16ToBytesLittleEndianInplace(int16(val), buf)
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
 }
