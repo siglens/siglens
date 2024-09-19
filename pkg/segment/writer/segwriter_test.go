@@ -115,18 +115,6 @@ func Test_getActiveBaseSegDir(t *testing.T) {
 	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
 }
 
-func Test_getFinalBaseSegDirFromActive(t *testing.T) {
-	dataPath := t.TempDir()
-	config.InitializeDefaultConfig(dataPath)
-	virtualTableName := "evts"
-	streamid := "10005995996882630313"
-	nextsuff_idx := uint64(1)
-	activeBasedir := getBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
-	assert.Nil(t, err)
-	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
-}
-
 func Test_ReplaceSingleSegMeta(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	initSmr()

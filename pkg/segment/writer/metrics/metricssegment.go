@@ -356,8 +356,8 @@ func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
 /*
 Returns <<dataDir>>/<<hostname>>/final/<<mid>>/suffix
 */
-// TODO: delete this function
 func getFinalMetricsDir(mId string, suffix uint64) string {
+	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
 	sb.WriteString(config.GetHostID())

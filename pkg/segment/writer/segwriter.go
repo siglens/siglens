@@ -766,11 +766,6 @@ func getBaseSegDir(streamid string, virtualTableName string, suffix uint64) stri
 }
 
 // TODO: delete this function
-func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
-	return activeBaseSegDir, nil
-}
-
-// TODO: delete this function
 func GetRotatedVersion(segKey string) string {
 	return segKey
 }
