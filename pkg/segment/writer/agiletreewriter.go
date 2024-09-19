@@ -209,7 +209,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 
 	idx := uint32(0)
 	// encode levelNum
-	copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(uint16(level)))
+	utils.Uint16ToBytesLittleEndianInplace(uint16(level), stb.buf[idx:])
 	idx += 2
 
 	// numOfNodes at this level

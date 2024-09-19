@@ -296,11 +296,11 @@ func (pqmr *PQMatchResults) WriteTo(fd *os.File) error {
 func (pqmr *PQMatchResults) EncodePqmr(buf []byte, blkNum uint16) (uint16, error) {
 	var idx uint16
 	// write blkNum
-	copy(buf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
+	utils.Uint16ToBytesLittleEndianInplace(blkNum, buf[idx:])
 	idx += 2
 	// write the size of bitset
 	bitsetSize := uint16(pqmr.b.BinaryStorageSize())
-	copy(buf[idx:], utils.Uint16ToBytesLittleEndian(bitsetSize))
+	utils.Uint16ToBytesLittleEndianInplace(bitsetSize, buf[idx:])
 	idx += 2
 	// write actual bitset
 	actualBitset, err := pqmr.b.MarshalBinary()

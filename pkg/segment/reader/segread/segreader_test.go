@@ -208,7 +208,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		cval := fmt.Sprintf("mycval-%v", dwIdx)
 		cvalBytes := make([]byte, 3+len(cval))
 		cvalBytes[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
-		copy(cvalBytes[1:], utils.Uint16ToBytesLittleEndian(uint16(len(cval))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cval)), cvalBytes[1:])
 		copy(cvalBytes[3:], cval)
 
 		cvTlvLen := uint32(len(cvalBytes))
@@ -252,7 +252,7 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 	encodeString := func(s string) []byte {
 		encoding := make([]byte, 3+len(s))
 		encoding[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
-		copy(encoding[1:2], utils.Uint16ToBytesLittleEndian(uint16(len(s))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(s)), encoding[1:2])
 		copy(encoding[3:], []byte(s))
 
 		return encoding

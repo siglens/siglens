@@ -415,7 +415,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 	} else {
 		mBlkSum = make([]byte, 18)
 	}
-	copy(mBlkSum[idx:], toputils.Uint16ToBytesLittleEndian(mbs.Blknum))
+	toputils.Uint16ToBytesLittleEndianInplace(mbs.Blknum, mBlkSum[idx:])
 	idx += 2
 	copy(mBlkSum[idx:], toputils.Uint32ToBytesLittleEndian(mbs.HighTs))
 	idx += 8

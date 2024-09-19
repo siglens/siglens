@@ -1308,7 +1308,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint16
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint16(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint16ToBytesLittleEndian(tsVal))
+			toputils.Uint16ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 2
 		}
 	case structs.TS_Type32:
