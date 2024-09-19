@@ -252,7 +252,7 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 	encodeString := func(s string) []byte {
 		encoding := make([]byte, 3+len(s))
 		encoding[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
-		utils.Uint16ToBytesLittleEndianInplace(uint16(len(s)), encoding[1:2])
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(s)), encoding[1:3])
 		copy(encoding[3:], []byte(s))
 
 		return encoding
