@@ -24,6 +24,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -39,7 +40,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 		EndEpochMs:   uint64(numEntriesInBlock),
 	}
 
-	timeFilteredFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	timeFilteredFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	log.Infof("time filter: %v", timeFilteredFiles)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
@@ -48,7 +49,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 	assert.Len(t, timeFilteredFiles["evts"], fileCount)
 
 	// adding extra tables that do not exist should not change results
-	extraTableFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{"evts", "extra-table"}, 0)
+	extraTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts", "extra-table"}, 0)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
 	assert.Len(t, extraTableFiles, 1, "one table")
@@ -56,7 +57,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 	assert.Len(t, extraTableFiles["evts"], fileCount)
 
 	// no results when no tables are given
-	noTableFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{}, 0)
+	noTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{}, 0)
 	assert.Equal(t, passedCheck, uint64(0), "no tables")
 	assert.Equal(t, totalChecked, uint64(0), "no tables")
 	assert.Len(t, noTableFiles, 0)
@@ -78,7 +79,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ := metadata.FilterSegmentsByTime(tRange, indexNames, 0)
+	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, indexNames, 0)
 	ti := InitTableInfo("evts", 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
@@ -168,7 +169,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ = metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	allFiles, _, _ = segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	qsrs = ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ = FilterSegKeysToQueryResults(qInfo, qsrs)
 
@@ -246,7 +247,7 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ := metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	ti := InitTableInfo("evts", 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{

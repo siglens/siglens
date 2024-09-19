@@ -174,6 +174,8 @@ function resetDashboard() {
     columnsWithNonNullValues.clear();
     columnsWithNullValues.clear();
     allColumns.clear();
+    $('#hide-null-column-box').hide();
+    columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
 }

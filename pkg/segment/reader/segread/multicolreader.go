@@ -192,10 +192,12 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 			// This segment may have been recently rotated; try reading the
 			// rotated segment file.
 			rotatedFName := writer.GetRotatedVersion(fName)
-			currFd, err = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
-			if err != nil {
-				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for columns %s. Error: %v.",
-					qid, rotatedFName, colName, err)
+			var rotatedErr error
+			currFd, rotatedErr = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
+			if rotatedErr != nil {
+				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
+					" Error: %v. Also failed to open rotated file %s with error: %v",
+					qid, fName, colName, err, rotatedFName, rotatedErr)
 				continue
 			}
 		}

@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -50,10 +51,13 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 		// This may have failed because we're using the unrotated key, but the
 		// data has since been rotated. Try with the rotated key.
 		rotatedKey := writer.GetRotatedVersion(segKey)
-		records, columns, err = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
+		var rotatedErr error
+		records, columns, rotatedErr = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
 			esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
-		if err != nil {
-			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v", rotatedKey, err)
+		if rotatedErr != nil {
+			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v."+
+				" Also failed for rotated segkey=%v with err=%v.",
+				segKey, err, rotatedKey, rotatedErr)
 			return nil, nil, err
 		}
 	}
@@ -76,9 +80,9 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	var exists bool
 	allCols, exists = writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
-		allCols, exists = metadata.CheckAndGetColsForSegKey(segKey, vTable)
+		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get column for key: %s, table %s", segKey, vTable)
+			log.Errorf("getRecordsFromSegmentHelper: globalMetadata does not have segKey: %s", segKey)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}

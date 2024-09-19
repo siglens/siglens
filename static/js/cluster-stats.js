@@ -478,11 +478,17 @@ function processClusterStats(res) {
             _.forEach(value, (v, k) => {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
-                if (k === 'Average Query Latency (since install)' || 'Average Query Latency (since restart)') {
+
+                let formattedValue;
+                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
                     const numericPart = parseFloat(v);
                     const avgLatency = Math.round(numericPart);
-                    tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
-                } else tr.append('<td class="health-stats-value">' + v.toLocaleString() + '</td>');
+                    formattedValue = avgLatency.toLocaleString() + ' ms';
+                } else {
+                    const numericValue = parseInt(v, 10);
+                    formattedValue = numericValue.toLocaleString();
+                }
+                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
                 table.find('tbody').append(tr);
             });
         }
@@ -541,16 +547,30 @@ function processClusterStats(res) {
     let indexDataTable = $('#index-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: indexDataTableColumns,
+        autoWidth: false,
+        columnDefs: [
+            { targets: 0, width: '20%' }, // Index Name
+            { targets: 1, width: '15%', className: 'dt-head-right dt-body-right' }, // Incoming Volume
+            { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' }, // Event Count
+            { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' }, // Segment Count
+            { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
+            { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
+        ],
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: metricsDataTableColumns,
+        columnDefs: [{ targets: [1, 2], className: 'dt-head-right dt-body-right' }],
     });
 
     let traceDataTable = $('#trace-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: tracesDataTableColumns,
+        columnDefs: [
+            { targets: 0, width: '20%' },
+            { targets: [1, 2, 3], width: '20%', className: 'dt-head-right dt-body-right' },
+        ],
     });
 
     function displayIndexDataRows(res) {
@@ -612,12 +632,12 @@ function processClusterStats(res) {
                 });
             });
         }
-        totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString(); 
+        totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
         totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats['Log Incoming Volume']}`) * 1000) / 1000;
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
         totalValRow[2] = `${totalEventCount.toLocaleString()}`;
         totalValRow[3] = `${totalLogSegmentCount.toLocaleString()}`;
-        totalValRow[4] = (res.ingestionStats['Column Count'].toLocaleString());
+        totalValRow[4] = res.ingestionStats['Column Count'].toLocaleString();
         indexDataTable.draw();
         metricsDataTable.draw();
         traceDataTable.draw();

@@ -123,10 +123,11 @@ func removeSegKeyFromUnrotatedInfo(segkey string) {
 	}
 }
 
-func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
+func updateRecentlyRotatedSegmentFiles(segkey string) {
+	// TODO: Does this function do anything useful now? Can it be removed?
 	recentlyRotatedSegmentFilesLock.Lock()
 	RecentlyRotatedSegmentFiles[segkey] = &SegfileRotateInfo{
-		FinalName:   finalKey,
+		FinalName:   segkey,
 		TimeRotated: utils.GetCurrentTimeInMs(),
 	}
 	recentlyRotatedSegmentFilesLock.Unlock()
