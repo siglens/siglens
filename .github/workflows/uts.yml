@@ -45,8 +45,7 @@ jobs:
         with:
           working-directory: ./
           version: v1.59.1
-          skip-pkg-cache: true
-          skip-build-cache: true
+          skip-cache: false
   ESLint:
     runs-on: ubuntu-latest
     name: ESLint JS Files
