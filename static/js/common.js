@@ -1249,3 +1249,13 @@ function calculateMutedFor(silenceEndTime) {
 
     return result.trim();
 }
+
+function createTooltip(selector, content) {
+    //eslint-disable-next-line no-undef
+    tippy(selector, {
+        content: content,
+        placement: 'top',
+        arrow: true,
+        animation: 'fade',
+    });
+}

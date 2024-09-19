@@ -199,7 +199,8 @@ export default [
         "updateQueryModeUI": true,
         "queryMode": true,
         "allColumns": true,
-        "columnsWithNonNullValues":true
+        "columnsWithNonNullValues":true,
+        "createTooltip": true
       },
     },
     rules: {
