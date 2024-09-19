@@ -126,3 +126,47 @@ func Test_InplaceFloat64(t *testing.T) {
 		assert.Equal(t, value, result, "Float64 conversion failed for %f", value)
 	}
 }
+
+func Test_InplaceInt16(t *testing.T) {
+	testValues := []int16{0, 42, -42, math.MaxInt16, math.MinInt16}
+	buf := make([]byte, 2)
+
+	for _, value := range testValues {
+		Int16ToBytesLittleEndianInplace(value, buf)
+		result := BytesToInt16LittleEndian(buf)
+		assert.Equal(t, value, result, "Int16 conversion failed for %d", value)
+	}
+}
+
+func Test_InplaceInt32(t *testing.T) {
+	testValues := []int32{0, 42, -42, math.MaxInt32, math.MinInt32}
+	buf := make([]byte, 4)
+
+	for _, value := range testValues {
+		Int32ToBytesLittleEndianInplace(value, buf)
+		result := BytesToInt32LittleEndian(buf)
+		assert.Equal(t, value, result, "Int32 conversion failed for %d", value)
+	}
+}
+
+func Test_InplaceUint16(t *testing.T) {
+	testValues := []uint16{0, 42, math.MaxUint16}
+	buf := make([]byte, 2)
+
+	for _, value := range testValues {
+		Uint16ToBytesLittleEndianInplace(value, buf)
+		result := BytesToUint16LittleEndian(buf)
+		assert.Equal(t, value, result, "Uint16 conversion failed for %d", value)
+	}
+}
+
+func Test_InplaceUint32(t *testing.T) {
+	testValues := []uint32{0, 42, math.MaxUint32}
+	buf := make([]byte, 4)
+
+	for _, value := range testValues {
+		Uint32ToBytesLittleEndianInplace(value, buf)
+		result := BytesToUint32LittleEndian(buf)
+		assert.Equal(t, value, result, "Uint32 conversion failed for %d", value)
+	}
+}
