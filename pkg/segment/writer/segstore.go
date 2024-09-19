@@ -1293,7 +1293,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	// store TS_TYPE and lowTs for reconstruction needs
 	copy(tsWip.cbuf[tsWip.cbufidx:], []byte{uint8(tsType)})
 	tsWip.cbufidx += 1
-	copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(lowTs))
+	toputils.Uint64ToBytesLittleEndianInplace(lowTs, tsWip.cbuf[tsWip.cbufidx:])
 	tsWip.cbufidx += 8
 
 	switch tsType {
@@ -1322,7 +1322,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint64
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = wipBlock.blockTs[i] - lowTs
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(tsVal))
+			toputils.Uint64ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 8
 		}
 	}
@@ -1547,7 +1547,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Count
-	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
+	toputils.Uint64ToBytesLittleEndianInplace(sst.Count, buf[idx:])
 	idx += 8
 
 	hllDataSize := sst.GetHllDataSize()

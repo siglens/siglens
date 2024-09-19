@@ -659,7 +659,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 		valSize = 1 + 8
 	case SS_UINT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_UINT64[:])
-		copy(wipbuf[idx+1:], utils.Uint64ToBytesLittleEndian(uintVal))
+		utils.Uint64ToBytesLittleEndianInplace(uintVal, wipbuf[idx+1:])
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_FLOAT64[:])
@@ -1220,9 +1220,9 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 		case RNT_UNSIGNED_INT:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_UNSIGNED_INT[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Uint64ToBytesLittleEndian(item.Min_uint64))
+			utils.Uint64ToBytesLittleEndianInplace(item.Min_uint64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Uint64ToBytesLittleEndian(item.Max_uint64))
+			utils.Uint64ToBytesLittleEndianInplace(item.Max_uint64, blkRIBuf[idx:])
 			idx += 8
 		case RNT_SIGNED_INT:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_SIGNED_INT[:])
@@ -1381,9 +1381,9 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 
 	utils.Uint16ToBytesLittleEndianInplace(blkNum, blockSummBuf[idx:])
 	idx += 2
-	copy(blockSummBuf[idx:], utils.Uint64ToBytesLittleEndian(bsum.HighTs))
+	utils.Uint64ToBytesLittleEndianInplace(bsum.HighTs, blockSummBuf[idx:])
 	idx += 8
-	copy(blockSummBuf[idx:], utils.Uint64ToBytesLittleEndian(bsum.LowTs))
+	utils.Uint64ToBytesLittleEndianInplace(bsum.LowTs, blockSummBuf[idx:])
 	idx += 8
 	utils.Uint16ToBytesLittleEndianInplace(bsum.RecCount, blockSummBuf[idx:])
 	idx += 2

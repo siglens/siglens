@@ -70,7 +70,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Uint64ToBytesLittleEndian(colValue.(uint64)))
+			utils.Uint64ToBytesLittleEndianInplace(colValue.(uint64), columnValueSummary[idx:])
 			idx += 8
 
 		case segutils.SS_DT_SIGNED_NUM:

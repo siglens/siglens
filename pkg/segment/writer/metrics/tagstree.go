@@ -481,7 +481,7 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 				id += 8
 			}
 		}
-		copy(metadataBuf[idx:], utils.Uint64ToBytesLittleEndian(hashedMName))
+		utils.Uint64ToBytesLittleEndianInplace(hashedMName, metadataBuf[idx:])
 		idx += 8
 		utils.Uint32ToBytesLittleEndianInplace(startOff, metadataBuf[idx:])
 		idx += 4
