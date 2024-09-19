@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"verifier/pkg/utils"
 
@@ -910,79 +911,83 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
 
-func RunBenchmarkUUIDQuery(uuid string) {
+func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, semaphore chan struct{}) {
 
-	data := map[string]interface{}{
-		"state":         "query",
-		"searchText":    "ident=" + uuid,
-		"startEpoch":    "now-1d",
-		"endEpoch":      "now",
-		"indexName":     "*",
-		"queryLanguage": "Splunk QL",
-	}
-	evaluationType := "total"
-	relation := "gt"
-	expectedValue := "0"
-	// create websocket connection
-	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
-	if err != nil {
-		log.Fatalf("RunBenchmarkUUIDQuery: Error connecting to WebSocket server: %v", err)
-		return
-	}
-	defer conn.Close()
+	defer wg.Done()
+	defer func() { <-semaphore }()
+	for _, uuid := range uuidList {
 
-	err = conn.WriteJSON(data)
-	if err != nil {
-
-		log.Fatalf("RunBenchmarkUUIDQuery : Received err message from server: %+v\n", err)
-	}
-
-	readEvent := make(map[string]interface{})
-	for {
-		err = conn.ReadJSON(&readEvent)
-		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-			//WebSocket closed normally (1000).
-			break
-		} else if err != nil {
-			log.Infof("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
-			break
+		data := map[string]interface{}{
+			"state":         "query",
+			"searchText":    "ident=" + uuid,
+			"startEpoch":    "now-1d",
+			"endEpoch":      "now",
+			"indexName":     "*",
+			"queryLanguage": "Splunk QL",
 		}
-		switch readEvent["state"] {
-		case "RUNNING", "QUERY_UPDATE":
-		case "COMPLETE":
-			for eKey, eValue := range readEvent {
-				if evaluationType == "total" && eKey == "totalMatched" {
-					var hits bool
-					var finalHits float64
-					var err error
-					switch eValue := eValue.(type) {
-					case float64:
-						finalHits = eValue
-						hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
-					case map[string]interface{}:
-						for k, v := range eValue {
-							if k == "value" {
-								var ok bool
-								finalHits, ok = v.(float64)
-								if !ok {
-									log.Errorf("RunBenchmarkUUIDQuery: Returned total matched is not a float: %v", v)
+		evaluationType := "total"
+		relation := "gt"
+		expectedValue := "0"
+		// create websocket connection
+		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
+		if err != nil {
+			log.Fatalf("RunBenchmarkUUIDQuery: Error connecting to WebSocket server: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Fatalf("RunBenchmarkUUIDQuery : Received err message from server: %+v\n", err)
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				//WebSocket closed normally (1000).
+				break
+			} else if err != nil {
+				log.Infof("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
+				break
+			}
+			switch readEvent["state"] {
+			case "RUNNING", "QUERY_UPDATE":
+			case "COMPLETE":
+				for eKey, eValue := range readEvent {
+					if evaluationType == "total" && eKey == "totalMatched" {
+						var hits bool
+						var finalHits float64
+						var err error
+						switch eValue := eValue.(type) {
+						case float64:
+							finalHits = eValue
+							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+						case map[string]interface{}:
+							for k, v := range eValue {
+								if k == "value" {
+									var ok bool
+									finalHits, ok = v.(float64)
+									if !ok {
+										log.Errorf("RunBenchmarkUUIDQuery: Returned total matched is not a float: %v", v)
+									}
+									hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 								}
-								hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 							}
 						}
-					}
-					if err != nil {
-						log.Errorf("RunBenchmarkUUIDQuery: Error in verifying hits: %v", err)
-					} else if !hits {
-						log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not gt than 0", data, finalHits)
-					} else {
-						//Query was succesful
+						if err != nil {
+							log.Errorf("RunBenchmarkUUIDQuery: Error in verifying hits: %v", err)
+						} else if !hits {
+							log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not gt than 0", data, finalHits)
+						} else {
+							//Query was succesful
+						}
 					}
 				}
+			default:
+				log.Errorf("RunBenchmarkUUIDQuery : Received unknown message from server: %+v\n", readEvent)
 			}
-		default:
-			log.Infof("RunBenchmarkUUIDQuery : Received unknown message from server: %+v\n", readEvent)
-		}
 
+		}
 	}
 }
