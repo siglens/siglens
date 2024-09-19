@@ -391,7 +391,7 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	totalBytesWritten := 0
 	startOff := metadataSize
 	copy(metadataBuf[:1], VERSION_TAGSTREE) // Write version byte as 0x01
-	copy(metadataBuf[1:5], utils.Uint32ToBytesLittleEndian(metadataSize))
+	utils.Uint32ToBytesLittleEndianInplace(metadataSize, metadataBuf[1:5])
 	idx := uint32(5)
 	for hashedMName, tagInfo := range tree.rawValues {
 		tagBuf := new(bytes.Buffer)
@@ -483,9 +483,9 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 		}
 		copy(metadataBuf[idx:], utils.Uint64ToBytesLittleEndian(hashedMName))
 		idx += 8
-		copy(metadataBuf[idx:], utils.Uint32ToBytesLittleEndian(startOff))
+		utils.Uint32ToBytesLittleEndianInplace(startOff, metadataBuf[idx:])
 		idx += 4
-		copy(metadataBuf[idx:], utils.Uint32ToBytesLittleEndian(startOff+id))
+		utils.Uint32ToBytesLittleEndianInplace(startOff+id, metadataBuf[idx:])
 		idx += 4
 		sizeToAdd := int64(tagBuf.Len())
 		if sizeToAdd > 0 {

@@ -1315,7 +1315,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint32
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint32(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint32ToBytesLittleEndian(tsVal))
+			toputils.Uint32ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 4
 		}
 	case structs.TS_Type64:
@@ -1553,7 +1553,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint32ToBytesLittleEndian(uint32(hllDataSize)))
+	toputils.Uint32ToBytesLittleEndianInplace(uint32(hllDataSize), buf[idx:])
 	idx += 4
 
 	// HLL_Data
@@ -1572,7 +1572,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-4:idx], toputils.Uint32ToBytesLittleEndian(uint32(hllByteSliceLen)))
+		toputils.Uint32ToBytesLittleEndianInplace(uint32(hllByteSliceLen), buf[idx-4:idx])
 	}
 	copy(buf[idx:], hllByteSlice)
 	idx += uint32(hllByteSliceLen)

@@ -281,6 +281,19 @@ func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
 	return workBuf[:blen], nil
 }
 
+// This function converts int32 to bytes in place
+func Int32ToBytesLittleEndianInplace(val int32, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
+}
+
+// This function converts uint32 to bytes in place
+func Uint32ToBytesLittleEndianInplace(val uint32, buf []byte) {
+	Int32ToBytesLittleEndianInplace(int32(val), buf)
+}
+
 // This function converts int16 to bytes in place
 func Int16ToBytesLittleEndianInplace(val int16, buf []byte) {
 	buf[0] = byte(val)

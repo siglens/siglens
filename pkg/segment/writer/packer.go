@@ -1241,7 +1241,7 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 		}
 	}
 	// copy the recordlen at the start of the buf
-	copy(blkRIBuf[0:], utils.Uint32ToBytesLittleEndian(uint32(idx-RI_BLK_LEN_SIZE)))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(idx-RI_BLK_LEN_SIZE), blkRIBuf[0:])
 	// log.Infof("EncodeRIBlock EncodeRIBlock=%v", blkRIBuf[:idx])
 	return idx, blkRIBuf, nil
 }
@@ -1397,12 +1397,12 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 		idx += uint32(len(cname))
 		copy(blockSummBuf[idx:], utils.Int64ToBytesLittleEndian(cOff))
 		idx += 8
-		copy(blockSummBuf[idx:], utils.Uint32ToBytesLittleEndian(bmh.ColumnBlockLen[cname]))
+		utils.Uint32ToBytesLittleEndianInplace(bmh.ColumnBlockLen[cname], blockSummBuf[idx:])
 		idx += 4
 	}
 
 	// copy the summlen at the start of the buf
-	copy(blockSummBuf[0:], utils.Uint32ToBytesLittleEndian(uint32(idx)))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(idx), blockSummBuf[0:])
 
 	return idx, blockSummBuf, nil
 }

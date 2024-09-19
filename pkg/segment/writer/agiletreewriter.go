@@ -213,7 +213,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	idx += 2
 
 	// numOfNodes at this level
-	copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(uint32(len(curLevNodes))))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(len(curLevNodes)), stb.buf[idx:])
 	idx += 4
 
 	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
@@ -244,7 +244,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		// encode curr nodes details
 
 		// mapKey
-		copy(stb.buf[clBufIdx:], utils.Uint32ToBytesLittleEndian(n.myKey))
+		utils.Uint32ToBytesLittleEndianInplace(n.myKey, stb.buf[clBufIdx:])
 		clBufIdx += 4
 
 		// add Parent keys, don't add parents for root (level-0) and level-1 (since their parent is root)
@@ -255,7 +255,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 				break
 			}
 
-			copy(stb.buf[clBufIdx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
+			utils.Uint32ToBytesLittleEndianInplace(ancestor.myKey, stb.buf[clBufIdx:])
 			clBufIdx += 4
 			ancestor = ancestor.parent
 		}
@@ -390,7 +390,7 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 	for i := range levsOffsets {
 		copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(levsOffsets[i]))
 		idx += 8
-		copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(levsSizes[i]))
+		utils.Uint32ToBytesLittleEndianInplace(levsSizes[i], stb.buf[idx:])
 		idx += 4
 	}
 
