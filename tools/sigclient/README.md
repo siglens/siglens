@@ -49,6 +49,12 @@ To Ingest variable number of Columns between 50 to 200. Each record will have co
 go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 1000 -p 1 --enableVariableNumColumns true --maxColumns 200 --minColumns 50
 ```
 
+To ingest benchmark data and verify the ingested data by querying for the `ident` column, run the following command.
+
+ ```bash
+ go run main.go ingest esbulk -n 1 -g benchmark-ingest-query -d http://localhost:8081/elastic -t 1000 -p 1
+ ```
+
 
 ### OTSDB
 To send ingestion traffic to a server using OTSDB:
