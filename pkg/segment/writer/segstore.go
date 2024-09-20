@@ -273,7 +273,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	}
 	segstore.suffix = nextSuffix
 
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextSuffix)
+	basedir := getBaseSegDir(streamid, virtualTableName, nextSuffix)
 	err = os.MkdirAll(basedir, 0764)
 	if err != nil {
 		log.Errorf("resetSegStore : Could not mkdir basedir=%v,  %v", basedir, err)
@@ -761,26 +761,17 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.stbHolder = nil
 		}
 
-		activeBasedir := segstore.segbaseDir
-		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to get finalBasedir from activeBasedir=%v; err=%v", activeBasedir, err)
-			return err
-		}
-
-		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix)
-
-		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
+		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
-			finalSegmentKey, segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
+			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		// make sure the parent dir of final exists, the two path calls are because getFinal.. func
-		// returns a '/' at the end
-		err = os.MkdirAll(path.Dir(path.Dir(finalBasedir)), 0764)
+		err := toputils.WriteValidityFile(segstore.SegmentKey)
 		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to mkdir finalBasedir=%v; err=%v", finalBasedir, err)
+			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
+				segstore.SegmentKey, err)
 			return err
 		}
+
 		// delete pqmr files if empty and add to empty PQS
 		for pqid, hasMatchedAnyRecordInWip := range segstore.pqNonEmptyResults {
 			if !hasMatchedAnyRecordInWip {
@@ -794,14 +785,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		// move the whole dir in one shot
-		err = os.Rename(activeBasedir, finalBasedir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to mv active to final, err=%v", err)
-			return err
-		}
 		// Upload segment files to s3
-		filesToUpload := fileutils.GetAllFilesInDirectory(finalBasedir)
+		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
 
 		err = blob.UploadSegmentFiles(filesToUpload)
 		if err != nil {
@@ -813,9 +798,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			allPqids[pqid] = true
 		}
 
-		var segmeta = structs.SegMeta{SegmentKey: finalSegmentKey, EarliestEpochMS: segstore.earliest_millis,
+		var segmeta = structs.SegMeta{SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
 			LatestEpochMS: segstore.latest_millis, VirtualTableName: segstore.VirtualTableName,
-			RecordCount: segstore.RecordCount, SegbaseDir: finalBasedir,
+			RecordCount: segstore.RecordCount, SegbaseDir: segstore.segbaseDir,
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
@@ -823,11 +808,11 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {
-				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", finalSegmentKey, err)
+				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", segstore.SegmentKey, err)
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, finalSegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
 		// upload ingest node dir to s3
@@ -836,7 +821,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, !forceRotate)
+		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
@@ -845,17 +830,19 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	return nil
 }
 
-func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
+func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {
 	removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
 
-	err := os.RemoveAll(segstore.segbaseDir)
-	if err != nil {
-		log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
-		return err
+	if removeDir {
+		err := os.RemoveAll(segstore.segbaseDir)
+		if err != nil {
+			log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
+			return err
+		}
 	}
 
 	if resetSegstore {
-		err = segstore.resetSegStore(streamId, segstore.VirtualTableName)
+		err := segstore.resetSegStore(streamId, segstore.VirtualTableName)
 		if err != nil {
 			return err
 		}
