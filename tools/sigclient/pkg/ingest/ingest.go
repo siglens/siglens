@@ -392,7 +392,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
 	totalEventsPerProcessWithRemainder := totalEventsPerProcess
-	reminder := totalEvents % processCount
+	remainder := totalEvents % processCount
 	eventsPerDayPerProcess := int(eventsPerDay) / processCount
 
 	ticker := time.NewTicker(60 * time.Second)
@@ -403,7 +403,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	var err error
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		if i < reminder {
+		if i < remainder {
 			totalEventsPerProcessWithRemainder = totalEventsPerProcess + 1
 		} else {
 			totalEventsPerProcessWithRemainder = totalEventsPerProcess
@@ -467,7 +467,7 @@ readChannel:
 	}
 	//run search queries for all UUIDs
 	if generatorType == "benchmark-ingest-query" {
-		rdrUUIDList, _ := reader.GetUUIDList()
+		rdrUUIDList := utils.GetUUIDList()
 		query.RunBenchmarkQuery(rdrUUIDList, processCount)
 	}
 }

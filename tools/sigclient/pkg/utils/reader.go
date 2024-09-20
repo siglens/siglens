@@ -43,7 +43,6 @@ type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 	GetRawLog() (map[string]interface{}, error)
-	GetUUIDList() ([]string, error)
 }
 
 // file reader loads chunks from the file. Each request will get a sequential entry from the chunk.
@@ -83,7 +82,6 @@ type DynamicUserGenerator struct {
 	faker      *gofakeit.Faker
 	seed       int64
 	DataConfig *GeneratorDataConfig
-	uuidList   []string
 }
 
 type GeneratorDataConfig struct {
@@ -109,6 +107,10 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 		VariableColumns: variableColumns,
 		MinColumns:      minColumns,
 	}
+}
+
+func GetUUIDList() []string {
+	return uuidList
 }
 
 func InitDynamicUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
@@ -279,10 +281,6 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 	}
 }
 
-func (sr *DynamicUserGenerator) GetUUIDList() ([]string, error) {
-	return uuidList, nil
-}
-
 func (r *K8sGenerator) createK8sBody() {
 	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
 	logEntry := replacePlaceholders(randomTemplate)
@@ -338,9 +336,6 @@ func (r *K8sGenerator) GetLogLine() ([]byte, error) {
 	return json.Marshal(r.baseBody)
 }
 
-func (sr *K8sGenerator) GetUUIDList() ([]string, error) {
-	return []string{}, nil
-}
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	if ident, ok := r.baseBody["ident"].(string); ok {
@@ -379,9 +374,6 @@ func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
-func (sr *StaticGenerator) GetUUIDList() ([]string, error) {
-	return []string{}, nil
-}
 func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
 	final := make(map[string]interface{})
 	err := json.Unmarshal(sr.logLine, &final)
@@ -445,9 +437,6 @@ func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
 	return final, nil
 }
 
-func (sr *FileReader) GetUUIDList() ([]string, error) {
-	return []string{}, nil
-}
 func (fr *FileReader) swapChunks() error {
 	err := fr.prefetchChunk(false)
 	if err != nil {
