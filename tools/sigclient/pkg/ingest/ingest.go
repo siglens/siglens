@@ -46,8 +46,6 @@ const (
 	OpenTSDB
 )
 
-var uuidList []string
-
 func (q IngestType) String() string {
 	switch q {
 	case ESBulk:
@@ -135,8 +133,6 @@ func generateESBody(recs int, actionLine string, rdr utils.Generator,
 		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
-	rrdUUIDList, _ := rdr.GetUUIDList()
-	uuidList = append(uuidList, rrdUUIDList...)
 	payLoad := bb.Bytes()
 	return payLoad, nil
 }
@@ -388,7 +384,6 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 			return
 		}
 	}
-	uuidList = []string{}
 	var dataGeneratorConfig *utils.GeneratorDataConfig
 	if iDataGeneratorConfig != nil {
 		dataGeneratorConfig = iDataGeneratorConfig.(*utils.GeneratorDataConfig)
@@ -396,6 +391,8 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
+	totalEventsPerProcessWithRemainder := totalEventsPerProcess
+	reminder := totalEvents % processCount
 	eventsPerDayPerProcess := int(eventsPerDay) / processCount
 
 	ticker := time.NewTicker(60 * time.Second)
@@ -406,11 +403,16 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	var err error
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
+		if i < reminder {
+			totalEventsPerProcessWithRemainder = totalEventsPerProcess + 1
+		} else {
+			totalEventsPerProcessWithRemainder = totalEventsPerProcess
+		}
 		reader, err = getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+		go runIngestion(iType, reader, &wg, url, totalEventsPerProcessWithRemainder, continuous, batchSize, i+1, indexPrefix,
 			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
 	}
 
@@ -465,41 +467,7 @@ readChannel:
 	}
 	//run search queries for all UUIDs
 	if generatorType == "benchmark-ingest-query" {
-		log.Info("Verifying benchmark ingestion by searching for ident column")
-		log.Info("Waiting for ingest data to be available. Sleeping for 2 minutes")
-		time.Sleep(120 * time.Second)
-		log.Info("Starting queries for benchmark ident column")
-		ticker := time.NewTicker(30 * time.Second)
-		uuidListLen := len(uuidList)
-		queriesPerBatch := uuidListLen / processCount
-		semaphore := make(chan struct{}, processCount)
-		done := make(chan bool)
-		startTime := time.Now()
-		go func() {
-			for {
-				select {
-				case <-done:
-					return
-				case <-ticker.C:
-					log.Infof("Benchmark UUID queries still running. Total elapsed time:%s.", time.Since(startTime).Truncate(time.Second))
-				}
-			}
-		}()
-		for i := 0; i < processCount; i++ {
-			start := i * queriesPerBatch
-			end := start + queriesPerBatch
-			if end > uuidListLen {
-				end = uuidListLen
-			}
-			batch := uuidList[start:end]
-
-			wg.Add(1)
-			semaphore <- struct{}{}
-			go query.RunBenchmarkUUIDQuery(batch, i+1, &wg, semaphore)
-		}
-
-		wg.Wait()
-		totalTimeTaken = time.Since(startTime)
-		log.Printf("Total Benchmark query time: %v", totalTimeTaken.Truncate(time.Second))
+		rdrUUIDList, _ := reader.GetUUIDList()
+		query.RunBenchmarkQuery(rdrUUIDList, processCount)
 	}
 }

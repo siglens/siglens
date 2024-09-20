@@ -36,6 +36,8 @@ import (
 )
 
 var json = jsoniter.ConfigFastest
+var uuidList []string
+var mu sync.Mutex
 
 type Generator interface {
 	Init(fName ...string) error
@@ -278,7 +280,7 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 }
 
 func (sr *DynamicUserGenerator) GetUUIDList() ([]string, error) {
-	return sr.uuidList, nil
+	return uuidList, nil
 }
 
 func (r *K8sGenerator) createK8sBody() {
@@ -315,6 +317,7 @@ func (r *K8sGenerator) Init(fName ...string) error {
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
+	uuidList = []string{}
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
 	rand.Seed(r.seed)
@@ -341,7 +344,9 @@ func (sr *K8sGenerator) GetUUIDList() ([]string, error) {
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	if ident, ok := r.baseBody["ident"].(string); ok {
-		r.uuidList = append(r.uuidList, ident)
+		mu.Lock()
+		uuidList = append(uuidList, ident)
+		mu.Unlock()
 	}
 	return json.Marshal(r.baseBody)
 }

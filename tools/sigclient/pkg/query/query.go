@@ -911,7 +911,7 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
 
-func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, semaphore chan struct{}) {
+func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}) {
 
 	defer wg.Done()
 	defer func() { <-semaphore }()
@@ -948,7 +948,7 @@ func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, s
 				//WebSocket closed normally (1000).
 				break
 			} else if err != nil {
-				log.Infof("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
+				log.Errorf("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
 				break
 			}
 			switch readEvent["state"] {
@@ -956,13 +956,13 @@ func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, s
 			case "COMPLETE":
 				for eKey, eValue := range readEvent {
 					if evaluationType == "total" && eKey == "totalMatched" {
-						var hits bool
+						var uuidFound bool
 						var finalHits float64
 						var err error
 						switch eValue := eValue.(type) {
 						case float64:
 							finalHits = eValue
-							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+							uuidFound, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 						case map[string]interface{}:
 							for k, v := range eValue {
 								if k == "value" {
@@ -971,14 +971,14 @@ func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, s
 									if !ok {
 										log.Errorf("RunBenchmarkUUIDQuery: Returned total matched is not a float: %v", v)
 									}
-									hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+									uuidFound, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 								}
 							}
 						}
 						if err != nil {
 							log.Errorf("RunBenchmarkUUIDQuery: Error in verifying hits: %v", err)
-						} else if !hits {
-							log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not gt than 0", data, finalHits)
+						} else if !uuidFound {
+							log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not %v than %v", data, finalHits, relation, expectedValue)
 						} else {
 							//Query was succesful
 						}
@@ -990,4 +990,48 @@ func RunBenchmarkUUIDQuery(uuidList []string, batchID int, wg *sync.WaitGroup, s
 
 		}
 	}
+}
+
+func RunBenchmarkQuery(uuidList []string, processCount int) {
+	wg := sync.WaitGroup{}
+	log.Info("Verifying benchmark ingestion by searching for ident column")
+	log.Info("Waiting for ingest data to be available. Sleeping for 15 seconds...")
+	time.Sleep(15 * time.Second)
+	log.Info("Starting queries for benchmark ident column")
+	ticker := time.NewTicker(30 * time.Second)
+	uuidListLen := len(uuidList)
+	queriesPerBatch := uuidListLen / processCount
+	remainder := uuidListLen % processCount
+	semaphore := make(chan struct{}, processCount)
+	done := make(chan bool)
+	startTime := time.Now()
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				log.Infof("Benchmark UUID queries still running. Total elapsed time:%s.", time.Since(startTime).Truncate(time.Second))
+			}
+		}
+	}()
+	for i := 0; i < processCount; i++ {
+		start := i * queriesPerBatch
+		end := start + queriesPerBatch
+		if i < remainder {
+			end++
+		}
+		if end > uuidListLen {
+			end = uuidListLen
+		}
+		batch := uuidList[start:end]
+
+		wg.Add(1)
+		semaphore <- struct{}{}
+		go runBenchmarkQueryBatch(batch, &wg, semaphore)
+	}
+
+	wg.Wait()
+	totalTimeTaken := time.Since(startTime)
+	log.Printf("Total Benchmark query time: %v", totalTimeTaken.Truncate(time.Second))
 }
