@@ -164,9 +164,18 @@ func SetBlobAsInUse(fName string) error {
 }
 
 /*
-Returns if the file exists in the local SegSetKeys struct
+Returns true if the file is on disk or in the local SegSetKeys struct
 */
 func IsFilePresentOnLocal(fName string) bool {
+	_, err := os.Stat(fName)
+	if err == nil {
+		return true
+	}
+	if !os.IsNotExist(err) {
+		// We're not sure if we have the file, so don't early exit.
+		log.Errorf("IsFilePresentOnLocal: Error checking file %s: %v", fName, err)
+	}
+
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
 	if _, exists := segSetKeys[fName]; exists {
