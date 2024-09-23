@@ -29,11 +29,11 @@ async function testDateTimePicker(page) {
     await page.click('#date-picker-btn');
     await datePickerBtn.click();
     await expect(page.locator('.daterangepicker')).toBeVisible();
-    const timeRangeOption = page.locator('#now-5m');
+    const timeRangeOption = page.locator('#now-24h');
     await timeRangeOption.click();
     await expect(timeRangeOption).toHaveClass(/active/);
     const datePickerButtonText = page.locator('#date-picker-btn span');
-    await expect(datePickerButtonText).toHaveText('Last 5 Mins');
+    await expect(datePickerButtonText).toHaveText('Last 24 Hrs');
 }
 
 module.exports = {

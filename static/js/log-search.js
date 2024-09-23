@@ -23,16 +23,6 @@ let indexValues = [];
 
 $(document).ready(async () => {
     toggleClearButtonVisibility();
-    function createTooltip(selector, content) {
-        //eslint-disable-next-line no-undef
-        tippy(selector, {
-            content: content, // Tooltip content
-            placement: 'top', // Tooltip placement (top, bottom, left, right)
-            arrow: true, // Show an arrow
-            animation: 'fade', // Tooltip animation
-        });
-    }
-
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
@@ -48,6 +38,38 @@ $(document).ready(async () => {
     createTooltip('#log-opt-table-btn', 'Tabular View');
     createTooltip('.avail-fields-btn', 'Select field names to display');
     createTooltip('#run-filter-btn', 'Run query');
+
+    function updateTooltip(element) {
+        if (element && element._tippy) {
+            const newContent = element.classList.contains('cancel-search') ? 'Cancel Query' : 'Run Query';
+            element._tippy.setContent(newContent);
+        }
+    }
+
+    function handleClassChange(event) {
+        updateTooltip(event.target);
+    }
+
+    $(document).on('classChange', '#run-filter-btn, #query-builder-btn', handleClassChange);
+
+    const observerCallback = (mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                updateTooltip(mutation.target);
+            }
+        });
+    };
+
+    const observer = new MutationObserver(observerCallback);
+    const config = { attributes: true, attributeFilter: ['class'] };
+
+    ['run-filter-btn', 'query-builder-btn'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            observer.observe(element, config);
+        }
+    });
+
     setSaveQueriesDialog();
     let indexes = await getListIndices();
     if (indexes) {

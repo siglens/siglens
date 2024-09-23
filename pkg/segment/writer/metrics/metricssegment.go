@@ -339,13 +339,14 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 }
 
 /*
-Returns <<dataDir>>/<<hostname>>/active/ts/<<mid>>/{suffix}/suffix
+Returns <<dataDir>>/<<hostname>>/final/ts/<<mid>>/{suffix}/suffix
 */
 func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
+	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath())
 	sb.WriteString(config.GetHostID())
-	sb.WriteString("/active/ts/")
+	sb.WriteString("/final/ts/")
 	sb.WriteString(mId + "/")
 	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
 	basedir := sb.String()
@@ -356,6 +357,7 @@ func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
 Returns <<dataDir>>/<<hostname>>/final/<<mid>>/suffix
 */
 func getFinalMetricsDir(mId string, suffix uint64) string {
+	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
 	sb.WriteString(config.GetHostID())
@@ -1126,25 +1128,12 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	// Check if final directory already exists
-	if _, err := os.Stat(finalDir); err == nil {
-		log.Infof("rotateSegment: final directory %s already exists, skipping rename operation", finalDir)
-		return nil
-
-	}
-
-	// Check if source directory exists
-	if _, err := os.Stat(ms.metricsKeyBase); os.IsNotExist(err) {
-		log.Infof("rotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
-		return nil
-	}
-
-	// Rename metricsKeyBase to finalDir
-	err = os.Rename(path.Dir(ms.metricsKeyBase), finalDir)
+	err = toputils.WriteValidityFile(ms.metricsKeyBase)
 	if err != nil {
-		log.Errorf("rotateSegment: failed to rename %s to %s for orgid=%v, Error %+v", ms.metricsKeyBase, finalDir, ms.Orgid, err)
+		log.Errorf("rotateSegment: failed to write validity file for %s, orgid=%v, Error %+v", ms.metricsKeyBase, ms.Orgid, err)
 		return err
 	}
+
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
 	if !forceRotate {
 		nextSuffix, err := suffix.GetNextSuffix(ms.Mid, "ts")

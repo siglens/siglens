@@ -344,6 +344,12 @@ func (stb *StarTreeBuilder) newNode() *Node {
 		ans.children = make(map[uint32]*Node)
 	}
 
+	lenAggValues := len(stb.mColNames) * TotalMeasFns
+	ans.aggValues = toputils.ResizeSlice(ans.aggValues, lenAggValues)
+	for i := range ans.aggValues {
+		ans.aggValues[i] = &utils.Number{}
+	}
+
 	return ans
 }
 
@@ -352,15 +358,8 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 	first := true
 
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
-
-	if len(cur.children) != 0 {
-		aggValuesLen := len(cur.aggValues)
-		cur.aggValues = toputils.ResizeSlice(cur.aggValues, lenAggValues)
-		if len(cur.aggValues) > aggValuesLen {
-			for i := aggValuesLen; i < len(cur.aggValues); i++ {
-				cur.aggValues[i] = &utils.Number{}
-			}
-		}
+	if len(cur.aggValues) != lenAggValues {
+		return fmt.Errorf("Aggregate: aggValues length mismatch expected: %v, got: %v", lenAggValues, len(cur.aggValues))
 	}
 
 	var err error
@@ -651,13 +650,8 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 func (stb *StarTreeBuilder) addMeasures(val *utils.Number,
 	lenAggValues int, midx int, node *Node) error {
 
-	sizeNeeded := lenAggValues - len(node.aggValues)
-	if sizeNeeded > 0 {
-		newArr := make([]*utils.Number, sizeNeeded)
-		for i := 0; i < sizeNeeded; i++ {
-			newArr[i] = &utils.Number{}
-		}
-		node.aggValues = append(node.aggValues, newArr...)
+	if len(node.aggValues) != lenAggValues {
+		return fmt.Errorf("addMeasures: aggValues length mismatch expected: %v, got: %v", lenAggValues, len(node.aggValues))
 	}
 
 	var err error

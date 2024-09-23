@@ -22,12 +22,17 @@ import (
 	"encoding/gob"
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/rogpeppe/fastuuid"
+	log "github.com/sirupsen/logrus"
 )
 
 const UnescapeStackBufSize = 64
+const SegmentValidityFname = "segment-validity.json"
 
 var UUID_GENERATOR *fastuuid.Generator
 
@@ -130,4 +135,66 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bo
 	}
 
 	return false
+}
+
+func IsSegmentRotated(segKey string) bool {
+	_, err := os.Stat(filepath.Join(segKey, SegmentValidityFname))
+
+	return err == nil
+}
+
+func IsFileForRotatedSegment(filename string) bool {
+	segBaseDir, err := getSegBaseDirFromFilename(filename)
+	if err != nil {
+		log.Errorf("IsFileForRotatedSegment: cannot get segBaseDir from filename=%v; err=%v", filename, err)
+		return false
+	}
+
+	_, err = os.Stat(filepath.Join(segBaseDir, SegmentValidityFname))
+	return err == nil
+}
+
+func getSegBaseDirFromFilename(filename string) (string, error) {
+	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
+	// should change too.
+	// getBaseSegDir looks like path/to/data/hostid/final/index/streamid/suffix
+	// where path/to/data is the base data directory.
+	depthAfterFinal := 3
+
+	const finalStr = "/final/"
+	pos := strings.Index(filename, finalStr)
+	if pos == -1 {
+		return "", TeeErrorf("getSegBaseDirFromFilename: cannot find /final/ in %v", filename)
+	}
+	pos += len(finalStr)
+
+	curDepth := 0
+	for curDepth < depthAfterFinal {
+		nextPos := strings.Index(filename[pos:], "/")
+		if nextPos == -1 {
+			return "", TeeErrorf("getSegBaseDirFromFilename: cannot find %v parts in %v after /final/",
+				depthAfterFinal, filename)
+		}
+
+		pos += nextPos + 1
+		curDepth += 1
+	}
+
+	return filename[:pos], nil
+}
+
+func WriteValidityFile(segBaseDir string) error {
+	err := os.MkdirAll(segBaseDir, 0755)
+	if err != nil {
+		log.Errorf("WriteValidityFile: cannot create dir=%v; err=%v", segBaseDir, err)
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(segBaseDir, SegmentValidityFname))
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	return nil
 }
