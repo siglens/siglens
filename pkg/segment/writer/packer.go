@@ -298,7 +298,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	s := colWip.cbufidx
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_DICT_ARRAY[:])
 	colWip.cbufidx += 1
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(0)) //placeholder for encoding length of array
+	utils.Uint16ToBytesLittleEndianInplace(0, colWip.cbuf[colWip.cbufidx:]) //placeholder for encoding length of array
 	colWip.cbufidx += 2
 	_, aErr := jp.ArrayEach(data, func(value []byte, valueType jp.ValueType, offset int, err error) {
 		switch valueType {
@@ -315,7 +315,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			//encode and copy keyName
 			n := uint16(len(keyName))
-			copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+			utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
 			colWip.cbufidx += 2
 			copy(colWip.cbuf[colWip.cbufidx:], keyName)
 			colWip.cbufidx += uint32(n)
@@ -371,7 +371,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			return
 		}
 	})
-	copy(colWip.cbuf[s+1:], utils.Uint16ToBytesLittleEndian(uint16(colWip.cbufidx-s-3)))
+	utils.Uint16ToBytesLittleEndianInplace(uint16(colWip.cbufidx-s-3), colWip.cbuf[s+1:])
 	if aErr != nil {
 		finalErr = aErr
 	}
@@ -429,7 +429,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_RAW_JSON[:])
 	colWip.cbufidx += 1
 	n := uint16(len(value))
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+	utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
 	colWip.cbufidx += 2
 	copy(colWip.cbuf[colWip.cbufidx:], value)
 	colWip.cbufidx += uint32(n)
@@ -659,7 +659,7 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 		valSize = 1 + 8
 	case SS_UINT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_UINT64[:])
-		copy(wipbuf[idx+1:], utils.Uint64ToBytesLittleEndian(uintVal))
+		utils.Uint64ToBytesLittleEndianInplace(uintVal, wipbuf[idx+1:])
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		copy(wipbuf[idx:], VALTYPE_ENC_FLOAT64[:])
@@ -1206,7 +1206,7 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 	blkRIBuf := make([]byte, riSizeEstimate)
 
 	// copy the blockNum
-	copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
+	utils.Uint16ToBytesLittleEndianInplace(blkNum, blkRIBuf[idx:])
 	idx += 2
 
 	copy(blkRIBuf[idx:], CMI_RANGE_INDEX)
@@ -1217,7 +1217,7 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 			newSlice := make([]byte, riSizeEstimate)
 			blkRIBuf = append(blkRIBuf, newSlice...)
 		}
-		copy(blkRIBuf[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(key))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(key)), blkRIBuf[idx:])
 		idx += 2
 		n := copy(blkRIBuf[idx:], key)
 		idx += uint32(n)
@@ -1225,28 +1225,28 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 		case RNT_UNSIGNED_INT:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_UNSIGNED_INT[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Uint64ToBytesLittleEndian(item.Min_uint64))
+			utils.Uint64ToBytesLittleEndianInplace(item.Min_uint64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Uint64ToBytesLittleEndian(item.Max_uint64))
+			utils.Uint64ToBytesLittleEndianInplace(item.Max_uint64, blkRIBuf[idx:])
 			idx += 8
 		case RNT_SIGNED_INT:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_SIGNED_INT[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Int64ToBytesLittleEndian(item.Min_int64))
+			utils.Int64ToBytesLittleEndianInplace(item.Min_int64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Int64ToBytesLittleEndian(item.Max_int64))
+			utils.Int64ToBytesLittleEndianInplace(item.Max_int64, blkRIBuf[idx:])
 			idx += 8
 		case RNT_FLOAT64:
 			copy(blkRIBuf[idx:], VALTYPE_ENC_RNT_FLOAT64[:])
 			idx += 1
-			copy(blkRIBuf[idx:], utils.Float64ToBytesLittleEndian(item.Min_float64))
+			utils.Float64ToBytesLittleEndianInplace(item.Min_float64, blkRIBuf[idx:])
 			idx += 8
-			copy(blkRIBuf[idx:], utils.Float64ToBytesLittleEndian(item.Max_float64))
+			utils.Float64ToBytesLittleEndianInplace(item.Max_float64, blkRIBuf[idx:])
 			idx += 8
 		}
 	}
 	// copy the recordlen at the start of the buf
-	copy(blkRIBuf[0:], utils.Uint32ToBytesLittleEndian(uint32(idx-RI_BLK_LEN_SIZE)))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(idx-RI_BLK_LEN_SIZE), blkRIBuf[0:])
 	// log.Infof("EncodeRIBlock EncodeRIBlock=%v", blkRIBuf[:idx])
 	return idx, blkRIBuf, nil
 }
@@ -1384,30 +1384,30 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 	// reserve first 4 bytes for BLOCK_SUMMARY_LEN.
 	idx += 4
 
-	copy(blockSummBuf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
+	utils.Uint16ToBytesLittleEndianInplace(blkNum, blockSummBuf[idx:])
 	idx += 2
-	copy(blockSummBuf[idx:], utils.Uint64ToBytesLittleEndian(bsum.HighTs))
+	utils.Uint64ToBytesLittleEndianInplace(bsum.HighTs, blockSummBuf[idx:])
 	idx += 8
-	copy(blockSummBuf[idx:], utils.Uint64ToBytesLittleEndian(bsum.LowTs))
+	utils.Uint64ToBytesLittleEndianInplace(bsum.LowTs, blockSummBuf[idx:])
 	idx += 8
-	copy(blockSummBuf[idx:], utils.Uint16ToBytesLittleEndian(bsum.RecCount))
+	utils.Uint16ToBytesLittleEndianInplace(bsum.RecCount, blockSummBuf[idx:])
 	idx += 2
-	copy(blockSummBuf[idx:], utils.Uint16ToBytesLittleEndian(numCols))
+	utils.Uint16ToBytesLittleEndianInplace(numCols, blockSummBuf[idx:])
 	idx += 2
 
 	for cname, cOff := range bmh.ColumnBlockOffset {
-		copy(blockSummBuf[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(cname))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cname)), blockSummBuf[idx:])
 		idx += 2
 		copy(blockSummBuf[idx:], cname)
 		idx += uint32(len(cname))
-		copy(blockSummBuf[idx:], utils.Int64ToBytesLittleEndian(cOff))
+		utils.Int64ToBytesLittleEndianInplace(cOff, blockSummBuf[idx:])
 		idx += 8
-		copy(blockSummBuf[idx:], utils.Uint32ToBytesLittleEndian(bmh.ColumnBlockLen[cname]))
+		utils.Uint32ToBytesLittleEndianInplace(bmh.ColumnBlockLen[cname], blockSummBuf[idx:])
 		idx += 4
 	}
 
 	// copy the summlen at the start of the buf
-	copy(blockSummBuf[0:], utils.Uint32ToBytesLittleEndian(uint32(idx)))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(idx), blockSummBuf[0:])
 
 	return idx, blockSummBuf, nil
 }
@@ -1481,7 +1481,7 @@ func PackDictEnc(colWip *ColWip) {
 	localIdx := 0
 
 	// copy num of dict words
-	copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(colWip.deData.deCount))
+	utils.Uint16ToBytesLittleEndianInplace(colWip.deData.deCount, colWip.dePackingBuf[localIdx:])
 	localIdx += 2
 
 	for dword, recNumsArr := range colWip.deData.deMap {
@@ -1492,12 +1492,12 @@ func PackDictEnc(colWip *ColWip) {
 
 		// copy num of records, by finding how many bits are set
 		numRecs := uint16(len(recNumsArr))
-		copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(numRecs))
+		utils.Uint16ToBytesLittleEndianInplace(numRecs, colWip.dePackingBuf[localIdx:])
 		localIdx += 2
 
 		for i := uint16(0); i < numRecs; i++ {
 			// copy the recNum
-			copy(colWip.dePackingBuf[localIdx:], utils.Uint16ToBytesLittleEndian(recNumsArr[i]))
+			utils.Uint16ToBytesLittleEndianInplace(recNumsArr[i], colWip.dePackingBuf[localIdx:])
 			localIdx += 2
 		}
 	}

@@ -415,11 +415,11 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 	} else {
 		mBlkSum = make([]byte, 18)
 	}
-	copy(mBlkSum[idx:], toputils.Uint16ToBytesLittleEndian(mbs.Blknum))
+	toputils.Uint16ToBytesLittleEndianInplace(mbs.Blknum, mBlkSum[idx:])
 	idx += 2
-	copy(mBlkSum[idx:], toputils.Uint32ToBytesLittleEndian(mbs.HighTs))
+	toputils.Uint32ToBytesLittleEndianInplace(mbs.HighTs, mBlkSum[idx:])
 	idx += 8
-	copy(mBlkSum[idx:], toputils.Uint32ToBytesLittleEndian(mbs.LowTs))
+	toputils.Uint32ToBytesLittleEndianInplace(mbs.LowTs, mBlkSum[idx:])
 
 	if _, err := fd.Write(mBlkSum); err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
