@@ -269,7 +269,7 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 		}
 		retVal := make([]byte, 9)
 		copy(retVal[0:], utils.VALTYPE_ENC_UINT64[:])
-		copy(retVal[1:], toputils.Uint64ToBytesLittleEndian(ts))
+		toputils.Uint64ToBytesLittleEndianInplace(ts, retVal[1:])
 		return retVal, nil
 	}
 

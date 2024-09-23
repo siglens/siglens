@@ -1178,7 +1178,7 @@ func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 	cw.cbufidx += 1
 	n := uint16(len(value))
-	copy(cw.cbuf[cw.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+	utils.Uint16ToBytesLittleEndianInplace(n, cw.cbuf[cw.cbufidx:])
 	cw.cbufidx += 2
 	copy(cw.cbuf[cw.cbufidx:], value)
 	cw.cbufidx += uint32(n)

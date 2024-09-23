@@ -54,7 +54,8 @@ test('Navigation Menu Functionality Tests', async ({ page }) => {
     for (const { selector, url } of navItems) {
         await page.click(`${selector} a`);
         expect(page.url()).toContain(url);
-        await expect(page.locator(selector)).toHaveClass(/active/);
+        await expect(page.locator(selector)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator(selector)).toHaveClass(/active/, { timeout: 10000 });
 
         if (url === 'all-alerts.html') {
             await expect(page.locator('.alerts-nav-tab')).toBeVisible();

@@ -284,14 +284,20 @@ function selectDashboardHandler() {
 }
 
 function handlePanelPosition(existingDashboard, newPanel) {
-    const maxY = existingDashboard.panels.reduce((max, panel) => {
-        return Math.max(max, panel.gridpos.y + panel.gridpos.h);
-    }, 0);
-    const maxX = existingDashboard.panels.reduce((max, panel) => {
-        return Math.max(max, panel.gridpos.x + panel.gridpos.w);
-    });
-    newPanel.gridpos.y = maxY + 20;
-    newPanel.gridpos.x = maxX + 20;
+    if (!existingDashboard.panels || existingDashboard.panels.length === 0) {
+        // If there are no existing panels
+        newPanel.gridpos.x = '0';
+        newPanel.gridpos.y = '0';
+    } else {
+        const maxY = existingDashboard.panels.reduce((max, panel) => {
+            return Math.max(max, panel.gridpos.y + panel.gridpos.h);
+        }, 0);
+        const maxX = existingDashboard.panels.reduce((max, panel) => {
+            return Math.max(max, panel.gridpos.x + panel.gridpos.w);
+        });
+        newPanel.gridpos.y = maxY + 20;
+        newPanel.gridpos.x = maxX + 20;
+    }
     existingDashboard.panels.push(newPanel);
     return existingDashboard;
 }
