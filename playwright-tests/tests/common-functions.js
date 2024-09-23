@@ -36,7 +36,87 @@ async function testDateTimePicker(page) {
     await expect(datePickerButtonText).toHaveText('Last 24 Hrs');
 }
 
+async function createLogsAlert(page) {
+    // Navigate to the alerts page
+    await page.goto('http://localhost:5122/alert.html');
+    
+    // Wait for the alert page to load
+    await page.waitForSelector('#alert-rule-name', { state: 'visible' });
+
+    // Fill out the alert form
+    await page.fill('#alert-rule-name', `Test Alert ${Date.now()}`);
+
+    // Select data source (Logs)
+    await page.click('#alert-data-source');
+    await page.click('#data-source-options #option-1');
+    
+    // Wait for data source to be selected
+    await page.waitForSelector('#logs-language-btn', { state: 'visible' });
+
+    // Select query language (Splunk QL)
+    await page.click('#logs-language-btn');
+    await page.click('#logs-language-options #option-1'); // Select "Splunk QL"
+
+    // Enter query in the Code tab
+    await page.click('#tab-title2'); // Switch to Code tab
+    await page.fill('#filter-input', 'city=Boston | stats count AS Count BY weekday');
+    await page.click('#run-filter-btn'); // Run search
+
+    // Set time range to "Last 30 minutes"
+    await page.click('#date-picker-btn');
+    await page.click('#now-30m');
+
+    // Set alert condition (Is above)
+    await page.click('#alert-condition');
+    await page.click('.alert-condition-options #option-0'); // Select "Is above"
+    await page.fill('#threshold-value', '100');
+
+    // Set evaluation interval
+    await page.fill('#evaluate-every', '5');
+    await page.fill('#evaluate-for', '10');
+
+    // Open contact point dropdown
+    await page.click('#contact-points-dropdown');
+
+    // Add new contact point (Slack)
+    await page.click('.contact-points-options li:nth-child(1)'); // Select the "Add New" option
+
+    // Wait for the contact form popup to appear
+    await page.waitForSelector('#add-new-contact-popup', { state: 'visible' });
+
+    // Fill out the contact form (Slack)
+    await page.fill('#contact-name', 'Test Contact');
+    await page.click('#contact-types'); // Open the type dropdown
+    await page.click('.contact-options #option-0'); // Select "Slack"
+
+    // Fill out Slack details
+    await page.fill('#slack-channel-id', 'test-channel-id');
+    await page.fill('#slack-token', 'xoxb-your-slack-token');
+
+    // Save the contact point
+    await page.click('#save-contact-btn');
+
+    // Fill notification message
+    await page.fill('#notification-msg', 'This is a test alert notification.');
+
+    // Add a custom label
+    await page.click('.add-label-container');
+    await page.fill('.label-container #label-key', 'TestLabel');
+    await page.fill('.label-container #label-value', 'TestValue');
+
+    // Save the alert
+    await page.click('#save-alert-btn');
+
+    // Wait for navigation to the all-alerts page
+    await page.waitForNavigation({ url: /all-alerts\.html$/ });
+
+    // Verify that we're on the all-alerts page
+    expect(page.url()).toContain('all-alerts.html');
+}
+
+
 module.exports = {
     testDateTimePicker,
     testThemeToggle,
+    createLogsAlert
 };
