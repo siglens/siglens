@@ -43,10 +43,11 @@ type queryserverCfg struct {
 	Config config.WebConfig
 	Addr   string
 	//	Log    *zap.Logger //ToDo implement debug logger
-	ln     net.Listener
-	lnTls  net.Listener
-	Router *router.Router
-	debug  bool
+	ln            net.Listener
+	lnTls         net.Listener
+	Router        *router.Router
+	staticHandler fasthttp.RequestHandler
+	debug         bool
 }
 
 var (
@@ -57,12 +58,18 @@ var (
 
 // ConstructHttpServer new fasthttp server
 func ConstructQueryServer(cfg config.WebConfig, ServerAddr string) *queryserverCfg {
+	staticFs := fasthttp.FS{
+		Root:       "./static",
+		IndexNames: []string{"index.html"},
+		Compress:   config.ShouldCompressStaticFiles(),
+	}
 
 	s := &queryserverCfg{
-		Config: cfg,
-		Addr:   ServerAddr,
-		Router: router.New(),
-		debug:  true,
+		Config:        cfg,
+		Addr:          ServerAddr,
+		Router:        router.New(),
+		staticHandler: staticFs.NewRequestHandler(),
+		debug:         true,
 	}
 	return s
 }
@@ -285,7 +292,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 					return
 				}
 
-				fasthttp.ServeFile(ctx, "static/"+filepath)
+				hs.staticHandler(ctx)
 			})
 		}
 
