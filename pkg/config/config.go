@@ -238,7 +238,12 @@ func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppP
 }
 
 func GetUIDomain() string {
-	return GetQueryHostname()
+	hostname := GetQueryHostname()
+	if hostname == "" {
+		return "localhost"
+	} else {
+		return hostname
+	}
 }
 
 func GetSiglensDBConfig() (string, string, uint64, string, string, string) {
