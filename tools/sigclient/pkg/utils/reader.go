@@ -37,7 +37,7 @@ import (
 
 var json = jsoniter.ConfigFastest
 var uuidList []string
-var mu sync.Mutex
+var uuidListLock sync.Mutex
 
 type Generator interface {
 	Init(fName ...string) error
@@ -339,9 +339,9 @@ func (r *K8sGenerator) GetLogLine() ([]byte, error) {
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	if ident, ok := r.baseBody["ident"].(string); ok {
-		mu.Lock()
+		uuidListLock.Lock()
 		uuidList = append(uuidList, ident)
-		mu.Unlock()
+		uuidListLock.Unlock()
 	}
 	return json.Marshal(r.baseBody)
 }

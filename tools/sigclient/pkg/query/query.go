@@ -1015,9 +1015,10 @@ func RunBenchmarkQuery(uuidList []string, processCount int) {
 			}
 		}
 	}()
+	var start, end int
 	for i := 0; i < processCount; i++ {
-		start := i * queriesPerBatch
-		end := start + queriesPerBatch
+		start = end
+		end = start + queriesPerBatch
 		if end > uuidListLen {
 			end = uuidListLen
 		}
