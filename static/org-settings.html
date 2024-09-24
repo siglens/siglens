@@ -77,35 +77,44 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div id="api-keys-headings">
                             <p class="caption">Personalize your organization's settings</p>
                         </div>
-                        <table class="org-settings-table" id="org-settings-table">
-                            <tr>
-                                <th>Organization Name</th>
-                                {{ if .OrgSettingsOrgName }}
-                                    {{ .OrgSettingsOrgName | safeHTML }}
-                                {{ else }}
-                                    <td id="orgName">SigLens</td>
-                                {{ end }}
-                            </tr>
-                            <tr>
-                                <th>Retention</th>
-                                {{ if .OrgSettingsRetentionPeriod }}
-                                    {{ .OrgSettingsRetentionPeriod | safeHTML }}
-                                {{ else }}
-                                    <td id="retention-days-value">4 days</td>
-                                {{ end }}
-                            </tr>
-                            <tr>
-                                <th>Deployment Type</th>
-                                {{ if .OrgDeploymentType }}
-                                    {{ .OrgDeploymentType | safeHTML }}
-                                {{ else }}
-                                    <td id="deployment-type">Single Node Deployment</td>
-                                {{ end }}
-                            </tr>
-                        </table>
-                        {{ .DistNodesExtras | safeHTML }}
-                        <h6 class="mt-3">System Configuration</h6>
-                        <table class="org-settings-table" id="system-info-table"></table>
+                        <div class="settings-card pt-1 pb-3">
+                            <table class="org-settings-table mt-2" id="org-settings-table">
+                                <tr>
+                                    <th>Organization Name</th>
+                                    {{ if .OrgSettingsOrgName }}
+                                        {{ .OrgSettingsOrgName | safeHTML }}
+                                    {{ else }}
+                                        <td id="orgName">SigLens</td>
+                                    {{ end }}
+                                </tr>
+                                <tr>
+                                    <th>Retention</th>
+                                    {{ if .OrgSettingsRetentionPeriod }}
+                                        {{ .OrgSettingsRetentionPeriod | safeHTML }}
+                                    {{ else }}
+                                        <td id="retention-days-value">4 days</td>
+                                    {{ end }}
+                                </tr>
+                                <tr>
+                                    <th>Deployment Type</th>
+                                    {{ if .OrgDeploymentType }}
+                                        {{ .OrgDeploymentType | safeHTML }}
+                                    {{ else }}
+                                        <td id="deployment-type">Single Node Deployment</td>
+                                    {{ end }}
+                                </tr>
+                            </table>
+                        </div>
+                        {{ if .DistNodesExtras }}
+                            {{ .DistNodesExtras | safeHTML }}
+                        {{ else}}
+                        <div class="settings-card pt-4 pb-3">
+                            <div class="header mb-3">
+                                System Configuration
+                            </div>
+                            <table class="org-settings-table" id="system-info-table"></table>
+                        </div>
+                        {{ end }}
                         {{ .OrgSettingsExtras | safeHTML }}
                     </div>
                 </div>
