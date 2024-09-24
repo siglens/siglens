@@ -1,9 +1,11 @@
 const { test, expect } = require('@playwright/test');
-const { createLogsAlert } = require('./common-functions');
+const { createAlert } = require('./common-functions');
 
 test.describe('All Alerts Screen Flow', () => {
     test('should perform the full flow on the All Alerts screen', async ({ page }) => {
-        await createLogsAlert(page);
+        // Create a new logs alert
+        await createAlert(page, 'Logs', 'option-1', 'option-1', 'city=Boston | stats count AS Count BY weekday');
+
         await page.waitForSelector('.ag-root-wrapper');
 
         const rowCount = await page.locator('.ag-row').count();
@@ -12,7 +14,7 @@ test.describe('All Alerts Screen Flow', () => {
         // Test edit alert
         await page.locator('#editbutton').first().click();
         await expect(page).toHaveURL(/alert\.html\?id=[a-f0-9\-]+/);
-        
+
         await page.goBack();
         await expect(page).toHaveURL(/all-alerts\.html/);
 

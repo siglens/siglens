@@ -36,31 +36,32 @@ async function testDateTimePicker(page) {
     await expect(datePickerButtonText).toHaveText('Last 24 Hrs');
 }
 
-async function createLogsAlert(page) {
+async function createAlert(page, alertType, dataSourceOption, queryLanguageOption = null, query = null) {
     // Navigate to the alerts page
     await page.goto('http://localhost:5122/alert.html');
-    
+
     // Wait for the alert page to load
     await page.waitForSelector('#alert-rule-name', { state: 'visible' });
 
     // Fill out the alert form
     await page.fill('#alert-rule-name', `Test Alert ${Date.now()}`);
 
-    // Select data source (Logs)
+    // Select data source (Logs or Metrics)
     await page.click('#alert-data-source');
-    await page.click('#data-source-options #option-1');
-    
-    // Wait for data source to be selected
-    await page.waitForSelector('#logs-language-btn', { state: 'visible' });
+    await page.click(`#data-source-options #${dataSourceOption}`);
 
-    // Select query language (Splunk QL)
-    await page.click('#logs-language-btn');
-    await page.click('#logs-language-options #option-1'); // Select "Splunk QL"
+    // If there's a specific query language to select (for Logs)
+    if (queryLanguageOption) {
+        await page.click('#logs-language-btn');
+        await page.click(`#logs-language-options #${queryLanguageOption}`);
+    }
 
-    // Enter query in the Code tab
-    await page.click('#tab-title2'); // Switch to Code tab
-    await page.fill('#filter-input', 'city=Boston | stats count AS Count BY weekday');
-    await page.click('#run-filter-btn'); // Run search
+    // If a query needs to be entered (for Logs)
+    if (query) {
+        await page.click('#tab-title2'); // Switch to Code tab
+        await page.fill('#filter-input', query);
+        await page.click('#run-filter-btn'); // Run search
+    }
 
     // Set time range to "Last 30 minutes"
     await page.click('#date-picker-btn');
@@ -114,9 +115,8 @@ async function createLogsAlert(page) {
     expect(page.url()).toContain('all-alerts.html');
 }
 
-
 module.exports = {
     testDateTimePicker,
     testThemeToggle,
-    createLogsAlert
+    createAlert,
 };
