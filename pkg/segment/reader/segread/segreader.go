@@ -183,7 +183,7 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 		if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 			valid, err := sfr.readBlock(blockNum)
 			if !valid {
-				return err
+				continue // since other cols might be useful
 			}
 			if err != nil {
 				return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
