@@ -911,7 +911,7 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
 
-func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}) {
+func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}, processCount int) {
 
 	defer wg.Done()
 	defer func() { <-semaphore }()
@@ -926,8 +926,14 @@ func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore cha
 			"queryLanguage": "Splunk QL",
 		}
 		evaluationType := "total"
-		relation := "gt"
-		expectedValue := "0"
+		var relation, expectedValue string
+		if processCount == 1 {
+			relation = "eq"
+			expectedValue = "1"
+		} else {
+			relation = "gt"
+			expectedValue = "0"
+		}
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
 		if err != nil {
@@ -1029,7 +1035,7 @@ func RunBenchmarkQuery(uuidList []string, processCount int) {
 
 		wg.Add(1)
 		semaphore <- struct{}{}
-		go runBenchmarkQueryBatch(batch, &wg, semaphore)
+		go runBenchmarkQueryBatch(batch, &wg, semaphore, processCount)
 	}
 
 	wg.Wait()
