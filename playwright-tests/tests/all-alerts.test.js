@@ -15,7 +15,10 @@ test.describe('All Alerts Screen Flow', () => {
         await page.locator('#editbutton').first().click();
         await expect(page).toHaveURL(/alert\.html\?id=[a-f0-9\-]+/);
 
-        await page.goBack();
+        await page.fill('#alert-rule-name', `Update Test Alert ${Date.now()}`);
+
+        await page.click('#save-alert-btn');
+
         await expect(page).toHaveURL(/all-alerts\.html/);
 
         // Test alert details
