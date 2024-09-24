@@ -13,7 +13,7 @@ test('Settings Page Test', async ({ page }) => {
     await expect(systemInfoTable).toBeVisible();
  
     // Check if key system info rows are present
-    const expectedRows = ['Operating System', 'vCPU Count', 'Memory Usage', 'Disk Usage', 'Process Uptime'];
+    const expectedRows = ['Operating System', 'vCPUs', 'Memory Usage', 'Disk Usage', 'Process Uptime'];
     for (const row of expectedRows) {
         await expect(systemInfoTable.locator(`text=${row}`)).toBeVisible();
     }
