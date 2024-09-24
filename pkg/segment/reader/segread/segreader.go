@@ -175,8 +175,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
 	for keyIndex := range colsIndexMap {
 		if keyIndex >= len(mcsr.allFileReaders) {
-			// This can happen if the column does not exist.
-			return nil
+			continue // This can happen if the column does not exist
 		}
 
 		sfr := mcsr.allFileReaders[keyIndex]
@@ -184,7 +183,7 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 			valid, err := sfr.readBlock(blockNum)
 			if !valid {
 				log.Debugf("Skipped invalid block %d, error: %v", blockNum, err)
-				continue // since other cols might be useful
+				continue // This can happen if the column does not exist.
 			}
 			if err != nil {
 				return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
