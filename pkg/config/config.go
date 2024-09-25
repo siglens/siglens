@@ -578,8 +578,18 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 }
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
+	if len(yamlData) == 0 {
+		// For some reason, decoding an empty yaml file gives an error, but if
+		// we pass "---" (the yaml doc separator) parsing works fine. When we
+		// have an empty config, we want to use all the defaults instead of
+		// erroring.
+		yamlData = []byte("---")
+	}
+
 	var config common.Configuration
-	err := yaml.Unmarshal(yamlData, &config)
+	decoder := yaml.NewDecoder(bytes.NewReader(yamlData))
+	decoder.KnownFields(true) // If an unknown field is read, decoding should error
+	err := decoder.Decode(&config)
 	if err != nil {
 		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
 		return config, err
