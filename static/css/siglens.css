@@ -1493,11 +1493,11 @@ progress.hidden {
     font-style: normal;
 }
 
-.query-table, .metrics-table, .org-settings-table {
+.query-table, .metrics-table{
     margin-top: 12px;
 }
 
-.query-table tbody td, .metrics-table tbody td, .org-settings-table td, .org-settings-table th{
+.query-table tbody td, .metrics-table tbody td{
     padding-left: 15px;
     width: 334px;
     height: 50px;
@@ -1505,9 +1505,8 @@ progress.hidden {
     background-color: var(--cstats-table-bg-color);
 }
 
-.query-table tbody tr, .metrics-table tbody tr, .org-settings-table tr{
+.query-table tbody tr, .metrics-table tbody tr{
     padding-bottom: 20px;
-    /* width: 300px; */
     line-height: 18px;
 }
 
@@ -1531,15 +1530,19 @@ progress.hidden {
     color: var(--health-stats-value-text-color);
 }
 
-#system-info-table td, #dist-nodes-info-table td{
-    width: 530px;
+#system-info-table th, 
+#org-settings-table th,
+#raft-system-info-table th,
+#dist-nodes-data-table tr td:first-child,
+#pqs-settings-table th {
+    width: 300px;
 }
 
-#system-info-table td div, #dist-nodes-info-table td div{
+#system-info-table td div{
     margin: 5px 0px !important;
 }
 
-#system-info-table td div b, #dist-nodes-info-table td div b{
+#system-info-table td div b{
     width: 75px;
     display: inline-block;
 }
@@ -3090,7 +3093,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     display: none;
 }
 
-#cancel-dbbtn:hover, #delete-dbbtn:hover, #cancel-ret-change-btn:hover, .delete-btn:hover, #cancel-ret-days-btn:hover, #cancel-del-org-btn:hover {
+#cancel-dbbtn:hover, #delete-dbbtn:hover, #cancel-ret-change-btn:hover, .delete-btn:hover, #cancel-del-org-btn:hover {
     background: var(--component-bg-color-hover);
 }
 
@@ -3996,7 +3999,7 @@ float: right;
 }
 
 #receiverEmail {
-    width: 407px;
+    width: 300px;
     border: 1px solid var(--myOrg-dropdown-border-color);
 }
 
@@ -4111,17 +4114,60 @@ color: #C8C7CC;
 }
 
 .org-settings {
-    width: 38vw;
+    width: 1000px;
 }
 
 .org-settings-table tr {
     font-weight: var(--fw-500) !important;
 }
 
+.org-settings-table tr th, .org-settings-table td{
+    padding: 10px;
+    white-space: nowrap
+}
+
+.settings-card {
+    margin-bottom: 24px;
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 10px;
+    padding: 24px;
+    background: var(--black1-to-white0);
+}
+
+.settings-card .header {
+    font-size: 16px;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.dist-card .sub-sec{
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    margin-top: 24px;
+}
+
+.dist-card .sub-sec h6{
+    padding: 14px 0px 14px 14px;
+    margin-left: 0px;
+    background: var(--table-header-bg-color);
+    font-size: 14px;
+    border-radius: 9px 9px 0 0;
+    font-weight: 600;
+    margin-bottom: 0px;
+}
+
+.org-settings-table .text-right{
+    text-align: right;
+}
+
+.dist-card .sub-sec div{
+    padding: 0 4px 4px 4px;
+}
+
 #retention-days-value {
-    margin: 5px;
+    margin-right: 5px;
     width: 64px;
-    height: 32px;
 }
 
 #confirm-ret-change-prompt {
@@ -4146,23 +4192,23 @@ color: #C8C7CC;
 }
 
 #settings-buttons {
-    display: flex;
-    margin: 24px 0;
+    margin-left: 20px;
 }
 
-#cancel-ret-days-btn, #confirm-save-ret-days-btn {
-    width: 100px;
-    margin-right: 10px;
+#confirm-save-ret-days-btn {
+    width: 84px;
     border-radius: 5px;
     box-shadow: none !important;
     border: none;
     font-size: 14px;
+    height: 30px;
 }
 
 #delete-org-container {
     border: 2px solid;
     border-color: #e16565;
     border-radius: 5px;
+    margin-bottom: 20px;
 }
 
 #delete-org-inner {
@@ -6127,6 +6173,10 @@ input.form-control {
 #pqs-id-details .header{
     font-size: 16px;
     margin-bottom: 8px;
+}
+
+#pqs-settings-table{
+    background-color: var(--drop-down-btn-bg-regular);
 }
 
 .myOrg-inner-container .pqs-grid .ag-row:hover {

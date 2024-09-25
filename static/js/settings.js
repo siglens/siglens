@@ -76,7 +76,7 @@ function addSystemInfoTable(systemInfo) {
     }
 
     var osRow = createRow("Operating System", systemInfo.os);
-    var cpuRow = createRow("vCPU Count", systemInfo.v_cpu);
+    var cpuRow = createRow("vCPUs", systemInfo.v_cpu);
     var memoryUsage = systemInfo.memory.used_percent.toFixed(2);
     var totalMemoryGB = (systemInfo.memory.total / Math.pow(1024, 3)).toFixed(2);
     var availableMemoryGB = (systemInfo.memory.free / Math.pow(1024, 3)).toFixed(2);

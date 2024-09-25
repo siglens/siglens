@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -53,6 +52,10 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 			log.Errorf("qid=%d, ReadSegStats: failed to close blob: %+v, err: %v", qid, fName, err)
 		}
 	}()
+
+	if len(fdata) == 0 {
+		return nil, toputils.TeeErrorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
+	}
 
 	rIdx := uint32(0)
 
