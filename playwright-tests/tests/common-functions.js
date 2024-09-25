@@ -38,7 +38,8 @@ async function testDateTimePicker(page) {
 
 async function createAlert(page, alertType, dataSourceOption, queryLanguageOption = null, query = null) {
     // Navigate to the alerts page
-    await page.goto('http://localhost:5122/alert.html');
+    await page.goto('http://localhost:5122/all-alerts.html');
+    await page.click('#new-alert-rule');
 
     // Wait for the alert page to load
     await page.waitForSelector('#alert-rule-name', { state: 'visible' });
@@ -50,24 +51,28 @@ async function createAlert(page, alertType, dataSourceOption, queryLanguageOptio
     await page.click('#alert-data-source');
     await page.click(`#data-source-options #${dataSourceOption}`);
 
-    // If there's a specific query language to select (for Logs)
+    await page.click('#date-picker-btn');
+    await page.click('#now-90d');
+
     if (queryLanguageOption) {
         await page.click('#logs-language-btn');
         await page.click(`#logs-language-options #${queryLanguageOption}`);
     }
 
-    // If a query needs to be entered (for Logs)
     if (query) {
         await page.click('#tab-title2'); // Switch to Code tab
         await page.fill('#filter-input', query);
         await page.click('#run-filter-btn'); // Run search
+    } else {
+        await page.click('#select-metric-input');
+        await page.waitForSelector('.metrics-ui-widget .ui-menu-item');
+        await page.click('.metrics-ui-widget .ui-menu-item:first-child');
+
+        const inputValue = await page.inputValue('#select-metric-input');
+
+        expect(inputValue).not.toBe('');
     }
 
-    // Set time range to "Last 30 minutes"
-    await page.click('#date-picker-btn');
-    await page.click('#now-30m');
-
-    // Set alert condition (Is above)
     await page.click('#alert-condition');
     await page.click('.alert-condition-options #option-0'); // Select "Is above"
     await page.fill('#threshold-value', '100');
@@ -108,8 +113,7 @@ async function createAlert(page, alertType, dataSourceOption, queryLanguageOptio
     // Save the alert
     await page.click('#save-alert-btn');
 
-    // Wait for navigation to the all-alerts page
-    await page.waitForNavigation({ url: /all-alerts\.html$/ });
+    await Promise.race([page.waitForNavigation({ url: /all-alerts\.html$/, timeout: 60000 })]);
 
     // Verify that we're on the all-alerts page
     expect(page.url()).toContain('all-alerts.html');
