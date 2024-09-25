@@ -59,9 +59,10 @@ var (
 // ConstructHttpServer new fasthttp server
 func ConstructQueryServer(cfg config.WebConfig, ServerAddr string) *queryserverCfg {
 	staticFs := fasthttp.FS{
-		Root:       "./static",
-		IndexNames: []string{"index.html"},
-		Compress:   config.ShouldCompressStaticFiles(),
+		Root:           "./static",
+		IndexNames:     []string{"index.html"},
+		Compress:       config.ShouldCompressStaticFiles(),
+		CompressBrotli: config.ShouldCompressStaticFiles(),
 	}
 
 	s := &queryserverCfg{
