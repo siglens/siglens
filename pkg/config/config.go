@@ -789,7 +789,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.CompressStatic) <= 0 {
-		config.CompressStatic = "false"
+		config.CompressStatic = "true"
 	}
 	compressStatic, err := strconv.ParseBool(config.CompressStatic)
 	if err != nil {
