@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"math/rand"
 	"verifier/pkg/query"
 	"verifier/pkg/utils"
 
@@ -356,7 +357,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "benchmark-ingest-query":
 		log.Infof("Initializing benchmark-ingest-query reader")
-		seed := int64(1001)
+		source := rand.NewSource(time.Now().UnixNano())
+		randomNumGen := rand.New(source)
+		lowerBound := 1001
+		seed := int64(lowerBound + randomNumGen.Intn(10000)) // Generate random number between 1000 and 11000
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")

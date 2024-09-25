@@ -911,7 +911,7 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
 }
 
-func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}, processCount int) {
+func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}) {
 
 	defer wg.Done()
 	defer func() { <-semaphore }()
@@ -927,20 +927,14 @@ func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore cha
 		}
 		evaluationType := "total"
 		var relation, expectedValue string
-		if processCount == 1 {
-			relation = "eq"
-			expectedValue = "1"
-		} else {
-			relation = "gt"
-			expectedValue = "0"
-		}
+		relation = "eq"
+		expectedValue = "1"
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
 		if err != nil {
 			log.Fatalf("RunBenchmarkUUIDQuery: Error connecting to WebSocket server: %v", err)
 			return
 		}
-		defer conn.Close()
 
 		err = conn.WriteJSON(data)
 		if err != nil {
@@ -995,6 +989,7 @@ func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore cha
 			}
 
 		}
+		conn.Close()
 	}
 }
 
@@ -1035,7 +1030,7 @@ func RunBenchmarkQuery(uuidList []string, processCount int) {
 
 		wg.Add(1)
 		semaphore <- struct{}{}
-		go runBenchmarkQueryBatch(batch, &wg, semaphore, processCount)
+		go runBenchmarkQueryBatch(batch, &wg, semaphore)
 	}
 
 	wg.Wait()
