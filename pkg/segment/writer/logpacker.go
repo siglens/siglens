@@ -168,7 +168,7 @@ func parseSingleString(key string, tsKey *string, valBytes []byte, ple *ParsedLo
 	copy(ple.allCvalsTypeLen[ple.numCols][cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
 	cbufidx += 1
 	n := uint16(len(valBytes))
-	copy(ple.allCvalsTypeLen[ple.numCols][cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+	utils.Uint16ToBytesLittleEndianInplace(n, ple.allCvalsTypeLen[ple.numCols][cbufidx:])
 	ple.allCvals[ple.numCols] = valBytes
 
 	ple.numCols++

@@ -396,7 +396,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
-				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(intVal))
+				toputils.Int64ToBytesLittleEndianInplace(intVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
 				continue
@@ -407,7 +407,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
-				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
+				toputils.Float64ToBytesLittleEndianInplace(floatVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
 				continue
@@ -1280,7 +1280,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	// store TS_TYPE and lowTs for reconstruction needs
 	copy(tsWip.cbuf[tsWip.cbufidx:], []byte{uint8(tsType)})
 	tsWip.cbufidx += 1
-	copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(lowTs))
+	toputils.Uint64ToBytesLittleEndianInplace(lowTs, tsWip.cbuf[tsWip.cbufidx:])
 	tsWip.cbufidx += 8
 
 	switch tsType {
@@ -1295,21 +1295,21 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint16
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint16(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint16ToBytesLittleEndian(tsVal))
+			toputils.Uint16ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 2
 		}
 	case structs.TS_Type32:
 		var tsVal uint32
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint32(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint32ToBytesLittleEndian(tsVal))
+			toputils.Uint32ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 4
 		}
 	case structs.TS_Type64:
 		var tsVal uint64
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = wipBlock.blockTs[i] - lowTs
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(tsVal))
+			toputils.Uint64ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 8
 		}
 	}
@@ -1534,13 +1534,13 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Count
-	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
+	toputils.Uint64ToBytesLittleEndianInplace(sst.Count, buf[idx:])
 	idx += 8
 
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint32ToBytesLittleEndian(uint32(hllDataSize)))
+	toputils.Uint32ToBytesLittleEndianInplace(uint32(hllDataSize), buf[idx:])
 	idx += 4
 
 	// HLL_Data
@@ -1559,7 +1559,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-4:idx], toputils.Uint32ToBytesLittleEndian(uint32(hllByteSliceLen)))
+		toputils.Uint32ToBytesLittleEndianInplace(uint32(hllByteSliceLen), buf[idx-4:idx])
 	}
 	copy(buf[idx:], hllByteSlice)
 	idx += uint32(hllByteSliceLen)
@@ -1574,9 +1574,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Min
 	if sst.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Min.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Min.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Min.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Min.IntgrVal, buf[idx:])
 	}
 	idx += 8
 
@@ -1586,9 +1586,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Max
 	if sst.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Max.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Max.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Max.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Max.IntgrVal, buf[idx:])
 	}
 	idx += 8
 
@@ -1598,9 +1598,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	// Sum
 	if sst.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Sum.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Sum.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
 	}
 	idx += 8
 

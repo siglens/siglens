@@ -256,7 +256,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
 			aggsKeyBufIdx += 1
-			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], toputils.Uint64ToBytesLittleEndian(timePoint))
+			toputils.Uint64ToBytesLittleEndianInplace(timePoint, aggsKeyWorkingBuf[aggsKeyBufIdx:])
 			aggsKeyBufIdx += 8
 
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
