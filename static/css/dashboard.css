@@ -1214,10 +1214,7 @@ input:checked + .slider:before {
   background-color: var(--dropdown-bg-color-new);
   color: var(--drop-down-text-color-new);
 }
-.ag-header-viewport,
-.ag-header-cell{
-  background-color: var(--panel-table-bg-color);
-}
+
 .panel div.panel-header .dropdown-btn{
   background-image: url('../assets/other-options-icon.svg') !important;
 }
@@ -1539,4 +1536,7 @@ input:checked + .slider:before {
 }
 .ag-theme-mycustomtheme .ag-root-wrapper {
   border: none !important;
+}
+.panelLogResultsGrid .ag-cell{
+  user-select: all;
 }

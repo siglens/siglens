@@ -62,7 +62,7 @@ const panelGridOptions = {
     animateRows: true,
     readOnlyEdit: true,
     singleClickEdit: true,
-    rowHeight: 35,
+    headerHeight: 32,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,

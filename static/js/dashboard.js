@@ -54,7 +54,6 @@ $(document).ready(async function () {
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
-    $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
     if (defaultDashboardIds.includes(dbId)) {
