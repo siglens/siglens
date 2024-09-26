@@ -391,15 +391,15 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		docType = segment.SIGNAL_EVENTS
 	}
 
-	ts_millis := utils.ExtractTimeStamp(rawJson, &cfgkey)
-	if ts_millis == 0 {
-		ts_millis = tsNow
+	tsMillis := utils.ExtractTimeStamp(rawJson, &cfgkey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
 	}
 	streamid := utils.CreateStreamId(indexNameConverted, myid)
 
 	ple := segwriter.NewPLE()
 	ple.SetRawJson(rawJson)
-	ple.SetTimestamp(ts_millis)
+	ple.SetTimestamp(tsMillis)
 	ple.SetIndexName(indexNameConverted)
 
 	err := segwriter.ParseRawJsonObject("", rawJson, &cfgkey, jsParsingStackbuf[:], ple)
