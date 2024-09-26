@@ -217,7 +217,7 @@ var options = {
         handles: 'e, se, s, sw, w',
     },
     draggable: {
-        handle: '.grid-stack-item-content',
+        handle: '.grid-stack-item-content .panel-header',
     },
     animate: false,
 };
