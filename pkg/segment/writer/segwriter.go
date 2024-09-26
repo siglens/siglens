@@ -559,6 +559,10 @@ func maxWaitWipFlushToFile() {
 
 func rotateSegmentOnTime() {
 	segRotateDuration := time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
+
+	segStoresToDelete := make([]string, 0, len(allSegStores))
+	segStoresToDeleteLock := sync.Mutex{}
+
 	allSegStoresLock.RLock()
 	wg := sync.WaitGroup{}
 	for sid, ss := range allSegStores {
@@ -589,7 +593,9 @@ func rotateSegmentOnTime() {
 				// the segrotation time since we last updated it
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
 					log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
-					delete(allSegStores, streamid)
+					segStoresToDeleteLock.Lock()
+					segStoresToDelete = append(segStoresToDelete, streamid)
+					segStoresToDeleteLock.Unlock()
 				}
 			}
 			segstore.Lock.Unlock()
@@ -597,6 +603,12 @@ func rotateSegmentOnTime() {
 	}
 	wg.Wait()
 	allSegStoresLock.RUnlock()
+
+	allSegStoresLock.Lock()
+	for _, sid := range segStoresToDelete {
+		delete(allSegStores, sid)
+	}
+	allSegStoresLock.Unlock()
 }
 
 func ForceRotateSegmentsForTest() {
