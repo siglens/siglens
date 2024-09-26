@@ -581,6 +581,15 @@ function processClusterStats(res) {
             volumeGB = parseFloat(volume.replace(" GB", ""));
         } else if (typeof volume === 'number') {
             volumeGB = volume;
+        } else {
+            // Handle unexpected input types
+            console.error("Unexpected volume type:", typeof volume);
+            return "N/A";
+        }
+    
+        if (isNaN(volumeGB)) {
+            console.error("Invalid volume value:", volume);
+            return "N/A";
         }
         
         if (volumeGB === 0) {
