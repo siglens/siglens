@@ -359,7 +359,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		log.Infof("Initializing benchmark-ingest-query reader")
 		source := rand.NewSource(time.Now().UnixNano())
 		randomNumGen := rand.New(source)
-		seed := int64(randomNumGen.Intn(100000))
+		seed := randomNumGen.Int63()
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")

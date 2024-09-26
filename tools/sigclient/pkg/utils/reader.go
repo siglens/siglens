@@ -315,7 +315,6 @@ func (r *K8sGenerator) Init(fName ...string) error {
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
-	uuidList = []string{}
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
 	rand.Seed(r.seed)
