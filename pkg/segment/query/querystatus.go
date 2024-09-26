@@ -156,12 +156,10 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 				rQuery, ok := allRunningQueries[qid]
 				arqMapLock.RUnlock()
 
-				if ok {
-					if ctx.Err() == context.DeadlineExceeded {
-						log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
-						rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
-						CancelQuery(qid)
-					}
+				if ok && ctx.Err() == context.DeadlineExceeded {
+					log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+					rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
+					CancelQuery(qid)
 				}
 			}
 		}()
