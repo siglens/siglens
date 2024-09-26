@@ -200,6 +200,10 @@ func GetTLSPrivateKeyPath() string {
 	return runningConfig.TLS.PrivateKeyPath
 }
 
+func ShouldCompressStaticFiles() bool {
+	return runningConfig.CompressStaticConverted
+}
+
 // used by
 func GetQueryHostname() string {
 	return runningConfig.QueryHostname
@@ -518,6 +522,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 		QueryHostname:               "",
 		Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                         common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		CompressStatic:              "false",
+		CompressStaticConverted:     false,
 		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
@@ -578,8 +584,18 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 }
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
+	if len(yamlData) == 0 {
+		// For some reason, decoding an empty yaml file gives an error, but if
+		// we pass "---" (the yaml doc separator) parsing works fine. When we
+		// have an empty config, we want to use all the defaults instead of
+		// erroring.
+		yamlData = []byte("---")
+	}
+
 	var config common.Configuration
-	err := yaml.Unmarshal(yamlData, &config)
+	decoder := yaml.NewDecoder(bytes.NewReader(yamlData))
+	decoder.KnownFields(true) // If an unknown field is read, decoding should error
+	err := decoder.Decode(&config)
 	if err != nil {
 		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
 		return config, err
@@ -781,6 +797,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
 	}
+
+	if len(config.CompressStatic) <= 0 {
+		config.CompressStatic = "true"
+	}
+	compressStatic, err := strconv.ParseBool(config.CompressStatic)
+	if err != nil {
+		compressStatic = true
+		config.CompressStatic = "true"
+		log.Errorf("ExtractConfigData: failed to parse compress static flag. Defaulting to %v. Error: %v",
+			compressStatic, err)
+	}
+	config.CompressStaticConverted = compressStatic
 
 	// Check for Tracing Config through environment variables
 	if os.Getenv("TRACESTORE_ENDPOINT") != "" {
