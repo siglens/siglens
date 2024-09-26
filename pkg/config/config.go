@@ -242,7 +242,8 @@ func GetUIDomain() string {
 	hostname := GetQueryHostname()
 	parsedUrl, err := url.Parse(hostname)
 	if err != nil {
-		log.Fatalf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
+		log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
+		return "localhost"
 	}
 	return parsedUrl.Host
 }
