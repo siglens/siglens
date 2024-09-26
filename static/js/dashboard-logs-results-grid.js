@@ -146,6 +146,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     }
     if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+        panelLogsRowData = [];
         //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
