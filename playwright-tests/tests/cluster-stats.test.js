@@ -41,9 +41,6 @@ test('Cluster Stats Page Test', async ({ page }) => {
     await expect(page.locator('#trace-data-table')).toBeVisible();
     await expect(page.locator('#query-table')).toBeVisible();
 
-
     //Theme button
     await testThemeToggle(page);
 });
-
-

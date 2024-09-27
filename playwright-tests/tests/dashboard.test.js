@@ -7,7 +7,7 @@ test.describe('Dashboard Page Tests', () => {
 
     test.beforeEach(async ({ browser }) => {
         page = await browser.newPage();
-        
+
         // Create dashboard
         await page.goto('http://localhost:5122/dashboards-home.html');
         await page.click('#create-db-btn');
@@ -44,11 +44,11 @@ test.describe('Dashboard Page Tests', () => {
     test('Edit panel', async () => {
         const panelHeader = page.locator('.panel-header').first();
         const editIcon = panelHeader.locator('img.panel-edit-li');
-        
+
         await panelHeader.hover();
         await expect(editIcon).toBeVisible();
         await editIcon.click();
-        
+
         const editPanel = page.locator('.panelEditor-container');
         await expect(editPanel).toBeVisible();
         await page.fill('#panEdit-nameChangeInput', 'Updated Panel Name');
@@ -59,19 +59,19 @@ test.describe('Dashboard Page Tests', () => {
     test('View panel', async () => {
         const panelHeader = page.locator('.panel-header').first();
         const viewIcon = panelHeader.locator('img.panel-view-li');
-        
+
         await panelHeader.hover();
         await expect(viewIcon).toBeVisible();
         await viewIcon.click();
-        
+
         const viewPanel = page.locator('#viewPanel-container');
         await expect(viewPanel).toBeVisible();
         await expect(page.locator('#overview-button')).toHaveClass(/active/);
-        
+
         const editButton = page.locator('#edit-button');
         await editButton.click();
         await expect(page.locator('#edit-button')).toHaveClass(/active/);
-        
+
         const cancelButton = page.locator('.panelEditor-container #discard-btn');
         await expect(cancelButton).toBeVisible();
         await cancelButton.click();
@@ -82,24 +82,24 @@ test.describe('Dashboard Page Tests', () => {
     test('Delete panel', async () => {
         const panelHeader = page.locator('.panel-header').first();
         const optionsBtn = panelHeader.locator('#panel-options-btn');
-        
+
         const initialPanelCount = await page.locator('.panel').count();
         await panelHeader.hover();
         await expect(optionsBtn).toBeVisible();
         await optionsBtn.click();
-        
+
         const dropdownMenu = page.locator('#panel-dropdown-modal');
         await expect(dropdownMenu).toBeVisible();
         const deleteOption = dropdownMenu.locator('.panel-remove-li');
         await expect(deleteOption).toBeVisible();
         await deleteOption.click();
-        
+
         const deleteConfirmDialog = page.locator('#panel-del-prompt');
         await expect(deleteConfirmDialog).toBeVisible();
         const confirmDeleteBtn = deleteConfirmDialog.locator('#delete-btn-panel');
         await expect(confirmDeleteBtn).toBeVisible();
         await confirmDeleteBtn.click();
-        
+
         await page.waitForTimeout(2000);
         const finalPanelCount = await page.locator('.panel').count();
         expect(finalPanelCount).toBe(initialPanelCount - 1);
