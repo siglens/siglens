@@ -597,7 +597,7 @@ function processClusterStats(res) {
         } else if (volumeGB < 1) {
             return '< 1 GB';
         } else {
-            return `${Math.floor(volumeGB).toLocaleString('en-US')} GB`;
+            return `${Math.round(volumeGB).toLocaleString('en-US')} GB`;
         }
     }
     
