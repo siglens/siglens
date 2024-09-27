@@ -144,11 +144,11 @@ function createPanelGridOptions(currentPanel) {
             }
         },
         onGridReady: function (params) {
-            if (currentPanel.chartType === 'Data Table' && currentPanel.customColumnWidths ) {
+            if (currentPanel.chartType === 'Data Table' && currentPanel.customColumnWidths) {
                 // Get the current column order from panelLogsColumnDefs
                 const orderedColumnIds = panelLogsColumnDefs.map((colDef) => colDef.field);
 
-                // Preserve the column order 
+                // Preserve the column order
                 const columnStateOrder = orderedColumnIds.map((colId) => ({
                     colId: colId,
                 }));
@@ -161,8 +161,8 @@ function createPanelGridOptions(currentPanel) {
 
                 // Set the column widths
                 const columnStateWidths = orderedColumnIds
-                .filter((colId) => Object.prototype.hasOwnProperty.call(currentPanel.customColumnWidths, colId))
-                .map((colId) => ({
+                    .filter((colId) => Object.prototype.hasOwnProperty.call(currentPanel.customColumnWidths, colId))
+                    .map((colId) => ({
                         colId: colId,
                         width: currentPanel.customColumnWidths[colId],
                     }));
