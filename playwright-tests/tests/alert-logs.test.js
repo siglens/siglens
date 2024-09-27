@@ -103,8 +103,6 @@ test.describe('Alert Tests', () => {
                 await page.waitForTimeout(1000); // Short wait for the grid to update
                 const rowCountAfter = await page.locator('.ag-row').count();
                 expect(rowCountAfter).toBeLessThan(rowCountBefore);
-
-                console.log(`Alert "${alertName}" deleted successfully.`);
             } else {
                 console.log(`Alert "${alertName}" not found in the grid. Skipping deletion.`);
             }
