@@ -2956,6 +2956,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     font-size: 14px;
 }
 
+.ag-cell:focus-visible {
+    outline: none;
+}
+
 .ag-theme-mycustomtheme .ag-row{
     min-height: 30px!important;
 }
