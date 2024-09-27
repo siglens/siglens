@@ -44,4 +44,4 @@ jobs:
     - name: Run E2E Test
       run: |
         cd tools/sigclient
-        go run main.go ingest esbulk -n 1 -g benchmark-ingest-query -d http://localhost:8081/elastic -t 600000 -p 100
+        go run main.go ingest esbulk -n 1 -g benchmark-ingest-query -d http://localhost:8081/elastic -t 1000000 -p 500
