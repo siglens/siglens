@@ -56,75 +56,130 @@ let panelLogsColumnDefs = [
 ];
 
 var panelLogsRowData = [];
-const panelGridOptions = {
-    columnDefs: panelLogsColumnDefs,
-    rowData: panelLogsRowData,
-    animateRows: true,
-    readOnlyEdit: true,
-    singleClickEdit: true,
-    headerHeight: 32,
-    defaultColDef: {
-        initialWidth: 100,
-        sortable: true,
-        resizable: true,
-        minWidth: 200,
+let panelGridOptions;
+
+function createPanelGridOptions(currentPanel) {
+    panelGridOptions = {
+        columnDefs: panelLogsColumnDefs,
+        rowData: panelLogsRowData,
+        animateRows: true,
+        readOnlyEdit: true,
+        singleClickEdit: true,
+        headerHeight: 32,
+        defaultColDef: {
+            initialWidth: 100,
+            sortable: true,
+            resizable: true,
+            minWidth: 200,
+            icons: {
+                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+                sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+            },
+        },
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
-    },
-    icons: {
-        sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
-        sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-    },
-    enableCellTextSelection: true,
-    suppressScrollOnNewData: true,
-    suppressAnimationFrame: true,
-    suppressFieldDotNotation: true,
-    onBodyScroll(evt) {
-        if (panelID == -1 || panelID == null || panelID == undefined) {
-            //eslint-disable-next-line no-undef
-            if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
-                let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
-                if (diff <= 1) {
-                    let scrollingTrigger = true;
-                    data = getQueryParamsData(scrollingTrigger);
-                    //eslint-disable-next-line no-undef
-                    if (data.searchText !== initialSearchDashboardData.searchText || data.indexName !== initialSearchDashboardData.indexName || data.startEpoch !== initialSearchDashboardData.startEpoch || data.endEpoch !== initialSearchDashboardData.endEpoch || data.queryLanguage !== initialSearchDashboardData.queryLanguage) {
-                        scrollingErrorPopup();
-                        return; // Prevent further scrolling
-                    }
-                    //eslint-disable-next-line no-undef
-                    isFetching = true;
-                    showLoadingIndicator();
-                    if (data && data.searchText == 'error') {
-                        alert('Error');
-                        hideLoadingIndicator(); // Hide loading indicator on error
+        enableCellTextSelection: true,
+        suppressScrollOnNewData: true,
+        suppressAnimationFrame: true,
+        suppressFieldDotNotation: true,
+        onBodyScroll(evt) {
+            if (panelID == -1 || panelID == null || panelID == undefined) {
+                //eslint-disable-next-line no-undef
+                if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
+                    let diff = panelLogsRowData.length - evt.api.getLastDisplayedRow();
+                    if (diff <= 1) {
+                        let scrollingTrigger = true;
+                        data = getQueryParamsData(scrollingTrigger);
                         //eslint-disable-next-line no-undef
-                        isFetching = false;
-                        return;
+                        if (data.searchText !== initialSearchDashboardData.searchText || data.indexName !== initialSearchDashboardData.indexName || data.startEpoch !== initialSearchDashboardData.startEpoch || data.endEpoch !== initialSearchDashboardData.endEpoch || data.queryLanguage !== initialSearchDashboardData.queryLanguage) {
+                            scrollingErrorPopup();
+                            return; // Prevent further scrolling
+                        }
+                        //eslint-disable-next-line no-undef
+                        isFetching = true;
+                        showLoadingIndicator();
+                        if (data && data.searchText == 'error') {
+                            alert('Error');
+                            hideLoadingIndicator(); // Hide loading indicator on error
+                            //eslint-disable-next-line no-undef
+                            isFetching = false;
+                            return;
+                        }
+                        runPanelLogsQuery(data, panelID, currentPanel)
+                            .then(() => {
+                                //eslint-disable-next-line no-undef
+                                isFetching = false;
+                            })
+                            .catch((error) => {
+                                console.warn('Error fetching data', error);
+                                //eslint-disable-next-line no-undef
+                                isFetching = false;
+                            })
+                            .finally(() => {
+                                hideLoadingIndicator();
+                                //eslint-disable-next-line no-undef
+                                isFetching = false;
+                            });
                     }
-                    runPanelLogsQuery(data, panelID, currentPanel)
-                        .then(() => {
-                            //eslint-disable-next-line no-undef
-                            isFetching = false;
-                        })
-                        .catch((error) => {
-                            console.warn('Error fetching data', error);
-                            //eslint-disable-next-line no-undef
-                            isFetching = false;
-                        })
-                        .finally(() => {
-                            hideLoadingIndicator();
-                            //eslint-disable-next-line no-undef
-                            isFetching = false;
-                        });
                 }
             }
-        }
-    },
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
-};
+        },
+        onColumnResized: function (params) {
+            if (params.finished && params.column) {
+                const resizedColumn = params.column;
+                const columnId = resizedColumn.getColId();
+                const newWidth = Math.round(resizedColumn.getActualWidth());
+
+                if (!currentPanel.customColumnWidths) {
+                    currentPanel.customColumnWidths = {};
+                }
+
+                currentPanel.customColumnWidths[columnId] = newWidth;
+
+                if (Object.keys(currentPanel.customColumnWidths).length === 0) {
+                    delete currentPanel.customColumnWidths;
+                }
+            }
+        },
+        onGridReady: function (params) {
+            if (currentPanel.chartType === 'Data Table' && currentPanel.customColumnWidths ) {
+                // Get the current column order from panelLogsColumnDefs
+                const orderedColumnIds = panelLogsColumnDefs.map((colDef) => colDef.field);
+
+                // Preserve the column order 
+                const columnStateOrder = orderedColumnIds.map((colId) => ({
+                    colId: colId,
+                }));
+
+                // Apply the column order without modifying widths
+                params.columnApi.applyColumnState({
+                    state: columnStateOrder,
+                    applyOrder: true,
+                });
+
+                // Set the column widths
+                const columnStateWidths = orderedColumnIds
+                .filter((colId) => Object.prototype.hasOwnProperty.call(currentPanel.customColumnWidths, colId))
+                .map((colId) => ({
+                        colId: colId,
+                        width: currentPanel.customColumnWidths[colId],
+                    }));
+
+                // Apply only the widths without applying order
+                params.columnApi.applyColumnState({
+                    state: columnStateWidths,
+                    applyOrder: false, // Apply widths only
+                });
+            }
+            params.api.refreshCells({ force: true });
+        },
+        overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
+    };
+    return panelGridOptions;
+}
+
 function showLoadingIndicator() {
     panelGridOptions.api.showLoadingOverlay();
 }
@@ -141,11 +196,15 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     if (panelId == -1 && panelGridDiv == null) {
         // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
+        panelGridOptions = createPanelGridOptions(currentPanel);
+
         //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
     if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
+        panelGridOptions = createPanelGridOptions(currentPanel);
+
         panelLogsRowData = [];
         //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
