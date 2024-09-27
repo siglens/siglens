@@ -1,5 +1,4 @@
 const { test, expect } = require('@playwright/test');
-const { createAlert } = require('./common-functions');
 
 test.describe('Alert Tests', () => {
     let alertName;
