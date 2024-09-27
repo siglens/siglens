@@ -204,7 +204,6 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         panelGridOptions = createPanelGridOptions(currentPanel);
-
         panelLogsRowData = [];
         //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
