@@ -54,7 +54,6 @@ $(document).ready(async function () {
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
-    $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
     if (defaultDashboardIds.includes(dbId)) {
@@ -217,7 +216,7 @@ var options = {
         handles: 'e, se, s, sw, w',
     },
     draggable: {
-        handle: '.grid-stack-item-content',
+        handle: '.grid-stack-item-content .panel-header',
     },
     animate: false,
 };
