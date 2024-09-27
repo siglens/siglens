@@ -80,8 +80,10 @@ func Test_ExtractConfigData(t *testing.T) {
    samplingPercentage: 100
  log:
    logPrefix: "./pkg/ingestor/httpserver/"
+   logFileRotationSizeMB: 100
+   compressLogFile: false
+ compressStatic: false
  `),
-
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
 				QueryListenIP:               "0.0.0.0",
@@ -117,6 +119,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				DualCaseCheckConverted:      true,
 				SafeServerStart:             true,
 				Log:                         common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 100, CompressLogFile: false},
+				CompressStatic:              "false",
+				CompressStaticConverted:     false,
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
 			},
 		},
@@ -161,6 +165,7 @@ func Test_ExtractConfigData(t *testing.T) {
    logPrefix: "./pkg/ingestor/httpserver/"
    logFileRotationSizeMB: 1000
    compressLogFile: true
+ compressStatic: bad string
  `),
 
 			common.Configuration{
@@ -198,6 +203,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				AgileAggsEnabledConverted:   true,
 				SafeServerStart:             false,
 				Log:                         common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 1000, CompressLogFile: true},
+				CompressStatic:              "true",
+				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 			},
 		},
@@ -281,6 +288,8 @@ a: b
 				DualCaseCheck:               "true",
 				DualCaseCheckConverted:      true,
 				Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+				CompressStatic:              "true",
+				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 			},
 		},

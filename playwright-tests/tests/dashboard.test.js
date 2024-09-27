@@ -116,8 +116,17 @@ test.describe('Dashboard Page Tests', () => {
     });
 
     test('Toggle favorite status', async () => {
+        await page.waitForSelector('#favbutton', { state: 'visible' });
         const initialState = await page.locator('#favbutton').getAttribute('class');
         await page.click('#favbutton');
+        await page.waitForFunction(
+            (selector, initialState) => {
+                const button = document.querySelector(selector);
+                return button && button.getAttribute('class') !== initialState;
+            },
+            '#favbutton',
+            initialState
+        );
         const newState = await page.locator('#favbutton').getAttribute('class');
         expect(newState).not.toBe(initialState);
     });
