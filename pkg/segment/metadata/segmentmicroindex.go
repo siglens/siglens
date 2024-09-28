@@ -287,7 +287,7 @@ func (sm *SegmentMicroIndex) GetColumns() map[string]bool {
 	return retVal
 }
 
-func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
+func (sm *SegmentMicroIndex) getAllColumnsRecSize() map[string]uint32 {
 	retVal := make(map[string]uint32, len(sm.ColumnNames))
 	for colName, colSizeInfo := range sm.ColumnNames {
 		retVal[colName] = colSizeInfo.ConsistentCvalSize
@@ -295,6 +295,6 @@ func (sm *SegmentMicroIndex) GetAllColumnsRecSize() map[string]uint32 {
 	return retVal
 }
 
-func (sm *SegmentMicroIndex) GetRecordCount() uint32 {
+func (sm *SegmentMicroIndex) getRecordCount() uint32 {
 	return uint32(sm.SegMeta.RecordCount)
 }

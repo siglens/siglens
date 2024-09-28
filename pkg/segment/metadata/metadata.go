@@ -216,19 +216,15 @@ func (hm *allSegmentMetadata) getCmiMaxIndicesToLoad(totalMem uint64) int {
 }
 
 func (hm *allSegmentMetadata) evictCmiPastIndices(cmiIndex int) int {
-	idxToClear := make([]int, 0)
+	var evictedCount int
 	for i := cmiIndex; i < len(hm.allSegmentMicroIndex); i++ {
 		if hm.allSegmentMicroIndex[i].loadedMicroIndices {
-			idxToClear = append(idxToClear, i)
+			hm.allSegmentMicroIndex[i].ClearMicroIndices()
+			evictedCount++
 		}
 	}
 
-	if len(idxToClear) > 0 {
-		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearMicroIndices()
-		}
-	}
-	return len(idxToClear)
+	return evictedCount
 }
 
 // Returns total in memory size in bytes, total cmis in memory, total search metadata in memory
@@ -392,12 +388,9 @@ func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
-	return globalMetadata.getMicroIndex(segKey)
-}
+	mi, ok := globalMetadata.segmentMetadataReverseIndex[segKey]
+	return mi, ok
 
-func (hm *allSegmentMetadata) getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
-	blockMicroIndex, ok := hm.segmentMetadataReverseIndex[segKey]
-	return blockMicroIndex, ok
 }
 
 func DeleteSegmentKey(segKey string) {
@@ -598,8 +591,8 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 						StartEpochMs: smi.EarliestEpochMS,
 						EndEpochMs:   smi.LatestEpochMS,
 					},
-					ConsistentCValLenMap: smi.GetAllColumnsRecSize(),
-					TotalRecords:         smi.GetRecordCount(),
+					ConsistentCValLenMap: smi.getAllColumnsRecSize(),
+					TotalRecords:         smi.getRecordCount(),
 				}
 				timePassed++
 			}
@@ -690,9 +683,9 @@ func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[stri
 	defer globalMetadata.updateLock.RUnlock()
 	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
 	for segKey := range segmap {
-		smi, ok := globalMetadata.getMicroIndex(segKey)
+		smi, ok := GetMicroIndex(segKey)
 		if ok {
-			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+			ConsistentCValLenPerSeg[segKey] = smi.getAllColumnsRecSize()
 		}
 	}
 	return ConsistentCValLenPerSeg
