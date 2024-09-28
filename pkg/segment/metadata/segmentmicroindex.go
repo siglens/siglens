@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/cespare/xxhash"
 	blob "github.com/siglens/siglens/pkg/blob"
@@ -40,6 +41,7 @@ const INITIAL_NUM_BLOCKS = 1000
 
 // Top level segment metadata for access of cmis/search metadata
 type SegmentMicroIndex struct {
+	smilock *sync.RWMutex
 	structs.SegMeta
 	SegmentMicroIndices
 	SegmentSearchMetadata
@@ -77,6 +79,7 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
 
 	sm := &SegmentMicroIndex{
 		SegMeta: *segMetaInfo,
+		smilock: &sync.RWMutex{},
 	}
 	sm.loadedMicroIndices = false
 	sm.loadedSearchMetadata = false
@@ -141,7 +144,7 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 	return retVal, nil
 }
 
-func (sm *SegmentMicroIndex) LoadSearchMetadata(rbuf []byte) ([]byte, error) {
+func (sm *SegmentMicroIndex) loadSearchMetadata(rbuf []byte) ([]byte, error) {
 	if sm.loadedSearchMetadata {
 		return rbuf, nil
 	}
@@ -297,4 +300,80 @@ func (sm *SegmentMicroIndex) getAllColumnsRecSize() map[string]uint32 {
 
 func (sm *SegmentMicroIndex) getRecordCount() uint32 {
 	return uint32(sm.SegMeta.RecordCount)
+}
+
+func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, int64, error) {
+
+	smi, exists := GetMicroIndex(segkey)
+	if !exists {
+		log.Errorf("qid=%d, Seg  %+v does not exist in block meta, but existed in time filtering", qid, segkey)
+		return nil, 0, fmt.Errorf("seg file %+v does not exist in block meta, but existed in time filtering", segkey)
+	}
+
+	totalRequestedMemory := int64(0)
+	if !smi.loadedSearchMetadata {
+		currSearchMetaSize := int64(smi.SearchMetadataSize)
+		totalRequestedMemory += currSearchMetaSize
+		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(currSearchMetaSize, 10, segkey)
+		if err != nil {
+			log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
+			return nil, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
+		}
+		_, err = smi.loadSearchMetadata([]byte{})
+		if err != nil {
+			log.Errorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
+			return nil, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
+		}
+	}
+
+	return smi, totalRequestedMemory, nil
+}
+
+func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
+	timeFilteredBlocks map[uint16]map[string]bool,
+	colsToCheck map[string]bool, wildcardCol bool,
+	qid uint64) (bool, error) {
+
+	err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(smi.MicroIndexSize),
+		10, segkey)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! err: %v",
+			qid, err)
+		return false, fmt.Errorf("failed to acquire memory from global pool for search! err: %v",
+			err)
+	}
+
+	var missingBlockCMI bool
+	blkCmis, err := smi.ReadCmis(timeFilteredBlocks, false, colsToCheck, wildcardCol)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to load cmi for blocks and columns. Num blocks %+v, Num columns %+v. Error: %+v",
+			qid, len(timeFilteredBlocks), len(colsToCheck), err)
+		missingBlockCMI = true
+	} else {
+		smi.SetBlockCmis(blkCmis)
+	}
+
+	return missingBlockCMI, nil
+}
+
+func (smi *SegmentMicroIndex) ClearSearchTimeData() {
+
+	if !smi.AreMicroIndicesLoaded() {
+		smi.ClearMicroIndices()
+	}
+	if !smi.IsSearchMetadataLoaded() {
+		smi.ClearSearchMetadata()
+	}
+}
+
+func (smi *SegmentMicroIndex) RLockSmi() {
+	smi.smilock.RLock()
+}
+
+func (smi *SegmentMicroIndex) RUnlockSmi() {
+	smi.smilock.RUnlock()
+}
+
+func ReleaseCmiMemory(memSize int64) {
+	GlobalBlockMicroIndexCheckLimiter.Release(memSize)
 }

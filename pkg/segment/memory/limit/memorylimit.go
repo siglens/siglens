@@ -25,7 +25,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/memory"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -73,7 +72,7 @@ func InitMemoryLimiter() {
 		MetricsSegmentMaxSize: metricsInMemory,
 	}
 
-	metadata.InitBlockMetaCheckLimiter(int64(maxBlockMicroRuntime))
+	segmetadata.InitBlockMetaCheckLimiter(int64(maxBlockMicroRuntime))
 	go rebalanceMemoryAllocationLoop()
 }
 

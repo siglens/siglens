@@ -19,7 +19,6 @@ package metadata
 
 import (
 	"errors"
-	"fmt"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/metadata"
@@ -30,15 +29,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
-
-var GlobalBlockMicroIndexCheckLimiter *semaphore.WeightedSemaphore
-
-func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
-	GlobalBlockMicroIndexCheckLimiter = semaphore.NewDefaultWeightedSemaphore(unloadedBlockLimit, "GlobalBlockMicroIndexCheckLimiter")
-}
 
 // converts blocks to a search request. block summaries & column meta are not guaranteed to be in memory
 // if the block summaries & column meta are not in memory, then load right before query
@@ -74,96 +66,69 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 	return finalReq, nil
 }
 
-// TODO: function is getting to big and has many args, needs to be refactored
+// TODO: function has many args, needs to be refactored
 // Returns all search requests,  number of blocks checked, number of blocks passed, error
 func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
-	blockTracker *structs.BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
-	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool, wildCardValue bool,
-	currQuery *structs.SearchQuery, colsToCheck map[string]bool, wildcardCol bool,
-	qid uint64, isQueryPersistent bool, pqid string, dualCaseCheckEnabled bool) (*structs.SegmentSearchRequest, uint64, uint64, error) {
+	blockTracker *structs.BlockTracker, bloomKeys map[string]bool,
+	originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
+	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool,
+	wildCardValue bool, currQuery *structs.SearchQuery,
+	colsToCheck map[string]bool, wildcardCol bool,
+	qid uint64, isQueryPersistent bool, pqid string,
+	dualCaseCheckEnabled bool) (*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	isMatchAll := currQuery.IsMatchAll()
 
-	segMicroIndex, exists := metadata.GetMicroIndex(segkey)
-	if !exists {
-		log.Errorf("qid=%d, Segment file %+v for table %+v does not exist in block meta, but existed in time filtering. This should not happen", qid, segkey, tableName)
-		return nil, 0, 0, fmt.Errorf("segment file %+v for table %+v does not exist in block meta, but existed in time filtering. This should not happen", segkey, tableName)
+	smi, totalRequestedMemory, err := metadata.GetLoadSsm(segkey, qid)
+	if err != nil {
+		return nil, 0, 0, err
 	}
 
-	totalRequestedMemory := int64(0)
-	if !segMicroIndex.IsSearchMetadataLoaded() {
-		currSearchMetaSize := int64(segMicroIndex.SearchMetadataSize)
-		totalRequestedMemory += currSearchMetaSize
-		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(currSearchMetaSize, 10, segkey)
-		if err != nil {
-			log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
-			return nil, 0, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
-		}
-		_, err = segMicroIndex.LoadSearchMetadata([]byte{})
-		if err != nil {
-			log.Errorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, segMicroIndex.SegmentKey, err)
-			return nil, 0, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
-		}
-	}
+	smi.RLockSmi()
 
-	totalBlockCount := uint64(len(segMicroIndex.BlockSummaries))
-	timeFilteredBlocks := metautils.FilterBlocksByTime(segMicroIndex.BlockSummaries, blockTracker, timeRange)
-	numBlocks := uint16(len(segMicroIndex.BlockSummaries))
+	totalBlockCount := uint64(len(smi.BlockSummaries))
+	timeFilteredBlocks := metautils.FilterBlocksByTime(smi.BlockSummaries, blockTracker, timeRange)
 	droppedBlocksDueToTime := false
 	if len(timeFilteredBlocks) < int(totalBlockCount) {
 		droppedBlocksDueToTime = true
 	}
 
 	var missingBlockCMI bool
-	if len(timeFilteredBlocks) > 0 && !isMatchAll && !segMicroIndex.AreMicroIndicesLoaded() && !wildCardValue {
-		totalRequestedMemory += int64(segMicroIndex.MicroIndexSize)
-		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(segMicroIndex.MicroIndexSize), 10, segkey)
+	if len(timeFilteredBlocks) > 0 && !isMatchAll && !smi.AreMicroIndicesLoaded() && !wildCardValue {
+		smi.RUnlockSmi() // release the read lock so that we can load it and it needs write access
+		missingBlockCMI, err = smi.LoadCmiForSearchTime(segkey, timeFilteredBlocks, colsToCheck,
+			wildcardCol, qid)
 		if err != nil {
-			log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
-			return nil, 0, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
+			return nil, 0, 0, err
 		}
-		blkCmis, err := segMicroIndex.ReadCmis(timeFilteredBlocks, false, colsToCheck, wildcardCol)
-		if err != nil {
-			log.Errorf("qid=%d, Failed to cmi for blocks and columns. Num blocks %+v, Num columns %+v. Error: %+v",
-				qid, len(timeFilteredBlocks), len(colsToCheck), err)
-			missingBlockCMI = true
-		} else {
-			segMicroIndex.SetBlockCmis(blkCmis)
-		}
+		smi.RLockSmi() // re-acquire read since it will be needed below
+		totalRequestedMemory += int64(smi.MicroIndexSize)
 	}
 
 	if !isMatchAll && !missingBlockCMI {
-		for blockToCheck := range timeFilteredBlocks {
-			if blockToCheck >= numBlocks {
-				log.Errorf("qid=%d, Time range passed for a block with no micro index!", qid)
-				continue
-			}
-
-			if isRange {
-				if wildcardCol {
-					doRangeCheckAllCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
-				} else {
-					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, colsToCheck, qid)
-				}
-			} else {
-				negateMatch := false
-				if currQuery != nil && currQuery.MatchFilter != nil && currQuery.MatchFilter.NegateMatch {
-					negateMatch = true
-				}
-				if !wildCardValue && !negateMatch {
-					if wildcardCol {
-						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, dualCaseCheckEnabled)
-					} else {
-						doBloomCheckForCol(segMicroIndex, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, dualCaseCheckEnabled)
-					}
-				}
-			}
-		}
+		doCmiChecks(smi, timeFilteredBlocks, qid, rangeFilter, rangeOp, colsToCheck,
+			currQuery, isRange, wildcardCol, wildCardValue, bloomKeys, originalBloomKeys,
+			bloomOp, dualCaseCheckEnabled)
 	}
 
 	filteredBlockCount := uint64(0)
 	var finalReq *structs.SegmentSearchRequest
-	var err error
+
+	if len(timeFilteredBlocks) > 0 {
+		finalReq, err = convertBlocksToSearchRequest(timeFilteredBlocks, segkey, tableName, smi)
+		if err == nil {
+			filteredBlockCount = uint64(len(timeFilteredBlocks))
+		} else {
+			log.Errorf("qid=%v, runCmiCheck: failed to convert blocks, err=%v", qid, err)
+		}
+	}
+
+	smi.RUnlockSmi() // release rlock since it is needed for clear call
+	smi.ClearSearchTimeData()
+
+	if totalRequestedMemory > 0 {
+		metadata.ReleaseCmiMemory(totalRequestedMemory)
+	}
 
 	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
 		if isQueryPersistent {
@@ -172,25 +137,42 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 		}
 	}
 
-	if len(timeFilteredBlocks) > 0 {
-		finalReq, err = convertBlocksToSearchRequest(timeFilteredBlocks, segkey, tableName, segMicroIndex)
-		if err == nil {
-			filteredBlockCount = uint64(len(timeFilteredBlocks))
+	return finalReq, totalBlockCount, filteredBlockCount, err
+}
+
+func doCmiChecks(smi *metadata.SegmentMicroIndex, timeFilteredBlocks map[uint16]map[string]bool,
+	qid uint64, rangeFilter map[string]string, rangeOp utils.FilterOperator,
+	colsToCheck map[string]bool,
+	currQuery *structs.SearchQuery, isRange bool, wildcardCol bool,
+	wildCardValue bool, bloomKeys map[string]bool, originalBloomKeys map[string]string,
+	bloomOp utils.LogicalOperator, dualCaseCheckEnabled bool) {
+
+	for blockToCheck := range timeFilteredBlocks {
+		if blockToCheck >= uint16(len(smi.BlockSummaries)) {
+			log.Errorf("qid=%d, Time range passed for a block with no micro index!", qid)
+			continue
+		}
+
+		if isRange {
+			if wildcardCol {
+				doRangeCheckAllCol(smi, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, qid)
+			} else {
+				doRangeCheckForCol(smi, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, colsToCheck, qid)
+			}
 		} else {
-			log.Errorf("qid=%v, runCmiCheck: failed to convert blocks, err=%v", qid, err)
+			negateMatch := false
+			if currQuery != nil && currQuery.MatchFilter != nil && currQuery.MatchFilter.NegateMatch {
+				negateMatch = true
+			}
+			if !wildCardValue && !negateMatch {
+				if wildcardCol {
+					doBloomCheckAllCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, dualCaseCheckEnabled)
+				} else {
+					doBloomCheckForCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, dualCaseCheckEnabled)
+				}
+			}
 		}
 	}
-
-	if !segMicroIndex.AreMicroIndicesLoaded() {
-		segMicroIndex.ClearMicroIndices()
-	}
-	if !segMicroIndex.IsSearchMetadataLoaded() {
-		segMicroIndex.ClearSearchMetadata()
-	}
-	if totalRequestedMemory > 0 {
-		GlobalBlockMicroIndexCheckLimiter.Release(totalRequestedMemory)
-	}
-	return finalReq, totalBlockCount, filteredBlockCount, err
 }
 
 func doRangeCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, rangeFilter map[string]string,

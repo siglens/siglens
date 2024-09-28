@@ -232,8 +232,10 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 		}
 	}
 
-	errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, blockNum %+v, Currently at rec %+v. File %+v, colname %v", recordNum, blockNum,
-		sfr.currRecordNum, sfr.fileName, sfr.ColName)
+	errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, currRecordNum: %+v. blockNum %+v, File %+v, colname %v, sfr.currOffset: %v, sfr.currRecLen: %v, sfr.consistentColValueLen: %v",
+		recordNum, sfr.currRecordNum, blockNum, sfr.fileName, sfr.ColName, sfr.currOffset,
+		sfr.currRecLen, sfr.consistentColValueLen)
+
 	log.Error(errStr)
 	log.Errorf("SegmentFileReader.ReadRecordFromBlock: Current offset %+v, blkLen: %+v", sfr.currOffset, sfr.currUncompressedBlockLen)
 	return nil, errors.New(errStr)

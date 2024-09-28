@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -56,6 +57,12 @@ var globalMetadata *allSegmentMetadata = &allSegmentMetadata{
 	segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
 	tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
 	updateLock:                  &sync.RWMutex{},
+}
+
+var GlobalBlockMicroIndexCheckLimiter *semaphore.WeightedSemaphore
+
+func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
+	GlobalBlockMicroIndexCheckLimiter = semaphore.NewDefaultWeightedSemaphore(unloadedBlockLimit, "GlobalBlockMicroIndexCheckLimiter")
 }
 
 func ResetGlobalMetadataForTest() {
@@ -295,7 +302,7 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 					}
 				}
 			} else {
-				ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].LoadSearchMetadata(ssmBufs[rbufIdx])
+				ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].loadSearchMetadata(ssmBufs[rbufIdx])
 				if err != nil {
 					log.Errorf("loadParallel: failed to load SSM at index %d. Error: %v", myIdx, err)
 				}
@@ -516,7 +523,7 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 	}
 
 	if !sMicroIdx.loadedSearchMetadata {
-		_, err := sMicroIdx.LoadSearchMetadata([]byte{})
+		_, err := sMicroIdx.loadSearchMetadata([]byte{})
 		if err != nil {
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil

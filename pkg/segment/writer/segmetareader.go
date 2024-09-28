@@ -29,6 +29,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const ONE_MB = 1024 * 1024
+
 var SegmetaSuffix = "segmeta.json"
 
 // read only the current nodes segmeta
@@ -148,6 +150,8 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 	}
 	defer fd.Close()
 	scanner := bufio.NewScanner(fd)
+	buf := make([]byte, ONE_MB)
+	scanner.Buffer(buf, ONE_MB)
 
 	for scanner.Scan() {
 		rawbytes := scanner.Bytes()
@@ -158,6 +162,12 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 			continue
 		}
 		allSegMetas = append(allSegMetas, &segmeta)
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		log.Errorf("getAllSegmetas: scanning err: %v", err)
+		return allSegMetas, err
 	}
 
 	return allSegMetas, nil
