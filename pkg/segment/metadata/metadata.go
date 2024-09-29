@@ -226,7 +226,7 @@ func (hm *allSegmentMetadata) evictCmiPastIndices(cmiIndex int) int {
 	var evictedCount int
 	for i := cmiIndex; i < len(hm.allSegmentMicroIndex); i++ {
 		if hm.allSegmentMicroIndex[i].loadedMicroIndices {
-			hm.allSegmentMicroIndex[i].ClearMicroIndices()
+			hm.allSegmentMicroIndex[i].clearMicroIndices()
 			evictedCount++
 		}
 	}
@@ -467,7 +467,7 @@ func (hm *allSegmentMetadata) evictSsmPastIndices(searchIndex int) int {
 
 	if len(idxToClear) > 0 {
 		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearSearchMetadata()
+			hm.allSegmentMicroIndex[idx].clearSearchMetadata()
 		}
 	}
 	return len(idxToClear)
@@ -528,7 +528,7 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil
 		}
-		defer sMicroIdx.ClearSearchMetadata()
+		defer sMicroIdx.clearSearchMetadata()
 	}
 
 	var fRange *dtu.TimeRange

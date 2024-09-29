@@ -96,7 +96,7 @@ func testBlockRebalance(t *testing.T, fileCount int) {
 	assert.False(t, GetAllSegmentMicroIndexForTest()[1].AreMicroIndicesLoaded(), "only load search metadata for idx 1")
 	for i := 2; i < fileCount; i++ {
 		assert.False(t, GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
-		assert.False(t, GetAllSegmentMicroIndexForTest()[i].IsSearchMetadataLoaded())
+		assert.False(t, GetAllSegmentMicroIndexForTest()[i].isSearchMetadataLoaded())
 		currFile := GetAllSegmentMicroIndexForTest()[i].SegmentKey
 		assert.Same(t, GetAllSegmentMicroIndexForTest()[i], GetSegmentMetadataReverseIndexForTest()[currFile])
 		assert.LessOrEqual(t, GetAllSegmentMicroIndexForTest()[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
