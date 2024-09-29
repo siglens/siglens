@@ -28,6 +28,7 @@ import (
 	"github.com/cespare/xxhash"
 	blob "github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -304,7 +305,7 @@ func (sm *SegmentMicroIndex) getRecordCount() uint32 {
 
 func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, int64, error) {
 
-	smi, exists := GetMicroIndex(segkey)
+	smi, exists := getMicroIndex(segkey)
 	if !exists {
 		log.Errorf("qid=%d, Seg  %+v does not exist in block meta, but existed in time filtering", qid, segkey)
 		return nil, 0, fmt.Errorf("seg file %+v does not exist in block meta, but existed in time filtering", segkey)
@@ -380,7 +381,7 @@ func ReleaseCmiMemory(memSize int64) {
 
 func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHolder, []*structs.BlockSummary, error) {
 
-	smi, ok := GetMicroIndex(segkey)
+	smi, ok := getMicroIndex(segkey)
 	if !ok {
 		return nil, nil, errors.New("GetSearchInfoAndSummary:failed to find segkey in all block micro")
 	}
@@ -396,4 +397,28 @@ func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHo
 	}
 
 	return allBmh, blockSum, nil
+}
+
+// returns block search info, block summaries, and any errors encountered
+// block search info will be loaded for all possible columns
+func GetSearchInfoAndSummaryForPQS(segkey string,
+	spqmr *pqmr.SegmentPQMRResults) (map[uint16]*structs.BlockMetadataHolder,
+	[]*structs.BlockSummary, error) {
+
+	allBmh, blockSum, err := GetSearchInfoAndSummary(segkey)
+	if err != nil {
+		log.Errorf("GetSearchInfoAndSummaryForPQS: failed to get block infos for segKey %+v: err: %v",
+			segkey, err)
+
+		return nil, nil, err
+	}
+
+	retSearchInfo := make(map[uint16]*structs.BlockMetadataHolder)
+	setBlocks := spqmr.GetAllBlocks()
+	for _, blkNum := range setBlocks {
+		if blkMetadata, ok := allBmh[blkNum]; ok {
+			retSearchInfo[blkNum] = blkMetadata
+		}
+	}
+	return retSearchInfo, blockSum, nil
 }

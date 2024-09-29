@@ -391,7 +391,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 
 }
 
-func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
@@ -690,7 +690,7 @@ func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[stri
 	defer globalMetadata.updateLock.RUnlock()
 	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
 	for segKey := range segmap {
-		smi, ok := GetMicroIndex(segKey)
+		smi, ok := getMicroIndex(segKey)
 		if ok {
 			ConsistentCValLenPerSeg[segKey] = smi.getAllColumnsRecSize()
 		}

@@ -22,7 +22,6 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/metadata"
-	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -332,34 +331,4 @@ func doBloomCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck 
 	if !matchedNeedleInBlock {
 		delete(timeFilteredBlocks, blockToCheck)
 	}
-}
-
-// returns block search info, block summaries, and any errors encountered
-// block search info will be loaded for all possible columns
-func GetSearchInfoForPQSQuery(key string, spqmr *pqmr.SegmentPQMRResults) (map[uint16]*structs.BlockMetadataHolder,
-	[]*structs.BlockSummary, error) {
-
-	segmentMeta, ok := metadata.GetMicroIndex(key)
-	if !ok {
-		return nil, nil, errors.New("failed to find key in all block micro")
-	}
-
-	if segmentMeta.IsSearchMetadataLoaded() {
-		return segmentMeta.BlockSearchInfo, segmentMeta.BlockSummaries, nil
-	}
-
-	// avoid caller having to clean up BlockSearchInfo
-	_, blockSum, allBmh, err := segmentMeta.ReadBlockSummaries([]byte{})
-	if err != nil {
-		log.Errorf("GetBlockSearchInfoForKey: failed to read block infos for segKey %+v: %v", key, err)
-		return nil, nil, err
-	}
-	retSearchInfo := make(map[uint16]*structs.BlockMetadataHolder)
-	setBlocks := spqmr.GetAllBlocks()
-	for _, blkNum := range setBlocks {
-		if blkMetadata, ok := allBmh[blkNum]; ok {
-			retSearchInfo[blkNum] = blkMetadata
-		}
-	}
-	return retSearchInfo, blockSum, nil
 }
