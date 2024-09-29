@@ -60,7 +60,7 @@ func Test_multiSegReader(t *testing.T) {
 	}
 
 	// invalid block
-	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 12345)
 	assert.NotNil(t, err)
 
 	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
