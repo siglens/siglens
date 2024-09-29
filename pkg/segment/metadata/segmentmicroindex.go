@@ -377,3 +377,23 @@ func (smi *SegmentMicroIndex) RUnlockSmi() {
 func ReleaseCmiMemory(memSize int64) {
 	GlobalBlockMicroIndexCheckLimiter.Release(memSize)
 }
+
+func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHolder, []*structs.BlockSummary, error) {
+
+	smi, ok := GetMicroIndex(segkey)
+	if !ok {
+		return nil, nil, errors.New("GetSearchInfoAndSummary:failed to find segkey in all block micro")
+	}
+
+	if smi.IsSearchMetadataLoaded() {
+		return smi.BlockSearchInfo, smi.BlockSummaries, nil
+	}
+
+	_, blockSum, allBmh, err := smi.ReadBlockSummaries([]byte{})
+	if err != nil {
+		log.Errorf("GetSearchInfoAndSummary: failed to read column block sum infos for segkey %s: %v", segkey, err)
+		return nil, nil, err
+	}
+
+	return allBmh, blockSum, nil
+}

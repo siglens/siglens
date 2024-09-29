@@ -334,43 +334,6 @@ func doBloomCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck 
 	}
 }
 
-func GetBlockSearchInfoForKey(key string) (map[uint16]*structs.BlockMetadataHolder, error) {
-	segmentMeta, ok := metadata.GetMicroIndex(key)
-	if !ok {
-		return nil, errors.New("failed to find key in all block micro")
-	}
-
-	if segmentMeta.IsSearchMetadataLoaded() {
-		return segmentMeta.BlockSearchInfo, nil
-	}
-
-	_, _, allBmh, err := segmentMeta.ReadBlockSummaries([]byte{})
-	if err != nil {
-		log.Errorf("GetBlockSearchInfoForKey: failed to read column block sum infos for key %s: %v", key, err)
-		return nil, err
-	}
-
-	return allBmh, nil
-}
-
-func GetBlockSummariesForKey(key string) ([]*structs.BlockSummary, error) {
-	segmentMeta, ok := metadata.GetMicroIndex(key)
-	if !ok {
-		return nil, errors.New("failed to find key in all block micro")
-	}
-
-	if segmentMeta.IsSearchMetadataLoaded() {
-		return segmentMeta.BlockSummaries, nil
-	}
-
-	_, blockSum, _, err := segmentMeta.ReadBlockSummaries([]byte{})
-	if err != nil {
-		log.Errorf("GetBlockSearchInfoForKey: failed to read column block infos for key %s: %v", key, err)
-		return nil, err
-	}
-	return blockSum, nil
-}
-
 // returns block search info, block summaries, and any errors encountered
 // block search info will be loaded for all possible columns
 func GetSearchInfoForPQSQuery(key string, spqmr *pqmr.SegmentPQMRResults) (map[uint16]*structs.BlockMetadataHolder,
