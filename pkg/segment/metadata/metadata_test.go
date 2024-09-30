@@ -151,7 +151,7 @@ func createMockMetaStore(dir string, segcount int) {
 			ColumnNames:      allColsSizes,
 			NumBlocks:        12, // some random
 		}
-		segMetadata := InitSegmentMicroIndex(sInfo)
+		segMetadata := InitSegmentMicroIndex(sInfo, false)
 		BulkAddSegmentMicroIndex([]*SegmentMicroIndex{segMetadata})
 	}
 }
@@ -169,7 +169,7 @@ func Test_readEmptyColumnMicroIndices(t *testing.T) {
 		VirtualTableName: "test",
 	}
 
-	bMicro := InitSegmentMicroIndex(segmeta)
+	bMicro := InitSegmentMicroIndex(segmeta, false)
 
 	err := bMicro.loadMicroIndices(map[uint16]map[string]bool{}, true, map[string]bool{}, false)
 	if err != nil {

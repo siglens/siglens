@@ -76,7 +76,7 @@ func (ssm *SegmentSearchMetadata) isSearchMetadataLoaded() bool {
 	return ssm.loadedSearchMetadata
 }
 
-func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
+func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta, loadSsm bool) *SegmentMicroIndex {
 
 	sm := &SegmentMicroIndex{
 		SegMeta: *segMetaInfo,
@@ -85,6 +85,15 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
 	sm.loadedMicroIndices = false
 	sm.loadedSearchMetadata = false
 	sm.initMetadataSize()
+
+	if loadSsm {
+		_, err := sm.loadSearchMetadata([]byte{})
+		if err != nil {
+			log.Errorf("InitSegmentMicroIndex: Failed to load search metadata for segKey %+v! Error: %v", sm.SegmentKey, err)
+			return nil
+		}
+	}
+
 	return sm
 }
 

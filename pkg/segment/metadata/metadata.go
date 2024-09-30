@@ -91,7 +91,7 @@ func ProcessSegmetaInfo(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
 		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
 	}
 
-	return InitSegmentMicroIndex(segMetaInfo)
+	return InitSegmentMicroIndex(segMetaInfo, false)
 }
 
 func AddSegMetaToMetadata(segMeta *structs.SegMeta) {
