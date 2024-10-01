@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -379,6 +380,39 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
+	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
+	cfgkey := config.GetTimeStampKey()
+
+	var docType segment.SIGNAL_TYPE
+	if strings.HasPrefix(indexNameConverted, "jaeger-") {
+		docType = segment.SIGNAL_JAEGER_TRACES
+		cfgkey = "startTimeMillis"
+	} else {
+		docType = segment.SIGNAL_EVENTS
+	}
+
+	tsMillis := utils.ExtractTimeStamp(rawJson, &cfgkey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	ple := segwriter.NewPLE()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexNameConverted)
+
+	err := segwriter.ParseRawJsonObject("", rawJson, &cfgkey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
+		return err
+	}
+	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
+	if err != nil {
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		return err
+	}
 	return nil
 }
 
