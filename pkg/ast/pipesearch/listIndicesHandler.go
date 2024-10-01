@@ -33,16 +33,16 @@ type IndexInfo struct {
 
 type AllIndicesInfoResponse []*IndexInfo
 
-func ListIndicesHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 	var httpResp AllIndicesInfoResponse
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Response.Header.Set("Content-Type", "application/json")
 
 	var allIndexNames []string
 	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
-		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(myid)
+		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(orgId)
 	}
-	allIndexNames = append(allIndexNames, vtable.ExpandAndReturnIndexNames("*", myid, false)...)
+	allIndexNames = append(allIndexNames, vtable.ExpandAndReturnIndexNames("*", orgId, false)...)
 	sort.Strings(allIndexNames)
 
 	if len(allIndexNames) == 0 {
