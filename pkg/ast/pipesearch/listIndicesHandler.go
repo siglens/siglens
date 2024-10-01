@@ -41,9 +41,8 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	var allIndexNames []string
 	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
 		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(myid)
-	} else {
-		allIndexNames = vtable.ExpandAndReturnIndexNames("*", myid, false)
 	}
+	allIndexNames = append(allIndexNames, vtable.ExpandAndReturnIndexNames("*", myid, false)...)
 	sort.Strings(allIndexNames)
 
 	if len(allIndexNames) == 0 {

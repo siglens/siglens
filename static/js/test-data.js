@@ -32,12 +32,7 @@ $(document).ready(function () {
         credentials: 'include'
     })
         .then((_res) => {
-            let token;
-            {{ if .TestDataSendData }}
-                {{ .TestDataSendData }}
-            {{ else }}
-                myOrgSendTestData(token);
-            {{ end }}
+            myOrgSendTestData();
         })
         .catch((err) => {
             console.log(err)
@@ -117,54 +112,18 @@ $(document).ready(function () {
 })
 
 
-function sendTestData(e, token) {
-
-    if (token) {
-        sendTestDataWithBearerToken(token).then((res) => {
-            showSendTestDataUpdateToast('Sent Test Data Successfully');
+function sendTestData() {
+    sendTestDataWithoutBearerToken().then((_res) => {
+        showSendTestDataUpdateToast('Sent Test Data Successfully');
+        let testDataBtn = document.getElementById("test-data-btn");
+        testDataBtn.disabled = false;
+    })
+        .catch((err) => {
+            console.log(err)
+            showSendTestDataUpdateToast('Error Sending Test Data');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
-        })
-            .catch((err) => {
-                console.log(err)
-                showSendTestDataUpdateToast('Error Sending Test Data');
-                let testDataBtn = document.getElementById("test-data-btn");
-                testDataBtn.disabled = false;
-            });
-    } else {
-        sendTestDataWithoutBearerToken().then((_res) => {
-            showSendTestDataUpdateToast('Sent Test Data Successfully');
-            let testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = false;
-        })
-            .catch((err) => {
-                console.log(err)
-                showSendTestDataUpdateToast('Error Sending Test Data');
-                let testDataBtn = document.getElementById("test-data-btn");
-                testDataBtn.disabled = false;
-            });
-    }
-
-    function sendTestDataWithBearerToken(token) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'post',
-                url: '/api/sampledataset_bulk',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-                crossDomain: true,
-                dataType: 'json',
-                credentials: 'include'
-            }).then((res) => {
-                resolve(res);
-            })
-                .catch((err) => {
-                    console.log(err);
-                    reject(err);
-                });
         });
-    }
 
     function sendTestDataWithoutBearerToken() {
         return new Promise((resolve, reject) => {
@@ -185,13 +144,17 @@ function sendTestData(e, token) {
     }
 }
 
-function myOrgSendTestData(token) {
+function myOrgSendTestData() {
     $('#test-data-btn').on('click', (e) => {
         if (selectedLogSource === 'Send Test Data') {
             var testDataBtn = document.getElementById("test-data-btn");
             // Disable testDataBtn
             testDataBtn.disabled = true;
-            sendTestData(e, token);
+            {{ if .TestDataSendData }}
+                {{ .TestDataSendData }}
+            {{ else }}
+                sendTestData();
+            {{ end }}
         }
         else {
             showSendTestDataUpdateToast('Select Test Data');
