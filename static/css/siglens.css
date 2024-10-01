@@ -4169,7 +4169,7 @@ color: #C8C7CC;
     padding: 0 4px 4px 4px;
 }
 
-#retention-days-value {
+.retention-days-value {
     margin-right: 5px;
     width: 64px;
 }
