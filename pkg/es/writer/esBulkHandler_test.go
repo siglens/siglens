@@ -77,11 +77,11 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 		[]byte(`{"age": "171"}`),
 		[]byte(`{"age": 103}`),
 		[]byte(`{"age": 5.123}`),
-		// []byte(`{"age": true}`),
+		// []byte(`{"age": true}`), //TODO fix this for bool values
 		[]byte(`{"age": "181"}`),
 		[]byte(`{"age": 30}`),
 		[]byte(`{"age": 6.321}`),
-		// []byte(`{"age": false}`),
+		// []byte(`{"age": false}`),//TODO fix this for bool values
 		[]byte(`{"age": "hello"}`),
 	}
 
