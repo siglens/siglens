@@ -120,12 +120,14 @@ type Configuration struct {
 	AgileAggsEnabledConverted   bool
 	DualCaseCheck               string `yaml:"dualCaseCheck"` // This is to support the old data that does not have case-insensitive search support. TODO: Remove this after 2 months from now: Aug 21st, 2024.
 	DualCaseCheckConverted      bool
-	QueryHostname               string         `yaml:"queryHostname"` // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
-	IngestUrl                   string         `yaml:"ingestUrl"`     // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
-	S3                          S3Config       `yaml:"s3"`            // s3 related config
-	Log                         LogConfig      `yaml:"log"`           // Log related config
-	TLS                         TLSConfig      `yaml:"tls"`           // TLS related config
-	Tracing                     TracingConfig  `yaml:"tracing"`       // Tracing related config
+	QueryHostname               string    `yaml:"queryHostname"`  // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
+	IngestUrl                   string    `yaml:"ingestUrl"`      // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
+	S3                          S3Config  `yaml:"s3"`             // s3 related config
+	Log                         LogConfig `yaml:"log"`            // Log related config
+	TLS                         TLSConfig `yaml:"tls"`            // TLS related config
+	CompressStatic              string    `yaml:"compressStatic"` // compress static files
+	CompressStaticConverted     bool
+	Tracing                     TracingConfig  `yaml:"tracing"` // Tracing related config
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
 }
