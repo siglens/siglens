@@ -87,48 +87,6 @@ func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	return toputils.MapToSet(allCols), nil
 }
 
-func getBlockMetadata(segKey string) (map[uint16]*structs.BlockMetadataHolder, error) {
-	var blockMetadata map[uint16]*structs.BlockMetadataHolder
-	var err error
-
-	if writer.IsSegKeyUnrotated(segKey) {
-		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
-		if err != nil {
-			log.Errorf("getBlockMetadata: failed to get block search info for unrotated segkey %s; err=%v", segKey, err)
-			return nil, err
-		}
-	} else {
-		blockMetadata, err = metadata.GetBlockSearchInfoForKey(segKey)
-		if err != nil {
-			log.Errorf("getBlockMetadata: failed to get block search info for rotated segkey %v; err=%v", segKey, err)
-			return nil, err
-		}
-	}
-
-	return blockMetadata, nil
-}
-
-func getBlockSummary(segKey string) ([]*structs.BlockSummary, error) {
-	var blockSum []*structs.BlockSummary
-	var err error
-
-	if writer.IsSegKeyUnrotated(segKey) {
-		blockSum, err = writer.GetBlockSummaryForKey(segKey)
-		if err != nil {
-			log.Errorf("getBlockSummary: failed to get block summary for unrotated segkey %s; err=%v", segKey, err)
-			return nil, err
-		}
-	} else {
-		blockSum, err = metadata.GetBlockSummariesForKey(segKey)
-		if err != nil {
-			log.Errorf("getBlockSummary: failed to get block summary for rotated segkey %v; err=%v", segKey, err)
-			return nil, err
-		}
-	}
-
-	return blockSum, nil
-}
-
 // All the RRCs must belong to the same segment.
 func readUserDefinedColForRRCs(segKey string, rrcs []utils.RecordResultContainer,
 	cname string) ([]utils.CValueEnclosure, error) {
@@ -219,6 +177,48 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockIdx uint16,
 	}
 
 	return toputils.SortThenProcessThenUnsort(rrcs, sortFunc, operation)
+}
+
+func getBlockMetadata(segKey string) (map[uint16]*structs.BlockMetadataHolder, error) {
+	var blockMetadata map[uint16]*structs.BlockMetadataHolder
+	var err error
+
+	if writer.IsSegKeyUnrotated(segKey) {
+		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			log.Errorf("getBlockMetadata: failed to get block search info for unrotated segkey %s; err=%v", segKey, err)
+			return nil, err
+		}
+	} else {
+		blockMetadata, err = metadata.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			log.Errorf("getBlockMetadata: failed to get block search info for rotated segkey %v; err=%v", segKey, err)
+			return nil, err
+		}
+	}
+
+	return blockMetadata, nil
+}
+
+func getBlockSummary(segKey string) ([]*structs.BlockSummary, error) {
+	var blockSum []*structs.BlockSummary
+	var err error
+
+	if writer.IsSegKeyUnrotated(segKey) {
+		blockSum, err = writer.GetBlockSummaryForKey(segKey)
+		if err != nil {
+			log.Errorf("getBlockSummary: failed to get block summary for unrotated segkey %s; err=%v", segKey, err)
+			return nil, err
+		}
+	} else {
+		blockSum, err = metadata.GetBlockSummariesForKey(segKey)
+		if err != nil {
+			log.Errorf("getBlockSummary: failed to get block summary for rotated segkey %v; err=%v", segKey, err)
+			return nil, err
+		}
+	}
+
+	return blockSum, nil
 }
 
 // returns a map of record identifiers to record maps, and all columns seen
