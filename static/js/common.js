@@ -66,6 +66,10 @@ let isQueryBuilderSearch = false;
 let sortByTimestampAtDefault = true;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
+let columnsWithNonNullValues = new Set();
+let columnsWithNullValues = new Set();
+let allColumns = new Set();
+let isMetricsScreen = false;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -167,6 +171,11 @@ function resetDashboard() {
     resetAvailableFields();
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
+    columnsWithNonNullValues.clear();
+    columnsWithNullValues.clear();
+    allColumns.clear();
+    $('#hide-null-column-box').hide();
+    columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
 }
@@ -396,11 +405,6 @@ function resetPanelContainer(firstQUpdate) {
         hideError();
     }
 }
-//eslint-disable-next-line no-unused-vars
-function resetPanelGrid() {
-    panelLogsRowData = [];
-    panelGridDiv == null;
-}
 
 function showPanelInfo(infoMsg) {
     $('#corner-popup .corner-text').html(infoMsg);
@@ -570,7 +574,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         $(`#panel${panelId} #empty-response`).hide();
         $(`#panel${panelId} .panEdit-panel`).show();
     }
-    let chartType = currentPanel.chartType;
+    var chartType = currentPanel.chartType;
     if (chartType === 'number') {
         let bigNumVal = null;
         let dataType = currentPanel.dataType;
@@ -613,24 +617,63 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                const queryString = queryData.queries[0].query;
-                addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    const queryString = queryData.queries[0].query;
+                    addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
             }
-
+            
             for (const formulaData of data.formulasData) {
-                const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
-                const chartData = await convertDataForChart(rawTimeSeriesData);
-                let formulaString = formulaData.formulas[0].formula;
-                // Replace a, b, etc., with actual query values
-                formulaData.queries.forEach((query) => {
-                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-                    formulaString = formulaString.replace(regex, query.query);
-                });
-                addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    let formulaString = formulaData.formulas[0].formula;
+            
+                    // Replace a, b, etc., with actual query values
+                    formulaData.queries.forEach((query) => {
+                        const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                        formulaString = formulaString.replace(regex, query.query);
+                    });
+            
+                    addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
             }
+            
         }
+        if (currentPanel && currentPanel.style) {
+            toggleLineOptions(currentPanel.style.display);
+            chartType=currentPanel.style.display;
+            toggleChartType(chartType);
+            updateChartTheme(currentPanel.style.color);
+            updateLineCharts(
+                currentPanel.style.lineStyle,
+                currentPanel.style.lineStroke
+            );
+        } 
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {
@@ -944,6 +987,37 @@ function toggleClearButtonVisibility() {
 }
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
+    // Function to check the visibility of the Format button
+    function checkFormatButtonVisibility() {
+        const selectedLanguage = $('#query-language-btn span').text().trim();
+        const selectedTab = $('.tab-list .tab-li.ui-tabs-active').attr('id');
+        const formatButton = $('#formatInput');
+        if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
+            formatButton.show();
+        }else {
+            formatButton.hide();
+        }
+    }
+
+    // Function to handle tab clicks
+    function handleTabClick() {
+        $('.tab-li').removeClass('active');
+        $(this).addClass('active');
+        checkFormatButtonVisibility();
+    }
+
+    // Initial visibility check
+    checkFormatButtonVisibility();
+
+    // Event listener for tab clicks
+    $('.tab-list .tab-li').click(handleTabClick);
+
+    // Event listeners for query language changes
+    $('#query-language-options').on('click', '.query-language-option', function() {
+        setTimeout(checkFormatButtonVisibility, 10);
+    });
+
+    // Handle input focus
     $('#filter-input').focus(function () {
         if ($(this).val() === '*') {
             $(this).val('');
@@ -954,6 +1028,7 @@ function initializeFilterInputEvents() {
     const MAX_VISIBLE_LINES = 5;
     const PADDING = 8;
 
+    // Create a clone of the textarea to measure its height
     function createTextAreaClone($textarea) {
         const $clone = $('<div id="textarea-clone"></div>')
             .css({
@@ -976,6 +1051,7 @@ function initializeFilterInputEvents() {
         return $clone;
     }
 
+    // Update the textarea height and ellipsis
     function updateTextarea() {
         const $textarea = $('#filter-input');
         const $clone = $('#textarea-clone');
@@ -1015,12 +1091,14 @@ function initializeFilterInputEvents() {
         }
     }
 
+    // Event listeners for input and window resize
     $('#filter-input').on('focus blur input', updateTextarea);
     $(window).on('resize', updateTextarea);
 
-    // Initial setup
+    // Initial setup for textarea
     updateTextarea();
 
+    // Toggle visibility of the clear button
     $('#filter-input').on('input', function () {
         toggleClearButtonVisibility();
     });
@@ -1030,10 +1108,31 @@ function initializeFilterInputEvents() {
         toggleClearButtonVisibility();
     });
 
+    // Format button click event
+    $('#formatInput').click(function() {
+        let input = $("#filter-input");
+        let value = input.val();
+
+        // Format the input value by ensuring each '|' is preceded by a newline
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (value[i] === '|' && (i === 0 || value[i - 1] !== '\n')) {
+                formattedValue += '\n|';
+            } else {
+                formattedValue += value[i];
+            }
+        }
+
+        input.val(formattedValue);
+        updateTextarea();
+    });
+
     $('#filter-input').keydown(function (e) {
         toggleClearButtonVisibility();
     });
 }
+
+
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {
@@ -1124,4 +1223,34 @@ function updateQueryModeUI(queryMode) {
         $('#query-mode-options #mode-option-2').addClass('active');
         $('#query-mode-btn span').html('Code');
     }
+}
+
+function calculateMutedFor(silenceEndTime) {
+    if (!silenceEndTime) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const remainingSeconds = silenceEndTime - now;
+    if (remainingSeconds <= 0) return '';
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = Math.floor(remainingSeconds % 60);
+
+    let result = '';
+    if (days > 0) result += `${days} day${days > 1 ? 's' : ''} `;
+    if (hours > 0) result += `${hours} hr${hours > 1 ? 's' : ''} `;
+    if (minutes > 0) result += `${minutes} min${minutes > 1 ? 's' : ''} `;
+    if (minutes === 0 && seconds > 0) result += `${seconds} sec${seconds > 1 ? 's' : ''}`;
+
+    return result.trim();
+}
+
+function createTooltip(selector, content) {
+    //eslint-disable-next-line no-undef
+    tippy(selector, {
+        content: content,
+        placement: 'top',
+        arrow: true,
+        animation: 'fade',
+    });
 }

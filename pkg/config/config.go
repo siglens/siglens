@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -38,6 +39,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ValuesRangeConfig struct {
+	Min     int
+	Max     int
+	Default int
+}
+
 const MINUTES_REREAD_CONFIG = 15
 const RunModFilePath = "data/common/runmod.cfg"
 
@@ -49,6 +56,9 @@ var runningConfig common.Configuration
 var configFilePath string
 
 var parallelism int64
+
+var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
+var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
@@ -191,6 +201,10 @@ func GetTLSPrivateKeyPath() string {
 	return runningConfig.TLS.PrivateKeyPath
 }
 
+func ShouldCompressStaticFiles() bool {
+	return runningConfig.CompressStaticConverted
+}
+
 // used by
 func GetQueryHostname() string {
 	return runningConfig.QueryHostname
@@ -229,7 +243,17 @@ func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppP
 }
 
 func GetUIDomain() string {
-	return GetQueryHostname()
+	hostname := GetQueryHostname()
+	if hostname == "" {
+		return "localhost"
+	} else {
+		host, _, err := net.SplitHostPort(hostname)
+		if err != nil {
+			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
+			return "localhost"
+		}
+		return host
+	}
 }
 
 func GetSiglensDBConfig() (string, string, uint64, string, string, string) {
@@ -277,12 +301,12 @@ func GetRunningConfigAsJsonStr() (string, error) {
 	return buffer.String(), err
 }
 
-func GetSegFlushIntervalSecs() int {
-	if runningConfig.SegFlushIntervalSecs > 600 {
-		log.Errorf("GetSegFlushIntervalSecs: SegFlushIntervalSecs cannot be more than 10 mins")
-		runningConfig.SegFlushIntervalSecs = 600
-	}
-	return runningConfig.SegFlushIntervalSecs
+func GetIdleWipFlushIntervalSecs() int {
+	return runningConfig.IdleWipFlushIntervalSecs
+}
+
+func GetMaxWaitWipFlushIntervalSecs() int {
+	return runningConfig.MaxWaitWipFlushIntervalSecs
 }
 
 func GetTimeStampKey() string {
@@ -340,13 +364,17 @@ func SetEventTypeKeywords(val []string) {
 	runningConfig.EventTypeKeywords = val
 }
 
-func SetSegFlushIntervalSecs(val int) {
-	if val < 1 {
-		log.Errorf("SetSegFlushIntervalSecs: SegFlushIntervalSecs should not be less than 1s")
-		log.Infof("SetSegFlushIntervalSecs: Setting SegFlushIntervalSecs to 1 by default")
-		val = 1
+func SetIdleWipFlushIntervalSecs(val int) {
+	if val < idleWipFlushRange.Min {
+		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than %vs", idleWipFlushRange.Min)
+		log.Infof("SetIdleWipFlushIntervalSecs: Setting IdleWipFlushIntervalSecs to the min allowed: %vs", idleWipFlushRange.Min)
+		val = idleWipFlushRange.Min
 	}
-	runningConfig.SegFlushIntervalSecs = val
+	if val > idleWipFlushRange.Max {
+		log.Warnf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs cannot be more than %vs. Defaulting to max allowed: %vs", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		val = idleWipFlushRange.Max
+	}
+	runningConfig.IdleWipFlushIntervalSecs = val
 }
 
 func SetRetention(val int) {
@@ -468,45 +496,48 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:             "0.0.0.0",
-		QueryListenIP:              "0.0.0.0",
-		IngestPort:                 8081,
-		QueryPort:                  5122,
-		IngestUrl:                  "",
-		EventTypeKeywords:          []string{"eventType"},
-		QueryNode:                  "true",
-		IngestNode:                 "true",
-		SegFlushIntervalSecs:       5,
-		DataPath:                   dataPath,
-		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-		RetentionHours:             24 * 90,
-		TimeStampKey:               "timestamp",
-		MaxSegFileSize:             1_073_741_824,
-		LicenseKeyPath:             "./",
-		ESVersion:                  "",
-		Debug:                      false,
-		MemoryThresholdPercent:     80,
-		DataDiskThresholdPercent:   85,
-		S3IngestQueueName:          "",
-		S3IngestQueueRegion:        "",
-		S3IngestBufferSize:         1000,
-		MaxParallelS3IngestBuffers: 10,
-		SSInstanceName:             "",
-		PQSEnabled:                 "false",
-		PQSEnabledConverted:        false,
-		SafeServerStart:            false,
-		AnalyticsEnabled:           "false",
-		AnalyticsEnabledConverted:  false,
-		AgileAggsEnabled:           "true",
-		AgileAggsEnabledConverted:  true,
-		DualCaseCheck:              "false",
-		DualCaseCheckConverted:     false,
-		QueryHostname:              "",
-		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
-		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
-		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
-		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		IngestListenIP:              "0.0.0.0",
+		QueryListenIP:               "0.0.0.0",
+		IngestPort:                  8081,
+		QueryPort:                   5122,
+		IngestUrl:                   "",
+		EventTypeKeywords:           []string{"eventType"},
+		QueryNode:                   "true",
+		IngestNode:                  "true",
+		IdleWipFlushIntervalSecs:    5,
+		MaxWaitWipFlushIntervalSecs: 30,
+		DataPath:                    dataPath,
+		S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
+		RetentionHours:              24 * 90,
+		TimeStampKey:                "timestamp",
+		MaxSegFileSize:              4_294_967_296,
+		LicenseKeyPath:              "./",
+		ESVersion:                   "",
+		Debug:                       false,
+		MemoryThresholdPercent:      80,
+		DataDiskThresholdPercent:    85,
+		S3IngestQueueName:           "",
+		S3IngestQueueRegion:         "",
+		S3IngestBufferSize:          1000,
+		MaxParallelS3IngestBuffers:  10,
+		SSInstanceName:              "",
+		PQSEnabled:                  "false",
+		PQSEnabledConverted:         false,
+		SafeServerStart:             false,
+		AnalyticsEnabled:            "false",
+		AnalyticsEnabledConverted:   false,
+		AgileAggsEnabled:            "true",
+		AgileAggsEnabledConverted:   true,
+		DualCaseCheck:               "false",
+		DualCaseCheckConverted:      false,
+		QueryHostname:               "",
+		Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                         common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		CompressStatic:              "false",
+		CompressStaticConverted:     false,
+		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
+		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
 
 	return testConfig
@@ -589,8 +620,31 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.EventTypeKeywords) <= 0 {
 		config.EventTypeKeywords = []string{"eventType"}
 	}
-	if config.SegFlushIntervalSecs <= 0 {
-		config.SegFlushIntervalSecs = 5
+	if config.IdleWipFlushIntervalSecs <= 0 {
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Default
+	}
+	if config.IdleWipFlushIntervalSecs < idleWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", idleWipFlushRange.Min, idleWipFlushRange.Min)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Min
+	}
+	if config.IdleWipFlushIntervalSecs > idleWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Max
+	}
+	if config.MaxWaitWipFlushIntervalSecs <= 0 {
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Default
+	}
+	if config.MaxWaitWipFlushIntervalSecs < maxWaitWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", maxWaitWipFlushRange.Min, maxWaitWipFlushRange.Min)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Min
+	}
+	if config.MaxWaitWipFlushIntervalSecs > maxWaitWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", maxWaitWipFlushRange.Max, maxWaitWipFlushRange.Max)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Max
+	}
+	if config.IdleWipFlushIntervalSecs > config.MaxWaitWipFlushIntervalSecs {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than MaxWaitWipFlushIntervalSecs. Setting IdleWipFlushIntervalSecs to MaxWaitWipFlushIntervalSecs")
+		config.IdleWipFlushIntervalSecs = config.MaxWaitWipFlushIntervalSecs
 	}
 	if len(config.Log.LogPrefix) <= 0 {
 		config.Log.LogPrefix = ""
@@ -686,7 +740,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.LicenseKeyPath = "./"
 	}
 	if config.MaxSegFileSize <= 0 {
-		config.MaxSegFileSize = 1_073_741_824
+		config.MaxSegFileSize = 4_294_967_296
 	}
 	if len(config.ESVersion) <= 0 {
 		config.ESVersion = "6.8.20"
@@ -744,6 +798,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
 	}
+
+	if len(config.CompressStatic) <= 0 {
+		config.CompressStatic = "true"
+	}
+	compressStatic, err := strconv.ParseBool(config.CompressStatic)
+	if err != nil {
+		compressStatic = true
+		config.CompressStatic = "true"
+		log.Errorf("ExtractConfigData: failed to parse compress static flag. Defaulting to %v. Error: %v",
+			compressStatic, err)
+	}
+	config.CompressStaticConverted = compressStatic
 
 	// Check for Tracing Config through environment variables
 	if os.Getenv("TRACESTORE_ENDPOINT") != "" {

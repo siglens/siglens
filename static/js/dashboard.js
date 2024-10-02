@@ -54,7 +54,6 @@ $(document).ready(async function () {
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
-    $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
     if (defaultDashboardIds.includes(dbId)) {
@@ -63,6 +62,10 @@ $(document).ready(async function () {
     }
 
     $('#add-panel-btn, .close-widget-popup').click(() => {
+        let pflag = `{{ .PanelFlag }}`;
+        if (pflag === 'false' && localPanels.length >= 10) {
+            return;
+        }
         $('#add-widget-options').toggle();
         $('.add-icon').toggleClass('rotate-icon');
         $('#add-panel-btn').toggleClass('active');
@@ -89,6 +92,10 @@ $(document).ready(async function () {
         if ($(this).hasClass('active')) {
             return;
         } else {
+            let pflag = `{{ .PanelFlag }}`;
+            if (pflag === 'false' && localPanels.length >= 10) {
+                return;
+            }
             $(this).addClass('active');
             $('#add-widget-options').toggle();
             $('.add-icon').toggleClass('rotate-icon');
@@ -116,7 +123,6 @@ $(document).ready(async function () {
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
-
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',
@@ -159,9 +165,18 @@ function saveJsonChanges() {
                     name: dbName,
                     description: dbDescr,
                     timeRange: timeRange,
-                    panels: localPanels,
+                    panels: localPanels.map((panel) => ({
+                        ...panel,
+                        style: {
+                            display: panel.style.display,
+                            color: panel.style.color,
+                            lineStyle: panel.style.lineStyle,
+                            lineStroke: panel.style.lineStroke,
+                        },
+                    })),
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
+                    panelFlag: `{{ .PanelFlag }}`,
                 },
             }),
         })
@@ -201,7 +216,7 @@ var options = {
         handles: 'e, se, s, sw, w',
     },
     draggable: {
-        handle: '.grid-stack-item-content',
+        handle: '.grid-stack-item-content .panel-header',
     },
     animate: false,
 };
@@ -246,8 +261,17 @@ async function updateDashboard() {
                 name: dbName,
                 description: dbDescr,
                 timeRange: timeRange,
-                panels: tempPanels,
+                panels: tempPanels.map((panel) => ({
+                    ...panel,
+                    style: {
+                        display: panel.style?.display || 'Line chart',
+                        color: panel.style?.color || 'Classic',
+                        lineStyle: panel.style?.lineStyle || 'Solid',
+                        lineStroke: panel.style?.lineStroke || 'Normal',
+                    },
+                })),
                 refresh: dbRefresh,
+                panelFlag: `{{ .PanelFlag }}`,
             },
         }),
     })
@@ -312,6 +336,22 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
+        document.getElementById('display-input').value = currentPanel.style?.display || 'Line chart';
+        document.getElementById('color-input').value = currentPanel.style?.color || 'Classic';
+        document.getElementById('line-style-input').value = currentPanel.style?.lineStyle || 'Solid';
+        document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
+        if (currentPanel.style) {
+            //eslint-disable-next-line no-undef
+            toggleLineOptions(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
+            chartType = currentPanel.style.display;
+            //eslint-disable-next-line no-undef
+            toggleChartType(currentPanel.style.display);
+            //eslint-disable-next-line no-undef
+            updateChartTheme(currentPanel.style.color);
+            //eslint-disable-next-line no-undef
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+        }
     });
 }
 function handlePanelRemove(panelId) {
@@ -475,6 +515,20 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
+        localPanels.forEach((localPanel) => {
+            if (localPanel.style) {
+                //eslint-disable-next-line no-undef
+                toggleLineOptions(localPanel.style.display);
+                //eslint-disable-next-line no-undef
+                chartType = localPanel.style.display;
+                //eslint-disable-next-line no-undef
+                toggleChartType(localPanel.style.display);
+                //eslint-disable-next-line no-undef
+                updateChartTheme(localPanel.style.color);
+                //eslint-disable-next-line no-undef
+                updateLineCharts(localPanel.style.lineStyle, localPanel.style.lineStroke);
+            }
+        });
     }
 }
 
@@ -1151,35 +1205,38 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
-    let trimmedDbName = $('.dbSet-dbName').val().trim();
-    let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
+    if ($('.dbSet-generalHTML').is(':visible')) {
+        let trimmedDbName = $('.dbSet-dbName').val().trim();
+        let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
 
-    if (!trimmedDbName) {
-        // Show error message using error-tip and popupOverlay
-        $('.error-tip').addClass('active');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#error-message').text('Dashboard name cannot be empty.');
-        return;
+        if (!trimmedDbName) {
+            $('.error-tip').addClass('active');
+            $('.popupOverlay, .popupContent').addClass('active');
+            $('#error-message').text('Dashboard name cannot be empty.');
+            return;
+        }
+
+        dbName = trimmedDbName;
+        dbDescr = trimmedDbDescription;
     }
 
-    dbName = trimmedDbName;
-    dbDescr = trimmedDbDescription;
+    if ($('.dbSet-jsonModelHTML').is(':visible')) {
+        const jsonText = $('.dbSet-jsonModelData').val().trim();
+        let dbSettings;
+        try {
+            dbSettings = JSON.parse(jsonText);
+        } catch (e) {
+            console.error(e);
+            alert('Invalid JSON format. Please correct the JSON and try again.');
+            return;
+        }
 
-    const jsonText = $('.dbSet-jsonModelData').val().trim();
-    let dbSettings;
-    try {
-        dbSettings = JSON.parse(jsonText); // Parse the JSON to ensure its validity
-    } catch (e) {
-        console.error(e);
-        alert('Invalid JSON format. Please correct the JSON and try again.');
-        return;
+        dbName = dbSettings.name || dbName;
+        dbDescr = dbSettings.description || dbDescr;
+        timeRange = dbSettings?.timeRange || timeRange;
+        localPanels = dbSettings?.panels || localPanels;
+        dbRefresh = dbSettings?.refresh || dbRefresh;
     }
-
-    dbName = dbSettings.name;
-    dbDescr = dbSettings.description;
-    timeRange = dbSettings.timeRange;
-    localPanels = dbSettings.panels;
-    dbRefresh = dbSettings.refresh;
 
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {

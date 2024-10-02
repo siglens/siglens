@@ -20,6 +20,7 @@ package pipesearch
 import (
 	"sort"
 
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -34,19 +35,26 @@ type AllIndicesInfoResponse []*IndexInfo
 
 func ListIndicesHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	var httpResp AllIndicesInfoResponse
-	allVirtualTableNames := vtable.ExpandAndReturnIndexNames("*", myid, false)
-	sort.Strings(allVirtualTableNames)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Response.Header.Set("Content-Type", "application/json")
 
-	if len(allVirtualTableNames) == 0 {
+	var allIndexNames []string
+	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
+		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(myid)
+	} else {
+		allIndexNames = vtable.ExpandAndReturnIndexNames("*", myid, false)
+	}
+	sort.Strings(allIndexNames)
+
+	if len(allIndexNames) == 0 {
 		noTables := []*IndexInfo{}
 		httpResp = noTables
 		utils.WriteJsonResponse(ctx, httpResp)
 		return
 	}
 	var listIndices []*IndexInfo
-	for _, indexName := range allVirtualTableNames {
+
+	for _, indexName := range allIndexNames {
 		IndexInfo := IndexInfo{}
 		if indexName == "" || indexName == "*" {
 			log.Debugf("ListIndicesHandler: one of empty/wildcard indexName=%v", indexName)
@@ -56,6 +64,7 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		listIndices = append(listIndices, &IndexInfo)
 		httpResp = listIndices
 	}
+
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 

@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/stats"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -82,16 +83,17 @@ type SearchResults struct {
 	BlockResults *blockresults.BlockResults // stores information about the matched RRCs
 	remoteInfo   *remoteSearchResult        // stores information about remote raw logs and columns
 
-	runningSegStat   []*structs.SegStats
-	runningEvalStats map[string]interface{}
-	segStatsResults  *segStatsResults
-	convertedBuckets map[string]*structs.AggregationResult
-	allSSTS          map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
-	AllErrors        []error
-	SegKeyToEnc      map[string]uint16
-	SegEncToKey      map[uint16]string
-	MaxSegKeyEnc     uint16
-	ColumnsOrder     map[string]int
+	runningSegStat         []*structs.SegStats
+	runningEvalStats       map[string]interface{}
+	segStatsResults        *segStatsResults
+	convertedBuckets       map[string]*structs.AggregationResult
+	allSSTS                map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
+	AllErrors              []error
+	SegKeyToEnc            map[string]uint16
+	SegEncToKey            map[uint16]string
+	MaxSegKeyEnc           uint16
+	ColumnsOrder           map[string]int
+	ProcessedRemoteRecords map[string]map[string]struct{}
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -100,6 +102,24 @@ type segStatsResults struct {
 	measureResults   map[string]utils.CValueEnclosure // maps agg function to result
 	measureFunctions []string
 	groupByCols      []string
+}
+
+type RemoteStats struct {
+	EvalStats map[string]EvalStatsMetaData
+	SegStats  []*structs.SegStats
+}
+
+type EvalStatsMetaData struct {
+	RangeStat     *structs.RangeStat
+	AvgStat       *structs.AvgStat
+	StrSet        map[string]struct{}
+	StrList       []string
+	MeasureResult interface{} // we should not use CValueEnclosure directly, because it treats interface having numbers as float64
+}
+
+type RemoteStatsJSON struct {
+	EvalStats map[string]EvalStatsMetaData `json:"EvalStats"`
+	SegStats  []*structs.SegStatsJSON      `json:"SegStats"`
 }
 
 func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType structs.QueryType, qid uint64) (*SearchResults, error) {
@@ -125,15 +145,16 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 			remoteLogs:    make(map[string]map[string]interface{}),
 			remoteColumns: make(map[string]struct{}),
 		},
-		qid:              qid,
-		sAggs:            aggs,
-		allSSTS:          make(map[uint16]map[string]*structs.SegStats),
-		runningSegStat:   runningSegStat,
-		runningEvalStats: make(map[string]interface{}),
-		AllErrors:        allErrors,
-		SegKeyToEnc:      make(map[string]uint16),
-		SegEncToKey:      make(map[uint16]string),
-		MaxSegKeyEnc:     1,
+		qid:                    qid,
+		sAggs:                  aggs,
+		allSSTS:                make(map[uint16]map[string]*structs.SegStats),
+		runningSegStat:         runningSegStat,
+		runningEvalStats:       make(map[string]interface{}),
+		AllErrors:              allErrors,
+		SegKeyToEnc:            make(map[string]uint16),
+		SegEncToKey:            make(map[uint16]string),
+		MaxSegKeyEnc:           1,
+		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
 }
 
@@ -235,6 +256,68 @@ func (sr *SearchResults) AddError(err error) {
 	sr.updateLock.Unlock()
 }
 
+func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats, incomingSegStat *structs.SegStats, measureAgg *structs.MeasureAggregator) (*structs.SegStats, error) {
+	var sstResult *utils.NumTypeEnclosure
+	var err error
+	switch measureAgg.MeasureFunc {
+	case utils.Min:
+		sstResult, err = segread.GetSegMin(runningSegStat, incomingSegStat)
+	case utils.Max:
+		sstResult, err = segread.GetSegMax(runningSegStat, incomingSegStat)
+	case utils.Range:
+		sstResult, err = segread.GetSegRange(runningSegStat, incomingSegStat)
+	case utils.Cardinality:
+		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case utils.Count:
+		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
+	case utils.Sum:
+		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
+	case utils.Avg:
+		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+	case utils.Values:
+		// Use GetSegValue to process and get the segment value
+		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+		}
+
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
+	case utils.List:
+		res, err := segread.GetSegList(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
+	default:
+		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.MeasureFunc, sr.qid)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+	}
+
+	enclosure, err := sstResult.ToCValueEnclosure()
+	if err != nil {
+		return nil, fmt.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
+	}
+	sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
+
+	if runningSegStat == nil {
+		return incomingSegStat, nil
+	}
+
+	return runningSegStat, nil
+}
+
 func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
@@ -246,173 +329,51 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		aggOp := measureAgg.MeasureFunc
 		aggCol := measureAgg.MeasureCol
 
-		if aggOp == utils.Count && aggCol == "*" {
-			// Choose the first column.
-			for key := range sstMap {
-				aggCol = key
-				break
-			}
+		if aggOp != utils.Count && aggCol == "*" {
+			return fmt.Errorf("UpdateSegmentStats: aggOp: %v cannot be applied with *, qid=%v", aggOp, sr.qid)
 		}
 		currSst, ok := sstMap[aggCol]
 		if !ok && measureAgg.ValueColRequest == nil {
 			log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
 			continue
 		}
-		var err error
-		var sstResult *utils.NumTypeEnclosure
-		// For eval statements in aggregate functions, there should be only one field for min and max
-		switch aggOp {
-		case utils.Min:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, true)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], currSst)
-		case utils.Max:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, false)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegMax(sr.runningSegStat[idx], currSst)
-		case utils.Range:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegRange(sr.runningSegStat[idx], currSst)
-		case utils.Cardinality:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegCardinality(sr.runningSegStat[idx], currSst)
-		case utils.Count:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], currSst)
-		case utils.Sum:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], currSst)
-		case utils.Avg:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
-		case utils.Values:
-			strSet := make(map[string]struct{}, 0)
-			valuesStrSetVal, exists := sr.runningEvalStats[measureAgg.String()]
-			if !exists {
-				sr.runningEvalStats[measureAgg.String()] = strSet
-			} else {
-				strSet, ok = valuesStrSetVal.(map[string]struct{})
-				if !ok {
-					return fmt.Errorf("UpdateSegmentStats: can not convert strSet for aggCol: %v, qid=%v", measureAgg.String(), sr.qid)
-				}
-			}
 
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, strSet)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-
-			// Merge two SegStat
-			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrSet != nil {
-				for str := range currSst.StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-			}
-			if sr.runningSegStat[idx] != nil {
-
-				for str := range sr.runningSegStat[idx].StringStats.StrSet {
-					strSet[str] = struct{}{}
-				}
-
-				sr.runningSegStat[idx].StringStats.StrSet = strSet
-			}
-
-			sr.runningEvalStats[measureAgg.String()] = strSet
-
-			uniqueStrings := make([]string, 0)
-			for str := range strSet {
-				uniqueStrings = append(uniqueStrings, str)
-			}
-			sort.Strings(uniqueStrings)
-
-			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  uniqueStrings,
-			}
-			continue
-		case utils.List:
-			if measureAgg.ValueColRequest != nil {
-				err := aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-				if err != nil {
-					return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
-				}
-				continue
-			}
-			res, err := segread.GetSegList(sr.runningSegStat[idx], currSst)
+		if measureAgg.ValueColRequest == nil {
+			// If the measure is not an eval statement, then update the segment stats
+			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], currSst, measureAgg)
 			if err != nil {
-				log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
-				return err
+				return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
 			}
-			sr.segStatsResults.measureResults[measureAgg.String()] = *res
-			if sr.runningSegStat[idx] == nil {
-				sr.runningSegStat[idx] = currSst
-			}
+			sr.runningSegStat[idx] = resSegStat
 			continue
+		}
+
+		var err error
+		switch aggOp {
+		case utils.Min, utils.Max:
+			err = aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, aggOp == utils.Min)
+		case utils.Range:
+			err = aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case utils.Cardinality:
+			err = aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case utils.Count:
+			err = aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
+		case utils.Sum:
+			err = aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
+		case utils.Avg:
+			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case utils.Values:
+			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case utils.List:
+			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
-			log.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
-			return err
+			return fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
 		}
 		if err != nil {
-			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
-			return err
+			return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
 		}
-
-		// if this is the first segment, then set the running segment stat to the current segment stat
-		// else, segread.GetN will update the running segment stat
-		if sr.runningSegStat[idx] == nil {
-			sr.runningSegStat[idx] = currSst
-		}
-
-		enclosure, err := sstResult.ToCValueEnclosure()
-		if err != nil {
-			log.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
-			return err
-		}
-		sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
 	}
+
 	return nil
 }
 
@@ -452,6 +413,10 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	remoteCount uint64, earlyExit bool) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
+	if len(rrcs) != len(rawLogs) {
+		return fmt.Errorf("qid=%v, MergeRemoteRRCResults: rrcs and rawLogs length mismatch, len(rrcs): %v, len(rawLogs): %v", sr.qid, len(rrcs), len(rawLogs))
+	}
+
 	for cName := range allCols {
 		sr.remoteInfo.remoteColumns[cName] = struct{}{}
 	}
@@ -468,39 +433,44 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 	}
 	err := sr.BlockResults.MergeRemoteBuckets(grpByBuckets, timeBuckets)
 	if err != nil {
-		log.Errorf("MergeRemoteRRCResults: Error merging remote buckets, qid=%v, err: %v", sr.qid, err)
+		log.Errorf("qid=%v, MergeRemoteRRCResults: Error merging remote buckets, err: %v", sr.qid, err)
 		return err
 	}
 	sr.resultCount += remoteCount
 	return nil
 }
 
-func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error {
-	sstMap := make(map[string]*structs.SegStats, len(allJSON.AllSegStats))
-	for k, v := range allJSON.AllSegStats {
-		rawStats, err := v.ToStats()
-		if err != nil {
-			return err
-		}
-		sstMap[k] = rawStats
+func (sr *SearchResults) AddSegmentStats(remoteStatsJSON *RemoteStatsJSON) error {
+	remoteStats, err := remoteStatsJSON.ToRemoteStats()
+	if err != nil {
+		return fmt.Errorf("Error while converting RemoteStatsJSON to RemoteStats, qid=%v, err: %v", sr.qid, err)
 	}
-	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations)
+
+	return sr.MergeSegmentStats(sr.sAggs.MeasureOperations, *remoteStats)
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
-func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordResultContainer) ([]map[string]interface{}, []string, error) {
+func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordResultContainer, fetchAll bool) ([]map[string]interface{}, []string, error) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	if sr.remoteInfo == nil {
 		return nil, nil, fmt.Errorf("GetRemoteInfo: log does not have remote info, qid=%v", sr.qid)
+	}
+	if sr.ProcessedRemoteRecords[remoteID] == nil {
+		sr.ProcessedRemoteRecords[remoteID] = make(map[string]struct{})
 	}
 	finalLogs := make([]map[string]interface{}, 0, len(inrrcs))
 	rawLogs := sr.remoteInfo.remoteLogs
 	remoteCols := sr.remoteInfo.remoteColumns
 	count := 0
 	for i := 0; i < len(inrrcs); i++ {
-		if inrrcs[i].SegKeyInfo.IsRemote && strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID) {
+		if inrrcs[i].SegKeyInfo.IsRemote && (fetchAll || strings.HasPrefix(inrrcs[i].SegKeyInfo.RecordId, remoteID)) {
+			_, isProcessed := sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId]
+			if isProcessed {
+				continue
+			}
 			finalLogs = append(finalLogs, rawLogs[inrrcs[i].SegKeyInfo.RecordId])
+			sr.ProcessedRemoteRecords[remoteID][inrrcs[i].SegKeyInfo.RecordId] = struct{}{}
 			count++
 		}
 	}
@@ -937,4 +907,251 @@ func CreateMeasResultsFromAggResults(limit int,
 	}
 
 	return bucketHolderArr, retMFuns, added
+}
+
+func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregator, remoteStats RemoteStats) error {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	for idx, measureAgg := range measureOps {
+		aggOp := measureAgg.MeasureFunc
+		if idx >= len(remoteStats.SegStats) {
+			return fmt.Errorf("MergeSegmentStats: remoteStats.SegStats is smaller than measureOps, qid=%v", sr.qid)
+		}
+
+		if measureAgg.ValueColRequest == nil {
+			remoteSegStat := remoteStats.SegStats[idx]
+			if remoteSegStat == nil {
+				continue // remote segment stats could be nil
+			}
+			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], remoteSegStat, measureAgg)
+			if err != nil {
+				return fmt.Errorf("MergeSegmentStats: Error while updating non eval seg stats qid=%v, err: %v", sr.qid, err)
+			}
+			sr.runningSegStat[idx] = resSegStat
+			continue
+		}
+
+		remoteRes, exist := remoteStats.EvalStats[measureAgg.String()]
+		if !exist {
+			continue
+		}
+
+		// For eval statements in aggregate functions, there should be only one field for min and max
+		switch aggOp {
+		case utils.Min, utils.Max, utils.Sum, utils.Count:
+			currRes := sr.segStatsResults.measureResults[measureAgg.String()]
+			remoteResCVal := utils.CValueEnclosure{}
+			err := remoteResCVal.ConvertValue(remoteRes.MeasureResult)
+			if err != nil {
+				return fmt.Errorf("MergeSegmentStats: Error while converting value for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
+			}
+			sr.segStatsResults.measureResults[measureAgg.String()], err = blockresults.ReduceForEval(currRes, remoteResCVal, aggOp)
+			if err != nil {
+				return fmt.Errorf("MergeSegmentStats: Error while merging results for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
+			}
+		case utils.Range:
+			var currRangeStat *structs.RangeStat
+			currVal, exist := sr.runningEvalStats[measureAgg.String()]
+			if exist {
+				isRangeStat := false
+				currRangeStat, isRangeStat = currVal.(*structs.RangeStat)
+				if !isRangeStat {
+					return fmt.Errorf("MergeSegmentStats: RangeStat not found for range agg %v, qid=%v", measureAgg.String(), sr.qid)
+				}
+			}
+			finalRangeStat := blockresults.ReduceRange(currRangeStat, remoteRes.RangeStat)
+			sr.runningEvalStats[measureAgg.String()] = finalRangeStat
+			if finalRangeStat != nil {
+				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_FLOAT,
+					CVal:  finalRangeStat.Max - finalRangeStat.Min,
+				}
+			}
+		case utils.Avg:
+			var currAvgStat *structs.AvgStat
+			currVal, exist := sr.runningEvalStats[measureAgg.String()]
+			if exist {
+				isAvgStat := false
+				currAvgStat, isAvgStat = currVal.(*structs.AvgStat)
+				if !isAvgStat {
+					return fmt.Errorf("MergeSegmentStats: AvgStat not found for avg agg %v, qid=%v", measureAgg.String(), sr.qid)
+				}
+			}
+			finalAvgStat := blockresults.ReduceAvg(currAvgStat, remoteRes.AvgStat)
+			sr.runningEvalStats[measureAgg.String()] = finalAvgStat
+			if finalAvgStat != nil {
+				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_FLOAT,
+					CVal:  finalAvgStat.Sum / float64(finalAvgStat.Count),
+				}
+			}
+		case utils.Cardinality, utils.Values:
+			currSet, exist := sr.runningEvalStats[measureAgg.String()]
+			if !exist {
+				currSet = make(map[string]struct{})
+				sr.runningEvalStats[measureAgg.String()] = currSet
+			}
+
+			CValEnc, err := utils.Reduce(utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING_SET,
+				CVal:  currSet,
+			},
+				utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING_SET,
+					CVal:  remoteRes.StrSet,
+				},
+				aggOp)
+
+			if err != nil {
+				return fmt.Errorf("MergeSegmentStats: Error while merging string sets for %v qid=%v, err: %v", measureAgg.String(), sr.qid, err)
+			}
+			if CValEnc.Dtype != utils.SS_DT_STRING_SET {
+				return fmt.Errorf("MergeSegmentStats: Error while merging string sets for %v qid=%v, dtype: %v", measureAgg.String(), sr.qid, CValEnc.Dtype)
+			}
+
+			sr.runningEvalStats[measureAgg.String()] = CValEnc.CVal.(map[string]struct{})
+
+			if measureAgg.MeasureFunc == utils.Cardinality {
+				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_SIGNED_NUM,
+					CVal:  int64(len(CValEnc.CVal.(map[string]struct{}))),
+				}
+			} else {
+				sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING_SLICE,
+					CVal:  putils.GetSortedStringKeys(CValEnc.CVal.(map[string]struct{})),
+				}
+			}
+		case utils.List:
+			_, exist = sr.runningEvalStats[measureAgg.String()]
+			if !exist {
+				sr.runningEvalStats[measureAgg.String()] = make([]string, 0)
+			}
+			currList, isList := sr.runningEvalStats[measureAgg.String()].([]string)
+			if !isList {
+				return fmt.Errorf("MergeSegmentStats: String list not found for list agg %v, qid=%v", measureAgg.String(), sr.qid)
+			}
+			remoteList := remoteRes.StrList
+			currList = utils.AppendWithLimit(currList, remoteList, utils.MAX_SPL_LIST_SIZE)
+
+			sr.runningEvalStats[measureAgg.String()] = currList
+			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING_SLICE,
+				CVal:  currList,
+			}
+		default:
+			return fmt.Errorf("MergeSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
+		}
+	}
+	return nil
+}
+
+func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+
+	remoteStats := &RemoteStats{
+		SegStats: sr.runningSegStat,
+	}
+
+	remoteStats.EvalStats = make(map[string]EvalStatsMetaData)
+	for _, measureAgg := range sr.sAggs.MeasureOperations {
+		if measureAgg.ValueColRequest != nil {
+			switch measureAgg.MeasureFunc {
+			case utils.Min, utils.Max, utils.Count, utils.Sum:
+				_, exist := sr.segStatsResults.measureResults[measureAgg.String()]
+				if exist {
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						MeasureResult: sr.segStatsResults.measureResults[measureAgg.String()].CVal,
+					}
+				}
+			case utils.Range:
+				metadata, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					_, isRangeStat := metadata.(*structs.RangeStat)
+					if !isRangeStat {
+						return nil, fmt.Errorf("GetRemoteStats: RangeStat not found for range agg %v, qid=%v", measureAgg.String(), sr.qid)
+					}
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						RangeStat: metadata.(*structs.RangeStat),
+					}
+				}
+			case utils.Avg:
+				metadata, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					_, isAvgStat := metadata.(*structs.AvgStat)
+					if !isAvgStat {
+						return nil, fmt.Errorf("GetRemoteStats: AvgStat not found for avg agg %v, qid=%v", measureAgg.String(), sr.qid)
+					}
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						AvgStat: metadata.(*structs.AvgStat),
+					}
+				}
+			case utils.Cardinality, utils.Values:
+				metadata, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					_, isStrSet := metadata.(map[string]struct{})
+					if !isStrSet {
+						return nil, fmt.Errorf("GetRemoteStats: String set not found for agg %v, qid=%v", measureAgg.String(), sr.qid)
+					}
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						StrSet: metadata.(map[string]struct{}),
+					}
+				}
+			case utils.List:
+				metadata, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					_, isStrList := metadata.([]string)
+					if !isStrList {
+						return nil, fmt.Errorf("GetRemoteStats: String list not found for agg %v, qid=%v", measureAgg.String(), sr.qid)
+					}
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						StrList: metadata.([]string),
+					}
+				}
+			}
+		}
+	}
+
+	return remoteStats, nil
+}
+
+func (rs *RemoteStats) RemoteStatsToJSON() (*RemoteStatsJSON, error) {
+	var err error
+
+	remoteStatsJson := &RemoteStatsJSON{
+		EvalStats: rs.EvalStats,
+	}
+
+	remoteStatsJson.SegStats = make([]*structs.SegStatsJSON, len(rs.SegStats))
+	for idx, segStat := range rs.SegStats {
+		if segStat == nil {
+			continue
+		}
+		remoteStatsJson.SegStats[idx], err = segStat.ToJSON()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return remoteStatsJson, nil
+}
+
+func (rj *RemoteStatsJSON) ToRemoteStats() (*RemoteStats, error) {
+	var err error
+	remoteStats := &RemoteStats{
+		EvalStats: rj.EvalStats,
+	}
+	remoteStats.SegStats = make([]*structs.SegStats, len(rj.SegStats))
+	for idx, segStatJSON := range rj.SegStats {
+		if segStatJSON == nil {
+			continue
+		}
+		remoteStats.SegStats[idx], err = segStatJSON.ToStats()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return remoteStats, nil
 }

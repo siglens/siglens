@@ -279,7 +279,6 @@ $(document).ready(function () {
         $('#overview-button').addClass('active');
         displayPanelView(panelIndex);
     });
-
     let ele = $('#available-fields .select-unselect-header');
 
     if (theme === 'light') {
@@ -288,8 +287,19 @@ $(document).ready(function () {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 });
+function checkChartType(currentPanel) {
+    if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
+        $('#visualization-options').addClass('d-flex');
+        $('#visualization-options').show();
+    } else {
+        $('#visualization-options').removeClass('d-flex');
+        $('#visualization-options').hide();
+    }
+}
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
+    queries = {};
+    formulas = {};
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -357,7 +367,7 @@ async function editPanelInit(redirectedFromViewScreen) {
             setDashboardQueryModeHandler(queryMode);
         }
     }
-
+    checkChartType(currentPanel);
     if (currentPanel.chartType != '') selectedChartTypeIndex = mapChartTypeToIndex.get(currentPanel.chartType);
     if (currentPanel.queryType != '') selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get(currentPanel.queryType);
 
@@ -494,6 +504,15 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
+        currentPanel.style = {};
+        //eslint-disable-next-line no-undef
+        currentPanel.style.display = chartType;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.color = selectedTheme;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStroke = selectedStroke;
+        //eslint-disable-next-line no-undef
+        currentPanel.style.lineStyle = selectedLineStyle;
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
@@ -796,6 +815,7 @@ $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     $('.horizontalCaret').css('rotate', '90deg');
     refreshChartMenuOptions();
     runQueryBtnHandler();
+    checkChartType(currentPanel);
 });
 
 $('.colorCircle').on('click', function () {
@@ -1104,7 +1124,7 @@ function goToDashboard() {
         }
     }
     resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-    currentPanel = null;
+    currentPanel = {};
     resetEditPanelScreen();
 
     $('.panelEditor-container').hide();
@@ -1177,6 +1197,22 @@ function resetOptions() {
             return;
         }
     });
+    if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === -1) {
+        //eslint-disable-next-line no-undef
+        toggleLineOptions('Line chart');
+        //eslint-disable-next-line no-undef
+        chartType = 'Line chart';
+        //eslint-disable-next-line no-undef
+        toggleChartType('Line chart');
+        //eslint-disable-next-line no-undef
+        updateChartTheme('Classic');
+        //eslint-disable-next-line no-undef
+        updateLineCharts('Solid', 'Normal');
+        document.getElementById('display-input').value = 'Line chart';
+        document.getElementById('color-input').value = 'Classic';
+        document.getElementById('line-style-input').value = 'Solid';
+        document.getElementById('stroke-input').value = 'Normal';
+    }
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
@@ -1198,6 +1234,7 @@ async function runQueryBtnHandler() {
     delete currentPanel.queryRes;
     resetEditPanel();
     panelGridDiv = null;
+    panelLogsRowData = [];
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();

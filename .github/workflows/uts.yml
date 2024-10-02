@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Check goimports
         run: |
-          go install golang.org/x/tools/cmd/goimports@latest
+          go install golang.org/x/tools/cmd/goimports@v0.17.0
           export PATH=$PATH:$(go env GOPATH)/bin
           if [[ -n $(goimports -d .) ]]; then
             echo "Go code is not formatted with goimports"
@@ -45,8 +45,7 @@ jobs:
         with:
           working-directory: ./
           version: v1.59.1
-          skip-pkg-cache: true
-          skip-build-cache: true
+          skip-cache: false
   ESLint:
     runs-on: ubuntu-latest
     name: ESLint JS Files

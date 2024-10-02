@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/logql"
@@ -31,7 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -39,26 +40,30 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, error) {
+func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, []string, error) {
 	var err error
 	var queryAggs *QueryAggregators
 	var boolNode *ASTNode
-	boolNode, queryAggs, err = ParseQuery(searchText, qid, queryLanguageType)
+	var parsedIndexNames []string
+	boolNode, queryAggs, parsedIndexNames, err = ParseQuery(searchText, qid, queryLanguageType)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, []string{}, err
+	}
+	if len(parsedIndexNames) > 0 {
+		indexName = strings.Join(parsedIndexNames, ",") // indexName is passed as a comma separated string
 	}
 
 	if boolNode == nil && queryAggs == nil {
 		err := fmt.Errorf("qid=%d, ParseRequest: boolNode and queryAggs are nil for searchText: %v", qid, searchText)
 		log.Errorf(err.Error())
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
 
 	if boolNode.TimeRange == nil {
 		tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
 		if err != nil {
 			log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
-			return nil, nil, err
+			return nil, nil, []string{}, err
 		}
 		boolNode.TimeRange = tRange
 	}
@@ -71,7 +76,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			queryAggs.EarlyExit = false
 			queryAggs.Sort = nil
 			if len(queryAggs.GroupByRequest.GroupByColumns) == 1 && queryAggs.GroupByRequest.GroupByColumns[0] == "*" {
-				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
+				queryAggs.GroupByRequest.GroupByColumns = segmetadata.GetAllColNames([]string{indexName})
 			}
 			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
@@ -80,7 +85,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
 					if err != nil {
 						log.Errorf("qid=%d, ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
-						return nil, nil, err
+						return nil, nil, []string{}, err
 					}
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
 					queryAggs.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
@@ -106,27 +111,28 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 
 	segment.LogASTNode(queryLanguageType+"query parser", boolNode, qid)
 	segment.LogQueryAggsNode(queryLanguageType+"aggs parser", queryAggs, qid)
-	return boolNode, queryAggs, nil
+	return boolNode, queryAggs, parsedIndexNames, nil
 }
 
-func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNode, *QueryAggregators, error) {
+func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNode, *QueryAggregators, []string, error) {
 
 	var boolNode *ASTNode
 	var aggNode *QueryAggregators
 	var err error
 
+	parsedIndexNames := []string{}
 	if queryLanguageType == "SQL" {
 		boolNode, aggNode, _, err = sql.ConvertToASTNodeSQL(searchText, qid)
 	} else {
-		boolNode, aggNode, err = parsePipeSearch(searchText, queryLanguageType, qid)
+		boolNode, aggNode, parsedIndexNames, err = parsePipeSearch(searchText, queryLanguageType, qid)
 	}
 
 	if err != nil {
 		log.Errorf("qid=%d, ParseQuery: ConvertToASTNodeSQL/parsePipeSearch error: %v", qid, err)
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
 
-	return boolNode, aggNode, nil
+	return boolNode, aggNode, parsedIndexNames, nil
 }
 
 func createMatchAll(qid uint64) *ASTNode {
@@ -150,13 +156,13 @@ func updatePositionForGenEvents(aggs *QueryAggregators) {
 	}
 }
 
-func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, error) {
+func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, []string, error) {
 	var leafNode *ASTNode
 	var res interface{}
 	var err error
 	if searchText == "*" || searchText == "" {
 		leafNode = createMatchAll(qid)
-		return leafNode, nil, nil
+		return leafNode, nil, []string{}, nil
 	}
 
 	forceCaseSensitive := true
@@ -176,7 +182,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: Error while parsing searchText: %v in queryLanguage: %v, err: %v, parse error: %v", qid, searchText, queryLanguage, err, getParseError(err))
-		return nil, nil, getParseError(err)
+		return nil, nil, []string{}, getParseError(err)
 	}
 
 	result, err := json.MarshalIndent(res, "", "   ")
@@ -188,7 +194,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	queryStruct, ok := res.(ast.QueryStruct)
 	if !ok {
-		return nil, nil, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+		return nil, nil, []string{}, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
 	}
 
 	searchNode := queryStruct.SearchFilter
@@ -203,22 +209,22 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	err = SearchQueryToASTnode(searchNode, boolNode, qid, forceCaseSensitive)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
 
 	if aggs == nil {
-		return boolNode, nil, nil
+		return boolNode, nil, queryStruct.IndexNames, nil
 	}
 
 	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
 
 	updatePositionForGenEvents(pipeCommands)
 
-	return boolNode, pipeCommands, nil
+	return boolNode, pipeCommands, queryStruct.IndexNames, nil
 }
 
 func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {

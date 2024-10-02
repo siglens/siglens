@@ -23,7 +23,6 @@ const newDashboard = $('.new-dashboard');
 const existingDashboard = $('.existing-dashboard');
 let newDashboardFlag = true;
 let dashboardID;
-let isMetricsScreen;
 
 $(document).ready(function () {
     existingDashboard.hide();
@@ -80,6 +79,7 @@ $(document).ready(function () {
     });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
+        //eslint-disable-next-line no-undef
         isMetricsScreen = true;
     }
 });
@@ -128,6 +128,7 @@ function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
     var timeRange;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         if (panelMetricsQueryParams.queriesData?.[0]?.start != undefined) {
@@ -171,7 +172,17 @@ function createPanelToNewDashboard() {
                         description: inputdbdescription,
                         timeRange: timeRange,
                         refresh: refresh,
-                        panels: [panelCreatedFromLogs],
+                        panels: [
+                            {
+                                ...panelCreatedFromLogs,
+                                style: {
+                                    display: panelCreatedFromLogs.style?.display || 'Line chart',
+                                    color: panelCreatedFromLogs.style?.color || 'Classic',
+                                    lineStyle: panelCreatedFromLogs.style?.lineStyle || 'Solid',
+                                    lineStroke: panelCreatedFromLogs.style?.lineStroke || 'Normal',
+                                },
+                            },
+                        ],
                     },
                 };
                 updateDashboard(dashboard);
@@ -273,14 +284,20 @@ function selectDashboardHandler() {
 }
 
 function handlePanelPosition(existingDashboard, newPanel) {
-    const maxY = existingDashboard.panels.reduce((max, panel) => {
-        return Math.max(max, panel.gridpos.y + panel.gridpos.h);
-    }, 0);
-    const maxX = existingDashboard.panels.reduce((max, panel) => {
-        return Math.max(max, panel.gridpos.x + panel.gridpos.w);
-    });
-    newPanel.gridpos.y = maxY + 20;
-    newPanel.gridpos.x = maxX + 20;
+    if (!existingDashboard.panels || existingDashboard.panels.length === 0) {
+        // If there are no existing panels
+        newPanel.gridpos.x = '0';
+        newPanel.gridpos.y = '0';
+    } else {
+        const maxY = existingDashboard.panels.reduce((max, panel) => {
+            return Math.max(max, panel.gridpos.y + panel.gridpos.h);
+        }, 0);
+        const maxX = existingDashboard.panels.reduce((max, panel) => {
+            return Math.max(max, panel.gridpos.x + panel.gridpos.w);
+        });
+        newPanel.gridpos.y = maxY + 20;
+        newPanel.gridpos.x = maxX + 20;
+    }
     existingDashboard.panels.push(newPanel);
     return existingDashboard;
 }
@@ -304,6 +321,7 @@ function updateDashboard(dashboard) {
 function createPanel(panelIndex, startEpoch) {
     let panelId = uuidv4();
     let panel;
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         let panelMetricsQueryParams = getMetricsQData();
         panelMetricsQueryParams.start = startEpoch;
@@ -321,6 +339,16 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
+            style: {
+                //eslint-disable-next-line no-undef
+                display: chartType,
+                //eslint-disable-next-line no-undef
+                color: selectedTheme,
+                //eslint-disable-next-line no-undef
+                lineStyle: selectedLineStyle,
+                //eslint-disable-next-line no-undef
+                lineStroke: selectedStroke,
+            },
         };
     } else {
         panel = {

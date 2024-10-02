@@ -25,8 +25,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -200,10 +200,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
+	hasStatsAggregator := aggs.IsStatsAggPresentInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 
-	consistentCValLenPerSeg := metadata.GetSMIConsistentColValueLen(segmap)
+	consistentCValLenPerSeg := segmetadata.GetSMIConsistentColValueLen(segmap)
 
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		var recs map[string]map[string]interface{}
@@ -230,7 +231,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 		nodeRes.ColumnsOrder = colsIndexMap
 
-		if hasQueryAggergatorBlock || transactionArgsExist {
+		if hasQueryAggergatorBlock || transactionArgsExist || hasStatsAggregator {
 
 			numTotalSegments, _, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
@@ -253,7 +254,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				if err != nil {
 					nodeRes.AllSearchColumnsByTimeRange = make(map[string]bool, 0)
 				}
-				nodeRes.AllSearchColumnsByTimeRange = metadata.GetColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
+				nodeRes.AllSearchColumnsByTimeRange = segmetadata.GetColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
 				unrotatedCols := writer.GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
 				for col := range unrotatedCols {
 					if _, exists := nodeRes.AllSearchColumnsByTimeRange[col]; !exists {
@@ -428,7 +429,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	}
 
 	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+	log.Debugf("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
 
 	return finalRecords, colsSlice, nil
 }

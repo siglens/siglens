@@ -189,9 +189,17 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		fName := fName
 		currFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 		if err != nil {
-			log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for columns %s. Error: %v.",
-				qid, fName, colName, err)
-			continue
+			// This segment may have been recently rotated; try reading the
+			// rotated segment file.
+			rotatedFName := writer.GetRotatedVersion(fName)
+			var rotatedErr error
+			currFd, rotatedErr = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
+			if rotatedErr != nil {
+				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
+					" Error: %v. Also failed to open rotated file %s with error: %v",
+					qid, fName, colName, err, rotatedFName, rotatedErr)
+				continue
+			}
 		}
 		sharedReader.allFDs[colName] = currFd
 		allInUseSegSetFiles = append(allInUseSegSetFiles, fName)
@@ -261,7 +269,7 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 		}
 		retVal := make([]byte, 9)
 		copy(retVal[0:], utils.VALTYPE_ENC_UINT64[:])
-		copy(retVal[1:], toputils.Uint64ToBytesLittleEndian(ts))
+		toputils.Uint64ToBytesLittleEndianInplace(ts, retVal[1:])
 		return retVal, nil
 	}
 

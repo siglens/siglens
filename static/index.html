@@ -136,7 +136,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div id = "custom-code-tab" class="custom-code-tab">
                 <div class="query-builder-container">
-                    <div class="d-flex justify-content-end">
+                    <div class="d-flex justify-content-end logcontainer">
+                        <button class="format-icon" id="formatInput">Format</button>
                         <ul class="tab-list">
                             <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
                             <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
@@ -295,6 +296,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                     </div>
                     <div id="views-container">
+                        <label id="hide-null-column-box">
+                            <input type="checkbox" id="hide-null-columns-checkbox" checked="" class="active">Hide Null Columns
+                        </label>
                         <div class="btn-group" role="group" id="log-view">
                             <button class="btn log-opt-single-btn" id="log-opt-single-btn">
                                 <span class="single-line-icon" ></span>
@@ -321,6 +325,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     Select/Unselect All
                                     <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
                                 </div>
+                                <div class="column-count-header">Column Count: <span class="column-count"></span></div>
                                 <div class="fields"></div>
                             </div>
                         </div>

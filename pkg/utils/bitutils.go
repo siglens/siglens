@@ -147,6 +147,14 @@ func Int64ToBytesLittleEndianInplace(signedval int64, buf []byte) {
 	buf[7] = byte(signedval >> 56)
 }
 
+/*
+This function converts the uint64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Uint64ToBytesLittleEndianInplace(val uint64, buf []byte) {
+	Int64ToBytesLittleEndianInplace(int64(val), buf)
+}
+
 func BytesToInt64LittleEndian(bytes []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(bytes))
 }
@@ -242,4 +250,61 @@ func BytesToLowerInPlace(b []byte) []byte {
 		}
 	}
 	return b
+}
+
+// Checks if there is an upper case letter
+func HasUpper(b []byte) bool {
+	for _, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+// This function converts the bytes to lower case using the passed in bug
+func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
+
+	blen := len(b)
+
+	if len(workBuf) < blen {
+		return nil, fmt.Errorf("BytesToLower: passed in workbuf len was smaller than b")
+	}
+
+	for i := 0; i < blen; i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			workBuf[i] = b[i] + 32
+		} else {
+			workBuf[i] = b[i]
+		}
+	}
+	return workBuf[:blen], nil
+}
+
+// This function converts int32 to bytes in place
+func Int32ToBytesLittleEndianInplace(val int32, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
+}
+
+// This function converts uint32 to bytes in place
+func Uint32ToBytesLittleEndianInplace(val uint32, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
+}
+
+// This function converts int16 to bytes in place
+func Int16ToBytesLittleEndianInplace(val int16, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+}
+
+// This function converts uint16 to bytes in place
+func Uint16ToBytesLittleEndianInplace(val uint16, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
 }

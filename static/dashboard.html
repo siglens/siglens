@@ -54,7 +54,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
     
     
-    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
+    <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/gridstack.all.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -538,6 +538,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                              <button id="add-formula" class="btn"><span class="plus-icon">+</span> Add Formula</button>
                                          </div>
                                      </div>
+                                     <div id="visualization-options" class="mb-3 mt-3">
+                                        <div>Display: <input id="display-input" type="text" value="Line chart"></div>
+                                        <div>Color: <input id="color-input" type="text" value="Classic"></div>
+                                        <div id="line-style-div">Style: <input id="line-style-input" type="text" value="Solid"></div>
+                                        <div id="stroke-div">Stroke: <input id="stroke-input" type="text" value="Normal"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

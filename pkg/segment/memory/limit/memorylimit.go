@@ -24,7 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/memory"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -66,13 +66,13 @@ func InitMemoryLimiter() {
 		SegSearchRequestedBytes: maxSearchAvailableSize,
 
 		SegWriterUsageBytes:       0,
-		SegStoreSummary:           metadata.GlobalSegStoreSummary,
+		SegStoreSummary:           segmetadata.GlobalSegStoreSummary,
 		SsmInMemoryAllocatedBytes: maxSsmInMemory,
 
 		MetricsSegmentMaxSize: metricsInMemory,
 	}
 
-	metadata.InitBlockMetaCheckLimiter(int64(maxBlockMicroRuntime))
+	segmetadata.InitBlockMetaCheckLimiter(int64(maxBlockMicroRuntime))
 	go rebalanceMemoryAllocationLoop()
 }
 
@@ -146,7 +146,7 @@ func rebalanceMemoryAllocation() {
 	}
 
 	totalSsmMemory := uint64(float64(memoryAvailable) * utils.SSM_MEM_PERCENT / 100)
-	metadata.RebalanceInMemorySsm(totalSsmMemory)
+	segmetadata.RebalanceInMemorySsm(totalSsmMemory)
 
 	if memory.GlobalMemoryTracker.SegSearchRequestedBytes > memoryAvailable {
 		memoryAvailable = 0
@@ -168,7 +168,7 @@ func rebalanceMemoryAllocation() {
 		blockMetadataMemory = totalMetadataMemory - unrotatedMetadataMemory
 	}
 
-	metadata.RebalanceInMemoryCmi(blockMetadataMemory)
+	segmetadata.RebalanceInMemoryCmi(blockMetadataMemory)
 	memory.GlobalMemoryTracker.CmiInMemoryAllocatedBytes = blockMetadataMemory
 	memory.GlobalMemoryTracker.SegWriterUsageBytes = rawWriterSize
 }

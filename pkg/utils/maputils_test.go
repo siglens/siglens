@@ -45,6 +45,22 @@ func Test_MapToSet(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func Test_SetToMap(t *testing.T) {
+	set := map[string]struct{}{}
+	assert.Equal(t, 0, len(SetToMap(set, 1)))
+
+	set["key1"] = struct{}{}
+	set["key2"] = struct{}{}
+	set["key3"] = struct{}{}
+
+	m := SetToMap(set, true)
+	assert.Equal(t, 3, len(m))
+
+	assert.Equal(t, true, m["key1"])
+	assert.Equal(t, true, m["key2"])
+	assert.Equal(t, true, m["key3"])
+}
+
 func Test_ConvertToSetFromMap(t *testing.T) {
 	set := make(map[string]struct{})
 	sourceMap := map[string]int{
@@ -189,4 +205,65 @@ func Test_RemoveEntriesFromMap(t *testing.T) {
 
 	RemoveEntriesFromMap(map2, []string{"key2", "key3"})
 	assert.Equal(t, 0, len(map2))
+}
+
+func Test_GetKeysOfMap(t *testing.T) {
+	map1 := map[string]int{
+		"z": 1,
+		"a": 2,
+		"b": 3,
+	}
+
+	keys := GetKeysOfMap(map1)
+
+	assert.Equal(t, 3, len(keys))
+	assert.ElementsMatch(t, []string{"z", "a", "b"}, keys)
+
+	delete(map1, "a")
+	keys = GetKeysOfMap(map1)
+
+	assert.Equal(t, 2, len(keys))
+	assert.ElementsMatch(t, []string{"z", "b"}, keys)
+
+	map2 := map[int]string{
+		1: "abc",
+		2: "def",
+		3: "ghi",
+		4: "jkl",
+	}
+
+	keys2 := GetKeysOfMap(map2)
+	assert.Equal(t, 4, len(keys2))
+	assert.ElementsMatch(t, []int{1, 2, 3, 4}, keys2)
+
+	delete(map2, 3)
+	keys2 = GetKeysOfMap(map2)
+	assert.Equal(t, 3, len(keys2))
+	assert.ElementsMatch(t, []int{1, 2, 4}, keys2)
+
+	for _, key := range keys2 {
+		delete(map2, key)
+	}
+
+	keys2 = GetKeysOfMap(map2)
+	assert.Equal(t, 0, len(keys2))
+}
+
+func Test_GetSortedStringKeys(t *testing.T) {
+	map1 := map[string]bool{
+		"key1": false,
+		"key3": true,
+		"key2": false,
+	}
+	expected := []string{"key1", "key2", "key3"}
+	assert.Equal(t, expected, GetSortedStringKeys(map1))
+
+	map2 := map[string]struct{}{
+		"def": {},
+		"abc": {},
+		"ghi": {},
+	}
+
+	expected = []string{"abc", "def", "ghi"}
+	assert.Equal(t, expected, GetSortedStringKeys(map2))
 }

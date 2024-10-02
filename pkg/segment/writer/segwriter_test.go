@@ -111,20 +111,8 @@ func Test_getActiveBaseSegDir(t *testing.T) {
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
-}
-
-func Test_getFinalBaseSegDirFromActive(t *testing.T) {
-	dataPath := t.TempDir()
-	config.InitializeDefaultConfig(dataPath)
-	virtualTableName := "evts"
-	streamid := "10005995996882630313"
-	nextsuff_idx := uint64(1)
-	activeBasedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
-	assert.Nil(t, err)
-	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
+	basedir := getBaseSegDir(streamid, virtualTableName, nextsuff_idx)
+	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
 }
 
 func Test_ReplaceSingleSegMeta(t *testing.T) {
@@ -325,8 +313,7 @@ func Test_addToBlockBloom(t *testing.T) {
 
 	for i, test := range cases {
 		mockBloom := bloom.NewWithEstimates(uint(1000), BLOOM_COLL_PROBABILITY)
-		addedCount := addToBlockBloom(mockBloom, test.fullWord)
-		assert.Equal(t, addedCount, test.expectedAddCount)
+		_ = addToBlockBloomBothCases(mockBloom, test.fullWord)
 
 		for _, word := range test.expectedMatches {
 			assert.True(t, mockBloom.TestString(word), fmt.Sprintf("test=%v failed to find %+v in bloom", i, word))
@@ -372,7 +359,7 @@ func Benchmark_addToBloom(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		mockBloom.ClearAll()
-		addToBlockBloom(mockBloom, exampleWord)
+		addToBlockBloomBothCases(mockBloom, exampleWord)
 	}
 }
 

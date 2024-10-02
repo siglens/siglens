@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 )
 
 // If there are duplicate keys, values from the second map will overwrite those
@@ -45,6 +46,16 @@ func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	}
 
 	return set
+}
+
+func SetToMap[K comparable, V any](s map[K]struct{}, defaultVal V) map[K]V {
+	m := make(map[K]V, len(s))
+
+	for key := range s {
+		m[key] = defaultVal
+	}
+
+	return m
 }
 
 // Appends the Second map to the First Map. If there are duplicate keys, the value from the first map will be retained.
@@ -120,4 +131,23 @@ func IntersectionWithFirstMapValues[K comparable, V1 any, V2 any](map1 map[K]V1,
 	}
 
 	return intersection
+}
+
+func GetKeysOfMap[K comparable, T any](map1 map[K]T) []K {
+	keys := make([]K, 0, len(map1))
+	for k := range map1 {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
+func GetSortedStringKeys[T any](map1 map[string]T) []string {
+	keys := make([]string, 0)
+	for key := range map1 {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	return keys
 }

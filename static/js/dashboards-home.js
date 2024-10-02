@@ -253,7 +253,15 @@ class btnRenderer {
                                 details: {
                                     name: duplicatedDBName,
                                     description: duplicatedDescription,
-                                    panels: duplicatedPanels,
+                                    panels: duplicatedPanels.map((panel) => ({
+                                        ...panel,
+                                        style: {
+                                            display: panel.style?.display || 'Line chart',
+                                            color: panel.style?.color || 'Classic',
+                                            lineStyle: panel.style?.lineStyle || 'Solid',
+                                            lineStroke: panel.style?.lineStroke || 'Normal',
+                                        },
+                                    })),
                                     timeRange: duplicateTimeRange,
                                     refresh: duplicateRefresh,
                                 },
@@ -525,7 +533,7 @@ $(document).ready(async function () {
     displayDashboards(allDBs);
 
     $('#create-db-btn').click(createDashboard);
-    $('#run-search').click(searchDB);
+    $('.search-db-input').on('input', searchDB);
     $('.search-db-input').on('keyup', displayOriginalDashboards);
 
     let stDate = 'now-1h';

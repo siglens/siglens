@@ -39,8 +39,7 @@ const (
 	RAW SearchTypeEnum = iota
 	PQS
 	STREE
-	GRPC_ROTATED
-	GRPC_UNROTATED
+	REMOTE
 )
 
 type QueryType int
@@ -116,8 +115,7 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 	allQuerySummaries[RAW] = rawSearchTypeSummary
 	allQuerySummaries[PQS] = pqsSearchTypeSummary
 	allQuerySummaries[STREE] = agileTreeSearchTypeSummary
-	allQuerySummaries[GRPC_ROTATED] = &searchTypeSummary{}
-	allQuerySummaries[GRPC_UNROTATED] = &searchTypeSummary{}
+	allQuerySummaries[REMOTE] = &searchTypeSummary{}
 
 	qs := &QuerySummary{
 		queryType:           queryType,
@@ -588,12 +586,9 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	if qs.totalDistributedQueries > 0 {
 		log.Warnf("qid=%d, pqid %v, QuerySummary: Distributed: Sent %d requests numRemoteMatched: %v, numRecsSearced: %v",
 			qs.qid, pqid, qs.totalDistributedQueries, qs.remoteRecordsMatched, qs.remoteRecordsSearched)
-		log.Warnf("qid=%d, pqid %v, QuerySummary: Unrotated.GRPC Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
-			qs.qid, pqid, qs.getMinSearchTime(GRPC_UNROTATED), qs.getMaxSearchTime(GRPC_UNROTATED),
-			qs.getPercentileTime(95, GRPC_UNROTATED), qs.getNumFilesSearched(GRPC_UNROTATED))
-		log.Warnf("qid=%d, pqid %v, QuerySummary: Rotated.GRPC Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
-			qs.qid, pqid, qs.getMinSearchTime(GRPC_ROTATED), qs.getMaxSearchTime(GRPC_ROTATED),
-			qs.getPercentileTime(95, GRPC_ROTATED), qs.getNumFilesSearched(GRPC_ROTATED))
+		log.Warnf("qid=%d, pqid %v, QuerySummary: Remote Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
+			qs.qid, pqid, qs.getMinSearchTime(REMOTE), qs.getMaxSearchTime(REMOTE),
+			qs.getPercentileTime(95, REMOTE), qs.getNumFilesSearched(REMOTE))
 	}
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)

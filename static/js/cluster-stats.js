@@ -478,17 +478,23 @@ function processClusterStats(res) {
             _.forEach(value, (v, k) => {
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
-                if (k === 'Average Latency') {
+
+                let formattedValue;
+                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
                     const numericPart = parseFloat(v);
                     const avgLatency = Math.round(numericPart);
-                    tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
-                } else tr.append('<td class="health-stats-value">' + v.toLocaleString() + '</td>');
+                    formattedValue = avgLatency.toLocaleString() + ' ms';
+                } else {
+                    const numericValue = parseInt(v, 10);
+                    formattedValue = numericValue.toLocaleString();
+                }
+                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
                 table.find('tbody').append(tr);
             });
         }
     });
 
-    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', ''];
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', ''];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
     let traceColumnOrder = ['Index Name', 'Incoming Volume', 'Span Count', 'Segment Count'];
 
@@ -541,42 +547,80 @@ function processClusterStats(res) {
     let indexDataTable = $('#index-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: indexDataTableColumns,
+        autoWidth: false,
+        columnDefs: [
+            { targets: 0, width: '20%' }, // Index Name
+            { targets: 1, width: '15%', className: 'dt-head-right dt-body-right' }, // Incoming Volume
+            { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' }, // Event Count
+            { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' }, // Segment Count
+            { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
+            { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
+        ],
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: metricsDataTableColumns,
+        columnDefs: [{ targets: [1, 2], className: 'dt-head-right dt-body-right' }],
     });
 
     let traceDataTable = $('#trace-data-table').DataTable({
         ...commonDataTablesConfig,
         columns: tracesDataTableColumns,
+        columnDefs: [
+            { targets: 0, width: '20%' },
+            { targets: [1, 2, 3], width: '20%', className: 'dt-head-right dt-body-right' },
+        ],
     });
 
+    function formatIngestVolume(volume) {
+        let volumeGB;
+    
+        if (typeof volume === 'string') {
+            // Remove " GB" if it's in the string
+            volumeGB = parseFloat(volume.replace(" GB", ""));
+        } else if (typeof volume === 'number') {
+            volumeGB = volume;
+        } else {
+            // Handle unexpected input types
+            console.error("Unexpected volume type:", typeof volume);
+            return "N/A";
+        }
+    
+        if (isNaN(volumeGB)) {
+            console.error("Invalid volume value:", volume);
+            return "N/A";
+        }
+        
+        if (volumeGB === 0) {
+            return '0 GB';
+        } else if (volumeGB < 1) {
+            return '< 1 GB';
+        } else {
+            return `${Math.round(volumeGB).toLocaleString('en-US')} GB`;
+        }
+    }
+    
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
         let totalLogSegmentCount = 0;
         let totalTraceSegmentCount = 0;
-        let totalValRow = [];
-        totalValRow[0] = `Total`;
-        totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
-        totalValRow[2] = `${totalEventCount.toLocaleString()}`;
+        let totalValRow = ['Total', '', '', '', '', ''];
         indexDataTable.row.add(totalValRow);
         if (res.indexStats && res.indexStats.length > 0) {
-            res.indexStats.map((item) => {
+            res.indexStats.forEach((item) => {
                 _.forEach(item, (v, k) => {
                     let currRow = [];
                     currRow[0] = k;
-                    let l = parseFloat(v.ingestVolume);
-                    currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString('en-US') : l}`) + '  GB';
-                    currRow[2] = `${v.eventCount}`;
-                    currRow[3] = `${v.segmentCount}`;
-                    currRow[4] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
+                    currRow[1] = formatIngestVolume(v.ingestVolume);
+                    currRow[2] = v.eventCount;
+                    currRow[3] = v.segmentCount;
+                    currRow[4] = v.columnCount;
+                    currRow[5] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`;
 
-                    totalIngestVolume += parseFloat(`${v.ingestVolume}`);
-                    totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',', ''));
-                    totalLogSegmentCount += parseInt(`${v.segmentCount}`.replaceAll(',', ''));
+                    totalEventCount += parseInt(v.eventCount.replaceAll(',', ''));
+                    totalLogSegmentCount += parseInt(v.segmentCount.replaceAll(',', ''));
 
                     indexDataTable.row.add(currRow);
                 });
@@ -586,36 +630,36 @@ function processClusterStats(res) {
         if (res.metricsStats) {
             let currRow = [];
             currRow[0] = `metrics`;
-            let q = parseFloat(res.metricsStats['Incoming Volume']);
-            currRow[1] = Number(q >= 10 ? q.toFixed() : q).toLocaleString('en-US') + '  GB';
-            currRow[2] = `${res.metricsStats['Datapoints Count']}`;
+            currRow[1] = formatIngestVolume(res.metricsStats['Incoming Volume']);
+            currRow[2] = res.metricsStats['Datapoints Count'];
             metricsDataTable.row.add(currRow);
         }
 
         let totalValRowTrace = [];
         totalValRowTrace[0] = `Total`;
-        totalValRowTrace[1] = res.traceStats['Total Trace Volume'];
+        totalValRowTrace[1] = formatIngestVolume(res.traceStats['Total Trace Volume']);
         totalValRowTrace[2] = res.traceStats['Trace Span Count'];
         traceDataTable.row.add(totalValRowTrace);
         if (res.traceIndexStats && res.traceIndexStats.length > 0) {
-            res.traceIndexStats.map((item) => {
+            res.traceIndexStats.forEach((item) => {
                 _.forEach(item, (v, k) => {
                     let currRow = [];
                     currRow[0] = k;
-                    let l = parseFloat(v.traceVolume);
-                    currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString('en-US') : l}`) + '  GB';
-                    currRow[2] = `${v.traceSpanCount}`;
-                    currRow[3] = `${v.segmentCount}`;
+                    currRow[1] = formatIngestVolume(v.traceVolume);
+                    currRow[2] = v.traceSpanCount;
+                    currRow[3] = v.segmentCount;
                     totalTraceSegmentCount += parseInt(v.segmentCount);
                     traceDataTable.row.add(currRow);
                 });
             });
         }
-        totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString(); 
-        totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats['Log Incoming Volume']}`) * 1000) / 1000;
-        totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString('en-US') : totalIngestVolume}`)} GB`;
-        totalValRow[2] = `${totalEventCount.toLocaleString()}`;
-        totalValRow[3] = `${totalLogSegmentCount.toLocaleString()}`;
+        totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
+        
+        totalIngestVolume = res.ingestionStats['Log Incoming Volume'];
+        totalValRow[1] = formatIngestVolume(res.ingestionStats['Log Incoming Volume']);
+        totalValRow[2] = totalEventCount.toLocaleString();
+        totalValRow[3] = totalLogSegmentCount.toLocaleString();
+        totalValRow[4] = res.ingestionStats['Column Count'].toLocaleString();
         indexDataTable.draw();
         metricsDataTable.draw();
         traceDataTable.draw();

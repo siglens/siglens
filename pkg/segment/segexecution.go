@@ -54,8 +54,12 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 
 func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQuery, queryOps []structs.QueryArithmetic, timeRange *dtu.MetricsTimeRange, qid uint64, opLabelsDoNotNeedToMatch bool) *mresults.MetricsResult {
 	resMap := make(map[uint64]*mresults.MetricsResult)
+	multiSeriesResultCount := 0
 	for index, mQuery := range mQueries {
-		if _, ok := resMap[hashList[index]]; ok {
+		if res, ok := resMap[hashList[index]]; ok {
+			if len(res.Results) > 1 {
+				multiSeriesResultCount++
+			}
 			continue
 		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
@@ -75,6 +79,15 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		if len(mQueries) == 1 && len(queryOps) == 0 {
 			return res
 		}
+		if len(res.Results) > 1 {
+			multiSeriesResultCount++
+		}
+	}
+
+	if multiSeriesResultCount > 1 {
+		// If there are more than one result in the resMap, that have multiple series,
+		// then we need to perform operations only on the series that have matching labels.
+		opLabelsDoNotNeedToMatch = false
 	}
 
 	return ProcessQueryArithmeticAndLogical(queryOps, resMap, opLabelsDoNotNeedToMatch)
@@ -172,6 +185,7 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 }
 
 func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, *float64, error) {
+
 	finalResult := make(map[string]map[uint32]float64)
 
 	resultLHS, leftOk := resMap[queryOp.LHS]
@@ -336,7 +350,6 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 					matchingLabelValTorightGroupID[matchingLabelValStr] = rGroupId
 				}
 			}
-
 		}
 
 		labelStrSet := make(map[string]struct{})
@@ -424,6 +437,12 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 
 	if err != nil {
 		log.Errorf("qid=%d, ExecuteQuery: failed to get number of RRCs for qid! Error: %v", qid, err)
+	}
+
+	// TODO: Merge returned columns with the local response
+	res.RemoteLogs, _, err = query.GetAllRemoteLogs(res.AllRecords, qid)
+	if err != nil {
+		log.Errorf("qid=%d, ExecuteQuery: failed to get remote logs for qid! Error: %v", qid, err)
 	}
 
 	query.DeleteQuery(qid)

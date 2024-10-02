@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bits-and-blooms/bitset"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
@@ -186,8 +185,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 
 	deCount := uint16(100)
 
-	hashToDci := make(map[uint64]*writer.DwordCbufIdxs)
-	deRecNums := make([]*bitset.BitSet, 100)
+	deMap := make(map[string][]uint16)
 
 	recCounts := uint16(100)
 
@@ -210,7 +208,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		cval := fmt.Sprintf("mycval-%v", dwIdx)
 		cvalBytes := make([]byte, 3+len(cval))
 		cvalBytes[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
-		copy(cvalBytes[1:], utils.Uint16ToBytesLittleEndian(uint16(len(cval))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cval)), cvalBytes[1:])
 		copy(cvalBytes[3:], cval)
 
 		cvTlvLen := uint32(len(cvalBytes))
@@ -218,21 +216,16 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		copy(tempWipCbuf[wipIdx:], cvalBytes)
 		wipIdx += cvTlvLen
 
-		newBs := bitset.New(uint(recCounts))
+		arr := make([]uint16, recCounts/deCount)
+		deMap[string(cvalBytes)] = arr
 
 		for rn := uint16(0); rn < recCounts/deCount; rn++ {
-			newBs.Set(uint(recNum + rn))
+			arr[rn] = recNum + rn
 		}
-		cvalHash := xxhash.Sum64(cvalBytes)
-
-		dci := writer.CreateDci(wipIdx-cvTlvLen, uint16(cvTlvLen), dwIdx)
-		hashToDci[cvalHash] = dci
-		deRecNums[dwIdx] = newBs
-
 		recNum += recCounts / deCount
 	}
 	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
-	colWip.SetDeDataForTest(deCount, hashToDci, deRecNums)
+	colWip.SetDeDataForTest(deCount, deMap)
 
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()
@@ -259,7 +252,7 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 	encodeString := func(s string) []byte {
 		encoding := make([]byte, 3+len(s))
 		encoding[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
-		copy(encoding[1:2], utils.Uint16ToBytesLittleEndian(uint16(len(s))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(s)), encoding[1:3])
 		copy(encoding[3:], []byte(s))
 
 		return encoding

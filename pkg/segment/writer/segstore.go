@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -39,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -74,6 +75,7 @@ type SegStore struct {
 	segbaseDir            string
 	suffix                uint64
 	lastUpdated           time.Time
+	lastWipFlushTime      time.Time
 	VirtualTableName      string
 	RecordCount           int
 	AllSeenColumnSizes    map[string]uint32 // Map of Column to Column Value size. The value is a positive int if the size is consistent across records and -1 if it is not.
@@ -133,6 +135,7 @@ func NewSegStore(orgId uint64) *SegStore {
 		LastSegPqids:       make(map[string]struct{}),
 		timeCreated:        now,
 		lastUpdated:        now,
+		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		firstTime:          true,
@@ -210,11 +213,8 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
 
-			for cvalHash := range cwip.deData.hashToDci {
-				delete(cwip.deData.hashToDci, cvalHash)
-			}
-			for idx := range cwip.deData.deRecNums {
-				cwip.deData.deRecNums[idx] = nil
+			for dword := range cwip.deData.deMap {
+				delete(cwip.deData.deMap, dword)
 			}
 			cwip.deData.deCount = 0
 		}
@@ -222,8 +222,6 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
 		bi.uniqueWordCount = 0
-		blockBloomElementCount := getBlockBloomSize(bi)
-		bi.Bf = bloom.NewWithEstimates(uint(blockBloomElementCount), utils.BLOOM_COLL_PROBABILITY)
 	}
 
 	for k := range segstore.wipBlock.columnRangeIndexes {
@@ -233,6 +231,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
 	segstore.wipBlock.blockSummary.RecCount = 0
+	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
 	for col := range segstore.wipBlock.columnsInBlock {
@@ -274,7 +273,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	}
 	segstore.suffix = nextSuffix
 
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextSuffix)
+	basedir := getBaseSegDir(streamid, virtualTableName, nextSuffix)
 	err = os.MkdirAll(basedir, 0764)
 	if err != nil {
 		log.Errorf("resetSegStore : Could not mkdir basedir=%v,  %v", basedir, err)
@@ -397,7 +396,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
-				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(intVal))
+				toputils.Int64ToBytesLittleEndianInplace(intVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
 				continue
@@ -408,7 +407,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
-				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
+				toputils.Float64ToBytesLittleEndianInplace(floatVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
 				continue
@@ -474,7 +473,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -483,7 +482,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
@@ -503,7 +502,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			newColWip.WriteSingleString(stringVal)
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.
@@ -580,6 +579,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						encType = utils.ZSTD_DICTIONARY_BLOCK
 					} else {
 						encType = utils.ZSTD_COMLUNAR_BLOCK
+					}
+
+					if !isKibana {
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
+						if err != nil {
+							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
+							return
+						}
 					}
 
 					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
@@ -679,39 +686,38 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
-	workingDirectory, err := os.Getwd()
+
+	pqFname := filepath.Join(segKey, "pqmr", pqid+".pqmr")
+	err := os.Remove(pqFname)
 	if err != nil {
-		log.Errorf("Error fetching current workingDirectory")
+		log.Errorf("removePqmrFilesAndDirectory:Cannot delete file: %v,  err: %v", pqFname, err)
 		return err
 	}
-	pqFname := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
-	err = os.Remove(pqFname)
-	if err != nil {
-		log.Errorf("Cannot delete file at %v", err)
-		return err
-	}
-	pqmrDirectory := workingDirectory + "/" + fmt.Sprintf("%v/pqmr/", segKey)
+	pqmrDirectory := filepath.Join(segKey, "pqmr") + string(filepath.Separator)
 	files, err := os.ReadDir(pqmrDirectory)
 	if err != nil {
-		log.Errorf("Cannot PQMR directory at %v", pqmrDirectory)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot PQMR directory: %v, err: %v",
+			pqmrDirectory, err)
 		return err
 	}
 	if len(files) == 0 {
 		err := os.Remove(pqmrDirectory)
 		if err != nil {
-			log.Errorf("Error deleting Pqmr directory at %v", pqmrDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr directory: %v, err: %v",
+				pqmrDirectory, err)
 			return err
 		}
-		pqmrParentDirectory := workingDirectory + "/" + fmt.Sprintf("%v/", segKey)
+		pqmrParentDirectory := filepath.Join(segKey) + string(filepath.Separator)
 		files, err = os.ReadDir(pqmrParentDirectory)
 		if err != nil {
-			log.Errorf("Cannot PQMR parent directory at %v", pqmrParentDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Cannot read Pqmr parent: %v, err: %v",
+				pqmrParentDirectory, err)
 			return err
 		}
 		if len(files) == 0 {
 			err := os.Remove(pqmrParentDirectory)
 			if err != nil {
-				log.Errorf("Error deleting Pqmr directory at %v", pqmrParentDirectory)
+				log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr parent: %v, err: %v", pqmrParentDirectory, err)
 				return err
 			}
 		}
@@ -755,26 +761,17 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.stbHolder = nil
 		}
 
-		activeBasedir := segstore.segbaseDir
-		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to get finalBasedir from activeBasedir=%v; err=%v", activeBasedir, err)
-			return err
-		}
-
-		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix)
-
-		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v",
+		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
-			finalSegmentKey, segstore.OrgId)
+			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		// make sure the parent dir of final exists, the two path calls are because getFinal.. func
-		// returns a '/' at the end
-		err = os.MkdirAll(path.Dir(path.Dir(finalBasedir)), 0764)
+		err := toputils.WriteValidityFile(segstore.SegmentKey)
 		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to mkdir finalBasedir=%v; err=%v", finalBasedir, err)
+			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
+				segstore.SegmentKey, err)
 			return err
 		}
+
 		// delete pqmr files if empty and add to empty PQS
 		for pqid, hasMatchedAnyRecordInWip := range segstore.pqNonEmptyResults {
 			if !hasMatchedAnyRecordInWip {
@@ -788,14 +785,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		// move the whole dir in one shot
-		err = os.Rename(activeBasedir, finalBasedir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to mv active to final, err=%v", err)
-			return err
-		}
 		// Upload segment files to s3
-		filesToUpload := fileutils.GetAllFilesInDirectory(finalBasedir)
+		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
 
 		err = blob.UploadSegmentFiles(filesToUpload)
 		if err != nil {
@@ -807,9 +798,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			allPqids[pqid] = true
 		}
 
-		var segmeta = structs.SegMeta{SegmentKey: finalSegmentKey, EarliestEpochMS: segstore.earliest_millis,
+		var segmeta = structs.SegMeta{SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
 			LatestEpochMS: segstore.latest_millis, VirtualTableName: segstore.VirtualTableName,
-			RecordCount: segstore.RecordCount, SegbaseDir: finalBasedir,
+			RecordCount: segstore.RecordCount, SegbaseDir: segstore.segbaseDir,
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
@@ -817,11 +808,12 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {
-				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", finalSegmentKey, err)
+				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", segstore.SegmentKey, err)
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, finalSegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
+		metadata.AddSegMetaToMetadata(&segmeta)
 
 		// upload ingest node dir to s3
 		err = blob.UploadIngestNodeDir()
@@ -829,7 +821,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, !forceRotate)
+		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
@@ -838,17 +830,19 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	return nil
 }
 
-func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore bool) error {
+func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {
 	removeSegKeyFromUnrotatedInfo(segstore.SegmentKey)
 
-	err := os.RemoveAll(segstore.segbaseDir)
-	if err != nil {
-		log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
-		return err
+	if removeDir {
+		err := os.RemoveAll(segstore.segbaseDir)
+		if err != nil {
+			log.Errorf("CleanupUnrotatedSegment: failed to remove segbaseDir=%v; err=%v", segstore.segbaseDir, err)
+			return err
+		}
 	}
 
 	if resetSegstore {
-		err = segstore.resetSegStore(streamId, segstore.VirtualTableName)
+		err := segstore.resetSegStore(streamId, segstore.VirtualTableName)
 		if err != nil {
 			return err
 		}
@@ -857,21 +851,25 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, resetSegstore 
 	return nil
 }
 
-func (segstore *SegStore) isAnyAtreeColAboveCardLimit() (string, bool, uint64) {
+func (segstore *SegStore) getColsAboveCardLimit() map[string]uint64 {
+
+	colsToDrop := make(map[string]uint64)
 
 	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
 		_, ok := segstore.AllSst[cname]
 		if !ok {
 			// if we can't find the column then drop this col from atree
-			return cname, true, 0
+			colsToDrop[cname] = 0
+			continue
 		}
 
 		colCardinalityEstimate := segstore.AllSst[cname].GetHllCardinality()
 		if colCardinalityEstimate > uint64(wipCardLimit) {
-			return cname, true, colCardinalityEstimate
+			colsToDrop[cname] = colCardinalityEstimate
 		}
 	}
-	return "", false, 0
+
+	return colsToDrop
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
@@ -964,17 +962,26 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	if segstore.numBlocks != 0 {
-		cname, found, cardinality := segstore.isAnyAtreeColAboveCardLimit()
-		if found {
-			// todo when we implement dropping of columns from atree,
-			// drop the column here and remove the dropping of segtree
-			log.Errorf("computeStarTree: Release STB, found cname: %v with high card: %v, blockNum: %v",
-				cname, cardinality, segstore.numBlocks)
-
+		colsToDrop := segstore.getColsAboveCardLimit()
+		if len(segstore.stbHolder.stbPtr.groupByKeys)-len(colsToDrop) <= 0 {
+			log.Warnf("computeStarTree: Dropping SegTree All remaining cols found with high cardinality: %v, blockNum: %v",
+				colsToDrop, segstore.numBlocks)
 			segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
 			segstore.stbHolder.ReleaseSTB()
 			segstore.stbHolder = nil
 			return
+		}
+		if len(colsToDrop) > 0 {
+			log.Warnf("computeStarTree: Dropping cols with high cardinality: %v, blockNum: %v", colsToDrop, segstore.numBlocks)
+			colsToDropSlice := toputils.GetKeysOfMap(colsToDrop)
+			err := segstore.stbHolder.stbPtr.DropColumns(colsToDropSlice)
+			if err != nil {
+				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
+				segstore.stbHolder.stbPtr.DropSegTree(segstore.stbDictEncWorkBuf)
+				segstore.stbHolder.ReleaseSTB()
+				segstore.stbHolder = nil
+				return
+			}
 		}
 	}
 
@@ -1134,12 +1141,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 	bytesWritten += uint32(bloomSize)
 
-	err = bffd.Sync()
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to sync bloom fname=%v, err=%v", fname, err)
-		return 0
-	}
-
 	// write the correct bloom size
 	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
 	if err != nil {
@@ -1279,7 +1280,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	// store TS_TYPE and lowTs for reconstruction needs
 	copy(tsWip.cbuf[tsWip.cbufidx:], []byte{uint8(tsType)})
 	tsWip.cbufidx += 1
-	copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(lowTs))
+	toputils.Uint64ToBytesLittleEndianInplace(lowTs, tsWip.cbuf[tsWip.cbufidx:])
 	tsWip.cbufidx += 8
 
 	switch tsType {
@@ -1294,21 +1295,21 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint16
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint16(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint16ToBytesLittleEndian(tsVal))
+			toputils.Uint16ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 2
 		}
 	case structs.TS_Type32:
 		var tsVal uint32
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint32(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint32ToBytesLittleEndian(tsVal))
+			toputils.Uint32ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 4
 		}
 	case structs.TS_Type64:
 		var tsVal uint64
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = wipBlock.blockTs[i] - lowTs
-			copy(tsWip.cbuf[tsWip.cbufidx:], toputils.Uint64ToBytesLittleEndian(tsVal))
+			toputils.Uint64ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
 			tsWip.cbufidx += 8
 		}
 	}
@@ -1433,7 +1434,7 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 /*
 Encoding Scheme for all columns single file
 
-[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 2B] [ColSegEncoding xB]....
+[Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 4B] [ColSegEncoding xB]....
 */
 func (ss *SegStore) FlushSegStats() error {
 
@@ -1469,7 +1470,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write([]byte{1})
+	_, err = fd.Write(utils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1498,7 +1499,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(idx))
+		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
@@ -1517,15 +1518,15 @@ func (ss *SegStore) FlushSegStats() error {
 
 /*
 Encoding Schema for SegStats Single Column Data
-[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 2B] [HLL_Data xB]
+[Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
 [N_type 1B] [Min 8B] [N_type 1B] [Max 8B] [N_type 1B] [Sum 8B]
 */
-func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
+func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
-	idx := uint16(0)
+	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS)
+	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF)
 	idx++
 
 	// isNumeric
@@ -1533,17 +1534,17 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	idx++
 
 	// Count
-	copy(buf[idx:], toputils.Uint64ToBytesLittleEndian(sst.Count))
+	toputils.Uint64ToBytesLittleEndianInplace(sst.Count, buf[idx:])
 	idx += 8
 
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	copy(buf[idx:], toputils.Uint16ToBytesLittleEndian(uint16(hllDataSize)))
-	idx += 2
+	toputils.Uint32ToBytesLittleEndianInplace(uint32(hllDataSize), buf[idx:])
+	idx += 4
 
 	// HLL_Data
-	hllDataSliceFullCap := buf[idx : idx+uint16(hllDataSize)]
+	hllDataSliceFullCap := buf[idx : idx+uint32(hllDataSize)]
 
 	// Ensures that the slice has a full capacity where len(slice) == cap(slice).
 	// This is necessary because we're using the slice to get the HLL bytes in place,
@@ -1558,10 +1559,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		copy(buf[idx-2:idx], toputils.Uint16ToBytesLittleEndian(uint16(hllByteSliceLen)))
+		toputils.Uint32ToBytesLittleEndianInplace(uint32(hllByteSliceLen), buf[idx-4:idx])
 	}
 	copy(buf[idx:], hllByteSlice)
-	idx += uint16(hllByteSliceLen)
+	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 		return idx, nil // dont write numeric stuff if this column is not numeric
@@ -1573,9 +1574,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 
 	// Min
 	if sst.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Min.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Min.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Min.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Min.IntgrVal, buf[idx:])
 	}
 	idx += 8
 
@@ -1585,9 +1586,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 
 	// Max
 	if sst.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Max.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Max.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Max.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Max.IntgrVal, buf[idx:])
 	}
 	idx += 8
 
@@ -1597,9 +1598,9 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint16, error) {
 
 	// Sum
 	if sst.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-		copy(buf[idx:], toputils.Float64ToBytesLittleEndian(sst.NumStats.Sum.FloatVal))
+		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
 	} else {
-		copy(buf[idx:], toputils.Int64ToBytesLittleEndian(sst.NumStats.Sum.IntgrVal))
+		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
 	}
 	idx += 8
 

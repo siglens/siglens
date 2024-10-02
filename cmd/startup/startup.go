@@ -45,6 +45,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
+
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
 	queryserver "github.com/siglens/siglens/pkg/server/query"
@@ -114,6 +116,8 @@ func Main() {
 		log.Errorf("Error initializing derived configurations! %v", err)
 		os.Exit(1)
 	}
+
+	checkAndMigrateSiglensDB()
 
 	serverCfg := *config.GetRunningConfig() // Init the Configuration
 	var logOut string
@@ -195,17 +199,26 @@ func Main() {
 	}
 }
 
+func checkAndMigrateSiglensDB() {
+	_, err := os.Stat("siglens.db")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Errorf("Error checking siglens.db file: %v", err)
+		return
+	}
+	newLocation := config.GetDataPath() + "siglens.db"
+	err = os.Rename("siglens.db", newLocation)
+	if err != nil {
+		log.Errorf("Error moving siglens.db to new location: %v", err)
+	}
+}
+
 // Licenses should be checked outside of this function
 func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) error {
 	if nodeID == "" {
 		return fmt.Errorf("nodeID cannot be empty")
-	}
-
-	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
-		err := hook(nodeID)
-		if err != nil {
-			return err
-		}
 	}
 
 	err := alertsHandler.ConnectSiglensDB()
@@ -258,21 +271,18 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		return err
 	}
 
+	querytracker.InitQT()
+	fileutils.InitLogFiles()
+
 	siglensStartupLog := fmt.Sprintf("----- Siglens server type %s starting up ----- \n", nodeType)
 	if config.GetLogPrefix() != "" {
 		StdOutLogger.Infof(siglensStartupLog)
 	}
 	log.Infof(siglensStartupLog)
-	if queryNode {
-		err := usq.InitUsq()
-		if err != nil {
-			log.Errorf("error in init UserSavedQueries: %v", err)
-			return err
-		}
 
-		err = dashboards.InitDashboards()
+	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
+		err := hook(nodeID)
 		if err != nil {
-			log.Errorf("error in init Dashboards: %v", err)
 			return err
 		}
 	}
@@ -285,16 +295,20 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	}
 
 	instrumentation.InitMetrics()
-	querytracker.InitQT()
 
-	fileutils.InitLogFiles()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
+	go entryHandler.MonitorDiskUsage()
 
 	return nil
 }
 
 func ShutdownSiglensServer() {
+
+	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
+		hook()
+	}
+
 	// force write unsaved data to segfile and flush bloom, range, updates to meta
 	writer.ForcedFlushToSegfile()
 	metrics.ForceFlushMetricsBlock()
@@ -365,7 +379,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.0.1"
+					return "0.2.42d"
 				},
 			})
 			textTemplate := texttemplate.New("other")
