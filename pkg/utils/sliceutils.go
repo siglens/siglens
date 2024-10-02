@@ -19,6 +19,7 @@ package utils
 
 import (
 	"reflect"
+	"sort"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -106,7 +107,9 @@ func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K]
 // based on some property of each item. This is a util do to that.
 //
 // The output order is the same as the input order.
-func BatchProcess[T any, K comparable, R any](slice []T, batchProperty func(T) K, operation func([]T) []R) []R {
+func BatchProcess[T any, K comparable, R any](slice []T, batchProperty func(T) K,
+	batchKeyLess Option[func(K, K) bool], operation func([]T) []R) []R {
+
 	type orderedItems[T any] struct {
 		items []T
 		order []int
@@ -130,12 +133,62 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchProperty func(T) K
 		batch.order = append(batch.order, i)
 	}
 
+	batchKeys := GetKeysOfMap(batches)
+	if less, ok := batchKeyLess.Get(); ok {
+		sort.Slice(batchKeys, func(i, k int) bool {
+			return less(batchKeys[i], batchKeys[k])
+		})
+	}
+
 	results := make([]R, len(slice))
-	for _, batch := range batches {
+	for _, key := range batchKeys {
+		batch := batches[key]
 		batchResults := operation(batch.items)
 		for i, result := range batchResults {
 			results[batch.order[i]] = result
 		}
+	}
+
+	return results
+}
+
+type sortable[T any] struct {
+	items []T
+	order []int
+	less  func(T, T) bool
+}
+
+func newSortable[T any](items []T, less func(T, T) bool) sortable[T] {
+	order := make([]int, len(items))
+	for i := range items {
+		order[i] = i
+	}
+
+	return sortable[T]{items, order, less}
+}
+
+func (s sortable[T]) Len() int {
+	return len(s.items)
+}
+
+func (s sortable[T]) Less(i, j int) bool {
+	return s.less(s.items[i], s.items[j])
+}
+
+func (s sortable[T]) Swap(i, j int) {
+	s.items[i], s.items[j] = s.items[j], s.items[i]
+	s.order[i], s.order[j] = s.order[j], s.order[i]
+}
+
+func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool, operation func([]T) []R) []R {
+	sortableItems := newSortable(slice, less)
+	sort.Sort(sortableItems)
+	sortedResults := operation(sortableItems.items)
+
+	// Now unsort to get the original order.
+	results := make([]R, len(slice))
+	for i, result := range sortedResults {
+		results[sortableItems.order[i]] = result
 	}
 
 	return results
