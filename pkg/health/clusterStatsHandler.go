@@ -164,7 +164,7 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 
 		nextVal := make(map[string]map[string]interface{})
 		nextVal[index] = make(map[string]interface{})
-		nextVal[index][volumeField] = (float64(indexStats.NumBytesIngested))
+		nextVal[index][volumeField] = float64(indexStats.NumBytesIngested)
 		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
 		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
 		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
