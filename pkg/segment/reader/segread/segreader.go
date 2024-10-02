@@ -20,6 +20,7 @@ package segread
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -75,7 +76,7 @@ type SegmentFileReader struct {
 	deTlv              [][]byte // deTlv[dWordIdx] --> []byte (the TLV byte slice)
 	deRecToTlv         []uint16 // deRecToTlv[recNum] --> dWordIdx
 	blockSummaries     []*structs.BlockSummary
-	someBlksAbsent     bool // this is used for not log some errors
+	someBlksAbsent     bool // this is used to not log some errors
 }
 
 // returns a new SegmentFileReader and any errors encountered
@@ -257,7 +258,7 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 		}
 		// we don't log an error, but we are returning err so that, the caller does not
 		// get stuck an loop
-		return errors.New("no more records to iterate")
+		return io.EOF
 	}
 	sfr.currOffset = nextOff
 	currRecLen, err := sfr.getCurrentRecordLength()

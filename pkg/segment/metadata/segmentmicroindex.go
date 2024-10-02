@@ -42,7 +42,7 @@ const INITIAL_NUM_BLOCKS = 1000
 
 // Top level segment metadata for access of cmis/search metadata
 type SegmentMicroIndex struct {
-	smilock *sync.RWMutex
+	smiLock *sync.RWMutex
 	structs.SegMeta
 	SegmentMicroIndices
 	SegmentSearchMetadata
@@ -80,7 +80,7 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta, loadSsm bool) *SegmentM
 
 	sm := &SegmentMicroIndex{
 		SegMeta: *segMetaInfo,
-		smilock: &sync.RWMutex{},
+		smiLock: &sync.RWMutex{},
 	}
 	sm.loadedMicroIndices = false
 	sm.loadedSearchMetadata = false
@@ -117,18 +117,18 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 }
 
 func (smi *SegmentMicroIndex) clearSearchMetadata() {
-	smi.smilock.Lock()
+	smi.smiLock.Lock()
 	smi.BlockSearchInfo = nil
 	smi.BlockSummaries = nil
 	smi.loadedSearchMetadata = false
-	smi.smilock.Unlock()
+	smi.smiLock.Unlock()
 }
 
 func (smi *SegmentMicroIndex) clearMicroIndices() {
-	smi.smilock.Lock()
+	smi.smiLock.Lock()
 	smi.blockCmis = nil
 	smi.loadedMicroIndices = false
-	smi.smilock.Unlock()
+	smi.smiLock.Unlock()
 }
 
 // Returns all columnar cmis for a given block or any errors encountered
@@ -159,8 +159,8 @@ func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname str
 }
 
 func (sm *SegmentMicroIndex) loadSearchMetadata(rbuf []byte) ([]byte, error) {
-	sm.smilock.Lock()
-	defer sm.smilock.Unlock()
+	sm.smiLock.Lock()
+	defer sm.smiLock.Unlock()
 
 	if sm.loadedSearchMetadata {
 		return rbuf, nil
@@ -190,8 +190,8 @@ func (sm *SegmentMicroIndex) ReadBlockSummaries(rbuf []byte) ([]byte, []*structs
 
 func (sm *SegmentMicroIndex) loadMicroIndices(blocksToLoad map[uint16]map[string]bool, allBlocks bool, colsToCheck map[string]bool, wildcardCol bool) error {
 
-	sm.smilock.Lock()
-	defer sm.smilock.Unlock()
+	sm.smiLock.Lock()
+	defer sm.smiLock.Unlock()
 
 	var allCols map[string]bool
 	if wildcardCol {
@@ -331,8 +331,7 @@ func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, int64, error) {
 
 	smi, exists := getMicroIndex(segkey)
 	if !exists {
-		log.Errorf("qid=%d, Seg  %+v does not exist in block meta, but existed in time filtering", qid, segkey)
-		return nil, 0, fmt.Errorf("seg file %+v does not exist in block meta, but existed in time filtering", segkey)
+		return nil, 0, toputils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
 	}
 
 	totalRequestedMemory := int64(0)
@@ -341,13 +340,13 @@ func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, int64, error) {
 		totalRequestedMemory += currSearchMetaSize
 		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(currSearchMetaSize, 10, segkey)
 		if err != nil {
-			log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
-			return nil, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
+			return nil, 0,
+				toputils.TeeErrorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
 		}
 		_, err = smi.loadSearchMetadata([]byte{})
 		if err != nil {
-			log.Errorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
-			return nil, 0, fmt.Errorf("failed to acquire memory from global pool for search! Error: %v", err)
+			return nil, 0,
+				toputils.TeeErrorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
 		}
 	}
 
@@ -359,8 +358,8 @@ func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
 	colsToCheck map[string]bool, wildcardCol bool,
 	qid uint64) (bool, error) {
 
-	smi.smilock.Lock()
-	defer smi.smilock.Unlock()
+	smi.smiLock.Lock()
+	defer smi.smiLock.Unlock()
 
 	err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(smi.MicroIndexSize),
 		10, segkey)
@@ -403,11 +402,11 @@ func (smi *SegmentMicroIndex) ClearSearchTimeData() {
 }
 
 func (smi *SegmentMicroIndex) RLockSmi() {
-	smi.smilock.RLock()
+	smi.smiLock.RLock()
 }
 
 func (smi *SegmentMicroIndex) RUnlockSmi() {
-	smi.smilock.RUnlock()
+	smi.smiLock.RUnlock()
 }
 
 func ReleaseCmiMemory(memSize int64) {
@@ -421,8 +420,8 @@ func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHo
 		return nil, nil, errors.New("GetSearchInfoAndSummary:failed to find segkey in all block micro")
 	}
 
-	smi.smilock.RLock()
-	defer smi.smilock.RUnlock()
+	smi.smiLock.RLock()
+	defer smi.smiLock.RUnlock()
 
 	if smi.isSearchMetadataLoaded() {
 		return smi.BlockSearchInfo, smi.BlockSummaries, nil

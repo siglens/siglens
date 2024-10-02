@@ -28,6 +28,9 @@ import (
 
 func Test_initMockMetadata(t *testing.T) {
 
+	t.Cleanup(func() { os.RemoveAll("data/") })
+
+
 	fileCount := 3
 	createMockMetaStore("data/", fileCount)
 	assert.Len(t, GetAllSegmentMicroIndexForTest(), fileCount)
@@ -47,7 +50,7 @@ func Test_initMockMetadata(t *testing.T) {
 	assert.True(t, isTableSorted, "slice is sorted with most recent at the front")
 
 	for i, rawCMI := range tableSorted {
-		assert.Equal(t, rawCMI, GetAllSegmentMicroIndexForTest()[i], "bc only one table exists, these sorted slices should point to the same structs")
+		assert.Equal(t, rawCMI, GetAllSegmentMicroIndexForTest()[i], "because only one table exists, these sorted slices should point to the same structs")
 	}
 	for _, rawCMI := range GetAllSegmentMicroIndexForTest() {
 		assert.Contains(t, GetSegmentMetadataReverseIndexForTest(), rawCMI.SegmentKey, "all segkeys in allSegmentMicroIndex exist in revserse index")
@@ -59,9 +62,4 @@ func Test_initMockMetadata(t *testing.T) {
 	assert.Len(t, GetSegmentMetadataReverseIndexForTest(), fileCount)
 	assert.Contains(t, GetTableSortedMetadataForTest(), "evts")
 	assert.Len(t, GetTableSortedMetadataForTest()["evts"], fileCount)
-
-	err := os.RemoveAll("data/")
-	if err != nil {
-		log.Fatal(err)
-	}
 }

@@ -104,6 +104,9 @@ func testBlockRebalance(t *testing.T, fileCount int) {
 }
 
 func Test_RebalanceMetadata(t *testing.T) {
+
+	t.Cleanup(func() { os.RemoveAll("data/") })
+
 	_ = localstorage.InitLocalStorage()
 	ResetGlobalMetadataForTest()
 
@@ -118,11 +121,6 @@ func Test_RebalanceMetadata(t *testing.T) {
 	}
 
 	testBlockRebalance(t, fileCount)
-
-	err := os.RemoveAll("data/")
-	if err != nil {
-		assert.FailNow(t, "failed to remove data %+v", err)
-	}
 }
 
 func createMockMetaStore(dir string, segcount int) {

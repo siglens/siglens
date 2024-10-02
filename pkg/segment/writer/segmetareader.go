@@ -29,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const ONE_MB = 1024 * 1024
+const ONE_MiB = 1024 * 1024
 
 var SegmetaSuffix = "segmeta.json"
 
@@ -150,8 +150,8 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 	}
 	defer fd.Close()
 	scanner := bufio.NewScanner(fd)
-	buf := make([]byte, ONE_MB)
-	scanner.Buffer(buf, ONE_MB)
+	buf := make([]byte, ONE_MiB)
+	scanner.Buffer(buf, ONE_MiB)
 
 	for scanner.Scan() {
 		rawbytes := scanner.Bytes()
