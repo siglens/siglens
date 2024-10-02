@@ -37,6 +37,41 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func ReadColForRRCs(rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
+	switch cname {
+	case config.GetTimeStampKey():
+		return readTimestampForRRCs(rrcs)
+	case "_index":
+		return readIndexForRRCs(rrcs)
+	default:
+		return nil, nil // TODO
+	}
+}
+
+func readTimestampForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+	result := make([]utils.CValueEnclosure, len(rrcs))
+	for i, rrc := range rrcs {
+		result[i] = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_UNSIGNED_NUM,
+			CVal:  rrc.TimeStamp,
+		}
+	}
+
+	return result, nil
+}
+
+func readIndexForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+	result := make([]utils.CValueEnclosure, len(rrcs))
+	for i, rrc := range rrcs {
+		result[i] = utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING,
+			CVal:  rrc.VirtualTableName,
+		}
+	}
+
+	return result, nil
+}
+
 // returns a map of record identifiers to record maps, and all columns seen
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
