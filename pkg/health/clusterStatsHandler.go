@@ -88,16 +88,16 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats = make(map[string]interface{})
 	httpResp.TraceStats = make(map[string]interface{})
 
-	httpResp.IngestionStats["Log Incoming Volume"] = convertBytesToGB(logsIncomingBytes)
-	httpResp.IngestionStats["Incoming Volume"] = convertBytesToGB(logsIncomingBytes + float64(metricsIncomingBytes))
+	httpResp.IngestionStats["Log Incoming Volume"] = logsIncomingBytes
+	httpResp.IngestionStats["Incoming Volume"] = logsIncomingBytes + float64(metricsIncomingBytes)
 
-	httpResp.IngestionStats["Metrics Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
+	httpResp.IngestionStats["Metrics Incoming Volume"] = float64(metricsIncomingBytes)
 
 	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsEventCount))
 	httpResp.IngestionStats["Column Count"] = humanize.Comma(int64(logsColumnCount))
 
-	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
-	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
+	httpResp.IngestionStats["Log Storage Used"] = logsOnDiskBytes
+	httpResp.IngestionStats["Metrics Storage Used"] = float64(metricsOnDiskBytes + metricsInMemBytes)
 	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSavedPercentage(logsIncomingBytes, logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSavedPercentage(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
 
@@ -105,7 +105,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		hook(httpResp.IngestionStats)
 	}
 
-	httpResp.MetricsStats["Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
+	httpResp.MetricsStats["Incoming Volume"] = float64(metricsIncomingBytes)
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
 	httpResp.QueryStats["Query Count Since Restart"] = queryCount
@@ -123,8 +123,8 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		httpResp.QueryStats["Average Query Latency (since restart)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart, 3)) + " ms"
 	}
 	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
-	httpResp.TraceStats["Total Trace Volume"] = convertBytesToGB(float64(totalTraceBytes))
-	httpResp.TraceStats["Trace Storage Used"] = convertBytesToGB(float64(totalTraceOnDiskBytes))
+	httpResp.TraceStats["Total Trace Volume"] = float64(totalTraceBytes)
+	httpResp.TraceStats["Trace Storage Used"] = float64(totalTraceOnDiskBytes)
 	httpResp.TraceStats["Trace Storage Saved"] = calculateStorageSavedPercentage(float64(totalTraceBytes), float64(totalTraceOnDiskBytes))
 
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
@@ -163,7 +163,7 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 
 		nextVal := make(map[string]map[string]interface{})
 		nextVal[index] = make(map[string]interface{})
-		nextVal[index][volumeField] = convertBytesToGB(float64(indexStats.NumBytesIngested))
+		nextVal[index][volumeField] = (float64(indexStats.NumBytesIngested))
 		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
 		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
 		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
@@ -418,12 +418,6 @@ func GetIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIn
 
 func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, isTraceRelatedIndex, allSegMetas)
-}
-
-func convertBytesToGB(bytes float64) string {
-	convertedGB := bytes / 1_000_000_000
-	finalStr := fmt.Sprintf("%.3f", convertedGB) + " GB"
-	return finalStr
 }
 
 func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {

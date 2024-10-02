@@ -556,11 +556,11 @@ function processClusterStats(res) {
             { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
             { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
         ],
-        infoCallback: function(settings, start, end, max, total, pre) {
+        infoCallback: function (settings, start, end, max, total, pre) {
             let api = this.api();
             let pageInfo = api.page.info();
             let totalRows = pageInfo.recordsDisplay;
-            let adjustedTotal = totalRows - 1 ;
+            let adjustedTotal = totalRows - 1;
             // Adjust start and end for display
             let adjustedStart = start;
             let adjustedEnd = end;
@@ -571,21 +571,19 @@ function processClusterStats(res) {
                 adjustedStart = start - 1;
             }
             adjustedEnd = Math.min(end - 1, adjustedTotal);
-            
-            return 'Showing ' + (adjustedStart + 1) + ' to ' + adjustedEnd + ' of ' + adjustedTotal + ' entries' +
-                   (pageInfo.recordsTotal !== totalRows ? ' (filtered from ' + 
-                   (hasTotalRow ? pageInfo.recordsTotal - 1 : pageInfo.recordsTotal) + ' total entries)' : '');
+
+            return 'Showing ' + (adjustedStart + 1) + ' to ' + adjustedEnd + ' of ' + adjustedTotal + ' entries' + (pageInfo.recordsTotal !== totalRows ? ' (filtered from ' + (hasTotalRow ? pageInfo.recordsTotal - 1 : pageInfo.recordsTotal) + ' total entries)' : '');
         },
-        drawCallback: function(settings) {
+        drawCallback: function (settings) {
             let api = this.api();
-            let totalRow = api.row(function(idx, data, node) {
+            let totalRow = api.row(function (idx, data, node) {
                 return data[0] === 'Total';
             });
-            
+
             if (totalRow.any()) {
                 $(totalRow.node()).detach().prependTo(api.table().body());
             }
-        }
+        },
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({
@@ -603,26 +601,21 @@ function processClusterStats(res) {
         ],
     });
 
-    function formatIngestVolume(volume) {
-        let volumeGB;
-    
-        if (typeof volume === 'string') {
-            // Remove " GB" if it's in the string
-            volumeGB = parseFloat(volume.replace(" GB", ""));
-        } else if (typeof volume === 'number') {
-            volumeGB = volume;
-        } else {
-            // Handle unexpected input types
-            console.error("Unexpected volume type:", typeof volume);
-            return "N/A";
+    function formatIngestVolume(volumeBytes) {
+        if (typeof volumeBytes !== 'number') {
+            console.error('Unexpected volume type:', typeof volumeBytes);
+            return 'N/A';
         }
-    
-        if (isNaN(volumeGB)) {
-            console.error("Invalid volume value:", volume);
-            return "N/A";
+
+        if (isNaN(volumeBytes)) {
+            console.error('Invalid volume value:', volumeBytes);
+            return 'N/A';
         }
-        
-        if (volumeGB === 0) {
+
+        const bytesInGB = 1024 * 1024 * 1024;
+        const volumeGB = volumeBytes / bytesInGB;
+
+        if (volumeBytes === 0) {
             return '0 GB';
         } else if (volumeGB < 1) {
             return '< 1 GB';
@@ -630,7 +623,7 @@ function processClusterStats(res) {
             return `${Math.round(volumeGB).toLocaleString('en-US')} GB`;
         }
     }
-    
+
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
@@ -684,7 +677,7 @@ function processClusterStats(res) {
             });
         }
         totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
-        
+
         totalIngestVolume = res.ingestionStats['Log Incoming Volume'];
         totalValRow[1] = formatIngestVolume(res.ingestionStats['Log Incoming Volume']);
         totalValRow[2] = totalEventCount.toLocaleString();
