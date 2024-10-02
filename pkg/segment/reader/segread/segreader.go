@@ -347,12 +347,14 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			//  3 => 1 for 'T' and 2 for 'L' of string
 			idx += uint32(3 + toputils.BytesToUint16LittleEndian(buf[idx+1:idx+3]))
+		case utils.VALTYPE_ENC_BOOL[0]:
+			idx += 2 // 1 for T and 1 for Boolean value
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			idx += 9 // 1 for T and 8 bytes for 'L' int64
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
-			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str", buf[idx])
+			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
 		}
 
 		sfr.deTlv[w] = buf[soffW:idx]
@@ -426,6 +428,8 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 		}
 		if dWord[0] == utils.VALTYPE_ENC_SMALL_STRING[0] {
 			results[rn][sfr.ColName] = string(dWord[3:])
+		} else if dWord[0] == utils.VALTYPE_ENC_BOOL[0] {
+			results[rn][sfr.ColName] = toputils.BytesToBoolLittleEndian(dWord[1:])
 		} else if dWord[0] == utils.VALTYPE_ENC_INT64[0] {
 			results[rn][sfr.ColName] = toputils.BytesToInt64LittleEndian(dWord[1:])
 		} else if dWord[0] == utils.VALTYPE_ENC_FLOAT64[0] {
@@ -433,7 +437,7 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
-			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64")
+			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
 			return false
 		}
 	}
