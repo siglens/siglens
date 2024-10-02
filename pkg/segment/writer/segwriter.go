@@ -356,6 +356,23 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
+		case VALTYPE_ENC_BOOL[0]:
+			startIdx := colWip.cbufidx
+			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][0:1])
+			colWip.cbufidx += 1
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][0:1])
+			colWip.cbufidx += 1
+			boolVal := utils.BytesToBoolLittleEndian(ple.allCvals[i][0:1])
+			var asciiBytesBuf bytes.Buffer
+			_, err := fmt.Fprintf(&asciiBytesBuf, "%v", boolVal)
+			if err != nil {
+				return false, err
+			}
+			addSegStatsBool(segstats, cname, asciiBytesBuf.Bytes())
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+			}
+			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
 			ri, ok := colRis[cname]
 			if !ok {
