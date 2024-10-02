@@ -257,7 +257,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 		TimeRange:          tRange,
 	}
 	if err != nil {
-		log.Errorf("Benchmark_LoadMicroIndices: failed to load microindex, err=%v", err)
+		log.Errorf("Benchmark_RRCToJson: failed to load microindex, err=%v", err)
 	}
 	count := 10
 	allTimes := make([]time.Duration, count)
@@ -517,7 +517,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 		TimeRange:          tRange,
 	}
 	if err != nil {
-		log.Errorf("Benchmark_LoadMicroIndices: failed to load microindex, err=%v", err)
+		log.Errorf("Benchmark_E2E_AgileTree: failed to load microindex, err=%v", err)
 	}
 	count := 10
 	allTimes := make([]time.Duration, count)
