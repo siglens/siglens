@@ -574,8 +574,15 @@ func maxWaitWipFlushToFile() {
 	}
 }
 
+func (ss *SegStore) isSegstoreUnusedSinceTime(timeDuration time.Duration) bool {
+	return time.Since(ss.lastUpdated) > timeDuration && ss.RecordCount == 0
+}
+
 func rotateSegmentOnTime() {
 	segRotateDuration := time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
+
+	segStoresToDeleteChan := make(chan string, len(allSegStores))
+
 	allSegStoresLock.RLock()
 	wg := sync.WaitGroup{}
 	for sid, ss := range allSegStores {
@@ -604,9 +611,8 @@ func rotateSegmentOnTime() {
 			} else {
 				// remove unused segstores if its has been twice
 				// the segrotation time since we last updated it
-				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
-					delete(allSegStores, streamid)
+				if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
+					segStoresToDeleteChan <- streamid
 				}
 			}
 			segstore.Lock.Unlock()
@@ -614,6 +620,22 @@ func rotateSegmentOnTime() {
 	}
 	wg.Wait()
 	allSegStoresLock.RUnlock()
+
+	close(segStoresToDeleteChan)
+
+	allSegStoresLock.Lock()
+	for streamid := range segStoresToDeleteChan {
+		segstore, ok := allSegStores[streamid]
+		if !ok {
+			continue
+		}
+		// Check again here to make sure we are not deleting a segstore that was updated
+		if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
+			log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
+			delete(allSegStores, streamid)
+		}
+	}
+	allSegStoresLock.Unlock()
 }
 
 func ForceRotateSegmentsForTest() {
