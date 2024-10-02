@@ -366,7 +366,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			var asciiBytesBuf bytes.Buffer
 			_, err := fmt.Fprintf(&asciiBytesBuf, "%v", boolVal)
 			if err != nil {
-				return false, utils.TeeErrorf("doLogEventFilling: cannot write boolVal %v: %v", boolVal, err)
+				return false, err
 			}
 			addSegStatsBool(segstats, cname, asciiBytesBuf.Bytes())
 			if !ss.skipDe {
