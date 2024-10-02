@@ -3,6 +3,7 @@ module github.com/siglens/siglens
 go 1.19
 
 require (
+	github.com/FastFilter/xorfilter v0.1.4
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/bits-and-blooms/bloom/v3 v3.0.1
 	github.com/brianvoe/gofakeit/v6 v6.21.0
@@ -18,14 +19,17 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.17.4
+	github.com/linvon/cuckoo-filter v0.4.0
 	github.com/lithammer/shortuuid/v4 v4.0.0
 	github.com/nethruster/go-fraction v0.0.0-20221224165113-1b5f693330ad
 	github.com/nqd/flat v0.1.1
 	github.com/oklog/run v1.1.0
+	github.com/panmari/cuckoofilter v1.0.6
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/prometheus/prometheus v0.50.1
 	github.com/rogpeppe/fastuuid v1.2.0
 	github.com/segmentio/analytics-go/v3 v3.2.1
+	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771
 	github.com/shirou/gopsutil/v3 v3.24.1
 	github.com/siglens/go-hll v0.0.0-20240828170019-5e666abc6309
 	github.com/sirupsen/logrus v1.9.3
@@ -53,6 +57,7 @@ require (
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
+	github.com/dgryski/go-metro v0.0.0-20200812162917-85c65e2d0165 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect

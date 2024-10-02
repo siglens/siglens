@@ -96,7 +96,7 @@ func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCo
 			ColumnNames:      allColsSizes,
 			NumBlocks:        uint16(numBlocks),
 		}
-		segMetadata := metadata.InitSegmentMicroIndex(sInfo)
+		segMetadata := metadata.InitSegmentMicroIndex(sInfo, false)
 		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
 	}
 }

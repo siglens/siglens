@@ -11,7 +11,7 @@ test('Settings Page Test', async ({ page }) => {
     // System information table is populated
     const systemInfoTable = page.locator('#system-info-table');
     await expect(systemInfoTable).toBeVisible();
- 
+
     // Check if key system info rows are present
     const expectedRows = ['Operating System', 'vCPUs', 'Memory Usage', 'Disk Usage', 'Process Uptime'];
     for (const row of expectedRows) {

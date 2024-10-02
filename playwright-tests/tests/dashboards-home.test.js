@@ -51,16 +51,12 @@ test.describe('Dashboards Home Page', () => {
 
         const starIcon = page.locator('.ag-center-cols-container .ag-row:first-child .star-icon');
 
-        const initialBackgroundImage = await starIcon.evaluate(el => 
-            window.getComputedStyle(el).backgroundImage
-        );
+        const initialBackgroundImage = await starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
         await starIcon.click();
         await page.waitForTimeout(1000);
-    
-        const newBackgroundImage = await starIcon.evaluate(el => 
-            window.getComputedStyle(el).backgroundImage
-        );
-    
+
+        const newBackgroundImage = await starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
+
         expect(newBackgroundImage).not.toBe(initialBackgroundImage);
     });
 
