@@ -23,7 +23,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -157,9 +156,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// stack-allocated array for allocation-free unescaping of small strings
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
-	// we will accept indexnames only upto 256 bytes
-	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
-
 	allPLEs := make([]*writer.ParsedLogEvent, 0)
 	defer func() {
 		for _, ple := range allPLEs {
@@ -182,8 +178,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			items = append(items, newArr...)
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(line,
-			idxNameParsingBuf)
+		esAction, indexName, idVal := extractIndexAndValidateAction(line)
 
 		switch esAction {
 
@@ -302,8 +297,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte,
-	idxNameParsingBuf []byte) (int, string, string) {
+func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
@@ -316,10 +310,8 @@ func extractIndexAndValidateAction(rawJson []byte,
 		if err != nil || idxDType != jp.String {
 			idxVal = []byte("")
 		}
-		copy(idxNameParsingBuf[:], idxVal[:])
-		idxNameParsingBuf = idxNameParsingBuf[0:len(idxVal)]
 
-		return INDEX, *(*string)(unsafe.Pointer(&idxNameParsingBuf)), idVal
+		return INDEX, string(idxVal), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)
