@@ -634,7 +634,10 @@ func benchmarkBloom(strs [][]byte) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
 	writer := bufio.NewWriter(file)
 
@@ -668,7 +671,10 @@ func benchmarkCuckooLinvon(strs [][]byte) {
 		// Handle error
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
 	writer := bufio.NewWriter(file)
 
@@ -705,7 +711,10 @@ func benchmarkCuckooSeiflotfy(strs [][]byte) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
 	writer := bufio.NewWriter(file)
 
@@ -740,7 +749,10 @@ func benchmarkCuckooPanmari(strs [][]byte) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
 	writer := bufio.NewWriter(file)
 
@@ -757,34 +769,6 @@ func benchmarkCuckooPanmari(strs [][]byte) {
 	}
 }
 
-// // Function to deserialize binaryfuse8 filter from a file
-// func deserializeBinaryFuse8Filter(filename string) (*xorfilter.BinaryFuse8, error) {
-//     file, err := os.Open(filename)
-//     if err != nil {
-//         return nil, err
-//     }
-//     defer file.Close()
-
-//     var filter xorfilter.BinaryFuse8
-//     decoder := gob.NewDecoder(file)
-//     err = decoder.Decode(&filter)
-//     return &filter, err
-// }
-
-// // Function to deserialize xor8 filter from a file
-// func deserializeXor8Filter(filename string) (*xorfilter.Xor8, error) {
-//     file, err := os.Open(filename)
-//     if err != nil {
-//         return nil, err
-//     }
-//     defer file.Close()
-
-//     var filter xorfilter.Xor8
-//     decoder := gob.NewDecoder(file)
-//     err = decoder.Decode(&filter)
-//     return &filter, err
-// }
-
 func benchmarkXorFilter(hashedKeys []uint64) {
 	// Configs: https://github.com/FastFilter/xorfilter
 
@@ -798,7 +782,10 @@ func benchmarkXorFilter(hashedKeys []uint64) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
 	encoder := gob.NewEncoder(file)
 	err = encoder.Encode(xorfilter)
@@ -806,9 +793,19 @@ func benchmarkXorFilter(hashedKeys []uint64) {
 		panic(err)
 	}
 
+	// Refer https://github.com/siglens/siglens/pull/1578 for deserialization of xor/binaryfuse8 filter
 }
 
 func Benchmark_Filters(b *testing.B) {
+	/*
+	   go test -run=Bench -bench=Benchmark_Filters  -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go tool pprof ./rawsearch_cpu
+
+	   (for mem profile)
+	   go test -run=Bench -bench=Benchmark_Filters -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go tool pprof ./rawsearch_mem memprofile.out
+	*/
+
 	N := 10_000_000
 
 	randomStrs := make([][]byte, N)
@@ -823,13 +820,4 @@ func Benchmark_Filters(b *testing.B) {
 	benchmarkCuckooSeiflotfy(randomStrs)
 	benchmarkCuckooPanmari(randomStrs)
 	benchmarkXorFilter(hashedKeys)
-
-	/*
-	   go test -run=Bench -bench=Benchmark_Filters  -cpuprofile cpuprofile.out -o rawsearch_cpu
-	   go tool pprof ./rawsearch_cpu
-
-	   (for mem profile)
-	   go test -run=Bench -bench=Benchmark_Filters -benchmem -memprofile memprofile.out -o rawsearch_mem
-	   go tool pprof ./rawsearch_mem memprofile.out
-	*/
 }
