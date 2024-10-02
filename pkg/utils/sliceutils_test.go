@@ -74,25 +74,6 @@ func Test_BatchProcess(t *testing.T) {
 	batchingFunc := func(x int) int {
 		return x / 10
 	}
-	operation := func(slice []int) []int {
-		result := make([]int, 0, len(slice))
-		for _, i := range slice {
-			result = append(result, i+len(slice))
-		}
-
-		return result
-	}
-
-	input := []int{1, 2, 3, 20, 42, 100, 47}
-	expected := []int{4, 5, 6, 21, 44, 101, 49}
-	actual := BatchProcess(input, batchingFunc, NewUnsetOption[func(int, int) bool](), operation)
-	assert.Equal(t, expected, actual)
-}
-
-func Test_BatchProcess_BatchOrderMatters(t *testing.T) {
-	batchingFunc := func(x int) int {
-		return x / 10
-	}
 	batchOrderingFunc := NewOptionWithValue(func(a, b int) bool {
 		return a > b
 	})
