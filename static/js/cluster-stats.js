@@ -39,7 +39,7 @@ $(document).ready(() => {
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     $('.toast-close').on('click', removeToast);
-    // {{ .Button1Function }}
+    {{ .Button1Function }}
 });
 
 function iStatsDatePickerHandler(evt) {
@@ -453,7 +453,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
 }
 
 function processClusterStats(res) {
-    // {{ .ClusterStatsSetUserRole }}
+    {{ .ClusterStatsSetUserRole }}
     _.forEach(res, (value, key) => {
         if (key === 'ingestionStats') {
             let table = $('#ingestion-table');
@@ -764,8 +764,8 @@ function hidePopUpsOnUsageStats() {
 }
 
 function renderClusterStatsTables() {
-    // {{ .ClusterStatsSetUserRole }}
-    // {{ .ClusterStatsExtraFunctions }}
+    {{ .ClusterStatsSetUserRole }}
+    {{ .ClusterStatsExtraFunctions }}
     $.ajax({
         method: 'get',
         url: 'api/clusterStats',
@@ -780,7 +780,7 @@ function renderClusterStatsTables() {
             $('#empty-response').empty();
             $('#empty-response').hide();
             drawTotalStatsChart(res);
-            // {{ .ClusterStatsExtraSetup }}
+            {{ .ClusterStatsExtraSetup }}
             processClusterStats(res);
             $('#app-content-area').show();
         })
