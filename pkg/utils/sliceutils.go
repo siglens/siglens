@@ -101,6 +101,46 @@ func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K]
 	return result
 }
 
+// Sometimes we want to performn an operation on each item of a slice, but for
+// performance reasons, it's better to do that operation on batches of the data
+// based on some property of each item. This is a util do to that.
+//
+// The output order is the same as the input order.
+func BatchProcess[T any, K comparable, R any](slice []T, batchProperty func(T) K, operation func([]T) []R) []R {
+	type orderedItems[T any] struct {
+		items []T
+		order []int
+	}
+
+	// Batch the items, but track their original order.
+	batches := make(map[K]*orderedItems[T])
+	for i, item := range slice {
+		batchKey := batchProperty(item)
+		batch, ok := batches[batchKey]
+		if !ok {
+			batch = &orderedItems[T]{
+				items: make([]T, 0),
+				order: make([]int, 0),
+			}
+
+			batches[batchKey] = batch
+		}
+
+		batch.items = append(batch.items, item)
+		batch.order = append(batch.order, i)
+	}
+
+	results := make([]R, len(slice))
+	for _, batch := range batches {
+		batchResults := operation(batch.items)
+		for i, result := range batchResults {
+			results[batch.order[i]] = result
+		}
+	}
+
+	return results
+}
+
 // idxsToRemove should contain only valid indexes in the array
 func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
 
