@@ -39,7 +39,7 @@ $(document).ready(() => {
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     $('.toast-close').on('click', removeToast);
-    {{ .Button1Function }}
+    // {{ .Button1Function }}
 });
 
 function iStatsDatePickerHandler(evt) {
@@ -453,7 +453,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
 }
 
 function processClusterStats(res) {
-    {{ .ClusterStatsSetUserRole }}
+    // {{ .ClusterStatsSetUserRole }}
     _.forEach(res, (value, key) => {
         if (key === 'ingestionStats') {
             let table = $('#ingestion-table');
@@ -534,7 +534,7 @@ function processClusterStats(res) {
         colReorder: false,
         scrollX: false,
         deferRender: true,
-        scrollY: 500,
+        scrollY: 480,
         scrollCollapse: true,
         scroller: true,
         lengthChange: false,
@@ -556,6 +556,36 @@ function processClusterStats(res) {
             { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
             { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
         ],
+        infoCallback: function(settings, start, end, max, total, pre) {
+            let api = this.api();
+            let pageInfo = api.page.info();
+            let totalRows = pageInfo.recordsDisplay;
+            let adjustedTotal = totalRows - 1 ;
+            // Adjust start and end for display
+            let adjustedStart = start;
+            let adjustedEnd = end;
+
+            if (start === 0) {
+                adjustedStart = 1; // Skip the Total row
+            } else {
+                adjustedStart = start - 1;
+            }
+            adjustedEnd = Math.min(end - 1, adjustedTotal);
+            
+            return 'Showing ' + (adjustedStart + 1) + ' to ' + adjustedEnd + ' of ' + adjustedTotal + ' entries' +
+                   (pageInfo.recordsTotal !== totalRows ? ' (filtered from ' + 
+                   (hasTotalRow ? pageInfo.recordsTotal - 1 : pageInfo.recordsTotal) + ' total entries)' : '');
+        },
+        drawCallback: function(settings) {
+            let api = this.api();
+            let totalRow = api.row(function(idx, data, node) {
+                return data[0] === 'Total';
+            });
+            
+            if (totalRow.any()) {
+                $(totalRow.node()).detach().prependTo(api.table().body());
+            }
+        }
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({
@@ -741,8 +771,8 @@ function hidePopUpsOnUsageStats() {
 }
 
 function renderClusterStatsTables() {
-    {{ .ClusterStatsSetUserRole }}
-    {{ .ClusterStatsExtraFunctions }}
+    // {{ .ClusterStatsSetUserRole }}
+    // {{ .ClusterStatsExtraFunctions }}
     $.ajax({
         method: 'get',
         url: 'api/clusterStats',
@@ -757,7 +787,7 @@ function renderClusterStatsTables() {
             $('#empty-response').empty();
             $('#empty-response').hide();
             drawTotalStatsChart(res);
-            {{ .ClusterStatsExtraSetup }}
+            // {{ .ClusterStatsExtraSetup }}
             processClusterStats(res);
             $('#app-content-area').show();
         })
