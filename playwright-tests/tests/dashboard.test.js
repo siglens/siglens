@@ -4,6 +4,7 @@ test.describe('Dashboard Page Tests', () => {
     let page;
     let dashboardId;
     let uniqueName;
+    let createdDashboardNames = [];
 
     test.beforeEach(async ({ browser }) => {
         page = await browser.newPage();
@@ -15,6 +16,9 @@ test.describe('Dashboard Page Tests', () => {
         await page.fill('#db-name', uniqueName);
         await page.fill('#db-description', 'This is a test dashboard');
         await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('#save-dbbtn')]);
+
+        createdDashboardNames.push(uniqueName);
+
         const url = page.url();
         dashboardId = url.split('id=')[1];
         if (!dashboardId) throw new Error('Failed to extract dashboard ID from URL');
@@ -113,6 +117,12 @@ test.describe('Dashboard Page Tests', () => {
         await page.click('#dbSet-save');
         await page.waitForTimeout(2000);
         await expect(page.locator('.name-dashboard')).toContainText(updatedName);
+
+        // Update the dashboard name in our list
+        const index = createdDashboardNames.indexOf(uniqueName);
+        if (index !== -1) {
+            createdDashboardNames[index] = updatedName;
+        }
     });
 
     test('Toggle favorite status', async () => {
@@ -155,5 +165,32 @@ test.describe('Dashboard Page Tests', () => {
 
     test.afterEach(async () => {
         await page.close();
+    });
+
+    test.afterAll(async ({ browser }) => {
+        const cleanupPage = await browser.newPage();
+        await cleanupPage.goto('http://localhost:5122/dashboards-home.html');
+
+        for (const dashboardName of createdDashboardNames) {
+            try {
+                await cleanupPage.waitForSelector('.ag-center-cols-container .ag-row');
+
+                // Find the row with the dashboard name
+                const row = cleanupPage.locator(`.ag-center-cols-container .ag-row:has-text("${dashboardName}")`);
+
+                // Click the delete button for this row
+                await row.locator('.btn-simple').click();
+
+                // Wait for and click on the confirm delete button in the prompt
+                await cleanupPage.waitForSelector('#delete-db-prompt');
+                await cleanupPage.click('#delete-dbbtn');
+
+                // Wait for the row to disappear
+                await cleanupPage.waitForSelector(`.ag-center-cols-container .ag-row:has-text("${dashboardName}")`, { state: 'detached' });
+            } catch (error) {
+                console.error(`Failed to delete dashboard: ${dashboardName}`, error);
+            }
+        }
+        await cleanupPage.close();
     });
 });
