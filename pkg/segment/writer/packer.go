@@ -76,9 +76,12 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 	jsParsingStackbuf []byte) (bool, error) {
 
 	var matchedCol = false
-
-	ss.encodeTime(recordTime, tsKey)
 	var err error
+
+	err = ss.encodeTime(recordTime, tsKey)
+	if err != nil {
+		return matchedCol, err
+	}
 	matchedCol, err = ss.encodeRawJsonObject("", rawData, tsKey, matchedCol,
 		signalType, cnameCacheByteHashToStr, jsParsingStackbuf)
 	if err != nil {
@@ -154,7 +157,10 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, tsKey *stri
 					currKey, err)
 			}
 
-			matchedCol = ss.encodeSingleString(finalKey, tsKey, matchedCol, valUnescaped)
+			matchedCol, err = ss.encodeSingleString(finalKey, tsKey, matchedCol, valUnescaped)
+			if err != nil {
+				return fmt.Errorf("encodeRawJsonObject: str currKey: %v, err: %v", currKey, err)
+			}
 		case jp.Number:
 			numVal, err := jp.ParseInt(value)
 			if err != nil {
@@ -162,20 +168,29 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, tsKey *stri
 				if err != nil {
 					return fmt.Errorf("encodeRawJsonObject: flt currKey: %v, err: %v", currKey, err)
 				}
-				matchedCol = ss.encodeSingleNumber(finalKey, fltVal, tsKey,
+				matchedCol, err = ss.encodeSingleNumber(finalKey, fltVal, tsKey,
 					matchedCol, value)
-				return nil
+				return err
 			}
-			matchedCol = ss.encodeSingleNumber(finalKey, numVal, tsKey,
+			matchedCol, err = ss.encodeSingleNumber(finalKey, numVal, tsKey,
 				matchedCol, value)
+			if err != nil {
+				return fmt.Errorf("encodeRawJsonObject: number currKey: %v, err: %v", currKey, err)
+			}
 		case jp.Boolean:
 			boolVal, err := jp.ParseBoolean(value)
 			if err != nil {
 				return fmt.Errorf("encodeRawJsonObject: bool currKey: %v, err: %v", currKey, err)
 			}
-			matchedCol = ss.encodeSingleBool(finalKey, boolVal, tsKey, matchedCol)
+			matchedCol, err = ss.encodeSingleBool(finalKey, boolVal, tsKey, matchedCol)
+			if err != nil {
+				return fmt.Errorf("encodeRawJsonObject: bool currKey: %v, err: %v", currKey, err)
+			}
 		case jp.Null:
-			matchedCol = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
+			matchedCol, err = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
+			if err != nil {
+				return fmt.Errorf("encodeRawJsonObject: null currKey: %v, err: %v", currKey, err)
+			}
 		default:
 			return fmt.Errorf("currKey: %v, received unknown type of %+s", currKey, valueType)
 		}
@@ -241,7 +256,7 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsK
 				finalErr = encErr
 				return
 			}
-			matchedCol = ss.encodeSingleString(finalKey, tsKey, matchedCol, valUnescaped)
+			matchedCol, finalErr = ss.encodeSingleString(finalKey, tsKey, matchedCol, valUnescaped)
 		case jp.Number:
 			numVal, encErr := jp.ParseInt(value)
 			if encErr != nil {
@@ -250,11 +265,11 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsK
 					finalErr = encErr
 					return
 				}
-				matchedCol = ss.encodeSingleNumber(finalKey, fltVal, tsKey,
+				matchedCol, finalErr = ss.encodeSingleNumber(finalKey, fltVal, tsKey,
 					matchedCol, value)
 				return
 			}
-			matchedCol = ss.encodeSingleNumber(finalKey, numVal, tsKey,
+			matchedCol, finalErr = ss.encodeSingleNumber(finalKey, numVal, tsKey,
 				matchedCol, value)
 		case jp.Boolean:
 			boolVal, encErr := jp.ParseBoolean(value)
@@ -262,9 +277,9 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsK
 				finalErr = encErr
 				return
 			}
-			matchedCol = ss.encodeSingleBool(finalKey, boolVal, tsKey, matchedCol)
+			matchedCol, finalErr = ss.encodeSingleBool(finalKey, boolVal, tsKey, matchedCol)
 		case jp.Null:
-			matchedCol = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
+			matchedCol, finalErr = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
 		default:
 			finalErr = fmt.Errorf("received unknown type of %+s", valueType)
 			return
@@ -283,7 +298,10 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	}
 	var finalErr error
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, SS_DT_ARRAY_DICT, matchedCol)
+	colWip, _, matchedCol, finalErr = ss.initAndBackFillColumn(arraykey, SS_DT_ARRAY_DICT, matchedCol)
+	if finalErr != nil {
+		return false, finalErr
+	}
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -412,7 +430,11 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 		return matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	var err error
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	if err != nil {
+		return false, err
+	}
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
@@ -439,13 +461,17 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 }
 
 func (ss *SegStore) encodeSingleString(key string,
-	tsKey *string, matchedCol bool, valBytes []byte) bool {
+	tsKey *string, matchedCol bool, valBytes []byte) (bool, error) {
+	var err error
 	if key == *tsKey {
-		return matchedCol
+		return matchedCol, nil
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	if err != nil {
+		return false, err
+	}
 	colBlooms := ss.wipBlock.columnBlooms
 	if key != "_type" && key != "_index" {
 		_, ok := colBlooms[key]
@@ -466,17 +492,21 @@ func (ss *SegStore) encodeSingleString(key string,
 	}
 	valueLen := uint32(len(valBytes))
 	addSegStatsStrIngestion(ss.AllSst, key, colWip.cbuf[colWip.cbufidx-valueLen:colWip.cbufidx])
-	return matchedCol
+	return matchedCol, nil
 }
 
 func (ss *SegStore) encodeSingleBool(key string, val bool,
-	tsKey *string, matchedCol bool) bool {
+	tsKey *string, matchedCol bool) (bool, error) {
 	if key == *tsKey {
-		return matchedCol
+		return matchedCol, nil
 	}
 	var colWip *ColWip
+	var err error
 	colBlooms := ss.wipBlock.columnBlooms
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
+	if err != nil {
+		return false, err
+	}
 
 	// todo for bools, we really don't have to do BI, they will get encoded as DictEnc
 	_, ok := colBlooms[key]
@@ -492,30 +522,35 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
-	return matchedCol
+	return matchedCol, nil
 }
 
 func (ss *SegStore) encodeSingleNull(key string,
-	tsKey *string, matchedCol bool) bool {
+	tsKey *string, matchedCol bool) (bool, error) {
 	if key == *tsKey {
-		return matchedCol
+		return matchedCol, nil
 	}
 	var colWip *ColWip
-	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol)
+	var err error
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol)
+	if err != nil {
+		return false, err
+	}
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 1)
-	return matchedCol
+	return matchedCol, nil
 }
 
 func (ss *SegStore) encodeSingleNumber(key string, value interface{},
-	tsKey *string, matchedCol bool, valBytes []byte) bool {
+	tsKey *string, matchedCol bool, valBytes []byte) (bool, error) {
 	if key == *tsKey {
-		return matchedCol
+		return matchedCol, nil
 	}
 	var colWip *ColWip
 	var recNum uint16
 	var numType SS_DTYPE
+	var err error
 
 	switch value.(type) {
 	case float64, json.Number:
@@ -528,7 +563,10 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 		numType = SS_DT_BACKFILL
 	}
 
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, numType, matchedCol)
+	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, numType, matchedCol)
+	if err != nil {
+		return false, err
+	}
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
 	retLen := ss.encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
@@ -536,11 +574,11 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 	colWip.cbufidx += retLen
 	ss.updateColValueSizeInAllSeenColumns(key, retLen)
 
-	return matchedCol
+	return matchedCol, nil
 }
 
 func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
-	matchedCol bool) (*ColWip, uint16, bool) {
+	matchedCol bool) (*ColWip, uint16, bool, error) {
 	allColWip := ss.wipBlock.colWips
 	colBlooms := ss.wipBlock.columnBlooms
 	colRis := ss.wipBlock.columnRangeIndexes
@@ -549,6 +587,11 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 
 	colWip, ok := allColWip[key]
 	if !ok {
+		numOfActiveColWips := GetNumOfActiveColWips()
+		if numOfActiveColWips >= colWipsSizeLimit {
+			return nil, 0, false, fmt.Errorf("initAndBackFillColumn: Exceeded colWip limit activeColWips: %v, cannot create col %v", activeColWips, key)
+		}
+		AddNumOfActiveColWips(1)
 		colWip = InitColWip(ss.SegmentKey, key)
 		allColWip[key] = colWip
 	}
@@ -562,7 +605,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 	allColsInBlock[key] = true
 	matchedCol = matchedCol || ss.pqTracker.isColumnInPQuery(key)
 	colWip.cstartidx = colWip.cbufidx
-	return colWip, recNum, matchedCol
+	return colWip, recNum, matchedCol, nil
 }
 
 func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomIndex,
@@ -1251,11 +1294,16 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 	return idx, blkRIBuf, nil
 }
 
-func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
+func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) error {
 	allColWip := ss.wipBlock.colWips
 	allColsInBlock := ss.wipBlock.columnsInBlock
 	tsWip, ok := allColWip[*tsKey]
 	if !ok {
+		numOfActiveColWips := GetNumOfActiveColWips()
+		if numOfActiveColWips >= colWipsSizeLimit {
+			return fmt.Errorf("encodeTime: Exceeded colWip limit activeColWips: %v", numOfActiveColWips)
+		}
+		AddNumOfActiveColWips(1)
 		tsWip = InitColWip(ss.SegmentKey, *tsKey)
 		allColWip[*tsKey] = tsWip
 		ss.AllSeenColumnSizes[*tsKey] = INCONSISTENT_CVAL_SIZE
@@ -1278,6 +1326,7 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) {
 	addRollup(ss.wipBlock.tohRollup, toh, ss.wipBlock.blockSummary.RecCount)
 	addRollup(ss.wipBlock.todRollup, tod, ss.wipBlock.blockSummary.RecCount)
 
+	return nil
 }
 
 func addRollup(rrmap map[uint64]*RolledRecs, rolledTs uint64, lastRecNum uint16) {

@@ -207,6 +207,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			wipCbufPool.Put(&cwip.cbuf)
 			wipCbufPool.Put(&cwip.dePackingBuf)
 		}
+		AddNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
@@ -309,6 +310,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		wipCbufPool.Put(&cwip.dePackingBuf)
 	}
 
+	AddNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
 	segstore.clearPQMatchInfo()
 	segstore.LogAndFlushErrors()
