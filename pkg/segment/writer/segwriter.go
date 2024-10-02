@@ -159,6 +159,8 @@ type ParsedLogEvent struct {
 	indexName       string
 	rawJson         []byte
 	timestampMillis uint64
+	resp            string // store responses
+	respIdx         uint64
 }
 
 func NewPLE() *ParsedLogEvent {
@@ -175,6 +177,7 @@ func (ple *ParsedLogEvent) Reset() {
 	ple.allCvals = ple.allCvals[:0]
 	ple.allCvalsTypeLen = ple.allCvalsTypeLen[:0]
 	ple.numCols = 0
+	ple.resp = ""
 }
 
 func (ple *ParsedLogEvent) MakeSpaceForNewColumn() {
@@ -205,6 +208,22 @@ func (ple *ParsedLogEvent) SetTimestamp(timestampMillis uint64) {
 
 func (ple *ParsedLogEvent) GetTimestamp() uint64 {
 	return ple.timestampMillis
+}
+
+func (ple *ParsedLogEvent) SetResponse(resp string) {
+	ple.resp = resp
+}
+
+func (ple *ParsedLogEvent) GetResponse() string {
+	return ple.resp
+}
+
+func (ple *ParsedLogEvent) SetResponseIdx(respIdx uint64) {
+	ple.respIdx = respIdx
+}
+
+func (ple *ParsedLogEvent) GetResponseIdx() uint64 {
+	return ple.respIdx
 }
 
 // returns in memory size of a single wip block
@@ -459,22 +478,27 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
 
-	for _, ple := range pleArray {
+	start := 0
+	for idx, ple := range pleArray {
 
 		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 			segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
 			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+				for j := start; j < len(pleArray); j++ {
+					pleArray[j].SetResponse("Failed to add entry")
+				}
 				return err
 			}
 			instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
+			start = idx
 		}
 
 		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
-			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
-			return err
+			log.Debugf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
+			ple.SetResponse("Failed to add entry")
 		}
 
 		if matchedPCols {
@@ -504,8 +528,12 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 			err = segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
+				for j := start; j < len(pleArray); j++ {
+					pleArray[j].SetResponse("Failed to add entry")
+				}
 				return err
 			}
+			start = idx
 		}
 	}
 	return nil

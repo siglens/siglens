@@ -224,6 +224,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 					ple.SetIndexName(indexName)
 					ple.SetRawJson(line)
+					ple.SetResponseIdx(uint64(inCount - 1))
 
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
@@ -280,8 +281,25 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
 			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-			// TODO: update `atleastOneSuccess`
 		}
+		for _, ple := range plesInBatch {
+			resp := ple.GetResponse()
+			if resp != "" {
+				responsebody := make(map[string]interface{})
+				error_response := utils.BulkErrorResponse{
+					ErrorResponse: *utils.NewBulkErrorResponseInfo(resp, "ingest_exception"),
+				}
+				responsebody["index"] = error_response
+				responsebody["status"] = 400
+				items[ple.GetResponseIdx()] = responsebody
+				processedCount--
+			}
+		}
+	}
+
+	if processedCount == 0 {
+		atleastOneSuccess = false
+		overallError = true
 	}
 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
@@ -402,7 +420,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
 		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		log.Debugf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
 	}
 	return nil
