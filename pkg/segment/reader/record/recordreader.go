@@ -37,14 +37,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadColForRRCs(rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
+func ReadColForRRCs(segKey string, rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
 	case "_index":
 		return readIndexForRRCs(rrcs)
 	default:
-		return readUserDefinedColForRRCs(rrcs, cname)
+		return readUserDefinedColForRRCs(segKey, rrcs, cname)
 	}
 }
 
@@ -129,34 +129,30 @@ func getBlockSummary(segKey string) ([]*structs.BlockSummary, error) {
 	return blockSum, nil
 }
 
-func readUserDefinedColForRRCs(rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
-	return nil, nil // TODO
-}
-
 // All the RRCs must belong to the same segment.
-func readUserDefinedColForSegRRCs(segKey string, rrcs []utils.RecordResultContainer,
+func readUserDefinedColForRRCs(segKey string, rrcs []utils.RecordResultContainer,
 	cname string) ([]utils.CValueEnclosure, error) {
 
 	if len(rrcs) == 0 {
 		return nil, nil
 	}
 
-	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(1, 10, "readUserDefinedColForSegRRCs")
+	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(1, 10, "readUserDefinedColForRRCs")
 	if err != nil {
-		log.Errorf("readUserDefinedColForSegRRCs failed to get lock for opening 1 file; err=%v", err)
+		log.Errorf("readUserDefinedColForRRCs failed to get lock for opening 1 file; err=%v", err)
 		return nil, err
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
 
 	blockMetadata, err := getBlockMetadata(segKey)
 	if err != nil {
-		log.Errorf("readUserDefinedColForSegRRCs: failed to get block metadata for segKey %s; err=%v", segKey, err)
+		log.Errorf("readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", segKey, err)
 		return nil, err
 	}
 
 	blockSummary, err := getBlockSummary(segKey)
 	if err != nil {
-		log.Errorf("readUserDefinedColForSegRRCs: failed to get block summary for segKey %s; err=%v", segKey, err)
+		log.Errorf("readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", segKey, err)
 		return nil, err
 	}
 
@@ -165,7 +161,7 @@ func readUserDefinedColForSegRRCs(segKey string, rrcs []utils.RecordResultContai
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: true},
 		blockMetadata, blockSummary, 1, consistentCValLen, qid)
 	if err != nil {
-		log.Errorf("readUserDefinedColForSegRRCs: failed to initialize shared readers for segkey %v; err=%v", segKey, err)
+		log.Errorf("readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", segKey, err)
 		return nil, err
 	}
 	defer sharedReader.Close()
