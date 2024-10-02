@@ -96,8 +96,8 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsEventCount))
 	httpResp.IngestionStats["Column Count"] = humanize.Comma(int64(logsColumnCount))
 
-	httpResp.IngestionStats["Log Storage Used"] = logsOnDiskBytes
-	httpResp.IngestionStats["Metrics Storage Used"] = float64(metricsOnDiskBytes + metricsInMemBytes)
+	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
+	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
 	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSavedPercentage(logsIncomingBytes, logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSavedPercentage(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
 
@@ -124,7 +124,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
 	httpResp.TraceStats["Total Trace Volume"] = float64(totalTraceBytes)
-	httpResp.TraceStats["Trace Storage Used"] = float64(totalTraceOnDiskBytes)
+	httpResp.TraceStats["Trace Storage Used"] = convertBytesToGB(float64(totalTraceOnDiskBytes))
 	httpResp.TraceStats["Trace Storage Saved"] = calculateStorageSavedPercentage(float64(totalTraceBytes), float64(totalTraceOnDiskBytes))
 
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
@@ -418,6 +418,12 @@ func GetIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIn
 
 func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, isTraceRelatedIndex, allSegMetas)
+}
+
+func convertBytesToGB(bytes float64) string {
+	convertedGB := bytes / 1_000_000_000
+	finalStr := fmt.Sprintf("%.3f", convertedGB) + " GB"
+	return finalStr
 }
 
 func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {
