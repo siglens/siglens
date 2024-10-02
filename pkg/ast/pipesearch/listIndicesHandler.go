@@ -39,10 +39,25 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 	ctx.Response.Header.Set("Content-Type", "application/json")
 
 	var allIndexNames []string
+	var indexNamesMap map[string]bool
 	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
 		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(orgId)
 	}
-	allIndexNames = append(allIndexNames, vtable.ExpandAndReturnIndexNames("*", orgId, false)...)
+	if len(allIndexNames) != 0 {
+		indexNamesMap = make(map[string]bool)
+		for _, name := range allIndexNames {
+			indexNamesMap[name] = true
+		}
+		allIndexNamesList := vtable.ExpandAndReturnIndexNames("*", orgId, false)
+		for _, name := range allIndexNamesList {
+			if _, exists := indexNamesMap[name]; !exists {
+				indexNamesMap[name] = true
+				allIndexNames = append(allIndexNames, name)
+			}
+		}
+	} else {
+		allIndexNames = vtable.ExpandAndReturnIndexNames("*", orgId, false)
+	}
 	sort.Strings(allIndexNames)
 
 	if len(allIndexNames) == 0 {
