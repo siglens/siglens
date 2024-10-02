@@ -338,6 +338,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
+	tsKey := config.GetTimeStampKey()
 	for _, segMeta := range allSegMetas {
 		if segMeta == nil {
 			continue
@@ -351,15 +352,15 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		_, exist := allIndexCols[indexName]
 		if !exist {
 			allIndexCols[indexName] = make(map[string]struct{})
+			allIndexCols[indexName][tsKey] = struct{}{}
 		}
 		for col := range segMeta.ColumnNames {
 			allIndexCols[indexName][col] = struct{}{}
 			totalCols[col] = struct{}{}
 		}
-		allIndexCols[indexName][config.GetTimeStampKey()] = struct{}{}
 	}
 	if len(allIndexCols) > 0 {
-		totalCols[config.GetTimeStampKey()] = struct{}{}
+		totalCols[tsKey] = struct{}{}
 	}
 
 	for _, indexName := range indices {
