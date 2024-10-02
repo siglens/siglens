@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -242,7 +243,17 @@ func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppP
 }
 
 func GetUIDomain() string {
-	return GetQueryHostname()
+	hostname := GetQueryHostname()
+	if hostname == "" {
+		return "localhost"
+	} else {
+		host, _, err := net.SplitHostPort(hostname)
+		if err != nil {
+			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
+			return "localhost"
+		}
+		return host
+	}
 }
 
 func GetSiglensDBConfig() (string, string, uint64, string, string, string) {

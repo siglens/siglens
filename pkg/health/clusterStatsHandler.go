@@ -27,6 +27,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -337,6 +338,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
+	tsKey := config.GetTimeStampKey()
 	for _, segMeta := range allSegMetas {
 		if segMeta == nil {
 			continue
@@ -350,11 +352,15 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		_, exist := allIndexCols[indexName]
 		if !exist {
 			allIndexCols[indexName] = make(map[string]struct{})
+			allIndexCols[indexName][tsKey] = struct{}{}
 		}
 		for col := range segMeta.ColumnNames {
 			allIndexCols[indexName][col] = struct{}{}
 			totalCols[col] = struct{}{}
 		}
+	}
+	if len(allIndexCols) > 0 {
+		totalCols[tsKey] = struct{}{}
 	}
 
 	for _, indexName := range indices {
@@ -382,9 +388,9 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 				segmentCounts[indexName] = 1
 			} else {
 				utils.AddMapKeysToSet(currentIndexCols, columnNamesSet)
-				utils.AddMapKeysToSet(totalCols, columnNamesSet)
 				indexSegmentCount++
 			}
+			utils.AddMapKeysToSet(totalCols, columnNamesSet)
 		}
 
 		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)

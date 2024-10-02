@@ -4,7 +4,7 @@ const { testDateTimePicker, testThemeToggle } = require('./common-functions');
 test.describe('Logs Page Tests', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('http://localhost:5122/index.html');
-        
+
         // Perform search to show results table
         await testDateTimePicker(page);
         await page.locator('#query-builder-btn').click();

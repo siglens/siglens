@@ -405,11 +405,6 @@ function resetPanelContainer(firstQUpdate) {
         hideError();
     }
 }
-//eslint-disable-next-line no-unused-vars
-function resetPanelGrid() {
-    panelLogsRowData = [];
-    panelGridDiv == null;
-}
 
 function showPanelInfo(infoMsg) {
     $('#corner-popup .corner-text').html(infoMsg);
