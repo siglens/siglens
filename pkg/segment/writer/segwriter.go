@@ -334,7 +334,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
 
 		switch ctype {
-		case VALTYPE_ENC_SMALL_STRING[0]:
+		case VALTYPE_ENC_SMALL_STRING[0], VALTYPE_ENC_BOOL[0]:
 			if cname != "_type" && cname != "_index" {
 				_, ok := colBlooms[cname]
 				if !ok {
