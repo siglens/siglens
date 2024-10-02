@@ -37,6 +37,42 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func ReadAllColsForRRCs(segKey string, vTable string, rrcs []utils.RecordResultContainer) (map[string][]utils.CValueEnclosure, error) {
+	allCols, err := getColsForSegKey(segKey, vTable)
+	if err != nil {
+		log.Errorf("ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v", segKey, err)
+		return nil, err
+	}
+
+	colToValues := make(map[string][]utils.CValueEnclosure)
+	for cname := range allCols {
+		columnValues, err := ReadColForRRCs(segKey, rrcs, cname)
+		if err != nil {
+			log.Errorf("ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v", cname, segKey, err)
+			return nil, err
+		}
+
+		colToValues[cname] = columnValues
+	}
+
+	return colToValues, nil
+}
+
+func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+	var allCols map[string]bool
+	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
+	if !exists {
+		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
+		if !exists {
+			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+		}
+	}
+
+	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
+	// of a map[string]bool so we don't have to do the conversion here
+	return toputils.MapToSet(allCols), nil
+}
+
 func ReadColForRRCs(segKey string, rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
@@ -70,21 +106,6 @@ func readIndexForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosu
 	}
 
 	return result, nil
-}
-
-func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
-	var allCols map[string]bool
-	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
-	if !exists {
-		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
-		if !exists {
-			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
-		}
-	}
-
-	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
-	// of a map[string]bool so we don't have to do the conversion here
-	return toputils.MapToSet(allCols), nil
 }
 
 // All the RRCs must belong to the same segment.
