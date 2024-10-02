@@ -420,8 +420,12 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
 		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 	if err != nil {
-		log.Debugf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
+	}
+	pleResponse := ple.GetResponse()
+	if pleResponse != "" {
+		return utils.TeeErrorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, pleResponse)
 	}
 	return nil
 }
