@@ -542,24 +542,14 @@ function processClusterStats(res) {
         order: [],
         columnDefs: [],
         data: [],
-    };
-
-    let indexDataTable = $('#index-data-table').DataTable({
-        ...commonDataTablesConfig,
-        columns: indexDataTableColumns,
-        autoWidth: false,
-        columnDefs: [
-            { targets: 0, width: '20%' }, // Index Name
-            { targets: 1, width: '15%', className: 'dt-head-right dt-body-right' }, // Incoming Volume
-            { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' }, // Event Count
-            { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' }, // Segment Count
-            { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
-            { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
-        ],
         infoCallback: function (settings, start, end, max, total, pre) {
             let api = this.api();
             let pageInfo = api.page.info();
             let totalRows = pageInfo.recordsDisplay;
+            // Check if there's only one row (the Total row)
+            if (totalRows === 1) {
+                return '';
+            }
             let adjustedTotal = totalRows - 1;
             // Adjust start and end for display
             let adjustedStart = start;
@@ -584,6 +574,20 @@ function processClusterStats(res) {
                 $(totalRow.node()).detach().prependTo(api.table().body());
             }
         },
+    };
+
+    let indexDataTable = $('#index-data-table').DataTable({
+        ...commonDataTablesConfig,
+        columns: indexDataTableColumns,
+        autoWidth: false,
+        columnDefs: [
+            { targets: 0, width: '20%' }, // Index Name
+            { targets: 1, width: '15%', className: 'dt-head-right dt-body-right' }, // Incoming Volume
+            { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' }, // Event Count
+            { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' }, // Segment Count
+            { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
+            { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
+        ],
     });
 
     let metricsDataTable = $('#metrics-data-table').DataTable({
