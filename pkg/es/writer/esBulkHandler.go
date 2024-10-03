@@ -399,7 +399,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
 		return err
 	}
-	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
+	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, myid, 0,
 		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
