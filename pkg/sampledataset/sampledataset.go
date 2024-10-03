@@ -66,9 +66,9 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
+		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_FAKE_DATA, false)
 		if alreadyHandled {
 			return
 		}
@@ -107,12 +107,12 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
 		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
 		}
-		usageStats.UpdateStats(uint64(numBytes), 1, myid)
+		usageStats.UpdateStats(uint64(numBytes), 1, orgId)
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)

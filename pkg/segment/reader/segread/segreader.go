@@ -20,6 +20,7 @@ package segread
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -75,6 +76,7 @@ type SegmentFileReader struct {
 	deTlv              [][]byte // deTlv[dWordIdx] --> []byte (the TLV byte slice)
 	deRecToTlv         []uint16 // deRecToTlv[recNum] --> dWordIdx
 	blockSummaries     []*structs.BlockSummary
+	someBlksAbsent     bool // this is used to not log some errors
 }
 
 // returns a new SegmentFileReader and any errors encountered
@@ -182,6 +184,7 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 		if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 			valid, err := sfr.readBlock(blockNum)
 			if !valid {
+				sfr.someBlksAbsent = true
 				log.Debugf("Skipped invalid block %d, error: %v", blockNum, err)
 				continue // This can happen if the column does not exist.
 			}
@@ -232,11 +235,17 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 		}
 	}
 
-	errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, blockNum %+v, Currently at rec %+v. File %+v, colname %v", recordNum, blockNum,
-		sfr.currRecordNum, sfr.fileName, sfr.ColName)
-	log.Error(errStr)
-	log.Errorf("SegmentFileReader.ReadRecordFromBlock: Current offset %+v, blkLen: %+v", sfr.currOffset, sfr.currUncompressedBlockLen)
-	return nil, errors.New(errStr)
+	if !sfr.someBlksAbsent {
+		errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, currRecordNum: %+v. blockNum %+v, File %+v, colname %v, sfr.currOffset: %v, sfr.currRecLen: %v, sfr.currUncompressedBlockLen: %v",
+			recordNum, sfr.currRecordNum, blockNum, sfr.fileName, sfr.ColName, sfr.currOffset,
+			sfr.currRecLen, sfr.currUncompressedBlockLen)
+
+		log.Error(errStr)
+		return nil, errors.New(errStr)
+	}
+
+	// if some bllks are absent for this column then its not really an error
+	return nil, nil
 }
 
 // returns the new record number and if any errors are encountered
@@ -244,8 +253,12 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 func (sfr *SegmentFileReader) iterateNextRecord() error {
 	nextOff := sfr.currOffset + sfr.currRecLen
 	if nextOff >= sfr.currUncompressedBlockLen {
-		log.Errorf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
-		return errors.New("no more records to iterate")
+		if !sfr.someBlksAbsent {
+			log.Errorf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
+		}
+		// we don't log an error, but we are returning err so that, the caller does not
+		// get stuck an loop
+		return io.EOF
 	}
 	sfr.currOffset = nextOff
 	currRecLen, err := sfr.getCurrentRecordLength()
@@ -347,12 +360,14 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			//  3 => 1 for 'T' and 2 for 'L' of string
 			idx += uint32(3 + toputils.BytesToUint16LittleEndian(buf[idx+1:idx+3]))
+		case utils.VALTYPE_ENC_BOOL[0]:
+			idx += 2 // 1 for T and 1 for Boolean value
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			idx += 9 // 1 for T and 8 bytes for 'L' int64
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
-			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str", buf[idx])
+			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
 		}
 
 		sfr.deTlv[w] = buf[soffW:idx]
@@ -426,6 +441,8 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 		}
 		if dWord[0] == utils.VALTYPE_ENC_SMALL_STRING[0] {
 			results[rn][sfr.ColName] = string(dWord[3:])
+		} else if dWord[0] == utils.VALTYPE_ENC_BOOL[0] {
+			results[rn][sfr.ColName] = toputils.BytesToBoolLittleEndian(dWord[1:])
 		} else if dWord[0] == utils.VALTYPE_ENC_INT64[0] {
 			results[rn][sfr.ColName] = toputils.BytesToInt64LittleEndian(dWord[1:])
 		} else if dWord[0] == utils.VALTYPE_ENC_FLOAT64[0] {
@@ -433,7 +450,7 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
-			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64")
+			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
 			return false
 		}
 	}
