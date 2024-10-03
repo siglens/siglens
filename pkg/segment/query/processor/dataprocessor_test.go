@@ -18,40 +18,33 @@
 package processor
 
 import (
-	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-type streamer interface {
-	Fetch() (*iqr.IQR, error)
-	Reset()
-}
+func Test_Getters(t *testing.T) {
+	dp := &DataProcessor{
+		inputOrderMatters: true,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      true,
+	}
 
-type processor interface {
-	Process(*iqr.IQR) (*iqr.IQR, error)
-}
+	assert.True(t, dp.DoesInputOrderMatter())
+	assert.True(t, dp.IsPermutingCmd())
+	assert.True(t, dp.IsBottleneckCmd())
+	assert.True(t, dp.IsTwoPassCmd())
 
-type DataProcessor struct {
-	streams   []streamer
-	processor processor
+	dp = &DataProcessor{
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
 
-	inputOrderMatters bool
-	isPermutingCmd    bool
-	isBottleneckCmd   bool
-	isTwoPassCmd      bool
-}
-
-func (dp *DataProcessor) DoesInputOrderMatter() bool {
-	return dp.inputOrderMatters
-}
-
-func (dp *DataProcessor) IsPermutingCmd() bool {
-	return dp.isPermutingCmd
-}
-
-func (dp *DataProcessor) IsBottleneckCmd() bool {
-	return dp.isBottleneckCmd
-}
-
-func (dp *DataProcessor) IsTwoPassCmd() bool {
-	return dp.isTwoPassCmd
+	assert.False(t, dp.DoesInputOrderMatter())
+	assert.False(t, dp.IsPermutingCmd())
+	assert.False(t, dp.IsBottleneckCmd())
+	assert.False(t, dp.IsTwoPassCmd())
 }
