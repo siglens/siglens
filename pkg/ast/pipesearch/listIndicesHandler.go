@@ -33,16 +33,30 @@ type IndexInfo struct {
 
 type AllIndicesInfoResponse []*IndexInfo
 
-func ListIndicesHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 	var httpResp AllIndicesInfoResponse
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Response.Header.Set("Content-Type", "application/json")
 
 	var allIndexNames []string
+	var indexNamesMap map[string]bool
 	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
-		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(myid)
+		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(orgId)
+	}
+	if len(allIndexNames) != 0 {
+		indexNamesMap = make(map[string]bool)
+		for _, name := range allIndexNames {
+			indexNamesMap[name] = true
+		}
+		allIndexNamesList := vtable.ExpandAndReturnIndexNames("*", orgId, false)
+		for _, name := range allIndexNamesList {
+			if _, exists := indexNamesMap[name]; !exists {
+				indexNamesMap[name] = true
+				allIndexNames = append(allIndexNames, name)
+			}
+		}
 	} else {
-		allIndexNames = vtable.ExpandAndReturnIndexNames("*", myid, false)
+		allIndexNames = vtable.ExpandAndReturnIndexNames("*", orgId, false)
 	}
 	sort.Strings(allIndexNames)
 

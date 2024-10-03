@@ -1140,7 +1140,7 @@ func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleK
 // gets search metadata for a segKey and runs raw search
 func applyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
 
-	searchMetadata, blkSummaries, err := metadata.GetSearchInfoForPQSQuery(qsr.segKey, spqmr)
+	searchMetadata, blkSummaries, err := segmetadata.GetSearchInfoAndSummaryForPQS(qsr.segKey, spqmr)
 	if err != nil {
 		log.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)

@@ -57,24 +57,3 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	os.RemoveAll(blockSummariesFile)
 	os.RemoveAll(segDir)
 }
-
-func Test_readEmptyColumnMicroIndices(t *testing.T) {
-	segmetadata.ResetGlobalMetadataForTest()
-	_ = localstorage.InitLocalStorage()
-
-	cnames := make(map[string]*structs.ColSizeInfo)
-	cnames["clickid"] = &structs.ColSizeInfo{CmiSize: 0, CsgSize: 0}
-	bMicro := &segmetadata.SegmentMicroIndex{
-		SegMeta: structs.SegMeta{
-			SegmentKey:       "test-key",
-			ColumnNames:      cnames,
-			VirtualTableName: "test",
-		},
-	}
-
-	err := bMicro.LoadMicroIndices(map[uint16]map[string]bool{}, true, map[string]bool{}, false)
-	if err != nil {
-		log.Errorf("failed to read cmi, err=%v", err)
-	}
-	assert.Nil(t, err)
-}

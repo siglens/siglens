@@ -969,7 +969,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: '',
+                queryMode: 'Builder',
             };
             break;
         case 4: // Number
@@ -983,7 +983,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: '',
+                queryMode: 'Code',
             };
             unit = 'misc';
             break;
@@ -998,7 +998,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: '',
+                queryMode: 'Builder',
             };
             logLinesViewType = 'Single line display view';
             break;

@@ -28,7 +28,6 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -338,29 +337,20 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	}
 
 	var blockMetadata map[uint16]*structs.BlockMetadataHolder
+	var blockSum []*structs.BlockSummary
 	if writer.IsSegKeyUnrotated(segKey) {
 		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
 		if err != nil {
 			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
-	} else {
-		blockMetadata, err = metadata.GetBlockSearchInfoForKey(segKey)
-		if err != nil {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
-			return nil, map[string]bool{}, err
-		}
-	}
-
-	var blockSum []*structs.BlockSummary
-	if writer.IsSegKeyUnrotated(segKey) {
 		blockSum, err = writer.GetBlockSummaryForKey(segKey)
 		if err != nil {
 			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
 	} else {
-		blockSum, err = metadata.GetBlockSummariesForKey(segKey)
+		blockMetadata, blockSum, err = segmetadata.GetSearchInfoAndSummary(segKey)
 		if err != nil {
 			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
 			return nil, map[string]bool{}, err
