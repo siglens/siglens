@@ -47,4 +47,4 @@ jobs:
       - name: Run Playwright Tests
         run: |
           cd playwright-tests
-          npx playwright test --worker=5
+          npx playwright test --workers=5
