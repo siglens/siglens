@@ -20,9 +20,11 @@ package structs
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_initIQR(t *testing.T) {
@@ -88,4 +90,34 @@ func Test_SetKnownValues_OnEmptyIQR(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, toputils.MergeMaps(knownValues1, knownValues3), iqr.knownValues)
 	assert.Equal(t, withoutRRCs, iqr.mode)
+}
+
+func Test_AsResult(t *testing.T) {
+	iqr := NewIQR(0)
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues)
+	require.NoError(t, err)
+
+	expectedResult := &pipesearch.PipeSearchResponseOuter{
+		Hits: pipesearch.PipeSearchResponse{
+			TotalMatched: 2,
+			Hits: []map[string]interface{}{
+				{"col1": "a"},
+				{"col1": "b"},
+			},
+		},
+		AllPossibleColumns: []string{"col1"},
+		Errors:             nil,
+		Qtype:              "logs-query",
+		CanScrollMore:      false,
+		ColumnsOrder:       []string{"col1"},
+	}
+	result, err := iqr.AsResult()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResult, result)
 }

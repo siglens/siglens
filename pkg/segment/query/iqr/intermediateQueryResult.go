@@ -20,6 +20,7 @@ package structs
 import (
 	"fmt"
 
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -187,6 +188,25 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	return nil
 }
 
+func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.ReadAllColumns: invalid state: %v", err)
+		return nil, err
+	}
+
+	switch iqr.mode {
+	case notSet:
+		// There's no data.
+		return nil, nil
+	case withRRCs:
+		return iqr.readAllColumnsWithRRCs()
+	case withoutRRCs:
+		return iqr.knownValues, nil
+	default:
+		return nil, fmt.Errorf("IQR.ReadAllColumns: unexpected mode %v", iqr.mode)
+	}
+}
+
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.ReadColumn: invalid state: %v", err)
@@ -220,6 +240,47 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	default:
 		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
 	}
+}
+
+func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
+	// Prepare to call BatchProcessToMap().
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+		return rrc.SegKeyInfo.SegKeyEnc
+	}
+	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
+	batchOperation := func(rrcs []*utils.RecordResultContainer) map[string][]utils.CValueEnclosure {
+		if len(rrcs) == 0 {
+			return nil
+		}
+
+		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
+		if !ok {
+			log.Errorf("IQR.readAllColumnsWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
+			return nil
+		}
+
+		vTable := iqr.rrcs[0].VirtualTableName
+		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
+		if err != nil {
+			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
+				segKey, err)
+			return nil
+		}
+
+		return colToValues
+	}
+
+	results := toputils.BatchProcessToMap(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+
+	for _, values := range results {
+		if len(values) != len(iqr.rrcs) {
+			// This will happen if we got an error in the batch operation.
+			return nil, toputils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
+				len(iqr.rrcs), len(values))
+		}
+	}
+
+	return results, nil
 }
 
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
@@ -260,4 +321,52 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	iqr.knownValues[cname] = results
 
 	return results, nil
+}
+
+func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.AsResult: invalid state: %v", err)
+		return nil, err
+	}
+
+	var records map[string][]utils.CValueEnclosure
+	var err error
+	switch iqr.mode {
+	case notSet:
+		// There's no data.
+		return nil, nil
+	case withRRCs:
+		records, err = iqr.readAllColumnsWithRRCs()
+		if err != nil {
+			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
+			return nil, err
+		}
+	case withoutRRCs:
+		records = iqr.knownValues
+	default:
+		return nil, fmt.Errorf("IQR.AsResult: unexpected mode %v", iqr.mode)
+	}
+
+	cValRecords := toputils.TransposeMapOfSlices(records)
+	recordsAsAny := make([]map[string]interface{}, len(cValRecords))
+	for i, record := range cValRecords {
+		recordsAsAny[i] = make(map[string]interface{})
+		for key, value := range record {
+			recordsAsAny[i][key] = value.CVal
+		}
+	}
+
+	response := &pipesearch.PipeSearchResponseOuter{
+		Hits: pipesearch.PipeSearchResponse{
+			TotalMatched: iqr.numberOfRecords(),
+			Hits:         recordsAsAny,
+		},
+		AllPossibleColumns: toputils.GetKeysOfMap(records),
+		Errors:             nil,
+		Qtype:              "logs-query", // TODO: handle stats queries
+		CanScrollMore:      false,
+		ColumnsOrder:       toputils.GetSortedStringKeys(records),
+	}
+
+	return response, nil
 }
