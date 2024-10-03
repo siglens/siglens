@@ -167,7 +167,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	return enclosures, nil
 }
 
-func handleBlock(multiReader *segread.MultiColSegmentReader, blockIdx uint16,
+func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 	rrcs []*utils.RecordResultContainer, qid uint64) []utils.CValueEnclosure {
 
 	sortFunc := func(rrc1, rrc2 *utils.RecordResultContainer) bool {
@@ -179,7 +179,7 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockIdx uint16,
 			allRecNums[i] = rrc.RecordNum
 		}
 
-		colToValues, err := readColsForRecords(multiReader, blockIdx, allRecNums, qid)
+		colToValues, err := readColsForRecords(multiReader, blockNum, allRecNums, qid)
 		if err != nil {
 			log.Errorf("handleBlock: failed to read columns for records; err=%v", err)
 			return nil
@@ -339,11 +339,11 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	sort.Slice(sortedBlkNums, func(i, j int) bool { return sortedBlkNums[i] < sortedBlkNums[j] })
 
 	var addedExtraFields bool
-	for _, blockIdx := range sortedBlkNums {
+	for _, blockNum := range sortedBlkNums {
 		// traverse the sorted blocknums and use it to extract the recordIdxTSMap
 		// and then do the search, this way we read the segfiles in sequence
 
-		recordIdxTSMap := blkRecIndexes[blockIdx]
+		recordIdxTSMap := blkRecIndexes[blockNum]
 
 		allRecNums := make([]uint16, len(recordIdxTSMap))
 		idx := 0
@@ -352,13 +352,13 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 			idx++
 		}
 		sort.Slice(allRecNums, func(i, j int) bool { return allRecNums[i] < allRecNums[j] })
-		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
+		resultAllRawRecs := readAllRawRecords(allRecNums, blockNum, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
 
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
 			resultAllRawRecs[r]["_index"] = vTable
 
-			resId := fmt.Sprintf("%s_%d_%d", segKey, blockIdx, r)
+			resId := fmt.Sprintf("%s_%d_%d", segKey, blockNum, r)
 			if esQuery {
 				if _, ok := resultAllRawRecs[r]["_id"]; !ok {
 					resultAllRawRecs[r]["_id"] = fmt.Sprintf("%d", xxhash.Sum64String(resId))
@@ -390,14 +390,14 @@ func getMathOpsColMap(MathOps []*structs.MathEvaluator) map[string]int {
 	return colMap
 }
 
-func readColsForRecords(segReader *segread.MultiColSegmentReader, blockIdx uint16,
+func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint16,
 	orderedRecNums []uint16, qid uint64) (map[string][]utils.CValueEnclosure, error) {
 
 	allMatchedColumns := make(map[string]bool)
 	esQuery := false
 	aggs := &structs.QueryAggregators{}
 	nodeRes := &structs.NodeResult{}
-	unorderedResults := readAllRawRecords(orderedRecNums, blockIdx, segReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
+	unorderedResults := readAllRawRecords(orderedRecNums, blockNum, segReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
 
 	results := make(map[string][]utils.CValueEnclosure)
 	for cname := range allMatchedColumns {
@@ -426,7 +426,7 @@ func readColsForRecords(segReader *segread.MultiColSegmentReader, blockIdx uint1
 
 // TODO: remove calls to this function so that only readColsForRecords calls
 // this function. Then remove the parameters that are not needed.
-func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segread.MultiColSegmentReader,
+func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	nodeRes *structs.NodeResult) map[uint16]map[string]interface{} {
 
@@ -444,7 +444,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			dictEncCols[col] = true
 			continue
 		}
-		ok := segReader.GetDictEncCvalsFromColFile(results, col, blockIdx, orderedRecNums, qid)
+		ok := segReader.GetDictEncCvalsFromColFile(results, col, blockNum, orderedRecNums, qid)
 		if ok {
 			dictEncCols[col] = true
 			allMatchedColumns[col] = true
@@ -475,9 +475,9 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 		colsToReadIndices[colKeyIdx] = struct{}{}
 	}
 
-	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockIdx)
+	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockIdx, err)
+		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockNum, err)
 		return results
 	}
 
@@ -499,7 +499,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 
 			var cValEnc utils.CValueEnclosure
 
-			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockIdx, recNum,
+			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
