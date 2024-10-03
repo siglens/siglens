@@ -70,6 +70,56 @@ func Test_ConvertSliceToMapWithTransform(t *testing.T) {
 	assert.Equal(t, result[10], []int{100})
 }
 
+func Test_BatchProcess(t *testing.T) {
+	batchingFunc := func(x int) int {
+		return x / 10
+	}
+	batchOrderingFunc := NewOptionWithValue(func(a, b int) bool {
+		return a > b
+	})
+	actualBatchSizes := make([]int, 0)
+	operation := func(slice []int) []int {
+		result := make([]int, 0, len(slice))
+		for _, i := range slice {
+			result = append(result, i+len(slice))
+		}
+
+		actualBatchSizes = append(actualBatchSizes, len(slice))
+
+		return result
+	}
+
+	input := []int{1, 2, 3, 20, 42, 100, 47}
+	expected := []int{4, 5, 6, 21, 44, 101, 49}
+	expectedBatchSizes := []int{1, 2, 1, 3} // Batches should be 100s, 40s, 20s, 0s
+	actual := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
+	assert.Equal(t, expected, actual)
+	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
+}
+
+func Test_SortThenProcessThenUnsort(t *testing.T) {
+	slice := []int{1, 2, 3, 20, 42, 100, 47}
+	less := func(a, b int) bool {
+		return a < b
+	}
+	actualReceivedOrder := make([]int, 0)
+	operation := func(slice []int) []int {
+		result := make([]int, 0, len(slice))
+		for _, i := range slice {
+			result = append(result, i+10)
+			actualReceivedOrder = append(actualReceivedOrder, i)
+		}
+
+		return result
+	}
+
+	expected := []int{11, 12, 13, 30, 52, 110, 57}
+	expectedReceivedOrder := []int{1, 2, 3, 20, 42, 47, 100}
+	actual := SortThenProcessThenUnsort(slice, less, operation)
+	assert.Equal(t, expected, actual)
+	assert.Equal(t, expectedReceivedOrder, actualReceivedOrder)
+}
+
 func Test_RemoveElements(t *testing.T) {
 	slice := []int{1, 2, 3, 4, 5}
 	idxsToRemove := map[int]struct{}{
