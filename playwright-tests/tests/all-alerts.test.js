@@ -110,3 +110,4 @@ test.describe('All Alerts Screen Flow', () => {
         }
     });
 });
+
