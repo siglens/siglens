@@ -155,6 +155,7 @@ type JsSnippets struct {
 	SettingsExtraFunctions         string
 
 	TestDataSendData string
+	IngestDataCmd    string
 
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string
