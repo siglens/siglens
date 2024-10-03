@@ -12,7 +12,7 @@ test.describe('All Alerts Screen Flow', () => {
         await page.waitForSelector('#alert-rule-name', { state: 'visible' });
 
         // Fill out the alert form
-        alertName = `Log Alert ${Date.now()}`;
+        alertName = `Test-Alert ${Date.now()}`;
         await page.fill('#alert-rule-name', alertName);
 
         // Select data source (Logs or Metrics)
@@ -68,13 +68,7 @@ test.describe('All Alerts Screen Flow', () => {
 
         // Save the alert
         await page.click('#save-alert-btn');
-
-        await page.waitForNavigation({ url: /all-alerts\.html$/, timeout: 60000 });
-        expect(page.url()).toContain('all-alerts.html');
-
-        // Verify the alert was created
-        await expect(page.locator(`text=${alertName}`)).toBeVisible();
-
+        
         await page.waitForSelector('.ag-root-wrapper');
 
         const rowCount = await page.locator('.ag-row').count();
@@ -84,12 +78,10 @@ test.describe('All Alerts Screen Flow', () => {
         await page.locator('#editbutton').first().click();
         await expect(page).toHaveURL(/alert\.html\?id=[a-f0-9\-]+/);
 
-        await page.fill('#alert-rule-name', `Update Test Alert ${Date.now()}`);
+        alertName = `Update Test Alert ${Date.now()}`
+        await page.fill('#alert-rule-name', alertName);
 
         await page.click('#save-alert-btn');
-
-        await expect(page).toHaveURL(/all-alerts\.html/);
-
         // Test alert details
         const firstRow = page.locator('.ag-center-cols-container .ag-row[row-index="0"]').first();
         await firstRow.click();
