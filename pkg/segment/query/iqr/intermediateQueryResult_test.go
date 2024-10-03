@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,4 +32,23 @@ func Test_initIQR(t *testing.T) {
 	iqr = &IQR{}
 	err = iqr.validate()
 	assert.Error(t, err)
+}
+
+func Test_AppendRRCs(t *testing.T) {
+	iqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+
+	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, iqr.mode)
+	assert.Equal(t, rrcs, iqr.rrcs)
+	assert.Equal(t, encodingToSegKey, iqr.encodingToSegKey)
 }

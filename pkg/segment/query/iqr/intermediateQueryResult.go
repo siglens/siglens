@@ -93,6 +93,22 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 		return nil
 	}
 
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.AppendRRCs: invalid state: %v", err)
+		return err
+	}
+
+	switch iqr.mode {
+	case notSet:
+		iqr.mode = withRRCs
+	case withRRCs:
+		// Do nothing.
+	case withoutRRCs:
+		return fmt.Errorf("IQR.AppendRRCs: mode is withoutRRCs")
+	default:
+		return fmt.Errorf("IQR.AppendRRCs: unexpected mode %v", iqr.mode)
+	}
+
 	err := iqr.mergeEncodings(segEncToKey)
 	if err != nil {
 		log.Errorf("IQR.AppendRRCs: error merging encodings: %v", err)
@@ -155,8 +171,8 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 }
 
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
-	// Do setup to call BatchProcess().
-	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
+	// Prepare to call BatchProcess().
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
@@ -180,7 +196,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return values
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, batchingFunc, batchKeyLess, batchOperation)
+	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
