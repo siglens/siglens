@@ -36,7 +36,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadAllColsForRRCs(segKey string, vTable string, rrcs []utils.RecordResultContainer) (map[string][]utils.CValueEnclosure, error) {
+func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer) (map[string][]utils.CValueEnclosure, error) {
 	allCols, err := getColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v", segKey, err)
@@ -72,7 +72,7 @@ func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	return toputils.MapToSet(allCols), nil
 }
 
-func ReadColForRRCs(segKey string, rrcs []utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
+func ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
@@ -83,7 +83,7 @@ func ReadColForRRCs(segKey string, rrcs []utils.RecordResultContainer, cname str
 	}
 }
 
-func readTimestampForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+func readTimestampForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 	result := make([]utils.CValueEnclosure, len(rrcs))
 	for i, rrc := range rrcs {
 		result[i] = utils.CValueEnclosure{
@@ -95,7 +95,7 @@ func readTimestampForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnc
 	return result, nil
 }
 
-func readIndexForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+func readIndexForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 	result := make([]utils.CValueEnclosure, len(rrcs))
 	for i, rrc := range rrcs {
 		result[i] = utils.CValueEnclosure{
@@ -108,7 +108,7 @@ func readIndexForRRCs(rrcs []utils.RecordResultContainer) ([]utils.CValueEnclosu
 }
 
 // All the RRCs must belong to the same segment.
-func readUserDefinedColForRRCs(segKey string, rrcs []utils.RecordResultContainer,
+func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContainer,
 	cname string) ([]utils.CValueEnclosure, error) {
 
 	if len(rrcs) == 0 {
@@ -145,15 +145,14 @@ func readUserDefinedColForRRCs(segKey string, rrcs []utils.RecordResultContainer
 	defer sharedReader.Close()
 	multiReader := sharedReader.MultiColReaders[0]
 
-	// TODO: make this a *rrc
-	batchingFunc := func(rrc utils.RecordResultContainer) uint16 {
+	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.BlockNum
 	}
 	batchKeyLess := toputils.NewOptionWithValue(func(blockNum1, blockNum2 uint16) bool {
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcsInBatch []*utils.RecordResultContainer) []utils.CValueEnclosure {
 		if len(rrcsInBatch) == 0 {
 			return nil
 		}
@@ -166,12 +165,12 @@ func readUserDefinedColForRRCs(segKey string, rrcs []utils.RecordResultContainer
 }
 
 func handleBlock(multiReader *segread.MultiColSegmentReader, blockIdx uint16,
-	rrcs []utils.RecordResultContainer, qid uint64) []utils.CValueEnclosure {
+	rrcs []*utils.RecordResultContainer, qid uint64) []utils.CValueEnclosure {
 
-	sortFunc := func(rrc1, rrc2 utils.RecordResultContainer) bool {
+	sortFunc := func(rrc1, rrc2 *utils.RecordResultContainer) bool {
 		return rrc1.RecordNum < rrc2.RecordNum
 	}
-	operation := func(rrcs []utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
 		allRecNums := make([]uint16, len(rrcs))
 		for i, rrc := range rrcs {
 			allRecNums[i] = rrc.RecordNum
