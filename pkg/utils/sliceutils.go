@@ -152,6 +152,63 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	return results
 }
 
+// This is similar to BatchProcess, but instead of returning a slice of
+// results, each batch gets processed to a map[MK][]R, and then we want to
+// combine the batch results into final results. For each slice in the map, the
+// order of the results is the same as the order of the input slice.
+//
+// T: Type of the input
+// BK: Batch key type
+// MK: Map key type
+// R: Result type
+func BatchProcessToMap[T any, BK comparable, MK comparable, R any](slice []T,
+	batchBy func(T) BK, batchKeyLess Option[func(BK, BK) bool],
+	operation func([]T) map[MK][]R) map[MK][]R {
+
+	// Batch the items, but track their original order.
+	batches := make(map[BK]*orderedItems[T])
+	for i, item := range slice {
+		batchKey := batchBy(item)
+		batch, ok := batches[batchKey]
+		if !ok {
+			batch = &orderedItems[T]{
+				items: make([]T, 0),
+				order: make([]int, 0),
+			}
+
+			batches[batchKey] = batch
+		}
+
+		batch.items = append(batch.items, item)
+		batch.order = append(batch.order, i)
+	}
+
+	batchKeys := GetKeysOfMap(batches)
+	if less, ok := batchKeyLess.Get(); ok {
+		sort.Slice(batchKeys, func(i, k int) bool {
+			return less(batchKeys[i], batchKeys[k])
+		})
+	}
+
+	results := make(map[MK][]R, 0)
+	for _, batchKey := range batchKeys {
+		batch := batches[batchKey]
+		batchResults := operation(batch.items)
+
+		for mapKey, mapValues := range batchResults {
+			if _, ok := results[mapKey]; !ok {
+				results[mapKey] = make([]R, len(slice))
+			}
+
+			for i, mapValue := range mapValues {
+				results[mapKey][batch.order[i]] = mapValue
+			}
+		}
+	}
+
+	return results
+}
+
 type sortable[T any] struct {
 	items []T
 	order []int

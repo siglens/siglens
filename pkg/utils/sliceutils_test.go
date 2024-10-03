@@ -97,6 +97,37 @@ func Test_BatchProcess(t *testing.T) {
 	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
 }
 
+func Test_BatchProcessToMap(t *testing.T) {
+	batchingFunc := func(x int) int {
+		return x / 10
+	}
+	batchOrderingFunc := NewOptionWithValue(func(a, b int) bool {
+		return a > b
+	})
+	actualBatchSizes := make([]int, 0)
+	operation := func(slice []int) map[string][]int {
+		result := make(map[string][]int)
+		for _, i := range slice {
+			result["normal"] = append(result["normal"], i)
+			result["double"] = append(result["double"], i*2)
+		}
+
+		actualBatchSizes = append(actualBatchSizes, len(slice))
+
+		return result
+	}
+
+	input := []int{1, 2, 3, 20, 42, 100, 47}
+	expected := map[string][]int{
+		"normal": {1, 2, 3, 20, 42, 100, 47},
+		"double": {2, 4, 6, 40, 84, 200, 94},
+	}
+	expectedBatchSizes := []int{1, 2, 1, 3} // Batches should be 100s, 40s, 20s, 0s
+	actual := BatchProcessToMap(input, batchingFunc, batchOrderingFunc, operation)
+	assert.Equal(t, expected, actual)
+	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
+}
+
 func Test_SortThenProcessThenUnsort(t *testing.T) {
 	slice := []int{1, 2, 3, 20, 42, 100, 47}
 	less := func(a, b int) bool {
