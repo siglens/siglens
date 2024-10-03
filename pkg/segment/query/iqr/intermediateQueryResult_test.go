@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,4 +52,40 @@ func Test_AppendRRCs(t *testing.T) {
 	assert.Equal(t, withRRCs, iqr.mode)
 	assert.Equal(t, rrcs, iqr.rrcs)
 	assert.Equal(t, encodingToSegKey, iqr.encodingToSegKey)
+}
+
+func Test_SetKnownValues_OnEmptyIQR(t *testing.T) {
+	iqr := NewIQR(0)
+
+	knownValues1 := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues1)
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues1, iqr.knownValues)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+
+	// A different column with a different number of records should fail.
+	knownValues2 := map[string][]utils.CValueEnclosure{
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	}
+	err = iqr.AppendKnownValues(knownValues2)
+	assert.Error(t, err)
+
+	// A different column with the same number of records should succeed.
+	knownValues3 := map[string][]utils.CValueEnclosure{
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "x"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
+		},
+	}
+	err = iqr.AppendKnownValues(knownValues3)
+	assert.NoError(t, err)
+	assert.Equal(t, toputils.MergeMaps(knownValues1, knownValues3), iqr.knownValues)
+	assert.Equal(t, withoutRRCs, iqr.mode)
 }

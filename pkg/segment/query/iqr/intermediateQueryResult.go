@@ -120,6 +120,58 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 	return nil
 }
 
+func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.AppendKnownValues: invalid state: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		// We have no RRCs, so these values don't correspond to RRCs.
+		iqr.mode = withoutRRCs
+	}
+
+	numExistingRecords := iqr.numberOfRecords()
+
+	for cname, values := range knownValues {
+		if _, ok := iqr.deletedColumns[cname]; ok {
+			return toputils.TeeErrorf("IQR.AppendKnownValues: column %s is deleted", cname)
+		}
+
+		if numExistingRecords != 0 && len(values) != numExistingRecords {
+			return toputils.TeeErrorf("IQR.AppendKnownValues: expected %v records, but got %v for column %v",
+				numExistingRecords, len(values), cname)
+		}
+
+		iqr.knownValues[cname] = values
+	}
+
+	return nil
+}
+
+func (iqr *IQR) numberOfRecords() int {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.numberOfRecords: invalid state: %v", err)
+		return 0
+	}
+
+	switch iqr.mode {
+	case notSet:
+		return 0
+	case withRRCs:
+		return len(iqr.rrcs)
+	case withoutRRCs:
+		for _, values := range iqr.knownValues {
+			return len(values)
+		}
+
+		return 0
+	default:
+		log.Errorf("IQR.numberOfRecords: unexpected mode %v", iqr.mode)
+		return 0
+	}
+}
+
 func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	// Verify the new encodings don't conflict with the existing ones.
 	for encoding, newSegKey := range segEncToKey {
