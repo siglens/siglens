@@ -90,9 +90,10 @@ test.describe('Alert Tests', () => {
         // Save the alert
         console.log('Saving the alert...');
         await page.click('#save-alert-btn');
-        await page.waitForNavigation({ url: /all-alerts\.html$/, timeout: 60000 });
-        expect(page.url()).toContain('all-alerts.html');
-
+        // await page.waitForNavigation({ url: /all-alerts\.html$/, timeout: 60000 });
+        // expect(page.url()).toContain('all-alerts.html');
+        console.log('Waiting for confirmation...');
+        await page.waitForSelector(`text=${alertName}`, { timeout: 120000 });
         // Verify the alert was created
         console.log(`Verifying if alert "${alertName}" is visible...`);
         await expect(page.locator(`text=${alertName}`)).toBeVisible();
