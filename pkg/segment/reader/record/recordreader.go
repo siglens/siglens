@@ -36,7 +36,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer) (map[string][]utils.CValueEnclosure, error) {
+func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer, qid uint64) (map[string][]utils.CValueEnclosure, error) {
 	allCols, err := getColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v", segKey, err)
@@ -45,7 +45,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
-		columnValues, err := ReadColForRRCs(segKey, rrcs, cname)
+		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v", cname, segKey, err)
 			return nil, err
@@ -72,14 +72,14 @@ func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	return toputils.MapToSet(allCols), nil
 }
 
-func ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string) ([]utils.CValueEnclosure, error) {
+func ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
 	case "_index":
 		return readIndexForRRCs(rrcs)
 	default:
-		return readUserDefinedColForRRCs(segKey, rrcs, cname)
+		return readUserDefinedColForRRCs(segKey, rrcs, cname, qid)
 	}
 }
 
@@ -109,7 +109,7 @@ func readIndexForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclos
 
 // All the RRCs must belong to the same segment.
 func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContainer,
-	cname string) ([]utils.CValueEnclosure, error) {
+	cname string, qid uint64) ([]utils.CValueEnclosure, error) {
 
 	if len(rrcs) == 0 {
 		return nil, nil
@@ -135,7 +135,6 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
-	qid := uint64(0)                                                            // TODO
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: true},
 		blockMetadata, blockSummary, 1, consistentCValLen, qid)
 	if err != nil {
