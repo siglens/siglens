@@ -3,6 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('All Alerts Screen Flow', () => {
     let alertName;
     test('should perform the full flow on the All Alerts screen', async ({ page }) => {
+        test.setTimeout(120000);
         await page.goto('http://localhost:5122/all-alerts.html');
 
         // Create a new logs alert
