@@ -369,10 +369,10 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 }
 
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, orgId uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
-	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
+	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, orgId)
 	cfgkey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
@@ -387,7 +387,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	if tsMillis == 0 {
 		tsMillis = tsNow
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
+	streamid := utils.CreateStreamId(indexNameConverted, orgId)
 
 	ple := segwriter.NewPLE()
 	ple.SetRawJson(rawJson)
@@ -399,7 +399,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
 		return err
 	}
-	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
+	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, orgId, 0,
 		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
