@@ -17,52 +17,44 @@
 
 package structs
 
-import "github.com/siglens/siglens/pkg/segment/utils"
-
-// Like RecordResultContainer, but with less bloat.
-type smallRRC struct {
-	Timestamp     uint64
-	EncodedSegKey uint64
-	BlockNum      uint16
-	RecordNum     uint16
-}
+import (
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
+)
 
 type IQR struct {
-	rrcs             []*smallRRC
-	segKeyToEncoding map[string]uint64
-	encodingToSegKey map[uint64]string
-	encodingToVTable map[uint64]string
+	rrcs             []*utils.RecordResultContainer
+	encodingToSegKey map[uint16]string
 }
 
-// All the RRCs must belong to the same semgent.
-func (iqr *IQR) AddRRCs(rrcs []*utils.RecordResultContainer, segKey string) {
+func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
 	if len(rrcs) == 0 {
-		return
+		return nil
 	}
 
-	encodedSegKey, isNew := iqr.getEncodedSegKey(segKey)
-	if isNew {
-		iqr.segKeyToEncoding[segKey] = encodedSegKey
-		iqr.encodingToSegKey[encodedSegKey] = segKey
-
-		// Since all RRCs have the same segKey, they have the same vTable.
-		iqr.encodingToVTable[encodedSegKey] = rrcs[0].VirtualTableName
+	err := iqr.mergeEncodings(segEncToKey)
+	if err != nil {
+		log.Errorf("IQR.AppendRRCs: error merging encodings: %v", err)
+		return err
 	}
 
-	for _, rrc := range rrcs {
-		iqr.rrcs = append(iqr.rrcs, &smallRRC{
-			Timestamp:     rrc.TimeStamp,
-			EncodedSegKey: encodedSegKey,
-			BlockNum:      rrc.BlockNum,
-			RecordNum:     rrc.RecordNum,
-		})
-	}
+	iqr.rrcs = append(iqr.rrcs, rrcs...)
+
+	return nil
 }
 
-func (iqr *IQR) getEncodedSegKey(segKey string) (uint64, bool) {
-	if encoding, ok := iqr.segKeyToEncoding[segKey]; ok {
-		return encoding, false
+func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
+	// Verify the new encodings don't conflict with the existing ones.
+	for encoding, newSegKey := range segEncToKey {
+		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok {
+			return toputils.TeeErrorf("IQR.mergeEncodings: same encoding used for %v and %v",
+				newSegKey, existingSegKey)
+		}
 	}
 
-	return uint64(len(iqr.segKeyToEncoding)), true
+	// Add the new encodings to the existing ones.
+	iqr.encodingToSegKey = toputils.MergeMaps(iqr.encodingToSegKey, segEncToKey)
+
+	return nil
 }
