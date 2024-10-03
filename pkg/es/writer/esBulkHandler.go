@@ -20,6 +20,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -302,7 +303,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 		overallError = true
 	}
 
-	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
+	usageStats.UpdateStats(uint64(bytesReceived), uint64(processedCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
@@ -425,7 +426,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	}
 	pleResponse := ple.GetResponse()
 	if pleResponse != "" {
-		return utils.TeeErrorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, pleResponse)
+		return fmt.Errorf("PLE Reponse: %v", pleResponse)
 	}
 	return nil
 }

@@ -55,7 +55,7 @@ import (
 
 // Throttle the number of indexes to help prevent excessive memory usage.
 const maxAllowedSegStores = 1000
-const MAX_COL_WIPS = 2000
+const MAX_ACTIVE_COL_WIPS = 10000 // TODO: make this variable based on available memory
 
 // global map
 var allSegStores = map[string]*SegStore{}
@@ -83,12 +83,12 @@ var wipCbufPool = sync.Pool{
 	},
 }
 
-func GetNumOfActiveColWips() int64 {
+func getNumOfActiveColWips() int64 {
 	value := atomic.LoadInt64(&activeColWips)
 	return value
 }
 
-func AddNumOfActiveColWips(count int64) {
+func addNumOfActiveColWips(count int64) {
 	atomic.AddInt64(&activeColWips, count)
 }
 
@@ -497,8 +497,11 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 
 		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
-			log.Debugf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
-			ple.SetResponse("Failed to add entry")
+			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
+			for j := start; j < len(pleArray); j++ {
+				pleArray[j].SetResponse("Failed to add entry")
+			}
+			return nil // Response would be present in PLE to prevent log flood, callers should ensure this
 		}
 
 		if matchedPCols {
@@ -661,7 +664,7 @@ func rotateSegmentOnTime() {
 		// Check again here to make sure we are not deleting a segstore that was updated
 		if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
 			log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
-			AddNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
+			addNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
 			delete(allSegStores, streamid)
 		}
 	}

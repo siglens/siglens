@@ -587,11 +587,11 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 
 	colWip, ok := allColWip[key]
 	if !ok {
-		numOfActiveColWips := GetNumOfActiveColWips()
-		if numOfActiveColWips >= colWipsSizeLimit {
+		numOfActiveColWips := getNumOfActiveColWips()
+		if numOfActiveColWips >= MAX_ACTIVE_COL_WIPS {
 			return nil, 0, false, fmt.Errorf("initAndBackFillColumn: Exceeded colWip limit activeColWips: %v, cannot create col %v", activeColWips, key)
 		}
-		AddNumOfActiveColWips(1)
+		addNumOfActiveColWips(1)
 		colWip = InitColWip(ss.SegmentKey, key)
 		allColWip[key] = colWip
 	}
@@ -1299,11 +1299,11 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) error {
 	allColsInBlock := ss.wipBlock.columnsInBlock
 	tsWip, ok := allColWip[*tsKey]
 	if !ok {
-		numOfActiveColWips := GetNumOfActiveColWips()
-		if numOfActiveColWips >= colWipsSizeLimit {
+		numOfActiveColWips := getNumOfActiveColWips()
+		if numOfActiveColWips >= MAX_ACTIVE_COL_WIPS {
 			return fmt.Errorf("encodeTime: Exceeded colWip limit activeColWips: %v", numOfActiveColWips)
 		}
-		AddNumOfActiveColWips(1)
+		addNumOfActiveColWips(1)
 		tsWip = InitColWip(ss.SegmentKey, *tsKey)
 		allColWip[*tsKey] = tsWip
 		ss.AllSeenColumnSizes[*tsKey] = INCONSISTENT_CVAL_SIZE
@@ -1576,7 +1576,6 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 func addSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
 	fltVal float64, valBytes []byte) {
-
 	var stats *SegStats
 	var ok bool
 	stats, ok = segstats[cname]
