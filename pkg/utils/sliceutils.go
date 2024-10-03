@@ -102,6 +102,11 @@ func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K]
 	return result
 }
 
+type orderedItems[T any] struct {
+	items []T
+	order []int
+}
+
 // Sometimes we want to performn an operation on each item of a slice, but for
 // performance reasons, it's better to do that operation on batches of the data
 // based on some property of each item. This is a util do to that.
@@ -109,11 +114,6 @@ func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K]
 // The output order is the same as the input order.
 func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	batchKeyLess Option[func(K, K) bool], operation func([]T) []R) []R {
-
-	type orderedItems[T any] struct {
-		items []T
-		order []int
-	}
 
 	// Batch the items, but track their original order.
 	batches := make(map[K]*orderedItems[T])
