@@ -19,6 +19,7 @@ package query
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -90,6 +91,7 @@ func (qs QueryState) String() string {
 type RunningQueryState struct {
 	isAsync                  bool
 	isCancelled              bool
+	timeoutCancelFunc        context.CancelFunc
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
 	orgid                    uint64
 	tableInfo                *structs.TableInfo
@@ -141,16 +143,19 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 		stateChan <- &QueryStateChanData{StateName: RUNNING}
 	}
 
+	var timeoutCancelFunc context.CancelFunc
 	// If the query runs too long, cancel it.
 	if CANCEL_QUERY_AFTER_SECONDS != 0 {
-		go func() {
-			time.Sleep(time.Duration(CANCEL_QUERY_AFTER_SECONDS) * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
+		timeoutCancelFunc = cancel
 
+		go func() {
+			<-ctx.Done()
 			arqMapLock.RLock()
 			rQuery, ok := allRunningQueries[qid]
 			arqMapLock.RUnlock()
 
-			if ok {
+			if ok && ctx.Err() == context.DeadlineExceeded {
 				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
@@ -159,9 +164,10 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 	}
 
 	runningState := &RunningQueryState{
-		StateChan: stateChan,
-		rqsLock:   &sync.Mutex{},
-		isAsync:   async,
+		StateChan:         stateChan,
+		rqsLock:           &sync.Mutex{},
+		isAsync:           async,
+		timeoutCancelFunc: timeoutCancelFunc,
 	}
 	allRunningQueries[qid] = runningState
 	return runningState, nil
@@ -171,8 +177,15 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 func DeleteQuery(qid uint64) {
 	LogGlobalSearchErrors(qid)
 	arqMapLock.Lock()
-	delete(allRunningQueries, qid)
+	rQuery, ok := allRunningQueries[qid]
+	if ok {
+		delete(allRunningQueries, qid)
+	}
 	arqMapLock.Unlock()
+
+	if ok && !rQuery.isCancelled {
+		rQuery.timeoutCancelFunc()
+	}
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,

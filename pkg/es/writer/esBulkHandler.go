@@ -23,7 +23,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -33,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -156,9 +156,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	// stack-allocated array for allocation-free unescaping of small strings
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
-	// we will accept indexnames only upto 256 bytes
-	idxNameParsingBuf := make([]byte, MAX_INDEX_NAME_LEN)
-
 	allPLEs := make([]*writer.ParsedLogEvent, 0)
 	defer func() {
 		for _, ple := range allPLEs {
@@ -181,8 +178,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			items = append(items, newArr...)
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(line,
-			idxNameParsingBuf)
+		esAction, indexName, idVal := extractIndexAndValidateAction(line)
 
 		switch esAction {
 
@@ -301,8 +297,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte,
-	idxNameParsingBuf []byte) (int, string, string) {
+func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
@@ -315,10 +310,8 @@ func extractIndexAndValidateAction(rawJson []byte,
 		if err != nil || idxDType != jp.String {
 			idxVal = []byte("")
 		}
-		copy(idxNameParsingBuf[:], idxVal[:])
-		idxNameParsingBuf = idxNameParsingBuf[0:len(idxVal)]
 
-		return INDEX, *(*string)(unsafe.Pointer(&idxNameParsingBuf)), idVal
+		return INDEX, string(idxVal), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)
@@ -379,6 +372,39 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
 	rid uint64, idxToStreamIdCache map[string]string,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
+	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
+	cfgkey := config.GetTimeStampKey()
+
+	var docType segment.SIGNAL_TYPE
+	if strings.HasPrefix(indexNameConverted, "jaeger-") {
+		docType = segment.SIGNAL_JAEGER_TRACES
+		cfgkey = "startTimeMillis"
+	} else {
+		docType = segment.SIGNAL_EVENTS
+	}
+
+	tsMillis := utils.ExtractTimeStamp(rawJson, &cfgkey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	ple := segwriter.NewPLE()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexNameConverted)
+
+	err := segwriter.ParseRawJsonObject("", rawJson, &cfgkey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
+		return err
+	}
+	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
+	if err != nil {
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
+		return err
+	}
 	return nil
 }
 

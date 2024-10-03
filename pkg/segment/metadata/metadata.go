@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,6 +59,12 @@ var globalMetadata *allSegmentMetadata = &allSegmentMetadata{
 	updateLock:                  &sync.RWMutex{},
 }
 
+var GlobalBlockMicroIndexCheckLimiter *semaphore.WeightedSemaphore
+
+func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
+	GlobalBlockMicroIndexCheckLimiter = semaphore.NewDefaultWeightedSemaphore(unloadedBlockLimit, "GlobalBlockMicroIndexCheckLimiter")
+}
+
 func ResetGlobalMetadataForTest() {
 	globalMetadata = &allSegmentMetadata{
 		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
@@ -84,7 +91,7 @@ func ProcessSegmetaInfo(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
 		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
 	}
 
-	return InitSegmentMicroIndex(segMetaInfo)
+	return InitSegmentMicroIndex(segMetaInfo, false)
 }
 
 func AddSegMetaToMetadata(segMeta *structs.SegMeta) {
@@ -216,19 +223,15 @@ func (hm *allSegmentMetadata) getCmiMaxIndicesToLoad(totalMem uint64) int {
 }
 
 func (hm *allSegmentMetadata) evictCmiPastIndices(cmiIndex int) int {
-	idxToClear := make([]int, 0)
+	var evictedCount int
 	for i := cmiIndex; i < len(hm.allSegmentMicroIndex); i++ {
 		if hm.allSegmentMicroIndex[i].loadedMicroIndices {
-			idxToClear = append(idxToClear, i)
+			hm.allSegmentMicroIndex[i].clearMicroIndices()
+			evictedCount++
 		}
 	}
 
-	if len(idxToClear) > 0 {
-		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearMicroIndices()
-		}
-	}
-	return len(idxToClear)
+	return evictedCount
 }
 
 // Returns total in memory size in bytes, total cmis in memory, total search metadata in memory
@@ -292,14 +295,14 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 				if err != nil {
 					log.Errorf("loadParallel: error getting persistent columns: %v", err)
 				} else {
-					err = hm.allSegmentMicroIndex[myIdx].LoadMicroIndices(map[uint16]map[string]bool{}, true, pqsCols, true)
+					err = hm.allSegmentMicroIndex[myIdx].loadMicroIndices(map[uint16]map[string]bool{}, true, pqsCols, true)
 					if err != nil {
 						log.Errorf("loadParallel: failed to load SSM at index %d. Error %v",
 							myIdx, err)
 					}
 				}
 			} else {
-				ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].LoadSearchMetadata(ssmBufs[rbufIdx])
+				ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].loadSearchMetadata(ssmBufs[rbufIdx])
 				if err != nil {
 					log.Errorf("loadParallel: failed to load SSM at index %d. Error: %v", myIdx, err)
 				}
@@ -388,16 +391,13 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 
 }
 
-func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
-	return globalMetadata.getMicroIndex(segKey)
-}
+	mi, ok := globalMetadata.segmentMetadataReverseIndex[segKey]
+	return mi, ok
 
-func (hm *allSegmentMetadata) getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
-	blockMicroIndex, ok := hm.segmentMetadataReverseIndex[segKey]
-	return blockMicroIndex, ok
 }
 
 func DeleteSegmentKey(segKey string) {
@@ -467,7 +467,7 @@ func (hm *allSegmentMetadata) evictSsmPastIndices(searchIndex int) int {
 
 	if len(idxToClear) > 0 {
 		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearSearchMetadata()
+			hm.allSegmentMicroIndex[idx].clearSearchMetadata()
 		}
 	}
 	return len(idxToClear)
@@ -523,12 +523,12 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 	}
 
 	if !sMicroIdx.loadedSearchMetadata {
-		_, err := sMicroIdx.LoadSearchMetadata([]byte{})
+		_, err := sMicroIdx.loadSearchMetadata([]byte{})
 		if err != nil {
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil
 		}
-		defer sMicroIdx.ClearSearchMetadata()
+		defer sMicroIdx.clearSearchMetadata()
 	}
 
 	var fRange *dtu.TimeRange
@@ -598,8 +598,8 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 						StartEpochMs: smi.EarliestEpochMS,
 						EndEpochMs:   smi.LatestEpochMS,
 					},
-					ConsistentCValLenMap: smi.GetAllColumnsRecSize(),
-					TotalRecords:         smi.GetRecordCount(),
+					ConsistentCValLenMap: smi.getAllColumnsRecSize(),
+					TotalRecords:         smi.getRecordCount(),
 				}
 				timePassed++
 			}
@@ -690,9 +690,9 @@ func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[stri
 	defer globalMetadata.updateLock.RUnlock()
 	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
 	for segKey := range segmap {
-		smi, ok := globalMetadata.getMicroIndex(segKey)
+		smi, ok := getMicroIndex(segKey)
 		if ok {
-			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+			ConsistentCValLenPerSeg[segKey] = smi.getAllColumnsRecSize()
 		}
 	}
 	return ConsistentCValLenPerSeg

@@ -1524,6 +1524,24 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 	stats.InsertIntoHll(valBytes)
 }
 
+func addSegStatsBool(segstats map[string]*SegStats, cname string, valBytes []byte) {
+
+	var stats *SegStats
+	var ok bool
+	stats, ok = segstats[cname]
+	if !ok {
+		stats = &SegStats{
+			IsNumeric: false,
+			Count:     0,
+		}
+		stats.CreateNewHll()
+
+		segstats[cname] = stats
+	}
+	stats.Count++
+	stats.InsertIntoHll(valBytes)
+}
+
 func addSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
 	fltVal float64, valBytes []byte) {
