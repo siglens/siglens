@@ -26,18 +26,14 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 )
 
-type streamer interface {
-	Fetch() (*iqr.IQR, error)
-	Rewind()
-}
-
 type processor interface {
 	Process(*iqr.IQR) (*iqr.IQR, error)
 	Rewind()
 }
 
 type DataProcessor struct {
-	streams   []streamer
+	streams   []*cachedStream
+	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
 
 	inputOrderMatters bool
