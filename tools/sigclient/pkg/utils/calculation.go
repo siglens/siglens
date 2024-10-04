@@ -127,7 +127,7 @@ func CompareStringSlices(a []string, b []string) bool {
 		return false
 	}
 	mp := make(map[string]struct{})
-	
+
 	for _, v := range a {
 		mp[v] = struct{}{}
 	}

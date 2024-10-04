@@ -123,7 +123,7 @@ var functionalTestCmd = &cobra.Command{
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
-		// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, 
+		// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
 		// indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
 
 		query.FunctionalTest(queryDest, folderPath)
