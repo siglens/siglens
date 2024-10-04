@@ -126,17 +126,10 @@ func CompareStringSlices(a []string, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	mp := make(map[string]struct{})
-
-	for _, v := range a {
-		mp[v] = struct{}{}
-	}
-
-	for _, v := range b {
-		if _, ok := mp[v]; !ok {
+	for i := range a {
+		if a[i] != b[i] {
 			return false
 		}
-		delete(mp, v)
 	}
 
 	return true
