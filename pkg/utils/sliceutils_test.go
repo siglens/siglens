@@ -166,3 +166,16 @@ func Test_RemoveElements(t *testing.T) {
 	assert.Len(t, newSlice, 2)
 	assert.Equal(t, newSlice, []int{1, 5})
 }
+
+func Test_IndexOfMin(t *testing.T) {
+	slice := []int{5, 3, 1, 4, 2}
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	assert.Equal(t, 2, IndexOfMin(slice, less))
+
+	slice = []int{1, 1, 0, 0}
+	index := IndexOfMin(slice, less)
+	assert.True(t, index == 2 || index == 3)
+}
