@@ -19,6 +19,7 @@ package iqr
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
@@ -52,6 +53,74 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
+}
+
+func MergeIQRs(iqrs []*IQR) (*IQR, int, error) {
+	iqr, err := mergeMetadata(iqrs)
+	if err != nil {
+		log.Errorf("MergeIQRs: error merging metadata: %v", err)
+		return nil, 0, err
+	}
+
+	// TODO
+	return iqr, 0, nil
+}
+
+func mergeMetadata(iqrs []*IQR) (*IQR, error) {
+	if len(iqrs) == 0 {
+		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
+	}
+
+	result := NewIQR(iqrs[0].qid)
+	result.mode = iqrs[0].mode
+
+	for encoding, segKey := range iqrs[0].encodingToSegKey {
+		result.encodingToSegKey[encoding] = segKey
+	}
+
+	for cname := range iqrs[0].deletedColumns {
+		result.deletedColumns[cname] = struct{}{}
+	}
+
+	for oldName, newName := range iqrs[0].renamedColumns {
+		result.renamedColumns[oldName] = newName
+	}
+
+	result.groupbyColumns = append(result.groupbyColumns, iqrs[0].groupbyColumns...)
+	result.measureColumns = append(result.measureColumns, iqrs[0].measureColumns...)
+
+	for _, iqr := range iqrs {
+		err := result.mergeEncodings(iqr.encodingToSegKey)
+		if err != nil {
+			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
+		}
+
+		if iqr.mode != result.mode {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent modes")
+		}
+
+		if iqr.qid != result.qid {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent qids")
+		}
+
+		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent deleted columns")
+		}
+
+		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent renamed columns")
+		}
+
+		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent groupby columns")
+		}
+
+		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent measure columns")
+		}
+	}
+
+	return result, nil
 }
 
 func NewIQR(qid uint64) *IQR {
