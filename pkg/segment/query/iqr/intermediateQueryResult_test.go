@@ -209,4 +209,9 @@ func Test_MergeIQRs(t *testing.T) {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
 		},
 	}, mergedIqr.knownValues)
+
+	// The merged records should have been discarded from the input IQRs.
+	assert.Equal(t, 1, iqr1.NumberOfRecords())
+	assert.Equal(t, 1, iqr2.NumberOfRecords())
+	assert.Equal(t, 0, iqr3.NumberOfRecords())
 }

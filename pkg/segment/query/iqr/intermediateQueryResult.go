@@ -327,10 +327,16 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 // This merges multiple IQRs into one. It stops when one of the IQRs runs out
 // of records, and returns the index of the IQR that ran out of records.
 //
+// Each record taken from an input IQR is discarded from that IQR.
+//
 // Each input IQR must already be sorted according to the given less function.
 func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error) {
 	if len(iqrs) == 0 {
 		return nil, 0, toputils.TeeErrorf("MergeIQRs: no IQRs to merge")
+	}
+
+	if less == nil {
+		return nil, 0, toputils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
 	iqr, err := mergeMetadata(iqrs)
@@ -340,12 +346,15 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	}
 
 	nextRecords := make([]*Record, len(iqrs))
+	numRecordsTaken := make([]int, len(iqrs))
 	for i, iqr := range iqrs {
 		nextRecords[i] = &Record{iqr: iqr, index: 0}
+		numRecordsTaken[i] = 0
 	}
 
 	for {
 		iqrIndex := toputils.IndexOfMin(nextRecords, less)
+		numRecordsTaken[iqrIndex]++
 		record := nextRecords[iqrIndex]
 
 		// Append the record.
@@ -365,6 +374,15 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 		// Check if this IQR is out of records.
 		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
+			// Discard all the records that were merged.
+			for i, numTaken := range numRecordsTaken {
+				err := iqrs[i].discard(numTaken)
+				if err != nil {
+					log.Errorf("MergeIQRs: error discarding records: %v", err)
+					return nil, 0, err
+				}
+			}
+
 			return iqr, iqrIndex, nil
 		}
 	}
@@ -435,6 +453,35 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	}
 
 	return result, nil
+}
+
+func (iqr *IQR) discard(numRecords int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.discard: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	} else if iqr.mode == withRRCs {
+		if numRecords > len(iqr.rrcs) {
+			return fmt.Errorf("IQR.discard: trying to discard %v records, but there are only %v RRCs",
+				numRecords, len(iqr.rrcs))
+		}
+
+		iqr.rrcs = iqr.rrcs[numRecords:]
+	}
+
+	for cname, values := range iqr.knownValues {
+		if len(values) < numRecords {
+			return fmt.Errorf("IQR.discard: trying to discard %v records, but there are only %v values for column %v",
+				numRecords, len(values), cname)
+		}
+
+		iqr.knownValues[cname] = values[numRecords:]
+	}
+
+	return nil
 }
 
 // TODO: Add option/method to return the result for a websocket query.
