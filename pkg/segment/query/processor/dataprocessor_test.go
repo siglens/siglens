@@ -18,8 +18,11 @@
 package processor
 
 import (
+	"io"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,4 +50,116 @@ func Test_Getters(t *testing.T) {
 	assert.False(t, dp.IsPermutingCmd())
 	assert.False(t, dp.IsBottleneckCmd())
 	assert.False(t, dp.IsTwoPassCmd())
+}
+
+type mockStreamer struct {
+	allRecords map[string][]utils.CValueEnclosure
+	numSent    int
+	qid        uint64
+}
+
+func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
+	if ms.numSent >= len(ms.allRecords["col1"]) {
+		return nil, io.EOF
+	}
+
+	// Send one at a time.
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {ms.allRecords["col1"][ms.numSent]},
+	}
+
+	iqr := iqr.NewIQR(ms.qid)
+	err := iqr.AppendKnownValues(knownValues)
+	if err != nil {
+		return nil, err
+	}
+
+	ms.numSent++
+	return iqr, nil
+}
+
+func (ms *mockStreamer) Rewind() {
+	ms.numSent = 0
+}
+
+type passThroughProcessor struct{}
+
+func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	if input == nil {
+		return nil, io.EOF
+	}
+
+	return input, nil
+}
+
+func (ptp *passThroughProcessor) Rewind() {}
+
+func Test_Fetch_nonBottleneck(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp := &DataProcessor{
+		streams:         []streamer{stream},
+		processor:       &passThroughProcessor{},
+		isBottleneckCmd: false,
+	}
+
+	for i := 0; i < 3; i++ {
+		output, err := dp.Fetch()
+		assert.NoError(t, err, "iteration %d", i)
+		assert.NotNil(t, output, "iteration %d", i)
+		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
+	}
+
+	_, err := dp.Fetch()
+	assert.Equal(t, io.EOF, err)
+}
+
+type mockBottleneckProcessor struct {
+	numSeen     int
+	lastSeenIQR *iqr.IQR
+}
+
+func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	if input == nil {
+		return mbp.lastSeenIQR, io.EOF
+	}
+
+	mbp.numSeen += input.NumberOfRecords()
+	mbp.lastSeenIQR = input
+	return input, nil
+}
+
+func (mbp *mockBottleneckProcessor) Rewind() {}
+
+func Test_Fetch_bottleneck(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp := &DataProcessor{
+		streams:         []streamer{stream},
+		processor:       &mockBottleneckProcessor{},
+		isBottleneckCmd: true,
+	}
+
+	output, err := dp.Fetch()
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	assert.Equal(t, 3, dp.processor.(*mockBottleneckProcessor).numSeen)
 }
