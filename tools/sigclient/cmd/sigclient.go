@@ -100,7 +100,6 @@ var esBulkCmd = &cobra.Command{
 	},
 }
 
-// esBulkCmd represents the es bulk ingestion
 var functionalTestCmd = &cobra.Command{
 	Use:   "functional",
 	Short: "functional testing of SigLens",
@@ -114,15 +113,18 @@ var functionalTestCmd = &cobra.Command{
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
-		folderPath, _ := cmd.Flags().GetString("folderPath")
+		folderPath, _ := cmd.Flags().GetString("queryDataPath")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("totalEvents : %+v\n", totalEvents)
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("indexName : %+v\n", indexName)
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
+		log.Infof("queryDataPath : %+v\n", folderPath)
 
 		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
 			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
@@ -416,8 +418,8 @@ func init() {
 	functionalTestCmd.PersistentFlags().IntP("totalEvents", "t", 100000, "Total number of events to send")
 	functionalTestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	functionalTestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server URL")
-	functionalTestCmd.PersistentFlags().StringP("folderPath", "f", "", "path to folder containing logs query files")
+	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
+	functionalTestCmd.PersistentFlags().StringP("queryDataPath", "f", "", "path to folder containing query JSON files")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

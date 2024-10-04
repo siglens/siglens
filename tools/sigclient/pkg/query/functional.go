@@ -460,6 +460,7 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	}
 	sortRecords(queryRes.Records, "ident")
 	sortRecords(expRes.Records, "ident")
+	// TODO: Fixed record order comparison for sort
 
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
