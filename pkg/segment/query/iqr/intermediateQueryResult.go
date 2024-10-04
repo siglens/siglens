@@ -45,9 +45,9 @@ type IQR struct {
 
 	// Used in both modes.
 	qid            uint64
-	knownValues    map[string][]utils.CValueEnclosure
+	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
 	deletedColumns map[string]struct{}
-	renamedColumns map[string]string
+	renamedColumns map[string]string // old name -> new name
 
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
