@@ -373,10 +373,8 @@ func EvaluateQueryForWebSocket(dest string, query string, qid int, expRes *Resul
 		switch readEvent["state"] {
 		case "RUNNING":
 		case "QUERY_UPDATE":
-			// TODO: Need to figure out how to handle multi segment records
-			// For single segment we are returning the records in both query update and query complete
-		case "COMPLETE":
 			populateHits(readEvent, tempRes)
+		case "COMPLETE":
 			queryRes := CreateResult(readEvent)
 			queryRes.Records = tempRes.Records
 			queryRes.TotalMatched = tempRes.TotalMatched
