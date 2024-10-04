@@ -77,11 +77,11 @@ func (iqr *IQR) validate() error {
 		return fmt.Errorf("IQR.mode is invalid")
 	}
 
-	for cname := range iqr.knownValues {
-		if len(iqr.knownValues[cname]) != len(iqr.rrcs) && len(iqr.rrcs) != 0 {
+	for cname, values := range iqr.knownValues {
+		if len(values) != len(iqr.rrcs) && len(iqr.rrcs) != 0 {
 			if _, ok := iqr.deletedColumns[cname]; !ok {
 				return fmt.Errorf("knownValues for column %s has %v values, but there are %v RRCs",
-					cname, len(iqr.knownValues[cname]), len(iqr.rrcs))
+					cname, len(values), len(iqr.rrcs))
 			}
 		}
 	}
