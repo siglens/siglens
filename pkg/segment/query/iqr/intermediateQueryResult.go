@@ -132,7 +132,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 		iqr.mode = withoutRRCs
 	}
 
-	numExistingRecords := iqr.numberOfRecords()
+	numExistingRecords := iqr.NumberOfRecords()
 
 	for cname, values := range knownValues {
 		if _, ok := iqr.deletedColumns[cname]; ok {
@@ -150,9 +150,9 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 	return nil
 }
 
-func (iqr *IQR) numberOfRecords() int {
+func (iqr *IQR) NumberOfRecords() int {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.numberOfRecords: validation failed: %v", err)
+		log.Errorf("IQR.NumberOfRecords: validation failed: %v", err)
 		return 0
 	}
 
@@ -168,7 +168,7 @@ func (iqr *IQR) numberOfRecords() int {
 
 		return 0
 	default:
-		log.Errorf("IQR.numberOfRecords: unexpected mode %v", iqr.mode)
+		log.Errorf("IQR.NumberOfRecords: unexpected mode %v", iqr.mode)
 		return 0
 	}
 }
@@ -324,6 +324,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 }
 
 // TODO: Add option/method to return the result for a websocket query.
+// TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
@@ -359,7 +360,7 @@ func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 
 	response := &pipesearch.PipeSearchResponseOuter{
 		Hits: pipesearch.PipeSearchResponse{
-			TotalMatched: iqr.numberOfRecords(),
+			TotalMatched: iqr.NumberOfRecords(),
 			Hits:         recordsAsAny,
 		},
 		AllPossibleColumns: toputils.GetKeysOfMap(records),
