@@ -324,6 +324,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 }
 
 // TODO: Add option/method to return the result for a websocket query.
+// TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
