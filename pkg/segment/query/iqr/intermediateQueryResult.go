@@ -95,7 +95,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 	}
 
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AppendRRCs: invalid state: %v", err)
+		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 
 func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AppendKnownValues: invalid state: %v", err)
+		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
 		return err
 	}
 
@@ -152,7 +152,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 
 func (iqr *IQR) numberOfRecords() int {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.numberOfRecords: invalid state: %v", err)
+		log.Errorf("IQR.numberOfRecords: validation failed: %v", err)
 		return 0
 	}
 
@@ -190,7 +190,7 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadAllColumns: invalid state: %v", err)
+		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -209,7 +209,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadColumn: invalid state: %v", err)
+		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -325,7 +325,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AsResult: invalid state: %v", err)
+		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
 	}
 
