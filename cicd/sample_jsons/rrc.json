@@ -1,7 +1,10 @@
 {
    "queryText": "app_name=Bracecould | fields app_name, batch, http_status, ident",
    "expectedResult": {
-        "totalMatched": 6,
+        "totalMatched": {
+            "value": 6,
+            "relation": "eq"
+        },
         "qtype": "logs-query",
         "records": [
             {

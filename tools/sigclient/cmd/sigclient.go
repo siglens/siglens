@@ -20,6 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"
@@ -107,7 +108,7 @@ var functionalTestCmd = &cobra.Command{
 		processCount, _ := cmd.Flags().GetInt("processCount")
 		dest, _ := cmd.Flags().GetString("dest")
 		queryDest, _ := cmd.Flags().GetString("queryDest")
-		// totalEvents, _ := cmd.Flags().GetInt("totalEvents")
+		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
@@ -123,8 +124,10 @@ var functionalTestCmd = &cobra.Command{
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
-		// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-		// indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
+		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
+
+		time.Sleep(1 * time.Minute)
 
 		query.FunctionalTest(queryDest, folderPath)
 	},
