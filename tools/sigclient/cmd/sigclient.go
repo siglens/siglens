@@ -99,6 +99,37 @@ var esBulkCmd = &cobra.Command{
 	},
 }
 
+// esBulkCmd represents the es bulk ingestion
+var functionalTestCmd = &cobra.Command{
+	Use:   "functional",
+	Short: "functional testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		processCount, _ := cmd.Flags().GetInt("processCount")
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		// totalEvents, _ := cmd.Flags().GetInt("totalEvents")
+		batchSize, _ := cmd.Flags().GetInt("batchSize")
+		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
+		numIndices, _ := cmd.Flags().GetInt("numIndices")
+		indexName, _ := cmd.Flags().GetString("indexName")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		folderPath, _ := cmd.Flags().GetString("folderPath")
+
+		log.Infof("processCount : %+v\n", processCount)
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("batchSize : %+v\n", batchSize)
+		log.Infof("indexPrefix : %+v\n", indexPrefix)
+		log.Infof("indexName : %+v\n", indexName)
+		log.Infof("numIndices : %+v\n", numIndices)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, 
+		// indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
+
+		query.FunctionalTest(queryDest, folderPath)
+	},
+}
+
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
@@ -378,6 +409,13 @@ func init() {
 	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
+	functionalTestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
+	functionalTestCmd.PersistentFlags().IntP("totalEvents", "t", 100000, "Total number of events to send")
+	functionalTestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	functionalTestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
+	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server URL")
+	functionalTestCmd.PersistentFlags().StringP("folderPath", "f", "", "path to folder containing logs query files")
+
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
@@ -413,6 +451,7 @@ func init() {
 
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(functionalTestCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)

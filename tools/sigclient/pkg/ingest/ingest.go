@@ -348,7 +348,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()
-	case "benchmark":
+	case "benchmark", "functional":
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)

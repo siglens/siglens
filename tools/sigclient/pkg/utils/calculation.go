@@ -110,3 +110,55 @@ func ConvertStringToEpochSec(nowTs uint64, inp string, defValue uint64) uint64 {
 	}
 	return retVal
 }
+
+func RemoveCols(cols []string, colsToRemove map[string]struct{}) []string {
+	finalCols := []string{}
+	for col := range colsToRemove {
+		if _, ok := colsToRemove[col]; !ok {
+			finalCols = append(finalCols, col)
+		}
+	}
+
+	return finalCols
+}
+
+func CompareStringSlices(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	mp := make(map[string]struct{})
+	
+	for _, v := range a {
+		mp[v] = struct{}{}
+	}
+
+	for _, v := range b {
+		if _, ok := mp[v]; !ok {
+			return false
+		}
+		delete(mp, v)
+	}
+
+	return true
+}
+
+func ElementsMatch(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	mp := make(map[string]int)
+	for _, v := range a {
+		mp[v]++
+	}
+	for _, v := range b {
+		if _, ok := mp[v]; !ok {
+			return false
+		}
+		mp[v]--
+		if mp[v] == 0 {
+			delete(mp, v)
+		}
+	}
+
+	return len(mp) == 0
+}
