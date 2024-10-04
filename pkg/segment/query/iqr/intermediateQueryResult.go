@@ -323,6 +323,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	return results, nil
 }
 
+// TODO: Add option/method to return the result for a websocket query.
 func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
