@@ -576,7 +576,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if queryResult != nil && queryResult.ErrList != nil && len(queryResult.ErrList) > 0 {
 		responsebody := make(map[string]interface{})
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		errors := make([]string, len(queryResult.ErrList))
+		errors := make([]string, 0, len(queryResult.ErrList))
 		for _, err := range queryResult.ErrList {
 			errors = append(errors, err.Error())
 		}

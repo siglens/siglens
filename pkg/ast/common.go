@@ -188,7 +188,7 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, nega
 	var matchWordsOriginal [][]byte
 	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
 		originalRtInput = strings.TrimSpace(cci.originalColValue.(string))
-		matchWordsOriginal = make([][]byte, len(matchWords))
+		matchWordsOriginal = make([][]byte, 0, len(matchWords))
 		for _, word := range strings.Split(originalRtInput, " ") {
 			matchWordsOriginal = append(matchWordsOriginal, [][]byte{[]byte(word)}...)
 		}
@@ -239,7 +239,7 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 
 	var matchWordsOriginal [][]byte
 	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
-		matchWordsOriginal = make([][]byte, len(matchWords))
+		matchWordsOriginal = make([][]byte, 0, len(matchWords))
 		for _, word := range strings.Split(cci.originalColValue.(string), " ") {
 			matchWordsOriginal = append(matchWordsOriginal, []byte(word))
 		}
