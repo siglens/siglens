@@ -55,119 +55,6 @@ type IQR struct {
 	measureColumns []string
 }
 
-// This merges multiple IQRs into one. It stops when one of the IQRs runs out
-// of records, and returns the index of the IQR that ran out of records.
-//
-// Each input IQR must already be sorted according to the given less function.
-func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error) {
-	if len(iqrs) == 0 {
-		return nil, 0, toputils.TeeErrorf("MergeIQRs: no IQRs to merge")
-	}
-
-	iqr, err := mergeMetadata(iqrs)
-	if err != nil {
-		log.Errorf("MergeIQRs: error merging metadata: %v", err)
-		return nil, 0, err
-	}
-
-	nextRecords := make([]*Record, len(iqrs))
-	for i, iqr := range iqrs {
-		nextRecords[i] = &Record{iqr: iqr, index: 0}
-	}
-
-	for {
-		iqrIndex := toputils.IndexOfMin(nextRecords, less)
-		record := nextRecords[iqrIndex]
-
-		// Append the record.
-		if iqr.mode == withRRCs {
-			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
-		}
-		for cname, values := range record.iqr.knownValues {
-			if _, ok := iqr.knownValues[cname]; !ok {
-				err := toputils.TeeErrorf("MergeIQRs: column %v is missing from destination IQR", cname)
-				return nil, 0, err
-			}
-			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
-		}
-
-		// Prepare for the next iteration.
-		record.index++
-
-		// Check if this IQR is out of records.
-		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
-			return iqr, iqrIndex, nil
-		}
-	}
-}
-
-func mergeMetadata(iqrs []*IQR) (*IQR, error) {
-	if len(iqrs) == 0 {
-		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
-	}
-
-	result := NewIQR(iqrs[0].qid)
-	result.mode = iqrs[0].mode
-
-	for encoding, segKey := range iqrs[0].encodingToSegKey {
-		result.encodingToSegKey[encoding] = segKey
-	}
-
-	for cname := range iqrs[0].knownValues {
-		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
-	}
-
-	for cname := range iqrs[0].deletedColumns {
-		result.deletedColumns[cname] = struct{}{}
-	}
-
-	for oldName, newName := range iqrs[0].renamedColumns {
-		result.renamedColumns[oldName] = newName
-	}
-
-	result.groupbyColumns = append(result.groupbyColumns, iqrs[0].groupbyColumns...)
-	result.measureColumns = append(result.measureColumns, iqrs[0].measureColumns...)
-
-	for _, iqr := range iqrs {
-		err := result.mergeEncodings(iqr.encodingToSegKey)
-		if err != nil {
-			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
-		}
-
-		for cname := range iqr.knownValues {
-			if _, ok := result.knownValues[cname]; !ok {
-				result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
-			}
-		}
-
-		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent modes")
-		}
-
-		if iqr.qid != result.qid {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent qids")
-		}
-
-		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent deleted columns")
-		}
-
-		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent renamed columns")
-		}
-
-		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent groupby columns")
-		}
-
-		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent measure columns")
-		}
-	}
-
-	return result, nil
-}
-
 func NewIQR(qid uint64) *IQR {
 	return &IQR{
 		mode:             notSet,
@@ -435,6 +322,119 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	iqr.knownValues[cname] = results
 
 	return results, nil
+}
+
+// This merges multiple IQRs into one. It stops when one of the IQRs runs out
+// of records, and returns the index of the IQR that ran out of records.
+//
+// Each input IQR must already be sorted according to the given less function.
+func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error) {
+	if len(iqrs) == 0 {
+		return nil, 0, toputils.TeeErrorf("MergeIQRs: no IQRs to merge")
+	}
+
+	iqr, err := mergeMetadata(iqrs)
+	if err != nil {
+		log.Errorf("MergeIQRs: error merging metadata: %v", err)
+		return nil, 0, err
+	}
+
+	nextRecords := make([]*Record, len(iqrs))
+	for i, iqr := range iqrs {
+		nextRecords[i] = &Record{iqr: iqr, index: 0}
+	}
+
+	for {
+		iqrIndex := toputils.IndexOfMin(nextRecords, less)
+		record := nextRecords[iqrIndex]
+
+		// Append the record.
+		if iqr.mode == withRRCs {
+			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
+		}
+		for cname, values := range record.iqr.knownValues {
+			if _, ok := iqr.knownValues[cname]; !ok {
+				err := toputils.TeeErrorf("MergeIQRs: column %v is missing from destination IQR", cname)
+				return nil, 0, err
+			}
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
+		}
+
+		// Prepare for the next iteration.
+		record.index++
+
+		// Check if this IQR is out of records.
+		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
+			return iqr, iqrIndex, nil
+		}
+	}
+}
+
+func mergeMetadata(iqrs []*IQR) (*IQR, error) {
+	if len(iqrs) == 0 {
+		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
+	}
+
+	result := NewIQR(iqrs[0].qid)
+	result.mode = iqrs[0].mode
+
+	for encoding, segKey := range iqrs[0].encodingToSegKey {
+		result.encodingToSegKey[encoding] = segKey
+	}
+
+	for cname := range iqrs[0].knownValues {
+		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+	}
+
+	for cname := range iqrs[0].deletedColumns {
+		result.deletedColumns[cname] = struct{}{}
+	}
+
+	for oldName, newName := range iqrs[0].renamedColumns {
+		result.renamedColumns[oldName] = newName
+	}
+
+	result.groupbyColumns = append(result.groupbyColumns, iqrs[0].groupbyColumns...)
+	result.measureColumns = append(result.measureColumns, iqrs[0].measureColumns...)
+
+	for _, iqr := range iqrs {
+		err := result.mergeEncodings(iqr.encodingToSegKey)
+		if err != nil {
+			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
+		}
+
+		for cname := range iqr.knownValues {
+			if _, ok := result.knownValues[cname]; !ok {
+				result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+			}
+		}
+
+		if iqr.mode != result.mode {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent modes")
+		}
+
+		if iqr.qid != result.qid {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent qids")
+		}
+
+		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent deleted columns")
+		}
+
+		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent renamed columns")
+		}
+
+		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent groupby columns")
+		}
+
+		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent measure columns")
+		}
+	}
+
+	return result, nil
 }
 
 // TODO: Add option/method to return the result for a websocket query.
