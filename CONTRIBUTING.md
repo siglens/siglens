@@ -191,6 +191,7 @@ lint, UTs, gofmt :
 - **BSU**: Block Summary.
 - **CMI**: Columnar Micro Index. This stores data for a single column for a single segment.
 - **CSG**: Columnar Segment file. This stores data for a single segment.
+- **IQR**: Intermediate Query Result. This generally contains multiple rows. Depending on the query, there may be more transformations perfomed on it before it yields the final result.
 - **PQMR**: Persistent Query Matched Results.
 - **PQS**: Persistent Query Service. This is used to cache results for frequent queries.
 - **QID**: Query ID. This is a unique identifier for a query, but gets reset to 0 after a restart.

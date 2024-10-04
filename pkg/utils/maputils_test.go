@@ -267,3 +267,22 @@ func Test_GetSortedStringKeys(t *testing.T) {
 	expected = []string{"abc", "def", "ghi"}
 	assert.Equal(t, expected, GetSortedStringKeys(map2))
 }
+
+func Test_TransposeMapOfSlices(t *testing.T) {
+	m := map[string][]int{
+		"a": {1, 2, 3},
+		"b": {1, 42, 100},
+	}
+
+	result := TransposeMapOfSlices(m)
+	expected := []map[string]int{
+		{"a": 1, "b": 1},
+		{"a": 2, "b": 42},
+		{"a": 3, "b": 100},
+	}
+
+	assert.Equal(t, len(expected), len(result))
+	for i := range expected {
+		assert.Equal(t, expected[i], result[i])
+	}
+}
