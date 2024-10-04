@@ -77,9 +77,9 @@ func (dp *DataProcessor) Rewind() {
 
 func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	var output *iqr.IQR
-	gotEOF := false
 
 	for {
+		gotEOF := false
 		input, err := dp.getStreamInput()
 		if err == io.EOF {
 			gotEOF = true
@@ -101,11 +101,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 				continue
 			}
 
-			if output == nil {
-				return output, io.EOF
-			} else {
-				return output, nil
-			}
+			return output, io.EOF
 		} else if output != nil {
 			if !dp.isBottleneckCmd || (dp.isTwoPassCmd && dp.finishedFirstPass) {
 				return output, nil

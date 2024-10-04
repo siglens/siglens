@@ -129,12 +129,13 @@ type mockBottleneckProcessor struct {
 }
 
 func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	defer func() { mbp.lastSeenIQR = input }()
+
 	if input == nil {
 		return mbp.lastSeenIQR, io.EOF
 	}
 
 	mbp.numSeen += input.NumberOfRecords()
-	mbp.lastSeenIQR = input
 	return input, nil
 }
 
@@ -156,10 +157,43 @@ func Test_Fetch_bottleneck(t *testing.T) {
 		streams:         []streamer{stream},
 		processor:       &mockBottleneckProcessor{},
 		isBottleneckCmd: true,
+		isTwoPassCmd:    false,
 	}
 
 	output, err := dp.Fetch()
-	assert.NoError(t, err)
+	assert.Equal(t, io.EOF, err)
 	assert.NotNil(t, output)
 	assert.Equal(t, 3, dp.processor.(*mockBottleneckProcessor).numSeen)
+}
+
+func Test_Fetch_twoPass(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp := &DataProcessor{
+		streams:           []streamer{stream},
+		processor:         &mockBottleneckProcessor{},
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      true,
+		finishedFirstPass: false,
+	}
+
+	for i := 0; i < 3; i++ {
+		output, err := dp.Fetch()
+		assert.NoError(t, err, "iteration %d", i)
+		assert.NotNil(t, output, "iteration %d", i)
+		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
+		assert.Equal(t, 3+i+1, dp.processor.(*mockBottleneckProcessor).numSeen, "iteration %d", i)
+	}
+
+	_, err := dp.Fetch()
+	assert.Equal(t, io.EOF, err)
 }
