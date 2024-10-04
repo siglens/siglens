@@ -121,3 +121,92 @@ func Test_AsResult(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
 }
+
+func Test_mergeMetadata(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	// Disjoint encodings.
+	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
+	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2"}
+
+	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2"}, iqr.encodingToSegKey)
+
+	// Overlapping encodings.
+	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
+	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2", 3: "segKey3"}
+
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2", 3: "segKey3"}, iqr.encodingToSegKey)
+
+	// Inconsistent encodings.
+	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
+	iqr2.encodingToSegKey = map[uint16]string{2: "segKey100", 3: "segKey3"}
+
+	_, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.Error(t, err)
+}
+
+func Test_mergeMetadata_differentQids(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(1)
+
+	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.Error(t, err)
+}
+
+func Test_MergeIQRs(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+	iqr3 := NewIQR(0)
+
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr3.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	})
+	assert.NoError(t, err)
+
+	less := func(a, b *Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	mergedIqr, firstExhaustedIndex, err := MergeIQRs([]*IQR{iqr1, iqr2, iqr3}, less)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, firstExhaustedIndex)
+	assert.Equal(t, 4, mergedIqr.NumberOfRecords())
+	assert.Equal(t, map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	}, mergedIqr.knownValues)
+}

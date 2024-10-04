@@ -55,15 +55,50 @@ type IQR struct {
 	measureColumns []string
 }
 
-func MergeIQRs(iqrs []*IQR) (*IQR, int, error) {
+// This merges multiple IQRs into one. It stops when one of the IQRs runs out
+// of records, and returns the index of the IQR that ran out of records.
+//
+// Each input IQR must already be sorted according to the given less function.
+func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error) {
+	if len(iqrs) == 0 {
+		return nil, 0, toputils.TeeErrorf("MergeIQRs: no IQRs to merge")
+	}
+
 	iqr, err := mergeMetadata(iqrs)
 	if err != nil {
 		log.Errorf("MergeIQRs: error merging metadata: %v", err)
 		return nil, 0, err
 	}
 
-	// TODO
-	return iqr, 0, nil
+	nextRecords := make([]*Record, len(iqrs))
+	for i, iqr := range iqrs {
+		nextRecords[i] = &Record{iqr: iqr, index: 0}
+	}
+
+	for {
+		iqrIndex := toputils.IndexOfMin(nextRecords, less)
+		record := nextRecords[iqrIndex]
+
+		// Append the record.
+		if iqr.mode == withRRCs {
+			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
+		}
+		for cname, values := range record.iqr.knownValues {
+			if _, ok := iqr.knownValues[cname]; !ok {
+				err := toputils.TeeErrorf("MergeIQRs: column %v is missing from destination IQR", cname)
+				return nil, 0, err
+			}
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
+		}
+
+		// Prepare for the next iteration.
+		record.index++
+
+		// Check if this IQR is out of records.
+		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
+			return iqr, iqrIndex, nil
+		}
+	}
 }
 
 func mergeMetadata(iqrs []*IQR) (*IQR, error) {
@@ -76,6 +111,10 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
 		result.encodingToSegKey[encoding] = segKey
+	}
+
+	for cname := range iqrs[0].knownValues {
+		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
 	}
 
 	for cname := range iqrs[0].deletedColumns {
@@ -93,6 +132,12 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		err := result.mergeEncodings(iqr.encodingToSegKey)
 		if err != nil {
 			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
+		}
+
+		for cname := range iqr.knownValues {
+			if _, ok := result.knownValues[cname]; !ok {
+				result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+			}
 		}
 
 		if iqr.mode != result.mode {
@@ -245,7 +290,7 @@ func (iqr *IQR) NumberOfRecords() int {
 func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	// Verify the new encodings don't conflict with the existing ones.
 	for encoding, newSegKey := range segEncToKey {
-		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok {
+		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok && existingSegKey != newSegKey {
 			return toputils.TeeErrorf("IQR.mergeEncodings: same encoding used for %v and %v",
 				newSegKey, existingSegKey)
 		}
