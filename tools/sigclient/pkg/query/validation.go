@@ -58,41 +58,42 @@ type Result struct {
 	BucketCount      int
 }
 
-func CreateListOfMap(resp interface{}) []map[string]interface{} {
+func CreateListOfMap(resp interface{}) ([]map[string]interface{}, error) {
 	items, isList := resp.([]interface{})
 	if !isList {
-		log.Fatalf("CreateListOfMap: resp is not a list, received type: %T", resp)
+		return nil, fmt.Errorf("CreateListOfMap: resp is not a list, received type: %T", resp)
 	}
 
 	mapList := make([]map[string]interface{}, 0)
 	for _, item := range items {
 		mapItem, isMap := item.(map[string]interface{})
 		if !isMap {
-			log.Fatalf("CreateListOfMap: item is not a map, received type: %T", item)
+			return nil, fmt.Errorf("CreateListOfMap: item is not a map, received type: %T", item)
 		}
 		mapList = append(mapList, mapItem)
 	}
-	return mapList
+	return mapList, nil
 }
 
-func CreateListOfString(resp interface{}) []string {
+func CreateListOfString(resp interface{}) ([]string, error) {
 	items, isList := resp.([]interface{})
 	if !isList {
-		log.Fatalf("CreateListOfString: resp is not a list, received type: %T", resp)
+		return nil, fmt.Errorf("CreateListOfString: resp is not a list, received type: %T", resp)
 	}
 
 	stringList := make([]string, 0)
 	for _, item := range items {
 		strItem, isString := item.(string)
 		if !isString {
-			log.Fatalf("CreateListOfString: item is not a string, received type: %T", item)
+			return nil, fmt.Errorf("CreateListOfString: item is not a string, received type: %T", item)
 		}
 		stringList = append(stringList, strItem)
 	}
-	return stringList
+	return stringList, nil
 }
 
 func CreateResult(response map[string]interface{}) (*Result, error) {
+	var err error
 	res := &Result{}
 	qtype, exist := response["qtype"]
 	if !exist {
@@ -101,58 +102,85 @@ func CreateResult(response map[string]interface{}) (*Result, error) {
 	switch qtype {
 	case "logs-query":
 		res.Qtype = "logs-query"
-		CreateResultForRRC(res, response)
+		err = CreateResultForRRC(res, response)
 	case "segstats-query":
 		res.Qtype = "segstats-query"
-		CreateResultForStats(res, response)
+		err = CreateResultForStats(res, response)
 	case "aggs-query":
 		res.Qtype = "aggs-query"
-		CreateResultForGroupBy(res, response)
+		err = CreateResultForGroupBy(res, response)
 	default:
 		return nil, fmt.Errorf("CreateResult: Invalid qtype: %v", qtype)
 	}
 
-	return res, nil
+	return res, err
 }
 
-func CreateResultForRRC(res *Result, response map[string]interface{}) {
+func CreateResultForRRC(res *Result, response map[string]interface{}) error {
+	var err error
 	_, exist := response["allColumns"]
 	if !exist {
-		log.Fatalf("allColumns not found in response")
+		return fmt.Errorf("allColumns not found in response")
 	}
 
-	res.AllColumns = CreateListOfString(response["allColumns"])
-	res.ColumnsOrder = CreateListOfString(response["columnsOrder"])
+	res.AllColumns, err = CreateListOfString(response["allColumns"])
+	if err != nil {
+		return fmt.Errorf("CreateResultForRRC: Error fetching allColumns from response, err: %v", err)
+	}
+
+	res.ColumnsOrder, err = CreateListOfString(response["columnsOrder"])
+	if err != nil {
+		return fmt.Errorf("CreateResultForRRC: Error fetching columnsOrder from response, err: %v", err)
+	}
+
+	return nil
 }
 
-func CreateResultForStats(res *Result, response map[string]interface{}) {
-	res.MeasureFunctions = CreateListOfString(response["measureFunctions"])
-	measureRes := CreateListOfMap(response["measure"])
+func CreateResultForStats(res *Result, response map[string]interface{}) error {
+	var err error
+	res.MeasureFunctions, err = CreateListOfString(response["measureFunctions"])
+	if err != nil {
+		return fmt.Errorf("CreateExpResultForStats: Error fetching measureFunctions from response, err: %v", err)
+	}
+	measureRes, err := CreateListOfMap(response["measure"])
+	if err != nil {
+		return fmt.Errorf("CreateExpResultForStats: Error fetching measure from response, err: %v", err)
+	}
+
 	for _, measure := range measureRes {
 		var isMap bool
 		bucket := BucketHolder{}
-		bucket.GroupByValues = CreateListOfString(measure["GroupByValues"])
+		bucket.GroupByValues, err = CreateListOfString(measure["GroupByValues"])
+		if err != nil {
+			return fmt.Errorf("CreateExpResultForStats: Error fetching GroupByValues from measure, err: %v", err)
+		}
 		bucket.MeasureVal, isMap = measure["MeasureVal"].(map[string]interface{})
 		if !isMap {
-			log.Fatalf("CreateExpResultForStats: measureVal is not a map, received type: %T", measure["MeasureVal"])
+			return fmt.Errorf("CreateExpResultForStats: measureVal is not a map, received type: %T", measure["MeasureVal"])
 		}
 		res.MeasureResults = append(res.MeasureResults, bucket)
 	}
+
+	return nil
 }
 
-func CreateResultForGroupBy(res *Result, response map[string]interface{}) {
+func CreateResultForGroupBy(res *Result, response map[string]interface{}) error {
+	var err error
 	_, exist := response["bucketCount"]
 	if !exist {
-		log.Fatalf("bucketCount not found in response")
+		return fmt.Errorf("bucketCount not found in response")
 	}
 	bucketCount, isFloat := response["bucketCount"].(float64)
 	if !isFloat {
-		log.Fatalf("CreateExpResultForGroupBy: bucketCount is not numeric, received type: %T", response["bucketCount"])
+		return fmt.Errorf("CreateExpResultForGroupBy: bucketCount is not numeric, received type: %T", response["bucketCount"])
 	}
 	res.BucketCount = int(bucketCount)
-	res.GroupByCols = CreateListOfString(response["groupByCols"])
+	res.GroupByCols, err = CreateListOfString(response["groupByCols"])
+	if err != nil {
+		return fmt.Errorf("CreateExpResultForGroupBy: Error fetching groupByCols from response, err: %v", err)
+	}
 
-	CreateResultForStats(res, response)
+	return CreateResultForStats(res, response)
 }
 
 func GetStringValueFromResponse(resp map[string]interface{}, key string) (string, error) {
@@ -224,7 +252,10 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 		if !isString {
 			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueColumn %v is not a string, received type: %T, file: %v", uniqueColumn, uniqueColumn, filePath)
 		}
-		populateTotalMatchedAndRecords(expectedResult, expRes)
+		err = populateTotalMatchedAndRecords(expectedResult, expRes)
+		if err != nil {
+			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error populating totalMatched and records, file: %v, err: %v", filePath, err)
+		}
 		if len(expRes.Records) == 0 || len(expRes.Records) > 10 {
 			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Number of records should be in range 1-10 for logs-query, got: %v file: %v", len(expRes.Records), filePath)
 		}
@@ -276,7 +307,10 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 	if err != nil {
 		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v, err: %v", responseData, err)
 	}
-	populateTotalMatchedAndRecords(hits, queryRes)
+	err = populateTotalMatchedAndRecords(hits, queryRes)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, err: %v", hits, err)
+	}
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
 		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, err: %v", query, err)
@@ -286,15 +320,20 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 	return nil
 }
 
-func populateRecords(response map[string]interface{}, res *Result) {
+func populateRecords(response map[string]interface{}, res *Result) error {
 	if response == nil {
-		return
+		return nil
 	}
 	respRecords, exist := response["records"]
 	if exist && respRecords != nil {
-		records := CreateListOfMap(respRecords)
+		records, err := CreateListOfMap(respRecords)
+		if err != nil {
+			return fmt.Errorf("populateRecords: Error creating records, respRecords: %v, err: %v", respRecords, err)
+		}
 		res.Records = append(res.Records, records...)
 	}
+
+	return nil
 }
 
 func populateTotalMatched(response map[string]interface{}, res *Result) {
@@ -304,9 +343,9 @@ func populateTotalMatched(response map[string]interface{}, res *Result) {
 	res.TotalMatched = response["totalMatched"]
 }
 
-func populateTotalMatchedAndRecords(response map[string]interface{}, res *Result) {
+func populateTotalMatchedAndRecords(response map[string]interface{}, res *Result) error {
 	populateTotalMatched(response, res)
-	populateRecords(response, res)
+	return populateRecords(response, res)
 }
 
 func getHits(response map[string]interface{}) (map[string]interface{}, error) {
@@ -355,7 +394,10 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 			if err != nil {
 				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
 			}
-			populateRecords(hits, tempRes)
+			err = populateRecords(hits, tempRes)
+			if err != nil {
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, err: %v", hits, err)
+			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
 			if err != nil {
