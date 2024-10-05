@@ -452,18 +452,18 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 		"_index":    {},
 	}
 
-	queryRes.AllColumns = utils.RemoveCols(queryRes.AllColumns, colsToRemove)
-	expRes.AllColumns = utils.RemoveCols(expRes.AllColumns, colsToRemove)
+	queryRes.AllColumns = utils.RemoveValues(queryRes.AllColumns, colsToRemove)
+	expRes.AllColumns = utils.RemoveValues(expRes.AllColumns, colsToRemove)
 
 	equal = utils.ElementsMatch(queryRes.AllColumns, expRes.AllColumns)
 	if !equal {
 		return fmt.Errorf("ValidateLogsQueryResults: AllColumns mismatch, expected: %+v, got: %+v", expRes.AllColumns, queryRes.AllColumns)
 	}
 
-	queryRes.ColumnsOrder = utils.RemoveCols(queryRes.ColumnsOrder, colsToRemove)
-	expRes.ColumnsOrder = utils.RemoveCols(expRes.ColumnsOrder, colsToRemove)
+	queryRes.ColumnsOrder = utils.RemoveValues(queryRes.ColumnsOrder, colsToRemove)
+	expRes.ColumnsOrder = utils.RemoveValues(expRes.ColumnsOrder, colsToRemove)
 
-	equal = utils.CompareStringSlices(queryRes.ColumnsOrder, expRes.ColumnsOrder)
+	equal = utils.CompareSlices(queryRes.ColumnsOrder, expRes.ColumnsOrder)
 	if !equal {
 		return fmt.Errorf("ValidateLogsQueryResults: ColumnsOrder mismatch, expected: %+v, got: %+v", expRes.ColumnsOrder, queryRes.ColumnsOrder)
 	}

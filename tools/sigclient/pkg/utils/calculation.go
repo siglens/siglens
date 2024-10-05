@@ -111,18 +111,18 @@ func ConvertStringToEpochSec(nowTs uint64, inp string, defValue uint64) uint64 {
 	return retVal
 }
 
-func RemoveCols(cols []string, colsToRemove map[string]struct{}) []string {
-	finalCols := []string{}
-	for col := range colsToRemove {
-		if _, ok := colsToRemove[col]; !ok {
-			finalCols = append(finalCols, col)
+func RemoveValues[K comparable, T any](values []K, valuesToRemove map[K]T) []K {
+	finalValues := []K{}
+	for _, value := range values {
+		if _, exist := valuesToRemove[value]; !exist {
+			finalValues = append(finalValues, value)
 		}
 	}
 
-	return finalCols
+	return finalValues
 }
 
-func CompareStringSlices(a []string, b []string) bool {
+func CompareSlices[K comparable](a []K, b []K) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -135,11 +135,11 @@ func CompareStringSlices(a []string, b []string) bool {
 	return true
 }
 
-func ElementsMatch(a []string, b []string) bool {
+func ElementsMatch[K comparable](a []K, b []K) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	mp := make(map[string]int)
+	mp := make(map[K]int)
 	for _, v := range a {
 		mp[v]++
 	}
