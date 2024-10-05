@@ -1,0 +1,534 @@
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package query
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"reflect"
+	"sort"
+	"time"
+	"verifier/pkg/utils"
+
+	"github.com/fasthttp/websocket"
+
+	log "github.com/sirupsen/logrus"
+)
+
+type Hits struct {
+	TotalMatched interface{}
+	Records      []map[string]interface{} // key: column name, value: column value
+}
+
+type BucketHolder struct {
+	GroupByValues []string
+	MeasureVal    map[string]interface{} // key: measure name, value: measure value
+}
+
+type Result struct {
+	TotalMatched     interface{}
+	Records          []map[string]interface{}
+	AllColumns       []string
+	ColumnsOrder     []string
+	GroupByCols      []string
+	MeasureFunctions []string
+	MeasureResults   []BucketHolder
+	Qtype            string
+	BucketCount      int
+}
+
+func CreateListOfMap(resp interface{}) []map[string]interface{} {
+	items, isList := resp.([]interface{})
+	if !isList {
+		log.Fatalf("CreateListOfMap: resp is not a list, received type: %T", resp)
+	}
+
+	mapList := make([]map[string]interface{}, 0)
+	for _, item := range items {
+		mapItem, isMap := item.(map[string]interface{})
+		if !isMap {
+			log.Fatalf("CreateListOfMap: item is not a map, received type: %T", item)
+		}
+		mapList = append(mapList, mapItem)
+	}
+	return mapList
+}
+
+func CreateListOfString(resp interface{}) []string {
+	items, isList := resp.([]interface{})
+	if !isList {
+		log.Fatalf("CreateListOfString: resp is not a list, received type: %T", resp)
+	}
+
+	stringList := make([]string, 0)
+	for _, item := range items {
+		strItem, isString := item.(string)
+		if !isString {
+			log.Fatalf("CreateListOfString: item is not a string, received type: %T", item)
+		}
+		stringList = append(stringList, strItem)
+	}
+	return stringList
+}
+
+func CreateResult(response map[string]interface{}) (*Result, error) {
+	res := &Result{}
+	qtype, exist := response["qtype"]
+	if !exist {
+		return nil, fmt.Errorf("CreateResult: qtype not found in response")
+	}
+	switch qtype {
+	case "logs-query":
+		res.Qtype = "logs-query"
+		CreateResultForRRC(res, response)
+	case "segstats-query":
+		res.Qtype = "segstats-query"
+		CreateResultForStats(res, response)
+	case "aggs-query":
+		res.Qtype = "aggs-query"
+		CreateResultForGroupBy(res, response)
+	default:
+		return nil, fmt.Errorf("CreateResult: Invalid qtype: %v", qtype)
+	}
+
+	return res, nil
+}
+
+func CreateResultForRRC(res *Result, response map[string]interface{}) {
+	_, exist := response["allColumns"]
+	if !exist {
+		log.Fatalf("allColumns not found in response")
+	}
+
+	res.AllColumns = CreateListOfString(response["allColumns"])
+	res.ColumnsOrder = CreateListOfString(response["columnsOrder"])
+}
+
+func CreateResultForStats(res *Result, response map[string]interface{}) {
+	res.MeasureFunctions = CreateListOfString(response["measureFunctions"])
+	measureRes := CreateListOfMap(response["measure"])
+	for _, measure := range measureRes {
+		var isMap bool
+		bucket := BucketHolder{}
+		bucket.GroupByValues = CreateListOfString(measure["GroupByValues"])
+		bucket.MeasureVal, isMap = measure["MeasureVal"].(map[string]interface{})
+		if !isMap {
+			log.Fatalf("CreateExpResultForStats: measureVal is not a map, received type: %T", measure["MeasureVal"])
+		}
+		res.MeasureResults = append(res.MeasureResults, bucket)
+	}
+}
+
+func CreateResultForGroupBy(res *Result, response map[string]interface{}) {
+	_, exist := response["bucketCount"]
+	if !exist {
+		log.Fatalf("bucketCount not found in response")
+	}
+	bucketCount, isFloat := response["bucketCount"].(float64)
+	if !isFloat {
+		log.Fatalf("CreateExpResultForGroupBy: bucketCount is not numeric, received type: %T", response["bucketCount"])
+	}
+	res.BucketCount = int(bucketCount)
+	res.GroupByCols = CreateListOfString(response["groupByCols"])
+
+	CreateResultForStats(res, response)
+}
+
+func GetStringValueFromResponse(resp map[string]interface{}, key string) (string, error) {
+	value, exist := resp[key]
+	if !exist {
+		return "", fmt.Errorf("key %v not found in response", key)
+	}
+
+	query, isString := value.(string)
+	if !isString {
+		return "", fmt.Errorf("value %v is not a string, is of type %T", value, value)
+	}
+
+	return query, nil
+}
+
+func ReadAndValidateQueryFile(filePath string) (string, *Result) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatalf("ReadAndValidateQueryFile: Error opening file: %v, err: %v", filePath, err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	response := make(map[string]interface{})
+	err = decoder.Decode(&response)
+	if err != nil {
+		log.Fatalf("ReadAndValidateQueryFile: Error decoding file: %v, err: %v", filePath, err)
+	}
+
+	query, err := GetStringValueFromResponse(response, "queryText")
+	if err != nil {
+		log.Fatalf("ReadAndValidateQueryFile: Error getting queryText from response, file: %v, err: %v", filePath, err)
+	}
+
+	if _, exist := response["expectedResult"]; !exist {
+		log.Fatalf("ReadAndValidateQueryFile: expectedResult not found in file: %v", filePath)
+	}
+
+	expectedResult, isMap := response["expectedResult"].(map[string]interface{})
+	if !isMap {
+		log.Fatalf("ReadAndValidateQueryFile: expectedResult is not valid it's of type: %T, file: %v", response["expectedResult"], filePath)
+	}
+
+	expRes, err := CreateResult(expectedResult)
+	if err != nil {
+		log.Fatalf("ReadAndValidateQueryFile: Error creating expected result, file: %v, err: %v", err)
+	}
+	if expRes.Qtype == "logs-query" {
+		populateTotalMatchedAndRecords(expectedResult, expRes)
+		if len(expRes.Records) == 0 || len(expRes.Records) > 10 {
+			log.Fatalf("ReadAndValidateQueryFile: Number of records should be in range 1-10 for logs-query, got: %v file: %v", len(expRes.Records), filePath)
+		}
+	}
+
+	return query, expRes
+}
+
+func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, expRes *Result) error {
+	query := queryReq["searchText"].(string)
+
+	reqBody, err := json.Marshal(queryReq)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error marshaling request, reqBody: %v, err: %v", reqBody, err)
+	}
+
+	url := fmt.Sprintf("http://%s/api/search", dest)
+	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error creating request, url: %v, reqBody: %v, err: %v", url, reqBody, err)
+	}
+	req.Header.Set("content-type", "application/json")
+
+	sTime := time.Now()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error sending request, req: %v, err: %v", req, err)
+	}
+	defer resp.Body.Close()
+
+	responseData := make(map[string]interface{})
+	if bodyBytes, err := io.ReadAll(resp.Body); err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error reading response, resp.Body: %v, err: %v", resp.Body, err)
+	} else {
+		if err := json.Unmarshal(bodyBytes, &responseData); err != nil {
+			return fmt.Errorf("EvaluateQueryForAPI: Error unmarshaling bodyBytes: %v, err: %v", string(bodyBytes), err)
+		}
+	}
+
+	queryRes, err := CreateResult(responseData)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v, err: %v", responseData, err)
+	}
+	hits, err := getHits(responseData)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v, err: %v", responseData, err)
+	}
+	populateTotalMatchedAndRecords(hits, queryRes)
+	err = CompareResults(queryRes, expRes, query)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, err: %v", query, err)
+	}
+
+	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
+	return nil
+}
+
+func populateRecords(response map[string]interface{}, res *Result) {
+	if response == nil {
+		return
+	}
+	respRecords, exist := response["records"]
+	if exist && respRecords != nil {
+		records := CreateListOfMap(respRecords)
+		res.Records = append(res.Records, records...)
+	}
+}
+
+func populateTotalMatched(response map[string]interface{}, res *Result) {
+	if response == nil {
+		return
+	}
+	res.TotalMatched = response["totalMatched"]
+}
+
+func populateTotalMatchedAndRecords(response map[string]interface{}, res *Result) {
+	populateTotalMatched(response, res)
+	populateRecords(response, res)
+}
+
+func getHits(response map[string]interface{}) (map[string]interface{}, error) {
+	_, exist := response["hits"]
+	if exist && response["hits"] != nil {
+		hits, isMap := response["hits"].(map[string]interface{})
+		if !isMap {
+			return nil, fmt.Errorf("getHits: hits is not a map, received type: %T", response["hits"])
+		}
+		return hits, nil
+	}
+	return nil, nil
+}
+
+// Evaluates queries and compares the results with expected results for websocket
+func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid int, expRes *Result) error {
+	webSocketURL := fmt.Sprintf("ws://%s/api/search/ws", dest)
+	query := queryReq["searchText"].(string)
+
+	// create websocket connection
+	conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForWebSocket: Error connecting to WebSocket server, webSocketURL: %v, err: %v", webSocketURL, err)
+	}
+	defer conn.Close()
+
+	err = conn.WriteJSON(queryReq)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
+	}
+
+	readEvent := make(map[string]interface{})
+	sTime := time.Now()
+	tempRes := &Result{}
+	for {
+		err = conn.ReadJSON(&readEvent)
+		if err != nil {
+			log.Infof("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
+			break
+		}
+		switch readEvent["state"] {
+		case "RUNNING":
+		case "QUERY_UPDATE":
+			// As query results come in chunks, we need to keep track of all the records
+			hits, err := getHits(readEvent)
+			if err != nil {
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
+			}
+			populateRecords(hits, tempRes)
+		case "COMPLETE":
+			queryRes, err := CreateResult(readEvent)
+			if err != nil {
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
+			}
+			queryRes.Records = tempRes.Records
+			populateTotalMatched(readEvent, queryRes)
+
+			err = CompareResults(queryRes, expRes, query)
+			if err != nil {
+				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, err: %v", query, err)
+			}
+		default:
+			return fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
+		}
+	}
+	log.Infof("EvaluateQueryForWebSocket: Query %v was succesful. In %+v", query, time.Since(sTime))
+
+	return nil
+}
+
+func CompareResults(queryRes *Result, expRes *Result, query string) error {
+	if queryRes.Qtype != expRes.Qtype {
+		return fmt.Errorf("CompareResults: Query type mismatch, expected: %v, got: %v", expRes.Qtype, queryRes.Qtype)
+	}
+
+	switch queryRes.Qtype {
+	case "logs-query":
+		return ValidateLogsQueryResults(queryRes, expRes)
+	case "segstats-query":
+		return ValidateStatsQueryResults(queryRes, expRes)
+	case "aggs-query":
+		return ValidateGroupByQueryResults(queryRes, expRes)
+	default:
+		return fmt.Errorf("CompareResults: Invalid query type: %v", queryRes.Qtype)
+	}
+}
+
+func ValidateRecord(record map[string]interface{}, expRecord map[string]interface{}) error {
+	for col, value := range expRecord {
+		actualValue, exist := record[col]
+		if !exist {
+			return fmt.Errorf("ValidateRecord: Value not found for column: %v", col)
+		}
+		isEqual := reflect.DeepEqual(actualValue, value)
+		if !isEqual {
+			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: %v, got: %v", col, value, actualValue)
+		}
+	}
+
+	return nil
+}
+
+func sortRecords(records []map[string]interface{}, column string) {
+	sort.Slice(records, func(i, j int) bool {
+		return records[i][column].(string) < records[j][column].(string)
+	})
+}
+
+/*
+*
+  - ValidateLogsQueryResults validates the logs query results
+    Compares:
+  - TotalMatched
+  - AllColumns
+  - ColumnsOrder
+  - Records
+  - @param queryRes: Query results from the server
+  - @param expRes: Expected results
+  - @return error: Error if validation fails
+
+*
+*/
+func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
+	var err error
+
+	equal := reflect.DeepEqual(queryRes.TotalMatched, expRes.TotalMatched)
+	if !equal {
+		return fmt.Errorf("ValidateLogsQueryResults: TotalMatched mismatch, expected: %v, got: %v", expRes.TotalMatched, queryRes.TotalMatched)
+	}
+
+	equal = utils.ElementsMatch(queryRes.AllColumns, queryRes.AllColumns)
+	if !equal {
+		return fmt.Errorf("ValidateLogsQueryResults: AllColumns mismatch, expected: %+v, got: %+v", expRes.AllColumns, queryRes.AllColumns)
+	}
+	colsToRemove := map[string]struct{}{
+		"timestamp": {},
+		"_index":    {},
+	}
+	equal = utils.CompareStringSlices(utils.RemoveCols(expRes.ColumnsOrder, colsToRemove), utils.RemoveCols(queryRes.ColumnsOrder, colsToRemove))
+	if !equal {
+		return fmt.Errorf("ValidateLogsQueryResults: ColumnsOrder mismatch, expected: %+v, got: %+v", expRes.ColumnsOrder, queryRes.ColumnsOrder)
+	}
+	if len(queryRes.Records) < len(expRes.Records) {
+		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
+	}
+	sortRecords(queryRes.Records, "ident")
+	sortRecords(expRes.Records, "ident")
+	// TODO: Fixed record order comparison for sort
+
+	for idx, record := range expRes.Records {
+		err = ValidateRecord(queryRes.Records[idx], record)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getGroupByCombination(grpByValues []string) string {
+	grpByValue := ""
+	for _, value := range grpByValues {
+		grpByValue += value + "_"
+	}
+	return grpByValue
+}
+
+func sortMeasureResults(buckets []BucketHolder) {
+	sort.Slice(buckets, func(i, j int) bool {
+		return getGroupByCombination(buckets[i].GroupByValues) < getGroupByCombination(buckets[j].GroupByValues)
+	})
+}
+
+/*
+*
+  - ValidateStatsQueryResults validates the stats query results
+    Compares:
+  - MeasureFunctions
+  - MeasureResults
+  - @param queryRes: Query results from the server
+  - @param expRes: Expected results
+  - @return error: Error if validation fails
+
+*
+*/
+func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
+
+	if len(queryRes.MeasureResults) != len(expRes.MeasureResults) {
+		return fmt.Errorf("ValidateStatsQueryResults: MeasureResults length mismatch, expected: %v, got: %v", len(expRes.MeasureResults), len(queryRes.MeasureResults))
+	}
+
+	equal := utils.ElementsMatch(queryRes.MeasureFunctions, expRes.MeasureFunctions)
+	if !equal {
+		return fmt.Errorf("ValidateStatsQueryResults: MeasureFunctions mismatch, expected: %+v, got: %+v", expRes.MeasureFunctions, queryRes.MeasureFunctions)
+	}
+
+	// BucketResults are not send in a specific order, so sort them before comparing
+	sortMeasureResults(queryRes.MeasureResults)
+	sortMeasureResults(expRes.MeasureResults)
+
+	for idx, expMeasureRes := range expRes.MeasureResults {
+		queryMeasureRes := queryRes.MeasureResults[idx]
+
+		equal := reflect.DeepEqual(queryMeasureRes.GroupByValues, expMeasureRes.GroupByValues)
+		if !equal {
+			return fmt.Errorf("ValidateStatsQueryResults: GroupByCombination mismatch, expected: %+v, got: %+v", expMeasureRes.GroupByValues, queryMeasureRes.GroupByValues)
+		}
+
+		if len(queryMeasureRes.MeasureVal) != len(expMeasureRes.MeasureVal) {
+			return fmt.Errorf("ValidateStatsQueryResults: MeasureVal length mismatch, expected: %v, got: %v", len(expMeasureRes.MeasureVal), len(queryMeasureRes.MeasureVal))
+		}
+
+		for key, value := range expMeasureRes.MeasureVal {
+			actualValue, exist := queryMeasureRes.MeasureVal[key]
+			if !exist {
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal not found for key: %v", key)
+			}
+			equal = reflect.DeepEqual(actualValue, value)
+			if !equal {
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: %v, got: %v", key, value, actualValue)
+			}
+		}
+	}
+
+	return nil
+}
+
+/*
+*
+  - ValidateGroupByQueryResults validates the group by query results
+    Compares:
+  - BucketCount
+  - GroupByCols
+  - MeasureFunctions
+  - MeasureResults
+  - @param queryRes: Query results from the server
+  - @param expRes: Expected results
+
+*
+*/
+func ValidateGroupByQueryResults(queryRes *Result, expRes *Result) error {
+	if queryRes.BucketCount != expRes.BucketCount {
+		return fmt.Errorf("ValidateGroupByQueryResults: BucketCount mismatch, expected: %v, got: %v", expRes.BucketCount, queryRes.BucketCount)
+	}
+
+	equal := utils.ElementsMatch(queryRes.GroupByCols, expRes.GroupByCols)
+	if !equal {
+		return fmt.Errorf("ValidateGroupByQueryResults: GroupByCols mismatch, expected: %+v, got: %+v", expRes.GroupByCols, queryRes.GroupByCols)
+	}
+
+	return ValidateStatsQueryResults(queryRes, expRes)
+}
