@@ -58,10 +58,13 @@ func FunctionalTest(dest string, dataPath string) {
 	// run queries
 	for idx, file := range queryFiles {
 		filePath := filepath.Join(dataPath, file.Name())
-		query, expRes := ReadAndValidateQueryFile(filePath)
+		query, expRes, err := ReadAndValidateQueryFile(filePath)
+		if err != nil {
+			log.Fatalf("FunctionalTest: Error reading and validating query file: %v, err: %v", filePath, err)
+		}
+
 		log.Infof("FunctionalTest: qid=%v, Running query=%v", idx, query)
 		queryReq["searchText"] = query
-
 		err = EvaluateQueryForWebSocket(dest, queryReq, idx, expRes)
 		if err != nil {
 			log.Fatalf("FunctionalTest: Failed evaluating query via websocket, file: %v, err: %v", filePath, err)

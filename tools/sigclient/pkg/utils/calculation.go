@@ -155,3 +155,15 @@ func ElementsMatch(a []string, b []string) bool {
 
 	return len(mp) == 0
 }
+
+func AlmostEqual(a, b, tolerance float64) bool {
+	if a == b {
+		return true
+	}
+	diff := math.Abs(a - b)
+	if b == 0 {
+		return diff < tolerance
+	}
+
+	return (diff / math.Abs(b)) < tolerance
+}
