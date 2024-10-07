@@ -240,10 +240,10 @@ func NewGentimesDP() *DataProcessor {
 	}
 }
 
-func NewHeadDP() *DataProcessor {
+func NewHeadDP(limit utils.Option[uint64]) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &headProcessor{},
+		processor:         &headProcessor{limit: limit},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
