@@ -205,7 +205,7 @@ func ValidateUniqueKeyColsInResult(res *Result) error {
 		for _, col := range res.UniqueKeyCols {
 			_, exist := record[col]
 			if !exist {
-				return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueColumn %v not found in record: %v, UniqueKeyCols: %v", col, record, res.UniqueKeyCols)
+				return fmt.Errorf("ValidateUniqueKeyColsInResult: col %v not found in record: %v, UniqueKeyCols: %v", col, record, res.UniqueKeyCols)
 			}
 		}
 	}
@@ -247,7 +247,7 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	if expRes.Qtype == "logs-query" {
 		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
 		if !exist {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKey not found in logs-query, file: %v", filePath)
+			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKeyCols not found in logs-query, file: %v", filePath)
 		}
 		expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
 		if err != nil {
