@@ -309,11 +309,11 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 	}
 	err = populateTotalMatchedAndRecords(hits, queryRes)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, err: %v", hits, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v, err: %v", hits, responseData, err)
 	}
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, err: %v", query, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v, err: %v", query, responseData, err)
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -396,7 +396,7 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 			}
 			err = populateRecords(hits, tempRes)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, err: %v", hits, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
 			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
@@ -408,7 +408,7 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 
 			err = CompareResults(queryRes, expRes, query)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, err: %v", query, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v, err: %v", query, readEvent, err)
 			}
 		default:
 			return fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
