@@ -331,8 +331,8 @@ function resetCustomDateRange() {
     $('#date-end').val('');
     $('#time-start').val('00:00');
     $('#time-end').val('00:00');
-    $('#date-start').removeClass('active, error');
-    $('#date-end').removeClass('active, error');
+    $('#date-start').removeClass('active error');
+    $('#date-end').removeClass('active error');
     $('#time-start').removeClass('active');
     $('#time-end').removeClass('active');
     Cookies.remove('customStartDate');
