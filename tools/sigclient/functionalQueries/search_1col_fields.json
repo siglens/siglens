@@ -6,7 +6,7 @@
             "relation": "eq"
         },
         "qtype": "logs-query",
-        "uniqueColumn": "ident",
+        "uniqueKeyCols": ["ident"],
         "records": [
             {
                 "app_name": "Bracecould",

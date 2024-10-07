@@ -48,7 +48,7 @@ type BucketHolder struct {
 type Result struct {
 	TotalMatched     interface{}
 	Records          []map[string]interface{}
-	UniqueColumn     string
+	UniqueKeyCols    []string // Key can be a combination of columns
 	AllColumns       []string
 	ColumnsOrder     []string
 	GroupByCols      []string
@@ -197,14 +197,16 @@ func GetStringValueFromResponse(resp map[string]interface{}, key string) (string
 	return query, nil
 }
 
-func ValidateUniqueColumnInResult(res *Result) error {
-	if res.UniqueColumn == "" {
-		return fmt.Errorf("ValidateUniqueColumnInResult: UniqueColumn not found in result")
+func ValidateUniqueKeyColsInResult(res *Result) error {
+	if len(res.UniqueKeyCols) == 0 {
+		return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueKeyCols not found in result")
 	}
 	for _, record := range res.Records {
-		_, exist := record[res.UniqueColumn]
-		if !exist {
-			return fmt.Errorf("ValidateUniqueColumnInResult: UniqueColumn %v not found in record: %v", res.UniqueColumn, record)
+		for _, col := range res.UniqueKeyCols {
+			_, exist := record[col]
+			if !exist {
+				return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueColumn %v not found in record: %v, UniqueKeyCols: %v", col, record, res.UniqueKeyCols)
+			}
 		}
 	}
 	return nil
@@ -243,14 +245,13 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 		return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error creating expected result, file: %v, err: %v", filePath, err)
 	}
 	if expRes.Qtype == "logs-query" {
-		var isString bool
-		uniqueColumn, exist := expectedResult["uniqueColumn"]
+		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
 		if !exist {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueColumn not found in logs-query, file: %v", filePath)
+			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKey not found in logs-query, file: %v", filePath)
 		}
-		expRes.UniqueColumn, isString = uniqueColumn.(string)
-		if !isString {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueColumn %v is not a string, received type: %T, file: %v", uniqueColumn, uniqueColumn, filePath)
+		expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
+		if err != nil {
+			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -259,9 +260,9 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 		if len(expRes.Records) == 0 || len(expRes.Records) > 10 {
 			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Number of records should be in range 1-10 for logs-query, got: %v file: %v", len(expRes.Records), filePath)
 		}
-		err = ValidateUniqueColumnInResult(expRes)
+		err = ValidateUniqueKeyColsInResult(expRes)
 		if err != nil {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error validating unique column, file: %v, err: %v", filePath, err)
+			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error validating UniqueKeyCols, file: %v, err: %v", filePath, err)
 		}
 	}
 
@@ -448,13 +449,26 @@ func CompareFloatValues(actualValue interface{}, expValue float64) (bool, error)
 }
 
 func ValidateRecord(record map[string]interface{}, expRecord map[string]interface{}) error {
+	var err error
+
 	for col, value := range expRecord {
+		equal := false
 		actualValue, exist := record[col]
 		if !exist {
 			return fmt.Errorf("ValidateRecord: Value not found for column: %v", col)
 		}
-		isEqual := reflect.DeepEqual(actualValue, value)
-		if !isEqual {
+
+		expFloatValue, isFloat := value.(float64)
+		if isFloat {
+			equal, err = CompareFloatValues(actualValue, expFloatValue)
+			if err != nil {
+				return fmt.Errorf("ValidateRecord: Error comparing float values, err: %v", err)
+			}
+		} else {
+			equal = reflect.DeepEqual(actualValue, value)
+		}
+
+		if !equal {
 			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: %v, got: %v", col, value, actualValue)
 		}
 	}
@@ -462,9 +476,22 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 	return nil
 }
 
-func sortRecords(records []map[string]interface{}, column string) {
+func sortRecords(records []map[string]interface{}, columns []string) {
+
 	sort.Slice(records, func(i, j int) bool {
-		return records[i][column].(string) < records[j][column].(string)
+		for _, column := range columns {
+			valI, valJ := records[i][column], records[j][column]
+
+			strI := fmt.Sprintf("%v", valI)
+			strJ := fmt.Sprintf("%v", valJ)
+
+			if strI == strJ {
+				continue
+			}
+
+			return strI < strJ
+		}
+		return false
 	})
 }
 
@@ -513,19 +540,19 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
 	}
 
-	queryRes.UniqueColumn = expRes.UniqueColumn
-	err = ValidateUniqueColumnInResult(queryRes)
+	queryRes.UniqueKeyCols = expRes.UniqueKeyCols
+	err = ValidateUniqueKeyColsInResult(queryRes)
 	if err != nil {
-		return fmt.Errorf("ValidateLogsQueryResults: Error validating unique column %v in queryRes, err: %v", expRes.UniqueColumn, err)
+		return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
 	}
 
-	sortRecords(queryRes.Records, expRes.UniqueColumn)
-	sortRecords(expRes.Records, expRes.UniqueColumn)
+	sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
+	sortRecords(expRes.Records, expRes.UniqueKeyCols)
 
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
 		if err != nil {
-			return err
+			return fmt.Errorf("Error comparing records: queryRes Record: %v, expRes Record: %v, err: %v", queryRes.Records[idx], record, err)
 		}
 	}
 
