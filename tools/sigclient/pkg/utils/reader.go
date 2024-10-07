@@ -83,9 +83,10 @@ type DynamicUserGenerator struct {
 }
 
 type GeneratorDataConfig struct {
-	MaxColumns      int  // Mximumn Number of columns per record.
-	VariableColumns bool // Flag to indicate variable columns per record
-	MinColumns      int  // Minimum number of columns per record
+	MaxColumns          int  // Mximumn Number of columns per record.
+	VariableColumns     bool // Flag to indicate variable columns per record
+	MinColumns          int  // Minimum number of columns per record
+	PreserveDefaultCols bool // Preserve default columns
 }
 
 func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
@@ -205,19 +206,23 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 
 	numColumns := 0
 
-	colSuffix := 1
+	colSuffix := 0
 
 	var skipIndexes map[int]struct{}
 
 	if config != nil {
 		numColumns = config.MaxColumns
+		preserveCol := 0
+		if config.PreserveDefaultCols {
+			preserveCol = dynamicUserColumnsLen
+		}
 		if config.VariableColumns {
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			columnsToBeInserted := rng.Intn(config.MaxColumns-config.MinColumns+1) + config.MinColumns
 			skipColumnsCount := config.MaxColumns - columnsToBeInserted
 			skipIndexes = make(map[int]struct{}, skipColumnsCount)
 			for skipColumnsCount > 0 {
-				index := rng.Intn(config.MaxColumns)
+				index := rng.Intn(config.MaxColumns-preserveCol+1) + preserveCol
 				if _, ok := skipIndexes[index]; !ok {
 					skipIndexes[index] = struct{}{}
 					skipColumnsCount--

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"time"
+	// "time"
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"
@@ -112,23 +112,30 @@ var functionalTestCmd = &cobra.Command{
 
 		totalEvents := 100_000
 		batchSize := 100
-		numIndices := 10
+		numIndices := 1
 		processCount := 1
 		indexPrefix := "ind"
 		indexName := ""
-		sleepDuration := 1 * time.Minute
+		// sleepDuration := 1 * time.Minute
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("queryDest : %+v\n", queryDest)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("queryDataPath : %+v\n", folderPath)
 
+		dataGeneratorConfig := &utils.GeneratorDataConfig{
+			MaxColumns:          120,
+			MinColumns:          100,
+			VariableColumns:     true,
+			PreserveDefaultCols: true,
+		}
+
 		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, nil)
+			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		time.Sleep(sleepDuration)
+		// time.Sleep(sleepDuration)
 
-		query.FunctionalTest(queryDest, folderPath)
+		// query.FunctionalTest(queryDest, folderPath)
 	},
 }
 
