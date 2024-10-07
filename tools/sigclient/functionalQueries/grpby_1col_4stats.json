@@ -14,31 +14,31 @@
             "sum(longitude)"
         ],
          "measure": [
-             {
-                 "GroupByValues": [
-                     "male"
-                 ],
-                 "MeasureVal": {
-                    "count(*)": 50047,
-                    "max(latency)": 9999900,
+            {
+                "GroupByValues": [
+                    "male"
+                ],
+                "MeasureVal": {
+                    "count(*)": 49892,
+                    "max(latency)": 9999588,
                     "min(http_status)": 200,
-                    "sum(longitude)": -63647.62413799994,
+                    "sum(longitude)": 74.21203100007915,
                     "temp_value": 1
                 }
-             },
-             {
-                 "GroupByValues": [
-                     "female"
-                 ],
-                 "MeasureVal": {
-                    "count(*)": 49953,
-                    "max(latency)": 9999944,
+            },
+            {
+                "GroupByValues": [
+                    "female"
+                ],
+                "MeasureVal": {
+                    "count(*)": 50108,
+                    "max(latency)": 9999721,
                     "min(http_status)": 200,
-                    "sum(longitude)": -19724.78349699995,
+                    "sum(longitude)": 29425.166054000034,
                     "temp_value": 1
                 }
-             }
-         ]
+            }
+        ]
      }
  }
  

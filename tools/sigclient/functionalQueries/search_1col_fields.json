@@ -2,7 +2,7 @@
    "queryText": "app_name=Bracecould | fields app_name, batch, http_status, ident",
    "expectedResult": {
         "totalMatched": {
-            "value": 6,
+            "value": 8,
             "relation": "eq"
         },
         "qtype": "logs-query",
@@ -10,41 +10,53 @@
         "records": [
             {
                 "app_name": "Bracecould",
-                "batch": "batch-3",
+                "batch": "batch-900",
+                "http_status": 404,
+                "ident": "9b7a5216-9275-4a4b-b8d0-aef739b9c623"
+            },
+            {
+                "_index": "ind-0",
+                "app_name": "Bracecould",
+                "batch": "batch-485",
+                "http_status": 301,
+                "ident": "bd7751f0-cc27-407b-a8f1-5cf682a24f36"
+            },
+            {
+                "app_name": "Bracecould",
+                "batch": "batch-315",
+                "http_status": 200,
+                "ident": "fe7ecdeb-3006-40f8-ac3f-869992863e4c"
+            },
+            {
+                "app_name": "Bracecould",
+                "batch": "batch-476",
                 "http_status": 500,
-                "ident": "d0f78b8a-9843-465a-8100-ae6cd3f36d1e"
+                "ident": "faa6dc8b-51ab-4c76-8f1a-d61c0f4e9f03"
             },
             {
                 "app_name": "Bracecould",
-                "batch": "batch-183",
-                "http_status": 400,
-                "ident": "0beb095c-925b-4491-9fb2-5050c3fcb475"
-            },
-            {
-                "app_name": "Bracecould",
-                "batch": "batch-791",
-                "http_status": 301,
-                "ident": "b5994a04-a59f-4fd4-9d6b-ee8747ff2415"
-            },
-            {
-                "app_name": "Bracecould",
-                "batch": "batch-477",
-                "http_status": 400,
-                "ident": "f48f33c1-0554-4a2d-9dd7-e6058d0a7477"
-            },
-            {
-                "app_name": "Bracecould",
-                "batch": "batch-154",
+                "batch": "batch-991",
                 "http_status": 302,
-                "ident": "d950c01c-a753-48b4-992d-4cb7c4a795ce"
+                "ident": "a4116119-81a6-4cf3-8a5c-0a7b139f62c7"
             },
             {
                 "app_name": "Bracecould",
-                "batch": "batch-27",
-                "http_status": 301,
-                "ident": "99e67934-6c43-4664-9c4f-147d8cf49ca2"
+                "batch": "batch-440",
+                "http_status": 400,
+                "ident": "626596bd-bd07-4847-8583-bbfe72ccf336"
+            },
+            {
+                "app_name": "Bracecould",
+                "batch": "batch-215",
+                "http_status": 500,
+                "ident": "147021df-8c50-48da-adf2-9044b0efd4f7"
+            },
+            {
+                "app_name": "Bracecould",
+                "batch": "batch-671",
+                "http_status": 400,
+                "ident": "e30275b5-a2e5-49c0-a618-9972424e6ee5"
             }
-
         ],
         "allColumns": [
             "app_name",

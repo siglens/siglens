@@ -216,13 +216,13 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 		if config.PreserveDefaultCols {
 			preserveCol = dynamicUserColumnsLen
 		}
-		if config.VariableColumns {
+		if config.VariableColumns && (!config.PreserveDefaultCols || config.MaxColumns > dynamicUserColumnsLen) {
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			columnsToBeInserted := rng.Intn(config.MaxColumns-config.MinColumns+1) + config.MinColumns
 			skipColumnsCount := config.MaxColumns - columnsToBeInserted
 			skipIndexes = make(map[int]struct{}, skipColumnsCount)
 			for skipColumnsCount > 0 {
-				index := rng.Intn(config.MaxColumns-preserveCol+1) + preserveCol
+				index := rng.Intn(config.MaxColumns-preserveCol) + preserveCol
 				if _, ok := skipIndexes[index]; !ok {
 					skipIndexes[index] = struct{}{}
 					skipColumnsCount--
@@ -252,6 +252,7 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 
 		cname := dynamicUserColumnNames[dynamicUserColIndex]
 		insertColName := getColumnName(cname, colSuffix)
+		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
 
 		if skipIndexes != nil {
 			if _, ok := skipIndexes[colCount]; ok {
@@ -262,7 +263,6 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 			}
 		}
 
-		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
 		colCount++
 		dynamicUserColIndex++
 	}
