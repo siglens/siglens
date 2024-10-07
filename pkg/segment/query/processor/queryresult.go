@@ -19,6 +19,7 @@ package processor
 
 import (
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -38,14 +39,19 @@ func NewQueryResultProcessor(queryType structs.QueryType) (*QueryResult, error) 
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
-		limit = utils.QUERY_EARLY_EXIT_LIMIT
+		limit = segutils.QUERY_EARLY_EXIT_LIMIT
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
-		limit = utils.QUERY_MAX_BUCKETS
+		limit = segutils.QUERY_MAX_BUCKETS
 	default:
-		return nil, toputils.TeeErrorf("NewQueryResultProcessor: invalid query type %v", queryType)
+		return nil, utils.TeeErrorf("NewQueryResultProcessor: invalid query type %v", queryType)
+	}
+
+	headDP := NewHeadDP(utils.NewOptionWithValue(limit))
+	if headDP == nil {
+		return nil, utils.TeeErrorf("NewQueryResultProcessor: failed to create head data processor")
 	}
 
 	return &QueryResult{
-		DataProcessor: NewHeadDP(toputils.NewOptionWithValue(limit)),
+		DataProcessor: *headDP,
 	}, nil
 }

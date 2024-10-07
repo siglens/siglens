@@ -18,6 +18,8 @@
 package processor
 
 import (
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -29,6 +31,10 @@ type headProcessor struct {
 }
 
 func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if iqr == nil {
+		return nil, nil
+	}
+
 	limit, ok := p.limit.Get()
 	if !ok {
 		return iqr, nil
@@ -41,8 +47,13 @@ func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	p.numRecordsSent += numToKeep
-	return iqr, nil
+	p.numRecordsSent += uint64(iqr.NumberOfRecords())
+
+	if p.numRecordsSent >= limit {
+		return iqr, io.EOF
+	} else {
+		return iqr, nil
+	}
 }
 
 func (p *headProcessor) Rewind() {
