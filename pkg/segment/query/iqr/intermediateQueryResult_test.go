@@ -215,3 +215,28 @@ func Test_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 1, iqr2.NumberOfRecords())
 	assert.Equal(t, 0, iqr3.NumberOfRecords())
 }
+
+func Test_DiscardAfter(t *testing.T) {
+	iqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+
+	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 3, iqr.NumberOfRecords())
+	err = iqr.DiscardAfter(3)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, iqr.NumberOfRecords())
+
+	err = iqr.DiscardAfter(1)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+}
