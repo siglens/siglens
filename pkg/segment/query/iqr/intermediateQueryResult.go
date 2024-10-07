@@ -427,28 +427,33 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 			}
 		}
 
-		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent modes")
+		if iqr.qid != result.qid {
+			return nil, fmt.Errorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, result.qid)
 		}
 
-		if iqr.qid != result.qid {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent qids")
+		if iqr.mode != result.mode {
+			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+				iqr.qid, iqr.mode, result.mode)
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent deleted columns")
+			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent deleted columns (%v and %v)",
+				iqr.qid, iqr.deletedColumns, result.deletedColumns)
 		}
 
 		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent renamed columns")
+			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent renamed columns (%v and %v)",
+				iqr.qid, iqr.renamedColumns, result.renamedColumns)
 		}
 
 		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent groupby columns")
+			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent groupby columns (%v and %v)",
+				iqr.qid, iqr.groupbyColumns, result.groupbyColumns)
 		}
 
 		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
-			return nil, fmt.Errorf("mergeMetadata: inconsistent measure columns")
+			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent measure columns (%v and %v)",
+				iqr.qid, iqr.measureColumns, result.measureColumns)
 		}
 	}
 
