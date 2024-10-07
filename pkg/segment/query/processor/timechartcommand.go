@@ -25,4 +25,6 @@ func (p *timechartProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *timechartProcessor) Rewind() {}
+func (p *timechartProcessor) Rewind() {
+	panic("not implemented")
+}

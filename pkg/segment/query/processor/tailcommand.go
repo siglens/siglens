@@ -25,4 +25,6 @@ func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *tailProcessor) Rewind() {}
+func (p *tailProcessor) Rewind() {
+	panic("not implemented")
+}

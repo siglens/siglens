@@ -25,4 +25,6 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *rexProcessor) Rewind() {}
+func (p *rexProcessor) Rewind() {
+	panic("not implemented")
+}

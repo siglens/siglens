@@ -25,4 +25,6 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *fillnullProcessor) Rewind() {} // TODO
+func (p *fillnullProcessor) Rewind() { // TODO
+	panic("not implemented")
+}

@@ -25,4 +25,6 @@ func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *regexProcessor) Rewind() {}
+func (p *regexProcessor) Rewind() {
+	panic("not implemented")
+}

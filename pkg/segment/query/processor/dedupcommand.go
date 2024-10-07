@@ -25,4 +25,6 @@ func (p *dedupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *dedupProcessor) Rewind() {}
+func (p *dedupProcessor) Rewind() {
+	panic("not implemented")
+}
