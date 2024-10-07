@@ -35,7 +35,7 @@ test.describe('Test Data Ingestion Page Test', () => {
         await page.locator('#test-data-btn').click();
         await page.waitForTimeout(1000);
 
-        const toast = page.locator('.test-data-toast');
+        const toast = page.locator('#message-toast');
         await expect(toast).toContainText('Sent Test Data Successfully');
     });
 });

@@ -126,13 +126,13 @@ $(document).ready(function () {
 
 function sendTestData() {
     sendTestDataWithoutBearerToken().then((_res) => {
-        showSendTestDataUpdateToast('Sent Test Data Successfully');
+        showToast('Sent Test Data Successfully', 'success');
         let testDataBtn = document.getElementById("test-data-btn");
         testDataBtn.disabled = false;
     })
         .catch((err) => {
             console.log(err)
-            showSendTestDataUpdateToast('Error Sending Test Data');
+            showToast('Error Sending Test Data', 'error');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
         });
