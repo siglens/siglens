@@ -489,6 +489,34 @@ func (iqr *IQR) discard(numRecords int) error {
 	return nil
 }
 
+func (iqr *IQR) DiscardAfter(numRecords uint64) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.DiscardAfter: validation failed: %v", err)
+		return err
+	}
+
+	if numRecords > uint64(iqr.NumberOfRecords()) {
+		return nil
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	} else if iqr.mode == withRRCs {
+		iqr.rrcs = iqr.rrcs[:numRecords]
+	}
+
+	for cname, values := range iqr.knownValues {
+		if len(values) < int(numRecords) {
+			return fmt.Errorf("IQR.DiscardAfter: trying to discard %v after records, but there are only %v values for column %v",
+				numRecords, len(values), cname)
+		}
+
+		iqr.knownValues[cname] = values[:numRecords]
+	}
+
+	return nil
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {

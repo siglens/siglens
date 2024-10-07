@@ -18,33 +18,34 @@
 package processor
 
 import (
-	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 )
 
-type headProcessor struct {
-	limit          utils.Option[uint64]
-	numRecordsSent uint64
+type QueryType uint8
+
+const (
+	InvalidQueryType QueryType = iota
+	RecordsQuery
+	StatsQuery
+)
+
+type QueryResult struct {
+	DataProcessor
 }
 
-func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	limit, ok := p.limit.Get()
-	if !ok {
-		return iqr, nil
+func NewQueryResultProcessor(queryType structs.QueryType) (*QueryResult, error) {
+	var limit uint64
+	switch queryType {
+	case structs.RRCCmd:
+		limit = utils.QUERY_EARLY_EXIT_LIMIT
+	case structs.SegmentStatsCmd, structs.GroupByCmd:
+		limit = utils.QUERY_MAX_BUCKETS
+	default:
+		return nil, toputils.TeeErrorf("NewQueryResultProcessor: invalid query type %v", queryType)
 	}
 
-	numToKeep := limit - p.numRecordsSent
-	err := iqr.DiscardAfter(numToKeep)
-	if err != nil {
-		log.Errorf("headProcessor: failed to discard after %v records: %v", numToKeep, err)
-		return nil, err
-	}
-
-	p.numRecordsSent += numToKeep
-	return iqr, nil
-}
-
-func (p *headProcessor) Rewind() {
-	panic("not implemented")
+	return &QueryResult{
+		DataProcessor: NewHeadDP(toputils.NewOptionWithValue(limit)),
+	}, nil
 }
