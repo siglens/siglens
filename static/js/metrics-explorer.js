@@ -147,7 +147,6 @@ $(document).ready(async function () {
     createTooltip('.refresh-btn', 'Refresh');
 });
 
-
 function getUrlParameter(name) {
     //eslint-disable-next-line no-useless-escape
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');

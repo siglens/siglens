@@ -167,11 +167,11 @@ function getEndTimeHandler() {
 function customRangeHandler(evt) {
     if (!tempStartDate || !tempEndDate) {
         evt.preventDefault();
-        evt.stopPropagation()
+        evt.stopPropagation();
         if (!tempStartDate) $('#date-start').addClass('error');
         if (!tempEndDate) $('#date-end').addClass('error');
 
-        setTimeout(function() {
+        setTimeout(function () {
             $('#date-start, #date-end').removeClass('error');
         }, 2000);
         return;
