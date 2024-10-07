@@ -25,6 +25,8 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
-func (p *fillnullProcessor) Rewind() { // TODO
+// In the two-pass version of fillnull, Rewind() should remember all the
+// columns it saw in the first pass.
+func (p *fillnullProcessor) Rewind() {
 	panic("not implemented")
 }

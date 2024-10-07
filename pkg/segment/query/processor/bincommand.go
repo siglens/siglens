@@ -25,6 +25,8 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
+// In the two-pass version of bin, Rewind() should remember the span it
+// calculated in the first pass.
 func (p *binProcessor) Rewind() {
 	panic("not implemented")
 }
