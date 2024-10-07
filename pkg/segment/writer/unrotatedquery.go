@@ -134,7 +134,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockIdx uint16,
+	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockNum uint16,
 	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64,
 	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
@@ -155,7 +155,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 		}
 	}
 	AllUnrotatedSegmentInfo[segkey].blockSummaries = append(AllUnrotatedSegmentInfo[segkey].blockSummaries, blkSumCpy)
-	AllUnrotatedSegmentInfo[segkey].blockInfo[blockIdx] = blockMetadata
+	AllUnrotatedSegmentInfo[segkey].blockInfo[blockNum] = blockMetadata
 	AllUnrotatedSegmentInfo[segkey].tsRange = tRange
 	AllUnrotatedSegmentInfo[segkey].RecordCount = recordCount
 
@@ -165,8 +165,8 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	var pqidSize uint64
 	if AllUnrotatedSegmentInfo[segkey].isCmiLoaded {
-		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockIdx, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
-		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, pqMatches)
+		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockNum, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
+		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockNum, pqMatches)
 	}
 
 	blkSumSize := blkSumCpy.GetSize()

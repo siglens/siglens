@@ -817,32 +817,10 @@ function showToastMyOrgPage(msg) {
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
-//eslint-disable-next-line no-unused-vars
-function showSendTestDataUpdateToast(msg) {
-    let toast = `<div class="test-data-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
 
 function removeToast() {
     $('.div-toast').remove();
-    $('.test-data-toast').remove();
     $('.ret-days-toast').remove();
-    $('.usage-stats-toast').remove();
-}
-//eslint-disable-next-line no-unused-vars
-function showDeleteIndexToast(msg) {
-    let toast = `<div class="usage-stats-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('#logs-stats-header').append(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
 }
 //eslint-disable-next-line no-unused-vars
 function showRetDaysUpdateToast(msg) {
