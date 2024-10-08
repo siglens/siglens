@@ -352,6 +352,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+	case "functional":
+		log.Infof("Initializing functional reader")
+		seed := int64(1001)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
