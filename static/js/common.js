@@ -772,29 +772,31 @@ function createMetricsColorsArray() {
 }
 //eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
-    let dateVal = new Date(startEpoch);
-    $('#date-start').val(dateVal.toISOString().substring(0, 10));
-    $('#date-start').addClass('active');
-    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0, 10));
-    $('.panelEditor-container #date-start').addClass('active');
-    let hours = addZero(dateVal.getUTCHours());
-    let mins = addZero(dateVal.getUTCMinutes());
-    $('#time-start').val(hours + ':' + mins);
-    $('#time-start').addClass('active');
-    $('.panelEditor-container #time-start').val(hours + ':' + mins);
-    $('.panelEditor-container #time-start').addClass('active');
+    function setDateTimeInputs(epochTime, dateId, timeId) {
+        let dateVal = new Date(epochTime);
+        let dateString = dateVal.toISOString().split('T')[0];
+        let timeString = dateVal.toTimeString().substring(0, 5);
 
-    dateVal = new Date(endEpoch);
-    $('#date-end').val(dateVal.toISOString().substring(0, 10));
-    $('#date-end').addClass('active');
-    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0, 10));
-    $('.panelEditor-container #date-end').addClass('active');
-    hours = addZero(dateVal.getUTCHours());
-    mins = addZero(dateVal.getUTCMinutes());
-    $('#time-end').val(hours + ':' + mins);
-    $('#time-end').addClass('active');
-    $('.panelEditor-container #time-end').val(hours + ':' + mins);
-    $('.panelEditor-container #time-end').addClass('active');
+        $(`#${dateId}, .panelEditor-container #${dateId}`).val(dateString).addClass('active');
+        $(`#${timeId}, .panelEditor-container #${timeId}`).val(timeString).addClass('active');
+
+        return { date: dateString, time: timeString };
+    }
+
+    let startValues = setDateTimeInputs(startEpoch, 'date-start', 'time-start');
+    let endValues = setDateTimeInputs(endEpoch, 'date-end', 'time-end');
+
+    appliedStartDate = tempStartDate = startValues.date;
+    appliedStartTime = tempStartTime = startValues.time;
+    appliedEndDate = tempEndDate = endValues.date;
+    appliedEndTime = tempEndTime = endValues.time;
+
+    Cookies.set('customStartDate', appliedStartDate);
+    Cookies.set('customStartTime', appliedStartTime);
+    Cookies.set('customEndDate', appliedEndDate);
+    Cookies.set('customEndTime', appliedEndTime);
+
+    $('.range-item, .db-range-item').removeClass('active');
 }
 
 function addZero(i) {
