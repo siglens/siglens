@@ -264,3 +264,14 @@ func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
 
 	return newArr
 }
+
+func IndexOfMin[T any](arr []T, less func(T, T) bool) int {
+	result := 0
+	for i := 1; i < len(arr); i++ {
+		if less(arr[i], arr[result]) {
+			result = i
+		}
+	}
+
+	return result
+}

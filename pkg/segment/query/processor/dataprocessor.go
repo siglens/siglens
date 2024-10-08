@@ -19,17 +19,11 @@ package processor
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/utils"
 )
-
-type streamer interface {
-	Fetch() (*iqr.IQR, error)
-	Rewind()
-}
 
 type processor interface {
 	Process(*iqr.IQR) (*iqr.IQR, error)
@@ -37,7 +31,8 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	streams   []streamer
+	streams   []*cachedStream
+	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
 
 	inputOrderMatters bool
@@ -116,8 +111,65 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()
+	default:
+		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()
+		if err != nil {
+			return nil, utils.TeeErrorf("DP.getStreamInput: failed to fetch from all streams: %v", err)
+		}
+
+		if len(iqrs) == 0 {
+			return nil, io.EOF
+		}
+
+		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.less)
+		if err != nil && err != io.EOF {
+			return nil, utils.TeeErrorf("DP.getStreamInput: failed to merge IQRs: %v", err)
+		}
+
+		for i, iqr := range iqrs {
+			if i == exhaustedIQRIndex {
+				dp.streams[streamIndices[i]].SetUnusedDataFromLastFetch(nil)
+			} else {
+				// The merging function already discarded whatever records were
+				// used from this IQR, so the IQR is in a state that only has
+				// unused records.
+				dp.streams[streamIndices[i]].SetUnusedDataFromLastFetch(iqr)
+			}
+		}
+
+		if err == io.EOF {
+			return iqr, io.EOF
+		}
+
+		return iqr, nil
+	}
+}
+
+func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error) {
+	iqrs := make([]*iqr.IQR, 0, len(dp.streams))
+	streamIndices := make([]int, 0, len(dp.streams))
+
+	for i, stream := range dp.streams {
+		if stream.IsExhausted() {
+			continue
+		}
+
+		iqr, err := stream.Fetch()
+		if err != nil && err != io.EOF {
+			return nil, nil, utils.TeeErrorf("DP.fetchFromAllStreamsWithData: failed to fetch from stream %d: %v", i, err)
+		}
+
+		if iqr == nil {
+			if err != io.EOF {
+				return nil, nil, utils.TeeErrorf("DP.fetchFromAllStreamsWithData: stream %d returned nil IQR without EOF", i)
+			}
+
+			continue
+		}
+
+		iqrs = append(iqrs, iqr)
+		streamIndices = append(streamIndices, i)
 	}
 
-	// TODO: fetch from all streams and merge them.
-	return nil, fmt.Errorf("not implemented")
+	return iqrs, streamIndices, nil
 }
