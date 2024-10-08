@@ -23,7 +23,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,12 +41,10 @@ func Test_Head_WithLimit(t *testing.T) {
 	}
 
 	dp.streams = append(dp.streams, &cachedStream{stream, nil, false})
-	log.Errorf("andrew dp streams: %+v", dp.streams)
 
 	totalFetched := 0
 	numFetches := 0
 	for {
-		log.Errorf("andrew iter %d", numFetches)
 		iqr, err := dp.Fetch()
 		if err != io.EOF {
 			assert.NoError(t, err)
