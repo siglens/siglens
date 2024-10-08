@@ -45,7 +45,7 @@ type ValuesRangeConfig struct {
 	Default int
 }
 
-const MINUTES_REREAD_CONFIG = 15
+const MINUTES_REREAD_CONFIG = 2
 const RunModFilePath = "data/common/runmod.cfg"
 
 const SIZE_8GB_IN_MB = uint64(8192)
@@ -1112,6 +1112,14 @@ func refreshConfig() {
 			return
 		}
 		SetConfig(newConfig)
+
+		log.Infof("refreshConfig: cfg  updated, modifiedTimeSec: %v, lastModified: %v",
+			modifiedTimeSec, configFileLastModified)
+		configJSON, err := json.MarshalIndent(newConfig, "", "  ")
+		if err != nil {
+			log.Errorf("refreshConfig : Error marshalling config struct %v", err.Error())
+		}
+		log.Infof("refreshConfig: newConfig: %v", string(configJSON))
 		configFileLastModified = modifiedTimeSec
 	}
 }
