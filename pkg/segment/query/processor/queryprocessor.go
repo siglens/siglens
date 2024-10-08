@@ -20,7 +20,6 @@ package processor
 import (
 	"io"
 
-	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -63,7 +62,7 @@ func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProce
 	}, nil
 }
 
-func (qp *QueryProcessor) GetFullResult() (*pipesearch.PipeSearchResponseOuter, error) {
+func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
 	finalIQR, err := qp.DataProcessor.Fetch()
 	if err != nil && err != io.EOF {
 		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
@@ -91,8 +90,8 @@ func (qp *QueryProcessor) GetFullResult() (*pipesearch.PipeSearchResponseOuter, 
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(updateChan chan *pipesearch.PipeSearchWSUpdateResponse,
-	completeChan chan *pipesearch.PipeSearchCompleteResponse) {
+func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
+	completeChan chan *structs.PipeSearchCompleteResponse) {
 
 	panic("not implemented") // TODO
 }
