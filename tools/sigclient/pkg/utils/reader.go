@@ -19,6 +19,7 @@ package utils
 
 import (
 	"bufio"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -83,10 +84,57 @@ type DynamicUserGenerator struct {
 }
 
 type GeneratorDataConfig struct {
-	MaxColumns          int  // Mximumn Number of columns per record.
-	VariableColumns     bool // Flag to indicate variable columns per record
-	MinColumns          int  // Minimum number of columns per record
-	PreserveDefaultCols bool // Preserve default columns
+	MaxColumns      int                   // Mximumn Number of columns per record.
+	VariableColumns bool                  // Flag to indicate variable columns per record
+	MinColumns      int                   // Minimum number of columns per record
+	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
+}
+
+type FunctionalTestConfig struct {
+	FixedColumns       int // Fixed columns for testing
+	MaxVariableColumns int // Max columns,
+	variableFaker      *gofakeit.Faker
+	fixedFaker         *gofakeit.Faker
+	jsonFaker          *gofakeit.Faker
+	xmlFaker           *gofakeit.Faker
+	variableColNames   []string
+}
+
+func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
+	fixedfakerSeed := 1000
+	jsonFakerSeed := 10
+	xmlFakerSeed := 20
+	varFakerSeed := 30
+
+	random := rand.New(rand.NewSource(int64(varFakerSeed)))
+
+	fixFaker := gofakeit.NewUnlocked(int64(fixedfakerSeed)) // Cols to test should use fixedFaker only
+	jsonFaker := gofakeit.NewUnlocked(int64(jsonFakerSeed))
+	xmlFaker := gofakeit.NewUnlocked(int64(xmlFakerSeed))
+	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
+
+	variableColNames := make([]string, 0)
+	present := make(map[string]struct{})
+
+	for len(variableColNames) < maxVariableColumns {
+		name := varFaker.LetterN(uint(random.Intn(10) + 1))
+		if _, ok := present[name]; !ok {
+			variableColNames = append(variableColNames, name)
+			present[name] = struct{}{}
+		}
+	}
+
+	return &GeneratorDataConfig{
+		functionalTest: &FunctionalTestConfig{
+			FixedColumns:       fixedColumns,
+			MaxVariableColumns: maxVariableColumns,
+			fixedFaker:         fixFaker,
+			variableFaker:      varFaker,
+			jsonFaker:          jsonFaker,
+			xmlFaker:           xmlFaker,
+			variableColNames:   variableColNames,
+		},
+	}
 }
 
 func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
@@ -206,23 +254,19 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 
 	numColumns := 0
 
-	colSuffix := 0
+	colSuffix := 1
 
 	var skipIndexes map[int]struct{}
 
 	if config != nil {
 		numColumns = config.MaxColumns
-		preserveCol := 0
-		if config.PreserveDefaultCols {
-			preserveCol = dynamicUserColumnsLen
-		}
-		if config.VariableColumns && (!config.PreserveDefaultCols || config.MaxColumns > dynamicUserColumnsLen) {
+		if config.VariableColumns {
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			columnsToBeInserted := rng.Intn(config.MaxColumns-config.MinColumns+1) + config.MinColumns
 			skipColumnsCount := config.MaxColumns - columnsToBeInserted
 			skipIndexes = make(map[int]struct{}, skipColumnsCount)
 			for skipColumnsCount > 0 {
-				index := rng.Intn(config.MaxColumns-preserveCol) + preserveCol
+				index := rng.Intn(config.MaxColumns)
 				if _, ok := skipIndexes[index]; !ok {
 					skipIndexes[index] = struct{}{}
 					skipColumnsCount--
@@ -252,7 +296,6 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 
 		cname := dynamicUserColumnNames[dynamicUserColIndex]
 		insertColName := getColumnName(cname, colSuffix)
-		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
 
 		if skipIndexes != nil {
 			if _, ok := skipIndexes[colCount]; ok {
@@ -263,6 +306,7 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 			}
 		}
 
+		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
 		colCount++
 		dynamicUserColIndex++
 	}
@@ -272,9 +316,159 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 	}
 }
 
+type Data struct {
+	Person      *Person                    `json:"person" xml:"person"`
+	CreditCards []*gofakeit.CreditCardInfo `json:"credit_cards" xml:"credit_cards"`
+	IPAddress   string                     `json:"ip_address" xml:"ip_address"`
+	Numbers     []int                      `json:"numbers" xml:"numbers"`
+}
+
+type Person struct {
+	Name    *Name                 `json:"name" xml:"name"`
+	Address *Address              `json:"address" xml:"address"`
+	Contact *gofakeit.ContactInfo `json:"contact" xml:"contact"`
+	Hobbies []string              `json:"hobbies" xml:"hobbies"`
+	Gender  string                `json:"gender" xml:"gender"`
+}
+
+type Name struct {
+	FirstName string `json:"first_name" xml:"first_name"`
+	LastName  string `json:"last_name" xml:"last_name"`
+}
+
+type Address struct {
+	City    string `json:"city" xml:"city"`
+	State   string `json:"state" xml:"state"`
+	Zip     string `json:"zip" xml:"zip"`
+	Country string `json:"country" xml:"country"`
+}
+
+func getData(f *gofakeit.Faker) Data {
+	data := Data{}
+	data.Person = &Person{}
+	data.Person.Name = &Name{
+		FirstName: f.FirstName(),
+		LastName:  f.LastName(),
+	}
+	if f.Bool() {
+		data.Person.Contact = f.Contact()
+	}
+	if f.Bool() {
+		addr := &Address{}
+		addr.City = f.City()
+		addr.State = f.State()
+		if f.Bool() {
+			addr.Zip = f.Zip()
+		}
+		if f.Bool() {
+			addr.Country = f.Country()
+		}
+		data.Person.Address = addr
+	}
+
+	num := f.Number(0, 6)
+	hobbies := []string{}
+	for i := 0; i < num; i++ {
+		hobbies = append(hobbies, f.Hobby())
+	}
+	data.Person.Hobbies = hobbies
+	data.Person.Gender = f.Gender()
+
+	// credit cards
+	num = f.Number(0, 3)
+	credit_cards := make([]*gofakeit.CreditCardInfo, num)
+	for i := 0; i < num; i++ {
+		credit_cards[i] = f.CreditCard()
+	}
+	if num != 0 {
+		data.CreditCards = credit_cards
+	}
+
+	data.IPAddress = f.IPv4Address()
+
+	num = f.Number(0, 4)
+	numbers := make([]int, num)
+	for i := 0; i < num; i++ {
+		numbers[i] = f.Number(1, 9999999999)
+	}
+	data.Numbers = numbers
+
+	return data
+}
+
+func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *FunctionalTestConfig) {
+	// Fixed faker is reserved for default columns that will be used for testing.
+	m["bool_col"] = config.fixedFaker.Bool()
+	lang := config.fixedFaker.Language()
+	if config.fixedFaker.Bool() {
+		lang = "_" + lang
+	}
+	m["language"] = lang
+
+	lenDynamicUserCols := len(dynamicUserColumnNames)
+	getStaticUserColumnValue(config.fixedFaker, m)
+	fixedCols := 4 + lenDynamicUserCols
+
+	data := getData(config.jsonFaker)
+	jsonData, err := json.Marshal(data)
+	if err == nil {
+		m["json_data"] = string(jsonData)
+	} else {
+		log.Errorf("Failed to generate JSON data: %+v", err)
+	}
+
+	XMLdata := getData(config.xmlFaker)
+	xmlData, err := xml.Marshal(XMLdata)
+	if err == nil {
+		m["xml_data"] = string(xmlData)
+	} else {
+		log.Errorf("Failed to generate XML data: %+v", err)
+	}
+
+	suffix := 0
+	curP := f.Person()
+	for i := 0; fixedCols < config.FixedColumns; i++ {
+		if i%lenDynamicUserCols == 0 {
+			curP = f.Person()
+			suffix++
+		}
+		cname := dynamicUserColumnNames[i%lenDynamicUserCols]
+		colName := getColumnName(cname, suffix)
+		m[colName] = getDynamicUserColumnValue(f, cname, curP)
+		fixedCols++
+	}
+
+	variableP := config.variableFaker.Person()
+	for i, col := range config.variableColNames {
+		if i%lenDynamicUserCols == 0 {
+			variableP = config.variableFaker.Person()
+		}
+		m[col] = getDynamicUserColumnValue(config.variableFaker, dynamicUserColumnNames[i%lenDynamicUserCols], variableP)
+	}
+
+	deleteCols := rand.Intn(config.MaxVariableColumns)
+	deletedCols := map[int]struct{}{}
+	for deleteCols > 0 {
+		index := rand.Intn(config.MaxVariableColumns)
+		if _, ok := deletedCols[index]; !ok {
+			delete(m, config.variableColNames[index])
+			deletedCols[index] = struct{}{}
+			deleteCols--
+		}
+	}
+
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
+}
+
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
-		randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
+		if r.DataConfig.functionalTest != nil {
+			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest)
+		} else {
+			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
+		}
 	} else {
 		randomizeBody(r.faker, r.baseBody, r.ts)
 	}

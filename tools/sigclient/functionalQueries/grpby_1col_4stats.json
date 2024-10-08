@@ -16,25 +16,25 @@
          "measure": [
             {
                 "GroupByValues": [
-                    "male"
+                    "female"
                 ],
                 "MeasureVal": {
-                    "count(*)": 49892,
-                    "max(latency)": 9999588,
+                    "count(*)": 49919,
+                    "max(latency)": 9999755,
                     "min(http_status)": 200,
-                    "sum(longitude)": 74.21203100007915,
+                    "sum(longitude)": 8439.174139000083,
                     "temp_value": 1
                 }
             },
             {
                 "GroupByValues": [
-                    "female"
+                    "male"
                 ],
                 "MeasureVal": {
-                    "count(*)": 50108,
-                    "max(latency)": 9999721,
+                    "count(*)": 50081,
+                    "max(latency)": 9999677,
                     "min(http_status)": 200,
-                    "sum(longitude)": 29425.166054000034,
+                    "sum(longitude)": -6696.982691999995,
                     "temp_value": 1
                 }
             }

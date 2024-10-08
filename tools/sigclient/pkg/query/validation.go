@@ -27,6 +27,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 	"verifier/pkg/utils"
 
@@ -186,12 +187,12 @@ func CreateResultForGroupBy(res *Result, response map[string]interface{}) error 
 func GetStringValueFromResponse(resp map[string]interface{}, key string) (string, error) {
 	value, exist := resp[key]
 	if !exist {
-		return "", fmt.Errorf("key %v not found in response", key)
+		return "", fmt.Errorf("GetStringValueFromResponse: key %v not found in response", key)
 	}
 
 	query, isString := value.(string)
 	if !isString {
-		return "", fmt.Errorf("value %v is not a string, is of type %T", value, value)
+		return "", fmt.Errorf("GetStringValueFromResponse: value %v is not a string, is of type %T", value, value)
 	}
 
 	return query, nil
@@ -237,7 +238,7 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 
 	expectedResult, isMap := response["expectedResult"].(map[string]interface{})
 	if !isMap {
-		return "", nil, fmt.Errorf("ReadAndValidateQueryFile: expectedResult is not valid it's of type: %T, file: %v", response["expectedResult"], filePath)
+		return "", nil, fmt.Errorf("ReadAndValidateQueryFile: expectedResult is not valid, it's of type: %T, file: %v", response["expectedResult"], filePath)
 	}
 
 	expRes, err := CreateResult(expectedResult)
@@ -443,9 +444,9 @@ func CompareFloatValues(actualValue interface{}, expValue float64) (bool, error)
 		return false, fmt.Errorf("CompareFloatValues: actualValue %v is not a float, received type: %T", actualValue, actualValue)
 	}
 
-	tolerance := 1e-5
+	tolerancePercentage := 1e-5
 
-	return utils.AlmostEqual(actual, expValue, tolerance), nil
+	return utils.AlmostEqual(actual, expValue, tolerancePercentage), nil
 }
 
 func ValidateRecord(record map[string]interface{}, expRecord map[string]interface{}) error {
@@ -560,11 +561,7 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 }
 
 func getGroupByCombination(grpByValues []string) string {
-	grpByValue := ""
-	for _, value := range grpByValues {
-		grpByValue += value + "_"
-	}
-	return grpByValue
+	return strings.Join(grpByValues, "_")
 }
 
 func sortMeasureResults(buckets []BucketHolder) {

@@ -14,9 +14,9 @@
                     "*"
                 ],
                 "MeasureVal": {
-                    "avg(http_status)": "350.977",
-                    "max(latency)": "9,999,721",
-                    "sum(longitude)": "29,499.378",
+                    "avg(http_status)": "351.673",
+                    "max(latency)": "9,999,755",
+                    "sum(longitude)": "1,742.191",
                     "temp_value": "1"
                 }
             }

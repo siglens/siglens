@@ -156,14 +156,14 @@ func ElementsMatch[K comparable](a []K, b []K) bool {
 	return len(mp) == 0
 }
 
-func AlmostEqual(a, b, tolerance float64) bool {
-	if a == b {
+func AlmostEqual(actual, expected, tolerancePercentage float64) bool {
+	if actual == expected {
 		return true
 	}
-	diff := math.Abs(a - b)
-	if b == 0 {
-		return diff < tolerance
+	diff := math.Abs(actual - expected)
+	if expected == 0 {
+		return diff < tolerancePercentage
 	}
 
-	return (diff / math.Abs(b)) < tolerance
+	return (diff / math.Abs(expected)) < tolerancePercentage
 }
