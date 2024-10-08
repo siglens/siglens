@@ -20,6 +20,8 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
+
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"
@@ -96,6 +98,41 @@ var esBulkCmd = &cobra.Command{
 		}
 
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+	},
+}
+
+var functionalTestCmd = &cobra.Command{
+	Use:   "functional",
+	Short: "functional testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		folderPath, _ := cmd.Flags().GetString("queryDataPath")
+
+		totalEvents := 100_000
+		batchSize := 100
+		numIndices := 10
+		processCount := 1
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+		sleepDuration := 15 * time.Second
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+		log.Infof("queryDataPath : %+v\n", folderPath)
+
+		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+
+		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
+			indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
+
+		time.Sleep(sleepDuration)
+
+		query.FunctionalTest(queryDest, folderPath)
 	},
 }
 
@@ -360,15 +397,15 @@ var traceCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
-	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
-	rootCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().Uint64P("eventsPerDay", "e", 0, "Number of events per day")
+	ingestCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
@@ -377,6 +414,9 @@ func init() {
 	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate. Default is 100")
 	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
+
+	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
+	functionalTestCmd.PersistentFlags().StringP("queryDataPath", "f", "", "path to folder containing query JSON files")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
@@ -392,6 +432,7 @@ func init() {
 	queryCmd.PersistentFlags().StringP("outputFile", "o", "", "The filePath to output the Response time of Queries in csv format, When runResponseTime is set to True.")
 	queryCmd.PersistentFlags().BoolP("runResponseTime", "t", false, "Runs the given Queries and outputs the response time into a file in CSV format.")
 	queryCmd.PersistentFlags().StringSliceP("lookups", "l", []string{}, "List of lookups to migrate")
+	queryCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
@@ -413,6 +454,7 @@ func init() {
 
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(functionalTestCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)
