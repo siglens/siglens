@@ -108,7 +108,7 @@ const (
 type QueryType uint8
 
 const (
-	InvalidCmd = iota
+	InvalidCmd QueryType = iota
 	SegmentStatsCmd
 	GroupByCmd
 	RRCCmd
