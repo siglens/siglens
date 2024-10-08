@@ -1421,18 +1421,17 @@ let originalQueries = {};
 $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
     if (!validateFilterInput(filterValue)) {
-        
         if (!searchTippy) {
             searchTippy = tippy(this, {
                 content: 'Invalid filter input. Please enter a valid filter search.',
                 trigger: 'manual',
                 placement: 'top',
-                theme: 'error'
+                theme: 'error',
             });
         } else {
             searchTippy.setContent('Invalid filter input. Please enter a valid filter search.');
         }
-        
+
         searchTippy.show();
 
         setTimeout(() => {
@@ -1450,9 +1449,9 @@ function validateFilterInput(input) {
     input = input.trim();
 
     const disallowedPatterns = [
-        /\|/,  // Pipe character
-        /\bBY\b/i,  // BY keyword
-        /\s(AND|OR)$/i  // AND or OR at the end of the input
+        /\|/, // Pipe character
+        /\bBY\b/i, // BY keyword
+        /\s(AND|OR)$/i, // AND or OR at the end of the input
     ];
 
     for (let pattern of disallowedPatterns) {
@@ -1464,7 +1463,8 @@ function validateFilterInput(input) {
 }
 
 function applyDashboardFilter(filterValue) {
-    if (!filterValue.trim()) { // Empty string
+    if (!filterValue.trim()) {
+        // Empty string
         resetToOriginalQueries();
         displayPanels();
         return;
