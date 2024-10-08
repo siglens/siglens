@@ -15,9 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package pipesearch
-
-import "github.com/siglens/siglens/pkg/segment/structs"
+package structs
 
 type PipeSearchResponseOuter struct {
 	Hits                   PipeSearchResponse            `json:"hits"`
@@ -26,7 +24,7 @@ type PipeSearchResponseOuter struct {
 	AllPossibleColumns     []string                      `json:"allColumns"`
 	Errors                 []string                      `json:"errors,omitempty"`
 	MeasureFunctions       []string                      `json:"measureFunctions,omitempty"`
-	MeasureResults         []*structs.BucketHolder       `json:"measure,omitempty"`
+	MeasureResults         []*BucketHolder               `json:"measure,omitempty"`
 	GroupByCols            []string                      `json:"groupByCols,omitempty"`
 	Qtype                  string                        `json:"qtype,omitempty"`
 	CanScrollMore          bool                          `json:"can_scroll_more"`
@@ -48,32 +46,32 @@ type AggregationResults struct {
 }
 
 type PipeSearchWSUpdateResponse struct {
-	Hits                     PipeSearchResponse      `json:"hits,omitempty"`
-	AllPossibleColumns       []string                `json:"allColumns,omitempty"`
-	Completion               float64                 `json:"percent_complete"`
-	State                    string                  `json:"state,omitempty"`
-	TotalEventsSearched      interface{}             `json:"total_events_searched,omitempty"`
-	TotalPossibleEvents      interface{}             `json:"total_possible_events,omitempty"`
-	MeasureFunctions         []string                `json:"measureFunctions,omitempty"`
-	MeasureResults           []*structs.BucketHolder `json:"measure,omitempty"`
-	GroupByCols              []string                `json:"groupByCols,omitempty"`
-	Qtype                    string                  `json:"qtype,omitempty"`
-	BucketCount              int                     `json:"bucketCount,omitempty"`
-	SortByTimestampAtDefault bool                    `json:"sortByTimestampAtDefault"`
-	ColumnsOrder             []string                `json:"columnsOrder,omitempty"`
+	Hits                     PipeSearchResponse `json:"hits,omitempty"`
+	AllPossibleColumns       []string           `json:"allColumns,omitempty"`
+	Completion               float64            `json:"percent_complete"`
+	State                    string             `json:"state,omitempty"`
+	TotalEventsSearched      interface{}        `json:"total_events_searched,omitempty"`
+	TotalPossibleEvents      interface{}        `json:"total_possible_events,omitempty"`
+	MeasureFunctions         []string           `json:"measureFunctions,omitempty"`
+	MeasureResults           []*BucketHolder    `json:"measure,omitempty"`
+	GroupByCols              []string           `json:"groupByCols,omitempty"`
+	Qtype                    string             `json:"qtype,omitempty"`
+	BucketCount              int                `json:"bucketCount,omitempty"`
+	SortByTimestampAtDefault bool               `json:"sortByTimestampAtDefault"`
+	ColumnsOrder             []string           `json:"columnsOrder,omitempty"`
 }
 
 type PipeSearchCompleteResponse struct {
-	State               string                  `json:"state,omitempty"`
-	TotalMatched        interface{}             `json:"totalMatched,omitempty"`
-	TotalEventsSearched interface{}             `json:"total_events_searched,omitempty"`
-	CanScrollMore       bool                    `json:"can_scroll_more"`
-	TotalRRCCount       interface{}             `json:"total_rrc_count,omitempty"`
-	MeasureFunctions    []string                `json:"measureFunctions,omitempty"`
-	MeasureResults      []*structs.BucketHolder `json:"measure,omitempty"`
-	GroupByCols         []string                `json:"groupByCols,omitempty"`
-	Qtype               string                  `json:"qtype,omitempty"`
-	BucketCount         int                     `json:"bucketCount,omitempty"`
-	IsTimechart         bool                    `json:"isTimechart"`
-	ColumnsOrder        []string                `json:"columnsOrder,omitempty"`
+	State               string          `json:"state,omitempty"`
+	TotalMatched        interface{}     `json:"totalMatched,omitempty"`
+	TotalEventsSearched interface{}     `json:"total_events_searched,omitempty"`
+	CanScrollMore       bool            `json:"can_scroll_more"`
+	TotalRRCCount       interface{}     `json:"total_rrc_count,omitempty"`
+	MeasureFunctions    []string        `json:"measureFunctions,omitempty"`
+	MeasureResults      []*BucketHolder `json:"measure,omitempty"`
+	GroupByCols         []string        `json:"groupByCols,omitempty"`
+	Qtype               string          `json:"qtype,omitempty"`
+	BucketCount         int             `json:"bucketCount,omitempty"`
+	IsTimechart         bool            `json:"isTimechart"`
+	ColumnsOrder        []string        `json:"columnsOrder,omitempty"`
 }
