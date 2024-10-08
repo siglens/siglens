@@ -112,7 +112,7 @@ var functionalTestCmd = &cobra.Command{
 
 		totalEvents := 100_000
 		batchSize := 100
-		numIndices := 1
+		numIndices := 10
 		processCount := 1
 		indexPrefix := "ind"
 		indexName := ""
