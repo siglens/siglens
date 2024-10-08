@@ -737,6 +737,9 @@ function processClusterStats(res) {
 
     function deleteIndex(e, indexName) {
         if (e) e.stopPropagation();
+        // Disable the delete button and show loading spinner
+        $('#del-index-btn').attr('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+        
         $.ajax({
             method: 'post',
             url: 'api/deleteIndex/' + indexName,
@@ -750,11 +753,15 @@ function processClusterStats(res) {
             .then(function (_res) {
                 hidePopUpsOnUsageStats();
                 indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
-                showDeleteIndexToast('Index Deleted Successfully');
+                showToast('Index Deleted Successfully', 'success');
             })
             .catch((_err) => {
                 hidePopUpsOnUsageStats();
-                showDeleteIndexToast('Error Deleting Index');
+                showToast('Error Deleting Index', 'error');
+            })
+            .always(() => {
+                // Reset the delete button
+                $('#del-index-btn').attr('disabled', false).html('Delete');
             });
     }
 }
