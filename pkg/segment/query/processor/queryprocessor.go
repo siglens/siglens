@@ -20,7 +20,6 @@ package processor
 import (
 	"io"
 
-	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -99,12 +98,12 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
 	qid uint64) (*QueryProcessor, error) {
 
-	searcher := searchStream{
+	searcher := &searchStream{
 		qid:  qid,
 		node: searchNode,
 	}
 
-	dataProcessors := make([]DataProcessor, 0)
+	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
 		if curAgg.DataProcessor == nil {
 			return nil, utils.TeeErrorf("getQueryProcessor: got nil data processor")
@@ -113,20 +112,20 @@ func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 		dataProcessors = append(dataProcessors, curAgg.DataProcessor)
 	}
 
-	// Hook up the streams (searcher -> dataProcessor[0] -> ... -> dataProcessor[n-1]).
+	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
 	if len(dataProcessors) > 0 {
-		dataProcessor[i].streams = append(dataProcessor[i].streams, NewCachedStream(searcher))
+		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
 	}
 	for i := 1; i < len(dataProcessors); i++ {
-		dataProcessor[i].streams = append(dataProcessor[i].streams, NewCachedStream(dataProcessor[i-1]))
+		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
 	}
 
-	lastStreamer := searcher
+	var lastStreamer streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	_, queryType := query.GetNodeAndQueryTypes(searchNode, firstAgg)
+	queryType := structs.RRCCmd // TODO: actually calculate this
 
 	return NewQueryProcessor(queryType, lastStreamer)
 }
