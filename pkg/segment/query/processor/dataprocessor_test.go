@@ -107,7 +107,7 @@ func Test_Fetch_nonBottleneck(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []streamer{stream},
+		streams:         []*cachedStream{{stream, nil, false}},
 		processor:       &passThroughProcessor{},
 		isBottleneckCmd: false,
 	}
@@ -154,7 +154,7 @@ func Test_Fetch_bottleneck(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []streamer{stream},
+		streams:         []*cachedStream{{stream, nil, false}},
 		processor:       &mockBottleneckProcessor{},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
@@ -179,7 +179,7 @@ func Test_Fetch_twoPass(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:           []streamer{stream},
+		streams:           []*cachedStream{{stream, nil, false}},
 		processor:         &mockBottleneckProcessor{},
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      true,
@@ -192,6 +192,63 @@ func Test_Fetch_twoPass(t *testing.T) {
 		assert.NotNil(t, output, "iteration %d", i)
 		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
 		assert.Equal(t, 3+i+1, dp.processor.(*mockBottleneckProcessor).numSeen, "iteration %d", i)
+	}
+
+	_, err := dp.Fetch()
+	assert.Equal(t, io.EOF, err)
+}
+
+func Test_Fetch_multipleStreams(t *testing.T) {
+	stream1 := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			},
+		},
+		qid: 0,
+	}
+
+	stream2 := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			},
+		},
+		qid: 0,
+	}
+
+	less := func(a, b *iqr.Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	dp := &DataProcessor{
+		streams:         []*cachedStream{{stream1, nil, false}, {stream2, nil, false}},
+		less:            less,
+		processor:       &passThroughProcessor{},
+		isBottleneckCmd: false,
+	}
+
+	for i := 0; i < 6; i++ {
+		output, err := dp.Fetch()
+		assert.NoError(t, err, "iteration %d", i)
+		assert.NotNil(t, output, "iteration %d", i)
+		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
+
+		value, err := output.ReadColumn("col1")
+		assert.NoError(t, err, "iteration %d", i)
+		assert.Equal(t, 1, len(value), "iteration %d", i)
+		expected := string('a' + rune(i))
+		assert.Equal(t, expected, value[0].CVal.(string), "iteration %d", i)
 	}
 
 	_, err := dp.Fetch()
