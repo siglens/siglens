@@ -3354,6 +3354,7 @@ float: right;
     font-weight: 700;
     color: var(--empty-response-text-color);
     z-index: 1;
+    transform: none;
 }
 
 .panel-body #empty-response {
