@@ -21,6 +21,7 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -94,4 +95,39 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *pipesearch.PipeSear
 	completeChan chan *pipesearch.PipeSearchCompleteResponse) {
 
 	panic("not implemented") // TODO
+}
+
+func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
+	qid uint64) (*QueryProcessor, error) {
+
+	searcher := searchStream{
+		qid:  qid,
+		node: searchNode,
+	}
+
+	dataProcessors := make([]DataProcessor, 0)
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.DataProcessor == nil {
+			return nil, utils.TeeErrorf("getQueryProcessor: got nil data processor")
+		}
+
+		dataProcessors = append(dataProcessors, curAgg.DataProcessor)
+	}
+
+	// Hook up the streams (searcher -> dataProcessor[0] -> ... -> dataProcessor[n-1]).
+	if len(dataProcessors) > 0 {
+		dataProcessor[i].streams = append(dataProcessor[i].streams, NewCachedStream(searcher))
+	}
+	for i := 1; i < len(dataProcessors); i++ {
+		dataProcessor[i].streams = append(dataProcessor[i].streams, NewCachedStream(dataProcessor[i-1]))
+	}
+
+	lastStreamer := searcher
+	if len(dataProcessors) > 0 {
+		lastStreamer = dataProcessors[len(dataProcessors)-1]
+	}
+
+	_, queryType := query.GetNodeAndQueryTypes(searchNode, firstAgg)
+
+	return NewQueryProcessor(queryType, lastStreamer)
 }

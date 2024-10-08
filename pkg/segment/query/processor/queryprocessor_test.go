@@ -69,3 +69,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), numMatched)
 }
+
+func Test_GetQueryProcessor(t *testing.T) {
+	assert.Fail(t, "Not implemented")
+}
