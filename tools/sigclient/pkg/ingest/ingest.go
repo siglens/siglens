@@ -27,6 +27,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"math/rand"
+	"verifier/pkg/query"
 	"verifier/pkg/utils"
 
 	"github.com/dustin/go-humanize"
@@ -352,6 +355,12 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+	case "benchmark-ingest-query":
+		log.Infof("Initializing benchmark-ingest-query reader")
+		source := rand.NewSource(time.Now().UnixNano())
+		randomNumGen := rand.New(source)
+		seed := randomNumGen.Int63()
+		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -378,7 +387,6 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 			return
 		}
 	}
-
 	var dataGeneratorConfig *utils.GeneratorDataConfig
 	if iDataGeneratorConfig != nil {
 		dataGeneratorConfig = iDataGeneratorConfig.(*utils.GeneratorDataConfig)
@@ -386,19 +394,28 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
+	totalEventsPerProcessWithRemainder := totalEventsPerProcess
+	remainder := totalEvents % processCount
 	eventsPerDayPerProcess := int(eventsPerDay) / processCount
 
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
 	totalBytes := uint64(0)
+	var reader utils.Generator
+	var err error
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
+		if i < remainder {
+			totalEventsPerProcessWithRemainder = totalEventsPerProcess + 1
+		} else {
+			totalEventsPerProcessWithRemainder = totalEventsPerProcess
+		}
+		reader, err = getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+		go runIngestion(iType, reader, &wg, url, totalEventsPerProcessWithRemainder, continuous, batchSize, i+1, indexPrefix,
 			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
 	}
 
@@ -450,5 +467,10 @@ readChannel:
 			humanize.Comma(eventsPerSecond),
 			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
+	}
+	//run search queries for all UUIDs
+	if generatorType == "benchmark-ingest-query" {
+		rdrUUIDList := utils.GetUUIDList()
+		query.RunBenchmarkQuery(rdrUUIDList, processCount)
 	}
 }

@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"verifier/pkg/utils"
 
@@ -908,4 +909,131 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 	}
 
 	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
+}
+
+func runBenchmarkQueryBatch(uuidList []string, wg *sync.WaitGroup, semaphore chan struct{}) {
+
+	defer wg.Done()
+	defer func() { <-semaphore }()
+	for _, uuid := range uuidList {
+
+		data := map[string]interface{}{
+			"state":         "query",
+			"searchText":    "ident=" + uuid,
+			"startEpoch":    "now-1d",
+			"endEpoch":      "now",
+			"indexName":     "*",
+			"queryLanguage": "Splunk QL",
+		}
+		evaluationType := "total"
+		var relation, expectedValue string
+		relation = "eq"
+		expectedValue = "1"
+		// create websocket connection
+		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
+		if err != nil {
+			log.Fatalf("RunBenchmarkUUIDQuery: Error connecting to WebSocket server: %v", err)
+			return
+		}
+
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Fatalf("RunBenchmarkUUIDQuery : Received err message from server: %+v\n", err)
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				//WebSocket closed normally (1000).
+				break
+			} else if err != nil {
+				log.Errorf("RunBenchmarkUUIDQuery : Received error from server: %+v\n", err)
+				break
+			}
+			switch readEvent["state"] {
+			case "RUNNING", "QUERY_UPDATE":
+			case "COMPLETE":
+				for eKey, eValue := range readEvent {
+					if evaluationType == "total" && eKey == "totalMatched" {
+						var uuidFound bool
+						var finalHits float64
+						var err error
+						switch eValue := eValue.(type) {
+						case float64:
+							finalHits = eValue
+							uuidFound, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+						case map[string]interface{}:
+							for k, v := range eValue {
+								if k == "value" {
+									var ok bool
+									finalHits, ok = v.(float64)
+									if !ok {
+										log.Errorf("RunBenchmarkUUIDQuery: Returned total matched is not a float: %v", v)
+									}
+									uuidFound, err = utils.VerifyInequality(finalHits, relation, expectedValue)
+								}
+							}
+						}
+						if err != nil {
+							log.Errorf("RunBenchmarkUUIDQuery: Error in verifying hits: %v", err)
+						} else if !uuidFound {
+							log.Errorf("RunBenchmarkUUIDQuery: For Ident query: %v , Actual Hits: %v not %v than %v", data, finalHits, relation, expectedValue)
+						} else {
+							//Query was succesful
+						}
+					}
+				}
+			default:
+				log.Errorf("RunBenchmarkUUIDQuery : Received unknown message from server: %+v\n", readEvent)
+			}
+
+		}
+		conn.Close()
+	}
+}
+
+func RunBenchmarkQuery(uuidList []string, processCount int) {
+	wg := sync.WaitGroup{}
+	log.Info("Verifying benchmark ingestion by searching for ident column")
+	log.Info("Waiting for ingest data to be available. Sleeping for 15 seconds...")
+	time.Sleep(15 * time.Second)
+	log.Info("Starting queries for benchmark ident column")
+	ticker := time.NewTicker(30 * time.Second)
+	uuidListLen := len(uuidList)
+	queriesPerBatch := uuidListLen / processCount
+	remainder := uuidListLen % processCount
+	semaphore := make(chan struct{}, processCount)
+	done := make(chan bool)
+	startTime := time.Now()
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				log.Infof("Benchmark UUID queries still running. Total elapsed time:%s.", time.Since(startTime).Truncate(time.Second))
+			}
+		}
+	}()
+	var start, end int
+	for i := 0; i < processCount; i++ {
+		start = end
+		end = start + queriesPerBatch
+		if end > uuidListLen {
+			end = uuidListLen
+		}
+		if i < remainder {
+			end++
+		}
+		batch := uuidList[start:end]
+
+		wg.Add(1)
+		semaphore <- struct{}{}
+		go runBenchmarkQueryBatch(batch, &wg, semaphore)
+	}
+
+	wg.Wait()
+	totalTimeTaken := time.Since(startTime)
+	log.Printf("Total Benchmark query time: %v", totalTimeTaken.Truncate(time.Second))
 }

@@ -36,6 +36,8 @@ import (
 )
 
 var json = jsoniter.ConfigFastest
+var uuidList []string
+var uuidListLock sync.Mutex
 
 type Generator interface {
 	Init(fName ...string) error
@@ -105,6 +107,10 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 		VariableColumns: variableColumns,
 		MinColumns:      minColumns,
 	}
+}
+
+func GetUUIDList() []string {
+	return uuidList
 }
 
 func InitDynamicUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
@@ -331,6 +337,11 @@ func (r *K8sGenerator) GetLogLine() ([]byte, error) {
 
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
+	if ident, ok := r.baseBody["ident"].(string); ok {
+		uuidListLock.Lock()
+		uuidList = append(uuidList, ident)
+		uuidListLock.Unlock()
+	}
 	return json.Marshal(r.baseBody)
 }
 
