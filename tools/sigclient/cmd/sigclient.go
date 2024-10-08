@@ -20,7 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	// "time"
+	"time"
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -108,31 +108,31 @@ var functionalTestCmd = &cobra.Command{
 		dest, _ := cmd.Flags().GetString("dest")
 		queryDest, _ := cmd.Flags().GetString("queryDest")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
-		folderPath, _ := cmd.Flags().GetString("queryDataPath")
-
-		// totalEvents := 100_000
-		// batchSize := 100
-		// numIndices := 1
-		// processCount := 1
-		// indexPrefix := "ind"
-		// indexName := ""
-		// numFixedCols := 100
-		// maxVariableCols := 20
-		// sleepDuration := 15 * time.Second
+		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("queryDest : %+v\n", queryDest)
 		log.Infof("bearerToken : %+v\n", bearerToken)
-		log.Infof("queryDataPath : %+v\n", folderPath)
+		log.Infof("queriesToRunFile : %+v\n", filePath)
 
-		// dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+		totalEvents := 100_000
+		batchSize := 100
+		numIndices := 10
+		processCount := 1
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+		sleepDuration := 15 * time.Second
 
-		// ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
-		// 	indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
+		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		// time.Sleep(sleepDuration)
+		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
+			indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		query.FunctionalTest(queryDest, folderPath)
+		time.Sleep(sleepDuration)
+
+		query.FunctionalTest(queryDest, filePath)
 	},
 }
 
@@ -416,7 +416,7 @@ func init() {
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
-	functionalTestCmd.PersistentFlags().StringP("queryDataPath", "f", "", "path to folder containing query JSON files")
+	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "file containing the path to the JSON query files to run")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

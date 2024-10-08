@@ -18,27 +18,63 @@
 package query
 
 import (
+	"bufio"
 	"os"
+	"path"
 	"path/filepath"
+
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
 // Main function that tests all the queries
-func FunctionalTest(dest string, dataPath string) {
+func FunctionalTest(dest string, filePath string) {
 
-	queryFiles, err := os.ReadDir(dataPath)
+	// Check file exists
+	a, err := os.Stat(filePath)
+	if err != nil || a.IsDir() {
+		log.Fatalf("FunctionalTest: filePath: %v is not a file, err: %v", filePath, err)
+	}
+	_ = a
+
+	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("FunctionalTest: Error reading directory: %v, err: %v", dataPath, err)
+		log.Fatalf("FunctionalTest: Error reading filePath: %v, err: %v", filePath, err)
+	}
+	defer file.Close()
+
+	baseDir, err := filepath.Abs(filepath.Dir(filePath))
+	if err != nil {
+		log.Fatalf("FunctionalTest: Error getting absolute path of directory of filePath: %v, err: %v", filePath, err)
 	}
 
-	// validate JSON files
-	for _, file := range queryFiles {
-		if !strings.HasSuffix(file.Name(), ".json") {
-			log.Fatalf("FunctionalTest: Invalid file format: %v. Expected .json", file.Name())
+	scanner := bufio.NewScanner(file)
+
+	qid := 1
+	// Read line by line
+	for scanner.Scan() {
+		queryFilePath := strings.TrimSpace(scanner.Text())
+		if queryFilePath == "" {
+			continue
 		}
+		// Validate JSON Files
+		if !strings.HasSuffix(queryFilePath, ".json") {
+			log.Fatalf("FunctionalTest: Invalid file format: %v. Expected .json", queryFilePath)
+		}
+
+		if !path.IsAbs(queryFilePath) {
+			queryFilePath = filepath.Join(baseDir, queryFilePath)
+		}
+
+		RunQuery(queryFilePath, qid, dest)
+		qid++
 	}
+
+	log.Infof("FunctionalTest: All queries passed successfully")
+}
+
+func RunQuery(filePath string, qid int, dest string) {
 
 	// Default values
 	startEpoch := "now-1h"
@@ -55,27 +91,21 @@ func FunctionalTest(dest string, dataPath string) {
 		"queryLanguage": queryLanguage,
 	}
 
-	// run queries
-	for idx, file := range queryFiles {
-		filePath := filepath.Join(dataPath, file.Name())
-		query, expRes, err := ReadAndValidateQueryFile(filePath)
-		if err != nil {
-			log.Fatalf("FunctionalTest: Error reading and validating query file: %v, err: %v", filePath, err)
-		}
-
-		log.Infof("FunctionalTest: qid=%v, Running query=%v", idx, query)
-		queryReq["searchText"] = query
-		err = EvaluateQueryForWebSocket(dest, queryReq, idx, expRes)
-		if err != nil {
-			log.Fatalf("FunctionalTest: Failed evaluating query via websocket, file: %v, err: %v", filePath, err)
-		}
-		err = EvaluateQueryForAPI(dest, queryReq, idx, expRes)
-		if err != nil {
-			log.Fatalf("FunctionalTest: Failed evaluating query via API, file: %v, err: %v", filePath, err)
-		}
-
-		log.Infoln()
+	query, expRes, err := ReadAndValidateQueryFile(filePath)
+	if err != nil {
+		log.Fatalf("RunQuery: Error reading and validating query file: %v, err: %v", filePath, err)
 	}
 
-	log.Infof("FunctionalTest: All queries passed successfully")
+	log.Infof("RunQuery: qid=%v, Running query=%v", qid, query)
+	queryReq["searchText"] = query
+	err = EvaluateQueryForWebSocket(dest, queryReq, qid, expRes)
+	if err != nil {
+		log.Fatalf("RunQuery: Failed evaluating query via websocket, file: %v, err: %v", filePath, err)
+	}
+	err = EvaluateQueryForAPI(dest, queryReq, qid, expRes)
+	if err != nil {
+		log.Fatalf("RunQuery: Failed evaluating query via API, file: %v, err: %v", filePath, err)
+	}
+
+	log.Infoln()
 }
