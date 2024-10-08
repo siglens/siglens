@@ -607,7 +607,8 @@ func rotateSegmentOnTime() {
 			segstore.firstTime = false
 			err := segstore.AppendWipToSegfile(streamid, false, false, true)
 			if err != nil {
-				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
+				log.Errorf("rotateSegmentOnTime: failed to append, segkey: %v err: %v",
+					segstore.SegmentKey, err)
 			} else {
 				// remove unused segstores if its has been twice
 				// the segrotation time since we last updated it
