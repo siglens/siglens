@@ -335,6 +335,10 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
+	if other == nil {
+		return nil
+	}
+
 	if err := other.validate(); err != nil {
 		log.Errorf("IQR.Merge: validation failed on other: %v", err)
 		return err
