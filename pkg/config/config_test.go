@@ -46,6 +46,7 @@ func Test_ExtractConfigData(t *testing.T) {
  seedNode: true
  segreaderNode: true
  metareaderNode: true
+ pprofEnabled: false
  DataPath: "data/"
  s3:
   enabled: true
@@ -109,6 +110,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				S3IngestBufferSize:          1000,
 				MaxParallelS3IngestBuffers:  10,
 				QueryHostname:               "abc:123",
+				PProfEnabled:                "false",
+				PProfEnabledConverted:       false,
 				PQSEnabled:                  "true",
 				PQSEnabledConverted:         true,
 				AnalyticsEnabled:            "false",
@@ -153,6 +156,7 @@ func Test_ExtractConfigData(t *testing.T) {
  S3IngestQueueRegion: ""
  S3IngestBufferSize: 1000
  MaxParallelS3IngestBuffers: 10
+ pprofEnabled: Fa
  PQSEnabled: F
  dualCaseCheck: true
  analyticsEnabled: bad string
@@ -193,6 +197,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				S3IngestBufferSize:          1000,
 				MaxParallelS3IngestBuffers:  10,
 				QueryHostname:               "localhost:9000",
+				PProfEnabled:                "true",
+				PProfEnabledConverted:       true,
 				PQSEnabled:                  "true",
 				PQSEnabledConverted:         true,
 				DualCaseCheck:               "true",
@@ -239,6 +245,8 @@ invalid input, we should error out
 				S3IngestBufferSize:         1000,
 				MaxParallelS3IngestBuffers: 10,
 				QueryHostname:              "localhost:5122",
+				PProfEnabled:               "true",
+				PProfEnabledConverted:      true,
 				AnalyticsEnabled:           "true",
 				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
@@ -278,6 +286,8 @@ a: b
 				S3IngestBufferSize:          1000,
 				MaxParallelS3IngestBuffers:  10,
 				QueryHostname:               "localhost:5122",
+				PProfEnabled:                "true",
+				PProfEnabledConverted:       true,
 				PQSEnabled:                  "true",
 				PQSEnabledConverted:         true,
 				SafeServerStart:             false,
