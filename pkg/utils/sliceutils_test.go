@@ -35,6 +35,19 @@ func Test_ResizeSlice(t *testing.T) {
 	assert.Equal(t, newSlice[:5], originalSlice)
 }
 
+func Test_ResizeSliceWithDefault(t *testing.T) {
+	originalSlice := []int{1, 2, 3, 4, 5}
+
+	newSlice := ResizeSliceWithDefault(originalSlice, 3, 42)
+	assert.Len(t, newSlice, 3)
+	assert.Equal(t, newSlice, []int{1, 2, 3})
+
+	newSlice = ResizeSliceWithDefault(originalSlice, 10, 42)
+	assert.Len(t, newSlice, 10)
+	assert.Equal(t, newSlice[:5], originalSlice)
+	assert.Equal(t, newSlice[5:], []int{42, 42, 42, 42, 42})
+}
+
 func Test_ConvertSliceToMap_EmptySlice(t *testing.T) {
 	emptySlice := []string{}
 	result := ConvertSliceToMap(emptySlice, func(s string) string {

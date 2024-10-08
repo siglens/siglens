@@ -68,6 +68,18 @@ func ResizeSlice[T any](slice []T, newLength int) []T {
 	return append(slice, make([]T, newLength-len(slice))...)
 }
 
+func ResizeSliceWithDefault[T any](slice []T, newLength int, defaultValue T) []T {
+	oldLength := len(slice)
+
+	newSlice := ResizeSlice(slice, newLength)
+
+	for i := oldLength; i < newLength; i++ {
+		newSlice[i] = defaultValue
+	}
+
+	return newSlice
+}
+
 func IsArrayOrSlice(val interface{}) (bool, reflect.Value, string) {
 	v := reflect.ValueOf(val)
 	switch v.Kind() {
