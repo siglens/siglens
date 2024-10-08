@@ -520,7 +520,9 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
     // Restore original queries for non-edited panels
     localPanels.forEach((panel) => {
+        //eslint-disable-next-line no-undef
         if (panel.panelId !== currentPanel.panelId && originalQueries[panel.panelId]) {
+            //eslint-disable-next-line no-undef
             panel.queryData.searchText = originalQueries[panel.panelId];
         }
     });

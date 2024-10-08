@@ -1422,6 +1422,7 @@ $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
     if (!validateFilterInput(filterValue)) {
         if (!searchTippy) {
+            //eslint-disable-next-line no-undef
             searchTippy = tippy(this, {
                 content: 'Invalid filter input. Please enter a valid filter search.',
                 trigger: 'manual',
