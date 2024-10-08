@@ -18,6 +18,10 @@
 package processor
 
 import (
+	"io"
+
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -31,11 +35,11 @@ const (
 	StatsQuery
 )
 
-type QueryResult struct {
+type QueryProcessor struct {
 	DataProcessor
 }
 
-func NewQueryResultProcessor(queryType structs.QueryType) (*QueryResult, error) {
+func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
@@ -43,15 +47,51 @@ func NewQueryResultProcessor(queryType structs.QueryType) (*QueryResult, error) 
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		limit = segutils.QUERY_MAX_BUCKETS
 	default:
-		return nil, utils.TeeErrorf("NewQueryResultProcessor: invalid query type %v", queryType)
+		return nil, utils.TeeErrorf("NewQueryProcessor: invalid query type %v", queryType)
 	}
 
 	headDP := NewHeadDP(utils.NewOptionWithValue(limit))
 	if headDP == nil {
-		return nil, utils.TeeErrorf("NewQueryResultProcessor: failed to create head data processor")
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to create head data processor")
 	}
 
-	return &QueryResult{
+	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
+
+	return &QueryProcessor{
 		DataProcessor: *headDP,
 	}, nil
+}
+
+func (qp *QueryProcessor) GetFullResult() (*pipesearch.PipeSearchResponseOuter, error) {
+	finalIQR, err := qp.DataProcessor.Fetch()
+	if err != nil && err != io.EOF {
+		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
+	}
+
+	var iqr *iqr.IQR
+	for err != io.EOF {
+		iqr, err = qp.DataProcessor.Fetch()
+		if err != nil && err != io.EOF {
+			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+		}
+
+		appendErr := finalIQR.Append(iqr)
+		if appendErr != nil {
+			return nil, utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+		}
+	}
+
+	return finalIQR.AsResult()
+}
+
+// Usage:
+// 1. Make channels for updates and the final result.
+// 2. Call GetStreamedResult as a goroutine.
+// 3. Read from the update channel and the final result channel.
+//
+// Once the final result is sent, no more updates will be sent.
+func (qp *QueryProcessor) GetStreamedResult(updateChan chan *pipesearch.PipeSearchWSUpdateResponse,
+	completeChan chan *pipesearch.PipeSearchCompleteResponse) {
+
+	panic("not implemented") // TODO
 }
