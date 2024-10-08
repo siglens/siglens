@@ -28,6 +28,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var backfillCVal = &utils.CValueEnclosure{
+	CVal:  nil,
+	Dtype: utils.SS_DT_BACKFILL,
+}
+
 type iqrMode int
 
 const (
@@ -322,6 +327,53 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	iqr.knownValues[cname] = results
 
 	return results, nil
+}
+
+func (iqr *IQR) Append(other *IQR) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.Merge: validation failed on self: %v", err)
+		return err
+	}
+
+	if err := other.validate(); err != nil {
+		log.Errorf("IQR.Merge: validation failed on other: %v", err)
+		return err
+	}
+
+	_, err := mergeMetadata([]*IQR{iqr, other})
+	if err != nil {
+		log.Errorf("IQR.Merge: error merging metadata: %v", err)
+		return err
+	}
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
+
+	numInitialRecords := iqr.NumberOfRecords()
+	numAddedRecords := other.NumberOfRecords()
+	numFinalRecords := numInitialRecords + numAddedRecords
+
+	for cname, values := range other.knownValues {
+		if _, ok := iqr.knownValues[cname]; !ok {
+			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
+			for i := 0; i < numInitialRecords; i++ {
+				iqr.knownValues[cname][i] = *backfillCVal
+			}
+
+			copy(iqr.knownValues[cname][numInitialRecords:], values)
+		} else {
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], values...)
+		}
+	}
+
+	for cname, values := range iqr.knownValues {
+		if _, ok := other.knownValues[cname]; !ok {
+			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+		}
+	}
+
+	return nil
 }
 
 // This merges multiple IQRs into one. It stops when one of the IQRs runs out
