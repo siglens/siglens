@@ -121,7 +121,7 @@ func CreateResultForRRC(res *Result, response map[string]interface{}) error {
 	var err error
 	_, exist := response["allColumns"]
 	if !exist {
-		return fmt.Errorf("allColumns not found in response")
+		return fmt.Errorf("CreateResultForRRC: allColumns not found in response")
 	}
 
 	res.AllColumns, err = CreateListOfString(response["allColumns"])
@@ -169,7 +169,7 @@ func CreateResultForGroupBy(res *Result, response map[string]interface{}) error 
 	var err error
 	_, exist := response["bucketCount"]
 	if !exist {
-		return fmt.Errorf("bucketCount not found in response")
+		return fmt.Errorf("CreateExpResultForGroupBy: bucketCount not found in response")
 	}
 	bucketCount, isFloat := response["bucketCount"].(float64)
 	if !isFloat {
@@ -553,7 +553,7 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
 		if err != nil {
-			return fmt.Errorf("Error comparing records: queryRes Record: %v, expRes Record: %v, err: %v", queryRes.Records[idx], record, err)
+			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records: queryRes Record: %v, expRes Record: %v, err: %v", queryRes.Records[idx], record, err)
 		}
 	}
 
