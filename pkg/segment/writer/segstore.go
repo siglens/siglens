@@ -744,6 +744,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 
 			if alreadyHandled {
+				log.Infof("Rotating alreadyHandled segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, orgId=%v, forceRotate:%v, onTimeRotate: %v, onTreeRotate: %v",
+					segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
+					segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 				return nil
 			}
 		}

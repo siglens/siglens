@@ -2614,6 +2614,23 @@ input[type="submit" i] {
     display: none;
 }
 
+input[type="date"],
+input[type="time"] {
+  cursor: text;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-inner-spin-button,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-inner-spin-button {
+  cursor: pointer;
+}
+
+input[type="date"]::-moz-calendar-picker-indicator,
+input[type="time"]::-moz-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 .dt-header {
     margin-bottom: 8px;
     margin-left: 10px;
@@ -2752,9 +2769,12 @@ hr {
     margin-left: 12px;
     width: 147.41px;
     height: 32px;
-
     border: 1px solid var(--timepicker-border-color);
     border-radius: 4px;
+}
+
+#date-start.error, #date-end.error {
+    border: 1px solid var(--error-trace);
 }
 
 #date-start:hover, #date-end:hover, #time-start:hover, #time-end:hover {

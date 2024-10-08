@@ -92,6 +92,7 @@ function updateDownloadButtons() {
 }
 $(document).ready(async function () {
     updateDownloadButtons();
+    setupEventHandlers();
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
         isAlertScreen = true;
@@ -108,11 +109,7 @@ $(document).ready(async function () {
         isMetricsScreen = true;
     }
 
-    $('#metrics-container #date-start').on('change', getStartDateHandler);
-    $('#metrics-container #date-end').on('change', getEndDateHandler);
-    $('#metrics-container #time-start').on('change', getStartTimeHandler);
-    $('#metrics-container #time-end').on('change', getEndTimeHandler);
-    $('#metrics-container #customrange-btn').on('click', customRangeHandlerMetrics);
+    $('#metrics-container #customrange-btn').on('click', refreshMetricsGraphs);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -149,17 +146,6 @@ $(document).ready(async function () {
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
 });
-
-async function customRangeHandlerMetrics(_evt) {
-    $.each($('.range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $.each($('.db-range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    datePickerHandler(filterStartDate, filterEndDate, 'custom');
-    await refreshMetricsGraphs();
-}
 
 function getUrlParameter(name) {
     //eslint-disable-next-line no-useless-escape
