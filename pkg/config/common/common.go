@@ -103,7 +103,9 @@ type Configuration struct {
 	MaxSegFileSize              uint64   `yaml:"maxSegFileSize"` // segment file size (in bytes)
 	LicenseKeyPath              string   `yaml:"licenseKeyPath"`
 	ESVersion                   string   `yaml:"esVersion"`
-	Debug                       bool     `yaml:"debug"`                  // debug logging
+	Debug                       bool     `yaml:"debug"`        // debug logging
+	PProfEnabled                string   `yaml:"pprofEnabled"` // enable pprof
+	PProfEnabledConverted       bool     // converted bool value of PprofEnabled yaml
 	MemoryThresholdPercent      uint64   `yaml:"memoryThresholdPercent"` // percent of all available free data allocated for loading micro indices in memory
 	DataDiskThresholdPercent    uint64   `yaml:"dataDiskThresholdPercent"`
 	S3IngestQueueName           string   `yaml:"s3IngestQueueName"`
