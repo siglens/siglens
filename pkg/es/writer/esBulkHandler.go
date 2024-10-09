@@ -220,6 +220,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 				} else {
 					ple := plePool.Get().(*writer.ParsedLogEvent)
+					ple.Reset()
 					allPLEs = append(allPLEs, ple)
 
 					ple.SetIndexName(indexName)
@@ -227,7 +228,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
-						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
+						log.Errorf("HandleBulkBody: ParseRawJsonObject: failed to do parsing, err: %v", err)
 						success = false
 					}
 				}
@@ -399,7 +400,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
 		return err
 	}
-	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
+	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, myid, 0,
 		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)

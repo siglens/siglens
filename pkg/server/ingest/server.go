@@ -112,7 +112,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	// OTLP Handlers
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
 
-	if config.IsDebugMode() {
+	if config.IsPProfEnabled() {
 		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 

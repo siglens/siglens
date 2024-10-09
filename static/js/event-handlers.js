@@ -85,14 +85,19 @@ function windowPopStateHandler(evt) {
     }
 }
 
+let tempStartDate, tempStartTime, tempEndDate, tempEndTime;
+let appliedStartDate, appliedStartTime, appliedEndDate, appliedEndTime;
+
 function showDatePickerHandler(evt) {
     evt.stopPropagation();
     $('#daterangepicker').toggle();
     $(evt.currentTarget).toggleClass('active');
+    initializeDatePicker();
 }
 
 function hideDatePickerHandler() {
     $('#date-picker-btn').removeClass('active');
+    resetTempValues();
 }
 
 function resetDatePickerHandler(evt) {
@@ -102,56 +107,99 @@ function resetDatePickerHandler(evt) {
         $(this).removeClass('active');
     });
 }
+
+function initializeDatePicker() {
+    // Initialize with applied values, current values, or from cookies
+    appliedStartDate = tempStartDate = $('#date-start').val() || Cookies.get('customStartDate') || '';
+    appliedStartTime = tempStartTime = $('#time-start').val() || Cookies.get('customStartTime') || '';
+    appliedEndDate = tempEndDate = $('#date-end').val() || Cookies.get('customEndDate') || '';
+    appliedEndTime = tempEndTime = $('#time-end').val() || Cookies.get('customEndTime') || '';
+
+    $('#date-start').val(appliedStartDate).toggleClass('active', !!appliedStartDate);
+    $('#date-end').val(appliedEndDate).toggleClass('active', !!appliedEndDate);
+
+    if (appliedStartDate) {
+        $('#time-start').val(appliedStartTime).addClass('active');
+    } else {
+        $('#time-start').val('00:00').removeClass('active');
+    }
+
+    if (appliedEndDate) {
+        $('#time-end').val(appliedEndTime).addClass('active');
+    } else {
+        $('#time-end').val('00:00').removeClass('active');
+    }
+}
+
+function resetTempValues() {
+    tempStartDate = appliedStartDate;
+    tempStartTime = appliedStartTime;
+    tempEndDate = appliedEndDate;
+    tempEndTime = appliedEndTime;
+
+    // Reset the input values to the applied values
+    $('#date-start').val(appliedStartDate);
+    $('#date-end').val(appliedEndDate);
+    $('#time-start').val(appliedStartTime);
+    $('#time-end').val(appliedEndTime);
+}
+
 function getStartDateHandler(_evt) {
-    let inputDate = new Date(this.value);
-    filterStartDate = inputDate.getTime();
+    tempStartDate = this.value;
     $(this).addClass('active');
-    Cookies.set('customStartDate', this.value);
 }
 
 function getEndDateHandler(_evt) {
-    let inputDate = new Date(this.value);
-    filterEndDate = inputDate.getTime();
+    tempEndDate = this.value;
     $(this).addClass('active');
-    Cookies.set('customEndDate', this.value);
 }
 
 function getStartTimeHandler() {
-    let selectedTime = $(this).val();
-    let temp = (Number(selectedTime.split(':')[0]) * 60 + Number(selectedTime.split(':')[1])) * 60 * 1000;
-    //check if filterStartDate is a number or now-*
-    if (!isNaN(filterStartDate)) {
-        filterStartDate = filterStartDate + temp;
-    } else {
-        let start = new Date();
-        start.setUTCHours(0, 0, 0, 0);
-        filterStartDate = start.getTime() + temp;
-    }
+    tempStartTime = $(this).val();
     $(this).addClass('active');
-    Cookies.set('customStartTime', selectedTime);
 }
 
 function getEndTimeHandler() {
-    let selectedTime = $(this).val();
-    let temp = (Number(selectedTime.split(':')[0]) * 60 + Number(selectedTime.split(':')[1])) * 60 * 1000;
-    if (!isNaN(filterEndDate)) {
-        filterEndDate = filterEndDate + temp;
-    } else {
-        let start = new Date();
-        start.setUTCHours(0, 0, 0, 0);
-        filterEndDate = start.getTime() + temp;
-    }
+    tempEndTime = $(this).val();
     $(this).addClass('active');
-    Cookies.set('customEndTime', selectedTime);
 }
 
-function customRangeHandler(_evt) {
-    $.each($('.range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $.each($('.db-range-item.active'), function () {
-        $(this).removeClass('active');
-    });
+function customRangeHandler(evt) {
+    if (!tempStartDate || !tempEndDate) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (!tempStartDate) $('#date-start').addClass('error');
+        if (!tempEndDate) $('#date-end').addClass('error');
+
+        setTimeout(function () {
+            $('#date-start, #date-end').removeClass('error');
+        }, 2000);
+        return;
+    } else {
+        $.each($('.range-item.active, .db-range-item.active'), function () {
+            $(this).removeClass('active');
+        });
+    }
+
+    // Apply the temporary values
+    appliedStartDate = tempStartDate;
+    appliedStartTime = tempStartTime || '00:00';
+    appliedEndDate = tempEndDate;
+    appliedEndTime = tempEndTime || '00:00';
+    $('#time-start', '#time-end').addClass('active');
+
+    // Calculate start and end times
+    let startDate = new Date(`${appliedStartDate}T${appliedStartTime}`);
+    let endDate = new Date(`${appliedEndDate}T${appliedEndTime}`);
+
+    filterStartDate = startDate.getTime();
+    filterEndDate = endDate.getTime();
+
+    Cookies.set('customStartDate', appliedStartDate);
+    Cookies.set('customStartTime', appliedStartTime);
+    Cookies.set('customEndDate', appliedEndDate);
+    Cookies.set('customEndTime', appliedEndTime);
+
     datePickerHandler(filterStartDate, filterEndDate, 'custom');
     // For dashboards
     const currentUrl = window.location.href;
@@ -276,21 +324,27 @@ async function dashboardRangeItemHandler(evt) {
         displayPanels();
     }
 }
+
 function resetCustomDateRange() {
     // clear custom selections
     $('#date-start').val('');
     $('#date-end').val('');
     $('#time-start').val('00:00');
     $('#time-end').val('00:00');
-    $('#date-start').removeClass('active');
-    $('#date-end').removeClass('active');
+    $('#date-start').removeClass('active error');
+    $('#date-end').removeClass('active error');
     $('#time-start').removeClass('active');
     $('#time-end').removeClass('active');
     Cookies.remove('customStartDate');
     Cookies.remove('customEndDate');
     Cookies.remove('customStartTime');
     Cookies.remove('customEndTime');
+    appliedStartDate = tempStartDate = '';
+    appliedEndDate = tempEndDate = '';
+    appliedStartTime = tempStartTime = '';
+    appliedEndTime = tempEndTime = '';
 }
+
 function hideColumnHandler(evt, isCloseIcon = false) {
     evt.preventDefault();
     evt.stopPropagation();

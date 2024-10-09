@@ -534,7 +534,7 @@ function processClusterStats(res) {
         colReorder: false,
         scrollX: false,
         deferRender: true,
-        scrollY: 500,
+        scrollY: 480,
         scrollCollapse: true,
         scroller: true,
         lengthChange: false,
@@ -542,6 +542,38 @@ function processClusterStats(res) {
         order: [],
         columnDefs: [],
         data: [],
+        infoCallback: function (settings, start, end, max, total, pre) {
+            let api = this.api();
+            let pageInfo = api.page.info();
+            let totalRows = pageInfo.recordsDisplay;
+            // Check if there's only one row (the Total row)
+            if (totalRows === 1) {
+                return '';
+            }
+            let adjustedTotal = totalRows - 1;
+            // Adjust start and end for display
+            let adjustedStart = start;
+            let adjustedEnd = end;
+
+            if (start === 0) {
+                adjustedStart = 1; // Skip the Total row
+            } else {
+                adjustedStart = start - 1;
+            }
+            adjustedEnd = Math.min(end - 1, adjustedTotal);
+
+            return 'Showing ' + (adjustedStart + 1) + ' to ' + adjustedEnd + ' of ' + adjustedTotal + ' entries' + (pageInfo.recordsTotal !== totalRows ? ' (filtered from ' + (hasTotalRow ? pageInfo.recordsTotal - 1 : pageInfo.recordsTotal) + ' total entries)' : '');
+        },
+        drawCallback: function (settings) {
+            let api = this.api();
+            let totalRow = api.row(function (idx, data, node) {
+                return data[0] === 'Total';
+            });
+
+            if (totalRow.any()) {
+                $(totalRow.node()).detach().prependTo(api.table().body());
+            }
+        },
     };
 
     let indexDataTable = $('#index-data-table').DataTable({
@@ -573,26 +605,21 @@ function processClusterStats(res) {
         ],
     });
 
-    function formatIngestVolume(volume) {
-        let volumeGB;
-    
-        if (typeof volume === 'string') {
-            // Remove " GB" if it's in the string
-            volumeGB = parseFloat(volume.replace(" GB", ""));
-        } else if (typeof volume === 'number') {
-            volumeGB = volume;
-        } else {
-            // Handle unexpected input types
-            console.error("Unexpected volume type:", typeof volume);
-            return "N/A";
+    function formatIngestVolume(volumeBytes) {
+        if (typeof volumeBytes !== 'number') {
+            console.error('Unexpected volume type:', typeof volumeBytes);
+            return 'N/A';
         }
-    
-        if (isNaN(volumeGB)) {
-            console.error("Invalid volume value:", volume);
-            return "N/A";
+
+        if (isNaN(volumeBytes)) {
+            console.error('Invalid volume value:', volumeBytes);
+            return 'N/A';
         }
-        
-        if (volumeGB === 0) {
+
+        const bytesInGB = 1024 * 1024 * 1024;
+        const volumeGB = volumeBytes / bytesInGB;
+
+        if (volumeBytes === 0) {
             return '0 GB';
         } else if (volumeGB < 1) {
             return '< 1 GB';
@@ -600,7 +627,7 @@ function processClusterStats(res) {
             return `${Math.round(volumeGB).toLocaleString('en-US')} GB`;
         }
     }
-    
+
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
@@ -654,7 +681,7 @@ function processClusterStats(res) {
             });
         }
         totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
-        
+
         totalIngestVolume = res.ingestionStats['Log Incoming Volume'];
         totalValRow[1] = formatIngestVolume(res.ingestionStats['Log Incoming Volume']);
         totalValRow[2] = totalEventCount.toLocaleString();
@@ -710,6 +737,9 @@ function processClusterStats(res) {
 
     function deleteIndex(e, indexName) {
         if (e) e.stopPropagation();
+        // Disable the delete button and show loading spinner
+        $('#del-index-btn').attr('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+        
         $.ajax({
             method: 'post',
             url: 'api/deleteIndex/' + indexName,
@@ -723,11 +753,15 @@ function processClusterStats(res) {
             .then(function (_res) {
                 hidePopUpsOnUsageStats();
                 indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
-                showDeleteIndexToast('Index Deleted Successfully');
+                showToast('Index Deleted Successfully', 'success');
             })
             .catch((_err) => {
                 hidePopUpsOnUsageStats();
-                showDeleteIndexToast('Error Deleting Index');
+                showToast('Error Deleting Index', 'error');
+            })
+            .always(() => {
+                // Reset the delete button
+                $('#del-index-btn').attr('disabled', false).html('Delete');
             });
     }
 }

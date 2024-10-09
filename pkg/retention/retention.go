@@ -350,7 +350,8 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 		for _, file := range filesToDelete {
 			err := blob.DeleteBlob(file)
 			if err != nil {
-				log.Errorf("deleteSegmentData: Error in deleting segment file %v in s3", file)
+				log.Errorf("deleteSegmentData: Error in deleting segment file %v in blob, err: %v",
+					file, err)
 				continue
 			}
 		}
