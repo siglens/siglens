@@ -5,16 +5,16 @@ eval_groupby_2col_2stats.json
 grpby_1col_4stats.json
 search_1col_fields.json
 bin.json
-streamstats.json
-streamstats_2.json
-streamstats_3.json
-streamstats_4.json
-streamstats_5.json
-streamstats_6.json
-streamstats_7.json
+streamstats_win3.json
+streamstats_win4_currF.json
+streamstats_win4_grpby.json
+streamstats_win4_reset_before_after.json
+streamstats_win2_gloF_currF_grpby.json
+streamstats_win2_gloF_grpby.json
+streamstats_multi_resets_grpby.json
 streamstats_eval.json
-stats_streamstats.json
-aggs_streamstats.json
+streamstats_after_stats.json
+streamstats_after_grpby.json
 stats_eval.json
 
 
