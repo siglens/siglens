@@ -20,7 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	"time"
+	// "time"
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -115,22 +115,22 @@ var functionalTestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("queriesToRunFile : %+v\n", filePath)
 
-		totalEvents := 100_000
-		batchSize := 100
-		numIndices := 10
-		processCount := 1
-		indexPrefix := "ind"
-		indexName := ""
-		numFixedCols := 100
-		maxVariableCols := 20
-		sleepDuration := 15 * time.Second
+		// totalEvents := 100_000
+		// batchSize := 100
+		// numIndices := 10
+		// processCount := 1
+		// indexPrefix := "ind"
+		// indexName := ""
+		// numFixedCols := 100
+		// maxVariableCols := 20
+		// sleepDuration := 15 * time.Second
 
-		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+		// dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
+		// ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
+		// 	indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		time.Sleep(sleepDuration)
+		// time.Sleep(sleepDuration)
 
 		query.FunctionalTest(queryDest, filePath)
 	},

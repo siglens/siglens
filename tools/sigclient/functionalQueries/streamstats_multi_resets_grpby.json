@@ -48,7 +48,6 @@
                 "bool_col": false,
                 "city": "Boston",
                 "first_name": "Abigail",
-                "group": "group 1",
                 "http_status": 200,
                 "latency": 7272212,
                 "last_name": "Nitzsche",
