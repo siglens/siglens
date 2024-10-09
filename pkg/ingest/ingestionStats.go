@@ -22,7 +22,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/instrumentation"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-	vtable "github.com/siglens/siglens/pkg/virtualtable"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -39,33 +38,32 @@ func ingestionMetricsLooper() {
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
 
-		// change to loop for all orgs
-		allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
+		allSegmetas := segwriter.ReadAllSegmetas()
 
-		if err != nil {
-			log.Errorf("ingestionMetricsLooper: Error in getting virtual table names, err:%v", err)
-		}
-		for indexName := range allVirtualTableNames {
+		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
+
+		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+
+		for indexName, cnts := range allCnts {
 			if indexName == "" {
 				log.Errorf("ingestionMetricsLooper: skipping an empty index name len(indexName)=%v", len(indexName))
 				continue
 			}
-			byteCount, eventCount, onDiskBytes := segwriter.GetVTableCounts(indexName, 0)
-			unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytes, _ := segwriter.GetUnrotatedVTableCounts(indexName, 0)
 
-			totalEventsForIndex := uint64(eventCount) + uint64(unrotatedEventCount)
+			totalEventsForIndex := uint64(cnts.RecordCount)
 			currentEventCount += int64(totalEventsForIndex)
 			instrumentation.SetEventCountPerIndex(currentEventCount, "indexname", indexName)
 
-			totalBytesReceivedForIndex := byteCount + unrotatedByteCount
+			totalBytesReceivedForIndex := cnts.BytesCount
 			currentBytesReceived += int64(totalBytesReceivedForIndex)
 			instrumentation.SetBytesCountPerIndex(currentBytesReceived, "indexname", indexName)
 
-			totalOnDiskBytesForIndex := onDiskBytes + unrotatedOnDiskBytes
+			totalOnDiskBytesForIndex := cnts.OnDiskBytesCount
 			currentOnDiskBytes += int64(totalOnDiskBytesForIndex)
 			instrumentation.SetOnDiskBytesPerIndex(currentOnDiskBytes, "indexname", indexName)
-
 		}
+
 		instrumentation.SetGaugeCurrentEventCount(currentEventCount)
 		instrumentation.SetGaugeCurrentBytesReceivedGauge(currentBytesReceived)
 		instrumentation.SetGaugeOnDiskBytesGauge(currentOnDiskBytes)
