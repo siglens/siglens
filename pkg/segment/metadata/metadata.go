@@ -400,6 +400,19 @@ func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 
 }
 
+func getAllColumnsRecSizeWithLock(segKey string) (map[string]uint32, bool) {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
+	mi, ok := globalMetadata.segmentMetadataReverseIndex[segKey]
+	if ok {
+		return mi.getAllColumnsRecSize(), true
+	}
+	return nil, ok
+
+}
+
+
 func DeleteSegmentKey(segKey string) {
 	globalMetadata.deleteSegmentKey(segKey)
 }
@@ -686,13 +699,11 @@ func GetAllColNames(indices []string) []string {
 }
 
 func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[string]uint32 {
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
 	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
 	for segKey := range segmap {
-		smi, ok := getMicroIndex(segKey)
+		retval, ok := getAllColumnsRecSizeWithLock(segKey)
 		if ok {
-			ConsistentCValLenPerSeg[segKey] = smi.getAllColumnsRecSize()
+			ConsistentCValLenPerSeg[segKey] = retval
 		}
 	}
 	return ConsistentCValLenPerSeg
