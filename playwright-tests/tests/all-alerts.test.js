@@ -77,9 +77,12 @@ test.describe('All Alerts Screen Flow', () => {
             const updatedName = `Updated Test Alert ${Date.now()}`;
             await page.fill('#alert-rule-name', updatedName);
             
-            await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }), page.click('#save-alert-btn')]);
+            await Promise.all([
+                page.waitForNavigation({ url: '**/all-alerts.html' }),
+                page.click('#save-alert-btn')
+            ]);
 
-            await expect(page).toHaveURL(/all-alerts\.html/, { timeout: 30000 });
+            await expect(page).toHaveURL(/all-alerts\.html/);
         });
     });
 
