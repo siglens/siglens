@@ -60,11 +60,15 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
+type EvalExpr struct{} // TODO
+
 type RenameExpr struct {
 	RenameExprMode  RenameExprMode
 	OriginalPattern string
 	NewPattern      string
 }
+
+type RegexExpr struct{} // TODO
 
 type RexExpr struct {
 	Pattern     string
