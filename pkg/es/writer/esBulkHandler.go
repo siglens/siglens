@@ -220,6 +220,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 					}
 				} else {
 					ple := plePool.Get().(*writer.ParsedLogEvent)
+					ple.Reset()
 					allPLEs = append(allPLEs, ple)
 
 					ple.SetIndexName(indexName)
@@ -227,7 +228,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
-						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
+						log.Errorf("HandleBulkBody: ParseRawJsonObject: failed to do parsing, err: %v", err)
 						success = false
 					}
 				}
