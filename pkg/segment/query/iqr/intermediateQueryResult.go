@@ -331,7 +331,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 func (iqr *IQR) Append(other *IQR) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.Merge: validation failed on self: %v", err)
+		log.Errorf("IQR.Append: validation failed on self: %v", err)
 		return err
 	}
 
@@ -340,13 +340,13 @@ func (iqr *IQR) Append(other *IQR) error {
 	}
 
 	if err := other.validate(); err != nil {
-		log.Errorf("IQR.Merge: validation failed on other: %v", err)
+		log.Errorf("IQR.Append: validation failed on other: %v", err)
 		return err
 	}
 
 	_, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
-		log.Errorf("IQR.Merge: error merging metadata: %v", err)
+		log.Errorf("IQR.Append: error merging metadata: %v", err)
 		return err
 	}
 
