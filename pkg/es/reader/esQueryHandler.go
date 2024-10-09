@@ -193,7 +193,6 @@ Returns NodeResults with doc counts per index aggregation
 */
 func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 
-
 	totalHits := uint64(0)
 	bucketResults := make([]*structs.BucketResult, myid)
 
@@ -201,7 +200,6 @@ func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 
 	allCnts := segwriter.GetVTableCountsForAll(myid, allSegmetas)
 	segwriter.GetUnrotatedVTableCountsForAll(myid, allCnts)
-
 
 	for indexName, cnts := range allCnts {
 		if indexName == "" {

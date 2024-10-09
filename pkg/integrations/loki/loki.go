@@ -815,29 +815,41 @@ func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid uint6
 		return lokiQueryStats
 	}
 
-	bytesReceivedCount, recordCount, onDiskBytesCount := segwriter.GetVTableCounts(LOKIINDEX_STAR, myid)
-	unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(LOKIINDEX_STAR, myid)
+	allSegmetas := segwriter.ReadAllSegmetas()
+
+	allCnts := segwriter.GetVTableCountsForAll(myid, allSegmetas)
+	segwriter.GetUnrotatedVTableCountsForAll(myid, allCnts)
+
+	var bytesReceivedCount uint64
+	var recordCount uint64
+	var onDiskBytesCount uint64
+
+	for _, cnts := range allCnts {
+		bytesReceivedCount += cnts.BytesCount
+		recordCount += cnts.RecordCount
+		onDiskBytesCount += cnts.OnDiskBytesCount
+	}
 
 	chunkCount := getChunkCount(queryResult)
 
 	ingesterStats := Ingester{}
-	ingesterStats.CompressedBytes = int(onDiskBytesCount + unrotatedOnDiskBytesCount)
-	ingesterStats.DecompressedBytes = int(bytesReceivedCount + unrotatedByteCount)
-	ingesterStats.DecompressedLines = unrotatedEventCount
+	ingesterStats.CompressedBytes = onDiskBytesCount
+	ingesterStats.DecompressedBytes = bytesReceivedCount
+	ingesterStats.DecompressedLines = recordCount
 	ingesterStats.TotalReached = 1 //single node
 	ingesterStats.TotalLinesSent = len(queryResult.AllRecords)
 	ingesterStats.TotalChunksMatched = chunkCount
 	ingesterStats.TotalBatches = chunkCount * search.BLOCK_BATCH_SIZE
-	ingesterStats.HeadChunkBytes = int(onDiskBytesCount)
-	ingesterStats.HeadChunkLines = int(recordCount)
+	ingesterStats.HeadChunkBytes = onDiskBytesCount
+	ingesterStats.HeadChunkLines = recordCount
 
 	lokiQueryStats.Ingester = ingesterStats
 
 	storeStats := Store{}
-	storeStats.DecompressedBytes = int(unrotatedOnDiskBytesCount) + int(onDiskBytesCount)
+	storeStats.DecompressedBytes = onDiskBytesCount
 	summaryStats := Summary{}
 
-	summaryStats.TotalBytesProcessed = int(bytesReceivedCount) + int(unrotatedOnDiskBytesCount)
+	summaryStats.TotalBytesProcessed = bytesReceivedCount
 	summaryStats.ExecTime = float64(utils.GetCurrentTimeInMs() - startTime)
 	summaryStats.TotalLinesProcessed = len(queryResult.AllRecords)
 
