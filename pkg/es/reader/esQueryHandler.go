@@ -31,7 +31,6 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
-	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -194,21 +193,23 @@ Returns NodeResults with doc counts per index aggregation
 */
 func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	if err != nil {
-		return &structs.NodeResult{ErrList: []error{err}}
-	}
 
 	totalHits := uint64(0)
-	bucketResults := make([]*structs.BucketResult, 0)
-	for indexName := range allVirtualTableNames {
+	bucketResults := make([]*structs.BucketResult, myid)
+
+	allSegmetas := segwriter.ReadAllSegmetas()
+
+	allCnts := segwriter.GetVTableCountsForAll(myid, allSegmetas)
+	segwriter.GetUnrotatedVTableCountsForAll(myid, allCnts)
+
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Errorf("getIndexNameAggOnly: skipping an empty index name len(indexName)=%v", len(indexName))
 			continue
 		}
-		_, eventCount, _ := segwriter.GetVTableCounts(indexName, myid)
-		_, unrotatedEventCount, _, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-		totalEventsForIndex := uint64(eventCount) + uint64(unrotatedEventCount)
+
+		totalEventsForIndex := uint64(cnts.RecordCount)
 		totalHits += totalEventsForIndex
 		currBucket := &structs.BucketResult{
 			ElemCount: totalEventsForIndex,
