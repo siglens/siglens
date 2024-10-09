@@ -75,8 +75,16 @@ test.describe('All Alerts Screen Flow', () => {
         await test.step('Update alert name', async () => {
             const updatedName = `Updated Test Alert ${Date.now()}`;
             await page.fill('#alert-rule-name', updatedName);
+            
+            console.log('Clicking save button');
             await page.click('#save-alert-btn');
-            await expect(page.locator('.ag-root-wrapper')).toBeVisible();
+            
+            console.log('Waiting for navigation and network idle');
+            await page.waitForLoadState('networkidle');
+            
+            console.log('Waiting for .ag-root-wrapper');
+            await expect(page.locator('.ag-root-wrapper')).toBeVisible({ timeout: 10000 });
+            console.log('.ag-root-wrapper is visible');
         });
     });
 
