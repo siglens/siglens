@@ -47,4 +47,6 @@ jobs:
       - name: Run Playwright Tests
         run: |
           cd playwright-tests
-          npx playwright test
+          npx playwright test --workers=5
+        env:
+          CI: true
