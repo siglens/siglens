@@ -1,0 +1,218 @@
+{
+    "queryText": "city=Boston | sort first_name, last_name | streamstats window=2 global=false current=false count(http_status) as cnt, avg(http_status) as avg, sum(http_status) as sum, min(http_status) as min, max(http_status) as max, range(http_status) as range, dc(http_status) as dc, values(http_status) as values by bool_col | fields bool_col, city, first_name, last_name, http_status, cnt, avg, sum, min, max, range, dc, values",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 984,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["first_name", "last_name"],
+         "records": [
+            {
+                "avg": "",
+                "bool_col": false,
+                "city": "Boston",
+                "cnt": 0,
+                "dc": 0,
+                "first_name": "Abdiel",
+                "http_status": 400,
+                "last_name": "Bogisich",
+                "max": "",
+                "min": "",
+                "sum": "",
+                "range": "",
+                "values": ""
+            },
+            {
+                "avg": "",
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 0,
+                "dc": 0,
+                "first_name": "Abdiel",
+                "http_status": 500,
+                "last_name": "Powlowski",
+                "max": "",
+                "min": "",
+                "range": "",
+                "sum": "",
+                "values": ""
+            },
+            {
+                "avg": 400,
+                "bool_col": false,
+                "city": "Boston",
+                "cnt": 1,
+                "dc": 1,
+                "first_name": "Abdul",
+                "http_status": 200,
+                "last_name": "Larson",
+                "max": 400,
+                "min": 400,
+                "range": 0,
+                "sum": 400,
+                "values": [
+                    "400"
+                ]
+            },
+            {
+                "avg": 300,
+                "bool_col": false,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 2,
+                "first_name": "Abigail",
+                "group": "group 1",
+                "http_status": 200,
+                "last_name": "Nitzsche",
+                "max": 400,
+                "min": 200,
+                "range": 200,
+                "sum": 600,
+                "values": [
+                    "200",
+                    "400"
+                ]
+            },
+            {
+                "avg": 500,
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 1,
+                "dc": 1,
+                "first_name": "Abraham",
+                "http_status": 400,
+                "last_name": "Tromp",
+                "max": 500,
+                "min": 500,
+                "range": 0,
+                "sum": 500,
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "avg": 450,
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 2,
+                "first_name": "Adela",
+                "group": "group 1",
+                "http_status": 400,
+                "last_name": "Cummerata",
+                "max": 500,
+                "min": 400,
+                "range": 100,
+                "sum": 900,
+                "values": [
+                    "400",
+                    "500"
+                ]
+            },
+            {
+                "avg": 400,
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 1,
+                "first_name": "Adela",
+                "group": "group 0",
+                "http_status": 301,
+                "last_name": "Murazik",
+                "max": 400,
+                "min": 400,
+                "range": 0,
+                "sum": 800,
+                "values": [
+                    "400"
+                ]
+            },
+            {
+                "avg": 350.5,
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 2,
+                "first_name": "Adela",
+                "group": "group 1",
+                "http_status": 404,
+                "last_name": "Zieme",
+                "max": 400,
+                "min": 301,
+                "range": 99,
+                "sum": 701,
+                "values": [
+                    "301",
+                    "400"
+                ]
+            },
+            {
+                "avg": 352.5,
+                "bool_col": true,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 2,
+                "first_name": "Adelia",
+                "http_status": 404,
+                "last_name": "Kuhn",
+                "max": 404,
+                "min": 301,
+                "range": 103,
+                "sum": 705,
+                "values": [
+                    "301",
+                    "404"
+                ]
+            },
+            {
+                "avg": 200,
+                "bool_col": false,
+                "city": "Boston",
+                "cnt": 2,
+                "dc": 1,
+                "first_name": "Adolfo",
+                "http_status": 400,
+                "last_name": "Gottlieb",
+                "max": 200,
+                "min": 200,
+                "range": 0,
+                "sum": 400,
+                "values": [
+                    "200"
+                ]
+            }
+         ],
+         "allColumns": [
+            "bool_col",
+            "city",
+            "first_name",
+            "last_name",
+            "http_status",
+            "cnt",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "range",
+            "dc",
+            "values"
+        ],
+         "columnsOrder": [
+            "bool_col",
+            "city",
+            "first_name",
+            "last_name",
+            "http_status",
+            "cnt",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "range",
+            "dc",
+            "values"
+        ]
+     }
+ }
+ 

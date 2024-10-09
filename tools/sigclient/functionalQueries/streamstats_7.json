@@ -1,0 +1,159 @@
+{
+    "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false reset_on_change=true avg(http_status) as avg_http_status BY bool_col | streamstats window=3 global=false current=false reset_on_change=true sum(http_status) as sum_http_status BY bool_col  | streamstats window=4 global=false reset_before=(last_name=\"Murazik\") reset_after=(last_name=\"Larson\") sum(latency) as sum_latency by bool_col | streamstats window=4 current=false reset_before=(latency>9333128 AND latency < 9333130) avg(latency) as avg_latency by bool_col | fields city, first_name, last_name, bool_col, http_status, avg_http_status, sum_http_status, latency, sum_latency, avg_latency",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 984,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["first_name", "last_name"],
+         "records": [
+            {
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Abdiel",
+                "http_status": 400,
+                "latency": 4768602,
+                "last_name": "Bogisich",
+                "avg_http_status": 400,
+                "sum_http_status": "",
+                "sum_latency": 4768602,
+                "avg_latency": ""
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Abdiel",
+                "http_status": 500,
+                "latency": 1525978,
+                "last_name": "Powlowski",
+                "avg_http_status": 500,
+                "sum_http_status": "",
+                "sum_latency": 1525978,
+                "avg_latency": ""
+            },
+            {
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Abdul",
+                "http_status": 200,
+                "latency": 4530925,
+                "last_name": "Larson",
+                "avg_http_status": 200,
+                "sum_http_status": "",
+                "sum_latency": 9299527,
+                "avg_latency": 4768602
+            },
+            {
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Abigail",
+                "group": "group 1",
+                "http_status": 200,
+                "latency": 7272212,
+                "last_name": "Nitzsche",
+                "avg_http_status": 200,
+                "sum_http_status": 200,
+                "sum_latency": 7272212,
+                "avg_latency": 4649763.5
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Abraham",
+                "http_status": 400,
+                "latency": 5391412,
+                "last_name": "Tromp",
+                "avg_http_status": 400,
+                "sum_http_status": "",
+                "sum_latency": 5391412,
+                "avg_latency": 1525978
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Adela",
+                "http_status": 400,
+                "latency": 9333129,
+                "last_name": "Cummerata",
+                "avg_http_status": 400,
+                "sum_http_status": 400,
+                "sum_latency": 14724541,
+                "avg_latency": ""
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Adela",
+                "http_status": 301,
+                "latency": 6052263,
+                "last_name": "Murazik",
+                "avg_http_status": 367,
+                "sum_http_status": 800,
+                "sum_latency": 6052263,
+                "avg_latency": 9333129
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Adela",
+                "http_status": 404,
+                "latency": 2991979,
+                "last_name": "Zieme",
+                "avg_http_status": 368.3333333333333,
+                "sum_http_status": 1101,
+                "sum_latency": 9044242,
+                "avg_latency": 7692696
+            },
+            {
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Adelia",
+                "http_status": 404,
+                "latency": 8123493,
+                "last_name": "Kuhn",
+                "avg_http_status": 369.6666666666667,
+                "sum_http_status": 1105,
+                "sum_latency": 17167735,
+                "avg_latency": 6125790.333333333
+            },
+            {
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Adolfo",
+                "http_status": 400,
+                "latency": 9510552,
+                "last_name": "Gottlieb",
+                "avg_http_status": 400,
+                "sum_http_status": "",
+                "sum_latency": 9510552,
+                "avg_latency": ""
+            }
+         ],
+         "allColumns": [
+            "city",
+            "first_name",
+            "last_name",
+            "bool_col",
+            "http_status",
+            "avg_http_status",
+            "sum_http_status",
+            "latency",
+            "sum_latency",
+            "avg_latency"
+        ],
+         "columnsOrder": [
+            "city",
+            "first_name",
+            "last_name",
+            "bool_col",
+            "http_status",
+            "avg_http_status",
+            "sum_http_status",
+            "latency",
+            "sum_latency",
+            "avg_latency"
+        ]
+     }
+ }
+ 
