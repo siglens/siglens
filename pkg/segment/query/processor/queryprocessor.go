@@ -20,6 +20,7 @@ package processor
 import (
 	"io"
 
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -70,7 +71,7 @@ func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryType := structs.RRCCmd // TODO: actually calculate this
+	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	return newQueryProcessorHelper(queryType, lastStreamer)
 }
