@@ -93,6 +93,7 @@ type RunningQueryState struct {
 	isCancelled              bool
 	timeoutCancelFunc        context.CancelFunc
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
+	cleanupCallback          func()
 	orgid                    uint64
 	tableInfo                *structs.TableInfo
 	timeRange                *dtu.TimeRange
@@ -125,11 +126,15 @@ func (rQuery *RunningQueryState) IsAsync() bool {
 
 func (rQuery *RunningQueryState) SendQueryStateComplete() {
 	rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
+
+	if rQuery.cleanupCallback != nil {
+		rQuery.cleanupCallback()
+	}
 }
 
 // Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
 // If async, updates will be sent for any update to RunningQueryState. Caller is responsible to call DeleteQuery
-func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
+func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQueryState, error) {
 	arqMapLock.Lock()
 	defer arqMapLock.Unlock()
 	if _, ok := allRunningQueries[qid]; ok {
@@ -165,6 +170,7 @@ func StartQuery(qid uint64, async bool) (*RunningQueryState, error) {
 
 	runningState := &RunningQueryState{
 		StateChan:         stateChan,
+		cleanupCallback:   cleanupCallback,
 		rqsLock:           &sync.Mutex{},
 		isAsync:           async,
 		timeoutCancelFunc: timeoutCancelFunc,
@@ -185,6 +191,10 @@ func DeleteQuery(qid uint64) {
 
 	if ok && !rQuery.isCancelled {
 		rQuery.timeoutCancelFunc()
+
+		if rQuery.cleanupCallback != nil {
+			rQuery.cleanupCallback()
+		}
 	}
 }
 
@@ -439,6 +449,9 @@ func CancelQuery(qid uint64) {
 	}
 	rQuery.rqsLock.Lock()
 	rQuery.isCancelled = true
+	if rQuery.cleanupCallback != nil {
+		rQuery.cleanupCallback()
+	}
 	rQuery.rqsLock.Unlock()
 }
 
