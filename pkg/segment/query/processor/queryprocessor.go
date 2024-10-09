@@ -49,7 +49,7 @@ func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProce
 		return nil, utils.TeeErrorf("NewQueryProcessor: invalid query type %v", queryType)
 	}
 
-	headDP := NewHeadDP(utils.NewOptionWithValue(limit))
+	headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
 	if headDP == nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to create head data processor")
 	}
@@ -105,11 +105,13 @@ func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
-		if curAgg.DataProcessor == nil {
-			return nil, utils.TeeErrorf("getQueryProcessor: got nil data processor")
+		dataProcessor, err := asDataProcessor(curAgg)
+		if err != nil {
+			return nil, utils.TeeErrorf("GetQueryProcessor: cannot make data processor for %+v; err=%v",
+				curAgg, err)
 		}
 
-		dataProcessors = append(dataProcessors, curAgg.DataProcessor)
+		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
@@ -128,4 +130,17 @@ func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 	queryType := structs.RRCCmd // TODO: actually calculate this
 
 	return NewQueryProcessor(queryType, lastStreamer)
+}
+
+func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error) {
+	if queryAgg == nil {
+		return nil, utils.TeeErrorf("asDataProcessor: got nil query aggregator")
+	}
+
+	switch queryAgg.CommandType {
+	case structs.HeadCommand:
+		return NewHeadDP(queryAgg.HeadExpr), nil
+	default:
+		return nil, utils.TeeErrorf("asDataProcessor: invalid command type %v", queryAgg.CommandType)
+	}
 }

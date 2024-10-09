@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -240,10 +241,10 @@ func NewGentimesDP() *DataProcessor {
 	}
 }
 
-func NewHeadDP(limit utils.Option[uint64]) *DataProcessor {
+func NewHeadDP(expr *structs.HeadExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &headProcessor{limit: limit},
+		processor:         &headProcessor{options: expr},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
