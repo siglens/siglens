@@ -33,3 +33,7 @@ func (p *makemvProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *makemvProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *makemvProcessor) Cleanup() {
+	panic("not implemented")
+}

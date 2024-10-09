@@ -27,6 +27,7 @@ import (
 )
 
 type processor interface {
+	Cleanup()
 	Process(*iqr.IQR) (*iqr.IQR, error)
 	Rewind()
 }

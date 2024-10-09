@@ -33,3 +33,7 @@ func (p *rareProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *rareProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *rareProcessor) Cleanup() {
+	panic("not implemented")
+}

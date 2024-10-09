@@ -33,3 +33,7 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *whereProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *whereProcessor) Cleanup() {
+	panic("not implemented")
+}

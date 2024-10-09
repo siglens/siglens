@@ -33,3 +33,7 @@ func (p *transactionProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *transactionProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *transactionProcessor) Cleanup() {
+	panic("not implemented")
+}

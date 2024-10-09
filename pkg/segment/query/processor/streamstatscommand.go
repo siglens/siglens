@@ -33,3 +33,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *streamstatsProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *streamstatsProcessor) Cleanup() {
+	panic("not implemented")
+}

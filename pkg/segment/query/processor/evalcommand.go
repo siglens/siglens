@@ -33,3 +33,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *evalProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *evalProcessor) Cleanup() {
+	panic("not implemented")
+}

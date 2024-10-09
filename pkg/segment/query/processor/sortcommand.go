@@ -33,3 +33,7 @@ func (p *sortProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *sortProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *sortProcessor) Cleanup() {
+	panic("not implemented")
+}
