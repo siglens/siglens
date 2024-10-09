@@ -412,7 +412,6 @@ func getAllColumnsRecSizeWithLock(segKey string) (map[string]uint32, bool) {
 
 }
 
-
 func DeleteSegmentKey(segKey string) {
 	globalMetadata.deleteSegmentKey(segKey)
 }

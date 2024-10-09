@@ -44,7 +44,6 @@ func ingestionMetricsLooper() {
 
 		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
 
-
 		for indexName, cnts := range allCnts {
 			if indexName == "" {
 				log.Errorf("ingestionMetricsLooper: skipping an empty index name len(indexName)=%v", len(indexName))
