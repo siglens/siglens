@@ -37,7 +37,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		qid: 0,
 	}
 
-	queryProcessor, err := NewQueryProcessor(structs.RRCCmd, stream)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -60,7 +60,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := NewQueryProcessor(structs.RRCCmd, stream)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -70,7 +70,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), numMatched)
 }
 
-func Test_GetQueryProcessor(t *testing.T) {
+func Test_NewQueryProcessor(t *testing.T) {
 	qid := uint64(0)
 	searchNode := structs.ASTNode{}
 	agg1 := structs.QueryAggregators{
@@ -81,7 +81,7 @@ func Test_GetQueryProcessor(t *testing.T) {
 	}
 	agg1.Next = &agg2
 
-	queryProcessor, err := GetQueryProcessor(&searchNode, &agg1, qid)
+	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, qid)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }

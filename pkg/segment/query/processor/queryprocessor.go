@@ -38,64 +38,7 @@ type QueryProcessor struct {
 	DataProcessor
 }
 
-func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
-	var limit uint64
-	switch queryType {
-	case structs.RRCCmd:
-		limit = segutils.QUERY_EARLY_EXIT_LIMIT
-	case structs.SegmentStatsCmd, structs.GroupByCmd:
-		limit = segutils.QUERY_MAX_BUCKETS
-	default:
-		return nil, utils.TeeErrorf("NewQueryProcessor: invalid query type %v", queryType)
-	}
-
-	headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
-	if headDP == nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: failed to create head data processor")
-	}
-
-	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
-
-	return &QueryProcessor{
-		DataProcessor: *headDP,
-	}, nil
-}
-
-func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
-	finalIQR, err := qp.DataProcessor.Fetch()
-	if err != nil && err != io.EOF {
-		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
-	}
-
-	var iqr *iqr.IQR
-	for err != io.EOF {
-		iqr, err = qp.DataProcessor.Fetch()
-		if err != nil && err != io.EOF {
-			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
-		}
-
-		appendErr := finalIQR.Append(iqr)
-		if appendErr != nil {
-			return nil, utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
-		}
-	}
-
-	return finalIQR.AsResult()
-}
-
-// Usage:
-// 1. Make channels for updates and the final result.
-// 2. Call GetStreamedResult as a goroutine.
-// 3. Read from the update channel and the final result channel.
-//
-// Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
-	completeChan chan *structs.PipeSearchCompleteResponse) {
-
-	panic("not implemented") // TODO
-}
-
-func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
+func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
 	qid uint64) (*QueryProcessor, error) {
 
 	searcher := &searchStream{
@@ -107,7 +50,7 @@ func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
 		dataProcessor, err := asDataProcessor(curAgg)
 		if err != nil {
-			return nil, utils.TeeErrorf("GetQueryProcessor: cannot make data processor for %+v; err=%v",
+			return nil, utils.TeeErrorf("NewQueryProcessor: cannot make data processor for %+v; err=%v",
 				curAgg, err)
 		}
 
@@ -129,7 +72,30 @@ func GetQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 
 	queryType := structs.RRCCmd // TODO: actually calculate this
 
-	return NewQueryProcessor(queryType, lastStreamer)
+	return newQueryProcessorHelper(queryType, lastStreamer)
+}
+
+func newQueryProcessorHelper(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
+	var limit uint64
+	switch queryType {
+	case structs.RRCCmd:
+		limit = segutils.QUERY_EARLY_EXIT_LIMIT
+	case structs.SegmentStatsCmd, structs.GroupByCmd:
+		limit = segutils.QUERY_MAX_BUCKETS
+	default:
+		return nil, utils.TeeErrorf("newQueryProcessorHelper: invalid query type %v", queryType)
+	}
+
+	headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
+	if headDP == nil {
+		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
+	}
+
+	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
+
+	return &QueryProcessor{
+		DataProcessor: *headDP,
+	}, nil
 }
 
 func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error) {
@@ -178,4 +144,38 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error)
 	} else {
 		return nil, utils.TeeErrorf("asDataProcessor: all commands are nil in %+v", queryAgg)
 	}
+}
+
+func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
+	finalIQR, err := qp.DataProcessor.Fetch()
+	if err != nil && err != io.EOF {
+		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
+	}
+
+	var iqr *iqr.IQR
+	for err != io.EOF {
+		iqr, err = qp.DataProcessor.Fetch()
+		if err != nil && err != io.EOF {
+			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+		}
+
+		appendErr := finalIQR.Append(iqr)
+		if appendErr != nil {
+			return nil, utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+		}
+	}
+
+	return finalIQR.AsResult()
+}
+
+// Usage:
+// 1. Make channels for updates and the final result.
+// 2. Call GetStreamedResult as a goroutine.
+// 3. Read from the update channel and the final result channel.
+//
+// Once the final result is sent, no more updates will be sent.
+func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
+	completeChan chan *structs.PipeSearchCompleteResponse) {
+
+	panic("not implemented") // TODO
 }
