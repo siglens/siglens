@@ -751,7 +751,7 @@ async function displayPanels() {
             let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
             <div id="panel-loading"></div>`;
             panEl.append(responseDiv);
-            if (!isFilterApplied && localPanel.queryRes) {
+            if (localPanel.queryRes) {
                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
             } else {
                 delete localPanel.queryData.startEpoch;
@@ -767,7 +767,7 @@ async function displayPanels() {
 
             $('.big-number-display-container').show();
             if (localPanel.queryType === 'metrics') {
-                if (!isFilterApplied && localPanel.queryRes) {
+                if (localPanel.queryRes) {
                     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
                 } else {
                     delete localPanel.queryData.startEpoch;
