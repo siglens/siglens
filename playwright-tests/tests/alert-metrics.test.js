@@ -19,7 +19,7 @@ test.describe('Alert Tests', () => {
 
             await page.click('#alert-data-source');
             await page.click(`#data-source-options #option-2`);
-    
+
             await page.click('#date-picker-btn');
             await page.click('#now-90d');
         });
@@ -76,7 +76,7 @@ async function deleteAlertIfExists(page, alertName) {
     await page.waitForSelector('.ag-row', { state: 'attached' });
 
     const alertRow = page.locator(`.ag-row:has-text("${alertName}")`);
-    if (await alertRow.count() > 0) {
+    if ((await alertRow.count()) > 0) {
         const rowCountBefore = await page.locator('.ag-row').count();
 
         await alertRow.locator('#delbutton').click();
