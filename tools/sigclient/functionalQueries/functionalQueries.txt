@@ -4,7 +4,6 @@ complex_search.json
 eval_groupby_2col_2stats.json
 grpby_1col_4stats.json
 search_1col_fields.json
-bin.json
 streamstats_win3.json
 streamstats_win4_currF.json
 streamstats_win4_grpby.json
@@ -15,7 +14,7 @@ streamstats_multi_resets_grpby.json
 streamstats_eval.json
 streamstats_after_stats.json
 streamstats_after_grpby.json
-stats_eval.json
+multi_value.json
 
 
 # Queries not working for multi-index
@@ -25,4 +24,6 @@ stats_eval.json
 # inputlookup.json
 # inputlookup_2.json
 # inputlookup_3.json
-
+# bin.json
+# stats_eval.json
+# mvexpand.json
