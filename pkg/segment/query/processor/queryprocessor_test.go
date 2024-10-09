@@ -71,5 +71,17 @@ func Test_GetFullResult_truncated(t *testing.T) {
 }
 
 func Test_GetQueryProcessor(t *testing.T) {
-	assert.Fail(t, "Not implemented")
+	qid := uint64(0)
+	searchNode := structs.ASTNode{}
+	agg1 := structs.QueryAggregators{
+		WhereExpr: &structs.BoolExpr{},
+	}
+	agg2 := structs.QueryAggregators{
+		SortExpr: &structs.SortExpr{},
+	}
+	agg1.Next = &agg2
+
+	queryProcessor, err := GetQueryProcessor(&searchNode, &agg1, qid)
+	assert.NoError(t, err)
+	assert.NotNil(t, queryProcessor)
 }

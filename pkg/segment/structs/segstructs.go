@@ -172,16 +172,26 @@ type QueryAggregators struct {
 
 	// TODO: eventually, we shouldn't need any of the above fields; then we can
 	// delete them.
-	CommandType CommandType
-	HeadExpr    *HeadExpr
+	BinExpr         *BinCmdOptions
+	DedupExpr       *DedupExpr
+	EvalExpr        *EvalExpr
+	FieldsExpr      *ColumnsRequest
+	FillNullExpr    *FillNullExpr
+	GentimesExpr    *GenTimes
+	HeadExpr        *HeadExpr
+	MakeMVExpr      *MultiValueColLetRequest
+	RareExpr        *StatisticExpr
+	RegexExpr       *RegexExpr
+	RexExpr         *RexExpr
+	SortExpr        *SortExpr
+	StatsExpr       *StatsOptions
+	StreamstatsExpr *StreamStatsOptions
+	TailExpr        *TailExpr
+	TimechartExpr   *TimechartExpr
+	TopExpr         *StatisticExpr
+	TransactionExpr *TransactionArguments
+	WhereExpr       *BoolExpr
 }
-
-type CommandType uint8
-
-const (
-	InvalidCommand CommandType = iota
-	HeadCommand
-)
 
 type GenerateEvent struct {
 	GenTimes              *GenTimes

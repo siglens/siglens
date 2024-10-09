@@ -137,10 +137,45 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error)
 		return nil, utils.TeeErrorf("asDataProcessor: got nil query aggregator")
 	}
 
-	switch queryAgg.CommandType {
-	case structs.HeadCommand:
+	if queryAgg.BinExpr != nil {
+		return NewBinDP(queryAgg.BinExpr), nil
+	} else if queryAgg.DedupExpr != nil {
+		return NewDedupDP(queryAgg.DedupExpr), nil
+	} else if queryAgg.EvalExpr != nil {
+		return NewEvalDP(queryAgg.EvalExpr), nil
+	} else if queryAgg.FieldsExpr != nil {
+		return NewFieldsDP(queryAgg.FieldsExpr), nil
+	} else if queryAgg.FillNullExpr != nil {
+		return NewFillnullDP(queryAgg.FillNullExpr), nil
+	} else if queryAgg.GentimesExpr != nil {
+		return NewGentimesDP(queryAgg.GentimesExpr), nil
+	} else if queryAgg.HeadExpr != nil {
 		return NewHeadDP(queryAgg.HeadExpr), nil
-	default:
-		return nil, utils.TeeErrorf("asDataProcessor: invalid command type %v", queryAgg.CommandType)
+	} else if queryAgg.MakeMVExpr != nil {
+		return NewMakemvDP(queryAgg.MakeMVExpr), nil
+	} else if queryAgg.RareExpr != nil {
+		return NewRareDP(queryAgg.RareExpr), nil
+	} else if queryAgg.RegexExpr != nil {
+		return NewRegexDP(queryAgg.RegexExpr), nil
+	} else if queryAgg.RexExpr != nil {
+		return NewRexDP(queryAgg.RexExpr), nil
+	} else if queryAgg.SortExpr != nil {
+		return NewSortDP(queryAgg.SortExpr), nil
+	} else if queryAgg.StatsExpr != nil {
+		return NewStatsDP(queryAgg.StatsExpr), nil
+	} else if queryAgg.StreamstatsExpr != nil {
+		return NewStreamstatsDP(queryAgg.StreamstatsExpr), nil
+	} else if queryAgg.TailExpr != nil {
+		return NewTailDP(queryAgg.TailExpr), nil
+	} else if queryAgg.TimechartExpr != nil {
+		return NewTimechartDP(queryAgg.TimechartExpr), nil
+	} else if queryAgg.TopExpr != nil {
+		return NewTopDP(queryAgg.TopExpr), nil
+	} else if queryAgg.TransactionExpr != nil {
+		return NewTransactionDP(queryAgg.TransactionExpr), nil
+	} else if queryAgg.WhereExpr != nil {
+		return NewWhereDP(queryAgg.WhereExpr), nil
+	} else {
+		return nil, utils.TeeErrorf("asDataProcessor: all commands are nil in %+v", queryAgg)
 	}
 }

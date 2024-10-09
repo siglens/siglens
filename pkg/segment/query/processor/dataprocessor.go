@@ -175,7 +175,7 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 	return iqrs, streamIndices, nil
 }
 
-func NewBinDP() *DataProcessor {
+func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &binProcessor{},
@@ -186,7 +186,7 @@ func NewBinDP() *DataProcessor {
 	}
 }
 
-func NewDedupDP() *DataProcessor {
+func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &dedupProcessor{},
@@ -197,7 +197,7 @@ func NewDedupDP() *DataProcessor {
 	}
 }
 
-func NewEvalDP() *DataProcessor {
+func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &evalProcessor{},
@@ -208,7 +208,7 @@ func NewEvalDP() *DataProcessor {
 	}
 }
 
-func NewFieldsDP() *DataProcessor {
+func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &fieldsProcessor{},
@@ -219,7 +219,7 @@ func NewFieldsDP() *DataProcessor {
 	}
 }
 
-func NewFillnullDP() *DataProcessor {
+func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &fillnullProcessor{},
@@ -230,7 +230,7 @@ func NewFillnullDP() *DataProcessor {
 	}
 }
 
-func NewGentimesDP() *DataProcessor {
+func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &gentimesProcessor{},
@@ -241,10 +241,10 @@ func NewGentimesDP() *DataProcessor {
 	}
 }
 
-func NewHeadDP(expr *structs.HeadExpr) *DataProcessor {
+func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &headProcessor{options: expr},
+		processor:         &headProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
@@ -252,7 +252,7 @@ func NewHeadDP(expr *structs.HeadExpr) *DataProcessor {
 	}
 }
 
-func NewTailDP() *DataProcessor {
+func NewTailDP(options *structs.TailExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &tailProcessor{},
@@ -263,7 +263,7 @@ func NewTailDP() *DataProcessor {
 	}
 }
 
-func NewMakemvDP() *DataProcessor {
+func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &makemvProcessor{},
@@ -274,7 +274,7 @@ func NewMakemvDP() *DataProcessor {
 	}
 }
 
-func NewRegexDP() *DataProcessor {
+func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &regexProcessor{},
@@ -285,7 +285,7 @@ func NewRegexDP() *DataProcessor {
 	}
 }
 
-func NewRexDP() *DataProcessor {
+func NewRexDP(options *structs.RexExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &rexProcessor{},
@@ -296,7 +296,7 @@ func NewRexDP() *DataProcessor {
 	}
 }
 
-func NewSearchDP() *DataProcessor {
+func NewSearchDP(options *structs.ASTNode) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &searchProcessor{},
@@ -307,7 +307,7 @@ func NewSearchDP() *DataProcessor {
 	}
 }
 
-func NewWhereDP() *DataProcessor {
+func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &whereProcessor{},
@@ -318,7 +318,7 @@ func NewWhereDP() *DataProcessor {
 	}
 }
 
-func NewStreamstatsDP() *DataProcessor {
+func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &streamstatsProcessor{},
@@ -329,7 +329,7 @@ func NewStreamstatsDP() *DataProcessor {
 	}
 }
 
-func NewTimechartDP() *DataProcessor {
+func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &timechartProcessor{},
@@ -340,7 +340,7 @@ func NewTimechartDP() *DataProcessor {
 	}
 }
 
-func NewStatsDP() *DataProcessor {
+func NewStatsDP(options *structs.StatsOptions) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &statsProcessor{},
@@ -351,7 +351,7 @@ func NewStatsDP() *DataProcessor {
 	}
 }
 
-func NewTopDP() *DataProcessor {
+func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &topProcessor{},
@@ -362,7 +362,7 @@ func NewTopDP() *DataProcessor {
 	}
 }
 
-func NewRareDP() *DataProcessor {
+func NewRareDP(options *structs.StatisticExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &rareProcessor{},
@@ -373,7 +373,7 @@ func NewRareDP() *DataProcessor {
 	}
 }
 
-func NewTransactionDP() *DataProcessor {
+func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &transactionProcessor{},
@@ -384,7 +384,7 @@ func NewTransactionDP() *DataProcessor {
 	}
 }
 
-func NewSortDP() *DataProcessor {
+func NewSortDP(options *structs.SortExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &sortProcessor{},
