@@ -1620,13 +1620,17 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 			continue
 		}
 
+		// ColValueLen is 1 for Null Column and 2 for Bool Column.
+		// We do not create CMI files for Null and Bool columns.
+		shouldLogCMIError := colValueLen > 2
+
 		fname := ssutils.GetFileNameFromSegSetFile(structs.SegSetFile{
 			SegKey:     ss.SegmentKey,
 			Identifier: fmt.Sprintf("%v", xxhash.Sum64String(cname)),
 			FileType:   structs.Cmi,
 		})
 		cmiSize, onlocal := ssutils.GetFileSizeFromDisk(fname)
-		if !onlocal {
+		if !onlocal && shouldLogCMIError {
 			log.Errorf("getAllColsSizes: cmi cname: %v, fname: %+v not on local disk", cname, fname)
 		}
 

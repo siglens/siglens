@@ -268,6 +268,10 @@ func IsDebugMode() bool {
 	return runningConfig.Debug
 }
 
+func IsPProfEnabled() bool {
+	return runningConfig.PProfEnabledConverted
+}
+
 func IsPQSEnabled() bool {
 	return runningConfig.PQSEnabledConverted
 }
@@ -514,6 +518,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 		LicenseKeyPath:              "./",
 		ESVersion:                   "",
 		Debug:                       false,
+		PProfEnabled:                "true",
+		PProfEnabledConverted:       true,
 		MemoryThresholdPercent:      80,
 		DataDiskThresholdPercent:    85,
 		S3IngestQueueName:           "",
@@ -657,6 +663,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.IngestNode) <= 0 {
 		config.IngestNode = "true"
 	}
+
+	if len(config.PProfEnabled) <= 0 {
+		config.PProfEnabled = "true"
+	}
+	pprofEnabled, err := strconv.ParseBool(config.PProfEnabled)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse pprof enabled flag. Defaulting to true. Error: %v", err)
+		pprofEnabled = true
+		config.PProfEnabled = "true"
+	}
+	config.PProfEnabledConverted = pprofEnabled
 
 	if len(config.PQSEnabled) <= 0 {
 		config.PQSEnabled = "true"

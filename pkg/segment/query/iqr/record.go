@@ -15,10 +15,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package iqr
 
-package config
+import (
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
+)
 
-const SigLensVersion = "0.2.44d"
+type Record struct {
+	iqr   *IQR
+	index int
+}
+
+func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
+	values, err := record.iqr.ReadColumn(cname)
+	if err != nil {
+		log.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
+		return nil, err
+	}
+
+	if record.index >= len(values) {
+		err := toputils.TeeErrorf("Record.ReadColumn: index %v out of range (len is %v) for column %v; iqr has %v records",
+			record.index, len(values), cname, record.iqr.NumberOfRecords())
+		return nil, err
+	}
+
+	return &values[record.index], nil
+}
