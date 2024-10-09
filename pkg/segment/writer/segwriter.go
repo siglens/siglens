@@ -423,6 +423,10 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
+		case VALTYPE_ENC_BACKFILL[0]:
+			copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+			colWip.cbufidx += 1
+			ss.updateColValueSizeInAllSeenColumns(cname, 1)
 		default:
 			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
@@ -607,7 +611,8 @@ func rotateSegmentOnTime() {
 			segstore.firstTime = false
 			err := segstore.AppendWipToSegfile(streamid, false, false, true)
 			if err != nil {
-				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
+				log.Errorf("rotateSegmentOnTime: failed to append, segkey: %v err: %v",
+					segstore.SegmentKey, err)
 			} else {
 				// remove unused segstores if its has been twice
 				// the segrotation time since we last updated it

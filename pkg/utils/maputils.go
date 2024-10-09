@@ -151,3 +151,19 @@ func GetSortedStringKeys[T any](map1 map[string]T) []string {
 
 	return keys
 }
+
+func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
+	result := make([]map[K]V, 0)
+
+	for key, slice := range m {
+		for i, v := range slice {
+			if i >= len(result) {
+				result = append(result, make(map[K]V))
+			}
+
+			result[i][key] = v
+		}
+	}
+
+	return result
+}

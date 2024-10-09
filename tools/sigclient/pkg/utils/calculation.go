@@ -110,3 +110,60 @@ func ConvertStringToEpochSec(nowTs uint64, inp string, defValue uint64) uint64 {
 	}
 	return retVal
 }
+
+func RemoveValues[K comparable, T any](values []K, valuesToRemove map[K]T) []K {
+	finalValues := []K{}
+	for _, value := range values {
+		if _, exist := valuesToRemove[value]; !exist {
+			finalValues = append(finalValues, value)
+		}
+	}
+
+	return finalValues
+}
+
+func CompareSlices[K comparable](a []K, b []K) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func ElementsMatch[K comparable](a []K, b []K) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	mp := make(map[K]int)
+	for _, v := range a {
+		mp[v]++
+	}
+	for _, v := range b {
+		if _, ok := mp[v]; !ok {
+			return false
+		}
+		mp[v]--
+		if mp[v] == 0 {
+			delete(mp, v)
+		}
+	}
+
+	return len(mp) == 0
+}
+
+func AlmostEqual(actual, expected, tolerancePercentage float64) bool {
+	if actual == expected {
+		return true
+	}
+	diff := math.Abs(actual - expected)
+	if expected == 0 {
+		return diff < tolerancePercentage
+	}
+
+	return (diff / math.Abs(expected)) < tolerancePercentage
+}
