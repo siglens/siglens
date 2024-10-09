@@ -209,7 +209,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
-func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
+func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
 	orgid := uint64(0)
 	dbPanelId := "-1"
 	queryStart := time.Now()
@@ -237,7 +237,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*PipeSe
 	return httpRespOuter, timeRange, nil
 }
 
-func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid uint64, queryStart time.Time, dbPanelId string) (*PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
+func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid uint64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -365,9 +365,9 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}) PipeSearchResponseOuter {
-	var httpRespOuter PipeSearchResponseOuter
-	var httpResp PipeSearchResponse
+func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}) structs.PipeSearchResponseOuter {
+	var httpRespOuter structs.PipeSearchResponseOuter
+	var httpResp structs.PipeSearchResponse
 
 	// aggs exist, so just return aggregations instead of all results
 	httpRespOuter.Aggs = convertBucketToAggregationResponse(nodeResult.Histogram)
@@ -454,8 +454,8 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	return allJsons, allCols, nil
 }
 
-func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]AggregationResults {
-	resp := make(map[string]AggregationResults)
+func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
+	resp := make(map[string]structs.AggregationResults)
 	for aggName, aggRes := range buckets {
 		allBuckets := make([]map[string]interface{}, len(aggRes.Results))
 
@@ -481,7 +481,7 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 
 			allBuckets[idx] = res
 		}
-		resp[aggName] = AggregationResults{Buckets: allBuckets}
+		resp[aggName] = structs.AggregationResults{Buckets: allBuckets}
 	}
 	return resp
 }
@@ -530,7 +530,7 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
-	resp := &PipeSearchResponseOuter{
+	resp := &structs.PipeSearchResponseOuter{
 		CanScrollMore: false,
 	}
 	qType := query.GetQueryType(qid)
