@@ -27,7 +27,6 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -172,9 +171,17 @@ type QueryAggregators struct {
 	Limit                int
 
 	// TODO: eventually, we shouldn't need any of the above fields; then we can
-	// remove the QueryAggregators type and just use DataProcessor.
-	DataProcessor *processor.DataProcessor
+	// delete them.
+	CommandType CommandType
+	HeadExpr    *HeadExpr
 }
+
+type CommandType uint8
+
+const (
+	InvalidCommand CommandType = iota
+	HeadCommand
+)
 
 type GenerateEvent struct {
 	GenTimes              *GenTimes

@@ -3622,6 +3622,7 @@ HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
         OutputTransforms: &structs.OutputTransforms {
             HeadRequest: headExpr.(*structs.HeadExpr),
         },
+        HeadExpr: headExpr.(*structs.HeadExpr),
     }
 
     return queryAgg, nil
