@@ -33,3 +33,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *gentimesProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *gentimesProcessor) Cleanup() {
+	panic("not implemented")
+}

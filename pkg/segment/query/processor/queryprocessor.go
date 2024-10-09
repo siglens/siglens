@@ -37,6 +37,13 @@ const (
 
 type QueryProcessor struct {
 	DataProcessor
+	chain []*DataProcessor // This shouldn't be modified after initialization.
+}
+
+func (qp *QueryProcessor) Cleanup() {
+	for _, dp := range qp.chain {
+		dp.processor.Cleanup()
+	}
 }
 
 func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
@@ -73,10 +80,12 @@ func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggre
 
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
-	return newQueryProcessorHelper(queryType, lastStreamer)
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors)
 }
 
-func newQueryProcessorHelper(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
+func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
+	chain []*DataProcessor) (*QueryProcessor, error) {
+
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
@@ -96,6 +105,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer) (*Quer
 
 	return &QueryProcessor{
 		DataProcessor: *headDP,
+		chain:         chain,
 	}, nil
 }
 

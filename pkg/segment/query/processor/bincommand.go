@@ -35,3 +35,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *binProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *binProcessor) Cleanup() {
+	panic("not implemented")
+}
