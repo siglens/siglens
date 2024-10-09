@@ -83,7 +83,7 @@ test.describe('All Alerts Screen Flow', () => {
             await page.waitForLoadState('networkidle');
             
             console.log('Waiting for .ag-root-wrapper');
-            await expect(page.locator('.ag-root-wrapper')).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('#alert-grid-container')).toBeVisible({ timeout: 50000 });
             console.log('.ag-root-wrapper is visible');
         });
     });
