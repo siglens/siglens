@@ -416,7 +416,7 @@ func init() {
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
-	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "file containing the path to the JSON query files to run")
+	functionalTestCmd.PersistentFlags().StringP("queriesToRunFilePath", "f", "", "Path of the file containing paths of functional query files to be tested")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
