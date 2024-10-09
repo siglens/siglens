@@ -55,7 +55,7 @@ func FunctionalTest(dest string, filePath string) {
 	// Read line by line
 	for scanner.Scan() {
 		queryFilePath := strings.TrimSpace(scanner.Text())
-		if queryFilePath == "" {
+		if queryFilePath == "" || queryFilePath[0] == '#' {
 			continue
 		}
 		// Validate JSON Files
@@ -69,6 +69,11 @@ func FunctionalTest(dest string, filePath string) {
 
 		RunQuery(queryFilePath, qid, dest)
 		qid++
+	}
+
+	// Check for any errors that occurred during scanning
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Error while reading from filePath: %v, err: %v", filePath, err)
 	}
 
 	log.Infof("FunctionalTest: All queries passed successfully")
