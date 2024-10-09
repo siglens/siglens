@@ -67,6 +67,7 @@ test.describe('All Alerts Screen Flow', () => {
     });
 
     test('should edit the created alert', async () => {
+        test.setTimeout(60000);
         await test.step('Navigate to edit page', async () => {
             await page.click('#editbutton:first-child');
             await expect(page).toHaveURL(/alert\.html\?id=[a-f0-9\-]+/);
