@@ -17,12 +17,43 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"io"
 
-type headProcessor struct{}
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
+)
+
+type headProcessor struct {
+	limit          utils.Option[uint64]
+	numRecordsSent uint64
+}
 
 func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr == nil {
+		return nil, nil
+	}
+
+	limit, ok := p.limit.Get()
+	if !ok {
+		return iqr, nil
+	}
+
+	numToKeep := limit - p.numRecordsSent
+	err := iqr.DiscardAfter(numToKeep)
+	if err != nil {
+		log.Errorf("headProcessor: failed to discard after %v records: %v", numToKeep, err)
+		return nil, err
+	}
+
+	p.numRecordsSent += uint64(iqr.NumberOfRecords())
+
+	if p.numRecordsSent >= limit {
+		return iqr, io.EOF
+	} else {
+		return iqr, nil
+	}
 }
 
 func (p *headProcessor) Rewind() {
