@@ -28,6 +28,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var backfillCVal = &utils.CValueEnclosure{
+	CVal:  nil,
+	Dtype: utils.SS_DT_BACKFILL,
+}
+
 type iqrMode int
 
 const (
@@ -324,6 +329,57 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	return results, nil
 }
 
+func (iqr *IQR) Append(other *IQR) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.Append: validation failed on self: %v", err)
+		return err
+	}
+
+	if other == nil {
+		return nil
+	}
+
+	if err := other.validate(); err != nil {
+		log.Errorf("IQR.Append: validation failed on other: %v", err)
+		return err
+	}
+
+	_, err := mergeMetadata([]*IQR{iqr, other})
+	if err != nil {
+		log.Errorf("IQR.Append: error merging metadata: %v", err)
+		return err
+	}
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
+
+	numInitialRecords := iqr.NumberOfRecords()
+	numAddedRecords := other.NumberOfRecords()
+	numFinalRecords := numInitialRecords + numAddedRecords
+
+	for cname, values := range other.knownValues {
+		if _, ok := iqr.knownValues[cname]; !ok {
+			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
+			for i := 0; i < numInitialRecords; i++ {
+				iqr.knownValues[cname][i] = *backfillCVal
+			}
+
+			copy(iqr.knownValues[cname][numInitialRecords:], values)
+		} else {
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], values...)
+		}
+	}
+
+	for cname, values := range iqr.knownValues {
+		if _, ok := other.knownValues[cname]; !ok {
+			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+		}
+	}
+
+	return nil
+}
+
 // This merges multiple IQRs into one. It stops when one of the IQRs runs out
 // of records, and returns the index of the IQR that ran out of records.
 //
@@ -484,6 +540,34 @@ func (iqr *IQR) discard(numRecords int) error {
 		}
 
 		iqr.knownValues[cname] = values[numRecords:]
+	}
+
+	return nil
+}
+
+func (iqr *IQR) DiscardAfter(numRecords uint64) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.DiscardAfter: validation failed: %v", err)
+		return err
+	}
+
+	if numRecords > uint64(iqr.NumberOfRecords()) {
+		return nil
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	} else if iqr.mode == withRRCs {
+		iqr.rrcs = iqr.rrcs[:numRecords]
+	}
+
+	for cname, values := range iqr.knownValues {
+		if len(values) < int(numRecords) {
+			return fmt.Errorf("IQR.DiscardAfter: trying to discard %v after records, but there are only %v values for column %v",
+				numRecords, len(values), cname)
+		}
+
+		iqr.knownValues[cname] = values[:numRecords]
 	}
 
 	return nil
