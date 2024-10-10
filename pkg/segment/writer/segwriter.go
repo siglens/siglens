@@ -1056,38 +1056,6 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 	return basedir
 }
 
-func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	segKeySet := make(map[string]struct{})
-	for _, segKey := range segmentKeys {
-		segKeySet[segKey] = struct{}{}
-	}
-
-	segMetas := make(map[string]*structs.SegMeta)
-	err := fileutils.ReadLineByLine(localSegmetaFname, func(line []byte) error {
-		segMeta := structs.SegMeta{}
-		err := json.Unmarshal(line, &segMeta)
-		if err != nil {
-			log.Errorf("GetSegMetas: failed to unmarshal %s: err=%v", line, err)
-			return err
-		}
-
-		if _, ok := segKeySet[segMeta.SegmentKey]; ok {
-			segMetas[segMeta.SegmentKey] = &segMeta
-		}
-
-		return nil
-	})
-	if err != nil {
-		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", localSegmetaFname, err)
-		return nil, err
-	}
-
-	return segMetas, nil
-}
-
 func DeleteVirtualTableSegStore(virtualTableName string) {
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
