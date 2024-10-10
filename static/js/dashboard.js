@@ -1423,7 +1423,6 @@ function setDashboardQueryModeHandler(panelQueryMode) {
     }
 }
 
-
 $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
     if (!validateFilterInput(filterValue)) {
