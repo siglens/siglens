@@ -36,6 +36,9 @@ let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
 let isDefaultDashboard = false;
+let searchTippy;
+let isFilterApplied = false;
+let originalQueries = {};
 
 $(document).ready(async function () {
     let indexes = await getListIndices();
@@ -509,6 +512,12 @@ async function getDashboardData() {
     dbRefresh = dbData.refresh;
     if (dbData.panels != undefined) {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
+        originalQueries = {};
+        localPanels.forEach((panel) => {
+            if (panel.queryData && panel.queryData.searchText) {
+                originalQueries[panel.panelId] = panel.queryData.searchText;
+            }
+        });
     } else localPanels = [];
     if (localPanels != undefined) {
         displayPanels();
@@ -1414,9 +1423,6 @@ function setDashboardQueryModeHandler(panelQueryMode) {
     }
 }
 
-let searchTippy;
-let isFilterApplied = false;
-let originalQueries = {};
 
 $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
@@ -1452,6 +1458,9 @@ function validateFilterInput(input) {
     const disallowedPatterns = [
         /\|/, // Pipe character
         /\bBY\b/i, // BY keyword
+        /\bstats\b/i, // stats keyword
+        /\bregex\b/i, // regex keyword
+        /\bfields\b/i, // fields keyword
         /\s(AND|OR)$/i, // AND or OR at the end of the input
     ];
 
@@ -1474,12 +1483,6 @@ function applyDashboardFilter(filterValue) {
     isFilterApplied = true;
     localPanels.forEach((panel, index) => {
         if (panel.queryType === 'logs' && panel.queryData.queryLanguage === 'Splunk QL') {
-            // Store the original query if it hasn't been stored yet
-            if (!originalQueries[panel.panelId]) {
-                originalQueries[panel.panelId] = panel.queryData.searchText;
-            }
-            // Reset to original query before applying new filter
-            panel.queryData.searchText = originalQueries[panel.panelId];
             updatePanelQuery(panel, filterValue, index);
             delete panel.queryRes;
         }

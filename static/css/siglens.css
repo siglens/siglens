@@ -3449,10 +3449,11 @@ float: right;
     background-image: url(../assets/remove-icon-dark-mode.svg);
 }
 
-.search-db-input,.metrics-input{
+.search-db-input{
     padding-left: 1rem;
     padding-right: 4.4rem;
     height: 32px;
+    color: var(--text-color) !important;
 }
 
 .dbSet-textareaContainer .copy{
