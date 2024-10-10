@@ -1152,12 +1152,12 @@ func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsT
 			return
 		}
 
-		wfd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		fd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			log.Errorf("removeSegmentsByIndexOrList: Failed to open temp SegMetaFile name=%v, err:%v", segMetaFile, err)
 			return
 		}
-		defer wfd.Close()
+		defer fd.Close()
 
 		for _, smentry := range preservedSmEntries {
 
@@ -1167,12 +1167,12 @@ func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsT
 				return
 			}
 
-			if _, err := wfd.Write(segmetajson); err != nil {
+			if _, err := fd.Write(segmetajson); err != nil {
 				log.Errorf("removeSegmentsByIndexOrList: failed to write segmeta filename=%v: err=%v", segMetaFile, err)
 				return
 			}
 
-			if _, err := wfd.WriteString("\n"); err != nil {
+			if _, err := fd.WriteString("\n"); err != nil {
 				log.Errorf("removeSegmentsByIndexOrList: failed to write newline filename=%v: err=%v", segMetaFile, err)
 				return
 			}
@@ -1298,13 +1298,13 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 		return
 	}
 
-	wfd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Errorf("BackFillPQSSegmetaEntry: Failed to open SegMetaFile name=%v, err:%v",
 			localSegmetaFname, err)
 		return
 	}
-	defer wfd.Close()
+	defer fd.Close()
 
 	for segkey, segMetaEntry := range allSegMetas {
 		if segkey == segsetkey {
@@ -1320,24 +1320,21 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 			return
 		}
 
-		if _, err := wfd.Write(segmetajson); err != nil {
-			log.Errorf("BackFillPQSSegmetaEntry: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
-			return
-		}
+		segmetajson = append(segmetajson, "\n"...)
 
-		if _, err := wfd.WriteString("\n"); err != nil {
-			log.Errorf("BackFillPQSSegmetaEntry: failed to write newline filename=%v: err=%v", localSegmetaFname, err)
+		if _, err := fd.Write(segmetajson); err != nil {
+			log.Errorf("BackFillPQSSegmetaEntry: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
 			return
 		}
 	}
 }
 
 func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
-	wfd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	fd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
 	}
-	defer wfd.Close()
+	defer fd.Close()
 
 	for _, smentry := range segMetaEntries {
 
@@ -1346,11 +1343,11 @@ func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) er
 			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
 		}
 
-		if _, err := wfd.Write(segmetajson); err != nil {
+		if _, err := fd.Write(segmetajson); err != nil {
 			return fmt.Errorf("WriteSegMeta: failed to write segmeta filename=%v: err=%v", segmetaFname, err)
 		}
 
-		if _, err := wfd.WriteString("\n"); err != nil {
+		if _, err := fd.WriteString("\n"); err != nil {
 			return fmt.Errorf("WriteSegMeta: failed to write newline filename=%v: err=%v", segmetaFname, err)
 		}
 	}

@@ -194,7 +194,7 @@ Returns NodeResults with doc counts per index aggregation
 func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 
 	totalHits := uint64(0)
-	bucketResults := make([]*structs.BucketResult, myid)
+	bucketResults := make([]*structs.BucketResult, 0)
 
 	allSegmetas := segwriter.ReadAllSegmetas()
 
