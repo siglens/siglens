@@ -186,7 +186,6 @@ func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, jsonF
 	if jsonFaker.RandomUint([]uint{0, 100}) > 30 {
 		m["account_status"] = jsonFaker.RandomString([]string{"active", "inactive", "closed"})
 	} else {
-		log.Infof("getStaticUserColumnValue: setting account status to nil")
 		m["account_status"] = nil
 	}
 }
