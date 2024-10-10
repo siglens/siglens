@@ -36,6 +36,9 @@ let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
 let isDefaultDashboard = false;
+let searchTippy;
+let isFilterApplied = false;
+let originalQueries = {};
 
 $(document).ready(async function () {
     let indexes = await getListIndices();
@@ -509,6 +512,12 @@ async function getDashboardData() {
     dbRefresh = dbData.refresh;
     if (dbData.panels != undefined) {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
+        originalQueries = {};
+        localPanels.forEach((panel) => {
+            if (panel.queryData && panel.queryData.searchText) {
+                originalQueries[panel.panelId] = panel.queryData.searchText;
+            }
+        });
     } else localPanels = [];
     if (localPanels != undefined) {
         displayPanels();
@@ -741,8 +750,11 @@ async function displayPanels() {
 
             $('#panelLogResultsGrid').show();
             initialSearchDashboardData = localPanel.queryData;
-            if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
-            else runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
+            if (!isFilterApplied && localPanel.queryRes) {
+                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
+            } else {
+                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
+            }
         } else if (localPanel.chartType == 'Line Chart') {
             let panEl = $(`#panel${idpanel} .panel-body`);
             let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
@@ -776,8 +788,11 @@ async function displayPanels() {
                     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
                 }
             } else {
-                if (localPanel.queryRes) runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-                else runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+                if (!isFilterApplied && localPanel.queryRes) {
+                    runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+                } else {
+                    runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+                }
             }
         } else if (localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart') {
             // generic for both bar and pie chartTypes.
@@ -785,8 +800,11 @@ async function displayPanels() {
             let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>
             <div id="panel-loading"></div>`;
             panEl.append(responseDiv);
-            if (localPanel.queryRes) runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-            else runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+            if (!isFilterApplied && localPanel.queryRes) {
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+            } else {
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+            }
         } else {
             allResultsDisplayed--;
         }
@@ -1407,4 +1425,105 @@ function setDashboardQueryModeHandler(panelQueryMode) {
         // Add active class to dropdown options based on the queryMode selected
         updateQueryModeUI(queryModeCookieValue);
     }
+}
+
+
+$('#run-dashboard-fliter').on('click', function () {
+    const filterValue = $('.search-db-input').val();
+    if (!validateFilterInput(filterValue)) {
+        if (!searchTippy) {
+            //eslint-disable-next-line no-undef
+            searchTippy = tippy(this, {
+                content: 'Invalid filter input. Please enter a valid filter search.',
+                trigger: 'manual',
+                placement: 'top',
+                theme: 'error',
+            });
+        } else {
+            searchTippy.setContent('Invalid filter input. Please enter a valid filter search.');
+        }
+
+        searchTippy.show();
+
+        setTimeout(() => {
+            searchTippy.hide();
+        }, 3000);
+    } else {
+        if (searchTippy) {
+            searchTippy.hide();
+        }
+        applyDashboardFilter(filterValue);
+    }
+});
+
+function validateFilterInput(input) {
+    input = input.trim();
+
+    const disallowedPatterns = [
+        /\|/, // Pipe character
+        /\bBY\b/i, // BY keyword
+        /\bstats\b/i, // stats keyword
+        /\bregex\b/i, // regex keyword
+        /\bfields\b/i, // fields keyword
+        /\s(AND|OR)$/i, // AND or OR at the end of the input
+    ];
+
+    for (let pattern of disallowedPatterns) {
+        if (pattern.test(input)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function applyDashboardFilter(filterValue) {
+    if (!filterValue.trim()) {
+        // Empty string
+        resetToOriginalQueries();
+        displayPanels();
+        return;
+    }
+
+    isFilterApplied = true;
+    localPanels.forEach((panel, index) => {
+        if (panel.queryType === 'logs' && panel.queryData.queryLanguage === 'Splunk QL') {
+            updatePanelQuery(panel, filterValue, index);
+            delete panel.queryRes;
+        }
+    });
+    displayPanels();
+    isFilterApplied = false;
+}
+
+function updatePanelQuery(panel, filterInput, panelIndex) {
+    let originalQuery = panel.queryData.searchText;
+    let newQuery;
+
+    if (originalQuery === '' || originalQuery === '*') {
+        newQuery = filterInput;
+    } else if (originalQuery.startsWith('* |')) {
+        newQuery = filterInput + originalQuery.substring(2);
+    } else if (originalQuery.includes('|')) {
+        // If the query already has a pipe, add the filter before the first pipe
+        let parts = originalQuery.split('|');
+        if (parts[0].trim() === '') {
+            newQuery = `${filterInput} | ${parts.slice(1).join('|')}`.trim();
+        } else {
+            newQuery = `${filterInput} AND ${parts[0].trim()} | ${parts.slice(1).join('|')}`.trim();
+        }
+    } else {
+        newQuery = `${filterInput} AND ${originalQuery}`.trim();
+    }
+    panel.queryData.searchText = newQuery;
+    localPanels[panelIndex] = panel;
+}
+
+function resetToOriginalQueries() {
+    localPanels.forEach((panel) => {
+        if (originalQueries[panel.panelId]) {
+            panel.queryData.searchText = originalQueries[panel.panelId];
+            delete panel.queryRes;
+        }
+    });
+    originalQueries = {};
 }

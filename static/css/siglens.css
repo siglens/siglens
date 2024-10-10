@@ -2773,10 +2773,6 @@ hr {
     border-radius: 4px;
 }
 
-#date-start.error, #date-end.error {
-    border: 1px solid var(--error-trace);
-}
-
 #date-start:hover, #date-end:hover, #time-start:hover, #time-end:hover {
     border: 1px solid var(--drop-down-btn-border-active);
 }
@@ -3374,6 +3370,7 @@ float: right;
     font-weight: 700;
     color: var(--empty-response-text-color);
     z-index: 1;
+    transform: none;
 }
 
 .panel-body #empty-response {
@@ -3468,10 +3465,11 @@ float: right;
     background-image: url(../assets/remove-icon-dark-mode.svg);
 }
 
-.search-db-input,.metrics-input{
+.search-db-input{
     padding-left: 1rem;
     padding-right: 4.4rem;
     height: 32px;
+    color: var(--text-color) !important;
 }
 
 .dbSet-textareaContainer .copy{
