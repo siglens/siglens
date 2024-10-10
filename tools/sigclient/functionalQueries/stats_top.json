@@ -1,0 +1,79 @@
+{
+    "queryText": "city=Boston | stats count BY http_method | top http_method useother=true countfield=count percentfield=percent",
+    "expectedResult": {
+        "bucketCount": 7,
+        "qtype": "aggs-query",
+        "groupByCols": [
+           "http_method"
+        ],
+        "measureFunctions": [
+            "count",
+            "percent"
+        ],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "other"
+                ],
+                "MeasureVal": {
+                    "count": 0,
+                    "percent": "0.000000"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST"
+                ],
+                "MeasureVal": {
+                    "count": 148,
+                    "percent": "15.040650"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH"
+                ],
+                "MeasureVal": {
+                    "count": 153,
+                    "percent": "15.548780"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT"
+                ],
+                "MeasureVal": {
+                    "count": 154,
+                    "percent": "15.650407"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "count": 168,
+                    "percent": "17.073171"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET"
+                ],
+                "MeasureVal": {
+                    "count": 174,
+                    "percent": "17.682927"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE"
+                ],
+                "MeasureVal": {
+                    "count": 187,
+                    "percent": "19.004065"
+                }
+            }
+        ]
+    }
+}
