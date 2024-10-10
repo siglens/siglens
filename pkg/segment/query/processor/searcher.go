@@ -34,52 +34,52 @@ type block struct {
 	structs.BlockMetadataHolder
 }
 
-type searchProcessor struct {
+type searcher struct {
 	queryInfo *query.QueryInformation
 	sortMode  sortMode
 }
 
-func (sp *searchProcessor) Rewind() {
+func (s *searcher) Rewind() {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) Fetch() (*iqr.IQR, error) {
-	switch sp.queryInfo.GetQueryType() {
+func (s *searcher) Fetch() (*iqr.IQR, error) {
+	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd:
 		panic("not implemented") // TODO
 	case structs.GroupByCmd:
 		panic("not implemented") // TODO
 	case structs.RRCCmd:
-		return sp.fetchRRCs()
+		return s.fetchRRCs()
 	default:
 		return nil, toputils.TeeErrorf("searchProcessor.Fetch: invalid query type: %v",
-			sp.queryInfo.GetQueryType())
+			s.queryInfo.GetQueryType())
 	}
 }
 
-func (sp *searchProcessor) fetchRRCs() (*iqr.IQR, error) {
-	blocks, err := sp.getBlocks()
+func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
+	blocks, err := s.getBlocks()
 	if err != nil {
 		log.Errorf("searchProcessor.fetchRRCs: failed to get blocks: %v", err)
 		return nil, err
 	}
 
-	sp.sort(blocks)
-	endTime := sp.getNextEndTime()
-	nextBlocks := sp.getBlocksForTimeRange(endTime)
+	s.sort(blocks)
+	endTime := s.getNextEndTime()
+	nextBlocks := s.getBlocksForTimeRange(endTime)
 	for _, block := range nextBlocks {
-		rrcs, err := sp.readRRCs(block)
+		rrcs, err := s.readRRCs(block)
 		if err != nil {
 			log.Errorf("searchProcessor.fetchRRCs: failed to read RRCs: %v", err)
 			return nil, err
 		}
 
-		sp.mergeRRCs(rrcs)
-		sp.removeBlocks(blocks, nextBlocks)
+		s.mergeRRCs(rrcs)
+		s.removeBlocks(blocks, nextBlocks)
 	}
 
-	validRRCs := sp.getValidRRCs()
-	iqr := iqr.NewIQR(sp.queryInfo.GetQid())
+	validRRCs := s.getValidRRCs()
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
 	// Maybe convert small RRCs to normal RRCs first?
 	err = iqr.AppendRRCs(validRRCs, nil) // TODO: figure out how to merge.
@@ -87,7 +87,7 @@ func (sp *searchProcessor) fetchRRCs() (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func (sp *searchProcessor) getBlocks() ([]*block, error) {
+func (s *searcher) getBlocks() ([]*block, error) {
 	panic("not implemented")
 }
 
@@ -100,8 +100,8 @@ const (
 	anyOrder
 )
 
-func (sp *searchProcessor) sort(blocks []*block) {
-	switch sp.sortMode {
+func (s *searcher) sort(blocks []*block) {
+	switch s.sortMode {
 	case anyOrder:
 		return
 	case recentFirst:
@@ -113,30 +113,30 @@ func (sp *searchProcessor) sort(blocks []*block) {
 			return blocks[i].HighTs < blocks[j].HighTs
 		})
 	default:
-		log.Errorf("searchProcessor.sort: invalid sort mode: %v", sp.sortMode)
+		log.Errorf("searchProcessor.sort: invalid sort mode: %v", s.sortMode)
 	}
 }
 
-func (sp *searchProcessor) getNextEndTime() uint64 {
+func (s *searcher) getNextEndTime() uint64 {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) getBlocksForTimeRange(endTime uint64) []*block {
+func (s *searcher) getBlocksForTimeRange(endTime uint64) []*block {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) readRRCs(block *block) ([]*segutils.RecordResultContainer, error) {
+func (s *searcher) readRRCs(block *block) ([]*segutils.RecordResultContainer, error) {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) mergeRRCs(rrcs []*segutils.RecordResultContainer) {
+func (s *searcher) mergeRRCs(rrcs []*segutils.RecordResultContainer) {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) removeBlocks(blocks []*block, nextBlocks []*block) {
+func (s *searcher) removeBlocks(blocks []*block, nextBlocks []*block) {
 	panic("not implemented")
 }
 
-func (sp *searchProcessor) getValidRRCs() []*segutils.RecordResultContainer {
+func (s *searcher) getValidRRCs() []*segutils.RecordResultContainer {
 	panic("not implemented")
 }
