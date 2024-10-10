@@ -601,7 +601,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             }
             $(`#panel${panelId} .panel-body #panel-loading`).hide();
         }
-    } else if (chartType ==='Line Chart'){
+    } else if (chartType === 'Line Chart') {
         chartDataCollection = {};
         if (panelId === -1) {
             formulas = {};
@@ -624,7 +624,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
                         if (errorCanvas.length > 0) {
                             errorCanvas.remove();
@@ -635,23 +635,23 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     }
                 }
             }
-            
+
             for (const formulaData of data.formulasData) {
                 try {
                     const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
                     const chartData = await convertDataForChart(rawTimeSeriesData);
                     let formulaString = formulaData.formulas[0].formula;
-            
+
                     // Replace a, b, etc., with actual query values
                     formulaData.queries.forEach((query) => {
                         const regex = new RegExp(`\\b${query.name}\\b`, 'g');
                         formulaString = formulaString.replace(regex, query.query);
                     });
-            
+
                     addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
                         if (errorCanvas.length > 0) {
                             errorCanvas.remove();
@@ -662,32 +662,28 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     }
                 }
             }
-            
         }
         if (currentPanel && currentPanel.style) {
             toggleLineOptions(currentPanel.style.display);
-            chartType=currentPanel.style.display;
+            chartType = currentPanel.style.display;
             toggleChartType(chartType);
             updateChartTheme(currentPanel.style.color);
-            updateLineCharts(
-                currentPanel.style.lineStyle,
-                currentPanel.style.lineStroke
-            );
-        } 
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+        }
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
         $('body').css('cursor', 'default');
-    } else{
+    } else {
         panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
         return;
     }
 }
 
 function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
-    if(queryType==='logs'){
+    if (queryType === 'logs') {
         panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
         return;
     }
@@ -981,7 +977,7 @@ function initializeFilterInputEvents() {
         const formatButton = $('#formatInput');
         if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
             formatButton.show();
-        }else {
+        } else {
             formatButton.hide();
         }
     }
@@ -1000,7 +996,7 @@ function initializeFilterInputEvents() {
     $('.tab-list .tab-li').click(handleTabClick);
 
     // Event listeners for query language changes
-    $('#query-language-options').on('click', '.query-language-option', function() {
+    $('#query-language-options').on('click', '.query-language-option', function () {
         setTimeout(checkFormatButtonVisibility, 10);
     });
 
@@ -1096,8 +1092,8 @@ function initializeFilterInputEvents() {
     });
 
     // Format button click event
-    $('#formatInput').click(function() {
-        let input = $("#filter-input");
+    $('#formatInput').click(function () {
+        let input = $('#filter-input');
         let value = input.val();
 
         // Format the input value by ensuring each '|' is preceded by a newline
@@ -1118,8 +1114,6 @@ function initializeFilterInputEvents() {
         toggleClearButtonVisibility();
     });
 }
-
-
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {
@@ -1177,7 +1171,7 @@ function getMetricsQData() {
             let functionsArray = formulaDetailsMap[key].functions || [];
             // Update the formula by wrapping it with each function in the functionsArray
             let formula = formulas[key].formula;
-            
+
             for (let func of functionsArray) {
                 // Create a regex to match the function being applied
                 const funcRegex = new RegExp(`\\b${func}\\(`);
