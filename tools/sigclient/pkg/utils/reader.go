@@ -75,12 +75,13 @@ type K8sGenerator struct {
 }
 
 type DynamicUserGenerator struct {
-	baseBody   map[string]interface{}
-	tNowEpoch  uint64
-	ts         bool
-	faker      *gofakeit.Faker
-	seed       int64
-	DataConfig *GeneratorDataConfig
+	baseBody     map[string]interface{}
+	tNowEpoch    uint64
+	ts           bool
+	faker        *gofakeit.Faker
+	seed         int64
+	accountFaker *gofakeit.Faker
+	DataConfig   *GeneratorDataConfig
 }
 
 type GeneratorDataConfig struct {
@@ -240,8 +241,8 @@ func getColumnName(name string, colIndex int) string {
 	return fmt.Sprintf("%s_c%d", name, colIndex)
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
-	getStaticUserColumnValue(f, m)
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, accountFaker *gofakeit.Faker) {
+	getStaticUserColumnValue(f, m, accountFaker)
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
@@ -396,7 +397,7 @@ func getData(f *gofakeit.Faker) Data {
 	return data
 }
 
-func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *FunctionalTestConfig) {
+func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *FunctionalTestConfig, accountFaker *gofakeit.Faker) {
 	// Fixed faker is reserved for default columns that will be used for testing.
 	m["bool_col"] = config.fixedFaker.Bool()
 	lang := config.fixedFaker.Language()
@@ -406,7 +407,7 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	m["language"] = lang
 
 	lenDynamicUserCols := len(dynamicUserColumnNames)
-	getStaticUserColumnValue(config.fixedFaker, m)
+	getStaticUserColumnValue(config.fixedFaker, m, accountFaker)
 	fixedCols := 4 + lenDynamicUserCols
 
 	data := getData(config.jsonFaker)
@@ -465,12 +466,12 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
 		if r.DataConfig.functionalTest != nil {
-			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest)
+			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
 			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
 		}
 	} else {
-		randomizeBody(r.faker, r.baseBody, r.ts)
+		randomizeBody(r.faker, r.baseBody, r.ts, r.accountFaker)
 	}
 }
 
@@ -510,6 +511,7 @@ func (r *K8sGenerator) Init(fName ...string) error {
 func (r *DynamicUserGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
+	r.accountFaker = gofakeit.NewUnlocked(10000)
 	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
@@ -546,7 +548,7 @@ func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, r.ts)
+	randomizeBody(f, m, r.ts, gofakeit.NewUnlocked(10000))
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
