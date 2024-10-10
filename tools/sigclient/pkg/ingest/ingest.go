@@ -345,18 +345,21 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
 		seed := int64(fastrand.Uint32n(1_000))
-		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+		accFakerSeed := int64(10000 + processIndex)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, accFakerSeed, generatorDataConfig)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()
 	case "benchmark":
 		log.Infof("Initializing benchmark reader")
-		seed := int64(1001)
-		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+		seed := int64(1001 + processIndex)
+		accFakerSeed := int64(10000 + processIndex)
+		rdr = utils.InitDynamicUserGenerator(ts, seed, accFakerSeed, generatorDataConfig)
 	case "functional":
 		log.Infof("Initializing functional reader")
-		seed := int64(1001)
-		rdr, err = utils.InitFunctionalUserGenerator(ts, seed, generatorDataConfig, processIndex)
+		seed := int64(1001 + processIndex)
+		accFakerSeed := int64(10000 + processIndex)
+		rdr, err = utils.InitFunctionalUserGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -400,13 +403,19 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	done := make(chan bool)
 	totalSent := uint64(0)
 	totalBytes := uint64(0)
+
+	readers := make([]utils.Generator, processCount)
 	for i := 0; i < processCount; i++ {
-		wg.Add(1)
 		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+		readers[i] = reader
+	}
+
+	for i := 0; i < processCount; i++ {
+		wg.Add(1)
+		go runIngestion(iType, readers[i], &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
 			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
 	}
 

@@ -80,6 +80,7 @@ type DynamicUserGenerator struct {
 	ts           bool
 	faker        *gofakeit.Faker
 	seed         int64
+	accFakerSeed	  int64
 	accountFaker *gofakeit.Faker
 	DataConfig   *GeneratorDataConfig
 }
@@ -94,7 +95,7 @@ type GeneratorDataConfig struct {
 type FunctionalTestConfig struct {
 	FixedColumns       int // Fixed columns for testing
 	MaxVariableColumns int // Max columns,
-	EndTimestamp     uint64
+	EndTimestamp       uint64
 	variableFaker      *gofakeit.Faker
 	fixedFaker         *gofakeit.Faker
 	jsonFaker          *gofakeit.Faker
@@ -124,7 +125,6 @@ func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int)
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
-			variableFaker:      varFaker,
 			variableColNames:   variableColNames,
 		},
 	}
@@ -149,16 +149,17 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 	}
 }
 
-func InitDynamicUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
+func InitDynamicUserGenerator(ts bool, seed int64, accfakerSeed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
 	return &DynamicUserGenerator{
 		ts:         ts,
 		seed:       seed,
+		accFakerSeed: accfakerSeed,
 		DataConfig: dataConfig,
 	}
 }
 
-func InitFunctionalUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
-	fixedfakerSeed := 1000 + processIndex
+func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	fixedfakerSeed := 1000 + processIndex*20
 	jsonFakerSeed := 10 + processIndex
 	xmlFakerSeed := 20 + processIndex
 	varFakerSeed := 30 + processIndex
@@ -172,22 +173,29 @@ func InitFunctionalUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataC
 		return nil, fmt.Errorf("Functional test config is nil")
 	}
 
-	dataConfig.functionalTest.fixedFaker = fixFaker
-	dataConfig.functionalTest.jsonFaker = jsonFaker
-	dataConfig.functionalTest.xmlFaker = xmlFaker
-	dataConfig.functionalTest.variableFaker = varFaker
+	functionalTest := &FunctionalTestConfig{
+		FixedColumns:       dataConfig.functionalTest.FixedColumns,
+		MaxVariableColumns: dataConfig.functionalTest.MaxVariableColumns,
+		variableColNames:   dataConfig.functionalTest.variableColNames,
+		fixedFaker:         fixFaker,
+		jsonFaker:          jsonFaker,
+		xmlFaker:           xmlFaker,
+		variableFaker:      varFaker,
+	}
 
 	endTimestamp := time.Now()
 	if processIndex > 0 {
 		endTimestamp = endTimestamp.Add(3 * time.Duration(-processIndex) * time.Hour)
 	}
-	dataConfig.functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
-	log.Warnf("EndTimestamp: %d", dataConfig.functionalTest.EndTimestamp)
+	functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
 
 	return &DynamicUserGenerator{
-		ts:         ts,
-		seed:       seed,
-		DataConfig: dataConfig,
+		ts:   ts,
+		seed: seed,
+		accFakerSeed: accFakerSeed,
+		DataConfig: &GeneratorDataConfig{
+			functionalTest: functionalTest,
+		},
 	}, nil
 }
 
@@ -473,7 +481,7 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		m[col] = getDynamicUserColumnValue(config.variableFaker, dynamicUserColumnNames[i%lenDynamicUserCols], variableP)
 	}
 
-	deleteCols := rand.Intn(config.MaxVariableColumns)
+	deleteCols := config.variableFaker.Number(0, config.MaxVariableColumns-1)
 	deletedCols := map[int]struct{}{}
 	for deleteCols > 0 {
 		index := rand.Intn(config.MaxVariableColumns)
@@ -538,7 +546,7 @@ func (r *K8sGenerator) Init(fName ...string) error {
 func (r *DynamicUserGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
-	r.accountFaker = gofakeit.NewUnlocked(10000)
+	r.accountFaker = gofakeit.NewUnlocked(r.accFakerSeed)
 	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	// "time"
+	"time"
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -126,14 +126,14 @@ var functionalTestCmd = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		// sleepDuration := 1 * time.Second
+		sleepDuration := 1 * time.Second
 
 		if longer {
 			totalEvents = 50_000_000
-			batchSize = 1000
+			batchSize = 100
 			numIndices = 20
 			processCount = 10
-			// sleepDuration = 30 * time.Second
+			sleepDuration = 30 * time.Second
 		}
 
 		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
@@ -141,9 +141,9 @@ var functionalTestCmd = &cobra.Command{
 		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
 			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		// time.Sleep(sleepDuration)
+		time.Sleep(sleepDuration)
 
-		// query.FunctionalTest(queryDest, filePath)
+		query.FunctionalTest(queryDest, filePath)
 	},
 }
 
