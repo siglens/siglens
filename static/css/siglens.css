@@ -2773,6 +2773,10 @@ hr {
     border-radius: 4px;
 }
 
+#date-start.error, #date-end.error {
+    border: 1px solid var(--error-trace);
+}
+
 #date-start:hover, #date-end:hover, #time-start:hover, #time-end:hover {
     border: 1px solid var(--drop-down-btn-border-active);
 }
