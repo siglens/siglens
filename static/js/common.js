@@ -469,7 +469,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
     }
     if (res.qtype === 'logs-query') {
-        panelProcessEmptyQueryResults('', panelId);
+        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
     }
 
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
@@ -601,7 +601,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             }
             $(`#panel${panelId} .panel-body #panel-loading`).hide();
         }
-    } else {
+    } else if (chartType ==='Line Chart'){
         chartDataCollection = {};
         if (panelId === -1) {
             formulas = {};
@@ -680,10 +680,17 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             $('body').css('cursor', 'default');
         }
         $('body').css('cursor', 'default');
+    } else{
+        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        return;
     }
 }
 
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, dataType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
+    if(queryType==='logs'){
+        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        return;
+    }
     resetQueryResAttr(res, panelId);
     let bigNumVal = null;
     if (panelId == -1) {
@@ -894,7 +901,7 @@ function renderChartByChartType(data, queryRes, panelId, currentPanel) {
             break;
         case 'Line Chart': {
             let startTime = new Date().getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, '');
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.queryType);
             break;
         }
         case 'number':
