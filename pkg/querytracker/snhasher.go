@@ -83,13 +83,13 @@ func getHashForSearchCondition(sc *structs.SearchCondition) uint64 {
 		return 0
 	}
 
-	sqhids := make([]uint64, len(sc.SearchQueries))
+	sqhids := make([]uint64, 0, len(sc.SearchQueries))
 	for _, sq := range sc.SearchQueries {
 		sqhids = append(sqhids, getHashForSearchQuery(sq))
 	}
 	sort.Slice(sqhids, func(i, j int) bool { return sqhids[i] < sqhids[j] })
 
-	snhids := make([]uint64, len(sc.SearchNode))
+	snhids := make([]uint64, 0, len(sc.SearchNode))
 	for _, sn := range sc.SearchNode {
 		snhids = append(snhids, getHashForSearchNode(sn))
 	}
@@ -142,7 +142,7 @@ func getHashForMatchFilter(mf *structs.MatchFilter) uint64 {
 		return 0
 	}
 
-	mwords := make([]string, len(mf.MatchWords))
+	mwords := make([]string, 0, len(mf.MatchWords))
 	for _, w := range mf.MatchWords {
 		mwords = append(mwords, string(w))
 	}
