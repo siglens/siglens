@@ -28,9 +28,10 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -203,10 +204,10 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	return searchRequestBody, readJSON, nil
 }
 
-func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
+func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
 	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
 }
-func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
+func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
 	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
 		return []string{}
 	}
@@ -245,7 +246,7 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
+func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
 	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
@@ -288,7 +289,7 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 }
 
 // Call /api/search endpoint
-func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*pipesearch.PipeSearchResponseOuter, error) {
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*segstructs.PipeSearchResponseOuter, error) {
 
 	modifiedData, err := json.Marshal(searchRequestBody)
 	if err != nil {
@@ -300,7 +301,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 	rawTraceCtx.Request.Header.SetMethod("POST")
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
+	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
 
 	// Parse initial data
 	if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {

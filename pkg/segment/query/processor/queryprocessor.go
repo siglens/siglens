@@ -20,7 +20,7 @@ package processor
 import (
 	"io"
 
-	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -39,7 +39,44 @@ type QueryProcessor struct {
 	DataProcessor
 }
 
-func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
+func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
+	qid uint64) (*QueryProcessor, error) {
+
+	searcher := &searchStream{
+		qid:  qid,
+		node: searchNode,
+	}
+
+	dataProcessors := make([]*DataProcessor, 0)
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		dataProcessor, err := asDataProcessor(curAgg)
+		if err != nil {
+			return nil, utils.TeeErrorf("NewQueryProcessor: cannot make data processor for %+v; err=%v",
+				curAgg, err)
+		}
+
+		dataProcessors = append(dataProcessors, dataProcessor)
+	}
+
+	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
+	if len(dataProcessors) > 0 {
+		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
+	}
+	for i := 1; i < len(dataProcessors); i++ {
+		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
+	}
+
+	var lastStreamer streamer = searcher
+	if len(dataProcessors) > 0 {
+		lastStreamer = dataProcessors[len(dataProcessors)-1]
+	}
+
+	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
+
+	return newQueryProcessorHelper(queryType, lastStreamer)
+}
+
+func newQueryProcessorHelper(queryType structs.QueryType, input streamer) (*QueryProcessor, error) {
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
@@ -47,12 +84,12 @@ func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProce
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		limit = segutils.QUERY_MAX_BUCKETS
 	default:
-		return nil, utils.TeeErrorf("NewQueryProcessor: invalid query type %v", queryType)
+		return nil, utils.TeeErrorf("newQueryProcessorHelper: invalid query type %v", queryType)
 	}
 
-	headDP := NewHeadDP(utils.NewOptionWithValue(limit))
+	headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
 	if headDP == nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: failed to create head data processor")
+		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 	}
 
 	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
@@ -62,7 +99,55 @@ func NewQueryProcessor(queryType structs.QueryType, input streamer) (*QueryProce
 	}, nil
 }
 
-func (qp *QueryProcessor) GetFullResult() (*pipesearch.PipeSearchResponseOuter, error) {
+func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error) {
+	if queryAgg == nil {
+		return nil, utils.TeeErrorf("asDataProcessor: got nil query aggregator")
+	}
+
+	if queryAgg.BinExpr != nil {
+		return NewBinDP(queryAgg.BinExpr), nil
+	} else if queryAgg.DedupExpr != nil {
+		return NewDedupDP(queryAgg.DedupExpr), nil
+	} else if queryAgg.EvalExpr != nil {
+		return NewEvalDP(queryAgg.EvalExpr), nil
+	} else if queryAgg.FieldsExpr != nil {
+		return NewFieldsDP(queryAgg.FieldsExpr), nil
+	} else if queryAgg.FillNullExpr != nil {
+		return NewFillnullDP(queryAgg.FillNullExpr), nil
+	} else if queryAgg.GentimesExpr != nil {
+		return NewGentimesDP(queryAgg.GentimesExpr), nil
+	} else if queryAgg.HeadExpr != nil {
+		return NewHeadDP(queryAgg.HeadExpr), nil
+	} else if queryAgg.MakeMVExpr != nil {
+		return NewMakemvDP(queryAgg.MakeMVExpr), nil
+	} else if queryAgg.RareExpr != nil {
+		return NewRareDP(queryAgg.RareExpr), nil
+	} else if queryAgg.RegexExpr != nil {
+		return NewRegexDP(queryAgg.RegexExpr), nil
+	} else if queryAgg.RexExpr != nil {
+		return NewRexDP(queryAgg.RexExpr), nil
+	} else if queryAgg.SortExpr != nil {
+		return NewSortDP(queryAgg.SortExpr), nil
+	} else if queryAgg.StatsExpr != nil {
+		return NewStatsDP(queryAgg.StatsExpr), nil
+	} else if queryAgg.StreamstatsExpr != nil {
+		return NewStreamstatsDP(queryAgg.StreamstatsExpr), nil
+	} else if queryAgg.TailExpr != nil {
+		return NewTailDP(queryAgg.TailExpr), nil
+	} else if queryAgg.TimechartExpr != nil {
+		return NewTimechartDP(queryAgg.TimechartExpr), nil
+	} else if queryAgg.TopExpr != nil {
+		return NewTopDP(queryAgg.TopExpr), nil
+	} else if queryAgg.TransactionExpr != nil {
+		return NewTransactionDP(queryAgg.TransactionExpr), nil
+	} else if queryAgg.WhereExpr != nil {
+		return NewWhereDP(queryAgg.WhereExpr), nil
+	} else {
+		return nil, utils.TeeErrorf("asDataProcessor: all commands are nil in %+v", queryAgg)
+	}
+}
+
+func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
 	finalIQR, err := qp.DataProcessor.Fetch()
 	if err != nil && err != io.EOF {
 		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
@@ -90,8 +175,8 @@ func (qp *QueryProcessor) GetFullResult() (*pipesearch.PipeSearchResponseOuter, 
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(updateChan chan *pipesearch.PipeSearchWSUpdateResponse,
-	completeChan chan *pipesearch.PipeSearchCompleteResponse) {
+func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
+	completeChan chan *structs.PipeSearchCompleteResponse) {
 
 	panic("not implemented") // TODO
 }

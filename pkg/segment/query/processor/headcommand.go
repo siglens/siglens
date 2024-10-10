@@ -21,12 +21,12 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
-	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	log "github.com/sirupsen/logrus"
 )
 
 type headProcessor struct {
-	limit          utils.Option[uint64]
+	options        *structs.HeadExpr
 	numRecordsSent uint64
 }
 
@@ -35,11 +35,7 @@ func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, nil
 	}
 
-	limit, ok := p.limit.Get()
-	if !ok {
-		return iqr, nil
-	}
-
+	limit := p.options.MaxRows
 	numToKeep := limit - p.numRecordsSent
 	err := iqr.DiscardAfter(numToKeep)
 	if err != nil {
