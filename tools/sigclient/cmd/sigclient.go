@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"

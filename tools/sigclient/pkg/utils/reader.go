@@ -80,7 +80,7 @@ type DynamicUserGenerator struct {
 	ts           bool
 	faker        *gofakeit.Faker
 	seed         int64
-	accFakerSeed	  int64
+	accFakerSeed int64
 	accountFaker *gofakeit.Faker
 	DataConfig   *GeneratorDataConfig
 }
@@ -151,10 +151,10 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 
 func InitDynamicUserGenerator(ts bool, seed int64, accfakerSeed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
 	return &DynamicUserGenerator{
-		ts:         ts,
-		seed:       seed,
+		ts:           ts,
+		seed:         seed,
 		accFakerSeed: accfakerSeed,
-		DataConfig: dataConfig,
+		DataConfig:   dataConfig,
 	}
 }
 
@@ -190,8 +190,8 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 	functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
 
 	return &DynamicUserGenerator{
-		ts:   ts,
-		seed: seed,
+		ts:           ts,
+		seed:         seed,
 		accFakerSeed: accFakerSeed,
 		DataConfig: &GeneratorDataConfig{
 			functionalTest: functionalTest,
