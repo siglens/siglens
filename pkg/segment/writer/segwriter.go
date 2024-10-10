@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -54,11 +55,13 @@ import (
 
 // Throttle the number of indexes to help prevent excessive memory usage.
 const maxAllowedSegStores = 1000
+const MAX_ACTIVE_COL_WIPS = 10000 // TODO: make this variable based on available memory
 
 // global map
 var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 var maxSegFileSize uint64
+var activeColWips int64 // use it atomically to store the count of active colWips
 
 var KibanaInternalBaseDir string
 
@@ -78,6 +81,15 @@ var wipCbufPool = sync.Pool{
 		slice := make([]byte, WIP_SIZE)
 		return &slice
 	},
+}
+
+func getNumOfActiveColWips() int64 {
+	value := atomic.LoadInt64(&activeColWips)
+	return value
+}
+
+func addNumOfActiveColWips(count int64) {
+	atomic.AddInt64(&activeColWips, count)
 }
 
 func InitKibanaInternalData() {
@@ -147,6 +159,8 @@ type ParsedLogEvent struct {
 	indexName       string
 	rawJson         []byte
 	timestampMillis uint64
+	resp            string // store responses
+	respIdx         uint64
 }
 
 func NewPLE() *ParsedLogEvent {
@@ -163,6 +177,7 @@ func (ple *ParsedLogEvent) Reset() {
 	ple.allCvals = ple.allCvals[:0]
 	ple.allCvalsTypeLen = ple.allCvalsTypeLen[:0]
 	ple.numCols = 0
+	ple.resp = ""
 }
 
 func (ple *ParsedLogEvent) MakeSpaceForNewColumn() {
@@ -193,6 +208,22 @@ func (ple *ParsedLogEvent) SetTimestamp(timestampMillis uint64) {
 
 func (ple *ParsedLogEvent) GetTimestamp() uint64 {
 	return ple.timestampMillis
+}
+
+func (ple *ParsedLogEvent) SetResponse(resp string) {
+	ple.resp = resp
+}
+
+func (ple *ParsedLogEvent) GetResponse() string {
+	return ple.resp
+}
+
+func (ple *ParsedLogEvent) SetResponseIdx(respIdx uint64) {
+	ple.respIdx = respIdx
+}
+
+func (ple *ParsedLogEvent) GetResponseIdx() uint64 {
+	return ple.respIdx
 }
 
 // returns in memory size of a single wip block
@@ -321,7 +352,10 @@ func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
 }
 
 func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool, error) {
-	ss.encodeTime(ple.timestampMillis, tsKey)
+	err := ss.encodeTime(ple.timestampMillis, tsKey)
+	if err != nil {
+		return false, err
+	}
 
 	matchedCol := false
 	var colWip *ColWip
@@ -331,7 +365,10 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 	for i := uint16(0); i < ple.numCols; i++ {
 		cname := ple.allCnames[i]
 		ctype := ple.allCvalsTypeLen[i][0]
-		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+		colWip, _, matchedCol, err = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+		if err != nil {
+			return false, fmt.Errorf("doLogEventFilling: failed to initAndBackFillColumn: %v", err)
+		}
 
 		switch ctype {
 		case VALTYPE_ENC_SMALL_STRING[0]:
@@ -466,22 +503,30 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
 
-	for _, ple := range pleArray {
+	start := 0
+	for idx, ple := range pleArray {
 
 		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 			segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
 			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+				for j := start; j < len(pleArray); j++ {
+					pleArray[j].SetResponse("Failed to add entry")
+				}
 				return err
 			}
 			instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
+			start = idx
 		}
 
 		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
 			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
-			return err
+			for j := start; j < len(pleArray); j++ {
+				pleArray[j].SetResponse("Failed to add entry")
+			}
+			return nil // Response would be present in PLE to prevent log flood, callers should ensure this
 		}
 
 		if matchedPCols {
@@ -511,8 +556,12 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 			err = segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
+				for j := start; j < len(pleArray); j++ {
+					pleArray[j].SetResponse("Failed to add entry")
+				}
 				return err
 			}
+			start = idx
 		}
 	}
 	return nil
@@ -641,6 +690,7 @@ func rotateSegmentOnTime() {
 		// Check again here to make sure we are not deleting a segstore that was updated
 		if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
 			log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
+			addNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
 			delete(allSegStores, streamid)
 		}
 	}

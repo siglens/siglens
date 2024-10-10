@@ -20,6 +20,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -225,6 +226,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 					ple.SetIndexName(indexName)
 					ple.SetRawJson(line)
+					ple.SetResponseIdx(uint64(inCount - 1))
 
 					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
 					if err != nil {
@@ -281,11 +283,28 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
 			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-			// TODO: update `atleastOneSuccess`
+		}
+		for _, ple := range plesInBatch {
+			resp := ple.GetResponse()
+			if resp != "" {
+				responsebody := make(map[string]interface{})
+				error_response := utils.BulkErrorResponse{
+					ErrorResponse: *utils.NewBulkErrorResponseInfo(resp, "ingest_exception"),
+				}
+				responsebody["index"] = error_response
+				responsebody["status"] = 400
+				items[ple.GetResponseIdx()] = responsebody
+				processedCount--
+			}
 		}
 	}
 
-	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
+	if processedCount == 0 {
+		atleastOneSuccess = false
+		overallError = true
+	}
+
+	usageStats.UpdateStats(uint64(bytesReceived), uint64(processedCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
@@ -405,6 +424,10 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
+	}
+	pleResponse := ple.GetResponse()
+	if pleResponse != "" {
+		return fmt.Errorf("PLE Reponse: %v", pleResponse)
 	}
 	return nil
 }
