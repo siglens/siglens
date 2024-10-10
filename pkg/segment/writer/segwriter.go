@@ -1304,6 +1304,9 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 
 	for segkey, segMetaEntry := range allSegMetas {
 		if segkey == segsetkey {
+			if segMetaEntry.AllPQIDs == nil {
+				segMetaEntry.AllPQIDs = make(map[string]bool)
+			}
 			segMetaEntry.AllPQIDs[newpqid] = true
 		}
 
