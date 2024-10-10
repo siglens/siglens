@@ -15,10 +15,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package processor
 
-package config
+import "github.com/siglens/siglens/pkg/segment/query/iqr"
 
-const SigLensVersion = "0.2.44d"
+type gentimesProcessor struct{}
+
+func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+	panic("not implemented")
+}
+
+func (p *gentimesProcessor) Rewind() {
+	panic("not implemented")
+}
