@@ -484,7 +484,7 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	deleteCols := config.variableFaker.Number(0, config.MaxVariableColumns-1)
 	deletedCols := map[int]struct{}{}
 	for deleteCols > 0 {
-		index := rand.Intn(config.MaxVariableColumns)
+		index := config.variableFaker.Number(0, config.MaxVariableColumns-1)
 		if _, ok := deletedCols[index]; !ok {
 			delete(m, config.variableColNames[index])
 			deletedCols[index] = struct{}{}

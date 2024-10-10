@@ -20,8 +20,8 @@ package cmd
 import (
 	"fmt"
 	"strings"
-
 	"time"
+
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -126,7 +126,7 @@ var functionalTestCmd = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		sleepDuration := 1 * time.Second
+		sleepDuration := 15 * time.Second
 
 		if longer {
 			totalEvents = 50_000_000
