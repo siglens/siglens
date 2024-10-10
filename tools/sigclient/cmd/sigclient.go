@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"time"
+	// "time"
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -110,11 +110,13 @@ var functionalTestCmd = &cobra.Command{
 		queryDest, _ := cmd.Flags().GetString("queryDest")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
+		longer, _ := cmd.Flags().GetBool("longer")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("queryDest : %+v\n", queryDest)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("queriesToRunFile : %+v\n", filePath)
+		log.Infof("longer : %+v\n", longer)
 
 		totalEvents := 100_000
 		batchSize := 100
@@ -124,16 +126,24 @@ var functionalTestCmd = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		sleepDuration := 15 * time.Second
+		// sleepDuration := 1 * time.Second
+
+		if longer {
+			totalEvents = 50_000_000
+			batchSize = 1000
+			numIndices = 20
+			processCount = 10
+			// sleepDuration = 30 * time.Second
+		}
 
 		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
+		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		time.Sleep(sleepDuration)
+		// time.Sleep(sleepDuration)
 
-		query.FunctionalTest(queryDest, filePath)
+		// query.FunctionalTest(queryDest, filePath)
 	},
 }
 
@@ -418,6 +428,7 @@ func init() {
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
+	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

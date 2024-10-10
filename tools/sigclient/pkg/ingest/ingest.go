@@ -327,7 +327,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
@@ -338,6 +338,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		return rdr, err
 	}
 	var rdr utils.Generator
+	var err error
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
@@ -355,7 +356,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	case "functional":
 		log.Infof("Initializing functional reader")
 		seed := int64(1001)
-		rdr = utils.InitDynamicUserGenerator(ts, seed, generatorDataConfig)
+		rdr, err = utils.InitFunctionalUserGenerator(ts, seed, generatorDataConfig, processIndex)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -363,7 +364,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
-	err := rdr.Init(str)
+	if err != nil {
+		return rdr, err
+	}
+	err = rdr.Init(str)
 	return rdr, err
 }
 
@@ -398,7 +402,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	totalBytes := uint64(0)
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}

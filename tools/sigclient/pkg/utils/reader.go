@@ -94,6 +94,7 @@ type GeneratorDataConfig struct {
 type FunctionalTestConfig struct {
 	FixedColumns       int // Fixed columns for testing
 	MaxVariableColumns int // Max columns,
+	EndTimestamp     uint64
 	variableFaker      *gofakeit.Faker
 	fixedFaker         *gofakeit.Faker
 	jsonFaker          *gofakeit.Faker
@@ -102,16 +103,10 @@ type FunctionalTestConfig struct {
 }
 
 func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
-	fixedfakerSeed := 1000
-	jsonFakerSeed := 10
-	xmlFakerSeed := 20
 	varFakerSeed := 30
 
 	random := rand.New(rand.NewSource(int64(varFakerSeed)))
 
-	fixFaker := gofakeit.NewUnlocked(int64(fixedfakerSeed)) // Cols to test should use fixedFaker only
-	jsonFaker := gofakeit.NewUnlocked(int64(jsonFakerSeed))
-	xmlFaker := gofakeit.NewUnlocked(int64(xmlFakerSeed))
 	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
 
 	variableColNames := make([]string, 0)
@@ -129,10 +124,7 @@ func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int)
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
-			fixedFaker:         fixFaker,
 			variableFaker:      varFaker,
-			jsonFaker:          jsonFaker,
-			xmlFaker:           xmlFaker,
 			variableColNames:   variableColNames,
 		},
 	}
@@ -163,6 +155,40 @@ func InitDynamicUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConf
 		seed:       seed,
 		DataConfig: dataConfig,
 	}
+}
+
+func InitFunctionalUserGenerator(ts bool, seed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	fixedfakerSeed := 1000 + processIndex
+	jsonFakerSeed := 10 + processIndex
+	xmlFakerSeed := 20 + processIndex
+	varFakerSeed := 30 + processIndex
+
+	fixFaker := gofakeit.NewUnlocked(int64(fixedfakerSeed)) // Cols to test should use fixedFaker only
+	jsonFaker := gofakeit.NewUnlocked(int64(jsonFakerSeed))
+	xmlFaker := gofakeit.NewUnlocked(int64(xmlFakerSeed))
+	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
+
+	if dataConfig.functionalTest == nil {
+		return nil, fmt.Errorf("Functional test config is nil")
+	}
+
+	dataConfig.functionalTest.fixedFaker = fixFaker
+	dataConfig.functionalTest.jsonFaker = jsonFaker
+	dataConfig.functionalTest.xmlFaker = xmlFaker
+	dataConfig.functionalTest.variableFaker = varFaker
+
+	endTimestamp := time.Now()
+	if processIndex > 0 {
+		endTimestamp = endTimestamp.Add(3 * time.Duration(-processIndex) * time.Hour)
+	}
+	dataConfig.functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
+	log.Warnf("EndTimestamp: %d", dataConfig.functionalTest.EndTimestamp)
+
+	return &DynamicUserGenerator{
+		ts:         ts,
+		seed:       seed,
+		DataConfig: dataConfig,
+	}, nil
 }
 
 func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
@@ -459,7 +485,8 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	}
 
 	if addts {
-		m["timestamp"] = uint64(time.Now().UnixMilli())
+		m["timestamp"] = config.EndTimestamp
+		config.EndTimestamp -= 1
 	}
 }
 
