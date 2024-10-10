@@ -21,8 +21,8 @@
 function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
 
-    $('#run-filter-btn').on('click', runFilterBtnHandler);
-    $('#query-builder-btn').on('click', runFilterBtnHandler);
+    $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
+    $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
     $('#available-fields').on('click', availableFieldsClickHandler);
@@ -63,10 +63,10 @@ function setupEventHandlers() {
 
     $('#time-start').on('change', getStartTimeHandler);
     $('#time-end').on('change', getEndTimeHandler);
-    $('#customrange-btn').on('click', customRangeHandler);
+    $('#customrange-btn').off('click').on('click', customRangeHandler);
 
     $('.range-item').on('click', rangeItemHandler);
-    $('.db-range-item').on('click', dashboardRangeItemHandler);
+    $('.db-range-item').off('click').on('click', dashboardRangeItemHandler);
 
     $('.ui-widget input').on('keyup', saveqInputHandler);
 
