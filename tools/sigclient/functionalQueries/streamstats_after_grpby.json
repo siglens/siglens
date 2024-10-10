@@ -1,0 +1,415 @@
+{
+    "queryText": "* | stats count as cnt by http_method, http_status | sort cnt, http_method, http_status | streamstats window=5 global=false reset_after=(http_method = \"GET\" AND http_status = 500) avg(http_status) as avg by http_method | streamstats window = 3 current=false reset_before=(cnt = 2724 OR cnt = 2736) sum(cnt) as sum",
+    "expectedResult": {
+         "bucketCount": 72,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "http_method",
+            "http_status"
+        ],
+         "measureFunctions": [
+            "avg",
+            "sum",
+            "cnt"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 200,
+                    "cnt": 2693,
+                    "sum": ""
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 404,
+                    "cnt": 2705,
+                    "sum": 2693
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 302,
+                    "cnt": 2724,
+                    "sum": ""
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 200,
+                    "cnt": 2728,
+                    "sum": 2724
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 302,
+                    "cnt": 2729,
+                    "sum": 5452
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 368,
+                    "cnt": 2731,
+                    "sum": 8181
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 301,
+                    "cnt": 2732,
+                    "sum": 8188
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 2736,
+                    "sum": ""
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 404,
+                    "cnt": 2740,
+                    "sum": 2736
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 250.5,
+                    "cnt": 2742,
+                    "sum": 5476
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 2745,
+                    "sum": 8218
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 350.5,
+                    "cnt": 2747,
+                    "sum": 8227
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 368.3333333333333,
+                    "cnt": 2759,
+                    "sum": 8234
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 2759,
+                    "sum": 8251
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 351.75,
+                    "cnt": 2761,
+                    "sum": 8265
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 2762,
+                    "sum": 8279
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 300,
+                    "cnt": 2762,
+                    "sum": 8282
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 350.5,
+                    "cnt": 2766,
+                    "sum": 8285
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 381.4,
+                    "cnt": 2767,
+                    "sum": 8290
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 300.6666666666667,
+                    "cnt": 2771,
+                    "sum": 8295
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 352.5,
+                    "cnt": 2772,
+                    "sum": 8304
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 351,
+                    "cnt": 2778,
+                    "sum": 8310
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 301.6666666666667,
+                    "cnt": 2786,
+                    "sum": 8321
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 300.3333333333333,
+                    "cnt": 2796,
+                    "sum": 8336
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 350.25,
+                    "cnt": 2799,
+                    "sum": 8360
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 300.75,
+                    "cnt": 2803,
+                    "sum": 8381
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 334.3333333333333,
+                    "cnt": 2804,
+                    "sum": 8398
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 326.25,
+                    "cnt": 2821,
+                    "sum": 8406
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 351.75,
+                    "cnt": 2823,
+                    "sum": 8428
+                }
+            },
+            {
+                "GroupByValues": [
+                    "DELETE",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 381.4,
+                    "cnt": 2824,
+                    "sum": 8448
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 340.6,
+                    "cnt": 2833,
+                    "sum": 8468
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 361,
+                    "cnt": 2842,
+                    "sum": 8480
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 341.4,
+                    "cnt": 2844,
+                    "sum": 8499
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 361,
+                    "cnt": 2849,
+                    "sum": 8519
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 334.3333333333333,
+                    "cnt": 2870,
+                    "sum": 8535
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 361.2,
+                    "cnt": 2897,
+                    "sum": 8563
+                }
+            }
+        ]
+     }
+ }
+ 

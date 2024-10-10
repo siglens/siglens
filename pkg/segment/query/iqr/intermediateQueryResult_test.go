@@ -56,7 +56,7 @@ func Test_AppendRRCs(t *testing.T) {
 	assert.Equal(t, encodingToSegKey, iqr.encodingToSegKey)
 }
 
-func Test_SetKnownValues_OnEmptyIQR(t *testing.T) {
+func Test_AppendKnownValues_OnEmptyIQR(t *testing.T) {
 	iqr := NewIQR(0)
 
 	knownValues1 := map[string][]utils.CValueEnclosure{
@@ -158,6 +158,70 @@ func Test_mergeMetadata_differentQids(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func Test_Append(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "z"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "foo"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "bar"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+
+	expected := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "z"},
+			*backfillCVal,
+			*backfillCVal,
+		},
+		"col3": {
+			*backfillCVal,
+			*backfillCVal,
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "foo"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "bar"},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(iqr1.knownValues))
+	for cname, expectedValues := range expected {
+		if _, ok := iqr1.knownValues[cname]; !ok {
+			assert.Fail(t, "missing column %v", cname)
+		}
+
+		assert.Equal(t, expectedValues, iqr1.knownValues[cname],
+			"actual=%v, expected=%v, cname=%v", iqr1.knownValues[cname],
+			expectedValues, cname)
+	}
+}
+
 func Test_MergeIQRs(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)
@@ -214,4 +278,29 @@ func Test_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 1, iqr1.NumberOfRecords())
 	assert.Equal(t, 1, iqr2.NumberOfRecords())
 	assert.Equal(t, 0, iqr3.NumberOfRecords())
+}
+
+func Test_DiscardAfter(t *testing.T) {
+	iqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+
+	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 3, iqr.NumberOfRecords())
+	err = iqr.DiscardAfter(3)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, iqr.NumberOfRecords())
+
+	err = iqr.DiscardAfter(1)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
 }

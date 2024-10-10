@@ -1,0 +1,35 @@
+{
+    "queryText": "| inputlookup start=3 max=3 test_lookup.csv where Test=\"abc\" OR Department=\"e*\" | inputlookup append=true test_lookup.csv.gz where Department=\"s*\" AND Salary > 60000",
+    "expectedResult": {
+        "totalMatched": {},
+        "qtype": "logs-query",
+        "records": [],
+        "allColumns": [
+            "Department",
+            "Email",
+            "EmployeeID",
+            "FirstName",
+            "HireDate",
+            "IsRemote",
+            "LastName",
+            "PerformanceScore",
+            "Position",
+            "Salary",
+            "Test"
+        ],
+        "columnsOrder": [
+            "Department",
+            "Email",
+            "EmployeeID",
+            "FirstName",
+            "HireDate",
+            "IsRemote",
+            "LastName",
+            "PerformanceScore",
+            "Position",
+            "Salary",
+            "Test"
+        ]
+    }
+ }
+ 
