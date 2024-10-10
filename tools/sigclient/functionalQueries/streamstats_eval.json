@@ -1,0 +1,198 @@
+{
+    "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false avg(eval(if(http_status > 300 AND http_status < 401, 201, http_status))) as avg by gender | streamstats window=3 global=false current=false sum(eval(2)) as sum by gender | streamstats window=3 current=false min(eval(if(http_status = 200, \"XYZ\", http_status))) as min by gender | streamstats window=3 values(eval(if(http_status = 200, \"def\", http_status))) as values by gender | streamstats window=3 max(eval(if(http_status = 200, http_status, \"abc\"))) as max | streamstats window=3 current=false count(eval(http_status > 400)) as count | fields city, first_name, last_name, gender, http_status, avg, sum, min, max, count, values",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 984,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["first_name", "last_name"],
+         "records": [
+            {
+                "city": "Boston",
+                "first_name": "Abdiel",
+                "gender": "male",
+                "http_status": 400,
+                "last_name": "Bogisich",
+                "avg": 201,
+                "sum": "",
+                "min": "",
+                "max": "abc",
+                "count": 0,
+                "values": [
+                    "400"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Abdiel",
+                "gender": "female",
+                "http_status": 500,
+                "last_name": "Powlowski",
+                "avg": 500,
+                "sum": "",
+                "min": "",
+                "max": "abc",
+                "count": 0,
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Abdul",
+                "gender": "female",
+                "http_status": 200,
+                "last_name": "Larson",
+                "avg": 350,
+                "sum": 2,
+                "min": 500,
+                "max": 200,
+                "count": 1,
+                "values": [
+                    "500",
+                    "def"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Abigail",
+                "gender": "male",
+                "http_status": 200,
+                "last_name": "Nitzsche",
+                "avg": 200.5,
+                "sum": 2,
+                "min": 400,
+                "max": 200,
+                "count": 1,
+                "values": [
+                    "def"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Abraham",
+                "gender": "female",
+                "http_status": 400,
+                "last_name": "Tromp",
+                "avg": 300.3333333333333,
+                "sum": 4,
+                "min": 500,
+                "max": 200,
+                "count": 1,
+                "values": [
+                    "400",
+                    "def"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Adela",
+                "gender": "male",
+                "http_status": 400,
+                "last_name": "Cummerata",
+                "avg": 200.66666666666666,
+                "sum": 4,
+                "min": "XYZ",
+                "max": 200,
+                "count": 0,
+                "values": [
+                    "400",
+                    "def"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Adela",
+                "gender": "male",
+                "http_status": 301,
+                "last_name": "Murazik",
+                "avg": 200.66666666666666,
+                "sum": 6,
+                "min": 400,
+                "max": "abc",
+                "count": 0,
+                "values": [
+                    "301",
+                    "400"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Adela",
+                "gender": "female",
+                "http_status": 404,
+                "last_name": "Zieme",
+                "avg": 268.3333333333333,
+                "sum": 6,
+                "min": 400,
+                "max": "abc",
+                "count": 0,
+                "values": [
+                    "404"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Adelia",
+                "gender": "male",
+                "http_status": 404,
+                "latency": 8123493,
+                "last_name": "Kuhn",
+                "avg": 268.6666666666667,
+                "sum": 6,
+                "min": 301,
+                "max": "abc",
+                "count": 1,
+                "values": [
+                    "301",
+                    "404"
+                ]
+            },
+            {
+                "city": "Boston",
+                "first_name": "Adolfo",
+                "gender": "male",
+                "http_status": 400,
+                "latency": 9510552,
+                "last_name": "Gottlieb",
+                "avg": 268.6666666666667,
+                "sum": 6,
+                "min": 301,
+                "max": "abc",
+                "count": 2,
+                "values": [
+                    "400",
+                    "404"
+                ]
+            }
+         ],
+         "allColumns": [
+            "city",
+            "first_name",
+            "last_name",
+            "gender",
+            "http_status",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "count",
+            "values"
+        ],
+         "columnsOrder": [
+            "city",
+            "first_name",
+            "last_name",
+            "gender",
+            "http_status",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "count",
+            "values"
+        ]
+     }
+ }
+ 
