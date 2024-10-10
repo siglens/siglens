@@ -135,7 +135,7 @@ func getDynamicUserColumnValue(f *gofakeit.Faker, columnName string, p *gofakeit
 	return f.BuzzWord()
 }
 
-func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}) {
+func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, accountFaker *gofakeit.Faker) {
 
 	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
 	p := f.Person()
@@ -174,4 +174,18 @@ func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}) {
 	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
 	m["question"] = f.Question()
 	m["latency"] = f.Number(0, 10_000_000)
+
+	m["account"] = map[string]interface{}{
+		"number":       accountFaker.Number(1000, 9999),
+		"type":         accountFaker.RandomString([]string{"savings", "checking", "credit"}),
+		"balance":      accountFaker.Price(1000, 10_000),
+		"currency":     accountFaker.Currency(),
+		"created_data": map[string]interface{}{"date": accountFaker.Date(), "country": accountFaker.Country()},
+	}
+
+	if accountFaker.RandomUint([]uint{0, 100}) > 30 {
+		m["account_status"] = accountFaker.RandomString([]string{"active", "inactive", "closed"})
+	} else {
+		m["account_status"] = nil
+	}
 }

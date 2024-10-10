@@ -20,6 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+
 	"time"
 
 	"verifier/pkg/alerts"
@@ -108,7 +109,12 @@ var functionalTestCmd = &cobra.Command{
 		dest, _ := cmd.Flags().GetString("dest")
 		queryDest, _ := cmd.Flags().GetString("queryDest")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
-		folderPath, _ := cmd.Flags().GetString("queryDataPath")
+		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+		log.Infof("queriesToRunFile : %+v\n", filePath)
 
 		totalEvents := 100_000
 		batchSize := 100
@@ -120,11 +126,6 @@ var functionalTestCmd = &cobra.Command{
 		maxVariableCols := 20
 		sleepDuration := 15 * time.Second
 
-		log.Infof("dest : %+v\n", dest)
-		log.Infof("queryDest : %+v\n", queryDest)
-		log.Infof("bearerToken : %+v\n", bearerToken)
-		log.Infof("queryDataPath : %+v\n", folderPath)
-
 		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
 		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
@@ -132,7 +133,7 @@ var functionalTestCmd = &cobra.Command{
 
 		time.Sleep(sleepDuration)
 
-		query.FunctionalTest(queryDest, folderPath)
+		query.FunctionalTest(queryDest, filePath)
 	},
 }
 
@@ -416,7 +417,7 @@ func init() {
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
-	functionalTestCmd.PersistentFlags().StringP("queryDataPath", "f", "", "path to folder containing query JSON files")
+	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")

@@ -425,6 +425,10 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 		case VALTYPE_ENC_BACKFILL[0]:
 			copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
 			colWip.cbufidx += 1
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
+					colWip.cbufidx-1, true)
+			}
 			ss.updateColValueSizeInAllSeenColumns(cname, 1)
 		default:
 			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)

@@ -1,0 +1,86 @@
+{
+    "queryText": "city=Boston | stats count(eval(2)) as cnt_const, count(eval(http_status > 400)) as cnt_bool, count(eval(http_status+10)) as cnt_exp, count(eval(if(http_status > 300, 1, 0))) as cnt_if, sum(eval(2)) as sum_const, sum(eval(http_status > 300)) as sum_bool, sum(eval(http_status+20)) as sum_exp, sum(eval(if(http_status > 300, 2, 1))) as sum_if, avg(eval(3)) as avg_const, avg(eval(http_status > 400)) as avg_bool, avg(eval(http_status+30)) as avg_exp, avg(eval(if(http_status > 301, 20, 10))) as avg_if, min(eval(1000)) as min_const, min(eval(http_status >= 201)) as min_bool, min(eval(http_status+10)) as min_exp, min(eval(if(http_status > 300, 2, \"abc\"))) as min_if, max(eval(-2)) as max_const, max(eval(http_status < 500)) as max_bool, max(eval(http_status-10)) as max_exp, max(eval(if(http_status > 300, 2, \"abc\"))) as max_if, range(eval(-1)) as range_const, range(eval(http_status > 400)) as range_bool, range(eval(http_status+10)) as range_exp, range(eval(if(http_status > 300, 100, -100))) as range_if, dc(eval(1)) as dc_const, dc(eval(http_status > 400)) as dc_bool, dc(eval(http_status+20)) as dc_exp, dc(eval(if(http_status > 300, \"abc\", \"def\"))) as dc_if, values(eval(100)) as values_const, values(eval(http_status > 400)) as values_bool, values(eval(http_status+30)) as values_exp, values(eval(if(http_status > 300, 2, \"abc\"))) as values_if, list(eval(-100)) as list_const, list(eval(if(http_status > 300, 2, 2))) as list_if",
+    "expectedResult": {
+         "qtype": "segstats-query",
+         "measureFunctions": [
+            "cnt_const",
+            "cnt_bool",
+            "cnt_exp",
+            "cnt_if",
+            "sum_const",
+            "sum_bool",
+            "sum_exp",
+            "sum_if",
+            "avg_const",
+            "avg_bool",
+            "avg_exp",
+            "avg_if",
+            "min_const",
+            "min_bool",
+            "min_exp",
+            "min_if",
+            "max_const",
+            "max_bool",
+            "max_exp",
+            "max_if",
+            "range_const",
+            "range_bool",
+            "range_exp",
+            "range_if",
+            "dc_const",
+            "dc_bool",
+            "dc_exp",
+            "dc_if",
+            "values_const",
+            "values_bool",
+            "values_exp",
+            "values_if",
+            "list_const",
+            "list_if"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "avg_bool": "1",
+                    "avg_const": "3",
+                    "avg_exp": "383.977",
+                    "avg_if": "16.626",
+                    "cnt_bool": "348",
+                    "cnt_const": "984",
+                    "cnt_exp": "984",
+                    "cnt_if": "984",
+                    "dc_bool": "1",
+                    "dc_const": "1",
+                    "dc_exp": "6",
+                    "dc_if": "2",
+                    "list_const": "[-100]",
+                    "list_if": "[2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2]",
+                    "max_bool": "1",
+                    "max_const": "-2",
+                    "max_exp": "490",
+                    "max_if": "2",
+                    "min_bool": "1",
+                    "min_const": "1,000",
+                    "min_exp": "210",
+                    "min_if": "2",
+                    "range_bool": "0",
+                    "range_const": "0",
+                    "range_exp": "300",
+                    "range_if": "200",
+                    "sum_bool": "812",
+                    "sum_const": "1,968",
+                    "sum_exp": "367,994",
+                    "sum_if": "1,796",
+                    "values_bool": "[1]",
+                    "values_const": "[100]",
+                    "values_exp": "[230 331 332 430 434 530]",
+                    "values_if": "[2 abc]"
+                }
+            }
+        ]
+     }
+ }
+ 

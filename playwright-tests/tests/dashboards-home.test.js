@@ -4,11 +4,11 @@ test.describe('Dashboards Home Page', () => {
     test.beforeEach(async ({ page }) => {
         // Navigate to the dashboards home page
         await page.goto('http://localhost:5122/dashboards-home.html');
+        
+        await expect(page.locator('#dashboard-grid')).toBeVisible();
     });
 
     test('should load dashboards and display grid', async ({ page }) => {
-        await expect(page.locator('#dashboard-grid')).toBeVisible();
-
         const dashboardRows = page.locator('.ag-center-cols-container .ag-row');
         await expect(dashboardRows.first()).toBeVisible();
     });
@@ -51,13 +51,16 @@ test.describe('Dashboards Home Page', () => {
 
         const starIcon = page.locator('.ag-center-cols-container .ag-row:first-child .star-icon');
 
-        const initialBackgroundImage = await starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
+        const getBackgroundImage = async () => starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
+        const initialBackgroundImage = await getBackgroundImage();
+
         await starIcon.click();
-        await page.waitForTimeout(1000);
 
-        const newBackgroundImage = await starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
-
-        expect(newBackgroundImage).not.toBe(initialBackgroundImage);
+        // Wait for the background image to change
+        await expect(async () => {
+            const newBackgroundImage = await getBackgroundImage();
+            expect(newBackgroundImage).not.toBe(initialBackgroundImage);
+        }).toPass({timeout: 5000});
     });
 
     test('should open delete confirmation for a dashboard', async ({ page }) => {
