@@ -226,7 +226,7 @@ function resetQueryResAttr(res, panelId) {
 function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
     if (!res.qtype) {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
         return;
     }
     if (res.hits) {
@@ -258,6 +258,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                     columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
+            $('#avail-field-container ').css('display', 'none');
             renderPanelAggsGrid(columnOrder, res, panelId);
         } //for logs-query
         else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
@@ -272,6 +273,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             } else {
                 selectedFieldsList = columnOrder;
             }
+            $('#avail-field-container ').css('display', 'inline-flex');
             renderAvailableFields(columnOrder);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
@@ -466,10 +468,10 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
     resetQueryResAttr(res, panelId);
     //if data source is metrics
     if (!res.qtype && chartType != 'number') {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
     if (res.qtype === 'logs-query') {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
 
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
@@ -677,14 +679,14 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         }
         $('body').css('cursor', 'default');
     } else {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
         return;
     }
 }
 
 function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
     if (queryType === 'logs') {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
         return;
     }
     resetQueryResAttr(res, panelId);
