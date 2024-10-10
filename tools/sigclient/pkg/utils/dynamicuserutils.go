@@ -135,7 +135,7 @@ func getDynamicUserColumnValue(f *gofakeit.Faker, columnName string, p *gofakeit
 	return f.BuzzWord()
 }
 
-func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, jsonFaker *gofakeit.Faker) {
+func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, accountFaker *gofakeit.Faker) {
 
 	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
 	p := f.Person()
@@ -176,15 +176,15 @@ func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, jsonF
 	m["latency"] = f.Number(0, 10_000_000)
 
 	m["account"] = map[string]interface{}{
-		"number":       jsonFaker.Number(1000, 9999),
-		"type":         jsonFaker.RandomString([]string{"savings", "checking", "credit"}),
-		"balance":      jsonFaker.Price(1000, 10_000),
-		"currency":     jsonFaker.Currency(),
-		"created_data": map[string]interface{}{"date": jsonFaker.Date(), "country": jsonFaker.Country()},
+		"number":       accountFaker.Number(1000, 9999),
+		"type":         accountFaker.RandomString([]string{"savings", "checking", "credit"}),
+		"balance":      accountFaker.Price(1000, 10_000),
+		"currency":     accountFaker.Currency(),
+		"created_data": map[string]interface{}{"date": accountFaker.Date(), "country": accountFaker.Country()},
 	}
 
-	if jsonFaker.RandomUint([]uint{0, 100}) > 30 {
-		m["account_status"] = jsonFaker.RandomString([]string{"active", "inactive", "closed"})
+	if accountFaker.RandomUint([]uint{0, 100}) > 30 {
+		m["account_status"] = accountFaker.RandomString([]string{"active", "inactive", "closed"})
 	} else {
 		m["account_status"] = nil
 	}
