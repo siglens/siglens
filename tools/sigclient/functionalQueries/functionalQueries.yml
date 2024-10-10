@@ -1,0 +1,21 @@
+3stats.json
+9stats.json
+complex_search.json
+eval_groupby_2col_2stats.json
+grpby_1col_4stats.json
+search_1col_fields.json
+rare.json
+sort_tail_eval(newField).json
+tail_stats.json
+stats_groupby_with_eval.json
+fillnull_with_eval.json
+search_with_eval.json
+
+# Queries not working for multi-index
+# 9stats_groupby_2col.json
+# complex_search_2.json
+
+## Queries that have different Websocket and Http client results
+# stats_top.json
+# rare_top.json
+# stats_group_by_eval.json
