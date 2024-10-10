@@ -5,7 +5,7 @@ eval_groupby_2col_2stats.json
 grpby_1col_4stats.json
 search_1col_fields.json
 rare.json
-sort_tail_eval(newField).json
+sort_tail_eval_newField.json
 tail_stats.json
 stats_groupby_with_eval.json
 fillnull_with_eval.json
