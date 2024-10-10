@@ -517,7 +517,25 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
     }
+
     localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
+
+    // Update originalQueries for the edited panel
+    if (currentPanel.queryData && currentPanel.queryData.searchText) {
+        //eslint-disable-next-line no-undef
+        originalQueries[currentPanel.panelId] = currentPanel.queryData.searchText;
+    }
+
+    // Restore original queries for non-edited panels
+    localPanels.forEach((panel) => {
+        //eslint-disable-next-line no-undef
+        if (panel.panelId !== currentPanel.panelId && originalQueries[panel.panelId]) {
+            //eslint-disable-next-line no-undef
+            panel.queryData.searchText = originalQueries[panel.panelId];
+        }
+    });
+
+    $('.search-db-input').val('');
     updateTimeRangeForAllPanels(filterStartDate, filterEndDate);
     await updateDashboard();
     $('.panelEditor-container').hide();
@@ -1124,7 +1142,7 @@ function goToDashboard() {
         }
     }
     resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-    currentPanel = {};
+    currentPanel = null;
     resetEditPanelScreen();
 
     $('.panelEditor-container').hide();
