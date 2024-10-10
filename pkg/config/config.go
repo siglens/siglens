@@ -250,7 +250,7 @@ func GetUIDomain() string {
 		host, _, err := net.SplitHostPort(hostname)
 		if err != nil {
 			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
-			return "localhost"
+			return hostname
 		}
 		return host
 	}
