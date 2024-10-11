@@ -136,22 +136,26 @@ func (smi *SegmentMicroIndex) clearMicroIndices() {
 }
 
 // Returns all columnar cmis for a given block or any errors encountered
-func (smi *SegmentMicroIndices) GetCMIsForBlock(blkNum uint16) (map[string]*structs.CmiContainer, error) {
+func (smi *SegmentMicroIndex) GetCMIsForBlock(blkNum uint16,
+	qid uint64) (map[string]*structs.CmiContainer, error) {
 	if len(smi.blockCmis) == 0 {
-		log.Errorf("GetCMIsForBlock: No block cmis are loaded. loadedMicroIndices: %+v", smi.loadedMicroIndices)
+		log.Errorf("qid=%v, GetCMIsForBlock: NO block cmis are loaded. loadedMicroIndices: %+v, segkey: %v",
+			qid, smi.loadedMicroIndices, smi.SegmentKey)
 		return nil, fmt.Errorf("no cmis are loaded")
 	}
 
 	if int(blkNum) >= len(smi.blockCmis) {
-		return nil, fmt.Errorf("blkNum %+v does not exist", blkNum)
+		return nil, fmt.Errorf("qid=%v, GetCMIsForBlock blkNum %+v does not exist, segkey: %v",
+			qid, blkNum, smi.SegmentKey)
 	}
 	cmis := smi.blockCmis[blkNum]
 	return cmis, nil
 }
 
 // Returns the cmi for a given block & column, or any errors encountered
-func (smi *SegmentMicroIndices) GetCMIForBlockAndColumn(blkNum uint16, cname string) (*structs.CmiContainer, error) {
-	allCmis, err := smi.GetCMIsForBlock(blkNum)
+func (smi *SegmentMicroIndex) GetCMIForBlockAndColumn(blkNum uint16, cname string,
+	qid uint64) (*structs.CmiContainer, error) {
+	allCmis, err := smi.GetCMIsForBlock(blkNum, qid)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +252,7 @@ func readCmis(blocksToLoad map[uint16]map[string]bool, allBlocks bool,
 	}
 	err := blob.BulkDownloadSegmentBlob(bulkDownloadFiles, false)
 	if err != nil {
-		log.Errorf("readCmis: failed to bulk download seg files. err=%v", err)
+		log.Errorf("readCmis: failed to bulk download seg files. segkey: %v, err=%v", segkey, err)
 		return nil, err
 	}
 
