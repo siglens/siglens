@@ -8,8 +8,8 @@ rare.json
 sort_tail_eval_newField.json
 # tail_stats.json
 stats_groupby_with_eval.json
-# fillnull_with_eval.json
-# search_with_eval.json
+fillnull_with_eval.json
+search_with_eval.json
 streamstats_win3.json
 streamstats_win4_currF.json
 streamstats_win4_grpby.json
