@@ -18,11 +18,15 @@
 package processor
 
 import (
+	"math"
 	"sort"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	_ "github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -35,8 +39,9 @@ type block struct {
 }
 
 type searcher struct {
-	queryInfo *query.QueryInformation
-	sortMode  sortMode
+	queryInfo    *query.QueryInformation
+	querySummary *summary.QuerySummary
+	sortMode     sortMode
 }
 
 func (s *searcher) Rewind() {
@@ -88,6 +93,26 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 }
 
 func (s *searcher) getBlocks() ([]*block, error) {
+	startTime := time.Now() // TODO: maybe this should be a field on searcher.
+	qsrs, err := query.GetSortedQSRs(s.queryInfo, startTime, s.querySummary)
+	if err != nil {
+		log.Errorf("searchProcessor.getBlocks: failed to get sorted QSRs: %v", err)
+		return nil, err
+	}
+
+	for _, qsr := range qsrs {
+		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
+		if err != nil {
+			log.Errorf("searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", qsr, err)
+			return nil, err
+		}
+
+		for _, ssr := range fileToSSR {
+			// TODO
+			log.Fatalf("searchProcessor.getBlocks: ssr=%+v", ssr)
+		}
+	}
+
 	panic("not implemented")
 }
 
@@ -126,6 +151,33 @@ func (s *searcher) getBlocksForTimeRange(endTime uint64) []*block {
 }
 
 func (s *searcher) readRRCs(block *block) ([]*segutils.RecordResultContainer, error) {
+	allSegRequests := block.GetSSRs()
+	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
+	searchNode := s.queryInfo.GetSearchNode()
+	timeRange := s.queryInfo.GetQueryRange()
+	sizeLimit := uint64(math.MaxUint64)
+	aggs := s.queryInfo.GetAggregators()
+	qid := s.queryInfo.GetQid()
+	qs := s.querySummary
+
+	queryType := s.queryInfo.GetQueryType()
+	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
+	if err != nil {
+		log.Errorf("searchProcessor.readRRCs: failed to initialize search results: %v", err)
+		return nil, err
+	}
+
+	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
+		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)
+	if err != nil {
+		log.Errorf("searchProcessor.readRRCs: failed to apply filter operator: %v", err)
+		return nil, err
+	}
+
+	return searchResults.GetResults(), nil
+}
+
+func (block *block) GetSSRs() map[string]*structs.SegmentSearchRequest {
 	panic("not implemented")
 }
 
