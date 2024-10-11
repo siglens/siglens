@@ -303,19 +303,19 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 
 	queryRes, err := CreateResult(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v\n err: %v", responseData, err)
 	}
 	hits, err := getHits(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v\n err: %v", responseData, err)
 	}
 	err = populateTotalMatchedAndRecords(hits, queryRes)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v, err: %v", hits, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v\n err: %v", hits, responseData, err)
 	}
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v, err: %v", query, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v\n err: %v", query, responseData, err)
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))

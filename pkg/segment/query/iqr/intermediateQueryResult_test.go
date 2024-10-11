@@ -20,7 +20,7 @@ package iqr
 import (
 	"testing"
 
-	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -103,8 +103,8 @@ func Test_AsResult(t *testing.T) {
 	err := iqr.AppendKnownValues(knownValues)
 	require.NoError(t, err)
 
-	expectedResult := &pipesearch.PipeSearchResponseOuter{
-		Hits: pipesearch.PipeSearchResponse{
+	expectedResult := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
 			TotalMatched: 2,
 			Hits: []map[string]interface{}{
 				{"col1": "a"},

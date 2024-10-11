@@ -17,9 +17,14 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type fillnullProcessor struct{}
+type fillnullProcessor struct {
+	options *structs.FillNullExpr
+}
 
 func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
@@ -28,5 +33,9 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 // In the two-pass version of fillnull, Rewind() should remember all the
 // columns it saw in the first pass.
 func (p *fillnullProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *fillnullProcessor) Cleanup() {
 	panic("not implemented")
 }
