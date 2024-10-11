@@ -39,7 +39,7 @@ const ONE_MiB = 1024 * 1024
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
-var segmetaFilename = "segmeta.json"
+var SegmetaFilename = "segmeta.json"
 
 func initSmr() {
 
@@ -62,6 +62,16 @@ func initSmr() {
 
 func getSegFullMetaFnameFromSegkey(segkey string) string {
 	return fmt.Sprintf("%s.sfm", segkey)
+}
+
+func ReadSegmeta(smFilename string) []*structs.SegMeta {
+	smrLock.RLock()
+	retVal, err := getAllSegmetas(smFilename)
+	smrLock.RUnlock()
+	if err != nil {
+		log.Errorf("ReadSegmeta: getallsegmetas err=%v ", err)
+	}
+	return retVal
 }
 
 // read only the current nodes segmeta
@@ -168,7 +178,7 @@ func ReadGlobalSegmetas() []*structs.SegMeta {
 
 	allSegmetas := make([]string, 0)
 	for _, iNode := range iNodes {
-		mDir := path.Join(ingestDir, iNode, segmetaFilename)
+		mDir := path.Join(ingestDir, iNode, SegmetaFilename)
 		if _, err := os.Stat(mDir); err != nil {
 			continue
 		}
@@ -197,7 +207,7 @@ func ReadGlobalSegmetas() []*structs.SegMeta {
 
 // returns the current nodes segmeta
 func GetLocalSegmetaFName() string {
-	return config.GetSmrBaseDir() + segmetaFilename
+	return config.GetSmrBaseDir() + SegmetaFilename
 }
 
 func getAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, error) {
