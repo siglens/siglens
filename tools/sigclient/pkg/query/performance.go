@@ -88,10 +88,11 @@ func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 	// Run all the queries
 	for _, query := range Queries {
 		select {
-		case log := <-logCh:
+		case logReceived := <-logCh:
 			switch query {
 			case ComplexSearchQuery:
-				RunComplexSearchQuery(ctx, log, dest)
+				RunComplexSearchQuery(ctx, logReceived, dest)
+				log.Errorf("Recevied log %p", logReceived.Data)
 			// case StatsQuery:
 			// 	RunStatsQuery(dest)
 			// case GroupByQuery:
@@ -192,12 +193,8 @@ func RunComplexSearchQuery(ctx context.Context, tslog utils.Log, dest string) {
 		return
 	}
 
-	randomNum := GetRandomNumber(10)
-	fieldCols := GetRandomKeys(tslog.Data, randomNum)
-	fieldCols = append(fieldCols, col, col2)
-
 	// Construct the query
-	query := fmt.Sprintf(`%v %v %v | %v | %v`, GetEqualClause(col, val), GetOp(), GetEqualClause(col3, fmt.Sprintf(`%v`, val3)), GetRegexClause(col2, val2), GetFieldsClause(fieldCols))
+	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(col, val), GetOp(), GetEqualClause(col3, fmt.Sprintf(`%v`, val3)), GetRegexClause(col2, val2))
 
 	// Run the query
 	log.Infof("Running complex search query %v", query)

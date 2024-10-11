@@ -362,25 +362,22 @@ func getHits(response map[string]interface{}) (map[string]interface{}, error) {
 	return nil, nil
 }
 
-// Evaluates queries and compares the results with expected results for websocket
-func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid int, expRes *Result) error {
+func GetQueryResultForWebSocket(dest string, queryReq map[string]interface{}, qid int) (*Result, error) {
 	webSocketURL := fmt.Sprintf("ws://%s/api/search/ws", dest)
-	query := queryReq["searchText"].(string)
-
+	
 	// create websocket connection
 	conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForWebSocket: Error connecting to WebSocket server, webSocketURL: %v, err: %v", webSocketURL, err)
+		return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error connecting to WebSocket server, webSocketURL: %v, err: %v", webSocketURL, err)
 	}
 	defer conn.Close()
 
 	err = conn.WriteJSON(queryReq)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
+		return nil, fmt.Errorf("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
 	}
 
 	readEvent := make(map[string]interface{})
-	sTime := time.Now()
 	tempRes := &Result{}
 	for {
 		err = conn.ReadJSON(&readEvent)
@@ -394,30 +391,52 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 			// As query results come in chunks, we need to keep track of all the records
 			hits, err := getHits(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
+				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
 			}
 			err = populateRecords(hits, tempRes)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
+				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
 			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
+				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
 			}
 			queryRes.Records = tempRes.Records
 			populateTotalMatched(readEvent, queryRes)
-
-			err = CompareResults(queryRes, expRes, query)
-			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v, err: %v", query, readEvent, err)
-			}
+			
+			return queryRes, nil
 		default:
-			return fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
+			return nil, fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
 		}
 	}
-	log.Infof("EvaluateQueryForWebSocket: Query %v was succesful. In %+v", query, time.Since(sTime))
+	
+	return nil, fmt.Errorf("EvaluateQueryForWebSocket: No Response from server")
+}
 
+// Evaluates queries and compares the results with expected results for websocket
+func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid int, expRes *Result) error {
+	searchText, isExist := queryReq["searchText"]
+	if !isExist {
+		return fmt.Errorf("EvaluateQueryForWebSocket: searchText not found in queryReq")
+	}
+	query, isString := searchText.(string)
+	if !isString {
+		return fmt.Errorf("EvaluateQueryForWebSocket: queryText is not a string, received type: %T", query)
+	}
+
+	sTime := time.Now()
+	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForWebSocket: Failed getting query result: %v, err: %v", queryReq, err)
+	}
+
+	err = CompareResults(queryRes, expRes, query)
+	if err != nil {
+		return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, err: %v", query, err)
+	}
+	
+	log.Info("EvaluateQueryForWebSocket: Query was succesful. In %+v", time.Since(sTime))
 	return nil
 }
 

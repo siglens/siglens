@@ -169,7 +169,7 @@ var performanceTestCmd = &cobra.Command{
 		maxVariableCols := 20
 		concurrentQueries := 5
 
-		logCh := make(chan utils.Log, 100)
+		logCh := make(chan utils.Log, 5)
 
 		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logCh)
 

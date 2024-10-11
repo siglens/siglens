@@ -45,6 +45,8 @@ const (
 
 var json = jsoniter.ConfigFastest
 
+var allFixedColumns = []string{}
+
 type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
@@ -131,6 +133,8 @@ type PerfTestConfig struct {
 
 type Log struct {
 	Data map[string]interface{}
+	AllFixedColumns []string
+	AllVariableColumns []string
 	Timestamp   time.Time
 }
 
@@ -539,6 +543,12 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		fixedCols++
 	}
 
+	if len(allFixedColumns) == 0 {
+		for col := range m {
+			allFixedColumns = append(allFixedColumns, col)
+		}
+	}
+
 	variableP := config.variableFaker.Person()
 	for i, col := range config.variableColNames {
 		if i%lenDynamicUserCols == 0 {
@@ -546,6 +556,7 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		}
 		m[col] = getDynamicUserColumnValue(config.variableFaker, dynamicUserColumnNames[i%lenDynamicUserCols], variableP)
 	}
+	
 
 	deleteCols := config.variableFaker.Number(0, config.MaxVariableColumns-1)
 	deletedCols := map[int]struct{}{}
@@ -586,13 +597,16 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 		}
 	}
 
-	log := Log{
+	logToSend := Log{
 		Data:      data,
+		AllFixedColumns: allFixedColumns,
+		AllVariableColumns: config.functionalTest.variableColNames,
 		Timestamp: time.Now(),
 	}
 
 	select {
-		case config.perfTestConfig.LogCh <- log:
+		case config.perfTestConfig.LogCh <- logToSend:
+			log.Warnf("Sending log %p", logToSend.Data)
 		default:
 		// skip if the channel is full
 	}
