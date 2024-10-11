@@ -627,23 +627,35 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 			return fmt.Errorf("ValidateStatsQueryResults: MeasureVal length mismatch, expected: %v, got: %v", len(expMeasureRes.MeasureVal), len(queryMeasureRes.MeasureVal))
 		}
 
-		for key, value := range expMeasureRes.MeasureVal {
-			actualValue, exist := queryMeasureRes.MeasureVal[key]
-			if !exist {
-				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal not found for key: %v", key)
-			}
-			expFloatValue, isFloat := value.(float64)
-			if isFloat {
-				equal, err = CompareFloatValues(actualValue, expFloatValue)
-				if err != nil {
-					return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, err: %v", err)
+		if verifyGroupByValues {
+			for key, value := range expMeasureRes.MeasureVal {
+				actualValue, exist := queryMeasureRes.MeasureVal[key]
+				if !exist {
+					return fmt.Errorf("ValidateStatsQueryResults: MeasureVal not found for key: %v", key)
 				}
-			} else {
-				equal = reflect.DeepEqual(actualValue, value)
-			}
+				expFloatValue, isFloat := value.(float64)
+				if isFloat {
+					equal, err = CompareFloatValues(actualValue, expFloatValue)
+					if err != nil {
+						return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, err: %v", err)
+					}
+				} else {
+					equal = reflect.DeepEqual(actualValue, value)
+				}
 
+				if !equal {
+					return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: %v, got: %v", key, value, actualValue)
+				}
+			}
+		} else {
+			// if group by values are not verified, then the bucket keys may not be consistent.
+			// So, we will only verify the measure values.
+			expMeasureSlice := utils.MapToSlice(expMeasureRes.MeasureVal)
+			queryMeasureSlice := utils.MapToSlice(queryMeasureRes.MeasureVal)
+
+			equal = utils.ElementsMatch(expMeasureSlice, queryMeasureSlice)
 			if !equal {
-				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: %v, got: %v", key, value, actualValue)
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch, expected: %+v, got: %+v", expMeasureSlice, queryMeasureSlice)
 			}
 		}
 	}

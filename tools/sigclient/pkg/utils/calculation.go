@@ -167,3 +167,11 @@ func AlmostEqual(actual, expected, tolerancePercentage float64) bool {
 
 	return (diff / math.Abs(expected)) < tolerancePercentage
 }
+
+func MapToSlice[K comparable, V any](m map[K]V) []K {
+	s := make([]K, 0, len(m))
+	for k := range m {
+		s = append(s, k)
+	}
+	return s
+}
