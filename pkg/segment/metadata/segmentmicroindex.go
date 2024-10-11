@@ -116,11 +116,15 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 	sm.MicroIndexSize = microIndexSize
 }
 
-func (smi *SegmentMicroIndex) clearSearchMetadata() {
-	smi.smiLock.Lock()
+func (smi *SegmentMicroIndex) clearSearchMetadataWithLock() {
 	smi.BlockSearchInfo = nil
 	smi.BlockSummaries = nil
 	smi.loadedSearchMetadata = false
+}
+
+func (smi *SegmentMicroIndex) clearSearchMetadata() {
+	smi.smiLock.Lock()
+	smi.clearSearchMetadataWithLock()
 	smi.smiLock.Unlock()
 }
 
@@ -167,7 +171,7 @@ func (sm *SegmentMicroIndex) loadSearchMetadata(rbuf []byte) ([]byte, error) {
 	}
 	retbuf, blockSum, allBmh, err := sm.ReadBlockSummaries(rbuf)
 	if err != nil {
-		sm.clearSearchMetadata()
+		sm.clearSearchMetadataWithLock()
 		return rbuf, err
 	}
 	sm.loadedSearchMetadata = true
