@@ -43,19 +43,19 @@ type SegFullMeta struct {
 }
 
 type SegMeta struct {
-	SegmentKey         string                  `json:"segmentKey"`
-	EarliestEpochMS    uint64                  `json:"earliestEpochMs,omitempty"`
-	LatestEpochMS      uint64                  `json:"latestEpochMs,omitempty"`
-	SegbaseDir         string                  `json:"segbaseDir,omitempty"`
-	VirtualTableName   string                  `json:"virtualTableName"`
-	RecordCount        int                     `json:"recordCount,omitempty"`
-	BytesReceivedCount uint64                  `json:"bytesReceivedCount,omitempty"`
-	OnDiskBytes        uint64                  `json:"onDiskBytes,omitempty"`
+	SegmentKey         string `json:"segmentKey"`
+	EarliestEpochMS    uint64 `json:"earliestEpochMs,omitempty"`
+	LatestEpochMS      uint64 `json:"latestEpochMs,omitempty"`
+	SegbaseDir         string `json:"segbaseDir,omitempty"`
+	VirtualTableName   string `json:"virtualTableName"`
+	RecordCount        int    `json:"recordCount,omitempty"`
+	BytesReceivedCount uint64 `json:"bytesReceivedCount,omitempty"`
+	OnDiskBytes        uint64 `json:"onDiskBytes,omitempty"`
 	// skip marshalling of these two fields, since they are getting written in the SegFullMeta
-	ColumnNames        map[string]*ColSizeInfo `json:"-"`
-	AllPQIDs           map[string]bool         `json:"-"`
-	NumBlocks          uint16                  `json:"numBlocks,omitempty"`
-	OrgId              uint64                  `json:"orgid,omitempty"`
+	ColumnNames map[string]*ColSizeInfo `json:"-"`
+	AllPQIDs    map[string]bool         `json:"-"`
+	NumBlocks   uint16                  `json:"numBlocks,omitempty"`
+	OrgId       uint64                  `json:"orgid,omitempty"`
 }
 
 type MetricsMeta struct {
