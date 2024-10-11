@@ -67,6 +67,8 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 			}
 		}
 	}()
+
+	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
 	go runQueryInfoRefreshLoop(getMyIds)

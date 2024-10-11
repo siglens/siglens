@@ -29,7 +29,7 @@ import (
 
 var pqMetaDirName string
 
-func init() {
+func InitPqsMeta() {
 
 	pqMetaDirName = filepath.Join(config.GetDataPath(),
 		"querynodes",
@@ -43,6 +43,11 @@ func init() {
 				pqMetaDirName, err)
 		}
 	}
+}
+
+func getPqmetaFilename(pqid string) string {
+	fileName := filepath.Join(pqMetaDirName, pqid+".meta")
+	return fileName
 }
 
 func GetAllEmptySegmentsForPqid(pqid string) (map[string]bool, error) {
@@ -69,11 +74,6 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	}
 
 	return allEmptyPQS, nil
-}
-
-func getPqmetaFilename(pqid string) string {
-	fileName := filepath.Join(pqMetaDirName, pqid+".meta")
-	return fileName
 }
 
 func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
