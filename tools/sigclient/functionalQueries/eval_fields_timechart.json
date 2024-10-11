@@ -1,0 +1,4 @@
+{
+    "queryText": "search group=\"group 0\" city=Boston user_agent=Mozilla* | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, user_agent, lat_http, long_http, latency_http | timechart span=10m avg(lat_http) as used by user_agent limit=100"
+}
+  

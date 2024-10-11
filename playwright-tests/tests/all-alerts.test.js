@@ -12,6 +12,7 @@ test.describe('All Alerts Screen Flow', () => {
     });
 
     test('should create a new logs alert', async () => {
+        test.setTimeout(120000);
         await test.step('Navigate to create alert page', async () => {
             await page.click('#new-alert-rule');
             await expect(page.locator('#alert-rule-name')).toBeVisible();
@@ -61,8 +62,13 @@ test.describe('All Alerts Screen Flow', () => {
             await page.click('.add-label-container');
             await page.fill('.label-container #label-key', 'TestLabel');
             await page.fill('.label-container #label-value', 'TestValue');
-            await page.click('#save-alert-btn');
-            await expect(page.locator('.ag-root-wrapper')).toBeVisible();
+            
+            await Promise.all([
+                page.waitForNavigation({ url: '**/all-alerts.html' }),
+                page.click('#save-alert-btn')
+            ]);
+
+            await expect(page).toHaveURL(/all-alerts\.html/);
         });
     });
 

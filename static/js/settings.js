@@ -49,23 +49,24 @@ function getRetentionDataFromConfig() {
 
 {{ .SettingsExtraFunctions }}
 
-function getSystemInfo() {
-    $.ajax({
-        method: "GET",
-        url: "/api/system-info",
-        headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            Accept: "*/*",
-        },
-        dataType: "json",
-        crossDomain: true,
-        success: function (res) {
-            addSystemInfoTable(res);
-        },
-        error: function (xhr, status, error) {
-            console.error("Update failed:", xhr, status, error);
-        },
-    });
+async function getSystemInfo() {
+    try {
+        const res = await $.ajax({
+            method: "GET",
+            url: "/api/system-info",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Accept: "*/*",
+            },
+            dataType: "json",
+            crossDomain: true,
+        });
+
+        addSystemInfoTable(res);
+        return res;
+    } catch (error) {
+        console.error("Update failed:", error);
+    }
 }
 
 function addSystemInfoTable(systemInfo) {
