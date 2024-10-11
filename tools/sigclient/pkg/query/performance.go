@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -117,6 +118,17 @@ func GetStringColAndVal(data map[string]interface{}) (string, string) {
 	return "", ""
 }
 
+func GetNumericColAndVal(data map[string]interface{}) (string, float64) {
+	for k, v := range data {
+		strValue := fmt.Sprintf("%v", v)
+		floatVal, err := strconv.ParseFloat(strValue, 64)
+		if err == nil {
+			return k, floatVal
+		}
+	}
+	return "", 0
+}
+
 func GetOp() string {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if rng.Intn(2) == 0 {
@@ -151,7 +163,7 @@ func GetRandomKeys(data map[string]interface{}, numKeys int) []string {
 }
 
 func RunComplexSearchQuery(ctx context.Context, tslog utils.Log, dest string) {
-	if wait := tslog.Timestamp.Sub(time.Now()); wait > 0 {
+	if wait := tslog.Timestamp.Sub(time.Now().Add(15 * time.Second)); wait > 0 {
 		select {
 		case <-time.After(wait):
 		case <-ctx.Done():
@@ -174,12 +186,18 @@ func RunComplexSearchQuery(ctx context.Context, tslog utils.Log, dest string) {
 	}
 	delete(tslog.Data, col2)
 
+	col3, val3 := GetNumericColAndVal(tslog.Data)
+	if col3 == "" || val3 == 0 {
+		log.Warnf("No numeric column and value found in log")
+		return
+	}
+
 	randomNum := GetRandomNumber(10)
 	fieldCols := GetRandomKeys(tslog.Data, randomNum)
 	fieldCols = append(fieldCols, col, col2)
 
 	// Construct the query
-	query := fmt.Sprintf(`%v | %v | %v`, GetEqualClause(col, val), GetRegexClause(col2, val2), GetFieldsClause(fieldCols))
+	query := fmt.Sprintf(`%v %v %v | %v | %v`, GetEqualClause(col, val), GetOp(), GetEqualClause(col3, fmt.Sprintf(`%v`, val3)), GetRegexClause(col2, val2), GetFieldsClause(fieldCols))
 
 	// Run the query
 	log.Infof("Running complex search query %v", query)

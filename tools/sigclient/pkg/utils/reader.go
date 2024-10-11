@@ -244,6 +244,7 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 		seed:         seed,
 		accFakerSeed: accFakerSeed,
 		DataConfig: &GeneratorDataConfig{
+			ConfigType: FunctionalTest,
 			functionalTest: functionalTest,
 		},
 	}, nil
