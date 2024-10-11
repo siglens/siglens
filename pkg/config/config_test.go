@@ -84,6 +84,7 @@ func Test_ExtractConfigData(t *testing.T) {
    logFileRotationSizeMB: 100
    compressLogFile: false
  compressStatic: false
+ newQueryPipelineEnabled: true
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -125,6 +126,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				CompressStatic:              "false",
 				CompressStaticConverted:     false,
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
+				NewQueryPipelineEnabled:     "true",
+				NewQueryPipelineConverted:   true,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -170,6 +173,7 @@ func Test_ExtractConfigData(t *testing.T) {
    logFileRotationSizeMB: 1000
    compressLogFile: true
  compressStatic: bad string
+ newQueryPipelineEnabled: not a bool
  `),
 
 			common.Configuration{
@@ -212,6 +216,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				CompressStatic:              "true",
 				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+				NewQueryPipelineEnabled:     "false",
+				NewQueryPipelineConverted:   false,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -255,6 +261,8 @@ invalid input, we should error out
 				DualCaseCheckConverted:     true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
+				NewQueryPipelineEnabled:    "false",
+				NewQueryPipelineConverted:  false,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -301,6 +309,8 @@ a: b
 				CompressStatic:              "true",
 				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+				NewQueryPipelineEnabled:     "false",
+				NewQueryPipelineConverted:   false,
 			},
 		},
 	}
