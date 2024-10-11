@@ -67,6 +67,18 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	}
 	defer fd.Close()
 
+	finfo, err := fd.Stat()
+	if err != nil {
+		log.Errorf("getAllEmptyPQSToMap: error when trying to stat file=%+v. Error=%+v",
+			emptyPQSFilename, err)
+		return nil, err
+	}
+
+	// if the file length is zero then its a valid scenario, just return an empty map
+	if finfo.Size() == 0 {
+		return allEmptyPQS, nil
+	}
+
 	err = json.NewDecoder(fd).Decode(&allEmptyPQS)
 	if err != nil {
 		log.Errorf("getAllEmptyPQSToMap: Cannot decode json data from file=%v, err =%v", emptyPQSFilename, err)
