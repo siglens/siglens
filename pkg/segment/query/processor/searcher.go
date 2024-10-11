@@ -34,8 +34,9 @@ import (
 )
 
 type block struct {
-	structs.BlockSummary
-	structs.BlockMetadataHolder
+	*structs.BlockSummary
+	*structs.BlockMetadataHolder
+	parentSSR *structs.SegmentSearchRequest
 }
 
 type searcher struct {
@@ -100,6 +101,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 		return nil, err
 	}
 
+	allBlocks := make([]*block, 0)
 	for _, qsr := range qsrs {
 		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 		if err != nil {
@@ -108,12 +110,26 @@ func (s *searcher) getBlocks() ([]*block, error) {
 		}
 
 		for _, ssr := range fileToSSR {
-			// TODO
-			log.Fatalf("searchProcessor.getBlocks: ssr=%+v", ssr)
+			blocks := makeBlocksFromSSR(ssr)
+			allBlocks = append(allBlocks, blocks...)
 		}
 	}
 
-	panic("not implemented")
+	return allBlocks, nil
+}
+
+func makeBlocksFromSSR(ssr *structs.SegmentSearchRequest) []*block {
+	blocks := make([]*block, 0, len(ssr.AllBlocksToSearch))
+
+	for blockNum, blockMeta := range ssr.AllBlocksToSearch {
+		blocks = append(blocks, &block{
+			BlockSummary:        ssr.SearchMetadata.BlockSummaries[blockNum],
+			BlockMetadataHolder: blockMeta,
+			parentSSR:           ssr,
+		})
+	}
+
+	return blocks
 }
 
 type sortMode int

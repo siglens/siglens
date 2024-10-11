@@ -31,7 +31,7 @@ func makeBlocks(timeRanges []timeRange) []*block {
 	blocks := make([]*block, len(timeRanges))
 	for i, timeRange := range timeRanges {
 		blocks[i] = &block{
-			BlockSummary: structs.BlockSummary{
+			BlockSummary: &structs.BlockSummary{
 				HighTs: timeRange.high,
 				LowTs:  timeRange.low,
 			},
