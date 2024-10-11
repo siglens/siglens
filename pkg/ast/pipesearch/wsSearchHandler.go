@@ -277,7 +277,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		return
 	}
 
-	var wsResponse *PipeSearchWSUpdateResponse
+	var wsResponse *structs.PipeSearchWSUpdateResponse
 	if qscd.QueryUpdate == nil {
 		log.Errorf("qid=%d, processQueryUpdate: got nil query update!", qid)
 		wErr := conn.WriteJSON(createErrorResponse("Got nil query update"))
@@ -324,7 +324,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		canScrollMore = true
 	}
 	queryType := query.GetQueryType(qid)
-	resp := &PipeSearchCompleteResponse{
+	resp := &structs.PipeSearchCompleteResponse{
 		TotalMatched:        convertQueryCountToTotalResponse(queryC),
 		State:               query.COMPLETE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
@@ -355,7 +355,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 }
 
 func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
-	resp := &PipeSearchCompleteResponse{
+	resp := &structs.PipeSearchCompleteResponse{
 		CanScrollMore: false,
 	}
 	qType := query.GetQueryType(qid)
@@ -367,10 +367,10 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*PipeSearchWSUpdateResponse, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	qType := query.GetQueryType(qid)
-	wsResponse := &PipeSearchWSUpdateResponse{
+	wsResponse := &structs.PipeSearchWSUpdateResponse{
 		Completion:               searchPercent,
 		State:                    query.QUERY_UPDATE.String(),
 		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
@@ -439,7 +439,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			return nil, err
 		}
 
-		wsResponse.Hits = PipeSearchResponse{
+		wsResponse.Hits = structs.PipeSearchResponse{
 			Hits:         allJson,
 			TotalMatched: qc,
 		}

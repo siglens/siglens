@@ -29,6 +29,7 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	_ "github.com/siglens/siglens/pkg/segment/query/processor" // TODO: don't import as "_"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -423,7 +424,6 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-
 	rQuery, err := query.StartQuery(qid, false)
 	if err != nil {
 		log.Errorf("ExecuteQuery: Error initializing query status! %+v", err)

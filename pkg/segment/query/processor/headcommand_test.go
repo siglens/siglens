@@ -21,14 +21,14 @@ import (
 	"io"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Head_WithLimit(t *testing.T) {
 	const headLimit = 2
-	dp := NewHeadDP(toputils.NewOptionWithValue[uint64](headLimit))
+	dp := NewHeadDP(&structs.HeadExpr{MaxRows: headLimit})
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
 			"col1": {
