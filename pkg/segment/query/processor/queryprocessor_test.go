@@ -37,7 +37,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		qid: 0,
 	}
 
-	queryProcessor, err := NewQueryProcessor(structs.RRCCmd, stream)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -60,7 +60,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := NewQueryProcessor(structs.RRCCmd, stream)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -68,4 +68,55 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	numMatched, ok := response.Hits.TotalMatched.(int)
 	assert.True(t, ok)
 	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), numMatched)
+}
+
+func Test_NewQueryProcessor_simple(t *testing.T) {
+	qid := uint64(0)
+	searchNode := structs.ASTNode{}
+	agg1 := structs.QueryAggregators{
+		WhereExpr: &structs.BoolExpr{},
+	}
+	agg2 := structs.QueryAggregators{
+		SortExpr: &structs.SortExpr{},
+	}
+	agg1.Next = &agg2
+
+	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, qid)
+	assert.NoError(t, err)
+	assert.NotNil(t, queryProcessor)
+}
+
+func Test_NewQueryProcessor_allCommands(t *testing.T) {
+	qid := uint64(0)
+	searchNode := structs.ASTNode{}
+
+	aggs := []structs.QueryAggregators{
+		{BinExpr: &structs.BinCmdOptions{}},
+		{DedupExpr: &structs.DedupExpr{}},
+		{EvalExpr: &structs.EvalExpr{}},
+		{FieldsExpr: &structs.ColumnsRequest{}},
+		{FillNullExpr: &structs.FillNullExpr{}},
+		{GentimesExpr: &structs.GenTimes{}},
+		{HeadExpr: &structs.HeadExpr{}},
+		{MakeMVExpr: &structs.MultiValueColLetRequest{}},
+		{RareExpr: &structs.StatisticExpr{}},
+		{RegexExpr: &structs.RegexExpr{}},
+		{RexExpr: &structs.RexExpr{}},
+		{SortExpr: &structs.SortExpr{}},
+		{StatsExpr: &structs.StatsOptions{}},
+		{StreamstatsExpr: &structs.StreamStatsOptions{}},
+		{TailExpr: &structs.TailExpr{}},
+		{TimechartExpr: &structs.TimechartExpr{}},
+		{TopExpr: &structs.StatisticExpr{}},
+		{TransactionExpr: &structs.TransactionArguments{}},
+		{WhereExpr: &structs.BoolExpr{}},
+	}
+
+	for i := 1; i < len(aggs); i++ {
+		aggs[i-1].Next = &aggs[i]
+	}
+
+	queryProcessor, err := NewQueryProcessor(&searchNode, &aggs[0], qid)
+	assert.NoError(t, err)
+	assert.NotNil(t, queryProcessor)
 }
