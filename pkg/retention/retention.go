@@ -80,7 +80,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	currTime := time.Now()
 	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
-	allSegMetas := writer.ReadLocalSegmeta()
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
@@ -165,7 +165,7 @@ func DeleteEmptyIndices(ingestNodeDir string, myid uint64) {
 		return
 	}
 
-	segMetaEntries := writer.ReadLocalSegmeta()
+	segMetaEntries := writer.ReadLocalSegmeta(false)
 
 	// Create a set of virtualTableName values from segMetaEntries
 	virtualTableNames := make(map[string]struct{})
@@ -223,7 +223,7 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 		return
 	}
 
-	allSegMetas := writer.ReadLocalSegmeta()
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)

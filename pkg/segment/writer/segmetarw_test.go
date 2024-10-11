@@ -20,17 +20,44 @@ package writer
 import (
 	"github.com/stretchr/testify/assert"
 
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	log "github.com/sirupsen/logrus"
 )
 
+func cleanupSfmFiles() {
+	curDir, err := os.Getwd()
+	if err != nil {
+		log.Errorf("Error could not get curDir err: %v", err)
+		return
+	}
+	sfmPath := filepath.Join(curDir, "*.sfm")
+	matches, err := filepath.Glob(sfmPath)
+	if err != nil {
+		log.Errorf("Error finding sfmfiles err: %v", err)
+		return
+	}
+
+	for _, match := range matches {
+		err := os.Remove(match)
+		if err != nil {
+			log.Errorf("Error deleting sfmfile: %v,  err: %v", match, err)
+			continue
+		}
+	}
+}
+
 func Test_ReplaceSingleSegMeta(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
 	config.InitializeDefaultConfig(t.TempDir())
 	initSmr()
 
-	segMetasArr := ReadLocalSegmeta()
+	segMetasArr := ReadLocalSegmeta(false)
 	segMetas := make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
 		if smentry.SegmentKey == "key1" {
@@ -47,7 +74,7 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 
 	AddOrReplaceRotatedSegmeta(segMetaV1)
 
-	segMetasArr = ReadLocalSegmeta()
+	segMetasArr = ReadLocalSegmeta(false)
 	segMetas = make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
 		if smentry.SegmentKey == "key1" {
@@ -67,7 +94,7 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 
 	AddOrReplaceRotatedSegmeta(segMetaV2)
 
-	segMetasArr = ReadLocalSegmeta()
+	segMetasArr = ReadLocalSegmeta(false)
 	segMetas = make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
 		if smentry.SegmentKey == "key1" {
@@ -82,6 +109,8 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 }
 
 func Test_ReplaceMiddleSegMeta(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
 	config.InitializeDefaultConfig(t.TempDir())
 	initSmr()
 
@@ -108,7 +137,7 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	}
 	AddOrReplaceRotatedSegmeta(segMeta2V2)
 
-	segMetasArr := ReadLocalSegmeta()
+	segMetasArr := ReadLocalSegmeta(false)
 	segMetas := make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
 		if smentry.SegmentKey == "key1" ||

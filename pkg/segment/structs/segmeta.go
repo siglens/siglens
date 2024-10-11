@@ -35,6 +35,13 @@ type VtableCounts struct {
 	OnDiskBytesCount uint64
 }
 
+// This segment specific info is written individually per segment instead of in the
+// single segmeta.json to avoid the bloat
+type SegFullMeta struct {
+	ColumnNames map[string]*ColSizeInfo `json:"columnNames,omitempty"`
+	AllPQIDs    map[string]bool         `json:"pqids,omitempty"`
+}
+
 type SegMeta struct {
 	SegmentKey         string                  `json:"segmentKey"`
 	EarliestEpochMS    uint64                  `json:"earliestEpochMs,omitempty"`
@@ -44,8 +51,9 @@ type SegMeta struct {
 	RecordCount        int                     `json:"recordCount,omitempty"`
 	BytesReceivedCount uint64                  `json:"bytesReceivedCount,omitempty"`
 	OnDiskBytes        uint64                  `json:"onDiskBytes,omitempty"`
-	ColumnNames        map[string]*ColSizeInfo `json:"columnNames,omitempty"`
-	AllPQIDs           map[string]bool         `json:"pqids,omitempty"`
+	// skip marshalling of these two fields, since they are getting written in the SegFullMeta
+	ColumnNames        map[string]*ColSizeInfo `json:"-"`
+	AllPQIDs           map[string]bool         `json:"-"`
 	NumBlocks          uint16                  `json:"numBlocks,omitempty"`
 	OrgId              uint64                  `json:"orgid,omitempty"`
 }

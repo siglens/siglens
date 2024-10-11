@@ -150,7 +150,7 @@ func InitSsa() {
 
 func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
 	// Read segmeta entries
-	allSegMetas := writer.ReadLocalSegmeta()
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)

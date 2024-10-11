@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"sync"
@@ -28,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -57,17 +59,64 @@ func initSmr() {
 	fd.Close()
 }
 
+func getSegFullMetaFnameFromSegkey(segkey string) string {
+	return fmt.Sprintf("%s.sfm", segkey)
+}
+
 // read only the current nodes segmeta
-func ReadLocalSegmeta() []*structs.SegMeta {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
+func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	segMetaFilename := GetLocalSegmetaFName()
+	smrLock.RLock()
 	retVal, err := getAllSegmetas(segMetaFilename)
+	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
+		return retVal
+	}
+
+	if !readFullMeta {
+		return retVal
+	}
+
+	// continue reading/merging from individual segfiles
+	for _, smentry := range retVal {
+		sfmData := readSfm(smentry.SegmentKey)
+		if sfmData == nil {
+			continue
+		}
+		if smentry.AllPQIDs == nil {
+			smentry.AllPQIDs = sfmData.AllPQIDs
+		} else {
+			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, sfmData.AllPQIDs)
+		}
+		if smentry.ColumnNames == nil {
+			smentry.ColumnNames = sfmData.ColumnNames
+		} else {
+			utils.MergeMapsRetainingFirst(smentry.ColumnNames, sfmData.ColumnNames)
+		}
 	}
 	return retVal
+}
+
+func readSfm(segkey string) *structs.SegFullMeta {
+
+	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
+
+	sfmBytes, err := os.ReadFile(sfmFname)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
+		}
+		return nil
+	}
+	sfm := &structs.SegFullMeta{}
+	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
+		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
+			sfmFname, string(sfmBytes), err)
+		return nil
+	}
+	return sfm
 }
 
 // returns all segmetas downloaded, including the current nodes segmeta and all global segmetas
@@ -234,11 +283,39 @@ func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
 
 func addSegmeta(segmeta structs.SegMeta) {
 
+	// create a separate individual file for SegFullMeta
+	sfmFname := getSegFullMetaFnameFromSegkey(segmeta.SegmentKey)
+	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Errorf("addSegmeta: failed to open a sfm filename=%v: err=%v", sfmFname, err)
+		return
+	}
+	defer sfmFd.Close()
+
+	sfmData := structs.SegFullMeta{ColumnNames: segmeta.ColumnNames, AllPQIDs: segmeta.AllPQIDs}
+	sfmJson, err := json.Marshal(sfmData)
+	if err != nil {
+		log.Errorf("addSegmeta: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
+			sfmData, sfmFname, err)
+		return
+	}
+	if _, err := sfmFd.Write(sfmJson); err != nil {
+		log.Errorf("addSegmeta: failed to write sfm: %v: err: %v", sfmFname, err)
+		return
+	}
+
+	err = sfmFd.Sync()
+	if err != nil {
+		log.Errorf("addSegmeta: failed to sync sfm: %v: err: %v", sfmFname, err)
+		return
+	}
+
 	segmetajson, err := json.Marshal(segmeta)
 	if err != nil {
 		log.Errorf("addSegmeta: failed to Marshal: err=%v", err)
 		return
 	}
+	segmetajson = append(segmetajson, "\n"...)
 
 	smrLock.Lock()
 	defer smrLock.Unlock()
@@ -257,10 +334,7 @@ func addSegmeta(segmeta structs.SegMeta) {
 			return
 		}
 	}
-
 	defer fd.Close()
-
-	segmetajson = append(segmetajson, "\n"...)
 
 	if _, err := fd.Write(segmetajson); err != nil {
 		log.Errorf("addSegmeta: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)

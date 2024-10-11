@@ -225,7 +225,7 @@ func populateMicroIndices(smFile string) error {
 		return nil
 	}
 
-	allSegMetas := writer.ReadLocalSegmeta()
+	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, len(allSegMetas))
 	for idx, segMetaInfo := range allSegMetas {
