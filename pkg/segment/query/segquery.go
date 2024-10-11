@@ -969,8 +969,8 @@ func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileRes
 		return err
 	}
 
-	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
-		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
+	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
+		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
 	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
@@ -1212,8 +1212,8 @@ func applyFopFastPathSingleRequest(qsr *QuerySegmentRequest, allSegFileResults *
 		return err
 	}
 
-	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
-		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
+	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
+		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
 	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
