@@ -1,0 +1,20 @@
+{
+    "queryText": "search city=\"boston\" http_method=POST hobby!=\"Acting\" AND hobby!=\"Karate\" user_agent=*Windows* | timechart span=15m sum(latency)",
+    "expectedResult": {
+        "bucketCount": 1,
+        "qtype": "aggs-query",
+        "groupByCols": ["timestamp"],
+        "measureFunctions": ["sum(latency)"],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "1728605809480"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 220868747
+                }
+            }
+        ]
+    }
+}
+  

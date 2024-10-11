@@ -4353,7 +4353,14 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, pro
 		groupedRecord["timestamp"] = currentState.Timestamp
 		groupedRecord["event"] = records
 		lastRecord := records[len(transactionArgs.OpenTransactionEvents[transactionKey])-1]
-		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
+		lastRecordTimestamp, _ := lastRecord["timestamp"].(uint64)
+		var duration uint64
+		if lastRecordTimestamp < currentState.Timestamp {
+			duration = currentState.Timestamp - lastRecordTimestamp
+		} else {
+			duration = lastRecordTimestamp - currentState.Timestamp
+		}
+		groupedRecord["duration"] = duration
 		groupedRecord["eventcount"] = uint64(len(records))
 		groupedRecord["transactionKey"] = transactionKey
 

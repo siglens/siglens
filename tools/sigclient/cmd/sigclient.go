@@ -128,7 +128,7 @@ var functionalTestCmd = &cobra.Command{
 
 		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		ingest.StartIngestion(ingest.ESBulk, "benchmark", "", totalEvents, false, batchSize, dest, indexPrefix,
+		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
 			indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
 		time.Sleep(sleepDuration)
