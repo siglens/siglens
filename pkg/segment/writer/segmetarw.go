@@ -367,7 +367,7 @@ func addSegmeta(segmeta structs.SegMeta) {
 // Removes segmetas based on given segkeys and returns the segbasedirs for those segkeys
 func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[string]struct{} {
 
-	if segkeysToRemove == nil {
+	if segkeysToRemove == nil && indexName == "" {
 		return nil
 	}
 
