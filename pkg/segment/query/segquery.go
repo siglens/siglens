@@ -265,7 +265,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		if len(allColsInAggs) > 0 {
 			SetAllColsInAggsForQid(qid, allColsInAggs)
 		}
-		nodeRes := GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary, qc.Orgid)
+		nodeRes := GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary)
 		nodeRes.AllColumnsInAggs = allColsInAggs
 
 		return nodeRes
@@ -332,9 +332,9 @@ func getTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
 }
 
 func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	querySummary *summary.QuerySummary, orgid uint64) *structs.NodeResult {
+	querySummary *summary.QuerySummary) *structs.NodeResult {
 
-	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, sTime, orgid)
+	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, sTime)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
@@ -664,8 +664,9 @@ func areAllRRCsFound(sr *segresults.SearchResults, qsrs []*QuerySegmentRequest, 
 }
 
 // Returns query segment requests, count of keys to raw search, count of distributed queries, count of keys in PQS
-func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, error) {
-	allUnrotatedKeys, totalChecked, totalCount := writer.FilterUnrotatedSegmentsInQuery(queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), orgid)
+func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time) ([]*QuerySegmentRequest, uint64, uint64, error) {
+	allUnrotatedKeys, totalChecked, totalCount := writer.FilterUnrotatedSegmentsInQuery(queryInfo.queryRange,
+		queryInfo.indexInfo.GetQueryTables(), queryInfo.GetOrgId())
 	log.Infof("qid=%d, Unrotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", queryInfo.qid, totalCount,
 		totalChecked, time.Since(sTime))
 	var err error
@@ -842,13 +843,13 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 }
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request
-func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
+func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
 	unsortedQsrs := make([]*QuerySegmentRequest, 0)
 	numRawSearch := uint64(0)
 	numDistributed := uint64(0)
 	numPQS := uint64(0)
 
-	unrotatedQSR, unrotatedRawCount, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, sTime, orgid)
+	unrotatedQSR, unrotatedRawCount, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, sTime)
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
@@ -857,7 +858,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid u
 	numRawSearch += unrotatedRawCount
 	numPQS += unrotatedPQSCount
 
-	rotatedQSR, rotatedRawCount, rotatedPQS, err := getAllRotatedSegmentsInQuery(queryInfo, sTime, orgid)
+	rotatedQSR, rotatedRawCount, rotatedPQS, err := getAllRotatedSegmentsInQuery(queryInfo, sTime)
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
@@ -879,9 +880,10 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid u
 }
 
 // returns sorted order of querySegmentRequests, count of keys to raw search, count of distributed queries, and count of pqs keys to raw search
-func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, error) {
+func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*QuerySegmentRequest, uint64, uint64, error) {
 	// 1. metadata.FilterSegmentsByTime gives epoch range
-	allPossibleKeys, tsPassedCount, totalPossible := segmetadata.FilterSegmentsByTime(queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), orgid)
+	allPossibleKeys, tsPassedCount, totalPossible := segmetadata.FilterSegmentsByTime(queryInfo.queryRange,
+		queryInfo.indexInfo.GetQueryTables(), queryInfo.GetOrgId())
 	log.Infof("qid=%d, Rotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", queryInfo.qid, tsPassedCount,
 		totalPossible, time.Since(sTime))
 	var err error
