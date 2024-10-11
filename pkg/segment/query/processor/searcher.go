@@ -64,7 +64,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	s.sort(blocks)
+	sortBlocks(blocks, s.sortMode)
 	endTime := s.getNextEndTime()
 	nextBlocks := s.getBlocksForTimeRange(endTime)
 	for _, block := range nextBlocks {
@@ -100,8 +100,8 @@ const (
 	anyOrder
 )
 
-func (s *searcher) sort(blocks []*block) {
-	switch s.sortMode {
+func sortBlocks(blocks []*block, mode sortMode) {
+	switch mode {
 	case anyOrder:
 		return
 	case recentFirst:
@@ -110,10 +110,10 @@ func (s *searcher) sort(blocks []*block) {
 		})
 	case recentLast:
 		sort.Slice(blocks, func(i, j int) bool {
-			return blocks[i].HighTs < blocks[j].HighTs
+			return blocks[i].LowTs < blocks[j].LowTs
 		})
 	default:
-		log.Errorf("searchProcessor.sort: invalid sort mode: %v", s.sortMode)
+		log.Errorf("searchProcessor.sort: invalid sort mode: %v", mode)
 	}
 }
 
