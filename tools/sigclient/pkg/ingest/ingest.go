@@ -360,6 +360,11 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		seed := int64(1001 + processIndex)
 		accFakerSeed := int64(10000 + processIndex)
 		rdr, err = utils.InitFunctionalUserGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
+	case "performance":
+		log.Infof("Initializing performance reader")
+		seed := int64(1001 + processIndex)
+		accFakerSeed := int64(10000 + processIndex)
+		rdr, err = utils.InitPerfTestGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)
@@ -377,6 +382,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int) *utils.GeneratorDataConfig {
 	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns)
 }
+
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,

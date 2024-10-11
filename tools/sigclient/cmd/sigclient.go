@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -146,6 +147,45 @@ var functionalTestCmd = &cobra.Command{
 	},
 }
 
+var performanceTest = &cobra.Command{
+	Use:   "performance",
+	Short: "performance testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		totalEvents := 1_000_000_000
+		batchSize := 100
+		numIndices := 10
+		processCount := 10
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+
+		logCh := make(chan utils.Log, 100)
+
+		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logCh)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func(cancel context.CancelFunc) {
+			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
+			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGenConfig)	
+			cancel()
+		}(cancel)
+		
+		go query.PerformanceTest(ctx, logCh)
+		
+	},
+}
+
+
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
@@ -197,7 +237,7 @@ var esQueryCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		outputFile, _ := cmd.Flags().GetString("outputFile")
 		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
-		lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
+		// lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -208,11 +248,11 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
-		err := query.MigrateLookups(lookupFiles)
-		if err != nil {
-			log.Fatalf("Error while migrating lookups: %v", err)
-			return
-		}
+		// err := query.MigrateLookups(lookupFiles)
+		// if err != nil {
+		// 	log.Fatalf("Error while migrating lookups: %v", err)
+		// 	return
+		// }
 
 		if filepath != "" {
 			if runResponseTime {

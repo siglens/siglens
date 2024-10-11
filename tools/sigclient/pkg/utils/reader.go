@@ -85,11 +85,23 @@ type DynamicUserGenerator struct {
 	DataConfig   *GeneratorDataConfig
 }
 
+type PerfTestGenerator struct {
+	baseBody     map[string]interface{}
+	tNowEpoch    uint64
+	ts           bool
+	faker        *gofakeit.Faker
+	seed         int64
+	accFakerSeed int64
+	accountFaker *gofakeit.Faker
+	DataConfig   *GeneratorDataConfig
+}
+
 type GeneratorDataConfig struct {
 	MaxColumns      int                   // Mximumn Number of columns per record.
 	VariableColumns bool                  // Flag to indicate variable columns per record
 	MinColumns      int                   // Minimum number of columns per record
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
+	perfTestConfig  *PerfTestConfig	   // It exclusively used for performance test
 }
 
 type FunctionalTestConfig struct {
@@ -103,7 +115,17 @@ type FunctionalTestConfig struct {
 	variableColNames   []string
 }
 
-func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
+type PerfTestConfig struct {
+	// Not sure on data
+	LogCh chan Log
+}
+
+type Log struct {
+	Data map[string]interface{}
+	Timestamp   uint64
+}
+
+func GetVariableColumnNames(maxVariableColumns int) []string {
 	varFakerSeed := 30
 
 	random := rand.New(rand.NewSource(int64(varFakerSeed)))
@@ -121,11 +143,28 @@ func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int)
 		}
 	}
 
+	return variableColNames
+}
+
+func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
 	return &GeneratorDataConfig{
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
-			variableColNames:   variableColNames,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+	}
+}
+
+func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int, logCh chan Log) *GeneratorDataConfig {
+	return &GeneratorDataConfig{
+		functionalTest: &FunctionalTestConfig{
+			FixedColumns:       fixedColumns,
+			MaxVariableColumns: maxVariableColumns,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+		perfTestConfig: &PerfTestConfig{
+			LogCh: logCh,
 		},
 	}
 }
@@ -197,6 +236,20 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 			functionalTest: functionalTest,
 		},
 	}, nil
+}
+
+func InitPerfTestGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	if dataConfig.perfTestConfig == nil {
+		return nil, fmt.Errorf("Perf test config is nil")
+	}
+	gen, err := InitFunctionalUserGenerator(ts, seed, accFakerSeed, dataConfig, processIndex)
+	if err != nil {
+		return nil, fmt.Errorf("InitPerfTestGenerator: Failed to initialize functional test generator: %v", err)
+	}
+	gen.DataConfig.perfTestConfig = &PerfTestConfig{
+		LogCh: dataConfig.perfTestConfig.LogCh,
+	}
+	return gen, nil
 }
 
 func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
@@ -498,9 +551,42 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	}
 }
 
+
+func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
+	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
+
+	data := make(map[string]interface{})
+
+	for _, col := range config.functionalTest.variableColNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	for _, col := range dynamicUserColumnNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	log := Log{
+		Data:      data,
+		Timestamp: uint64(time.Now().UnixMilli()),
+	}
+
+	select {
+		case config.perfTestConfig.LogCh <- log:
+		default:
+		// skip if the channel is full
+	}
+}
+
+
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
-		if r.DataConfig.functionalTest != nil {
+		if r.DataConfig.perfTestConfig != nil {
+			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
+		} else if r.DataConfig.functionalTest != nil {
 			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
 			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
