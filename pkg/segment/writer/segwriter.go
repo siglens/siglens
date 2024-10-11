@@ -36,7 +36,6 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -1105,72 +1104,8 @@ func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	cw.cbufidx += uint32(n)
 }
 
-func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
-	fd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
-	}
-	defer fd.Close()
-
-	for _, smentry := range segMetaEntries {
-
-		segmetajson, err := json.Marshal(*smentry)
-		if err != nil {
-			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
-		}
-
-		if _, err := fd.Write(segmetajson); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write segmeta filename=%v: err=%v", segmetaFname, err)
-		}
-
-		if _, err := fd.WriteString("\n"); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write newline filename=%v: err=%v", segmetaFname, err)
-		}
-	}
-
-	return nil
-}
-
 func GetPQMRDirFromSegKey(segKey string) string {
 	return filepath.Join(segKey, "pqmr")
-}
-
-func DeletePQSData() error {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	// Get segmeta entries
-	segMetaFilename := GetLocalSegmetaFName()
-	segmetaEntries, err := getAllSegmetas(segMetaFilename)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQS data
-	for _, smEntry := range segmetaEntries {
-		smEntry.AllPQIDs = nil
-	}
-
-	// Write back the segmeta data
-	err = WriteOverSegMeta(segMetaFilename, segmetaEntries)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to write segmeta data to %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQMR directories from segments
-	for _, smEntry := range segmetaEntries {
-		pqmrDir := GetPQMRDirFromSegKey(smEntry.SegmentKey)
-		err := os.RemoveAll(pqmrDir)
-		if err != nil {
-			log.Errorf("DeletePQSData: failed to remove pqmr dir %v, err: %v", pqmrDir, err)
-			return err
-		}
-	}
-
-	// Delete PQS meta directory
-	return pqsmeta.DeletePQMetaDir()
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,

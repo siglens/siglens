@@ -28,6 +28,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -66,9 +67,8 @@ func getSegFullMetaFnameFromSegkey(segkey string) string {
 // read only the current nodes segmeta
 func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
-	segMetaFilename := GetLocalSegmetaFName()
 	smrLock.RLock()
-	retVal, err := getAllSegmetas(segMetaFilename)
+	retVal, err := getAllSegmetas(localSegmetaFname)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
@@ -468,4 +468,75 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 
 	// TODO this should be through a channel so that we only have one writer
 	writeSfm(segkey, sfmData)
+}
+
+func DeletePQSData() error {
+
+	foundPqsidsInSegMeta := false
+	smrLock.Lock()
+	segmetaEntries, err := getAllSegmetas(localSegmetaFname)
+	if err != nil {
+		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v",
+			localSegmetaFname, err)
+		smrLock.Unlock()
+		return err
+	}
+	for _, smEntry := range segmetaEntries {
+		if len(smEntry.AllPQIDs) > 0 {
+			foundPqsidsInSegMeta = true
+		}
+		smEntry.AllPQIDs = nil
+	}
+	// Old version of Siglens will have pqsids in segmeta.json, now remove it from there
+	if foundPqsidsInSegMeta {
+		err := writeOverSegMeta(segmetaEntries)
+		if err != nil {
+			log.Errorf("DeletePQSData: failed to write segmeta.json, err: %v", err)
+			smrLock.Unlock()
+			return err
+		}
+	}
+	smrLock.Unlock()
+
+	// Remove all PQMR directories and pqsids file contents from segments
+	for _, smEntry := range segmetaEntries {
+		pqmrDir := GetPQMRDirFromSegKey(smEntry.SegmentKey)
+		err := os.RemoveAll(pqmrDir)
+		if err != nil {
+			log.Errorf("DeletePQSData: failed to remove pqmr dir %v, err: %v", pqmrDir, err)
+			return err
+		}
+
+		sfmData := &structs.SegFullMeta{ColumnNames: smEntry.ColumnNames, AllPQIDs: nil}
+		writeSfm(smEntry.SegmentKey, sfmData)
+	}
+
+	// Delete PQS meta directory
+	return pqsmeta.DeletePQMetaDir()
+}
+
+func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
+	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("writeOverSegMeta: Failed to open SegMetaFile name=%v, err:%v", localSegmetaFname, err)
+	}
+	defer fd.Close()
+
+	for _, smentry := range segMetaEntries {
+
+		segmetajson, err := json.Marshal(*smentry)
+		if err != nil {
+			return utils.TeeErrorf("writeOverSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", localSegmetaFname, err, *smentry)
+		}
+
+		if _, err := fd.Write(segmetajson); err != nil {
+			return fmt.Errorf("writeOverSegMeta: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
+		}
+
+		if _, err := fd.WriteString("\n"); err != nil {
+			return fmt.Errorf("writeOverSegMeta: failed to write newline filename=%v: err=%v", localSegmetaFname, err)
+		}
+	}
+
+	return nil
 }
