@@ -303,19 +303,19 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 
 	queryRes, err := CreateResult(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v\n err: %v", responseData, err)
 	}
 	hits, err := getHits(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v\n err: %v", responseData, err)
 	}
 	err = populateTotalMatchedAndRecords(hits, queryRes)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v, err: %v", hits, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v\n err: %v", hits, responseData, err)
 	}
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v, err: %v", query, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v\n err: %v", query, responseData, err)
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -394,23 +394,23 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 			// As query results come in chunks, we need to keep track of all the records
 			hits, err := getHits(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v\n err: %v", readEvent, err)
 			}
 			err = populateRecords(hits, tempRes)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v\n err: %v", hits, readEvent, err)
 			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v\n err: %v", readEvent, err)
 			}
 			queryRes.Records = tempRes.Records
 			populateTotalMatched(readEvent, queryRes)
 
 			err = CompareResults(queryRes, expRes, query)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v, err: %v", query, readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v\n err: %v", query, readEvent, err)
 			}
 		default:
 			return fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
