@@ -801,7 +801,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		AddNewRotatedSegment(segmeta)
+		addNewRotatedSegmeta(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {

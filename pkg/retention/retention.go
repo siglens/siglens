@@ -80,12 +80,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	currTime := time.Now()
 	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("DoRetentionBasedDeletion: Failed to read segmeta, filePath=%v, err: %v", currentSegmeta, err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta()
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
@@ -158,7 +153,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid)
 
 	// Delete all segment data
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
@@ -170,13 +165,8 @@ func DeleteEmptyIndices(ingestNodeDir string, myid uint64) {
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	segMetaEntries := writer.ReadLocalSegmeta()
 
-	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("deleteEmptyIndices: Error in reading segmeta file=%v, err: %v", currentSegmeta, err)
-		return
-	}
 	// Create a set of virtualTableName values from segMetaEntries
 	virtualTableNames := make(map[string]struct{})
 	for _, entry := range segMetaEntries {
@@ -233,12 +223,7 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, filepath=%v, err: %v", currentSegmeta, err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta()
 
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
@@ -297,14 +282,14 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 			}
 		}
 	}
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 }
 
 func getSystemVolumeBytes() (uint64, error) {
 	currentVolume := uint64(0)
 
-	allSegmetas := writer.ReadAllSegmetas()
+	allSegmetas := writer.ReadGlobalSegmetas()
 
 	allCnts := writer.GetVTableCountsForAll(0, allSegmetas)
 	writer.GetUnrotatedVTableCountsForAll(0, allCnts)
@@ -331,7 +316,7 @@ func getSystemVolumeBytes() (uint64, error) {
 	return currentVolume, nil
 }
 
-func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
+func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
 
 	if len(segmentsToDelete) == 0 {
 		return
@@ -355,7 +340,7 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 		}
 	}
 
-	writer.RemoveSegments(segmetaFile, utils.MapToSet(segmentsToDelete))
+	writer.RemoveSegments(utils.MapToSet(segmentsToDelete))
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {

@@ -150,12 +150,7 @@ func InitSsa() {
 
 func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
 	// Read segmeta entries
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("GetOldestSegmentEpoch: Failed to read segmeta, err: %v, segmeta: %v", err, currentSegmeta)
-		return 0, err
-	}
+	allSegMetas := writer.ReadLocalSegmeta()
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
@@ -337,7 +332,7 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 	totalTracesCount := uint64(0)
 	largestIndexEventCount := uint64(0)
 
-	allSegmetas := segwriter.ReadAllSegmetas()
+	allSegmetas := segwriter.ReadGlobalSegmetas()
 
 	allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
 	segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
