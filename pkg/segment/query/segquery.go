@@ -334,26 +334,38 @@ func getTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
 func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
 	querySummary *summary.QuerySummary) *structs.NodeResult {
 
-	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, sTime)
+	sortedQSRSlice, err := GetSortedQSRs(queryInfo, sTime, querySummary)
 	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to get sorted QSRs! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
 			ErrList: []error{err},
 		}
 	}
-	log.Infof("qid=%d, GetNodeResultsForRRCCmd: Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
+
+	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
+}
+
+func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *summary.QuerySummary) ([]*QuerySegmentRequest, error) {
+
+	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, sTime)
+	if err != nil {
+		log.Errorf("qid=%d GetSortedQSRs: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
+		return nil, err
+	}
+	log.Infof("qid=%d, GetSortedQSRs: Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numPQS, distributedQueries, time.Since(sTime))
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numPQS+distributedQueries)
 	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetSortedQSRs: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
 	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForRRCCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
+		log.Errorf("qid=%d GetSortedQSRs: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
 	}
 	querySummary.UpdateRemainingDistributedQueries(distributedQueries)
-	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
+
+	return sortedQSRSlice, nil
 }
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
