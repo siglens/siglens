@@ -515,7 +515,11 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             }
 
             if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
-                panelProcessEmptyQueryResults('', panelId);
+                if (res.qtype === 'segstats-query') {
+                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);  
+                } else {
+                    panelProcessEmptyQueryResults('', panelId);
+                }
             } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
                 panelProcessEmptyQueryResults('', panelId);
             } else {
