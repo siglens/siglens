@@ -81,7 +81,7 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	// continue reading/merging from individual segfiles
 	for _, smentry := range retVal {
-		sfmData := readSfm(smentry.SegmentKey)
+		sfmData, _ := readSfm(smentry.SegmentKey)
 		if sfmData == nil {
 			continue
 		}
@@ -99,7 +99,7 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 	return retVal
 }
 
-func readSfm(segkey string) *structs.SegFullMeta {
+func readSfm(segkey string) (*structs.SegFullMeta, error) {
 
 	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
 
@@ -108,15 +108,44 @@ func readSfm(segkey string) *structs.SegFullMeta {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
 		}
-		return nil
+		return nil, err
 	}
 	sfm := &structs.SegFullMeta{}
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
-		return nil
+		return nil, err
 	}
-	return sfm
+	return sfm, nil
+}
+
+func writeSfm(segkey string, sfmData *structs.SegFullMeta) {
+
+	// create a separate individual file for SegFullMeta
+	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
+	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Errorf("writeSfm: failed to open a sfm filename=%v: err=%v", sfmFname, err)
+		return
+	}
+	defer sfmFd.Close()
+
+	sfmJson, err := json.Marshal(*sfmData)
+	if err != nil {
+		log.Errorf("writeSfm: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
+			sfmData, sfmFname, err)
+		return
+	}
+	if _, err := sfmFd.Write(sfmJson); err != nil {
+		log.Errorf("writeSfm: failed to write sfm: %v: err: %v", sfmFname, err)
+		return
+	}
+
+	err = sfmFd.Sync()
+	if err != nil {
+		log.Errorf("writeSfm: failed to sync sfm: %v: err: %v", sfmFname, err)
+		return
+	}
 }
 
 // returns all segmetas downloaded, including the current nodes segmeta and all global segmetas
@@ -283,32 +312,9 @@ func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
 
 func addSegmeta(segmeta structs.SegMeta) {
 
-	// create a separate individual file for SegFullMeta
-	sfmFname := getSegFullMetaFnameFromSegkey(segmeta.SegmentKey)
-	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Errorf("addSegmeta: failed to open a sfm filename=%v: err=%v", sfmFname, err)
-		return
-	}
-	defer sfmFd.Close()
+	sfmData := &structs.SegFullMeta{ColumnNames: segmeta.ColumnNames, AllPQIDs: segmeta.AllPQIDs}
 
-	sfmData := structs.SegFullMeta{ColumnNames: segmeta.ColumnNames, AllPQIDs: segmeta.AllPQIDs}
-	sfmJson, err := json.Marshal(sfmData)
-	if err != nil {
-		log.Errorf("addSegmeta: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
-			sfmData, sfmFname, err)
-		return
-	}
-	if _, err := sfmFd.Write(sfmJson); err != nil {
-		log.Errorf("addSegmeta: failed to write sfm: %v: err: %v", sfmFname, err)
-		return
-	}
-
-	err = sfmFd.Sync()
-	if err != nil {
-		log.Errorf("addSegmeta: failed to sync sfm: %v: err: %v", sfmFname, err)
-		return
-	}
+	writeSfm(segmeta.SegmentKey, sfmData)
 
 	segmetajson, err := json.Marshal(segmeta)
 	if err != nil {
@@ -439,4 +445,27 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 	}
 
 	return segbaseDirs
+}
+
+func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
+
+	sfmData, err := readSfm(segkey)
+	if err != nil {
+		return
+	}
+
+	// it could be nil, if we didn't have any pqs data or the previous version,
+	// we used to have pqs in segmeta.json, from this version onwards, we will
+	// add it in segment specific file
+	if sfmData == nil {
+		sfmData = &structs.SegFullMeta{}
+	}
+
+	if sfmData.AllPQIDs == nil {
+		sfmData.AllPQIDs = make(map[string]bool)
+	}
+	sfmData.AllPQIDs[newpqid] = true
+
+	// TODO this should be through a channel so that we only have one writer
+	writeSfm(segkey, sfmData)
 }
