@@ -1,0 +1,4 @@
+{
+    "queryText": "search gender=*male* earliest=\"-20m@m\" latest=\"now()\" | search \"South*\" | eval host=mvindex(split(user_agent, \"/\"), -1) | eval podname=mvindex(split(user_agent,\";\"), 0) | eval env=mvindex(split(podname,\"(\"), 0) | eval podMachine=mvindex(split(podname,\"(\"),-1) | where podMachine in (X11, iPhone, Macintosh, \"Windows NT 5.0\") | stats count by podname, env | sort count | stats list(podname) as podNames, list(count) as RestartCount by env | where mvcount(podNames) >=1"
+}
+  

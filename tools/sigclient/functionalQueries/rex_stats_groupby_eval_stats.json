@@ -1,0 +1,4 @@
+{
+    "queryText": "city=Boston | rex field=url \"(?:https?://)(?<uri_segment>[^/]+)\" | fields uri_segment, app_name, url | stats count, avg(latency) as avg_response, max(latency) as max_response by uri_segment | eval response_category = case( avg_response < 500000, \"Fast\", avg_response < 1000000, \"Medium\", avg_response >= 1000000, \"Slow\") | stats count, avg(avg_response) as avg_response by response_category"
+}
+  

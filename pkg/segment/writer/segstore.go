@@ -539,14 +539,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				log.Errorf("AppendWipToSegfile: Failed to add virtual table %v for orgid %v: %v", segstore.VirtualTableName, segstore.OrgId, err)
 			}
 		}
-		// worst case, each column opens 2 files (.cmi/.csg) and 2 files for segment info (.sid, .bsu)
-		numOpenFDs := int64(len(segstore.wipBlock.colWips)*2 + 2)
-		err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFDs, 10, segstore.SegmentKey)
-		if err != nil {
-			log.Errorf("AppendWipToSegfile failed to acquire lock for opening %+v file descriptors. err %+v", numOpenFDs, err)
-			return err
-		}
-		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
@@ -568,6 +560,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
+					var err error
 					if cname == config.GetTimeStampKey() {
 						encType, err = segstore.wipBlock.encodeTimestamps()
 						if err != nil {
@@ -638,7 +631,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			allPQIDs[pqid] = true
 		}
 
-		err = segstore.FlushSegStats()
+		err := segstore.FlushSegStats()
 		if err != nil {
 			log.Errorf("AppendWipToSegfile: failed to flushsegstats, err=%v", err)
 			return err
@@ -734,6 +727,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			onTreeRotate = true
 		}
 	}
+	maxSegFileSize := config.GetMaxSegFileSize()
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {

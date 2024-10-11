@@ -119,8 +119,14 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	initSmr()
 
-	segMetas, err := GetSegMetas([]string{"key1"})
-	assert.NoError(t, err)
+	segMetasArr := ReadLocalSegmeta()
+	segMetas := make(map[string]*structs.SegMeta)
+	for _, smentry := range segMetasArr {
+		if smentry.SegmentKey == "key1" {
+			segMetas[smentry.SegmentKey] = smentry
+			break
+		}
+	}
 	assert.Empty(t, segMetas)
 
 	segMetaV1 := structs.SegMeta{
@@ -129,8 +135,16 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	}
 
 	AddOrReplaceRotatedSegment(segMetaV1)
-	segMetas, err = GetSegMetas([]string{"key1"})
-	assert.NoError(t, err)
+
+	segMetasArr = ReadLocalSegmeta()
+	segMetas = make(map[string]*structs.SegMeta)
+	for _, smentry := range segMetasArr {
+		if smentry.SegmentKey == "key1" {
+			segMetas[smentry.SegmentKey] = smentry
+			break
+		}
+	}
+
 	assert.Len(t, segMetas, 1)
 	assert.Equal(t, segMetaV1.SegmentKey, segMetas["key1"].SegmentKey)
 	assert.Equal(t, segMetaV1.RecordCount, segMetas["key1"].RecordCount)
@@ -141,8 +155,16 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	}
 
 	AddOrReplaceRotatedSegment(segMetaV2)
-	segMetas, err = GetSegMetas([]string{"key1"})
-	assert.NoError(t, err)
+
+	segMetasArr = ReadLocalSegmeta()
+	segMetas = make(map[string]*structs.SegMeta)
+	for _, smentry := range segMetasArr {
+		if smentry.SegmentKey == "key1" {
+			segMetas[smentry.SegmentKey] = smentry
+			break
+		}
+	}
+
 	assert.Len(t, segMetas, 1)
 	assert.Equal(t, segMetaV2.SegmentKey, segMetas["key1"].SegmentKey)
 	assert.Equal(t, segMetaV2.RecordCount, segMetas["key1"].RecordCount)
@@ -175,8 +197,16 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	}
 	AddOrReplaceRotatedSegment(segMeta2V2)
 
-	segMetas, err := GetSegMetas([]string{"key1", "key2", "key3"})
-	assert.NoError(t, err)
+	segMetasArr := ReadLocalSegmeta()
+	segMetas := make(map[string]*structs.SegMeta)
+	for _, smentry := range segMetasArr {
+		if smentry.SegmentKey == "key1" ||
+			smentry.SegmentKey == "key2" ||
+			smentry.SegmentKey == "key3" {
+			segMetas[smentry.SegmentKey] = smentry
+		}
+	}
+
 	assert.Len(t, segMetas, 3)
 	assert.Equal(t, segMeta1.SegmentKey, segMetas["key1"].SegmentKey)
 	assert.Equal(t, segMeta1.RecordCount, segMetas["key1"].RecordCount)

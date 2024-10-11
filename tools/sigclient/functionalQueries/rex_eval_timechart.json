@@ -1,0 +1,4 @@
+{
+    "queryText": "search index=\"ind*\" gender=*male \"You probably*\" | rex field=app_version \"(?<major>\\d+)\\.(?<minor>\\d).*\" | eval m = mvindex(split(app_version, \".\"), 0) | eval tmp = split(app_version, \".\") | mvexpand tmp | where NOT LIKE(tmp, \"%0%\") | timechart span=10m sum(minor) by major useother=f limit=0"
+}
+  

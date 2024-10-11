@@ -1,0 +1,4 @@
+{
+    "queryText": "search group=*0* | eval env=mvindex(split(url,\"/\"),0) | eval host=mvindex(split(source,\"/\"),2) | stats count(eval(response_code IN (500,501,502,503,504,505,506,507,508,509,510,511,598,599))) as not_available, count as available by env, host | eval percentage=if(not_available==0,0,(not_available/available)*100) | where percentage > 0 | fields env, host, not_available, available, percentage"
+}
+  

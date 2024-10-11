@@ -173,26 +173,6 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 	return allSegMetas, nil
 }
 
-func GetVTableCounts(vtableName string, orgid uint64) (uint64, int, uint64) {
-
-	bytesCount := uint64(0)
-	recordCount := 0
-	onDiskBytesCount := uint64(0)
-
-	allSegmetas := ReadAllSegmetas()
-	for _, segmeta := range allSegmetas {
-		if segmeta == nil {
-			continue
-		}
-		if segmeta.VirtualTableName == vtableName && segmeta.OrgId == orgid {
-			bytesCount += segmeta.BytesReceivedCount
-			recordCount += segmeta.RecordCount
-			onDiskBytesCount += segmeta.OnDiskBytes
-		}
-	}
-	return bytesCount, recordCount, onDiskBytesCount
-}
-
 func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
 
 	allvtables := make(map[string]*structs.VtableCounts)

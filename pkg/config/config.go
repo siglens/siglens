@@ -146,8 +146,8 @@ func GetS3BucketPrefix() string {
 	return runningConfig.S3.BucketPrefix
 }
 
-func GetMaxSegFileSize() *uint64 {
-	return &runningConfig.MaxSegFileSize
+func GetMaxSegFileSize() uint64 {
+	return runningConfig.MaxSegFileSize
 }
 
 func GetESVersion() *string {
