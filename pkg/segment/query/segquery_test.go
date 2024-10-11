@@ -93,7 +93,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 0, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -130,7 +130,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 1, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -159,7 +159,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -203,7 +203,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -240,7 +240,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -278,7 +278,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
