@@ -950,7 +950,8 @@ func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *
 	return nil
 }
 
-func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
+// Returns map of filename to SSR.
+func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary) (map[string]*structs.SegmentSearchRequest, error) {
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
 	if err != nil {
@@ -964,16 +965,28 @@ func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileRes
 	}
 
 	sTime := time.Now()
-	rawSearchSSR := ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange, qsr.indexInfo.GetQueryTables(), qs, qsr.qid, isQueryPersistent, qsr.pqid)
-	qs.UpdateExtractSSRTime(time.Since(sTime))
-	for _, req := range rawSearchSSR {
+	rawSearchSSRs := ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
+		qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
+	querySummary.UpdateExtractSSRTime(time.Since(sTime))
+	for _, req := range rawSearchSSRs {
 		req.SType = qsr.sType
 		req.ConsistentCValLenMap = qsr.ConsistentCValLenMap
 	}
-	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
-		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
-	for _, req := range rawSearchSSR {
+	return rawSearchSSRs, nil
+}
+
+func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
+	rawSearchSSRs, err := GetSSRsFromQSR(qsr, qs)
+	if err != nil {
+		log.Errorf("qid=%d, applyFilterOperatorRawSearchRequest: failed to get SSRs from QSR! SegKey %+v", qsr.qid, qsr.segKey)
+		return err
+	}
+
+	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
+		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
+
+	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
 			qsr.HasMatchedRrc = true
 			break
@@ -1206,30 +1219,17 @@ func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 }
 
 func applyFopFastPathSingleRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
-
-	// run through micro index check for block tracker & generate SSR
-	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
+	rawSearchSSRs, err := GetSSRsFromQSR(qsr, qs)
 	if err != nil {
-		log.Errorf("qid=%d, applyFopFastPathSingleRequest failed to get blocks, Defaulting to searching all blocks. SegKey %+v", qsr.qid, qsr.segKey)
-		blocksToRawSearch = qsr.GetEntireFileMicroIndexFilter()
+		log.Errorf("qid=%d, applyFopFastPathSingleRequest: failed to get SSRs from QSR! SegKey %+v",
+			qsr.qid, qsr.segKey)
+		return err
 	}
 
-	sTime := time.Now()
-	isQueryPersistent, err := querytracker.IsQueryPersistent([]string{qsr.tableName}, qsr.sNode)
-	if err != nil {
-		log.Errorf("qid=%d, applyFopFastPathSingleRequest: Failed to check if query is persistent!", qsr.qid)
-	}
-	rawSearchSSR := ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange, qsr.indexInfo.GetQueryTables(), qs, qsr.qid, isQueryPersistent, qsr.pqid)
-	qs.UpdateExtractSSRTime(time.Since(sTime))
-	for _, req := range rawSearchSSR {
-		req.SType = qsr.sType
-		req.ConsistentCValLenMap = qsr.ConsistentCValLenMap
-	}
+	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
+		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
-	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
-		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
-
-	for _, req := range rawSearchSSR {
+	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
 			qsr.HasMatchedRrc = true
 			break
