@@ -936,6 +936,7 @@ func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *
 	return nil
 }
 
+// Returns map of filename to SSR.
 func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary) (map[string]*structs.SegmentSearchRequest, error) {
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
@@ -962,16 +963,16 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 }
 
 func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
-	rawSearchSSR, err := GetSSRsFromQSR(qsr, qs)
+	rawSearchSSRs, err := GetSSRsFromQSR(qsr, qs)
 	if err != nil {
 		log.Errorf("qid=%d, applyFilterOperatorRawSearchRequest: failed to get SSRs from QSR! SegKey %+v", qsr.qid, qsr.segKey)
 		return err
 	}
 
-	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
+	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
 		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
-	for _, req := range rawSearchSSR {
+	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
 			qsr.HasMatchedRrc = true
 			break
@@ -1204,17 +1205,17 @@ func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 }
 
 func applyFopFastPathSingleRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
-	rawSearchSSR, err := GetSSRsFromQSR(qsr, qs)
+	rawSearchSSRs, err := GetSSRsFromQSR(qsr, qs)
 	if err != nil {
 		log.Errorf("qid=%d, applyFopFastPathSingleRequest: failed to get SSRs from QSR! SegKey %+v",
 			qsr.qid, qsr.segKey)
 		return err
 	}
 
-	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
+	err = applyFopFastPathInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
 		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
-	for _, req := range rawSearchSSR {
+	for _, req := range rawSearchSSRs {
 		if req.HasMatchedRrc {
 			qsr.HasMatchedRrc = true
 			break
