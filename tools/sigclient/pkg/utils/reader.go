@@ -36,6 +36,13 @@ import (
 	"github.com/valyala/fastrand"
 )
 
+type ConfigType uint8
+const (
+	Default ConfigType = iota
+	FunctionalTest
+	PerformanceTest
+)
+
 var json = jsoniter.ConfigFastest
 
 type Generator interface {
@@ -83,6 +90,7 @@ type DynamicUserGenerator struct {
 	accFakerSeed int64
 	accountFaker *gofakeit.Faker
 	DataConfig   *GeneratorDataConfig
+	SendData bool
 }
 
 type PerfTestGenerator struct {
@@ -97,6 +105,7 @@ type PerfTestGenerator struct {
 }
 
 type GeneratorDataConfig struct {
+	ConfigType      ConfigType
 	MaxColumns      int                   // Mximumn Number of columns per record.
 	VariableColumns bool                  // Flag to indicate variable columns per record
 	MinColumns      int                   // Minimum number of columns per record
@@ -122,7 +131,7 @@ type PerfTestConfig struct {
 
 type Log struct {
 	Data map[string]interface{}
-	Timestamp   uint64
+	Timestamp   time.Time
 }
 
 func GetVariableColumnNames(maxVariableColumns int) []string {
@@ -148,6 +157,7 @@ func GetVariableColumnNames(maxVariableColumns int) []string {
 
 func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
 	return &GeneratorDataConfig{
+		ConfigType: FunctionalTest,
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
@@ -158,6 +168,7 @@ func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int)
 
 func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int, logCh chan Log) *GeneratorDataConfig {
 	return &GeneratorDataConfig{
+		ConfigType: PerformanceTest,
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
@@ -246,6 +257,7 @@ func InitPerfTestGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *
 	if err != nil {
 		return nil, fmt.Errorf("InitPerfTestGenerator: Failed to initialize functional test generator: %v", err)
 	}
+	gen.DataConfig.ConfigType = PerformanceTest
 	gen.DataConfig.perfTestConfig = &PerfTestConfig{
 		LogCh: dataConfig.perfTestConfig.LogCh,
 	}
@@ -552,8 +564,12 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 }
 
 
-func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
+func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker, sendData bool) {
 	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
+
+	if !sendData {
+		return
+	}
 
 	data := make(map[string]interface{})
 
@@ -571,7 +587,7 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 
 	log := Log{
 		Data:      data,
-		Timestamp: uint64(time.Now().UnixMilli()),
+		Timestamp: time.Now(),
 	}
 
 	select {
@@ -579,14 +595,16 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 		default:
 		// skip if the channel is full
 	}
+
 }
 
 
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
-		if r.DataConfig.perfTestConfig != nil {
-			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
-		} else if r.DataConfig.functionalTest != nil {
+		if r.DataConfig.ConfigType == PerformanceTest {
+			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker, r.SendData)
+			r.SendData = false
+		} else if r.DataConfig.ConfigType == FunctionalTest {
 			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
 			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)

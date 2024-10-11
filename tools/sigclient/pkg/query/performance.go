@@ -19,6 +19,10 @@ package query
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,8 +47,13 @@ var Queries = []Query{
 	SearchWithAggs,
 }
 
+var pattern = `[^a-zA-Z0-9]`
+    
+// Compile the regular expression
+var patternRegex = regexp.MustCompile(pattern)
+
 // Main function that tests all the queries
-func PerformanceTest(ctx context.Context, logCh chan utils.Log) {
+func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, concurrentQueries int) {
 
 	if ctx == nil {
 		log.Fatalf("PerformanceTest: ctx or logCh is nil")
@@ -53,30 +62,125 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log) {
 		log.Fatalf("PerformanceTest: logCh is nil")
 	}
 
+	time.Sleep(10 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return			
 		default:
-			RunPerfQueries(ctx, logCh)
-			time.Sleep(5 * time.Second)	
+			wg := sync.WaitGroup{}
+			for i := 0; i < concurrentQueries; i++ {
+				wg.Add(1)
+				go func() {
+					RunPerfQueries(ctx, logCh, dest)
+					wg.Done()
+				}()
+			}
+			wg.Wait()
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
-func RunPerfQueries(ctx context.Context, logCh chan utils.Log) {
+func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 	// Run all the queries
-	wg := sync.WaitGroup{}
 	for _, query := range Queries {
-		wg.Add(1)
-		go RunPerfQuery(query, logCh, &wg)
+		select {
+		case log := <-logCh:
+			switch query {
+			case ComplexSearchQuery:
+				RunComplexSearchQuery(ctx, log, dest)
+			// case StatsQuery:
+			// 	RunStatsQuery(dest)
+			// case GroupByQuery:
+			// 	RunGroupByQuery(dest)
+			// case SearchWithAggs:
+			// 	RunSearchWithAggs(dest)
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
-	wg.Wait()
 }
 
-// Queries to be run
-func RunPerfQuery(query Query, logCh chan utils.Log, wg *sync.WaitGroup) {
+func GetStringColAndVal(data map[string]interface{}) (string, string) {
+	for k, v := range data {
+		_, isString := v.(string)
+		if isString {
+			if patternRegex.MatchString(v.(string)) {
+				continue
+			}
+			return k, v.(string)
+		}
+	}
+	return "", ""
+}
+
+func GetOp() string {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	if rng.Intn(2) == 0 {
+		return "AND"
+	}
+	return "OR"
+}
+
+func GetRandomNumber(max int) int {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return rng.Intn(max+1)
+}
+
+func GetEqualClause(col string, val string) string {
+	return col + "=" + val
+}
+
+func GetRegexClause(col string, val string) string {
+	return fmt.Sprintf(`regex %v="^%v$"`, col, val)
+}
+
+func GetFieldsClause(fields []string) string {
+	return "fields " + strings.Join(fields, ", ")
+}
+
+func GetRandomKeys(data map[string]interface{}, numKeys int) []string {
+	keys := make([]string, 0, numKeys)
+	for k := range data {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func RunComplexSearchQuery(ctx context.Context, tslog utils.Log, dest string) {
+	if wait := tslog.Timestamp.Sub(time.Now()); wait > 0 {
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return
+		}
+	}
+
+	// Get the string column and value
+	col, val := GetStringColAndVal(tslog.Data)
+	if col == "" || val == "" {
+		log.Warnf("No string column and value found in log")
+		return
+	}
+	delete(tslog.Data, col)
+	
+	col2, val2 := GetStringColAndVal(tslog.Data)
+	if col2 == "" || val2 == "" {
+		log.Warnf("No second string column and value found in log")
+		return
+	}
+	delete(tslog.Data, col2)
+
+	randomNum := GetRandomNumber(10)
+	fieldCols := GetRandomKeys(tslog.Data, randomNum)
+	fieldCols = append(fieldCols, col, col2)
+
+	// Construct the query
+	query := fmt.Sprintf(`%v | %v | %v`, GetEqualClause(col, val), GetRegexClause(col2, val2), GetFieldsClause(fieldCols))
+
 	// Run the query
-	defer wg.Done()
-	// Create and execute query
+	log.Infof("Running complex search query %v", query)
 }

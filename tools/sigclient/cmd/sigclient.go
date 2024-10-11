@@ -147,7 +147,7 @@ var functionalTestCmd = &cobra.Command{
 	},
 }
 
-var performanceTest = &cobra.Command{
+var performanceTestCmd = &cobra.Command{
 	Use:   "performance",
 	Short: "performance testing of SigLens",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -167,6 +167,7 @@ var performanceTest = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
+		concurrentQueries := 5
 
 		logCh := make(chan utils.Log, 100)
 
@@ -180,8 +181,16 @@ var performanceTest = &cobra.Command{
 			cancel()
 		}(cancel)
 		
-		go query.PerformanceTest(ctx, logCh)
+		go query.PerformanceTest(ctx, logCh, queryDest, concurrentQueries)
 		
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(1 * time.Second)
+			}
+		}
 	},
 }
 
@@ -469,6 +478,8 @@ func init() {
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
 	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
 
+	performanceTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
+
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
@@ -506,6 +517,7 @@ func init() {
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(functionalTestCmd)
+	rootCmd.AddCommand(performanceTestCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)

@@ -122,6 +122,11 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 
+	dynamicUserGen, ok := rdr.(*utils.DynamicUserGenerator)
+	if ok && dynamicUserGen.DataConfig != nil && dynamicUserGen.DataConfig.ConfigType == utils.PerformanceTest {
+		dynamicUserGen.SendData = true
+	}
+
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
 		logline, err := rdr.GetLogLine()
