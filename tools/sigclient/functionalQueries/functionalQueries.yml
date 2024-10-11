@@ -18,6 +18,7 @@ streamstats_eval.json
 streamstats_after_stats.json
 streamstats_after_grpby.json
 multi_value.json
+search_timechart_no_groupby.json
 
 ## Queries not working for multi-index
 # 9stats_groupby_2col.json
@@ -54,10 +55,7 @@ multi_value.json
 # eval_stats_groupby_with_eval_eval_where.json  // issue with stats command being only boolean
 # search_spath_search_spath_search_timechart.json // search anywhere is not supported
 # search_eval_timechart_filldown.json  // filldown command not supported
-
-## Queries that the testing tool cannot handle
-# search_timechart_no_groupby.json  // Due to grouping on timestamp
-# eval_fields_timechart.json  // Due to grouping on timestamp
+# eval_fields_timechart.json // timechart is not giving the group by values in response.
 
 ## Inconsistent results
 # tail_stats.json
