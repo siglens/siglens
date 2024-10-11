@@ -40,7 +40,6 @@ import (
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
-	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -331,41 +330,42 @@ func populateDeploymentSsa(m map[string]interface{}) {
 }
 
 func populateIngestSsa(m map[string]interface{}, myid uint64) {
-	allVirtualTableNames, _ := virtualtable.GetVirtualTableNames(myid)
 
 	totalEventCount := uint64(0)
 	totalOnDiskBytes := uint64(0)
 	totalIncomingBytes := uint64(0)
-
+	totalTracesCount := uint64(0)
 	largestIndexEventCount := uint64(0)
-	for indexName := range allVirtualTableNames {
+
+	allSegmetas := segwriter.ReadAllSegmetas()
+
+	allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
+	segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Debugf("populateIngestSsa: one of nil indexName=%v", indexName)
 			continue
 		}
-		bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts(indexName, myid)
-		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount, _ := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-		bytesReceivedCount += unrotatedBytesCount
-		eventCount += unrotatedEventCount
-		onDiskBytesCount += unrotatedOnDiskBytesCount
-		totalEventCount += uint64(eventCount)
-		totalOnDiskBytes += onDiskBytesCount
-		totalIncomingBytes += bytesReceivedCount
 
-		if totalEventCount > largestIndexEventCount {
-			largestIndexEventCount = totalEventCount
+		if indexName == "traces" {
+			totalTracesCount = uint64(cnts.RecordCount)
+		}
+
+		totalEventCount += uint64(cnts.RecordCount)
+		totalOnDiskBytes += cnts.OnDiskBytesCount
+		totalIncomingBytes += cnts.BytesCount
+
+		if cnts.RecordCount > largestIndexEventCount {
+			largestIndexEventCount = cnts.RecordCount
 		}
 	}
-	_, eventCount, _ := segwriter.GetVTableCounts("traces", myid)
-	_, unrotatedEventCount, _, _ := segwriter.GetUnrotatedVTableCounts("traces", myid)
 
-	eventCount += unrotatedEventCount
-	totalTracesCount := uint64(eventCount)
 	_, metricsDatapointsCount, _ := health.GetMetricsStats(myid)
 	m["total_event_count"] = totalEventCount
 	m["total_on_disk_bytes"] = totalOnDiskBytes
 	m["total_incoming_bytes"] = totalIncomingBytes
-	m["total_table_count"] = len(allVirtualTableNames)
+	m["total_table_count"] = len(allCnts)
 	m["largest_index_event_count"] = largestIndexEventCount
 	m["total_traces_count"] = totalTracesCount
 	m["metrics_datapoints_count"] = metricsDatapointsCount

@@ -32,7 +32,6 @@ $(document).ready(function () {
         credentials: 'include'
     })
         .then((_res) => {
-            let iToken="";
             {{ if .TestDataSendData }}
                 {{ .TestDataSendData }}
             {{ else }}
@@ -79,11 +78,10 @@ $(document).ready(function () {
             case 'Splunk HEC':
                 $('#platform-input').val(selectedLogSource);
                 $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
-                curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
+                curlCommand = 'curl -X POST "' + baseUrl + ':8081/services/collector/event" \\\n' +
                     '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
                     ingestCmd +
-                    '-d \'{ "index" : { "_index" : "test" } }\n' +
-                    '{ "name" : "john", "age":"23" }\'';
+                    '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
                 $('#verify-command').text(curlCommand);
                 break;
             case 'Send Test Data':
