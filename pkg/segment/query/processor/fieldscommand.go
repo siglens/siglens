@@ -33,3 +33,7 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *fieldsProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *fieldsProcessor) Cleanup() {
+	panic("not implemented")
+}

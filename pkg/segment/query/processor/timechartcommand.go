@@ -33,3 +33,7 @@ func (p *timechartProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *timechartProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *timechartProcessor) Cleanup() {
+	panic("not implemented")
+}

@@ -55,3 +55,7 @@ func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *headProcessor) Rewind() {
 	panic("not implemented")
 }
+
+func (p *headProcessor) Cleanup() {
+	panic("not implemented")
+}
