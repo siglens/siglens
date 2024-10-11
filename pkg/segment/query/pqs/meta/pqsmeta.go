@@ -21,16 +21,28 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-	"sync"
+	"path/filepath"
 
 	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
 )
 
-var allEmptyPersistentQueryResultsLock sync.RWMutex
+var pqMetaDirName string
 
 func init() {
-	allEmptyPersistentQueryResultsLock = sync.RWMutex{}
+
+	pqMetaDirName = filepath.Join(config.GetDataPath(),
+		"querynodes",
+		config.GetHostID(),
+		"pqmeta")
+
+	if _, err := os.Stat(pqMetaDirName); os.IsNotExist(err) {
+		err := os.MkdirAll(pqMetaDirName, os.FileMode(0764))
+		if err != nil {
+			log.Errorf("psqmeta:init: Failed to create directory at %s: Error=%v",
+				pqMetaDirName, err)
+		}
+	}
 }
 
 func GetAllEmptySegmentsForPqid(pqid string) (map[string]bool, error) {
@@ -40,8 +52,6 @@ func GetAllEmptySegmentsForPqid(pqid string) (map[string]bool, error) {
 
 func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	allEmptyPQS := make(map[string]bool)
-	allEmptyPersistentQueryResultsLock.RLock()
-	defer allEmptyPersistentQueryResultsLock.RUnlock()
 	fd, err := os.OpenFile(emptyPQSFilename, os.O_CREATE|os.O_RDONLY, 0764)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -52,15 +62,6 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	}
 	defer fd.Close()
 
-	fileInfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("getAllEmptyPQSToMap: Cannot stat filename file=%v, =%v", emptyPQSFilename, err)
-		return nil, err
-	}
-	if fileInfo.Size() == 0 {
-		return allEmptyPQS, nil
-	}
-
 	err = json.NewDecoder(fd).Decode(&allEmptyPQS)
 	if err != nil {
 		log.Errorf("getAllEmptyPQSToMap: Cannot decode json data from file=%v, err =%v", emptyPQSFilename, err)
@@ -70,25 +71,13 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	return allEmptyPQS, nil
 }
 
-func getPqmetaDirectory() string {
-	dirName := config.GetDataPath() + "querynodes" + "/" + config.GetHostID() + "/" + "pqmeta"
-	return dirName
-}
-
 func getPqmetaFilename(pqid string) string {
-	dirName := getPqmetaDirectory()
-	fileName := dirName + "/" + pqid + ".meta"
+	fileName := filepath.Join(pqMetaDirName, pqid, ".meta")
 	return fileName
 }
 
 func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
-	dirName := getPqmetaDirectory()
-	if _, err := os.Stat(dirName); os.IsNotExist(err) {
-		err := os.MkdirAll(dirName, os.FileMode(0764))
-		if err != nil {
-			log.Errorf("AddEmptyResults: Failed to create directory at %s: Error=%v", dirName, err)
-		}
-	}
+
 	fileName := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
@@ -101,8 +90,6 @@ func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
 }
 
 func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {
-	allEmptyPersistentQueryResultsLock.Lock()
-	defer allEmptyPersistentQueryResultsLock.Unlock()
 	fd, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0764)
 	if err != nil {
 		log.Errorf("WriteEmptyPQS: Error opening file at fname=%v, err=%v", fileName, err)
@@ -169,10 +156,10 @@ func DeleteSegmentFromPqid(pqid string, segKey string) {
 }
 
 func DeletePQMetaDir() error {
-	dirName := getPqmetaDirectory()
-	err := os.RemoveAll(dirName)
+	err := os.RemoveAll(pqMetaDirName)
 	if err != nil {
-		log.Errorf("DeleteAllPQMetaFiles: Error deleting directory at %v, Error=%v", dirName, err)
+		log.Errorf("DeleteAllPQMetaFiles: Error deleting directory at %v, Error=%v",
+			pqMetaDirName, err)
 		return err
 	}
 	return nil
