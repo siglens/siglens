@@ -72,7 +72,7 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 }
 
 func getPqmetaFilename(pqid string) string {
-	fileName := filepath.Join(pqMetaDirName, pqid, ".meta")
+	fileName := filepath.Join(pqMetaDirName, pqid+".meta")
 	return fileName
 }
 
