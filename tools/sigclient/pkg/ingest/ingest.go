@@ -393,9 +393,8 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	currentTime := time.Now().UTC()
 	endTimestamp := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), currentTime.Hour(), 0, 0, 0, time.UTC) // truncate to the hour
 
-	var dataGeneratorConfig *utils.GeneratorDataConfig
-	if iDataGeneratorConfig != nil {
-		dataGeneratorConfig = iDataGeneratorConfig.(*utils.GeneratorDataConfig)
+	dataGeneratorConfig := iDataGeneratorConfig.(*utils.GeneratorDataConfig)
+	if dataGeneratorConfig != nil {
 		dataGeneratorConfig.EndTimestamp = endTimestamp
 	}
 
