@@ -128,7 +128,7 @@ var functionalTestCmd = &cobra.Command{
 		sleepDuration := 15 * time.Second
 
 		if longer {
-			totalEvents = 100_000
+			totalEvents = 20_000_000
 			batchSize = 100
 			numIndices = 10
 			processCount = 10
