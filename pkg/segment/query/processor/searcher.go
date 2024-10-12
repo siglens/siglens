@@ -37,6 +37,7 @@ type block struct {
 	*structs.BlockSummary
 	*structs.BlockMetadataHolder
 	parentSSR *structs.SegmentSearchRequest
+	filename  string
 }
 
 type searcher struct {
@@ -73,8 +74,8 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	sortBlocks(blocks, s.sortMode)
 	endTime := s.getNextEndTime()
 	nextBlocks := s.getBlocksForTimeRange(endTime)
-	for _, block := range nextBlocks {
-		rrcs, err := s.readRRCs(block)
+	for _, nextBlock := range nextBlocks {
+		rrcs, err := s.readRRCs([]*block{nextBlock})
 		if err != nil {
 			log.Errorf("searchProcessor.fetchRRCs: failed to read RRCs: %v", err)
 			return nil, err
@@ -109,8 +110,8 @@ func (s *searcher) getBlocks() ([]*block, error) {
 			return nil, err
 		}
 
-		for _, ssr := range fileToSSR {
-			blocks := makeBlocksFromSSR(ssr)
+		for file, ssr := range fileToSSR {
+			blocks := makeBlocksFromSSR(file, ssr)
 			allBlocks = append(allBlocks, blocks...)
 		}
 	}
@@ -118,7 +119,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 	return allBlocks, nil
 }
 
-func makeBlocksFromSSR(ssr *structs.SegmentSearchRequest) []*block {
+func makeBlocksFromSSR(filename string, ssr *structs.SegmentSearchRequest) []*block {
 	blocks := make([]*block, 0, len(ssr.AllBlocksToSearch))
 
 	for blockNum, blockMeta := range ssr.AllBlocksToSearch {
@@ -126,6 +127,7 @@ func makeBlocksFromSSR(ssr *structs.SegmentSearchRequest) []*block {
 			BlockSummary:        ssr.SearchMetadata.BlockSummaries[blockNum],
 			BlockMetadataHolder: blockMeta,
 			parentSSR:           ssr,
+			filename:            filename,
 		})
 	}
 
@@ -166,8 +168,13 @@ func (s *searcher) getBlocksForTimeRange(endTime uint64) []*block {
 	panic("not implemented")
 }
 
-func (s *searcher) readRRCs(block *block) ([]*segutils.RecordResultContainer, error) {
-	allSegRequests := block.GetSSRs()
+func (s *searcher) readRRCs(blocks []*block) ([]*segutils.RecordResultContainer, error) {
+	allSegRequests, err := getSSRs(blocks)
+	if err != nil {
+		log.Errorf("searchProcessor.readRRCs: failed to get SSRs: %v", err)
+		return nil, err
+	}
+
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
 	timeRange := s.queryInfo.GetQueryRange()
@@ -193,8 +200,34 @@ func (s *searcher) readRRCs(block *block) ([]*segutils.RecordResultContainer, er
 	return searchResults.GetResults(), nil
 }
 
-func (block *block) GetSSRs() map[string]*structs.SegmentSearchRequest {
-	panic("not implemented")
+// All of the blocks should be for the same SSR.
+func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
+
+	// Each block should have come from the same SSR.
+	firstSSR := blocks[0].parentSSR
+	for _, block := range blocks {
+		if block.parentSSR != firstSSR {
+			return nil, toputils.TeeErrorf("searchProcessor.getSSRs: blocks are from different SSRs")
+		}
+	}
+
+	fileToSSR := make(map[string]*structs.SegmentSearchRequest)
+	for _, block := range blocks {
+		ssr, ok := fileToSSR[block.filename]
+		if !ok {
+			ssrCopy := *firstSSR
+			ssrCopy.AllBlocksToSearch = make(map[uint16]*structs.BlockMetadataHolder)
+			fileToSSR[block.filename] = &ssrCopy
+			ssr = &ssrCopy
+		}
+
+		ssr.AllBlocksToSearch[block.BlkNum] = block.BlockMetadataHolder
+	}
+
+	return fileToSSR, nil
 }
 
 func (s *searcher) mergeRRCs(rrcs []*segutils.RecordResultContainer) {
