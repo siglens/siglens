@@ -73,7 +73,12 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	sortBlocks(blocks, s.sortMode)
 	endTime := getNextEndTime(blocks, s.sortMode)
-	nextBlocks := s.getBlocksForTimeRange(endTime)
+	nextBlocks, err := getBlocksForTimeRange(blocks, s.sortMode, endTime)
+	if err != nil {
+		log.Errorf("searchProcessor.fetchRRCs: failed to get blocks for time range: %v", err)
+		return nil, err
+	}
+
 	for _, nextBlock := range nextBlocks {
 		rrcs, err := s.readRRCs([]*block{nextBlock})
 		if err != nil {
@@ -179,8 +184,33 @@ func getNextEndTime(sortedBlocks []*block, mode sortMode) uint64 {
 	}
 }
 
-func (s *searcher) getBlocksForTimeRange(endTime uint64) []*block {
-	panic("not implemented")
+func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*block, error) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
+
+	selectedBlocks := make([]*block, 0)
+
+	switch mode {
+	case recentFirst:
+		for _, block := range blocks {
+			if block.HighTs >= endTime {
+				selectedBlocks = append(selectedBlocks, block)
+			}
+		}
+	case recentLast:
+		for _, block := range blocks {
+			if block.LowTs <= endTime {
+				selectedBlocks = append(selectedBlocks, block)
+			}
+		}
+	case anyOrder:
+		selectedBlocks = blocks[0:]
+	default:
+		return nil, toputils.TeeErrorf("getBlocksForTimeRange: invalid sort mode: %v", mode)
+	}
+
+	return selectedBlocks, nil
 }
 
 func (s *searcher) readRRCs(blocks []*block) ([]*segutils.RecordResultContainer, error) {

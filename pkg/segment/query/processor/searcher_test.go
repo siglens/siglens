@@ -110,6 +110,50 @@ func Test_getNextEndTime(t *testing.T) {
 	assert.Equal(t, uint64(20), endTime)
 }
 
+func Test_getBlocksForTimeRange_recentFirst(t *testing.T) {
+	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 40, low: 15},
+		{high: 30, low: 25},
+		{high: 20, low: 5},
+		{high: 10, low: 8},
+	})
+
+	selectedBlocks, err := getBlocksForTimeRange(blocksSortedHigh, recentFirst, 25)
+	assert.NoError(t, err)
+	expectedBlocks := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 40, low: 15},
+		{high: 30, low: 25},
+	})
+
+	assert.Equal(t, len(expectedBlocks), len(selectedBlocks))
+	for i, block := range selectedBlocks {
+		assert.Equal(t, expectedBlocks[i].HighTs, block.HighTs)
+		assert.Equal(t, expectedBlocks[i].LowTs, block.LowTs)
+	}
+}
+
+func Test_getBlocksForTimeRange_recentLast(t *testing.T) {
+	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 20, low: 5},
+		{high: 10, low: 8},
+		{high: 30, low: 25},
+		{high: 40, low: 15},
+	})
+
+	selectedBlocks, err := getBlocksForTimeRange(blocksSortedLow, recentLast, 10)
+	assert.NoError(t, err)
+	expectedBlocks := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 20, low: 5},
+		{high: 10, low: 8},
+	})
+
+	assert.Equal(t, len(expectedBlocks), len(selectedBlocks))
+	for i, block := range selectedBlocks {
+		assert.Equal(t, expectedBlocks[i].HighTs, block.HighTs)
+		assert.Equal(t, expectedBlocks[i].LowTs, block.LowTs)
+	}
+}
+
 func Test_getSSRs(t *testing.T) {
 	blockMeta1 := &structs.BlockMetadataHolder{BlkNum: 1}
 	blockMeta2 := &structs.BlockMetadataHolder{BlkNum: 2}
