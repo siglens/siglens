@@ -160,14 +160,14 @@ var performanceTestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
 		totalEvents := 1_000_000_000
-		batchSize := 10
+		batchSize := 50
 		numIndices := 10
 		processCount := 10
 		indexPrefix := "ind"
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		concurrentQueries := 2
+		concurrentQueries := 5
 
 		logCh := make(chan utils.Log, 1000)
 

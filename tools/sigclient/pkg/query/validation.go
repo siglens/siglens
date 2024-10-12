@@ -685,7 +685,7 @@ func ValidateGroupByQueryResults(queryRes *Result, expRes *Result) error {
 
 func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string) error {
 	if queryRes == nil {
-		return fmt.Errorf("Query result is nil")
+		return fmt.Errorf("PerfValidateSearchQueryResult: Query result is nil")
 	}
 
 	var matched float64
@@ -695,48 +695,49 @@ func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string) erro
 	} else {
 		totalMatched, isMap := queryRes.TotalMatched.(map[string]interface{})
 		if !isMap {
-			return fmt.Errorf("TotalMatched is not a map")
+			return fmt.Errorf("PerfValidateSearchQueryResult: TotalMatched is not a map")
 		}
 		matched, isFloat = totalMatched["value"].(float64)
 		if !isFloat {
-			return fmt.Errorf("TotalMatched value is not a float")
+			return fmt.Errorf("PerfValidateSearchQueryResult: TotalMatched value is not a float")
 		}
 	}
 
 	// totalMatched count should be greater than 0
 	if matched == 0 {
-		return fmt.Errorf("Total matched is 0")
+		return fmt.Errorf("PerfValidateSearchQueryResult: Total matched is 0")
 	}
 
 	// Validate if number of records are greater than 0.
 	if len(queryRes.Records) == 0 {
-		return fmt.Errorf("No records found")
+		return fmt.Errorf("PerfValidateSearchQueryResult: No records found")
 	}
 
+	commonLock.RLock()
 	fixedColumns = utils.RemoveValues(fixedColumns, colsToIgnore)
-	sort.Strings(fixedColumns)
-
 	queryRes.ColumnsOrder = utils.RemoveValues(queryRes.ColumnsOrder, colsToIgnore)
+	queryRes.AllColumns = utils.RemoveValues(queryRes.AllColumns, colsToIgnore)
+	commonLock.RUnlock()
+
+	sort.Strings(fixedColumns)
 
 	// Validate columns order
 	equal := reflect.DeepEqual(fixedColumns, queryRes.ColumnsOrder)
 	if !equal {
-		return fmt.Errorf("Fixed columns order mismatch, expected: %v got: %v", fixedColumns, queryRes.ColumnsOrder)
+		return fmt.Errorf("PerfValidateSearchQueryResult: Fixed columns order mismatch, expected: %v got: %v", fixedColumns, queryRes.ColumnsOrder)
 	}
-
-	queryRes.AllColumns = utils.RemoveValues(queryRes.AllColumns, colsToIgnore)
 
 	// validate all columns
 	equal = utils.ElementsMatch(fixedColumns, queryRes.AllColumns)
 	if !equal {
-		return fmt.Errorf("Fixed columns mismatch, expected: %v got: %v", fixedColumns, queryRes.AllColumns)
+		return fmt.Errorf("PerfValidateSearchQueryResult: Fixed columns mismatch, expected: %v got: %v", fixedColumns, queryRes.AllColumns)
 	}
 
 	// validate if all fixed columns have values
 	for _, record := range queryRes.Records {
 		for _, col := range fixedColumns {
 			if _, ok := record[col]; !ok {
-				return fmt.Errorf("Fixed column %v not found in record: %v", col, record)
+				return fmt.Errorf("PerfValidateSearchQueryResult: Fixed column %v not found in record: %v", col, record)
 			}
 		}
 	}
@@ -765,6 +766,63 @@ func GetFloatValueFromMap(data map[string]interface{}, key string) (float64, boo
 	return 0, false, false
 }
 
+func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, statsColValue float64) error {
+	measureVal, isNumeric, _ := GetFloatValueFromMap(measureResult.MeasureVal, measureFunc)
+	if !isNumeric {
+		return fmt.Errorf("PerfValidateMeasureResult: Measure measureFunc: %v value is not a number, measureVal: %v, received type: %T", measureFunc, measureResult.MeasureVal[measureFunc], measureResult.MeasureVal[measureFunc])
+	}
+	// There is no way to validate sum without knowing all the values
+	switch measureFunc {
+	case "count", "dc":
+		if measureVal < 1 {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure %v value is less than 1, got: %v", measureFunc, measureVal)
+		}
+	case "avg":
+		minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
+		if !isFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: avg: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
+		}
+		if !isMinAvailable {
+			// cannot validate average without min value
+			return nil
+		}
+		if measureVal < minVal {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure avg value is less than min value, avg: %v, min: %v", measureVal, minVal)
+		}
+	case "min":
+		if measureVal > statsColValue {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure min value is greater than stats column value, min: %v, statsColValue: %v", measureVal, statsColValue)
+		}
+	case "max":
+		if measureVal < statsColValue {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure %v value is less than stats column value, max: %v, statsColValue: %v", measureFunc, measureVal, statsColValue)
+		}
+	case "range":
+		minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
+		if !isFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: range: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
+		}
+		if !isMinAvailable {
+			// cannot validate range without min value
+			return nil
+		}
+		maxVal, isFloat, isMaxAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "max")
+		if !isFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: range: Measure max value is not a number, received type: %T", measureResult.MeasureVal["max"])
+		}
+		if !isMaxAvailable {
+			// cannot validate range without max value
+			return nil
+		}
+		tolerancePercentage := 1e-5
+		if !utils.AlmostEqual(measureVal, maxVal-minVal, tolerancePercentage) {
+			return fmt.Errorf("PerfValidateMeasureResult: range: Measure range value is not equal to max-min, range: %v, max: %v, min: %v", measureVal, maxVal, minVal)
+		}
+	}
+
+	return nil
+}
+
 func PerfValidateStatsQueryResult(queryRes *Result, measureFuncs []string, statsColValue float64) error {
 
 	if queryRes == nil {
@@ -774,74 +832,66 @@ func PerfValidateStatsQueryResult(queryRes *Result, measureFuncs []string, stats
 	// Validate measure functions
 	equal := utils.ElementsMatch(measureFuncs, queryRes.MeasureFunctions)
 	if !equal {
-		return fmt.Errorf("Measure functions mismatch, expected: %v got: %v", measureFuncs, queryRes.MeasureFunctions)
+		return fmt.Errorf("PerfValidateStatsQueryResult: Measure functions mismatch, expected: %v got: %v", measureFuncs, queryRes.MeasureFunctions)
 	}
 
 	if len(queryRes.MeasureResults) != 1 {
-		return fmt.Errorf("Unexpected number of measure results measure results, expected: 1 got: %v", len(queryRes.MeasureResults))
+		return fmt.Errorf("PerfValidateStatsQueryResult: Unexpected number of measure results measure results, expected: 1 got: %v", len(queryRes.MeasureResults))
 	}
 
 	measureResult := queryRes.MeasureResults[0]
 	for _, measureFunc := range measureFuncs {
 		if _, ok := measureResult.MeasureVal[measureFunc]; !ok {
-			return fmt.Errorf("Measure function %v not found in measure results", measureFunc)
+			return fmt.Errorf("PerfValidateStatsQueryResult: Measure function %v not found in measure results", measureFunc)
 		}
 	}
 
 	for _, measureFunc := range measureFuncs {
-		measureVal, isNumeric, _ := GetFloatValueFromMap(measureResult.MeasureVal, measureFunc)
-		if !isNumeric {
-			return fmt.Errorf("Measure measureFunc: %v value is not a number, measureVal: %v, received type: %T", measureFunc, measureResult.MeasureVal[measureFunc], measureResult.MeasureVal[measureFunc])
+		err := PerfValidateMeasureResult(measureResult, measureFunc, statsColValue)
+		if err != nil {
+			return fmt.Errorf("PerfValidateStatsQueryResult: Error validating measure function %v, err: %v", measureFunc, err)
 		}
-		switch measureFunc {
-		case "count", "dc":
-			if measureVal < 1 {
-				return fmt.Errorf("Measure %v value is less than 1, got: %v", measureFunc, measureVal)
+	}
+
+	return nil
+}
+
+func PerfValidateGroupByQueryResult(queryRes *Result, groupByCols []string, buckets int, measureFuncs []string) error {
+	if queryRes == nil {
+		return fmt.Errorf("Query result is nil")
+	}
+
+	// Validate group by columns
+	equal := utils.ElementsMatch(groupByCols, queryRes.GroupByCols)
+	if !equal {
+		return fmt.Errorf("PerfValidateGroupByQueryResult: Group by columns mismatch, expected: %v got: %v", groupByCols, queryRes.GroupByCols)
+	}
+
+	if queryRes.BucketCount != buckets {
+		return fmt.Errorf("PerfValidateGroupByQueryResult: Bucket count mismatch, expected: %v got: %v", buckets, queryRes.BucketCount)
+	}
+
+	if len(queryRes.MeasureResults) != buckets {
+		return fmt.Errorf("PerfValidateGroupByQueryResult: Unexpected number of measure results, expected: %v got: %v", buckets, len(queryRes.MeasureResults))
+	}
+
+	for _, measureResult := range queryRes.MeasureResults {
+		for _, measureFunc := range measureFuncs {
+			if _, ok := measureResult.MeasureVal[measureFunc]; !ok {
+				return fmt.Errorf("PerfValidateGroupByQueryResult: Measure function %v not found in MeasureVal: %v", measureFunc, measureResult.MeasureVal)
 			}
-		case "avg":
-			minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
-			if !isFloat {
-				return fmt.Errorf("avg: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
-			}
-			if !isMinAvailable {
-				// cannot validate average without min value
+		}
+		for _, measureFunc := range measureFuncs {
+			if measureFunc == "min" || measureFunc == "max" {
+				// We do not have the specific column value for the group by result so ignore these functions
 				continue
 			}
-			if measureVal < minVal {
-				return fmt.Errorf("Measure avg value is less than min value, avg: %v, min: %v", measureVal, minVal)
-			}
-		case "min":
-			if measureVal > statsColValue {
-				return fmt.Errorf("Measure min value is greater than stats column value, min: %v, statsColValue: %v", measureVal, statsColValue)
-			}
-		case "max":
-			if measureVal < statsColValue {
-				return fmt.Errorf("Measure %v value is less than stats column value, max: %v, statsColValue: %v", measureFunc, measureVal, statsColValue)
-			}
-		case "range":
-			minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
-			if !isFloat {
-				return fmt.Errorf("range: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
-			}
-			if !isMinAvailable {
-				// cannot validate range without min value
-				continue
-			}
-			maxVal, isFloat, isMaxAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "max")
-			if !isFloat {
-				return fmt.Errorf("range: Measure max value is not a number, received type: %T", measureResult.MeasureVal["max"])
-			}
-			if !isMaxAvailable {
-				// cannot validate range without max value
-				continue
-			}
-			tolerancePercentage := 1e-5
-			if !utils.AlmostEqual(measureVal, maxVal-minVal, tolerancePercentage) {
-				return fmt.Errorf("range: Measure range value is not equal to max-min, range: %v, max: %v, min: %v", measureVal, maxVal, minVal)
+			err := PerfValidateMeasureResult(measureResult, measureFunc, 0)
+			if err != nil {
+				return fmt.Errorf("PerfValidateGroupByQueryResult: Error validating measure function %v, err: %v", measureFunc, err)
 			}
 		}
 	}
 
 	return nil
-
 }

@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"verifier/pkg/utils"
@@ -44,17 +45,18 @@ const (
 
 var Queries = []Query{
 	ComplexSearchQuery,
-	StatsQuery,
+	// StatsQuery,
 	GroupByQuery,
-	SearchWithAggs,
 }
 
 var pattern = `[^a-zA-Z0-9]`
 
+var globalQid = int64(0)
+
 // Compile the regular expression
 var patternRegex = regexp.MustCompile(pattern)
 
-const WAIT_DURATION_FOR_LOGS = 30 * time.Second
+const WAIT_DURATION_FOR_LOGS = 10 * time.Second
 
 var colsToIgnore = map[string]struct{}{
 	"_index":                       struct{}{},
@@ -70,6 +72,18 @@ var colsToIgnore = map[string]struct{}{
 	"timestamp":                    struct{}{},
 }
 
+var lowCardCols = map[string]int{
+	"gender":      2,
+	"bool_col":    2,
+	"http_method": 6,
+}
+
+var commonLock = &sync.RWMutex{}
+
+func GetQid() int64 {
+	return atomic.AddInt64(&globalQid, 1)
+}
+
 // Main function that tests all the queries
 func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, concurrentQueries int, variableColNames []string) {
 
@@ -80,9 +94,11 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, con
 		log.Fatalf("PerformanceTest: logCh is nil")
 	}
 
+	commonLock.Lock()
 	for _, col := range variableColNames {
 		colsToIgnore[col] = struct{}{}
 	}
+	commonLock.Unlock()
 
 	for {
 		select {
@@ -105,33 +121,30 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, con
 func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 
 	// Run all the queries _, query := range Queries
-	var err error
-	for {
+	for _, query := range Queries {
+		var err error
 		select {
 		case logReceived := <-logCh:
 			if wait := logReceived.Timestamp.Add(WAIT_DURATION_FOR_LOGS).Sub(time.Now()); wait > 0 {
-				log.Errorf("Waiting for %v", wait)
+				log.Warnf("Waiting for %v", wait)
 				select {
 				case <-time.After(wait):
 				case <-ctx.Done():
 					return
 				}
 			}
-			// switch query {
-			// case ComplexSearchQuery:
-			// 	RunComplexSearchQuery(logReceived, dest)
-
-			// case StatsQuery:
-			err = RunStatsQuery(logReceived, dest)
-			if err != nil {
-				log.Errorf("Error running Stats query: %v", err)
+			qid := GetQid()
+			switch query {
+			case ComplexSearchQuery:
+				err = RunComplexSearchQuery(logReceived, dest, int(qid))
+			case StatsQuery:
+				// err = RunStatsQuery(logReceived, dest)
+			case GroupByQuery:
+				err = RunGroupByQuery(logReceived, dest, int(qid))
 			}
-			return
-			// case GroupByQuery:
-			// 	RunGroupByQuery(dest)
-			// case SearchWithAggs:
-			// 	RunSearchWithAggs(dest)
-			// }
+			if err != nil {
+				log.Fatalf("RunPerfQueries: qid=%v, Error running query: %v, err: %v", qid, query, err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -198,34 +211,36 @@ func GetRandomKeys(data map[string]interface{}, numKeys int) []string {
 	return keys
 }
 
-func BuildStatsQuery(field string, measureFuncs []string) string {
-	base := "* | stats "
-	for i, measureFunc := range measureFuncs {
-		base += measureFunc + "(" + field + ") as " + measureFunc
-		if i != len(measureFuncs)-1 {
-			base += ", "
-		}
-	}
-	return base
-}
-
-func RunStatsQuery(tslog utils.Log, dest string) error {
-
+func BuildStatsQuery(measureFuncs []string) (string, string) {
 	// http_status, latency, longitude, latitude
 	defaultStatsFields := []string{"http_status", "latency", "longitude", "latitude"}
 
 	statsCol := defaultStatsFields[GetRandomNumber(len(defaultStatsFields)-1)]
+
+	base := "* | stats "
+	for i, measureFunc := range measureFuncs {
+		base += measureFunc + "(" + statsCol + ") as " + measureFunc
+		if i != len(measureFuncs)-1 {
+			base += ", "
+		}
+	}
+
+	return base, statsCol
+}
+
+func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
+
 	measureFuncs := []string{"avg", "sum", "min", "max", "count", "range", "dc"}
 
-	query := BuildStatsQuery(statsCol, measureFuncs)
+	query, statsCol := BuildStatsQuery(measureFuncs)
 
 	statsColValue, exist := tslog.Data[statsCol]
 	if !exist {
-		return fmt.Errorf("Stats column %v not found in log", statsCol)
+		return fmt.Errorf("RunStatsQuery: Stats column %v not found in log", statsCol)
 	}
 	floatStatsColValue, isNumeric := ConvertToFloat(statsColValue, false)
 	if !isNumeric {
-		return fmt.Errorf("Stats column %v is not numeric", statsCol)
+		return fmt.Errorf("RunStatsQuery: Stats column %v is not numeric", statsCol)
 	}
 
 	// Default values
@@ -243,58 +258,54 @@ func RunStatsQuery(tslog utils.Log, dest string) error {
 		"queryLanguage": queryLanguage,
 	}
 
-	log.Infof("RunQuery: qid=%v, Running query: %v got: %v start: %v, end: %v", 1, query, tslog.Timestamp, startTime, endTime)
-	// queryRes, err := GetQueryResultForWebSocket(dest, queryReq, 1)
-	// if err != nil {
-	// 	return fmt.Errorf("Error running query: %v", err)
-	// }
-	// log.Warnf("Query result: %v", queryRes)
-
-	// // Validate the query result
-	// err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
-	// if err != nil {
-	// 	return fmt.Errorf("Error validating query for Websocket Response: %v, err: %v", query, err)
-	// }
-
-	queryRes, err := GetQueryResultForAPI(dest, queryReq, 1)
+	log.Infof("RunQuery: qid=%v, Running query: %v", qid, query)
+	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, 1)
 	if err != nil {
-		return fmt.Errorf("Error running query: %v", err)
+		return fmt.Errorf("RunStatsQuery: Error running query via websocket, err: %v", err)
 	}
 
 	// Validate the query result
 	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
 	if err != nil {
-		return fmt.Errorf("Error validating query for API response: %v, err: %v", query, err)
+		return fmt.Errorf("RunStatsQuery: Error validating query for websocket: %v, err: %v", query, err)
 	}
 
-	log.Infof("Query: %v passed successfully", query)
+	queryRes, err = GetQueryResultForAPI(dest, queryReq, 1)
+	if err != nil {
+		return fmt.Errorf("RunStatsQuery: Error running query via API: %v", err)
+	}
+
+	// Validate the query result
+	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
+	if err != nil {
+		return fmt.Errorf("RunStatsQuery: Error validating query for API: %v, err: %v", query, err)
+	}
+
+	log.Infof("RunStatsQuery: qid=%v, Query: %v passed successfully", qid, query)
 	return nil
 }
 
-func RunComplexSearchQuery(tslog utils.Log, dest string) {
+func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	// Get the string column and value
-	col, val := GetStringColAndVal(tslog.Data)
-	if col == "" || val == "" {
-		log.Warnf("No string column and value found in log")
-		return
+	strCol1, strVal1 := GetStringColAndVal(tslog.Data)
+	if strCol1 == "" || strVal1 == "" {
+		return fmt.Errorf("RunComplexSearchQuery: No string column and value found in log")
 	}
-	delete(tslog.Data, col)
+	delete(tslog.Data, strCol1)
 
-	col2, val2 := GetStringColAndVal(tslog.Data)
-	if col2 == "" || val2 == "" {
-		log.Warnf("No second string column and value found in log")
-		return
+	strCol2, strVal2 := GetStringColAndVal(tslog.Data)
+	if strCol2 == "" || strVal2 == "" {
+		return fmt.Errorf("RunComplexSearchQuery: No second string column and value found in log")
 	}
-	delete(tslog.Data, col2)
+	delete(tslog.Data, strCol2)
 
-	col3, val3 := GetNumericColAndVal(tslog.Data)
-	if col3 == "" || val3 == "" {
-		log.Warnf("No numeric column and value found in log")
-		return
+	numCol1, numVal1 := GetNumericColAndVal(tslog.Data)
+	if numCol1 == "" || numVal1 == "" {
+		return fmt.Errorf("RunComplexSearchQuery: No numeric column and value found in log")
 	}
 
-	// Construct the query
-	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(col, val), GetOp(), GetEqualClause(col3, val3), GetRegexClause(col2, val2))
+	// Construct the query: strCol1=strVal1 AND/OR numCol1=numVal1 | regex strCol2=strVal2
+	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(strCol1, strVal1), GetOp(), GetEqualClause(numCol1, numVal1), GetRegexClause(strCol2, strVal2))
 
 	// Default values
 	startTime := tslog.Timestamp.Add(-1 * time.Minute)
@@ -311,28 +322,99 @@ func RunComplexSearchQuery(tslog utils.Log, dest string) {
 		"queryLanguage": queryLanguage,
 	}
 
-	log.Infof("RunQuery: qid=%v, Running query: %v got: %v start: %v, end: %v", 1, query, tslog.Timestamp, startTime, endTime)
-	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, 1)
+	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v", qid, query)
+	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
-		log.Fatalf("Error running query: %v", err)
+		return fmt.Errorf("RunComplexSearchQuery: Error running query via websocket, err: %v", err)
 	}
 
 	// Validate the query result
 	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
-		log.Errorf("Error validating query for Websocket Response: %v, err: %v", query, err)
+		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, err: %v", query, err)
 	}
 
-	queryRes, err = GetQueryResultForAPI(dest, queryReq, 1)
+	queryRes, err = GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
-		log.Fatalf("Error running query: %v", err)
+		return fmt.Errorf("RunComplexSearchQuery: Error running query via API: %v", err)
 	}
 
 	// Validate the query result
 	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
-		log.Errorf("Error validating query for API response: %v, err: %v", query, err)
+		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, err: %v", query, err)
 	}
 
-	log.Infof("Query: %v passed successfully", query)
+	log.Infof("RunComplexSearchQuery: qid=%v, Query: %v passed successfully", qid, query)
+	return nil
+}
+
+func GetRandomLowCardCol() (string, int) {
+	commonLock.RLock()
+	randomNum := GetRandomNumber(len(lowCardCols) - 1)
+	i := 0
+	for k, v := range lowCardCols {
+		if i == randomNum {
+			commonLock.RUnlock()
+			return k, v
+		}
+		i++
+	}
+	commonLock.RUnlock()
+	return "", 0
+}
+
+func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
+	measureFuncs := []string{"avg", "sum", "min", "max", "count", "range", "dc"}
+
+	grpByCol, card := GetRandomLowCardCol()
+	if grpByCol == "" {
+		return fmt.Errorf("RunGroupByQuery: No low cardinality column found")
+	}
+
+	query, _ := BuildStatsQuery(measureFuncs)
+
+	query += fmt.Sprintf(` by %v`, grpByCol)
+
+	// Default values
+	startTime := tslog.Timestamp.Add(-3 * time.Minute)
+	endTime := time.Now()
+	queryLanguage := "Splunk QL"
+
+	// run query
+	queryReq := map[string]interface{}{
+		"state":         "query",
+		"searchText":    query,
+		"startEpoch":    startTime.UnixMilli(),
+		"endEpoch":      endTime.UnixMilli(),
+		"indexName":     "*",
+		"queryLanguage": queryLanguage,
+	}
+
+	log.Infof("RunGroupByQuery: qid=%v, Running query: %v", qid, query)
+	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
+	if err != nil {
+		return fmt.Errorf("RunGroupByQuery: Error running query via websocket, err: %v", err)
+	}
+
+	// Validate the query result
+	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
+	if err != nil {
+		return fmt.Errorf("RunGroupByQuery: Error validating query for websocket: %v, err: %v", query, err)
+	}
+
+	queryRes, err = GetQueryResultForAPI(dest, queryReq, qid)
+	if err != nil {
+		return fmt.Errorf("RunGroupByQuery: Error running query via API, err: %v", err)
+	}
+
+	// Validate the query result
+	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
+	if err != nil {
+		return fmt.Errorf("RunGroupByQuery: Error validating query for API: %v, err: %v", query, err)
+	}
+
+	log.Infof("RunGroupByQuery: qid=%v, Query: %v passed successfully", qid, query)
+
+	return nil
 }
