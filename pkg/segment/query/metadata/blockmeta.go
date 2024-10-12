@@ -123,7 +123,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	}
 
 	smi.RUnlockSmi() // release rlock since it is needed for clear call
-	smi.ClearSearchTimeData()
+	//	smi.ClearSearchTimeData()
 
 	if totalRequestedMemory > 0 {
 		metadata.ReleaseCmiMemory(totalRequestedMemory)
