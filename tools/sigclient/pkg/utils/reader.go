@@ -128,7 +128,6 @@ type FunctionalTestConfig struct {
 }
 
 type PerfTestConfig struct {
-	// Not sure on data
 	LogCh chan Log
 }
 

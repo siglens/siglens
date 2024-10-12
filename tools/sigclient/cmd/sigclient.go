@@ -246,7 +246,7 @@ var esQueryCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		outputFile, _ := cmd.Flags().GetString("outputFile")
 		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
-		// lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
+		lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -257,11 +257,11 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
-		// err := query.MigrateLookups(lookupFiles)
-		// if err != nil {
-		// 	log.Fatalf("Error while migrating lookups: %v", err)
-		// 	return
-		// }
+		err := query.MigrateLookups(lookupFiles)
+		if err != nil {
+			log.Fatalf("Error while migrating lookups: %v", err)
+			return
+		}
 
 		if filepath != "" {
 			if runResponseTime {
