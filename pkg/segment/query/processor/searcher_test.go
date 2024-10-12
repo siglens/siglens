@@ -88,6 +88,28 @@ func Test_sortBlocks(t *testing.T) {
 	}
 }
 
+func Test_getNextEndTime(t *testing.T) {
+	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 40, low: 15},
+		{high: 30, low: 25},
+		{high: 20, low: 5},
+		{high: 10, low: 8},
+	})
+
+	endTime := getNextEndTime(blocksSortedHigh, recentFirst)
+	assert.Equal(t, uint64(15), endTime)
+
+	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
+		{high: 20, low: 5},
+		{high: 10, low: 8},
+		{high: 30, low: 25},
+		{high: 40, low: 15},
+	})
+
+	endTime = getNextEndTime(blocksSortedLow, recentLast)
+	assert.Equal(t, uint64(20), endTime)
+}
+
 func Test_getSSRs(t *testing.T) {
 	blockMeta1 := &structs.BlockMetadataHolder{BlkNum: 1}
 	blockMeta2 := &structs.BlockMetadataHolder{BlkNum: 2}

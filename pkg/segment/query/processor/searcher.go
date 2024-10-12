@@ -72,7 +72,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	}
 
 	sortBlocks(blocks, s.sortMode)
-	endTime := s.getNextEndTime()
+	endTime := getNextEndTime(blocks, s.sortMode)
 	nextBlocks := s.getBlocksForTimeRange(endTime)
 	for _, nextBlock := range nextBlocks {
 		rrcs, err := s.readRRCs([]*block{nextBlock})
@@ -160,8 +160,23 @@ func sortBlocks(blocks []*block, mode sortMode) {
 	}
 }
 
-func (s *searcher) getNextEndTime() uint64 {
-	panic("not implemented")
+func getNextEndTime(sortedBlocks []*block, mode sortMode) uint64 {
+	if len(sortedBlocks) == 0 {
+		return 0
+	}
+
+	// TODO: we may want to optimize this; e.g., minimize the number of blocks
+	// that will be in this time range, or try to get a certain number of
+	// blocks.
+	switch mode {
+	case recentFirst:
+		return sortedBlocks[0].LowTs
+	case recentLast:
+		return sortedBlocks[0].HighTs
+	default:
+		log.Errorf("searchProcessor.getNextEndTime: invalid sort mode: %v", mode)
+		return 0
+	}
 }
 
 func (s *searcher) getBlocksForTimeRange(endTime uint64) []*block {
