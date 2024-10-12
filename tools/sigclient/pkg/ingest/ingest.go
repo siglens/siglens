@@ -388,7 +388,6 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int)
 	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns)
 }
 
-
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {

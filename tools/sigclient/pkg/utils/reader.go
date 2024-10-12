@@ -37,6 +37,7 @@ import (
 )
 
 type ConfigType uint8
+
 const (
 	Default ConfigType = iota
 	FunctionalTest
@@ -92,7 +93,7 @@ type DynamicUserGenerator struct {
 	accFakerSeed int64
 	accountFaker *gofakeit.Faker
 	DataConfig   *GeneratorDataConfig
-	SendData bool
+	SendData     bool
 }
 
 type PerfTestGenerator struct {
@@ -112,7 +113,7 @@ type GeneratorDataConfig struct {
 	VariableColumns bool                  // Flag to indicate variable columns per record
 	MinColumns      int                   // Minimum number of columns per record
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
-	perfTestConfig  *PerfTestConfig	   // It exclusively used for performance test
+	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
 }
 
 type FunctionalTestConfig struct {
@@ -132,10 +133,9 @@ type PerfTestConfig struct {
 }
 
 type Log struct {
-	Data map[string]interface{}
+	Data            map[string]interface{}
 	AllFixedColumns []string
-	AllVariableColumns []string
-	Timestamp   time.Time
+	Timestamp       time.Time
 }
 
 func GetVariableColumnNames(maxVariableColumns int) []string {
@@ -157,6 +157,13 @@ func GetVariableColumnNames(maxVariableColumns int) []string {
 	}
 
 	return variableColNames
+}
+
+func GetVariablesColsNamesFromConfig(dataGenConfig *GeneratorDataConfig) []string {
+	if dataGenConfig.functionalTest != nil {
+		return dataGenConfig.functionalTest.variableColNames
+	}
+	return []string{}
 }
 
 func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
@@ -248,7 +255,7 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 		seed:         seed,
 		accFakerSeed: accFakerSeed,
 		DataConfig: &GeneratorDataConfig{
-			ConfigType: FunctionalTest,
+			ConfigType:     FunctionalTest,
 			functionalTest: functionalTest,
 		},
 	}, nil
@@ -556,7 +563,6 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		}
 		m[col] = getDynamicUserColumnValue(config.variableFaker, dynamicUserColumnNames[i%lenDynamicUserCols], variableP)
 	}
-	
 
 	deleteCols := config.variableFaker.Number(0, config.MaxVariableColumns-1)
 	deletedCols := map[int]struct{}{}
@@ -574,7 +580,6 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		config.EndTimestamp -= 1
 	}
 }
-
 
 func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker, sendData bool) {
 	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
@@ -598,21 +603,18 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 	}
 
 	logToSend := Log{
-		Data:      data,
+		Data:            data,
 		AllFixedColumns: allFixedColumns,
-		AllVariableColumns: config.functionalTest.variableColNames,
-		Timestamp: time.Now(),
+		Timestamp:       time.Now(),
 	}
 
 	select {
-		case config.perfTestConfig.LogCh <- logToSend:
-			log.Warnf("Sending log %p", logToSend.Data)
-		default:
+	case config.perfTestConfig.LogCh <- logToSend:
+	default:
 		// skip if the channel is full
 	}
 
 }
-
 
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {

@@ -160,29 +160,30 @@ var performanceTestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
 		totalEvents := 1_000_000_000
-		batchSize := 100
+		batchSize := 10
 		numIndices := 10
 		processCount := 10
 		indexPrefix := "ind"
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		concurrentQueries := 5
+		concurrentQueries := 2
 
-		logCh := make(chan utils.Log, 5)
+		logCh := make(chan utils.Log, 1000)
 
 		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logCh)
 
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go func(cancel context.CancelFunc) {
+			// addTs should be false for performance testing
 			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGenConfig)	
+				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
 			cancel()
 		}(cancel)
-		
-		go query.PerformanceTest(ctx, logCh, queryDest, concurrentQueries)
-		
+
+		go query.PerformanceTest(ctx, logCh, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -193,7 +194,6 @@ var performanceTestCmd = &cobra.Command{
 		}
 	},
 }
-
 
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
