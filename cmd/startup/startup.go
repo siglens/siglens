@@ -137,7 +137,7 @@ func Main() {
 		log.SetOutput(&lumberjack.Logger{
 			Filename:   logOut,
 			MaxSize:    serverCfg.Log.LogFileRotationSizeMB,
-			MaxBackups: 30,
+			MaxBackups: 50,
 			MaxAge:     1, //days
 			Compress:   serverCfg.Log.CompressLogFile,
 		})
