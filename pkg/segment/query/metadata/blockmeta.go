@@ -131,7 +131,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
 		if isQueryPersistent {
-			go pqsmeta.AddEmptyResults(pqid, segkey, tableName)
+			go pqsmeta.AddEmptyResults(pqid, segkey)
 			go writer.BackFillPQSSegmetaEntry(segkey, pqid)
 		}
 	}

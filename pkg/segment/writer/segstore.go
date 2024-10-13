@@ -776,7 +776,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				if err != nil {
 					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
-				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey, segstore.VirtualTableName)
+				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey)
 			}
 		}
 

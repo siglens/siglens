@@ -88,7 +88,7 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	return allEmptyPQS, nil
 }
 
-func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
+func AddEmptyResults(pqid string, segKey string) {
 
 	fileName := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)

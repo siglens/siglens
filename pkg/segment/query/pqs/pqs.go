@@ -32,7 +32,6 @@ import (
 
 type PersistentQueryResults struct {
 	segKey       string // segment key
-	tableName    string // table name for segKey
 	pqid         string // persistent query id
 	pqmrFilePath string // raw file path for pqmr file
 }
@@ -47,27 +46,42 @@ func init() {
 }
 
 // base func to add & read from segmeta updates
-func AddPersistentQueryResult(segKey string, tableName string, pqid string) {
+func AddPersistentQueryResult(segKey string, pqid string) {
 
 	if !config.IsPQSEnabled() {
 		return
 	}
+
+	// if already present then don't need to acquire write lock and overwrite it
+	isPqidPresent := false
+	allPersistentQueryResultsLock.RLock()
+	_, ok := allPersistentQueryResults[segKey]
+	if ok {
+		_, ok := allPersistentQueryResults[segKey][pqid]
+		if ok {
+			isPqidPresent = true
+		}
+	}
+	allPersistentQueryResultsLock.RUnlock()
+	if isPqidPresent {
+		return
+	}
+
 	ssFile := structs.SegSetFile{
 		SegKey:     segKey,
 		Identifier: "",
 		FileType:   structs.Pqmr,
 	}
 	fName := ssutils.GetFileNameFromSegSetFile(ssFile)
+
 	allPersistentQueryResultsLock.Lock()
 	if _, ok := allPersistentQueryResults[segKey]; !ok {
 		allPersistentQueryResults[segKey] = make(map[string]*PersistentQueryResults)
 	}
-
 	allPersistentQueryResults[segKey][pqid] = &PersistentQueryResults{
 		segKey:       segKey,
 		pqid:         pqid,
 		pqmrFilePath: fName,
-		tableName:    tableName,
 	}
 	allPersistentQueryResultsLock.Unlock()
 }
