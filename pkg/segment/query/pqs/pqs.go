@@ -25,15 +25,16 @@ import (
 	blob "github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-// segKey -> [qid] -> struct{}
-var allPersistentQueryResults map[string]map[string]struct{}
+// segKey -> [qid] -> bool
+var allPersistentQueryResults map[string]map[string]bool
 var allPersistentQueryResultsLock sync.RWMutex
 
 func init() {
-	allPersistentQueryResults = make(map[string]map[string]struct{})
+	allPersistentQueryResults = make(map[string]map[string]bool)
 	allPersistentQueryResultsLock = sync.RWMutex{}
 }
 
@@ -47,9 +48,9 @@ func AddPersistentQueryResult(segKey string, pqid string) {
 
 	allPersistentQueryResultsLock.Lock()
 	if _, ok := allPersistentQueryResults[segKey]; !ok {
-		allPersistentQueryResults[segKey] = make(map[string]struct{})
+		allPersistentQueryResults[segKey] = make(map[string]bool)
 	}
-	allPersistentQueryResults[segKey][pqid] = struct{}{}
+	allPersistentQueryResults[segKey][pqid] = true
 	allPersistentQueryResultsLock.Unlock()
 }
 
@@ -93,4 +94,17 @@ func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
 	}
 	allPersistentQueryResultsLock.RUnlock()
 	return isPqidPresent
+}
+
+func AddAllPqidResults(segKey string, allPqids map[string]bool) {
+	if !config.IsPQSEnabled() {
+		return
+	}
+
+	allPersistentQueryResultsLock.Lock()
+	if _, ok := allPersistentQueryResults[segKey]; !ok {
+		allPersistentQueryResults[segKey] = make(map[string]bool)
+	}
+	utils.MergeMapsRetainingFirst(allPersistentQueryResults[segKey], allPqids)
+	allPersistentQueryResultsLock.Unlock()
 }
