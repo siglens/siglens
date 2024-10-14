@@ -341,20 +341,24 @@ function drawTotalStatsChart(res) {
     var totalStorageUsed;
     var logStorageSaved, metricsStorageSaved, traceStorageSaved;
     var totalStorageUsedMetrics, totalStorageUsedTrace;
+
+    // Convert bytes to GB
+    const bytesToGB = (bytes) => bytes / (1024 * 1024 * 1024);
+
     _.forEach(res, (mvalue, key) => {
         if (key === 'ingestionStats') {
             _.forEach(mvalue, (v, k) => {
-                if (k === 'Log Incoming Volume') {
-                    totalIncomingVolume = v;
-                } else if (k === 'Metrics Incoming Volume') {
-                    totalIncomingVolumeMetrics = v;
-                } else if (k === 'Log Storage Used') {
+                if (k === 'Log Incoming Volume') { // bytes
+                    totalIncomingVolume = bytesToGB(v);
+                } else if (k === 'Metrics Incoming Volume') { // bytes
+                    totalIncomingVolumeMetrics = bytesToGB(v);
+                } else if (k === 'Log Storage Used') { // GB
                     totalStorageUsed = v;
-                } else if (k === 'Logs Storage Saved') {
+                } else if (k === 'Logs Storage Saved') { // percentage
                     logStorageSaved = v;
-                } else if (k === 'Metrics Storage Saved') {
+                } else if (k === 'Metrics Storage Saved') { //percentage
                     metricsStorageSaved = v;
-                } else if (k === 'Metrics Storage Used') {
+                } else if (k === 'Metrics Storage Used') { //GB
                     totalStorageUsedMetrics = v;
                 }
             });
@@ -369,11 +373,11 @@ function drawTotalStatsChart(res) {
             TotalVolumeChartMetrics = renderTotalCharts('Metrics', totalIncomingVolumeMetrics, totalStorageUsedMetrics);
         } else if (key === 'traceStats') {
             _.forEach(mvalue, (v, k) => {
-                if (k === 'Trace Storage Saved') {
+                if (k === 'Trace Storage Saved') { //percentage
                     traceStorageSaved = v;
-                } else if (k === 'Total Trace Volume') {
-                    totalIncomingVolumeTrace = v;
-                } else if (k === 'Trace Storage Used') {
+                } else if (k === 'Total Trace Volume') { //bytes
+                    totalIncomingVolumeTrace = bytesToGB(v);
+                } else if (k === 'Trace Storage Used') { //GB
                     totalStorageUsedTrace = v;
                 }
             });
@@ -629,7 +633,6 @@ function processClusterStats(res) {
     }
 
     function displayIndexDataRows(res) {
-        let totalIngestVolume = 0;
         let totalEventCount = 0;
         let totalLogSegmentCount = 0;
         let totalTraceSegmentCount = 0;
@@ -682,7 +685,6 @@ function processClusterStats(res) {
         }
         totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
 
-        totalIngestVolume = res.ingestionStats['Log Incoming Volume'];
         totalValRow[1] = formatIngestVolume(res.ingestionStats['Log Incoming Volume']);
         totalValRow[2] = totalEventCount.toLocaleString();
         totalValRow[3] = totalLogSegmentCount.toLocaleString();
