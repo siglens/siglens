@@ -101,24 +101,31 @@ func AddEmptyResults(pqid string, segKey string) {
 }
 
 func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {
-	fd, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0764)
+
+	fd, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0764)
 	if err != nil {
-		log.Errorf("WriteEmptyPQS: Error opening file at fname=%v, err=%v", fileName, err)
+		log.Errorf("writeEmptyPqsMapToFile: Error opening file at fname=%v, err=%v", fileName, err)
+		return
 	}
+	defer fd.Close()
+
 	jsonData, err := json.Marshal(emptyPqs)
 	if err != nil {
-		log.Errorf("WriteEmptyPQS: could not marshal data, err=%v", err)
+		log.Errorf("writeEmptyPqsMapToFile: could not marshal data: %v, fname: %v, err: %v",
+			emptyPqs, fileName, err)
+		return
 	}
 	_, err = fd.Write(jsonData)
 	if err != nil {
-		log.Errorf("WriteEmptyPQS: buf write failed fname=%v, err=%v", fileName, err)
+		log.Errorf("writeEmptyPqsMapToFile: buf write failed fname=%v, err=%v", fileName, err)
+		return
 	}
 
 	err = fd.Sync()
 	if err != nil {
-		log.Errorf("WriteEmptyPQS: sync failed filename=%v,err=%v", fileName, err)
+		log.Errorf("writeEmptyPqsMapToFile: fd sync failed filename=%v,err=%v", fileName, err)
+		return
 	}
-	fd.Close()
 }
 
 func removePqmrFilesAndDirectory(pqid string) error {
