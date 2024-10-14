@@ -54,6 +54,8 @@ func initSmr() {
 				log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
 				return
 			}
+		} else {
+			log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
 		}
 		return
 	}
@@ -74,7 +76,7 @@ func ReadSegmeta(smFilename string) []*structs.SegMeta {
 	return retVal
 }
 
-// read only the current nodes segmeta
+// read only the current node's segmeta
 func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	smrLock.RLock()

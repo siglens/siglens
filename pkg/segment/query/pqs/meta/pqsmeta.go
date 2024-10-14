@@ -36,10 +36,16 @@ func InitPqsMeta() {
 		config.GetHostID(),
 		"pqmeta")
 
-	if _, err := os.Stat(pqMetaDirName); os.IsNotExist(err) {
-		err := os.MkdirAll(pqMetaDirName, os.FileMode(0764))
-		if err != nil {
-			log.Errorf("psqmeta:init: Failed to create directory at %s: Error=%v",
+	_, err := os.Stat(pqMetaDirName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(pqMetaDirName, os.FileMode(0764))
+			if err != nil {
+				log.Errorf("psqmeta:init: Failed to create directory at %s: Error=%v",
+					pqMetaDirName, err)
+			}
+		} else {
+			log.Errorf("psqmeta:init: could not stat directory at %s: Error=%v",
 				pqMetaDirName, err)
 		}
 	}
