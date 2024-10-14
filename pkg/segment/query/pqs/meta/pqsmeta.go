@@ -57,7 +57,7 @@ func GetAllEmptySegmentsForPqid(pqid string) (map[string]bool, error) {
 
 func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	allEmptyPQS := make(map[string]bool)
-	fd, err := os.OpenFile(emptyPQSFilename, os.O_CREATE|os.O_RDONLY, 0764)
+	pqsData, err := os.ReadFile(emptyPQSFilename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]bool{}, nil
@@ -65,23 +65,16 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 		log.Errorf("getAllEmptyPQSToMap: Cannot read persistent query meta File = %v, err= %v", emptyPQSFilename, err)
 		return nil, err
 	}
-	defer fd.Close()
 
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("getAllEmptyPQSToMap: error when trying to stat file=%+v. Error=%+v",
-			emptyPQSFilename, err)
-		return nil, err
-	}
-
-	// if the file length is zero then its a valid scenario, just return an empty map
-	if finfo.Size() == 0 {
+	// if the data length is zero then its a valid scenario, just return an empty map
+	if len(pqsData) == 0 {
 		return allEmptyPQS, nil
 	}
 
-	err = json.NewDecoder(fd).Decode(&allEmptyPQS)
+	err = json.Unmarshal(pqsData, &allEmptyPQS)
 	if err != nil {
-		log.Errorf("getAllEmptyPQSToMap: Cannot decode json data from file=%v, err =%v", emptyPQSFilename, err)
+		log.Errorf("getAllEmptyPQSToMap: Cannot unmarshal json data, file: %v, data: %v, err: %v",
+			emptyPQSFilename, pqsData, err)
 		return nil, err
 	}
 
