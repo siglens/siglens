@@ -58,7 +58,6 @@ const maxAllowedSegStores = 1000
 // global map
 var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
-var maxSegFileSize uint64
 
 var KibanaInternalBaseDir string
 
@@ -562,10 +561,6 @@ func ForcedFlushToSegfile() {
 	allSegStoresLock.Unlock()
 }
 
-func updateValuesFromConfig() {
-	maxSegFileSize = *config.GetMaxSegFileSize()
-}
-
 func idleWipFlushToFile() {
 	for {
 		idleWipFlushDuration := time.Duration(config.GetIdleWipFlushIntervalSecs()) * time.Second
@@ -724,7 +719,6 @@ func InitColWip(segKey string, colName string) *ColWip {
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
 func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
-	updateValuesFromConfig()
 
 	segstore := getSegStore(streamid)
 	if segstore == nil {
@@ -1032,6 +1026,30 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
+func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {
+
+	var ok bool
+	var cnts *structs.VtableCounts
+
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+	for _, segstore := range allSegStores {
+		if segstore.OrgId != orgid {
+			continue
+		}
+
+		cnts, ok = allvtables[segstore.VirtualTableName]
+		if !ok {
+			cnts = &structs.VtableCounts{}
+			allvtables[segstore.VirtualTableName] = cnts
+		}
+
+		cnts.BytesCount += segstore.BytesReceivedCount
+		cnts.RecordCount += uint64(segstore.RecordCount)
+		cnts.OnDiskBytesCount += segstore.OnDiskBytes
+	}
+}
+
 func getActiveBaseDirVTable(virtualTableName string) string {
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
@@ -1040,38 +1058,6 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 	sb.WriteString(virtualTableName + "/")
 	basedir := sb.String()
 	return basedir
-}
-
-func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	segKeySet := make(map[string]struct{})
-	for _, segKey := range segmentKeys {
-		segKeySet[segKey] = struct{}{}
-	}
-
-	segMetas := make(map[string]*structs.SegMeta)
-	err := fileutils.ReadLineByLine(localSegmetaFname, func(line []byte) error {
-		segMeta := structs.SegMeta{}
-		err := json.Unmarshal(line, &segMeta)
-		if err != nil {
-			log.Errorf("GetSegMetas: failed to unmarshal %s: err=%v", line, err)
-			return err
-		}
-
-		if _, ok := segKeySet[segMeta.SegmentKey]; ok {
-			segMetas[segMeta.SegmentKey] = &segMeta
-		}
-
-		return nil
-	})
-	if err != nil {
-		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", localSegmetaFname, err)
-		return nil, err
-	}
-
-	return segMetas, nil
 }
 
 func DeleteVirtualTableSegStore(virtualTableName string) {
@@ -1166,12 +1152,12 @@ func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsT
 			return
 		}
 
-		wfd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		fd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			log.Errorf("removeSegmentsByIndexOrList: Failed to open temp SegMetaFile name=%v, err:%v", segMetaFile, err)
 			return
 		}
-		defer wfd.Close()
+		defer fd.Close()
 
 		for _, smentry := range preservedSmEntries {
 
@@ -1181,12 +1167,12 @@ func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsT
 				return
 			}
 
-			if _, err := wfd.Write(segmetajson); err != nil {
+			if _, err := fd.Write(segmetajson); err != nil {
 				log.Errorf("removeSegmentsByIndexOrList: failed to write segmeta filename=%v: err=%v", segMetaFile, err)
 				return
 			}
 
-			if _, err := wfd.WriteString("\n"); err != nil {
+			if _, err := fd.WriteString("\n"); err != nil {
 				log.Errorf("removeSegmentsByIndexOrList: failed to write newline filename=%v: err=%v", segMetaFile, err)
 				return
 			}
@@ -1305,42 +1291,50 @@ func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
-	preservedSmEntries := make([]*structs.SegMeta, 0)
-	allPqids := make(map[string]bool)
-
 	// Read segmeta files
 	allSegMetas, err := getAllSegmetaToMap(localSegmetaFname)
 	if err != nil {
 		log.Errorf("BackFillPQSSegmetaEntry: failed to get Segmeta: err=%v", err)
 		return
 	}
-	for segkey, segMetaEntry := range allSegMetas {
-		if segkey != segsetkey {
-			preservedSmEntries = append(preservedSmEntries, segMetaEntry)
-			continue
-		} else {
-			for pqid := range segMetaEntry.AllPQIDs {
-				allPqids[pqid] = true
-			}
-			allPqids[newpqid] = true
-			segMetaEntry.AllPQIDs = allPqids
-			preservedSmEntries = append(preservedSmEntries, segMetaEntry)
-			continue
-		}
-	}
-	err = WriteOverSegMeta(localSegmetaFname, preservedSmEntries)
+
+	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("BackFillPQSSegmetaEntry: failed to write Segmeta: err=%v", err)
+		log.Errorf("BackFillPQSSegmetaEntry: Failed to open SegMetaFile name=%v, err:%v",
+			localSegmetaFname, err)
 		return
+	}
+	defer fd.Close()
+
+	for segkey, segMetaEntry := range allSegMetas {
+		if segkey == segsetkey {
+			if segMetaEntry.AllPQIDs == nil {
+				segMetaEntry.AllPQIDs = make(map[string]bool)
+			}
+			segMetaEntry.AllPQIDs[newpqid] = true
+		}
+
+		segmetajson, err := json.Marshal(*segMetaEntry)
+		if err != nil {
+			log.Errorf("BackFillPQSSegmetaEntry: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", localSegmetaFname, err, *segMetaEntry)
+			return
+		}
+
+		segmetajson = append(segmetajson, "\n"...)
+
+		if _, err := fd.Write(segmetajson); err != nil {
+			log.Errorf("BackFillPQSSegmetaEntry: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
+			return
+		}
 	}
 }
 
 func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
-	wfd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	fd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
 	}
-	defer wfd.Close()
+	defer fd.Close()
 
 	for _, smentry := range segMetaEntries {
 
@@ -1349,11 +1343,11 @@ func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) er
 			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
 		}
 
-		if _, err := wfd.Write(segmetajson); err != nil {
+		if _, err := fd.Write(segmetajson); err != nil {
 			return fmt.Errorf("WriteSegMeta: failed to write segmeta filename=%v: err=%v", segmetaFname, err)
 		}
 
-		if _, err := wfd.WriteString("\n"); err != nil {
+		if _, err := fd.WriteString("\n"); err != nil {
 			return fmt.Errorf("WriteSegMeta: failed to write newline filename=%v: err=%v", segmetaFname, err)
 		}
 	}

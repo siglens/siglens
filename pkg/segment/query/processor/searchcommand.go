@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type searchProcessor struct{}
+type searchProcessor struct {
+	options *structs.ASTNode
+}
 
 func (p *searchProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *searchProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *searchProcessor) Cleanup() {
 	panic("not implemented")
 }

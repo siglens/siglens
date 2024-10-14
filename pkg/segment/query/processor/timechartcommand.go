@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type timechartProcessor struct{}
+type timechartProcessor struct {
+	options *structs.TimechartExpr
+}
 
 func (p *timechartProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *timechartProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *timechartProcessor) Cleanup() {
 	panic("not implemented")
 }

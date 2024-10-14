@@ -304,20 +304,18 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 func getSystemVolumeBytes() (uint64, error) {
 	currentVolume := uint64(0)
 
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
-	if err != nil {
-		log.Errorf("getSystemVolumeBytes: Error in getting virtual table names, err: %v", err)
-		return currentVolume, err
-	}
-	for indexName := range allVirtualTableNames {
+	allSegmetas := writer.ReadAllSegmetas()
+
+	allCnts := writer.GetVTableCountsForAll(0, allSegmetas)
+	writer.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Errorf("getSystemVolumeBytes: skipping an empty index name indexName=%v", indexName)
 			continue
 		}
-		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
-		unrotatedByteCount, _, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
 
-		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
+		totalVolumeForIndex := uint64(cnts.BytesCount)
 		currentVolume += uint64(totalVolumeForIndex)
 	}
 

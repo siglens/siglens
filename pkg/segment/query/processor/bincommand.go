@@ -17,9 +17,14 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type binProcessor struct{}
+type binProcessor struct {
+	options *structs.BinCmdOptions
+}
 
 func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
@@ -28,5 +33,9 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 // In the two-pass version of bin, Rewind() should remember the span it
 // calculated in the first pass.
 func (p *binProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *binProcessor) Cleanup() {
 	panic("not implemented")
 }

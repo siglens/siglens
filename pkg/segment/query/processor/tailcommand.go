@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type tailProcessor struct{}
+type tailProcessor struct {
+	options *structs.TailExpr
+}
 
 func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *tailProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *tailProcessor) Cleanup() {
 	panic("not implemented")
 }

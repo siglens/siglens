@@ -1,0 +1,4 @@
+{
+    "queryText": "search _index=ind-0 city=boston group=\"group 0\" user_agent=Mozilla*Windows* http_status=200 latency!=0 hobby!=\"Acting\" AND hobby!=\"Walking\" AND hobby!=\"*k.ing*\" AND hobby!=\"*gg*\" | eval hobby_http = hobby+\"@\"+http_method | stats count by hobby_http | sort -count | where count>=1"
+}
+  
