@@ -762,7 +762,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.SegmentKey)
+		err := toputils.WriteValidityFile(segstore.segbaseDir)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
 				segstore.SegmentKey, err)

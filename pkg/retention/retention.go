@@ -21,6 +21,7 @@ import (
 	"math"
 	"path"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -329,8 +330,12 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
 		filesToDelete := fileutils.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
-
+		svFileName := ""
 		for _, file := range filesToDelete {
+			if strings.Contains(file, utils.SegmentValidityFname) {
+				svFileName = file
+				continue
+			}
 			err := blob.DeleteBlob(file)
 			if err != nil {
 				log.Errorf("deleteSegmentData: Error in deleting segment file %v in blob, err: %v",
@@ -338,6 +343,14 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 				continue
 			}
 		}
+		if svFileName != "" {
+			err := blob.DeleteBlob(svFileName)
+			if err != nil {
+				log.Errorf("deleteSegmentData: Error deleting validity file %v in blob, err: %v",
+					svFileName, err)
+			}
+		}
+		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
 	}
 
 	writer.RemoveSegments(utils.MapToSet(segmentsToDelete))
