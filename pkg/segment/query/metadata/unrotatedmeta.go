@@ -87,10 +87,7 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 		for segKey, blkTracker := range rawSearchKeys {
 			usi, ok := writer.AllUnrotatedSegmentInfo[segKey]
 			if !ok {
-				isRecentlyRotated := false
-				if writer.IsRecentlyRotatedSegKey(segKey) {
-					isRecentlyRotated = true
-				}
+				isRecentlyRotated := writer.IsRecentlyRotatedSegKey(segKey)
 				log.Errorf("qid=%d, CheckMicroIndicesForUnrotated: SegKey %+v does not exist in unrotated, was recentlyRotated: %v", qid, segKey, isRecentlyRotated)
 				continue
 			}
