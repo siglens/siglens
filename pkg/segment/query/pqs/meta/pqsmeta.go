@@ -79,8 +79,8 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 
 	err = json.Unmarshal(pqsData, &allEmptyPQS)
 	if err != nil {
-		log.Errorf("getAllEmptyPQSToMap: Cannot unmarshal json data, file: %v, data: %v, err: %v",
-			emptyPQSFilename, pqsData, err)
+		log.Errorf("getAllEmptyPQSToMap: Cannot unmarshal json data, file: %v, err: %v",
+			emptyPQSFilename, err)
 		return nil, err
 	}
 
