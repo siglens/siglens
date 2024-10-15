@@ -155,7 +155,6 @@ func (dataGenConfig *GeneratorDataConfig) SendLog() {
 
 	select {
 	case dataGenConfig.perfTestConfig.LogCh <- dataGenConfig.perfTestConfig.LogToSend:
-		// log.Errorf("SENT LOG: %v", dataGenConfig.perfTestConfig.LogToSend)
 		dataGenConfig.perfTestConfig.SendData = true
 	default:
 		// skip if the channel is full
