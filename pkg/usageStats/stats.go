@@ -192,7 +192,7 @@ func getBaseStatsDirs(startTime, endTime time.Time, orgid uint64) []string {
 
 	files, err := os.ReadDir(ingestDir)
 	if err != nil {
-		log.Errorf("ReadAllSegmetas: read dir err=%v ", err)
+		log.Errorf("getBaseStatsDirs: read dir err=%v ", err)
 		return make([]string, 0)
 	}
 

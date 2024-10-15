@@ -45,7 +45,7 @@ var excludedInternalIndices = [...]string{"traces", "red-traces", "service-depen
 
 // GetTraceStatsForAllSegments retrieves all trace-related statistics.
 func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
-	allSegMetas := writer.ReadAllSegmetas()
+	allSegMetas := writer.ReadGlobalSegmetas()
 	return GetTracesStats(myid, allSegMetas)
 }
 
@@ -62,7 +62,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	allSegMetas := writer.ReadAllSegmetas()
+	allSegMetas := writer.ReadGlobalSegmetas()
 
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)

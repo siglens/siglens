@@ -540,8 +540,7 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 			log.Errorf("deleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
 		}
 
-		currSegmeta := writer.GetLocalSegmetaFName()
-		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
+		writer.DeleteSegmentsForIndex(indexName)
 		writer.DeleteVirtualTableSegStore(indexName)
 		metadata.DeleteVirtualTable(indexName, myid)
 	}

@@ -77,7 +77,7 @@ func canIngest() bool {
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		if !canIngest() {
-			utils.SendError(ctx, "Ingestion request rejected due to no storage available", "", nil)
+			utils.SendErrorWithoutLogging(ctx, "Ingestion request rejected due to no storage available", nil)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
