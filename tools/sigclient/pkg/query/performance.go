@@ -56,7 +56,7 @@ var globalQid = int64(0)
 // Compile the regular expression
 var patternRegex = regexp.MustCompile(pattern)
 
-const WAIT_DURATION_FOR_LOGS = 10 * time.Second
+const WAIT_DURATION_FOR_LOGS = 15 * time.Second
 
 var colsToIgnore = map[string]struct{}{
 	"_index":                       struct{}{},
@@ -138,7 +138,7 @@ func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 			case ComplexSearchQuery:
 				err = RunComplexSearchQuery(logReceived, dest, int(qid))
 			case StatsQuery:
-				// err = RunStatsQuery(logReceived, dest)
+				err = RunStatsQuery(logReceived, dest, int(qid))
 			case GroupByQuery:
 				err = RunGroupByQuery(logReceived, dest, int(qid))
 			}
@@ -322,6 +322,11 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 		"queryLanguage": queryLanguage,
 	}
 
+	atleastOneColMatch := map[string]interface{}{
+		strCol1: strVal1,
+		numCol1: tslog.Data[numCol1],
+	}
+
 	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v", qid, query)
 	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
@@ -329,7 +334,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	}
 
 	// Validate the query result
-	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
+	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns, atleastOneColMatch)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, err: %v", query, err)
 	}
@@ -340,7 +345,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	}
 
 	// Validate the query result
-	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
+	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns, atleastOneColMatch)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, err: %v", query, err)
 	}

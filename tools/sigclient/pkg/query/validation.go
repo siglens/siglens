@@ -683,7 +683,7 @@ func ValidateGroupByQueryResults(queryRes *Result, expRes *Result) error {
 	return ValidateStatsQueryResults(queryRes, expRes)
 }
 
-func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string) error {
+func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string, atleastOneColMatch map[string]interface{}) error {
 	if queryRes == nil {
 		return fmt.Errorf("PerfValidateSearchQueryResult: Query result is nil")
 	}
@@ -742,6 +742,22 @@ func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string) erro
 		}
 	}
 
+	// validate atleast one col match
+	for _, record := range queryRes.Records {
+		found := false
+		for col, value := range atleastOneColMatch {
+			if val, ok := record[col]; ok {
+				if !reflect.DeepEqual(val, value) {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("PerfValidateSearchQueryResult: Atleast one column match not found in record: %v atleastOneColMatch: %v", record, atleastOneColMatch)
+		}
+	}
+
 	return nil
 }
 
@@ -777,14 +793,42 @@ func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, s
 		if measureVal < 1 {
 			return fmt.Errorf("PerfValidateMeasureResult: Measure %v value is less than 1, got: %v", measureFunc, measureVal)
 		}
+	case "sum":
+		countVal, isCountFloat, isCountAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "count")
+		if !isCountAvailable {
+			return nil // cannot validate
+		}
+		if !isCountFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure count value is not a number, received type: %T", measureResult.MeasureVal["count"])
+		}
+		minVal, isMinFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
+		if !isMinAvailable {
+			return nil // cannot validate
+		}
+		if !isMinFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
+		}
+		if countVal*minVal > measureVal {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure sum value is less than count*min, sum: %v, count: %v, min: %v", measureVal, countVal, minVal)
+		}
+		maxVal, isMaxFloat, isMaxAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "max")
+		if !isMaxAvailable {
+			return nil
+		}
+		if !isMaxFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure max value is not a number, received type: %T", measureResult.MeasureVal["max"])
+		}
+		if countVal*maxVal < measureVal {
+			return fmt.Errorf("PerfValidateMeasureResult: Measure sum value is greater than count*max, sum: %v, count: %v, max: %v", measureVal, countVal, maxVal)
+		}
 	case "avg":
 		minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
-		if !isFloat {
-			return fmt.Errorf("PerfValidateMeasureResult: avg: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
-		}
 		if !isMinAvailable {
 			// cannot validate average without min value
 			return nil
+		}
+		if !isFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: avg: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
 		}
 		if measureVal < minVal {
 			return fmt.Errorf("PerfValidateMeasureResult: Measure avg value is less than min value, avg: %v, min: %v", measureVal, minVal)
@@ -799,20 +843,20 @@ func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, s
 		}
 	case "range":
 		minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
-		if !isFloat {
-			return fmt.Errorf("PerfValidateMeasureResult: range: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
-		}
 		if !isMinAvailable {
 			// cannot validate range without min value
 			return nil
 		}
-		maxVal, isFloat, isMaxAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "max")
 		if !isFloat {
-			return fmt.Errorf("PerfValidateMeasureResult: range: Measure max value is not a number, received type: %T", measureResult.MeasureVal["max"])
+			return fmt.Errorf("PerfValidateMeasureResult: range: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
 		}
+		maxVal, isFloat, isMaxAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "max")
 		if !isMaxAvailable {
 			// cannot validate range without max value
 			return nil
+		}
+		if !isFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: range: Measure max value is not a number, received type: %T", measureResult.MeasureVal["max"])
 		}
 		tolerancePercentage := 1e-5
 		if !utils.AlmostEqual(measureVal, maxVal-minVal, tolerancePercentage) {
