@@ -788,7 +788,7 @@ func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, s
 	if !isNumeric {
 		return fmt.Errorf("PerfValidateMeasureResult: Measure measureFunc: %v value is not a number, measureVal: %v, received type: %T", measureFunc, measureResult.MeasureVal[measureFunc], measureResult.MeasureVal[measureFunc])
 	}
-	// There is no way to validate sum without knowing all the values
+
 	switch measureFunc {
 	case "count", "dc":
 		if measureVal < 1 {

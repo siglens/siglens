@@ -270,6 +270,7 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 	// run query
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
+	sTime := time.Now()
 	log.Infof("RunQuery: qid=%v, Running query: %v", qid, query)
 	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, 1)
 	if err != nil {
@@ -281,7 +282,9 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 	if err != nil {
 		return fmt.Errorf("RunStatsQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
 	}
+	log.Infof("RunStatsQuery: qid=%v, Query: %v passed successfully for websocket in %v", qid, query, time.Since(sTime))
 
+	sTime = time.Now()
 	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, 1)
 	if err != nil {
 		return fmt.Errorf("RunStatsQuery: Error running query via API: %v, err: %v", query, err)
@@ -293,7 +296,7 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunStatsQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	log.Infof("RunStatsQuery: qid=%v, Query: %v passed successfully", qid, query)
+	log.Infof("RunStatsQuery: qid=%v, Query: %v passed successfully for API in %v", qid, query, time.Since(sTime))
 	return nil
 }
 
@@ -325,6 +328,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
+	sTime := time.Now()
 	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v got: %v start: %v end: %v", qid, query, tslog.Timestamp, startTime, endTime)
 	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
@@ -336,7 +340,9 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
 	}
+	log.Infof("RunComplexSearchQuery: qid=%v, Query: %v passed successfully for websocket in %v", qid, query, time.Since(sTime))
 
+	sTime = time.Now()
 	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error running query via API: %v, err: %v", query, err)
@@ -348,7 +354,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	log.Infof("RunComplexSearchQuery: qid=%v, Query: %v passed successfully", qid, query)
+	log.Infof("RunComplexSearchQuery: qid=%v, Query: %v passed successfully for API in %v", qid, query, time.Since(sTime))
 	return nil
 }
 
@@ -385,6 +391,7 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
+	sTime := time.Now()
 	log.Infof("RunGroupByQuery: qid=%v, Running query: %v", qid, query)
 	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
@@ -396,7 +403,9 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 	if err != nil {
 		return fmt.Errorf("RunGroupByQuery: Error validating query for websocket:%v, resp: %v\n err: %v", query, resp, err)
 	}
+	log.Infof("RunGroupByQuery: qid=%v, Query: %v passed successfully for websocket in %v", qid, query, time.Since(sTime))
 
+	sTime = time.Now()
 	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
 		return fmt.Errorf("RunGroupByQuery: Error running query via API: %v, err: %v", query, err)
@@ -408,7 +417,7 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunGroupByQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	log.Infof("RunGroupByQuery: qid=%v, Query: %v passed successfully", qid, query)
+	log.Infof("RunGroupByQuery: qid=%v, Query: %v passed successfully for API in %v", qid, query, time.Since(sTime))
 
 	return nil
 }

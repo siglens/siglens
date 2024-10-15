@@ -95,17 +95,6 @@ type DynamicUserGenerator struct {
 	DataConfig   *GeneratorDataConfig
 }
 
-type PerfTestGenerator struct {
-	baseBody     map[string]interface{}
-	tNowEpoch    uint64
-	ts           bool
-	faker        *gofakeit.Faker
-	seed         int64
-	accFakerSeed int64
-	accountFaker *gofakeit.Faker
-	DataConfig   *GeneratorDataConfig
-}
-
 type GeneratorDataConfig struct {
 	ConfigType      ConfigType
 	MaxColumns      int                   // Mximumn Number of columns per record.
