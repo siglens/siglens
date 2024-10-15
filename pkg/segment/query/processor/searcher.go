@@ -44,6 +44,7 @@ type searcher struct {
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
 	sortMode     sortMode
+	startTime    time.Time
 
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
@@ -155,8 +156,7 @@ func sortingFunc(sortMode sortMode) func(a, b *segutils.RecordResultContainer) b
 }
 
 func (s *searcher) getBlocks() ([]*block, error) {
-	startTime := time.Now() // TODO: maybe this should be a field on searcher.
-	qsrs, err := query.GetSortedQSRs(s.queryInfo, startTime, s.querySummary)
+	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
 		log.Errorf("searchProcessor.getBlocks: failed to get sorted QSRs: %v", err)
 		return nil, err
