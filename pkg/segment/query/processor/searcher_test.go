@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -223,4 +224,78 @@ func Test_getSSRs(t *testing.T) {
 	assert.Equal(t, 2, len(allSegRequests["file1"].AllBlocksToSearch))
 	assert.Equal(t, blockMeta1, allSegRequests["file1"].AllBlocksToSearch[1])
 	assert.Equal(t, blockMeta2, allSegRequests["file1"].AllBlocksToSearch[2])
+}
+
+func Test_getValidRRCs(t *testing.T) {
+	rrcsSortedRecentFirst := []*segutils.RecordResultContainer{
+		{TimeStamp: 40},
+		{TimeStamp: 30},
+		{TimeStamp: 20},
+		{TimeStamp: 10},
+	}
+
+	actualRRCs := getValidRRCs(rrcsSortedRecentFirst, 25, recentFirst)
+	assert.Equal(t, 2, len(actualRRCs))
+	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
+
+	rrcsSortedRecentLast := []*segutils.RecordResultContainer{
+		{TimeStamp: 10},
+		{TimeStamp: 20},
+		{TimeStamp: 30},
+		{TimeStamp: 40},
+	}
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 25, recentLast)
+	assert.Equal(t, 2, len(actualRRCs))
+	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)
+}
+
+func Test_getValidRRCs_boundaries(t *testing.T) {
+	rrcsSortedRecentFirst := []*segutils.RecordResultContainer{
+		{TimeStamp: 40},
+		{TimeStamp: 30},
+		{TimeStamp: 20},
+		{TimeStamp: 10},
+	}
+
+	actualRRCs := getValidRRCs(rrcsSortedRecentFirst, 20, recentFirst)
+	assert.Equal(t, 3, len(actualRRCs))
+	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
+	assert.Equal(t, uint64(20), actualRRCs[2].TimeStamp)
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentFirst, 50, recentFirst)
+	assert.Equal(t, 0, len(actualRRCs))
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentFirst, 0, recentFirst)
+	assert.Equal(t, 4, len(actualRRCs))
+	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
+	assert.Equal(t, uint64(20), actualRRCs[2].TimeStamp)
+	assert.Equal(t, uint64(10), actualRRCs[3].TimeStamp)
+
+	rrcsSortedRecentLast := []*segutils.RecordResultContainer{
+		{TimeStamp: 10},
+		{TimeStamp: 20},
+		{TimeStamp: 30},
+		{TimeStamp: 40},
+	}
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 30, recentLast)
+	assert.Equal(t, 3, len(actualRRCs))
+	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)
+	assert.Equal(t, uint64(30), actualRRCs[2].TimeStamp)
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 0, recentLast)
+	assert.Equal(t, 0, len(actualRRCs))
+
+	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 50, recentLast)
+	assert.Equal(t, 4, len(actualRRCs))
+	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
+	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)
+	assert.Equal(t, uint64(30), actualRRCs[2].TimeStamp)
+	assert.Equal(t, uint64(40), actualRRCs[3].TimeStamp)
 }

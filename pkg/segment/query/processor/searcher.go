@@ -108,7 +108,12 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	allRRCsSlices[len(nextBlocks)] = s.unsentRRCs
 	s.unsentRRCs = toputils.MergeSortedSlices(sortingFunc(s.sortMode), allRRCsSlices...)
 
-	validRRCs := s.getValidRRCs()
+	validRRCs := getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
+
+	// TODO: maybe look into optimizations for unsentRRCs so we can discard
+	// the memory at the beginning (which will never be used again).
+	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
+
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
 	// Maybe convert small RRCs to normal RRCs first?
@@ -314,6 +319,22 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 	return fileToSSR, nil
 }
 
-func (s *searcher) getValidRRCs() []*segutils.RecordResultContainer {
-	panic("not implemented")
+func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp uint64, mode sortMode) []*segutils.RecordResultContainer {
+	switch mode {
+	case recentFirst:
+		i := sort.Search(len(sortedRRCs), func(k int) bool {
+			return sortedRRCs[k].TimeStamp < lastTimestamp
+		})
+		return sortedRRCs[:i]
+	case recentLast:
+		i := sort.Search(len(sortedRRCs), func(k int) bool {
+			return sortedRRCs[k].TimeStamp > lastTimestamp
+		})
+		return sortedRRCs[:i]
+	case anyOrder:
+		return sortedRRCs
+	default:
+		log.Errorf("searchProcessor.getValidRRCs: invalid sort mode: %v", mode)
+		return nil
+	}
 }
