@@ -19,9 +19,11 @@ package processor
 
 import (
 	"io"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -47,12 +49,11 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
-	qid uint64) (*QueryProcessor, error) {
+	queryInfo *query.QueryInformation, querySummary *summary.QuerySummary) (*QueryProcessor, error) {
 
-	searcher := &searchStream{
-		qid:  qid,
-		node: searchNode,
-	}
+	startTime := time.Now()
+	sortMode := recentFirst // TODO: compute this from the query.
+	searcher := NewSearcher(queryInfo, querySummary, sortMode, startTime)
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {

@@ -20,6 +20,8 @@ package processor
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +73,6 @@ func Test_GetFullResult_truncated(t *testing.T) {
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
-	qid := uint64(0)
 	searchNode := structs.ASTNode{}
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
@@ -81,13 +82,14 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	}
 	agg1.Next = &agg2
 
-	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, qid)
+	queryInfo := &query.QueryInformation{}
+	querySummary := &summary.QuerySummary{}
+	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
-	qid := uint64(0)
 	searchNode := structs.ASTNode{}
 
 	aggs := []structs.QueryAggregators{
@@ -116,7 +118,9 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		aggs[i-1].Next = &aggs[i]
 	}
 
-	queryProcessor, err := NewQueryProcessor(&searchNode, &aggs[0], qid)
+	queryInfo := &query.QueryInformation{}
+	querySummary := &summary.QuerySummary{}
+	queryProcessor, err := NewQueryProcessor(&searchNode, &aggs[0], queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
