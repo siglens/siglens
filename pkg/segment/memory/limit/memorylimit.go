@@ -155,21 +155,21 @@ func rebalanceMemoryAllocation() {
 		memoryAvailable = memoryAvailable - memory.GlobalMemoryTracker.SegSearchRequestedBytes
 	}
 
-	totalMetadataMemory := uint64(float64(memoryAvailable) * utils.MICRO_IDX_MEM_PERCENT / 100)
-	unrotatedMetadataMemory := writer.GetSizeOfUnrotatedMetadata()
-	if unrotatedMetadataMemory >= totalMetadataMemory {
-		unrotatedMetadataMemory = writer.RebalanceUnrotatedMetadata(totalMetadataMemory)
+	totalCmiMemory := uint64(float64(memoryAvailable) * utils.MICRO_IDX_MEM_PERCENT / 100)
+	unrotatedCmiMemory := writer.GetSizeOfUnrotatedMetadata()
+	if unrotatedCmiMemory >= totalCmiMemory {
+		unrotatedCmiMemory = writer.RebalanceUnrotatedMetadata(totalCmiMemory)
 	}
 
-	var blockMetadataMemory uint64
-	if unrotatedMetadataMemory > totalMetadataMemory {
-		blockMetadataMemory = 0
+	var rotatedCmiMemory uint64
+	if unrotatedCmiMemory > totalCmiMemory {
+		rotatedCmiMemory = 0
 	} else {
-		blockMetadataMemory = totalMetadataMemory - unrotatedMetadataMemory
+		rotatedCmiMemory = totalCmiMemory - unrotatedCmiMemory
 	}
 
-	segmetadata.RebalanceInMemoryCmi(blockMetadataMemory)
-	memory.GlobalMemoryTracker.CmiInMemoryAllocatedBytes = blockMetadataMemory
+	segmetadata.RebalanceInMemoryCmi(rotatedCmiMemory)
+	memory.GlobalMemoryTracker.CmiInMemoryAllocatedBytes = rotatedCmiMemory
 	memory.GlobalMemoryTracker.SegWriterUsageBytes = rawWriterSize
 }
 
