@@ -95,7 +95,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, len(nextBlocks)+1)
 	for i, nextBlock := range nextBlocks {
-		rrcs, err := s.readRRCs([]*block{nextBlock})
+		rrcs, err := s.readSortedRRCs([]*block{nextBlock})
 		if err != nil {
 			log.Errorf("searchProcessor.fetchRRCs: failed to read RRCs: %v", err)
 			return nil, err
@@ -251,10 +251,10 @@ func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*b
 	return selectedBlocks, nil
 }
 
-func (s *searcher) readRRCs(blocks []*block) ([]*segutils.RecordResultContainer, error) {
+func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultContainer, error) {
 	allSegRequests, err := getSSRs(blocks)
 	if err != nil {
-		log.Errorf("searchProcessor.readRRCs: failed to get SSRs: %v", err)
+		log.Errorf("searchProcessor.readSortedRRCs: failed to get SSRs: %v", err)
 		return nil, err
 	}
 
@@ -269,17 +269,18 @@ func (s *searcher) readRRCs(blocks []*block) ([]*segutils.RecordResultContainer,
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
 	if err != nil {
-		log.Errorf("searchProcessor.readRRCs: failed to initialize search results: %v", err)
+		log.Errorf("searchProcessor.readSortedRRCs: failed to initialize search results: %v", err)
 		return nil, err
 	}
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)
 	if err != nil {
-		log.Errorf("searchProcessor.readRRCs: failed to apply filter operator: %v", err)
+		log.Errorf("searchProcessor.readSortedRRCs: failed to apply filter operator: %v", err)
 		return nil, err
 	}
 
+	// TODO: verify the results or sorted, or sort them here.
 	return searchResults.GetResults(), nil
 }
 
