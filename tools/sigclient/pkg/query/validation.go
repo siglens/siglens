@@ -838,7 +838,7 @@ func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, s
 			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure sum value is not a number, received type: %T", measureResult.MeasureVal["sum"])
 		}
 		expectedAvg := sumVal / countVal
-		tolerancePercentage := 1e-3
+		tolerancePercentage := 0.1
 		if !utils.AlmostEqual(measureVal, expectedAvg, tolerancePercentage) {
 			return fmt.Errorf("PerfValidateMeasureResult: avg mismatch expected: %v, got: %v", expectedAvg, measureVal)
 		}

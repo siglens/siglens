@@ -169,20 +169,20 @@ var performanceTestCmd = &cobra.Command{
 		maxVariableCols := 20
 		concurrentQueries := 5
 
-		logCh := make(chan utils.Log, 1000)
+		logChan := make(chan utils.Log, 1000)
 
-		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logCh)
+		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logChan)
 
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go func(cancel context.CancelFunc) {
+			defer cancel()
 			// addTs should be false for performance testing
 			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
 				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
-			cancel()
 		}(cancel)
 
-		go query.PerformanceTest(ctx, logCh, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
+		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
 
 		for {
 			select {

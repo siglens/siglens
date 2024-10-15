@@ -271,7 +271,7 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
 	sTime := time.Now()
-	log.Infof("RunQuery: qid=%v, Running query: %v", qid, query)
+	log.Infof("RunStatsQuery: qid=%v, Running query: %v", qid, query)
 	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, 1)
 	if err != nil {
 		return fmt.Errorf("RunStatsQuery: Error running query via websocket: %v, err: %v", query, err)
@@ -329,7 +329,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
 	sTime := time.Now()
-	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v got: %v start: %v end: %v", qid, query, tslog.Timestamp, startTime, endTime)
+	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v", qid, query)
 	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error running query via websocket: %v, err: %v", query, err)
