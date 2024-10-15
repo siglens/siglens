@@ -1,0 +1,77 @@
+{
+    "queryText": "city=Boston | rare http_method useother=false percentfield=rare_pc countfield=rare_count showperc=true | top rare_count useother=false countfield=top_count percentfield=top_percent",
+    "expectedResult": {
+        "bucketCount": 6,
+        "qtype": "aggs-query",
+        "groupByCols": [
+           "http_method"
+        ],
+        "measureFunctions": [
+            "rare_count",
+            "top_count",
+            "top_percent"
+        ],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "DELETE"
+                ],
+                "MeasureVal": {
+                    "rare_count": 187,
+                    "top_count": 187,
+                    "top_percent": "19.004065"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "GET"
+                ],
+                "MeasureVal": {
+                    "rare_count": 174,
+                    "top_count": 174,
+                    "top_percent": "17.682927"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "rare_count": 168,
+                    "top_count": 168,
+                    "top_percent": "17.073171"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PUT"
+                ],
+                "MeasureVal": {
+                    "rare_count": 154,
+                    "top_count": 154,
+                    "top_percent": "15.650407"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "PATCH"
+                ],
+                "MeasureVal": {
+                    "rare_count": 153,
+                    "top_count": 153,
+                    "top_percent": "15.548780"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "POST"
+                ],
+                "MeasureVal": {
+                    "rare_count": 148,
+                    "top_count": 148,
+                    "top_percent": "15.040650"
+                }
+            }
+        ]
+    }
+}

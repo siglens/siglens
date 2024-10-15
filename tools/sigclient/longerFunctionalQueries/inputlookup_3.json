@@ -1,0 +1,6 @@
+{
+    "queryText": "app_name=Bracecould | inputlookup start=5 append=true test_lookup.csv where Test = \"abc\"",
+    "expectedResult": {
+    }
+ }
+ 
