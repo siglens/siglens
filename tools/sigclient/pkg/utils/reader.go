@@ -127,9 +127,9 @@ type FunctionalTestConfig struct {
 }
 
 type PerfTestConfig struct {
-	LogCh        chan Log
-	LogToSend    Log
-	LogAvailable bool
+	LogCh     chan Log
+	LogToSend Log
+	SendData  bool
 }
 
 type Log struct {
@@ -155,7 +155,8 @@ func (dataGenConfig *GeneratorDataConfig) SendLog() {
 
 	select {
 	case dataGenConfig.perfTestConfig.LogCh <- dataGenConfig.perfTestConfig.LogToSend:
-		dataGenConfig.perfTestConfig.LogAvailable = false
+		// log.Errorf("SENT LOG: %v", dataGenConfig.perfTestConfig.LogToSend)
+		dataGenConfig.perfTestConfig.SendData = true
 	default:
 		// skip if the channel is full
 	}
@@ -607,7 +608,7 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
 	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
 
-	if config.perfTestConfig.LogAvailable {
+	if !config.perfTestConfig.SendData {
 		return
 	}
 
@@ -630,7 +631,7 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 		AllFixedColumns: allFixedColumns,
 	}
 
-	config.perfTestConfig.LogAvailable = true
+	config.perfTestConfig.SendData = false
 	config.perfTestConfig.LogToSend = logToSend
 }
 
@@ -695,6 +696,10 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
 	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
+	if r.DataConfig != nil && r.DataConfig.perfTestConfig != nil {
+		r.DataConfig.perfTestConfig.SendData = true
+	}
+
 	return nil
 }
 

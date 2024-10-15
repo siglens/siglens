@@ -55,7 +55,7 @@ var globalQid = int64(0)
 // Compile the regular expression
 var patternRegex = regexp.MustCompile(pattern)
 
-const WAIT_DURATION_FOR_LOGS = 1 * time.Minute
+const WAIT_DURATION_FOR_LOGS = 15 * time.Second
 
 var colsToIgnore = map[string]struct{}{
 	"_index":                       struct{}{},
@@ -153,19 +153,28 @@ func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 
 func GetStringColAndVal(data map[string]interface{}) (string, string) {
 	for k, v := range data {
-		_, isString := v.(string)
-		if isString {
-			if patternRegex.MatchString(v.(string)) {
-				continue
-			}
-			return k, v.(string)
+		strVal, isString := v.(string)
+		if !isString {
+			continue
 		}
+		_, err := strconv.ParseFloat(strVal, 64)
+		if err == nil {
+			continue // skip floats/numbers
+		}
+		if patternRegex.MatchString(strVal) {
+			continue
+		}
+		return k, strVal
 	}
 	return "", ""
 }
 
 func GetNumericColAndVal(data map[string]interface{}) (string, string) {
 	for k, v := range data {
+		_, isString := v.(string)
+		if isString {
+			continue
+		}
 		strValue := fmt.Sprintf("%v", v)
 		floatVal, err := strconv.ParseFloat(strValue, 64)
 		if err == nil {
@@ -308,7 +317,7 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	}
 
 	// Construct the query: strCol1=strVal1 AND/OR numCol1=numVal1 | regex strCol2=strVal2
-	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(strCol1, strVal1), GetOp(), GetEqualClause(numCol1, numVal1), GetRegexClause(strCol2, strVal2))
+	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(strCol1, fmt.Sprintf(`"%v"`, strVal1)), GetOp(), GetEqualClause(numCol1, numVal1), GetRegexClause(strCol2, strVal2))
 
 	// Default values
 	startTime := tslog.Timestamp.Add(-2 * time.Minute)
