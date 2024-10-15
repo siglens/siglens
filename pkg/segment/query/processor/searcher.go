@@ -124,8 +124,11 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-
-	err = iqr.AppendRRCs(validRRCs, nil) // TODO: figure out how to merge.
+	err = iqr.AppendRRCs(validRRCs, s.segEncToKey)
+	if err != nil {
+		log.Errorf("searchProcessor.fetchRRCs: failed to append RRCs: %v", err)
+		return nil, err
+	}
 
 	return iqr, nil
 }
