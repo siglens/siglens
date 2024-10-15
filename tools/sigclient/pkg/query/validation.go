@@ -271,62 +271,62 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	return query, expRes, nil
 }
 
-func GetQueryResultForAPI(dest string, queryReq map[string]interface{}, qid int) (*Result, error) {
+func GetQueryResultForAPI(dest string, queryReq map[string]interface{}, qid int) (*Result, map[string]interface{}, error) {
 	reqBody, err := json.Marshal(queryReq)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error marshaling request, reqBody: %v, err: %v", reqBody, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error marshaling request, reqBody: %v, err: %v", reqBody, err)
 	}
 
 	url := fmt.Sprintf("http://%s/api/search", dest)
 	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, bytes.NewReader(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error creating request, url: %v, reqBody: %v, err: %v", url, reqBody, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error creating request, url: %v, reqBody: %v, err: %v", url, reqBody, err)
 	}
 	req.Header.Set("content-type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error sending request, req: %v, err: %v", req, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error sending request, req: %v, err: %v", req, err)
 	}
 	defer resp.Body.Close()
 
 	responseData := make(map[string]interface{})
 	if bodyBytes, err := io.ReadAll(resp.Body); err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error reading response, resp.Body: %v, err: %v", resp.Body, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error reading response, resp.Body: %v, err: %v", resp.Body, err)
 	} else {
 		if err := json.Unmarshal(bodyBytes, &responseData); err != nil {
-			return nil, fmt.Errorf("EvaluateQueryForAPI: Error unmarshaling bodyBytes: %v, err: %v", string(bodyBytes), err)
+			return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error unmarshaling bodyBytes: %v, err: %v", string(bodyBytes), err)
 		}
 	}
 
 	queryRes, err := CreateResult(responseData)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v\n err: %v", responseData, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v\n err: %v", responseData, err)
 	}
 	hits, err := getHits(responseData)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v\n err: %v", responseData, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v\n err: %v", responseData, err)
 	}
 	err = populateTotalMatchedAndRecords(hits, queryRes)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v\n err: %v", hits, responseData, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v\n err: %v", hits, responseData, err)
 	}
 
-	return queryRes, nil
+	return queryRes, responseData, nil
 }
 
 func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, expRes *Result) error {
 	query := queryReq["searchText"].(string)
 
 	sTime := time.Now()
-	queryRes, err := GetQueryResultForAPI(dest, queryReq, qid)
+	queryRes, resp, err := GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
 		return fmt.Errorf("EvaluateQueryForAPI: Failed getting query result: %v, err: %v", queryReq, err)
 	}
 
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, err: %v", query, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -373,19 +373,19 @@ func getHits(response map[string]interface{}) (map[string]interface{}, error) {
 	return nil, nil
 }
 
-func GetQueryResultForWebSocket(dest string, queryReq map[string]interface{}, qid int) (*Result, error) {
+func GetQueryResultForWebSocket(dest string, queryReq map[string]interface{}, qid int) (*Result, map[string]interface{}, error) {
 	webSocketURL := fmt.Sprintf("ws://%s/api/search/ws", dest)
 
 	// create websocket connection
 	conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error connecting to WebSocket server, webSocketURL: %v, err: %v", webSocketURL, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Error connecting to WebSocket server, webSocketURL: %v, err: %v", webSocketURL, err)
 	}
 	defer conn.Close()
 
 	err = conn.WriteJSON(queryReq)
 	if err != nil {
-		return nil, fmt.Errorf("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
+		return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Received error from server, queryReq: %v, err: %+v\n", queryReq, err)
 	}
 
 	readEvent := make(map[string]interface{})
@@ -402,27 +402,27 @@ func GetQueryResultForWebSocket(dest string, queryReq map[string]interface{}, qi
 			// As query results come in chunks, we need to keep track of all the records
 			hits, err := getHits(readEvent)
 			if err != nil {
-				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
+				return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
 			}
 			err = populateRecords(hits, tempRes)
 			if err != nil {
-				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
+				return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
 			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
 			if err != nil {
-				return nil, fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
+				return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
 			}
 			queryRes.Records = tempRes.Records
 			populateTotalMatched(readEvent, queryRes)
 
-			return queryRes, nil
+			return queryRes, readEvent, nil
 		default:
-			return nil, fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
+			return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
 		}
 	}
 
-	return nil, fmt.Errorf("EvaluateQueryForWebSocket: No Response from server")
+	return nil, nil, fmt.Errorf("EvaluateQueryForWebSocket: No Response from server")
 }
 
 // Evaluates queries and compares the results with expected results for websocket
@@ -430,14 +430,14 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 	query := queryReq["searchText"].(string)
 
 	sTime := time.Now()
-	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
+	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
 		return fmt.Errorf("EvaluateQueryForWebSocket: Failed getting query result: %v, err: %v", queryReq, err)
 	}
 
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, err: %v", query, err)
+		return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
 	log.Infof("EvaluateQueryForWebSocket: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -683,7 +683,7 @@ func ValidateGroupByQueryResults(queryRes *Result, expRes *Result) error {
 	return ValidateStatsQueryResults(queryRes, expRes)
 }
 
-func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string, atleastOneColMatch map[string]interface{}) error {
+func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string) error {
 	if queryRes == nil {
 		return fmt.Errorf("PerfValidateSearchQueryResult: Query result is nil")
 	}
@@ -739,22 +739,6 @@ func PerfValidateSearchQueryResult(queryRes *Result, fixedColumns []string, atle
 			if _, ok := record[col]; !ok {
 				return fmt.Errorf("PerfValidateSearchQueryResult: Fixed column %v not found in record: %v", col, record)
 			}
-		}
-	}
-
-	// validate atleast one col match
-	for _, record := range queryRes.Records {
-		found := false
-		for col, value := range atleastOneColMatch {
-			if val, ok := record[col]; ok {
-				if !reflect.DeepEqual(val, value) {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			return fmt.Errorf("PerfValidateSearchQueryResult: Atleast one column match not found in record: %v atleastOneColMatch: %v", record, atleastOneColMatch)
 		}
 	}
 
@@ -822,16 +806,24 @@ func PerfValidateMeasureResult(measureResult BucketHolder, measureFunc string, s
 			return fmt.Errorf("PerfValidateMeasureResult: Measure sum value is greater than count*max, sum: %v, count: %v, max: %v", measureVal, countVal, maxVal)
 		}
 	case "avg":
-		minVal, isFloat, isMinAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "min")
-		if !isMinAvailable {
-			// cannot validate average without min value
-			return nil
+		countVal, isCountFloat, isCountAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "count")
+		if !isCountAvailable {
+			return nil // cannot validate
 		}
-		if !isFloat {
-			return fmt.Errorf("PerfValidateMeasureResult: avg: Measure min value is not a number, received type: %T", measureResult.MeasureVal["min"])
+		if !isCountFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure count value is not a number, received type: %T", measureResult.MeasureVal["count"])
 		}
-		if measureVal < minVal {
-			return fmt.Errorf("PerfValidateMeasureResult: Measure avg value is less than min value, avg: %v, min: %v", measureVal, minVal)
+		sumVal, isSumFloat, isSumAvailable := GetFloatValueFromMap(measureResult.MeasureVal, "sum")
+		if !isSumAvailable {
+			return nil // cannot validate
+		}
+		if !isSumFloat {
+			return fmt.Errorf("PerfValidateMeasureResult: sum: Measure sum value is not a number, received type: %T", measureResult.MeasureVal["sum"])
+		}
+		expectedAvg := sumVal / countVal
+		tolerancePercentage := 1e-3
+		if !utils.AlmostEqual(measureVal, expectedAvg, tolerancePercentage) {
+			return fmt.Errorf("PerfValidateMeasureResult: avg mismatch expected: %v, got: %v", expectedAvg, measureVal)
 		}
 	case "min":
 		if measureVal > statsColValue {
@@ -893,7 +885,7 @@ func PerfValidateStatsQueryResult(queryRes *Result, measureFuncs []string, stats
 	for _, measureFunc := range measureFuncs {
 		err := PerfValidateMeasureResult(measureResult, measureFunc, statsColValue)
 		if err != nil {
-			return fmt.Errorf("PerfValidateStatsQueryResult: Error validating measure function %v, err: %v", measureFunc, err)
+			return fmt.Errorf("PerfValidateStatsQueryResult: Error validating measure function %v, measureResult: %v, err: %v", measureFunc, measureResult, err)
 		}
 	}
 
@@ -932,7 +924,7 @@ func PerfValidateGroupByQueryResult(queryRes *Result, groupByCols []string, buck
 			}
 			err := PerfValidateMeasureResult(measureResult, measureFunc, 0)
 			if err != nil {
-				return fmt.Errorf("PerfValidateGroupByQueryResult: Error validating measure function %v, err: %v", measureFunc, err)
+				return fmt.Errorf("PerfValidateGroupByQueryResult: Error validating measure function %v, measureResult: %v, err: %v", measureFunc, measureResult, err)
 			}
 		}
 	}

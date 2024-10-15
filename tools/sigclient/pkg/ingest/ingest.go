@@ -122,11 +122,6 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 
-	dynamicUserGen, ok := rdr.(*utils.DynamicUserGenerator)
-	if ok && dynamicUserGen.DataConfig != nil && dynamicUserGen.DataConfig.ConfigType == utils.PerformanceTest {
-		dynamicUserGen.SendData = true
-	}
-
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
 		logline, err := rdr.GetLogLine()
@@ -291,6 +286,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			time.Sleep(sleepTime)
 		}
 
+		SendPerformanceData(rdr)
+
 		if iType == ESBulk {
 			bytebufferpool.Put(bb)
 		}
@@ -312,6 +309,14 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			}
 		}
 	}
+}
+
+func SendPerformanceData(rdr utils.Generator) {
+	dynamicUserGen, isDUG := rdr.(*utils.DynamicUserGenerator)
+	if !isDUG || dynamicUserGen.DataConfig == nil {
+		return
+	}
+	dynamicUserGen.DataConfig.SendLog()
 }
 
 func populateActionLines(idxPrefix string, indexName string, numIndices int) []string {

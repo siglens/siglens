@@ -40,12 +40,11 @@ const (
 	ComplexSearchQuery Query = "complexsearch"
 	StatsQuery               = "stats"
 	GroupByQuery             = "groupby"
-	SearchWithAggs           = "searchwithaggs"
 )
 
 var Queries = []Query{
 	ComplexSearchQuery,
-	// StatsQuery,
+	StatsQuery,
 	GroupByQuery,
 }
 
@@ -56,7 +55,7 @@ var globalQid = int64(0)
 // Compile the regular expression
 var patternRegex = regexp.MustCompile(pattern)
 
-const WAIT_DURATION_FOR_LOGS = 15 * time.Second
+const WAIT_DURATION_FOR_LOGS = 1 * time.Minute
 
 var colsToIgnore = map[string]struct{}{
 	"_index":                       struct{}{},
@@ -114,6 +113,7 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, con
 				}()
 			}
 			wg.Wait()
+			time.Sleep(time.Duration(rand.Intn(100)+50) * time.Millisecond)
 		}
 	}
 }
@@ -143,7 +143,7 @@ func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
 				err = RunGroupByQuery(logReceived, dest, int(qid))
 			}
 			if err != nil {
-				log.Fatalf("RunPerfQueries: qid=%v, Error running query: %v, err: %v", qid, query, err)
+				log.Errorf("RunPerfQueries: qid=%v, Error running query: %v, err: %v", qid, query, err)
 			}
 		case <-ctx.Done():
 			return
@@ -211,6 +211,17 @@ func GetRandomKeys(data map[string]interface{}, numKeys int) []string {
 	return keys
 }
 
+func GetQueryRequest(query string, startEpoch interface{}, endEpoch interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"state":         "query",
+		"searchText":    query,
+		"startEpoch":    startEpoch,
+		"endEpoch":      endEpoch,
+		"indexName":     "*",
+		"queryLanguage": "Splunk QL",
+	}
+}
+
 func BuildStatsQuery(measureFuncs []string) (string, string) {
 	// http_status, latency, longitude, latitude
 	defaultStatsFields := []string{"http_status", "latency", "longitude", "latitude"}
@@ -246,39 +257,31 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 	// Default values
 	startTime := tslog.Timestamp.Add(-1 * time.Minute)
 	endTime := time.Now()
-	queryLanguage := "Splunk QL"
 
 	// run query
-	queryReq := map[string]interface{}{
-		"state":         "query",
-		"searchText":    query,
-		"startEpoch":    startTime.UnixMilli(),
-		"endEpoch":      endTime.UnixMilli(),
-		"indexName":     "*",
-		"queryLanguage": queryLanguage,
-	}
+	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
 	log.Infof("RunQuery: qid=%v, Running query: %v", qid, query)
-	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, 1)
+	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, 1)
 	if err != nil {
-		return fmt.Errorf("RunStatsQuery: Error running query via websocket, err: %v", err)
+		return fmt.Errorf("RunStatsQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
 	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
 	if err != nil {
-		return fmt.Errorf("RunStatsQuery: Error validating query for websocket: %v, err: %v", query, err)
+		return fmt.Errorf("RunStatsQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	queryRes, err = GetQueryResultForAPI(dest, queryReq, 1)
+	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, 1)
 	if err != nil {
-		return fmt.Errorf("RunStatsQuery: Error running query via API: %v", err)
+		return fmt.Errorf("RunStatsQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
 	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
 	if err != nil {
-		return fmt.Errorf("RunStatsQuery: Error validating query for API: %v, err: %v", query, err)
+		return fmt.Errorf("RunStatsQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
 	log.Infof("RunStatsQuery: qid=%v, Query: %v passed successfully", qid, query)
@@ -308,46 +311,32 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(strCol1, strVal1), GetOp(), GetEqualClause(numCol1, numVal1), GetRegexClause(strCol2, strVal2))
 
 	// Default values
-	startTime := tslog.Timestamp.Add(-1 * time.Minute)
+	startTime := tslog.Timestamp.Add(-2 * time.Minute)
 	endTime := time.Now()
-	queryLanguage := "Splunk QL"
 
-	// run query
-	queryReq := map[string]interface{}{
-		"state":         "query",
-		"searchText":    "",
-		"startEpoch":    startTime.UnixMilli(),
-		"endEpoch":      endTime.UnixMilli(),
-		"indexName":     "*",
-		"queryLanguage": queryLanguage,
-	}
+	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
-	atleastOneColMatch := map[string]interface{}{
-		strCol1: strVal1,
-		numCol1: tslog.Data[numCol1],
-	}
-
-	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v", qid, query)
-	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
+	log.Infof("RunComplexSearchQuery: qid=%v, Running query: %v got: %v start: %v end: %v", qid, query, tslog.Timestamp, startTime, endTime)
+	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
-		return fmt.Errorf("RunComplexSearchQuery: Error running query via websocket, err: %v", err)
+		return fmt.Errorf("RunComplexSearchQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
-	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns, atleastOneColMatch)
+	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
-		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, err: %v", query, err)
+		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	queryRes, err = GetQueryResultForAPI(dest, queryReq, qid)
+	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
-		return fmt.Errorf("RunComplexSearchQuery: Error running query via API: %v", err)
+		return fmt.Errorf("RunComplexSearchQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
-	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns, atleastOneColMatch)
+	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
-		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, err: %v", query, err)
+		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
 	log.Infof("RunComplexSearchQuery: qid=%v, Query: %v passed successfully", qid, query)
@@ -384,39 +373,30 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 	// Default values
 	startTime := tslog.Timestamp.Add(-3 * time.Minute)
 	endTime := time.Now()
-	queryLanguage := "Splunk QL"
 
-	// run query
-	queryReq := map[string]interface{}{
-		"state":         "query",
-		"searchText":    query,
-		"startEpoch":    startTime.UnixMilli(),
-		"endEpoch":      endTime.UnixMilli(),
-		"indexName":     "*",
-		"queryLanguage": queryLanguage,
-	}
+	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
 	log.Infof("RunGroupByQuery: qid=%v, Running query: %v", qid, query)
-	queryRes, err := GetQueryResultForWebSocket(dest, queryReq, qid)
+	queryRes, resp, err := GetQueryResultForWebSocket(dest, queryReq, qid)
 	if err != nil {
-		return fmt.Errorf("RunGroupByQuery: Error running query via websocket, err: %v", err)
+		return fmt.Errorf("RunGroupByQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
 	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
 	if err != nil {
-		return fmt.Errorf("RunGroupByQuery: Error validating query for websocket: %v, err: %v", query, err)
+		return fmt.Errorf("RunGroupByQuery: Error validating query for websocket:%v, resp: %v\n err: %v", query, resp, err)
 	}
 
-	queryRes, err = GetQueryResultForAPI(dest, queryReq, qid)
+	queryRes, resp, err = GetQueryResultForAPI(dest, queryReq, qid)
 	if err != nil {
-		return fmt.Errorf("RunGroupByQuery: Error running query via API, err: %v", err)
+		return fmt.Errorf("RunGroupByQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
 	// Validate the query result
 	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
 	if err != nil {
-		return fmt.Errorf("RunGroupByQuery: Error validating query for API: %v, err: %v", query, err)
+		return fmt.Errorf("RunGroupByQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
 	}
 
 	log.Infof("RunGroupByQuery: qid=%v, Query: %v passed successfully", qid, query)

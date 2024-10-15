@@ -93,7 +93,6 @@ type DynamicUserGenerator struct {
 	accFakerSeed int64
 	accountFaker *gofakeit.Faker
 	DataConfig   *GeneratorDataConfig
-	SendData     bool
 }
 
 type PerfTestGenerator struct {
@@ -128,13 +127,38 @@ type FunctionalTestConfig struct {
 }
 
 type PerfTestConfig struct {
-	LogCh chan Log
+	LogCh        chan Log
+	LogToSend    Log
+	LogAvailable bool
 }
 
 type Log struct {
 	Data            map[string]interface{}
 	AllFixedColumns []string
 	Timestamp       time.Time
+}
+
+func (dataGenConfig *GeneratorDataConfig) SendLog() {
+	if dataGenConfig.ConfigType != PerformanceTest {
+		return
+	}
+	if dataGenConfig.perfTestConfig == nil {
+		log.Errorf("SendLog: Perf test config is nil")
+		return
+	}
+	if dataGenConfig.perfTestConfig.LogCh == nil {
+		log.Errorf("SendLog: Log channel is nil")
+		return
+	}
+
+	dataGenConfig.perfTestConfig.LogToSend.Timestamp = time.Now()
+
+	select {
+	case dataGenConfig.perfTestConfig.LogCh <- dataGenConfig.perfTestConfig.LogToSend:
+		dataGenConfig.perfTestConfig.LogAvailable = false
+	default:
+		// skip if the channel is full
+	}
 }
 
 func GetVariableColumnNames(maxVariableColumns int) []string {
@@ -580,10 +604,10 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	}
 }
 
-func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker, sendData bool) {
+func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
 	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
 
-	if !sendData {
+	if config.perfTestConfig.LogAvailable {
 		return
 	}
 
@@ -604,22 +628,16 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 	logToSend := Log{
 		Data:            data,
 		AllFixedColumns: allFixedColumns,
-		Timestamp:       time.Now(),
 	}
 
-	select {
-	case config.perfTestConfig.LogCh <- logToSend:
-	default:
-		// skip if the channel is full
-	}
-
+	config.perfTestConfig.LogAvailable = true
+	config.perfTestConfig.LogToSend = logToSend
 }
 
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
 		if r.DataConfig.ConfigType == PerformanceTest {
-			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker, r.SendData)
-			r.SendData = false
+			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
 		} else if r.DataConfig.ConfigType == FunctionalTest {
 			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
