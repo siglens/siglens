@@ -175,7 +175,7 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		return err
 	}
 	writer.BackFillPQSSegmetaEntry(segmentKey, pqid)
-	pqs.AddPersistentQueryResult(segmentKey, virtualTableName, pqid)
+	pqs.AddPersistentQueryResult(segmentKey, pqid)
 	allPqmrFile = append(allPqmrFile, pqidFname)
 	err = blob.UploadIngestNodeDir()
 	if err != nil {
@@ -253,15 +253,15 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
 		if finalMatched == 0 {
-			go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey, searchReq.VirtualTableName)
+			go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
 		} else {
 			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
 		}
 	}
 }
 
-func writeEmptyPqmetaFilesWrapper(pqid string, segKey string, vTableName string) {
-	pqsmeta.AddEmptyResults(pqid, segKey, vTableName)
+func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
+	pqsmeta.AddEmptyResults(pqid, segKey)
 	writer.BackFillPQSSegmetaEntry(segKey, pqid)
 }
 

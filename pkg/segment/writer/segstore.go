@@ -762,7 +762,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.SegmentKey)
+		err := toputils.WriteValidityFile(segstore.segbaseDir)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
 				segstore.SegmentKey, err)
@@ -776,7 +776,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				if err != nil {
 					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
-				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey, segstore.VirtualTableName)
+				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey)
 			}
 		}
 
@@ -801,7 +801,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		AddNewRotatedSegment(segmeta)
+		addNewRotatedSegmeta(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {
