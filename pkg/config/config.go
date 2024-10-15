@@ -331,10 +331,6 @@ func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
 }
 
-func IsNewQueryPipelineEnabled() bool {
-	return runningConfig.NewQueryPipelineConverted
-}
-
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)
@@ -548,8 +544,6 @@ func GetTestConfig(dataPath string) common.Configuration {
 		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
-		NewQueryPipelineEnabled:     "false",
-		NewQueryPipelineConverted:   false,
 	}
 
 	return testConfig
@@ -871,17 +865,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	} else if config.Tracing.SamplingPercentage > 100 {
 		config.Tracing.SamplingPercentage = 100
 	}
-
-	if len(config.NewQueryPipelineEnabled) <= 0 {
-		config.NewQueryPipelineEnabled = "false"
-	}
-	newPipelineEnabled, err := strconv.ParseBool(config.NewQueryPipelineEnabled)
-	if err != nil {
-		log.Errorf("ExtractConfigData: failed to parse analytics enabled flag. Defaulting to false. Error: %v", err)
-		newPipelineEnabled = false
-		config.NewQueryPipelineEnabled = "false"
-	}
-	config.NewQueryPipelineConverted = newPipelineEnabled
 
 	return config, nil
 }
