@@ -52,7 +52,9 @@ type searcher struct {
 }
 
 func (s *searcher) Rewind() {
-	panic("not implemented")
+	s.gotBlocks = false
+	s.remainingBlocksSorted = nil
+	s.unsentRRCs = nil
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
