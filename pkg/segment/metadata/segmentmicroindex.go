@@ -52,13 +52,8 @@ type SegmentMicroIndex struct {
 // Holder structure for just the segment microindices
 type SegmentMicroIndices struct {
 	// map[blknum] => map[cname] => CmiContainer
-	blockCmis          map[uint16]map[string]*structs.CmiContainer
-	MicroIndexSize     uint64
-	loadedMicroIndices bool
-}
-
-func (smi *SegmentMicroIndices) AreMicroIndicesLoaded() bool {
-	return smi.loadedMicroIndices
+	blockCmis     map[uint16]map[string]*structs.CmiContainer
+	loadedCmiSize uint64
 }
 
 // Holder structure for just the segment search metadata (blk summaries & blockSearchInfo)
@@ -79,7 +74,6 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta, loadSsm bool) *SegmentM
 		SegMeta: *segMetaInfo,
 		smiLock: &sync.RWMutex{},
 	}
-	sm.loadedMicroIndices = false
 	sm.loadedSearchMetadata = false
 	sm.initMetadataSize()
 
@@ -94,7 +88,7 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta, loadSsm bool) *SegmentM
 	return sm
 }
 
-// Initializes sm.searchMetadaSize and sm.microIndexSize values
+// Initializes sm.searchMetadaSize
 func (sm *SegmentMicroIndex) initMetadataSize() {
 	searchMetadataSize := uint64(0)
 	searchMetadataSize += uint64(sm.NumBlocks * structs.SIZE_OF_BSUM) // block summaries
@@ -105,12 +99,6 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 	searchMetadataSize += uint64(sm.NumBlocks) * 2 * 10 * uint64(len(sm.ColumnNames))
 
 	sm.SearchMetadataSize = searchMetadataSize
-
-	microIndexSize := uint64(0)
-	for _, colSizeInfo := range sm.ColumnNames {
-		microIndexSize += colSizeInfo.CmiSize
-	}
-	sm.MicroIndexSize = microIndexSize
 }
 
 func (smi *SegmentMicroIndex) clearSearchMetadataWithLock() {
@@ -128,7 +116,7 @@ func (smi *SegmentMicroIndex) clearSearchMetadata() {
 func (smi *SegmentMicroIndex) clearMicroIndices() {
 	smi.smiLock.Lock()
 	smi.blockCmis = nil
-	smi.loadedMicroIndices = false
+	smi.loadedCmiSize = 0
 	smi.smiLock.Unlock()
 }
 
@@ -136,8 +124,8 @@ func (smi *SegmentMicroIndex) clearMicroIndices() {
 func (smi *SegmentMicroIndex) GetCMIsForBlock(blkNum uint16,
 	qid uint64) (map[string]*structs.CmiContainer, error) {
 	if len(smi.blockCmis) == 0 {
-		log.Errorf("qid=%v, GetCMIsForBlock: NO block cmis are loaded. loadedMicroIndices: %+v, segkey: %v",
-			qid, smi.loadedMicroIndices, smi.SegmentKey)
+		log.Errorf("qid=%v, GetCMIsForBlock: NO block cmis are loaded. segkey: %v",
+			qid, smi.SegmentKey)
 		return nil, fmt.Errorf("no cmis are loaded")
 	}
 
@@ -194,33 +182,32 @@ func (sm *SegmentMicroIndex) ReadBlockSummaries(rbuf []byte) ([]byte, []*structs
 	return retbuf, blockSum, allBmh, nil
 }
 
-func (sm *SegmentMicroIndex) loadMicroIndices(blocksToLoad map[uint16]map[string]bool, allBlocks bool, colsToCheck map[string]bool, wildcardCol bool) error {
-
-	sm.smiLock.Lock()
-	defer sm.smiLock.Unlock()
-
-	var allCols map[string]bool
-	if wildcardCol {
-		allCols = sm.GetColumns()
-	} else {
-		allCols = colsToCheck
-	}
-
-	err := sm.readCmis(blocksToLoad, allBlocks, allCols)
-	if err != nil {
-		sm.blockCmis = nil
-		sm.loadedMicroIndices = false
-		return err
-	}
-	sm.loadedMicroIndices = true
-	return nil
-}
-
 func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
-	allBlocks bool, allCols map[string]bool) error {
+	colsToRead map[string]bool) error {
 
 	if strings.Contains(smi.VirtualTableName, ".kibana") {
 		// no error bc kibana does not generate any CMIs
+		return nil
+	}
+
+	haveToRead := false
+
+	for askedBlkNum := range blocksToLoad {
+		cnameCmi, ok := smi.blockCmis[askedBlkNum]
+		if !ok {
+			haveToRead = true
+			break
+		}
+		for askedCname := range colsToRead {
+			_, ok = cnameCmi[askedCname]
+			if !ok {
+				haveToRead = true
+				break
+			}
+		}
+	}
+
+	if !haveToRead {
 		return nil
 	}
 
@@ -229,7 +216,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 	cmbuf := make([]byte, 0)
 
 	bulkDownloadFiles := make(map[string]string)
-	for cname := range allCols {
+	for cname := range colsToRead {
 		// timestamp, _type and _index col have no cmi
 		if cname == config.GetTimeStampKey() || cname == "_type" || cname == "_index" {
 			continue
@@ -278,41 +265,29 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 
 			blkNum := toputils.BytesToUint16LittleEndian(bb[utils.LEN_BLOCK_CMI_SIZE:])
 
-			var blkCnameCmiPresent bool
-			cnameCmi, ok := smi.blockCmis[blkNum]
-			if ok {
-				_, ok = cnameCmi[cname]
-				if ok {
-					blkCnameCmiPresent = true
-				}
-			}
-			_, blkAsked := blocksToLoad[blkNum]
-
-			// avoid reloading the cmi if this blk and this cname cmi was already loaded
-			if (blkAsked || allBlocks) && !blkCnameCmiPresent {
-				_, err = fd.ReadAt(cmbuf[:cmilen], offset)
-				if err != nil {
-					if err != io.EOF {
-						log.Errorf("readCmis: failed to read cmi err=[%+v], continuing with rest cmis", err)
-						break
-					}
+			_, err = fd.ReadAt(cmbuf[:cmilen], offset)
+			if err != nil {
+				if err != io.EOF {
+					log.Errorf("readCmis: failed to read cmi err=[%+v], continuing with rest cmis", err)
 					break
 				}
-
-				cmic, err := getCmi(cmbuf[:cmilen])
-				if err != nil {
-					log.Errorf("readCmis: failed to convert CMI, err=[%v], continuing with rest cmis", err)
-					break
-				}
-				if smi.blockCmis == nil {
-					smi.blockCmis = make(map[uint16]map[string]*structs.CmiContainer)
-				}
-				_, ok := smi.blockCmis[blkNum]
-				if !ok {
-					smi.blockCmis[blkNum] = make(map[string]*structs.CmiContainer)
-				}
-				smi.blockCmis[blkNum][cname] = cmic
+				break
 			}
+
+			cmic, err := getCmi(cmbuf[:cmilen])
+			if err != nil {
+				log.Errorf("readCmis: failed to convert CMI, err=[%v], continuing with rest cmis", err)
+				break
+			}
+			if smi.blockCmis == nil {
+				smi.blockCmis = make(map[uint16]map[string]*structs.CmiContainer)
+			}
+			_, ok := smi.blockCmis[blkNum]
+			if !ok {
+				smi.blockCmis[blkNum] = make(map[string]*structs.CmiContainer)
+			}
+			smi.blockCmis[blkNum][cname] = cmic
+			smi.loadedCmiSize += uint64(cmilen)
 			offset += int64(cmilen)
 		}
 	}
@@ -339,30 +314,22 @@ func (sm *SegmentMicroIndex) getRecordCount() uint32 {
 	return uint32(sm.SegMeta.RecordCount)
 }
 
-func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, int64, error) {
+func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, error) {
 
 	smi, exists := getMicroIndex(segkey)
 	if !exists {
-		return nil, 0, toputils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
+		return nil, toputils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
 	}
 
-	totalRequestedMemory := int64(0)
 	if !smi.loadedSearchMetadata {
-		currSearchMetaSize := int64(smi.SearchMetadataSize)
-		totalRequestedMemory += currSearchMetaSize
-		err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(currSearchMetaSize, 10, segkey)
+		_, err := smi.loadSearchMetadata([]byte{})
 		if err != nil {
-			return nil, 0,
-				toputils.TeeErrorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
-		}
-		_, err = smi.loadSearchMetadata([]byte{})
-		if err != nil {
-			return nil, 0,
+			return nil,
 				toputils.TeeErrorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
 		}
 	}
 
-	return smi, totalRequestedMemory, nil
+	return smi, nil
 }
 
 func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
@@ -370,27 +337,21 @@ func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
 	colsToCheck map[string]bool, wildcardCol bool,
 	qid uint64) (bool, error) {
 
+	var finalColsToCheck map[string]bool
+
+	smi.smiLock.RLock()
+	if wildcardCol {
+		finalColsToCheck = smi.GetColumns()
+	} else {
+		finalColsToCheck = colsToCheck
+	}
+	smi.smiLock.RUnlock()
+
 	smi.smiLock.Lock()
 	defer smi.smiLock.Unlock()
 
-	err := GlobalBlockMicroIndexCheckLimiter.TryAcquireWithBackoff(int64(smi.MicroIndexSize),
-		10, segkey)
-	if err != nil {
-		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! err: %v",
-			qid, err)
-		return false, fmt.Errorf("failed to acquire memory from global pool for search! err: %v",
-			err)
-	}
-
-	var allCols map[string]bool
-	if wildcardCol {
-		allCols = smi.GetColumns()
-	} else {
-		allCols = colsToCheck
-	}
-
 	var missingBlockCMI bool
-	err = smi.readCmis(timeFilteredBlocks, false, allCols)
+	err := smi.readCmis(timeFilteredBlocks, finalColsToCheck)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to load cmi for blocks and columns. Num blocks %+v, Num columns %+v. Error: %+v",
 			qid, len(timeFilteredBlocks), len(colsToCheck), err)
@@ -400,26 +361,12 @@ func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
 	return missingBlockCMI, nil
 }
 
-func (smi *SegmentMicroIndex) ClearSearchTimeData() {
-
-	if !smi.AreMicroIndicesLoaded() {
-		smi.clearMicroIndices()
-	}
-	if !smi.isSearchMetadataLoaded() {
-		smi.clearSearchMetadata()
-	}
-}
-
 func (smi *SegmentMicroIndex) RLockSmi() {
 	smi.smiLock.RLock()
 }
 
 func (smi *SegmentMicroIndex) RUnlockSmi() {
 	smi.smiLock.RUnlock()
-}
-
-func ReleaseCmiMemory(memSize int64) {
-	GlobalBlockMicroIndexCheckLimiter.Release(memSize)
 }
 
 func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHolder, []*structs.BlockSummary, error) {
