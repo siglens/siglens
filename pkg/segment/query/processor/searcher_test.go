@@ -212,7 +212,7 @@ func Test_getSSRs(t *testing.T) {
 
 	// Test when blocks are from different SSRs.
 	blocks[0].parentSSR = &structs.SegmentSearchRequest{}
-	allSegRequests, err = getSSRs(blocks)
+	_, err = getSSRs(blocks)
 	assert.Error(t, err)
 	blocks[0].parentSSR = ssr // Reset for next test.
 

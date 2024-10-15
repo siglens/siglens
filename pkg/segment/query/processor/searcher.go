@@ -44,6 +44,9 @@ type searcher struct {
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
 	sortMode     sortMode
+
+	gotBlocks             bool
+	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 }
 
 func (s *searcher) Rewind() {
@@ -51,6 +54,18 @@ func (s *searcher) Rewind() {
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
+	if !s.gotBlocks {
+		blocks, err := s.getBlocks()
+		if err != nil {
+			log.Errorf("searchProcessor.Fetch: failed to get blocks: %v", err)
+			return nil, err
+		}
+
+		sortBlocks(blocks, s.sortMode)
+		s.remainingBlocksSorted = blocks
+		s.gotBlocks = true
+	}
+
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd:
 		panic("not implemented") // TODO
@@ -65,15 +80,8 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
-	blocks, err := s.getBlocks()
-	if err != nil {
-		log.Errorf("searchProcessor.fetchRRCs: failed to get blocks: %v", err)
-		return nil, err
-	}
-
-	sortBlocks(blocks, s.sortMode)
-	endTime := getNextEndTime(blocks, s.sortMode)
-	nextBlocks, err := getBlocksForTimeRange(blocks, s.sortMode, endTime)
+	endTime := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
+	nextBlocks, err := getBlocksForTimeRange(s.remainingBlocksSorted, s.sortMode, endTime)
 	if err != nil {
 		log.Errorf("searchProcessor.fetchRRCs: failed to get blocks for time range: %v", err)
 		return nil, err
@@ -87,7 +95,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		}
 
 		s.mergeRRCs(rrcs)
-		s.removeBlocks(blocks, nextBlocks)
+		s.removeBlocks(s.remainingBlocksSorted, nextBlocks)
 	}
 
 	validRRCs := s.getValidRRCs()
