@@ -815,7 +815,7 @@ func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid uint6
 		return lokiQueryStats
 	}
 
-	allSegmetas := segwriter.ReadAllSegmetas()
+	allSegmetas := segwriter.ReadGlobalSegmetas()
 
 	allCnts := segwriter.GetVTableCountsForAll(myid, allSegmetas)
 	segwriter.GetUnrotatedVTableCountsForAll(myid, allCnts)

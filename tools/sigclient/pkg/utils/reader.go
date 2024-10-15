@@ -113,6 +113,7 @@ type GeneratorDataConfig struct {
 	MinColumns      int                   // Minimum number of columns per record
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
 	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
+	EndTimestamp    time.Time
 }
 
 type FunctionalTestConfig struct {
@@ -267,9 +268,9 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 		variableFaker:      varFaker,
 	}
 
-	endTimestamp := time.Now()
+	endTimestamp := dataConfig.EndTimestamp
 	if processIndex > 0 {
-		endTimestamp = endTimestamp.Add(3 * time.Duration(-processIndex) * time.Hour)
+		endTimestamp = dataConfig.EndTimestamp.Add(3 * time.Duration(-processIndex) * time.Hour)
 	}
 	functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
 
