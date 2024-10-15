@@ -102,8 +102,8 @@ func Test_getNextEndTime(t *testing.T) {
 	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 20, low: 5},
 		{high: 10, low: 8},
-		{high: 30, low: 25},
 		{high: 40, low: 15},
+		{high: 30, low: 25},
 	})
 
 	endTime = getNextEndTime(blocksSortedLow, recentLast)
@@ -136,8 +136,8 @@ func Test_getBlocksForTimeRange_recentLast(t *testing.T) {
 	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 20, low: 5},
 		{high: 10, low: 8},
-		{high: 30, low: 25},
 		{high: 40, low: 15},
+		{high: 30, low: 25},
 	})
 
 	selectedBlocks, err := getBlocksForTimeRange(blocksSortedLow, recentLast, 10)
