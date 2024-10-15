@@ -54,8 +54,9 @@ type searcher struct {
 
 func (s *searcher) Rewind() {
 	s.gotBlocks = false
-	s.remainingBlocksSorted = nil
-	s.unsentRRCs = nil
+	s.remainingBlocksSorted = make([]*block, 0)
+	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
+	s.segEncToKey = make(map[uint16]string)
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
