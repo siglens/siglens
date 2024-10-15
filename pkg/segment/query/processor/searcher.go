@@ -95,8 +95,11 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		}
 
 		s.mergeRRCs(rrcs)
-		s.removeBlocks(s.remainingBlocksSorted, nextBlocks)
 	}
+
+	// Remove the blocks we just processed. Since the blocks are sorted, we
+	// always take blocks from the front of the list.
+	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
 	validRRCs := s.getValidRRCs()
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
@@ -284,10 +287,6 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 }
 
 func (s *searcher) mergeRRCs(rrcs []*segutils.RecordResultContainer) {
-	panic("not implemented")
-}
-
-func (s *searcher) removeBlocks(blocks []*block, nextBlocks []*block) {
 	panic("not implemented")
 }
 
