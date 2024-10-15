@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -575,7 +575,7 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -608,8 +608,8 @@ func (iqr *IQR) AsResult() (*pipesearch.PipeSearchResponseOuter, error) {
 		}
 	}
 
-	response := &pipesearch.PipeSearchResponseOuter{
-		Hits: pipesearch.PipeSearchResponse{
+	response := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
 			TotalMatched: iqr.NumberOfRecords(),
 			Hits:         recordsAsAny,
 		},

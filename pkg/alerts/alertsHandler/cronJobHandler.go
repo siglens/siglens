@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -379,7 +380,7 @@ func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond 
 	return alertsDataList
 }
 
-func evaluateLogsQueryConditions(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+func evaluateLogsQueryConditions(searchResponse *structs.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
 
 	if searchResponse == nil {
 		err := fmt.Errorf("ALERTSERVICE: evaluateLogsQueryConditions: searchResponse is nil")
@@ -396,7 +397,7 @@ func evaluateLogsQueryConditions(searchResponse *pipesearch.PipeSearchResponseOu
 	return false, nil
 }
 
-func evaluateMeasureResultsAlertCondition(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+func evaluateMeasureResultsAlertCondition(searchResponse *structs.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
 	if searchResponse == nil {
 		err := fmt.Errorf("ALERTSERVICE: evaluateMeasureResultsAlertCondition: searchResponse is nil")
 		log.Error(err.Error())
@@ -427,7 +428,7 @@ func evaluateMeasureResultsAlertCondition(searchResponse *pipesearch.PipeSearchR
 	return false, nil
 }
 
-func evaluateRecordsMeasureAggsAlertCondition(searchResponse *pipesearch.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+func evaluateRecordsMeasureAggsAlertCondition(searchResponse *structs.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
 	if searchResponse == nil {
 		err := fmt.Errorf("ALERTSERVICE: evaluateRecordsMeasureAggsCondition: searchResponse is nil")
 		log.Error(err.Error())

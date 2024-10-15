@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type makemvProcessor struct{}
+type makemvProcessor struct {
+	options *structs.MultiValueColLetRequest
+}
 
 func (p *makemvProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *makemvProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *makemvProcessor) Cleanup() {
 	panic("not implemented")
 }

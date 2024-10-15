@@ -29,6 +29,7 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	_ "github.com/siglens/siglens/pkg/segment/query/processor" // TODO: don't import as "_"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -39,7 +40,7 @@ import (
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-	_, err := query.StartQuery(qid, false)
+	_, err := query.StartQuery(qid, false, nil)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 		return &mresults.MetricsResult{
@@ -64,7 +65,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-		_, err := query.StartQuery(qid, false)
+		_, err := query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 			return &mresults.MetricsResult{
@@ -423,8 +424,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-
-	rQuery, err := query.StartQuery(qid, false)
+	rQuery, err := query.StartQuery(qid, false, nil)
 	if err != nil {
 		log.Errorf("ExecuteQuery: Error initializing query status! %+v", err)
 		return &structs.NodeResult{
@@ -453,7 +453,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 // The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.
 // Returns a channel that will have events for query status or any error. An error means the query was not successfully started
 func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQuery(qid, true)
+	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 		return nil, err

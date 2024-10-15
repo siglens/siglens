@@ -92,7 +92,8 @@ func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 	return input, nil
 }
 
-func (ptp *passThroughProcessor) Rewind() {}
+func (ptp *passThroughProcessor) Rewind()  {}
+func (ptp *passThroughProcessor) Cleanup() {}
 
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
@@ -139,7 +140,8 @@ func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 	return input, nil
 }
 
-func (mbp *mockBottleneckProcessor) Rewind() {}
+func (mbp *mockBottleneckProcessor) Rewind()  {}
+func (mbp *mockBottleneckProcessor) Cleanup() {}
 
 func Test_Fetch_bottleneck(t *testing.T) {
 	stream := &mockStreamer{

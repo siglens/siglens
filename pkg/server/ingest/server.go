@@ -32,7 +32,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/pprofhandler"
 )
 
 type ingestionServerCfg struct {
@@ -111,10 +110,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// OTLP Handlers
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
-
-	if config.IsPProfEnabled() {
-		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
-	}
 
 	if hook := hooks.GlobalHooks.ExtraIngestEndpointsHook; hook != nil {
 		hook(hs.router, hs.Recovery)

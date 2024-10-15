@@ -1,5 +1,5 @@
 {
-    "queryText": "* | tail 30000 | stats count, avg(latency) as avg_latency",
+    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency",
     "expectedResult": {
         "totalMatched": {
             "value": 100000,
@@ -9,17 +9,20 @@
         "uniqueKeyCols": ["avg_latency"],
         "records": [
             {
-                "avg_latency": "4,981,954.779",
-                "count(*)": "30,000"
+                "avg_latency": "9,963,666.049",
+                "count(*)": "30,000",
+                "sum": "298,903,755,534"
             }
         ],
         "allColumns": [
-                "avg_latency",
-                "count(*)"
+            "avg_latency",
+            "count(*)",
+            "sum"
         ],
         "columnsOrder": [
             "avg_latency",
-            "count(*)"
-        ]       
+            "count(*)",
+            "sum"
+        ]
     }
 }

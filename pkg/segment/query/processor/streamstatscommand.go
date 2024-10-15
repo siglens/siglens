@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type streamstatsProcessor struct{}
+type streamstatsProcessor struct {
+	options *structs.StreamStatsOptions
+}
 
 func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *streamstatsProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *streamstatsProcessor) Cleanup() {
 	panic("not implemented")
 }

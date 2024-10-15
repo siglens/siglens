@@ -107,7 +107,7 @@ const (
 type QueryType uint8
 
 const (
-	InvalidCmd = iota
+	InvalidCmd QueryType = iota
 	SegmentStatsCmd
 	GroupByCmd
 	RRCCmd
@@ -169,6 +169,28 @@ type QueryAggregators struct {
 	GenerateEvent        *GenerateEvent
 	Next                 *QueryAggregators
 	Limit                int
+
+	// TODO: eventually, we shouldn't need any of the above fields; then we can
+	// delete them.
+	BinExpr         *BinCmdOptions
+	DedupExpr       *DedupExpr
+	EvalExpr        *EvalExpr
+	FieldsExpr      *ColumnsRequest
+	FillNullExpr    *FillNullExpr
+	GentimesExpr    *GenTimes
+	HeadExpr        *HeadExpr
+	MakeMVExpr      *MultiValueColLetRequest
+	RareExpr        *StatisticExpr
+	RegexExpr       *RegexExpr
+	RexExpr         *RexExpr
+	SortExpr        *SortExpr
+	StatsExpr       *StatsOptions
+	StreamstatsExpr *StreamStatsOptions
+	TailExpr        *TailExpr
+	TimechartExpr   *TimechartExpr
+	TopExpr         *StatisticExpr
+	TransactionExpr *TransactionArguments
+	WhereExpr       *BoolExpr
 }
 
 type GenerateEvent struct {

@@ -17,14 +17,23 @@
 
 package processor
 
-import "github.com/siglens/siglens/pkg/segment/query/iqr"
+import (
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
 
-type fieldsProcessor struct{}
+type fieldsProcessor struct {
+	options *structs.ColumnsRequest
+}
 
 func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	panic("not implemented")
 }
 
 func (p *fieldsProcessor) Rewind() {
+	panic("not implemented")
+}
+
+func (p *fieldsProcessor) Cleanup() {
 	panic("not implemented")
 }
