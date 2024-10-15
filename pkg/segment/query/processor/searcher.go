@@ -53,6 +53,20 @@ type searcher struct {
 	segEncToKey map[uint16]string
 }
 
+func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
+	sortMode sortMode, startTime time.Time) *searcher {
+
+	return &searcher{
+		queryInfo:             queryInfo,
+		querySummary:          querySummary,
+		sortMode:              sortMode,
+		startTime:             startTime,
+		remainingBlocksSorted: make([]*block, 0),
+		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
+		segEncToKey:           make(map[uint16]string),
+	}
+}
+
 func (s *searcher) Rewind() {
 	s.gotBlocks = false
 	s.remainingBlocksSorted = make([]*block, 0)
