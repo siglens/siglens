@@ -47,6 +47,8 @@ type searcher struct {
 
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
+
+	unsentRRCs []*segutils.RecordResultContainer
 }
 
 func (s *searcher) Rewind() {
@@ -87,19 +89,24 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	for _, nextBlock := range nextBlocks {
+	// Remove the blocks we're going to process. Since the blocks are sorted,
+	// we always take blocks from the front of the list.
+	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
+
+	allRRCsSlices := make([][]*segutils.RecordResultContainer, len(nextBlocks)+1)
+	for i, nextBlock := range nextBlocks {
 		rrcs, err := s.readRRCs([]*block{nextBlock})
 		if err != nil {
 			log.Errorf("searchProcessor.fetchRRCs: failed to read RRCs: %v", err)
 			return nil, err
 		}
 
-		s.mergeRRCs(rrcs)
+		allRRCsSlices[i] = rrcs
 	}
 
-	// Remove the blocks we just processed. Since the blocks are sorted, we
-	// always take blocks from the front of the list.
-	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
+	// Merge all these RRCs with any leftover RRCs from previous fetches.
+	allRRCsSlices[len(nextBlocks)] = s.unsentRRCs
+	s.unsentRRCs = toputils.MergeSortedSlices(sortingFunc(s.sortMode), allRRCsSlices...)
 
 	validRRCs := s.getValidRRCs()
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
@@ -108,6 +115,26 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	err = iqr.AppendRRCs(validRRCs, nil) // TODO: figure out how to merge.
 
 	return iqr, nil
+}
+
+func sortingFunc(sortMode sortMode) func(a, b *segutils.RecordResultContainer) bool {
+	switch sortMode {
+	case recentFirst:
+		return func(a, b *segutils.RecordResultContainer) bool {
+			return a.TimeStamp > b.TimeStamp
+		}
+	case recentLast:
+		return func(a, b *segutils.RecordResultContainer) bool {
+			return a.TimeStamp < b.TimeStamp
+		}
+	case anyOrder:
+		return func(a, b *segutils.RecordResultContainer) bool {
+			return true
+		}
+	default:
+		log.Errorf("searchProcessor.sortingFunc: invalid sort mode: %v", sortMode)
+		return nil
+	}
 }
 
 func (s *searcher) getBlocks() ([]*block, error) {
@@ -284,10 +311,6 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 	}
 
 	return fileToSSR, nil
-}
-
-func (s *searcher) mergeRRCs(rrcs []*segutils.RecordResultContainer) {
-	panic("not implemented")
 }
 
 func (s *searcher) getValidRRCs() []*segutils.RecordResultContainer {
