@@ -297,17 +297,6 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 	}
 }
 
-func NewSearchDP(options *structs.ASTNode) *DataProcessor {
-	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &searchProcessor{options: options},
-		inputOrderMatters: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   false,
-		isTwoPassCmd:      false,
-	}
-}
-
 func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),

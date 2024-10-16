@@ -24,6 +24,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_MapsConflict(t *testing.T) {
+	map1 := map[string]int{
+		"key1": 1,
+		"key2": 2,
+	}
+
+	assert.False(t, MapsConflict(map1, map1))
+	assert.False(t, MapsConflict(map1, map[string]int{}))
+	assert.False(t, MapsConflict(map1, nil))
+	assert.False(t, MapsConflict(map[string]int{}, map1))
+	assert.False(t, MapsConflict(nil, map1))
+	assert.False(t, MapsConflict(map1, map[string]int{"key1": 1}))
+	assert.False(t, MapsConflict(map1, map[string]int{"key3": 3}))
+	assert.False(t, MapsConflict(map1, map[string]int{"key5": 1}))
+	assert.True(t, MapsConflict(map1, map[string]int{"key1": 2}))
+}
+
 func Test_MapToSet(t *testing.T) {
 	map1 := map[string]string{}
 	assert.Equal(t, 0, len(MapToSet(map1)))
