@@ -41,6 +41,7 @@ type block struct {
 }
 
 type searcher struct {
+	qid          uint64
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
 	sortMode     sortMode
@@ -54,9 +55,19 @@ type searcher struct {
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
-	sortMode sortMode, startTime time.Time) *searcher {
+	sortMode sortMode, startTime time.Time) (*searcher, error) {
+
+	if queryInfo == nil {
+		return nil, toputils.TeeErrorf("searchProcessor.NewSearcher: queryInfo is nil")
+	}
+	if querySummary == nil {
+		return nil, toputils.TeeErrorf("searchProcessor.NewSearcher: querySummary is nil")
+	}
+
+	qid := queryInfo.GetQid()
 
 	return &searcher{
+		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
 		sortMode:              sortMode,
@@ -64,7 +75,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
 		segEncToKey:           make(map[uint16]string),
-	}
+	}, nil
 }
 
 func (s *searcher) Rewind() {
@@ -78,7 +89,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 	if !s.gotBlocks {
 		blocks, err := s.getBlocks()
 		if err != nil {
-			log.Errorf("searchProcessor.Fetch: failed to get blocks: %v", err)
+			log.Errorf("qid=%v, searchProcessor.Fetch: failed to get blocks: %v", s.qid, err)
 			return nil, err
 		}
 
@@ -95,8 +106,8 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 	case structs.RRCCmd:
 		return s.fetchRRCs()
 	default:
-		return nil, toputils.TeeErrorf("searchProcessor.Fetch: invalid query type: %v",
-			s.queryInfo.GetQueryType())
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.Fetch: invalid query type: %v",
+			s.qid, s.queryInfo.GetQueryType())
 	}
 }
 
@@ -104,7 +115,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	endTime := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
 	nextBlocks, err := getBlocksForTimeRange(s.remainingBlocksSorted, s.sortMode, endTime)
 	if err != nil {
-		log.Errorf("searchProcessor.fetchRRCs: failed to get blocks for time range: %v", err)
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get blocks for time range: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -116,13 +127,13 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	for i, nextBlock := range nextBlocks {
 		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock})
 		if err != nil {
-			log.Errorf("searchProcessor.fetchRRCs: failed to read RRCs: %v", err)
+			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to read RRCs: %v", s.qid, err)
 			return nil, err
 		}
 
 		if toputils.MapsConflict(s.segEncToKey, segEncToKey) {
-			return nil, toputils.TeeErrorf("searchProcessor.fetchRRCs: conflicting segEncToKey (%v and %v)",
-				s.segEncToKey, segEncToKey)
+			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: conflicting segEncToKey (%v and %v)",
+				s.qid, s.segEncToKey, segEncToKey)
 		}
 
 		toputils.MergeMapsRetainingFirst(s.segEncToKey, segEncToKey)
@@ -142,7 +153,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 	err = iqr.AppendRRCs(validRRCs, s.segEncToKey)
 	if err != nil {
-		log.Errorf("searchProcessor.fetchRRCs: failed to append RRCs: %v", err)
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -172,7 +183,7 @@ func sortingFunc(sortMode sortMode) func(a, b *segutils.RecordResultContainer) b
 func (s *searcher) getBlocks() ([]*block, error) {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
-		log.Errorf("searchProcessor.getBlocks: failed to get sorted QSRs: %v", err)
+		log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -180,7 +191,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 	for _, qsr := range qsrs {
 		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 		if err != nil {
-			log.Errorf("searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", qsr, err)
+			log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", s.qid, qsr, err)
 			return nil, err
 		}
 
@@ -285,7 +296,7 @@ func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*b
 func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
 	allSegRequests, err := getSSRs(blocks)
 	if err != nil {
-		log.Errorf("searchProcessor.readSortedRRCs: failed to get SSRs: %v", err)
+		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get SSRs: %v", s.qid, err)
 		return nil, nil, err
 	}
 
@@ -300,14 +311,14 @@ func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultCont
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
 	if err != nil {
-		log.Errorf("searchProcessor.readSortedRRCs: failed to initialize search results: %v", err)
+		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
 		return nil, nil, err
 	}
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)
 	if err != nil {
-		log.Errorf("searchProcessor.readSortedRRCs: failed to apply filter operator: %v", err)
+		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply filter operator: %v", s.qid, err)
 		return nil, nil, err
 	}
 
