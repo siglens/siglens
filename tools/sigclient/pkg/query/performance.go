@@ -34,15 +34,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Query string
+type QueryType string
 
 const (
-	ComplexSearchQuery Query = "complexsearch"
-	StatsQuery               = "stats"
-	GroupByQuery             = "groupby"
+	ComplexSearchQuery QueryType = "complexsearch"
+	StatsQuery                   = "stats"
+	GroupByQuery                 = "groupby"
 )
 
-var Queries = []Query{
+var QueryTypes = []QueryType{
 	ComplexSearchQuery,
 	StatsQuery,
 	GroupByQuery,
@@ -56,6 +56,8 @@ var globalQid = int64(0)
 var patternRegex = regexp.MustCompile(pattern)
 
 const WAIT_DURATION_FOR_LOGS = 15 * time.Second
+const MIN_SLEEP_MS = 50
+const MAX_SLEEP_MS = 150
 
 var colsToIgnore = map[string]struct{}{
 	"_index":                       struct{}{},
@@ -87,7 +89,7 @@ func GetQid() int64 {
 func PerformanceTest(ctx context.Context, logChan chan utils.Log, dest string, concurrentQueries int, variableColNames []string) {
 
 	if ctx == nil {
-		log.Fatalf("PerformanceTest: ctx or logChan is nil")
+		log.Fatalf("PerformanceTest: ctx is nil")
 	}
 	if logChan == nil {
 		log.Fatalf("PerformanceTest: logChan is nil")
@@ -113,15 +115,14 @@ func PerformanceTest(ctx context.Context, logChan chan utils.Log, dest string, c
 				}()
 			}
 			wg.Wait()
-			time.Sleep(time.Duration(rand.Intn(100)+50) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(MAX_SLEEP_MS-MIN_SLEEP_MS)+MIN_SLEEP_MS) * time.Millisecond)
 		}
 	}
 }
 
 func RunPerfQueries(ctx context.Context, logChan chan utils.Log, dest string) {
 
-	// Run all the queries _, query := range Queries
-	for _, query := range Queries {
+	for _, queryType := range QueryTypes {
 		var err error
 		select {
 		case logReceived := <-logChan:
@@ -134,7 +135,7 @@ func RunPerfQueries(ctx context.Context, logChan chan utils.Log, dest string) {
 				}
 			}
 			qid := GetQid()
-			switch query {
+			switch queryType {
 			case ComplexSearchQuery:
 				err = RunComplexSearchQuery(logReceived, dest, int(qid))
 			case StatsQuery:
@@ -143,7 +144,7 @@ func RunPerfQueries(ctx context.Context, logChan chan utils.Log, dest string) {
 				err = RunGroupByQuery(logReceived, dest, int(qid))
 			}
 			if err != nil {
-				log.Errorf("RunPerfQueries: qid=%v, Error running query: %v, err: %v", qid, query, err)
+				log.Errorf("RunPerfQueries: qid=%v, Error running queryType: %v, err: %v", qid, queryType, err)
 			}
 		case <-ctx.Done():
 			return
@@ -159,7 +160,7 @@ func GetStringColAndVal(data map[string]interface{}) (string, string) {
 		}
 		_, err := strconv.ParseFloat(strVal, 64)
 		if err == nil {
-			continue // skip floats/numbers
+			continue // skip floats/numbers based strings
 		}
 		if patternRegex.MatchString(strVal) {
 			continue
@@ -212,14 +213,6 @@ func GetFieldsClause(fields []string) string {
 	return "fields " + strings.Join(fields, ", ")
 }
 
-func GetRandomKeys(data map[string]interface{}, numKeys int) []string {
-	keys := make([]string, 0, numKeys)
-	for k := range data {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 func GetQueryRequest(query string, startEpoch interface{}, endEpoch interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"state":         "query",
@@ -232,7 +225,6 @@ func GetQueryRequest(query string, startEpoch interface{}, endEpoch interface{})
 }
 
 func BuildStatsQuery(measureFuncs []string) (string, string) {
-	// http_status, latency, longitude, latitude
 	defaultStatsFields := []string{"http_status", "latency", "longitude", "latitude"}
 
 	statsCol := defaultStatsFields[GetRandomNumber(len(defaultStatsFields)-1)]
@@ -263,11 +255,9 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunStatsQuery: Stats column %v is not numeric", statsCol)
 	}
 
-	// Default values
 	startTime := tslog.Timestamp.Add(-1 * time.Minute)
 	endTime := time.Now()
 
-	// run query
 	queryReq := GetQueryRequest(query, startTime.UnixMilli(), endTime.UnixMilli())
 
 	sTime := time.Now()
@@ -277,7 +267,6 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunStatsQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
 	if err != nil {
 		return fmt.Errorf("RunStatsQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
@@ -290,7 +279,6 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunStatsQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateStatsQueryResult(queryRes, measureFuncs, floatStatsColValue)
 	if err != nil {
 		return fmt.Errorf("RunStatsQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
@@ -301,7 +289,7 @@ func RunStatsQuery(tslog utils.Log, dest string, qid int) error {
 }
 
 func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
-	// Get the string column and value
+
 	strCol1, strVal1 := GetStringColAndVal(tslog.Data)
 	if strCol1 == "" || strVal1 == "" {
 		return fmt.Errorf("RunComplexSearchQuery: No string column and value found in log")
@@ -322,7 +310,6 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 	// Construct the query: strCol1=strVal1 AND/OR numCol1=numVal1 | regex strCol2=strVal2
 	query := fmt.Sprintf(`%v %v %v | %v`, GetEqualClause(strCol1, fmt.Sprintf(`"%v"`, strVal1)), GetOp(), GetEqualClause(numCol1, numVal1), GetRegexClause(strCol2, strVal2))
 
-	// Default values
 	startTime := tslog.Timestamp.Add(-2 * time.Minute)
 	endTime := time.Now()
 
@@ -335,7 +322,6 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunComplexSearchQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for websocket: %v, resp: %v\n err: %v", query, resp, err)
@@ -348,7 +334,6 @@ func RunComplexSearchQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunComplexSearchQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateSearchQueryResult(queryRes, tslog.AllFixedColumns)
 	if err != nil {
 		return fmt.Errorf("RunComplexSearchQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
@@ -385,7 +370,6 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 
 	query += fmt.Sprintf(` by %v`, grpByCol)
 
-	// Default values
 	startTime := tslog.Timestamp.Add(-3 * time.Minute)
 	endTime := time.Now()
 
@@ -398,7 +382,6 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunGroupByQuery: Error running query via websocket: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
 	if err != nil {
 		return fmt.Errorf("RunGroupByQuery: Error validating query for websocket:%v, resp: %v\n err: %v", query, resp, err)
@@ -411,7 +394,6 @@ func RunGroupByQuery(tslog utils.Log, dest string, qid int) error {
 		return fmt.Errorf("RunGroupByQuery: Error running query via API: %v, err: %v", query, err)
 	}
 
-	// Validate the query result
 	err = PerfValidateGroupByQueryResult(queryRes, []string{grpByCol}, card, measureFuncs)
 	if err != nil {
 		return fmt.Errorf("RunGroupByQuery: Error validating query for API: %v, resp: %v\n err: %v", query, resp, err)
