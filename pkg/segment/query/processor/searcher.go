@@ -51,7 +51,7 @@ type searcher struct {
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 
 	unsentRRCs  []*segutils.RecordResultContainer
-	segEncToKey map[uint16]string
+	segEncToKey *toputils.TwoWayMap[uint16, string]
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
@@ -74,7 +74,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
-		segEncToKey:           make(map[uint16]string),
+		segEncToKey:           toputils.NewTwoWayMap[uint16, string](),
 	}, nil
 }
 
@@ -82,7 +82,7 @@ func (s *searcher) Rewind() {
 	s.gotBlocks = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
-	s.segEncToKey = make(map[uint16]string)
+	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
@@ -141,12 +141,16 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 			return nil, err
 		}
 
-		if toputils.MapsConflict(s.segEncToKey, segEncToKey) {
+		if s.segEncToKey.Conflicts(segEncToKey) {
 			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: conflicting segEncToKey (%v and %v)",
 				s.qid, s.segEncToKey, segEncToKey)
 		}
 
-		toputils.MergeMapsRetainingFirst(s.segEncToKey, segEncToKey)
+		// There's no conflicts, so we can safely merge the two maps.
+		for k, v := range segEncToKey {
+			s.segEncToKey.Set(k, v)
+		}
+
 		allRRCsSlices[i] = rrcs
 	}
 
@@ -171,7 +175,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err = iqr.AppendRRCs(validRRCs, s.segEncToKey)
+	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetNormalMap())
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
