@@ -212,3 +212,7 @@ func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
 func (twm *TwoWayMap[T1, T2]) GetNormalMap() map[T1]T2 {
 	return twm.normal
 }
+
+func (twm *TwoWayMap[T1, T2]) Len() int {
+	return len(twm.normal)
+}

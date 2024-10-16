@@ -135,7 +135,8 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, len(nextBlocks)+1)
 	for i, nextBlock := range nextBlocks {
-		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock})
+		segkey := nextBlock.parentSSR.SegmentKey
+		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock}, segkey)
 		if err != nil {
 			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to read RRCs: %v", s.qid, err)
 			return nil, err
@@ -317,7 +318,7 @@ func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*b
 	return selectedBlocks, nil
 }
 
-func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
+func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
 	allSegRequests, err := getSSRs(blocks)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get SSRs: %v", s.qid, err)
@@ -338,6 +339,12 @@ func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultCont
 		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
 		return nil, nil, err
 	}
+
+	encoding, ok := s.segEncToKey.GetReverse(segkey)
+	if !ok {
+		encoding = uint16(s.segEncToKey.Len())
+	}
+	searchResults.NextSegKeyEnc = encoding
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)
