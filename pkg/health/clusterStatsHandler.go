@@ -62,7 +62,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	allSegMetas := writer.ReadGlobalSegmetas()
+	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
