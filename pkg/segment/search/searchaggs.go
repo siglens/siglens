@@ -1082,21 +1082,36 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 			blkResults.AddKeyToTimeBucket(recTs, 1)
 		}
 		numRecsMatched++
-		if blkResults.ShouldAddMore() {
-			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
-			if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-				rrc := &utils.RecordResultContainer{
-					SegKeyInfo: utils.SegKeyInfo{
-						SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
-						IsRemote:  false,
-					},
-					BlockNum:         blockStatus.BlockNum,
-					RecordNum:        recNumUint16,
-					SortColumnValue:  sortVal,
-					VirtualTableName: searchReq.VirtualTableName,
-					TimeStamp:        recTs,
+
+		if config.IsNewQueryPipelineEnabled() {
+			rrc := &utils.RecordResultContainer{
+				SegKeyInfo: utils.SegKeyInfo{
+					SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+					IsRemote:  false,
+				},
+				BlockNum:         blockStatus.BlockNum,
+				RecordNum:        recNumUint16,
+				VirtualTableName: searchReq.VirtualTableName,
+				TimeStamp:        recTs,
+			}
+			blkResults.Add(rrc)
+		} else { // TODO: delete this else block when we migrate to new query pipeline
+			if blkResults.ShouldAddMore() {
+				sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
+				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+					rrc := &utils.RecordResultContainer{
+						SegKeyInfo: utils.SegKeyInfo{
+							SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+							IsRemote:  false,
+						},
+						BlockNum:         blockStatus.BlockNum,
+						RecordNum:        recNumUint16,
+						SortColumnValue:  sortVal,
+						VirtualTableName: searchReq.VirtualTableName,
+						TimeStamp:        recTs,
+					}
+					blkResults.Add(rrc)
 				}
-				blkResults.Add(rrc)
 			}
 		}
 	}
