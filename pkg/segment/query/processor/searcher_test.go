@@ -97,7 +97,8 @@ func Test_getNextEndTime(t *testing.T) {
 		{high: 10, low: 8},
 	})
 
-	endTime := getNextEndTime(blocksSortedHigh, recentFirst)
+	endTime, err := getNextEndTime(blocksSortedHigh, recentFirst)
+	assert.NoError(t, err)
 	assert.Equal(t, uint64(15), endTime)
 
 	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
@@ -107,7 +108,8 @@ func Test_getNextEndTime(t *testing.T) {
 		{high: 30, low: 25},
 	})
 
-	endTime = getNextEndTime(blocksSortedLow, recentLast)
+	endTime, err = getNextEndTime(blocksSortedLow, recentLast)
+	assert.NoError(t, err)
 	assert.Equal(t, uint64(20), endTime)
 }
 
@@ -234,7 +236,8 @@ func Test_getValidRRCs(t *testing.T) {
 		{TimeStamp: 10},
 	}
 
-	actualRRCs := getValidRRCs(rrcsSortedRecentFirst, 25, recentFirst)
+	actualRRCs, err := getValidRRCs(rrcsSortedRecentFirst, 25, recentFirst)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actualRRCs))
 	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
@@ -246,7 +249,8 @@ func Test_getValidRRCs(t *testing.T) {
 		{TimeStamp: 40},
 	}
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 25, recentLast)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentLast, 25, recentLast)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actualRRCs))
 	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)
@@ -260,16 +264,19 @@ func Test_getValidRRCs_boundaries(t *testing.T) {
 		{TimeStamp: 10},
 	}
 
-	actualRRCs := getValidRRCs(rrcsSortedRecentFirst, 20, recentFirst)
+	actualRRCs, err := getValidRRCs(rrcsSortedRecentFirst, 20, recentFirst)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(actualRRCs))
 	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
 	assert.Equal(t, uint64(20), actualRRCs[2].TimeStamp)
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentFirst, 50, recentFirst)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentFirst, 50, recentFirst)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(actualRRCs))
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentFirst, 0, recentFirst)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentFirst, 0, recentFirst)
+	assert.NoError(t, err)
 	assert.Equal(t, 4, len(actualRRCs))
 	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
@@ -283,16 +290,19 @@ func Test_getValidRRCs_boundaries(t *testing.T) {
 		{TimeStamp: 40},
 	}
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 30, recentLast)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentLast, 30, recentLast)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(actualRRCs))
 	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)
 	assert.Equal(t, uint64(30), actualRRCs[2].TimeStamp)
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 0, recentLast)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentLast, 0, recentLast)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(actualRRCs))
 
-	actualRRCs = getValidRRCs(rrcsSortedRecentLast, 50, recentLast)
+	actualRRCs, err = getValidRRCs(rrcsSortedRecentLast, 50, recentLast)
+	assert.NoError(t, err)
 	assert.Equal(t, 4, len(actualRRCs))
 	assert.Equal(t, uint64(10), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(20), actualRRCs[1].TimeStamp)

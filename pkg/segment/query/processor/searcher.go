@@ -112,7 +112,12 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
-	endTime := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
+	endTime, err := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get next end time: %v", s.qid, err)
+		return nil, err
+	}
+
 	nextBlocks, err := getBlocksForTimeRange(s.remainingBlocksSorted, s.sortMode, endTime)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get blocks for time range: %v", s.qid, err)
@@ -142,9 +147,19 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	// Merge all these RRCs with any leftover RRCs from previous fetches.
 	allRRCsSlices[len(nextBlocks)] = s.unsentRRCs
-	s.unsentRRCs = toputils.MergeSortedSlices(sortingFunc(s.sortMode), allRRCsSlices...)
+	sortingFunc, err := getSortingFunc(s.sortMode)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get sorting function: %v", s.qid, err)
+		return nil, err
+	}
 
-	validRRCs := getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
+	s.unsentRRCs = toputils.MergeSortedSlices(sortingFunc, allRRCsSlices...)
+
+	validRRCs, err := getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get valid RRCs: %v", s.qid, err)
+		return nil, err
+	}
 
 	// TODO: maybe look into optimizations for unsentRRCs so we can discard
 	// the memory at the beginning (which will never be used again).
@@ -160,23 +175,22 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func sortingFunc(sortMode sortMode) func(a, b *segutils.RecordResultContainer) bool {
+func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
 	switch sortMode {
 	case recentFirst:
 		return func(a, b *segutils.RecordResultContainer) bool {
 			return a.TimeStamp > b.TimeStamp
-		}
+		}, nil
 	case recentLast:
 		return func(a, b *segutils.RecordResultContainer) bool {
 			return a.TimeStamp < b.TimeStamp
-		}
+		}, nil
 	case anyOrder:
 		return func(a, b *segutils.RecordResultContainer) bool {
 			return true
-		}
+		}, nil
 	default:
-		log.Errorf("searchProcessor.sortingFunc: invalid sort mode: %v", sortMode)
-		return nil
+		return nil, toputils.TeeErrorf("getSortingFunc: invalid sort mode: %v", sortMode)
 	}
 }
 
@@ -228,10 +242,10 @@ const (
 	anyOrder
 )
 
-func sortBlocks(blocks []*block, mode sortMode) {
+func sortBlocks(blocks []*block, mode sortMode) error {
 	switch mode {
 	case anyOrder:
-		return
+		return nil
 	case recentFirst:
 		sort.Slice(blocks, func(i, j int) bool {
 			return blocks[i].HighTs > blocks[j].HighTs
@@ -241,13 +255,15 @@ func sortBlocks(blocks []*block, mode sortMode) {
 			return blocks[i].LowTs < blocks[j].LowTs
 		})
 	default:
-		log.Errorf("searchProcessor.sort: invalid sort mode: %v", mode)
+		return toputils.TeeErrorf("sortBlocks: invalid sort mode: %v", mode)
 	}
+
+	return nil
 }
 
-func getNextEndTime(sortedBlocks []*block, mode sortMode) uint64 {
+func getNextEndTime(sortedBlocks []*block, mode sortMode) (uint64, error) {
 	if len(sortedBlocks) == 0 {
-		return 0
+		return 0, nil
 	}
 
 	// TODO: we may want to optimize this; e.g., minimize the number of blocks
@@ -255,12 +271,11 @@ func getNextEndTime(sortedBlocks []*block, mode sortMode) uint64 {
 	// blocks.
 	switch mode {
 	case recentFirst:
-		return sortedBlocks[0].LowTs
+		return sortedBlocks[0].LowTs, nil
 	case recentLast:
-		return sortedBlocks[0].HighTs
+		return sortedBlocks[0].HighTs, nil
 	default:
-		log.Errorf("searchProcessor.getNextEndTime: invalid sort mode: %v", mode)
-		return 0
+		return 0, toputils.TeeErrorf("getNextEndTime: invalid sort mode: %v", mode)
 	}
 }
 
@@ -336,7 +351,7 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 	firstSSR := blocks[0].parentSSR
 	for _, block := range blocks {
 		if block.parentSSR != firstSSR {
-			return nil, toputils.TeeErrorf("searchProcessor.getSSRs: blocks are from different SSRs")
+			return nil, toputils.TeeErrorf("getSSRs: blocks are from different SSRs")
 		}
 	}
 
@@ -356,22 +371,23 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 	return fileToSSR, nil
 }
 
-func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp uint64, mode sortMode) []*segutils.RecordResultContainer {
+func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp uint64,
+	mode sortMode) ([]*segutils.RecordResultContainer, error) {
+
 	switch mode {
 	case recentFirst:
 		i := sort.Search(len(sortedRRCs), func(k int) bool {
 			return sortedRRCs[k].TimeStamp < lastTimestamp
 		})
-		return sortedRRCs[:i]
+		return sortedRRCs[:i], nil
 	case recentLast:
 		i := sort.Search(len(sortedRRCs), func(k int) bool {
 			return sortedRRCs[k].TimeStamp > lastTimestamp
 		})
-		return sortedRRCs[:i]
+		return sortedRRCs[:i], nil
 	case anyOrder:
-		return sortedRRCs
+		return sortedRRCs, nil
 	default:
-		log.Errorf("searchProcessor.getValidRRCs: invalid sort mode: %v", mode)
-		return nil
+		return nil, toputils.TeeErrorf("getValidRRCs: invalid sort mode: %v", mode)
 	}
 }
