@@ -22,9 +22,11 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/siglens/siglens/pkg/config"
 	writer "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -96,27 +98,40 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
 	scanner := bufio.NewScanner(r)
 	scanner.Split(bufio.ScanLines)
 	localIndexMap := make(map[string]string)
+	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	responsebody := make(map[string]interface{})
+	totalBytes := 0
 	for scanner.Scan() {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
-		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+		totalBytes += len(rawJson)
+		ple, err := writer.GetNewPLE(rawJson, tsNow, "test-data", &tsKey, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
 		}
-		usageStats.UpdateStats(uint64(numBytes), 1, orgId)
+		pleArray = append(pleArray, ple)
 	}
+
+	err = writer.ProcessIndexRequestPle(tsNow, "test-data", false, localIndexMap,
+		orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessSyntheicDataRequest: failed to process request, err: %v", err)
+		utils.SendError(ctx, "Failed to process request", "", err)
+		return
+	}
+
+	usageStats.UpdateStats(uint64(totalBytes), uint64(len(pleArray)), orgId)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responsebody["message"] = "Successfully ingested 20k lines of logs!"
 	utils.WriteJsonResponse(ctx, responsebody)
-
 }

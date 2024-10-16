@@ -117,7 +117,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 					numFailedSpans++
 					continue
 				}
-				
+
 				ple, err := writer.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)

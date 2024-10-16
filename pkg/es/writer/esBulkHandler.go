@@ -426,6 +426,14 @@ func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, js
 	return ple, nil
 }
 
+func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
+	var totalBytes uint64
+	for _, ple := range pleArray {
+		totalBytes += uint64(len(ple.GetRawJson()))
+	}
+	return totalBytes
+}
+
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
 	localIndexMap map[string]string, myid uint64, rid uint64,
 	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
