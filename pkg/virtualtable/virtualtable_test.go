@@ -199,6 +199,9 @@ func Test_DeleteVirtualTable(t *testing.T) {
 		flag = strings.Contains(string(scanner.Bytes()), indexName)
 		assert.Equal(t, flag, false)
 	}
+	err = scanner.Err()
+
+	assert.Nil(t, err)
 	assert.Equal(t, flag, false)
 	os.RemoveAll(fname)
 	os.RemoveAll(config.GetRunningConfig().DataPath)
