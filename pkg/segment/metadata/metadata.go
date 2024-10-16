@@ -184,8 +184,9 @@ func (hm *allSegmentMetadata) rebalanceCmi(cmiSizeBytes uint64) {
 	cmiIndex, inMemSize := hm.getCmiMaxIndicesToEvict(cmiSizeBytes)
 	evicted := hm.evictCmiPastIndices(cmiIndex)
 
-	log.Infof("rebalanceCmi: cmiIndex: %v, totalSMI: %v, allocated: %+v MB, evicted: %v",
-		cmiIndex, len(hm.allSegmentMicroIndex), utils.ConvertUintBytesToMB(inMemSize), evicted)
+	log.Infof("rebalanceCmi: evcitCmiIndex: %v, totalSMI: %v, allocated: %+v MB, evicted: %v, allowedMB: %v",
+		cmiIndex, len(hm.allSegmentMicroIndex), utils.ConvertUintBytesToMB(inMemSize),
+		evicted, utils.ConvertUintBytesToMB(cmiSizeBytes))
 
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexCount(uint64(cmiIndex))
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexSizeMB(utils.ConvertUintBytesToMB(inMemSize))
@@ -380,9 +381,10 @@ func (hm *allSegmentMetadata) rebalanceSsm(ssmSizeBytes uint64) {
 
 	inMemSize, inMemSearchMetaCount, newloaded := hm.loadSsmUntilIndex(searchIndex)
 
-	log.Infof("rebalanceSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, totalSsmCount: %v, took: %vms",
+	log.Infof("rebalanceSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, totalSsmCount: %v, allowedMB: %v, took: %vms",
 		inMemSearchMetaCount, utils.ConvertUintBytesToMB(inMemSize),
 		evicted, newloaded, len(hm.allSegmentMicroIndex),
+		utils.ConvertUintBytesToMB(ssmSizeBytes),
 		int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemorySearchmetadataCount(uint64(inMemSearchMetaCount))
