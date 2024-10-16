@@ -57,7 +57,7 @@ func AddPersistentQueryResult(segKey string, pqid string) {
 func GetAllPersistentQueryResults(segKey string, pqid string) (*pqmr.SegmentPQMRResults, error) {
 
 	isPqidPresent := DoesSegKeyHavePqidResults(segKey, pqid)
-	if !isPqidPresent {
+	if isPqidPresent {
 		return nil, errors.New("segKey does not have any persistent query results")
 	}
 
