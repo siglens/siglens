@@ -265,7 +265,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil
 		}
 
-		vTable := iqr.rrcs[0].VirtualTableName
+		vTable := rrcs[0].VirtualTableName
 		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
 		if err != nil {
 			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
