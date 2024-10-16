@@ -23,7 +23,6 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -130,8 +129,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
 		if isQueryPersistent {
-			go pqsmeta.AddEmptyResults(pqid, segkey)
-			go writer.BackFillPQSSegmetaEntry(segkey, pqid)
+			go writer.AddToPQSBackFillChan(segkey, pqid, true)
 		}
 	}
 
