@@ -209,7 +209,8 @@ func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
 	return MapsConflict(twm.normal, other)
 }
 
-func (twm *TwoWayMap[T1, T2]) GetNormalMap() map[T1]T2 {
+// Do not modify the returned map. Modifying it will break the two-way mapping.
+func (twm *TwoWayMap[T1, T2]) GetMapForReading() map[T1]T2 {
 	return twm.normal
 }
 

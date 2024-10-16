@@ -187,7 +187,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetNormalMap())
+	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapForReading())
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
