@@ -177,3 +177,38 @@ func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 
 	return result
 }
+
+type TwoWayMap[T1, T2 comparable] struct {
+	normal  map[T1]T2
+	reverse map[T2]T1
+}
+
+func NewTwoWayMap[T1, T2 comparable]() *TwoWayMap[T1, T2] {
+	return &TwoWayMap[T1, T2]{
+		normal:  make(map[T1]T2),
+		reverse: make(map[T2]T1),
+	}
+}
+
+func (twm *TwoWayMap[T1, T2]) Set(key T1, value T2) {
+	twm.normal[key] = value
+	twm.reverse[value] = key
+}
+
+func (twm *TwoWayMap[T1, T2]) Get(key T1) (T2, bool) {
+	value, exists := twm.normal[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) GetReverse(key T2) (T1, bool) {
+	value, exists := twm.reverse[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
+	return MapsConflict(twm.normal, other)
+}
+
+func (twm *TwoWayMap[T1, T2]) GetNormalMap() map[T1]T2 {
+	return twm.normal
+}
