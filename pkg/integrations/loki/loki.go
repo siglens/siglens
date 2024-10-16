@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -233,6 +234,8 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
+	tsKey := config.GetTimeStampKey()
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
 		ingestCommonFields := parseLabels(labels)
@@ -249,6 +252,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 		}
 
 		if len(entries) > 0 {
+			pleArray := make([]*segwriter.ParsedLogEvent, 0)
 			for _, entry := range entries {
 				entryMap, ok := entry.(map[string]interface{})
 				if !ok {
@@ -275,12 +279,28 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
-					jsParsingStackbuf[:])
+				tsMillis := utils.ExtractTimeStamp(test, &tsKey)
+				if tsMillis == 0 {
+					tsMillis = tsNow
+				}
+
+				ple := segwriter.NewPLE()
+				ple.SetRawJson(test)
+				ple.SetTimestamp(tsMillis)
+				ple.SetIndexName(indexNameIn)
+
+				err = segwriter.ParseRawJsonObject("", test, &tsKey, jsParsingStackbuf[:], ple)
 				if err != nil {
-					utils.SendError(ctx, "Failed to ingest record", "", err)
+					log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,test=%v, err=%v", test, err)
 					return
 				}
+				pleArray = append(pleArray, ple)
+			}
+			
+			err = writer.ProcessIndexRequestPle(tsNow, indexNameIn, false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+			if err != nil {
+				utils.SendError(ctx, "Failed to ingest record", "", err)
+				return
 			}
 		}
 	}
