@@ -1458,10 +1458,10 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 	}
 
-	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
-	fd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tempSSTFile := fmt.Sprintf("%v.sst.tmp", ss.SegmentKey)
+	fd, err := os.OpenFile(tempSSTFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("FlushSegStats: Failed to open file=%v, err=%v", fname, err)
+		log.Errorf("FlushSegStats: Failed to open tempSSTFile=%v, err=%v", tempSSTFile, err)
 		return err
 	}
 	defer fd.Close()
@@ -1508,6 +1508,12 @@ func (ss *SegStore) FlushSegStats() error {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err
 		}
+	}
+
+	finalName := fmt.Sprintf("%v.sst", ss.SegmentKey)
+	err = os.Rename(tempSSTFile, finalName)
+	if err != nil {
+		return fmt.Errorf("FlushSegStats: error while migrating %v to %v, err: %v", tempSSTFile, finalName, err)
 	}
 
 	return nil

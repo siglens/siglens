@@ -70,6 +70,10 @@ func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
 	return qi.aggs
 }
 
+func (qi *QueryInformation) GetQueryRange() *dtu.TimeRange {
+	return qi.queryRange
+}
+
 func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
 	return qi.queryRange.StartEpochMs
 }
@@ -92,6 +96,10 @@ func (qi *QueryInformation) GetScrollFrom() int {
 
 func (qi *QueryInformation) GetPqid() string {
 	return qi.pqid
+}
+
+func (qi *QueryInformation) GetParallelismPerFile() int64 {
+	return qi.parallelismPerFile
 }
 
 func (qi *QueryInformation) GetQueryType() structs.QueryType {

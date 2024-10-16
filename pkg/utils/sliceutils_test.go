@@ -192,3 +192,17 @@ func Test_IndexOfMin(t *testing.T) {
 	index := IndexOfMin(slice, less)
 	assert.True(t, index == 2 || index == 3)
 }
+
+func Test_MergeSortedSlices(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{1, 3, 5, 7}
+	slice2 := []int{2, 4, 6, 8}
+	slice3 := []int{0, 9, 10, 11}
+
+	expected := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
