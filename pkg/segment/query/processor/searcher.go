@@ -119,6 +119,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
+		query.SetRawSearchFinished(s.qid)
 		return nil, io.EOF
 	}
 

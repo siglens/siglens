@@ -301,16 +301,26 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		_, err := query.StartQuery(qid, false, nil)
+		_, err = query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
 				qid, err)
 			return nil, false, nil, err
 		}
 
-		queryProcessor, err := processor.BuildQueryProcessor(simpleNode, aggs, qc, qid)
+		_, querySummary, queryInfo, pqid, containsKibana, _, err :=
+			query.PrepareToRunQuery(simpleNode, simpleNode.TimeRange, aggs, qid, qc)
 		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+		defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
+
+		queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
+
+		err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to set cleanup callback, err: %v", qid, err)
 			return nil, false, nil, err
 		}
 
@@ -319,6 +329,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
 			return nil, false, nil, err
 		}
+
+		query.SetQidAsFinished(qid)
 
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {

@@ -19,18 +19,14 @@ package processor
 
 import (
 	"io"
-	"runtime"
 	"time"
 
-	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
-	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 type QueryType uint8
@@ -52,55 +48,8 @@ func (qp *QueryProcessor) Cleanup() {
 	}
 }
 
-func BuildQueryProcessor(root *structs.ASTNode, aggs *structs.QueryAggregators,
-	qc *structs.QueryContext, qid uint64) (*QueryProcessor, error) {
-
-	searchNode := query.ConvertASTNodeToSearchNode(root, qid)
-	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
-	if parallelismPerFile < 1 {
-		parallelismPerFile = 1
-	}
-	_, qType := query.GetNodeAndQueryTypes(searchNode, aggs)
-	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
-	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
-	if err != nil {
-		log.Errorf("qid=%d, BuildQueryProcessor: Failed to InitSearchResults! error %+v", qid, err)
-		return nil, err
-	}
-
-	var dqs query.DistributedQueryServiceInterface
-	if hook := hooks.GlobalHooks.InitDistributedQueryServiceHook; hook != nil {
-		result := hook(querySummary, allSegFileResults)
-		dqs = result.(query.DistributedQueryServiceInterface)
-	} else {
-		dqs = query.InitDistQueryService(querySummary, allSegFileResults)
-	}
-
-	queryInfo, err := query.InitQueryInformation(searchNode, aggs, root.TimeRange, qc.TableInfo,
-		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
-	if err != nil {
-		log.Errorf("qid=%d, BuildQueryProcessor: Failed to InitQueryInformation! error %+v", qid, err)
-		return nil, err
-	}
-	err = query.AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
-	if err != nil {
-		log.Errorf("qid=%d Failed to associate search results with qid! Error: %+v", qid, err)
-	}
-
-	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
-		qid, searchNode.NodeType, parallelismPerFile)
-
-	queryProcessor, err := NewQueryProcessor(root, aggs, queryInfo, querySummary)
-	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
-		return nil, err
-	}
-
-	return queryProcessor, nil
-}
-
-func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
-	queryInfo *query.QueryInformation, querySummary *summary.QuerySummary) (*QueryProcessor, error) {
+func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
+	querySummary *summary.QuerySummary) (*QueryProcessor, error) {
 
 	startTime := time.Now()
 	sortMode := recentFirst // TODO: compute this from the query.

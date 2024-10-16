@@ -186,6 +186,59 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 	return nodeRes
 }
 
+func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+	qid uint64, qc *structs.QueryContext) (*time.Time, *summary.QuerySummary, *QueryInformation,
+	string, bool, []string, error) {
+
+	startTime := time.Now()
+	searchNode := ConvertASTNodeToSearchNode(node, qid)
+	kibanaIndices := qc.TableInfo.GetKibanaIndices()
+	nonKibanaIndices := qc.TableInfo.GetQueryTables()
+	containsKibana := false
+	if len(kibanaIndices) != 0 {
+		containsKibana = true
+	}
+	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs, qc.RawQuery)
+	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
+	if parallelismPerFile < 1 {
+		parallelismPerFile = 1
+	}
+	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
+	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
+	pqid := querytracker.GetHashForQuery(searchNode)
+	defer querySummary.LogSummaryAndEmitMetrics(qid, pqid, containsKibana, qc.Orgid)
+	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
+	if err != nil {
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitSearchResults! error %+v", qid, err)
+		return nil, nil, nil, "", false, nil, err
+	}
+
+	var dqs DistributedQueryServiceInterface
+	if hook := hooks.GlobalHooks.InitDistributedQueryServiceHook; hook != nil {
+		result := hook(querySummary, allSegFileResults)
+		dqs = result.(DistributedQueryServiceInterface)
+	} else {
+		dqs = InitDistQueryService(querySummary, allSegFileResults)
+	}
+
+	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
+		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
+	if err != nil {
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitQueryInformation! error %+v", qid, err)
+		return nil, nil, nil, "", false, nil, err
+	}
+	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
+	if err != nil {
+		log.Errorf("qid=%d Failed to associate search results with qid! Error: %+v", qid, err)
+		return nil, nil, nil, "", false, nil, err
+	}
+
+	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
+		qid, searchNode.NodeType, parallelismPerFile)
+
+	return &startTime, querySummary, queryInfo, pqid, containsKibana, kibanaIndices, nil
+}
+
 func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 
@@ -292,7 +345,7 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 		}
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
-	setQidAsFinished(queryInfo.qid)
+	SetQidAsFinished(queryInfo.qid)
 	queryType := GetQueryType(queryInfo.qid)
 	bucketLimit := MAX_GRP_BUCKS
 	if queryInfo.aggs != nil {
@@ -412,7 +465,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		}
 	}
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
-	setQidAsFinished(queryInfo.qid)
+	SetQidAsFinished(queryInfo.qid)
 	return &structs.NodeResult{
 		ErrList:          allSegFileResults.GetAllErrors(),
 		TotalResults:     allSegFileResults.GetQueryCount(),

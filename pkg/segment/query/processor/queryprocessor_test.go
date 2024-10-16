@@ -73,7 +73,6 @@ func Test_GetFullResult_truncated(t *testing.T) {
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
-	searchNode := structs.ASTNode{}
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
 	}
@@ -84,14 +83,12 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
-	searchNode := structs.ASTNode{}
-
 	aggs := []structs.QueryAggregators{
 		{BinExpr: &structs.BinCmdOptions{}},
 		{DedupExpr: &structs.DedupExpr{}},
@@ -120,7 +117,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&searchNode, &aggs[0], queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
