@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"io"
 	"math"
 	"sort"
 	"time"
@@ -117,6 +118,10 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
+	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
+		return nil, io.EOF
+	}
+
 	endTime, err := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get next end time: %v", s.qid, err)
