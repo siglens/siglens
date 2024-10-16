@@ -455,7 +455,7 @@ func applyKibanaFilterOperator(kibanaIndices []string, allSegFileResults *segres
 		StartEpochMs: 0,
 		EndEpochMs:   utils.GetCurrentTimeInMs(),
 	}
-	err := applyFilterOperatorInternal(allSegFileResults, kibanaSearchRequests, parallelismPerFile, searchNode, tRange,
+	err := ApplyFilterOperatorInternal(allSegFileResults, kibanaSearchRequests, parallelismPerFile, searchNode, tRange,
 		sizeLimit, aggs, qid, qs)
 	if err != nil {
 		log.Errorf("qid=%d, applyKibanaFilterOperator failed to apply filter opterator for kibana requests! %+v", qid, err)
@@ -989,7 +989,7 @@ func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileRes
 		return err
 	}
 
-	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
+	err = ApplyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
 		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
 	for _, req := range rawSearchSSRs {
@@ -1038,7 +1038,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 	for _, req := range rawSearchSSR {
 		req.SType = qsr.sType
 	}
-	err = applyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
+	err = ApplyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
 		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
 	for _, req := range rawSearchSSR {
@@ -1051,12 +1051,12 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 }
 
 // loops over all segrequests and performs raw search
-func applyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
+func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
-		return fmt.Errorf("applyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)
+		return fmt.Errorf("ApplyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)
 	}
 	for _, req := range allSegRequests {
 		search.RawSearchSegmentFileWrapper(req, parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, allSegFileResults, qid, qs, nodeRes)
