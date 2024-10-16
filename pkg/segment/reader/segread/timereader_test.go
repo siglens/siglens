@@ -31,13 +31,14 @@ import (
 
 func Test_readTimeStamps(t *testing.T) {
 
-	config.InitializeTestingConfig(t.TempDir())
-	segDir := "data/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test"
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "timereader")
+	assert.Nil(t, err)
+
 	numBlocks := 10
-	numEntriesInBlock := 20000
-	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	numEntriesInBlock := 2000
+	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, numBlocks, numEntriesInBlock)
 
 	colName := config.GetTimeStampKey()
 	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, blockmeta, blockSums, 0)
@@ -61,7 +62,7 @@ func Test_readTimeStamps(t *testing.T) {
 
 	log.Infof("Total time stamps read %+v num in summaries %+v", totalRead, totalInSummaries)
 	assert.Equal(t, totalRead, totalInSummaries)
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }
 
 func Benchmark_readTimeFile(b *testing.B) {
