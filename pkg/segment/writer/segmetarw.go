@@ -236,6 +236,10 @@ func getAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, er
 		}
 		allSegMetaMap[segmeta.SegmentKey] = &segmeta
 	}
+	if err := scanner.Err(); err != nil {
+		return allSegMetaMap, utils.TeeErrorf("getAllSegmetaToMap: Error scanning file %v: %v", segMetaFilename, err)
+	}
+
 	return allSegMetaMap, nil
 }
 

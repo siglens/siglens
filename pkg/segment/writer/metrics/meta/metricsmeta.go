@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -114,6 +115,9 @@ func ReadMetricsMeta(mmeta string) (map[string]*structs.MetricsMeta, error) {
 			continue
 		}
 		retVal[mMeta.MSegmentDir] = &mMeta
+	}
+	if err := scanner.Err(); err != nil {
+		return retVal, utils.TeeErrorf("ReadMetricsMeta: Error while scanning file: %v, err: %v", mmeta, err)
 	}
 
 	return retVal, nil
@@ -212,6 +216,9 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 		if _, ok := tagsTreeToDelete[metricSegmentMeta.TTreeDir]; !ok {
 			tagsTreeToDelete[metricSegmentMeta.TTreeDir] = true
 		}
+	}
+	if err := reader.Err(); err != nil {
+		log.Errorf("removeMetricsSegmentsByList: Error while scanning file: %v, err: %v", metricsMetaFile, err)
 	}
 	if entriesRemoved > 0 {
 		// if we removed entries and there was nothing preserved then we must delete this metrics meta file
