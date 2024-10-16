@@ -29,10 +29,12 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -298,10 +300,26 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
-	result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+	if config.IsNewQueryPipelineEnabled() {
+		queryProcessor, err := processor.BuildQueryProcessor(simpleNode, aggs, qc, qid)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+			return nil, false, nil, err
+		}
 
-	return &httpRespOuter, false, simpleNode.TimeRange, nil
+		httpResponse, err := queryProcessor.GetFullResult()
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		return httpResponse, false, simpleNode.TimeRange, nil
+	} else {
+		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+
+		return &httpRespOuter, false, simpleNode.TimeRange, nil
+	}
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
