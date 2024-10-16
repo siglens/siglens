@@ -184,8 +184,8 @@ func (hm *allSegmentMetadata) rebalanceCmi(cmiSizeBytes uint64) {
 	cmiIndex, inMemSize := hm.getCmiMaxIndicesToEvict(cmiSizeBytes)
 	evicted := hm.evictCmiPastIndices(cmiIndex)
 
-	log.Infof("rebalanceCmi: CMI, allocated: %+v MB, evicted: %v",
-		utils.ConvertUintBytesToMB(inMemSize), evicted)
+	log.Infof("rebalanceCmi: cmiIndex: %v, totalSMI: %v, allocated: %+v MB, evicted: %v",
+		cmiIndex, len(hm.allSegmentMicroIndex), utils.ConvertUintBytesToMB(inMemSize), evicted)
 
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexCount(uint64(cmiIndex))
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexSizeMB(utils.ConvertUintBytesToMB(inMemSize))
