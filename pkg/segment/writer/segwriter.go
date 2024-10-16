@@ -1002,30 +1002,30 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 }
 
 func GetUnrotatedVTableTimestamps(vtable string, orgid uint64) (uint64, uint64) {
-    var earliest uint64 = math.MaxUint64
-    var latest uint64 = 0
+	var earliest uint64 = math.MaxUint64
+	var latest uint64 = 0
 
-    allSegStoresLock.RLock()
-    defer allSegStoresLock.RUnlock()
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
 
-    for _, segstore := range allSegStores {
-        if segstore.VirtualTableName == vtable && segstore.OrgId == orgid {
-            segstore.Lock.Lock()
-            if segstore.earliest_millis < earliest {
-                earliest = segstore.earliest_millis
-            }
-            if segstore.latest_millis > latest {
-                latest = segstore.latest_millis
-            }
-            segstore.Lock.Unlock()
-        }
-    }
-    // If no data was found, return 0 for both
-    if earliest == math.MaxUint64 {
-        earliest = 0
-    }
-	
-    return earliest, latest
+	for _, segstore := range allSegStores {
+		if segstore.VirtualTableName == vtable && segstore.OrgId == orgid {
+			segstore.Lock.Lock()
+			if segstore.earliest_millis < earliest {
+				earliest = segstore.earliest_millis
+			}
+			if segstore.latest_millis > latest {
+				latest = segstore.latest_millis
+			}
+			segstore.Lock.Unlock()
+		}
+	}
+	// If no data was found, return 0 for both
+	if earliest == math.MaxUint64 {
+		earliest = 0
+	}
+
+	return earliest, latest
 }
 
 func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {

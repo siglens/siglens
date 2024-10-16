@@ -147,7 +147,7 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 }
 
 func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
-	segmentCountField, columnCountField, earliestEpochField, latestEpochField, 
+	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
 	recordCountField, bytesReceivedField, onDiskBytesField string) []map[string]map[string]interface{} {
 
 	indices := make([]string, 0)
@@ -171,7 +171,7 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
 		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
 		nextVal[index][earliestEpochField] = time.Unix(int64(indexStats.EarliestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
-		nextVal[index][latestEpochField] = time.Unix(int64(indexStats.LatestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"		
+		nextVal[index][latestEpochField] = time.Unix(int64(indexStats.LatestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
 		nextVal[index][recordCountField] = humanize.Comma(int64(indexStats.NumRecords))
 		nextVal[index][bytesReceivedField] = float64(indexStats.NumBytesIngested)
 		nextVal[index][onDiskBytesField] = float64(indexStats.TotalOnDiskBytes)
