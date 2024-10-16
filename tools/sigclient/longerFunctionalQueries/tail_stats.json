@@ -1,0 +1,28 @@
+{
+    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 100000,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": ["avg_latency"],
+        "records": [
+            {
+                "avg_latency": "9,963,666.049",
+                "count(*)": "30,000",
+                "sum": "298,903,755,534"
+            }
+        ],
+        "allColumns": [
+            "avg_latency",
+            "count(*)",
+            "sum"
+        ],
+        "columnsOrder": [
+            "avg_latency",
+            "count(*)",
+            "sum"
+        ]
+    }
+}

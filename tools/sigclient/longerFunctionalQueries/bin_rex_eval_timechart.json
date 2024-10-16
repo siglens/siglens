@@ -1,0 +1,4 @@
+{
+    "queryText": "search index=\"*ind*\" city=\"boston\" | bin timestamp span=15m | rex field=app_version \"(?<major>\\d+)\\.(?<minor>\\d).*\" | eval versions=split(app_version,\"-\") | eval version=mvindex(versions,1) | eval app_name_version = app_name+\"_\"+version | timechart span=15m values(latency) as val_latency by app_name_version"
+}
+  

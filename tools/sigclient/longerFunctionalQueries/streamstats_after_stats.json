@@ -1,0 +1,26 @@
+{
+    "queryText": "app_name=Bracecould | stats count(http_status) as cnt, max(http_status) as max_http_status | streamstats min(eval(if(max_http_status=500, 101, 1))) as min_ss by cnt | streamstats values(max_http_status) as values_ss",
+    "expectedResult": {
+         "qtype": "segstats-query",
+         "measureFunctions": [
+            "cnt",
+            "max_http_status",
+            "min_ss",
+            "values_ss"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "cnt": "6",
+                    "max_http_status": "500",
+                    "min_ss": "101",
+                    "values_ss": "[500]"
+                }
+            }
+        ]
+     }
+ }
+ 
