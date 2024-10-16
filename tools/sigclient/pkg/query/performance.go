@@ -84,13 +84,13 @@ func GetQid() int64 {
 }
 
 // Main function that tests all the queries
-func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, concurrentQueries int, variableColNames []string) {
+func PerformanceTest(ctx context.Context, logChan chan utils.Log, dest string, concurrentQueries int, variableColNames []string) {
 
 	if ctx == nil {
-		log.Fatalf("PerformanceTest: ctx or logCh is nil")
+		log.Fatalf("PerformanceTest: ctx or logChan is nil")
 	}
-	if logCh == nil {
-		log.Fatalf("PerformanceTest: logCh is nil")
+	if logChan == nil {
+		log.Fatalf("PerformanceTest: logChan is nil")
 	}
 
 	commonLock.Lock()
@@ -108,7 +108,7 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, con
 			for i := 0; i < concurrentQueries; i++ {
 				wg.Add(1)
 				go func() {
-					RunPerfQueries(ctx, logCh, dest)
+					RunPerfQueries(ctx, logChan, dest)
 					wg.Done()
 				}()
 			}
@@ -118,13 +118,13 @@ func PerformanceTest(ctx context.Context, logCh chan utils.Log, dest string, con
 	}
 }
 
-func RunPerfQueries(ctx context.Context, logCh chan utils.Log, dest string) {
+func RunPerfQueries(ctx context.Context, logChan chan utils.Log, dest string) {
 
 	// Run all the queries _, query := range Queries
 	for _, query := range Queries {
 		var err error
 		select {
-		case logReceived := <-logCh:
+		case logReceived := <-logChan:
 			if wait := logReceived.Timestamp.Add(WAIT_DURATION_FOR_LOGS).Sub(time.Now()); wait > 0 {
 				log.Warnf("Waiting for %v", wait)
 				select {
