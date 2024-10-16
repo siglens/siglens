@@ -348,6 +348,7 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	encoding, ok := s.segEncToKey.GetReverse(segkey)
 	if !ok {
 		encoding = uint16(s.segEncToKey.Len())
+		s.segEncToKey.Set(encoding, segkey)
 	}
 	searchResults.NextSegKeyEnc = encoding
 

@@ -344,11 +344,14 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
-	_, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
 		return err
 	}
+
+	iqr.mode = mergedIQR.mode
+	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
 	if iqr.mode == withRRCs {
 		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
