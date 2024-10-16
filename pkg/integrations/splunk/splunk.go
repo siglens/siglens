@@ -64,7 +64,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 
 	for _, record := range jsonObjects {
-		err, statusCode, ple := getSingleRecord(record, myid, &tsKey, jsParsingStackbuf[:])
+		err, statusCode, ple := getPLE(record, myid, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest a record", fmt.Sprintf("record: %v", record), err)
 			ctx.SetStatusCode(statusCode)
@@ -97,7 +97,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getSingleRecord(record map[string]interface{}, myid uint64, tsKey *string, jsParsingStackbuf []byte) (error, int, *segwriter.ParsedLogEvent) {
+func getPLE(record map[string]interface{}, myid uint64, tsKey *string, jsParsingStackbuf []byte) (error, int, *segwriter.ParsedLogEvent) {
 	if record["index"] == "" || record["index"] == nil {
 		record["index"] = "default"
 	}

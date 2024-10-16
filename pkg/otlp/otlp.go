@@ -96,6 +96,8 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	// Go through the request data and ingest each of the spans.
 	numSpans := 0       // The total number of spans sent in this request.
 	numFailedSpans := 0 // The number of spans that we could not ingest.
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+
 	for _, resourceSpans := range request.ResourceSpans {
 		// Find the service name.
 		var service string
@@ -106,7 +108,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				}
 			}
 		}
-		pleArray := make([]*segwriter.ParsedLogEvent, 0)
+
 		// Ingest each of these spans.
 		for _, scopeSpans := range resourceSpans.ScopeSpans {
 			numSpans += len(scopeSpans.Spans)
@@ -127,11 +129,12 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				pleArray = append(pleArray, ple)
 			}
 		}
-		err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
-			numFailedSpans += len(pleArray)
-		}
+	}
+
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
+		numFailedSpans += len(pleArray)
 	}
 
 	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
