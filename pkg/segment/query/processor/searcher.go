@@ -119,7 +119,12 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
-		query.SetRawSearchFinished(s.qid)
+		err := query.SetRawSearchFinished(s.qid)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
+			return nil, err
+		}
+
 		return nil, io.EOF
 	}
 

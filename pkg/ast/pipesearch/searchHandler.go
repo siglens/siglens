@@ -317,6 +317,10 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
 		queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+			return nil, false, nil, err
+		}
 
 		err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 		if err != nil {

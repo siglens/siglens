@@ -312,13 +312,13 @@ func Test_TwoWayMap(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, value)
 
-	value, ok = twm.Get("key2")
+	_, ok = twm.Get("key2")
 	assert.False(t, ok)
 
 	key, ok := twm.GetReverse(1)
 	assert.True(t, ok)
 	assert.Equal(t, "key1", key)
 
-	key, ok = twm.GetReverse(2)
+	_, ok = twm.GetReverse(2)
 	assert.False(t, ok)
 }
