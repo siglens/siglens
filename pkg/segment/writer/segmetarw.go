@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -37,6 +36,9 @@ import (
 )
 
 const ONE_MiB = 1024 * 1024
+const PQS_TICKER = 10 // seconds
+const PQS_FLUSH_SIZE = 100
+const PQS_CHAN_SIZE = 1000
 
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
@@ -49,7 +51,7 @@ type PQSChanMeta struct {
 	emptyPqs bool
 }
 
-var pqsChan = make(chan PQSChanMeta, 1000)
+var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
 
@@ -509,40 +511,29 @@ func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, emptyPqs bool) 
 }
 
 func listenBackFillAndEmptyPQSRequests() {
-	// Listen on the channel, every 10 seconds or if the size of the channel is 100,
+	// Listen on the channel, every PQS_TICKER seconds or if the size of the channel is PQS_FLUSH_SIZE,
 	// it would get all the data in the channel and then do the process of Backfilling PQMR files.
 	// This is to avoid multiple writes to the same file
 
-	ticker := time.NewTicker(10 * time.Second) // every 10 seconds
+	ticker := time.NewTicker(PQS_TICKER * time.Second) // every 10 seconds
 	defer ticker.Stop()
 
-	buffer := make([]PQSChanMeta, 0, 100)
-	var processing int32
-
-	isProcessing := func() bool {
-		return atomic.LoadInt32(&processing) == 1
-	}
+	buffer := make([]PQSChanMeta, 0, PQS_FLUSH_SIZE)
 
 	callProcessBackFillPQSRequests := func() {
-		atomic.StoreInt32(&processing, 1)
-		bufferCopy := make([]PQSChanMeta, len(buffer))
-		copy(bufferCopy, buffer)
+		processBackFillAndEmptyPQSRequests(buffer)
 		buffer = buffer[:0]
-		go func(pqsRequests []PQSChanMeta) {
-			processBackFillAndEmptyPQSRequests(pqsRequests)
-			atomic.StoreInt32(&processing, 0)
-		}(bufferCopy)
 	}
 
 	for {
 		select {
 		case pqsChanMeta := <-pqsChan:
 			buffer = append(buffer, pqsChanMeta)
-			if len(buffer) >= 100 && !isProcessing() {
+			if len(buffer) >= PQS_FLUSH_SIZE {
 				callProcessBackFillPQSRequests()
 			}
 		case <-ticker.C:
-			if len(buffer) > 0 && !isProcessing() {
+			if len(buffer) > 0 {
 				callProcessBackFillPQSRequests()
 			}
 		}
@@ -554,7 +545,9 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 		return
 	}
 
+	// segKey -> pqid -> true
 	segKeyPqidMap := make(map[string]map[string]bool)
+	// pqid -> segKey -> true
 	pqidSegKeyMap := make(map[string]map[string]bool) // for empty PQS
 
 	for _, pqsRequest := range pqsRequests {
@@ -577,8 +570,8 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	go func() {
 		defer wg.Done()
 
-		for segKey, pqidMap := range segKeyPqidMap {
-			BulkBackFillPQSSegmetaEntries(segKey, pqidMap)
+		for segKey, allPQIDs := range segKeyPqidMap {
+			BulkBackFillPQSSegmetaEntries(segKey, allPQIDs)
 		}
 	}()
 
