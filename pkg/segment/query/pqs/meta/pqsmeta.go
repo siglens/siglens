@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,17 +88,20 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	return allEmptyPQS, nil
 }
 
-func AddEmptyResults(pqid string, segKey string) {
-
+func BulkAddEmptyResults(pqid string, segKeyMap map[string]bool) {
 	fileName := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
-		log.Errorf("AddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
+		log.Errorf("BulkAddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
 	}
 	if emptyPQS != nil {
-		emptyPQS[segKey] = true
+		utils.MergeMapsRetainingFirst(emptyPQS, segKeyMap)
 		writeEmptyPqsMapToFile(fileName, emptyPQS)
 	}
+}
+
+func AddEmptyResults(pqid string, segKey string) {
+	BulkAddEmptyResults(pqid, map[string]bool{segKey: true})
 }
 
 func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {

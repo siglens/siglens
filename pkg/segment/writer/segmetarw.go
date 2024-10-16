@@ -25,6 +25,8 @@ import (
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -40,6 +42,14 @@ var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
 var SegmetaFilename = "segmeta.json"
+
+type PQSChanMeta struct {
+	pqid     string
+	segKey   string
+	emptyPqs bool
+}
+
+var pqsChan = make(chan PQSChanMeta, 1000)
 
 func initSmr() {
 
@@ -60,6 +70,9 @@ func initSmr() {
 		return
 	}
 	fd.Close()
+
+	// start a go routine to listen on the channel
+	go listenBackFillAndEmptyPQSRequests()
 }
 
 func getSegFullMetaFnameFromSegkey(segkey string) string {
@@ -459,8 +472,7 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 	return segbaseDirs
 }
 
-func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
-
+func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 	sfmData, err := readSfm(segkey)
 	if err != nil {
 		return
@@ -476,10 +488,105 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 	if sfmData.AllPQIDs == nil {
 		sfmData.AllPQIDs = make(map[string]bool)
 	}
-	sfmData.AllPQIDs[newpqid] = true
 
-	// TODO this should be through a channel so that we only have one writer
+	utils.MergeMapsRetainingFirst(sfmData.AllPQIDs, pqidMap)
+
 	writeSfm(segkey, sfmData)
+}
+
+func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
+	BulkBackFillPQSSegmetaEntries(segkey, map[string]bool{newpqid: true})
+}
+
+// AddToPQSBackFillChan adds a new pqid to the channel
+// if emptyPqs is true, then it will also add the EmptyResults for this pqid
+func AddToPQSBackFillChan(segkey string, newpqid string, emptyPqs bool) {
+	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, emptyPqs: emptyPqs}
+}
+
+func listenBackFillAndEmptyPQSRequests() {
+	// Listen on the channel, every 10 seconds or if the size of the channel is 100,
+	// it would get all the data in the channel and then do the process of Backfilling PQMR files.
+	// This is to avoid multiple writes to the same file
+
+	ticker := time.NewTicker(10 * time.Second) // every 10 seconds
+	defer ticker.Stop()
+
+	buffer := make([]PQSChanMeta, 0, 100)
+	var processing int32
+
+	isProcessing := func() bool {
+		return atomic.LoadInt32(&processing) == 1
+	}
+
+	callProcessBackFillPQSRequests := func() {
+		atomic.StoreInt32(&processing, 1)
+		bufferCopy := make([]PQSChanMeta, len(buffer))
+		copy(bufferCopy, buffer)
+		buffer = buffer[:0]
+		go func(pqsRequests []PQSChanMeta) {
+			processBackFillAndEmptyPQSRequests(pqsRequests)
+			atomic.StoreInt32(&processing, 0)
+		}(bufferCopy)
+	}
+
+	for {
+		select {
+		case pqsChanMeta := <-pqsChan:
+			buffer = append(buffer, pqsChanMeta)
+			if len(buffer) >= 100 && !isProcessing() {
+				callProcessBackFillPQSRequests()
+			}
+		case <-ticker.C:
+			if len(buffer) > 0 && !isProcessing() {
+				callProcessBackFillPQSRequests()
+			}
+		}
+	}
+}
+
+func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
+	if len(pqsRequests) == 0 {
+		return
+	}
+
+	segKeyPqidMap := make(map[string]map[string]bool)
+	pqidSegKeyMap := make(map[string]map[string]bool) // for empty PQS
+
+	for _, pqsRequest := range pqsRequests {
+		if _, ok := segKeyPqidMap[pqsRequest.segKey]; !ok {
+			segKeyPqidMap[pqsRequest.segKey] = make(map[string]bool)
+		}
+		segKeyPqidMap[pqsRequest.segKey][pqsRequest.pqid] = true
+
+		if pqsRequest.emptyPqs {
+			if _, ok := pqidSegKeyMap[pqsRequest.pqid]; !ok {
+				pqidSegKeyMap[pqsRequest.pqid] = make(map[string]bool)
+			}
+			pqidSegKeyMap[pqsRequest.pqid][pqsRequest.segKey] = true
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for segKey, pqidMap := range segKeyPqidMap {
+			BulkBackFillPQSSegmetaEntries(segKey, pqidMap)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for pqid, segKeyMap := range pqidSegKeyMap {
+			pqsmeta.BulkAddEmptyResults(pqid, segKeyMap)
+		}
+	}()
+
+	wg.Wait()
 }
 
 func DeletePQSData() error {
