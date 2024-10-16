@@ -36,8 +36,8 @@ import (
 type block struct {
 	*structs.BlockSummary
 	*structs.BlockMetadataHolder
-	parentSSR *structs.SegmentSearchRequest
-	filename  string
+	parentSSR   *structs.SegmentSearchRequest
+	segkeyFname string
 }
 
 type searcher struct {
@@ -223,7 +223,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 	return allBlocks, nil
 }
 
-func makeBlocksFromSSR(filename string, ssr *structs.SegmentSearchRequest) []*block {
+func makeBlocksFromSSR(segkeyFname string, ssr *structs.SegmentSearchRequest) []*block {
 	blocks := make([]*block, 0, len(ssr.AllBlocksToSearch))
 
 	for blockNum, blockMeta := range ssr.AllBlocksToSearch {
@@ -231,7 +231,7 @@ func makeBlocksFromSSR(filename string, ssr *structs.SegmentSearchRequest) []*bl
 			BlockSummary:        ssr.SearchMetadata.BlockSummaries[blockNum],
 			BlockMetadataHolder: blockMeta,
 			parentSSR:           ssr,
-			filename:            filename,
+			segkeyFname:         segkeyFname,
 		})
 	}
 
@@ -362,11 +362,11 @@ func getSSRs(blocks []*block) (map[string]*structs.SegmentSearchRequest, error) 
 
 	fileToSSR := make(map[string]*structs.SegmentSearchRequest)
 	for _, block := range blocks {
-		ssr, ok := fileToSSR[block.filename]
+		ssr, ok := fileToSSR[block.segkeyFname]
 		if !ok {
 			ssrCopy := *firstSSR
 			ssrCopy.AllBlocksToSearch = make(map[uint16]*structs.BlockMetadataHolder)
-			fileToSSR[block.filename] = &ssrCopy
+			fileToSSR[block.segkeyFname] = &ssrCopy
 			ssr = &ssrCopy
 		}
 
