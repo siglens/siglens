@@ -34,21 +34,22 @@ import (
 )
 
 // function to init mock server in memory. Should only be called by tests
-func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCount int) {
+func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, entryCount int) {
 
-	_ = os.Remove(dir)
+	// _ = os.Remove(dir)
 
 	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
-	err := os.MkdirAll(dir, os.FileMode(0755))
-	if err != nil {
-		log.Fatalf("InitMockColumnarMetadataStore: Could not create directory %v", err)
-	}
+	// err := os.MkdirAll(dir, os.FileMode(0755))
+	// if err != nil {
+	// 	log.Fatalf("InitMockColumnarMetadataStore: Could not create directory %v", err)
+	// }
+
 	for i := 0; i < count; i++ {
-		segkey := dir + "query_test_" + fmt.Sprint(i)
-		bsumFname := dir + "query_test_" + fmt.Sprint(i) + ".bsu"
-		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segkey,
+		segkey := segBaseDir + fmt.Sprint(i)
+		bsumFname := segBaseDir + fmt.Sprint(i) + ".bsu"
+		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir,
 			numBlocks, entryCount)
 
 		for colName := range cnames {
@@ -90,7 +91,7 @@ func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCo
 		sInfo := &structs.SegMeta{
 			SegmentKey:       segkey,
 			VirtualTableName: "evts",
-			SegbaseDir:       segkey, // its actually one dir up, but for mocks its fine
+			SegbaseDir:       segBaseDir,
 			EarliestEpochMS:  0,
 			LatestEpochMS:    uint64(entryCount),
 			ColumnNames:      allColsSizes,
