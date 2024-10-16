@@ -502,9 +502,9 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 	BulkBackFillPQSSegmetaEntries(segkey, map[string]bool{newpqid: true})
 }
 
-// AddToPQSBackFillChan adds a new pqid to the channel
+// AddToBackFillAndEmptyPQSChan adds a new pqid to the channel
 // if emptyPqs is true, then it will also add the EmptyResults for this pqid
-func AddToPQSBackFillChan(segkey string, newpqid string, emptyPqs bool) {
+func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, emptyPqs bool) {
 	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, emptyPqs: emptyPqs}
 }
 

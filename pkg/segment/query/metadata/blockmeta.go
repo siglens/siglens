@@ -129,7 +129,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
 		if isQueryPersistent {
-			go writer.AddToPQSBackFillChan(segkey, pqid, true)
+			go writer.AddToBackFillAndEmptyPQSChan(segkey, pqid, true)
 		}
 	}
 

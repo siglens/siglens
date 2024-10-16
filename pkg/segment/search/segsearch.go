@@ -173,7 +173,7 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
 		return err
 	}
-	writer.AddToPQSBackFillChan(segmentKey, pqid, false)
+	writer.AddToBackFillAndEmptyPQSChan(segmentKey, pqid, false)
 	pqs.AddPersistentQueryResult(segmentKey, pqid)
 	allPqmrFile = append(allPqmrFile, pqidFname)
 	err = blob.UploadIngestNodeDir()
@@ -260,7 +260,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 }
 
 func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
-	writer.AddToPQSBackFillChan(segKey, pqid, true)
+	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
 func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest, qid uint64) (string, bool) {
