@@ -279,24 +279,14 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				tsMillis := utils.ExtractTimeStamp(test, &tsKey)
-				if tsMillis == 0 {
-					tsMillis = tsNow
-				}
-
-				ple := segwriter.NewPLE()
-				ple.SetRawJson(test)
-				ple.SetTimestamp(tsMillis)
-				ple.SetIndexName(indexNameIn)
-
-				err = segwriter.ParseRawJsonObject("", test, &tsKey, jsParsingStackbuf[:], ple)
+				ple, err := writer.GetNewPLE(test, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
-					log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,test=%v, err=%v", test, err)
+					log.Errorf("ProcessIndexRequest: failed to get new PLE, test: %v, err: %v", test, err)
 					return
 				}
 				pleArray = append(pleArray, ple)
 			}
-			
+
 			err = writer.ProcessIndexRequestPle(tsNow, indexNameIn, false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 			if err != nil {
 				utils.SendError(ctx, "Failed to ingest record", "", err)
@@ -342,7 +332,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SendError(ctx, "Unable to unmarshal request", "", err)
 		return
 	}
-
+	tsKey := config.GetTimeStampKey()
 	tsNow := utils.GetCurrentTimeInMs()
 	indexNameIn := LOKIINDEX
 	if !vtable.IsVirtualTablePresent(&indexNameIn, myid) {
@@ -367,6 +357,8 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		for label, value := range stream.Stream {
 			allIngestData[label] = value
 		}
+
+		pleArray := make([]*segwriter.ParsedLogEvent, 0)
 
 		for _, value := range stream.Values {
 			if len(value) < 2 {
@@ -405,12 +397,17 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
-				jsParsingStackbuf[:])
+			ple, err := writer.GetNewPLE(allIngestDataBytes, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 			if err != nil {
-				utils.SendError(ctx, "Failed to ingest record", "", err)
+				log.Errorf("ProcessLokiApiIngestRequest: failed to get new PLE, test: %v, err: %v", allIngestDataBytes, err)
 				return
 			}
+			pleArray = append(pleArray, ple)
+		}
+		err = writer.ProcessIndexRequestPle(tsNow, indexNameIn, false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+		if err != nil {
+			utils.SendError(ctx, "Failed to ingest record", "", err)
+			return
 		}
 	}
 

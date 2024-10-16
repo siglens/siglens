@@ -20,6 +20,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -407,6 +408,22 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		return err
 	}
 	return nil
+}
+
+func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*writer.ParsedLogEvent, error) {
+	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	ple := segwriter.NewPLE()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexName)
+	err := segwriter.ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
+	}
+	return ple, nil
 }
 
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,

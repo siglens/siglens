@@ -25,9 +25,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -85,6 +87,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
+	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
@@ -103,7 +106,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				}
 			}
 		}
-
+		pleArray := make([]*segwriter.ParsedLogEvent, 0)
 		// Ingest each of these spans.
 		for _, scopeSpans := range resourceSpans.ScopeSpans {
 			numSpans += len(scopeSpans.Spans)
@@ -114,15 +117,20 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 					numFailedSpans++
 					continue
 				}
-
-				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+				
+				ple, err := writer.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to process ingest request with err: %v. JSON Data: %s", err, string(jsonData))
+					log.Errorf("ProcessTraceIngest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
 					numFailedSpans++
 					continue
 				}
+				pleArray = append(pleArray, ple)
 			}
+		}
+		err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
+			numFailedSpans += len(pleArray)
 		}
 	}
 
