@@ -54,7 +54,8 @@ func Test_sortBlocks(t *testing.T) {
 
 	// Sort most recent first.
 	blocks := makeBlocksWithSummaryOnly(highAndLowTimestamps)
-	sortBlocks(blocks, recentFirst)
+	err := sortBlocks(blocks, recentFirst)
+	assert.NoError(t, err)
 
 	expectedBlocks := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 300, low: 205},
@@ -72,7 +73,8 @@ func Test_sortBlocks(t *testing.T) {
 
 	// Sort most recent last.
 	blocks = makeBlocksWithSummaryOnly(highAndLowTimestamps)
-	sortBlocks(blocks, recentLast)
+	err = sortBlocks(blocks, recentLast)
+	assert.NoError(t, err)
 
 	expectedBlocks = makeBlocksWithSummaryOnly([]timeRange{
 		{high: 120, low: 30},

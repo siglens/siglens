@@ -93,7 +93,12 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 			return nil, err
 		}
 
-		sortBlocks(blocks, s.sortMode)
+		err = sortBlocks(blocks, s.sortMode)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.Fetch: failed to sort blocks: %v", s.qid, err)
+			return nil, err
+		}
+
 		s.remainingBlocksSorted = blocks
 		s.gotBlocks = true
 	}
