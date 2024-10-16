@@ -144,22 +144,24 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 // segFiles is a map with fileName as the key and colName as the corresponding value
 func BulkDownloadSegmentBlob(segFiles map[string]string, inUseFlag bool) error {
 	var bulkDownloadWG sync.WaitGroup
-	var err error
+	var finalErr error
 	sTime := time.Now()
 	for fileName := range segFiles {
 		bulkDownloadWG.Add(1)
 		go func(fName string) {
 			defer bulkDownloadWG.Done()
-			err = DownloadSegmentBlob(fName, inUseFlag)
+			err := DownloadSegmentBlob(fName, inUseFlag)
 			if err != nil {
-				err = fmt.Errorf("BulkDownloadSegmentBlob: failed to download segsetfile %+v", fName)
+				// we will just save the finalErr that comes from any of these goroutines
+				finalErr = fmt.Errorf("BulkDownloadSegmentBlob: failed to download segsetfile: %+v, err: %v",
+					fName, err)
 				return
 			}
 		}(fileName)
 	}
 	bulkDownloadWG.Wait()
 	log.Debugf("BulkDownloadSegmentBlob: downloaded %v segsetfiles in %v", len(segFiles), time.Since(sTime))
-	return err
+	return finalErr
 }
 
 /*

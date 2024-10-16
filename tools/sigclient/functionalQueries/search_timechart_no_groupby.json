@@ -1,17 +1,322 @@
 {
-    "queryText": "search city=\"boston\" http_method=POST hobby!=\"Acting\" AND hobby!=\"Karate\" user_agent=*Windows* | timechart span=15m sum(latency)",
+    "queryText": "search city=\"boston\" http_method=POST hobby!=\"Acting\" AND hobby!=\"Karate\" user_agent=*Windows* | timechart span=1s sum(latency)",
     "expectedResult": {
-        "bucketCount": 1,
+        "bucketCount": 39,
         "qtype": "aggs-query",
+        "doNotVerifyGroupByValues": true,
         "groupByCols": ["timestamp"],
         "measureFunctions": ["sum(latency)"],
         "measure": [
             {
                 "GroupByValues": [
-                    "1728605809480"
+                    "1728684464532"
                 ],
                 "MeasureVal": {
-                    "sum(latency)": 220868747
+                    "sum(latency)": 5811178
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684466532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2814152
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684467532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2025674
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684471532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 8983746
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684472532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 5717385
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684473532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2482080
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684475532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6696596
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684477532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 7549873
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684479532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 9747421
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684480532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6273074
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684481532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 8564966
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684484532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 1950452
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684490532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 4291012
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684492532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 1169010
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684493532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 9554050
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684494532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 3881124
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684495532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 16210249
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684496532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 12801918
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684504532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 3759534
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684505532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 10565468
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684506532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 9562057
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684515532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2648190
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684517532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 3111663
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684519532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6795053
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684523532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 1556033
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684528532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 5426229
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684529532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 561500
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684539532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6930226
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684540532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2322059
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684544532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 14579345
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684545532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 3486084
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684546532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 3435479
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684547532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6155620
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684550532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2103129
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684551532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 6104167
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684553532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 7296471
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684555532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 2718150
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684558532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 979612
+                }
+            },
+            {
+                "GroupByValues": [
+                    "1728684561532"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 4248718
                 }
             }
         ]

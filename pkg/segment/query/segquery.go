@@ -67,6 +67,8 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 			}
 		}
 	}()
+
+	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
 	go runQueryInfoRefreshLoop(getMyIds)
@@ -513,7 +515,9 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 
 		isCancelled, err := checkForCancelledQuery(queryInfo.qid)
 		if err != nil {
-			log.Errorf("qid=%d, Failed to checkForCancelledQuery. Error: %v", queryInfo.qid, err)
+			log.Errorf("applyFopAllRequests: qid=%d, Failed to checkForCancelledQuery. Error: %v.", queryInfo.qid, err)
+			log.Infof("applyFopAllRequests: qid=%d, Assumed to be cancelled and deleted. The raw search will not continue.", queryInfo.qid)
+			return
 		}
 		if isCancelled {
 			return
@@ -780,7 +784,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
 		if err != nil {
-			log.Errorf("qid=%d, Failed to checkForCancelledQuery. Error: %v", qid, err)
+			log.Errorf("applyAggOpOnSegments:: qid=%d Failed to checkForCancelledQuery. Error: %v", qid, err)
+			log.Infof("applyAggOpOnSegments: qid=%d, Assumed to be cancelled and deleted. The raw search will not continue.", qid)
+			break
 		}
 		if isCancelled {
 			break

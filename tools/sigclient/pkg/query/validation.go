@@ -47,16 +47,17 @@ type BucketHolder struct {
 }
 
 type Result struct {
-	TotalMatched     interface{}
-	Records          []map[string]interface{}
-	UniqueKeyCols    []string // Key can be a combination of columns
-	AllColumns       []string
-	ColumnsOrder     []string
-	GroupByCols      []string
-	MeasureFunctions []string
-	MeasureResults   []BucketHolder
-	Qtype            string
-	BucketCount      int
+	TotalMatched             interface{}
+	Records                  []map[string]interface{}
+	UniqueKeyCols            []string // Key can be a combination of columns
+	AllColumns               []string
+	ColumnsOrder             []string
+	GroupByCols              []string
+	MeasureFunctions         []string
+	MeasureResults           []BucketHolder
+	Qtype                    string
+	BucketCount              int
+	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
 }
 
 func CreateListOfMap(resp interface{}) ([]map[string]interface{}, error) {
@@ -179,6 +180,10 @@ func CreateResultForGroupBy(res *Result, response map[string]interface{}) error 
 	res.GroupByCols, err = CreateListOfString(response["groupByCols"])
 	if err != nil {
 		return fmt.Errorf("CreateExpResultForGroupBy: Error fetching groupByCols from response, err: %v", err)
+	}
+	doNotVerifyGroupByValues, ok := response["doNotVerifyGroupByValues"].(bool)
+	if ok {
+		res.DoNotVerifyGroupByValues = doNotVerifyGroupByValues
 	}
 
 	return CreateResultForStats(res, response)
@@ -597,13 +602,25 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 	sortMeasureResults(queryRes.MeasureResults)
 	sortMeasureResults(expRes.MeasureResults)
 
+	verifyGroupByValues := !expRes.DoNotVerifyGroupByValues
+
+	if !verifyGroupByValues {
+		log.Infof("ValidateStatsQueryResults: Skipping GroupByValues Elements match.")
+	}
+
 	for idx, expMeasureRes := range expRes.MeasureResults {
 		var err error
 		queryMeasureRes := queryRes.MeasureResults[idx]
 
-		equal := reflect.DeepEqual(queryMeasureRes.GroupByValues, expMeasureRes.GroupByValues)
-		if !equal {
-			return fmt.Errorf("ValidateStatsQueryResults: GroupByCombination mismatch, expected: %+v, got: %+v", expMeasureRes.GroupByValues, queryMeasureRes.GroupByValues)
+		if verifyGroupByValues {
+			equal := reflect.DeepEqual(queryMeasureRes.GroupByValues, expMeasureRes.GroupByValues)
+			if !equal {
+				return fmt.Errorf("ValidateStatsQueryResults: GroupByCombination mismatch, expected: %+v, got: %+v", expMeasureRes.GroupByValues, queryMeasureRes.GroupByValues)
+			}
+		} else {
+			if len(queryMeasureRes.GroupByValues) != len(expMeasureRes.GroupByValues) {
+				return fmt.Errorf("ValidateStatsQueryResults: GroupByValues length mismatch, expected: %v, got: %v", len(expMeasureRes.GroupByValues), len(queryMeasureRes.GroupByValues))
+			}
 		}
 
 		if len(queryMeasureRes.MeasureVal) != len(expMeasureRes.MeasureVal) {
