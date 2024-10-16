@@ -130,7 +130,7 @@ func getPLE(record map[string]interface{}, myid uint64, tsKey *string, jsParsing
 
 	ple, err := writer.GetNewPLE(recordAsBytes, tsNow, indexNameIn, tsKey, jsParsingStackbuf[:])
 	if err != nil {
-		return fmt.Errorf("Failed to get new PLE"), fasthttp.StatusServiceUnavailable, nil
+		return fmt.Errorf("Failed to get new PLE: %v", err), fasthttp.StatusServiceUnavailable, nil
 	}
 
 	return nil, fasthttp.StatusOK, ple
