@@ -488,8 +488,14 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		}
 
 		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
-				iqr.qid, iqr.mode, result.mode)
+			if result.mode == notSet {
+				result.mode = iqr.mode
+			} else if iqr.mode == notSet {
+				// Do nothing.
+			} else {
+				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+					iqr.qid, iqr.mode, result.mode)
+			}
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
