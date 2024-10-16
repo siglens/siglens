@@ -30,7 +30,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -62,6 +61,7 @@ var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 var maxSegFileSize uint64
 var activeColWips int64 // use it atomically to store the count of active colWips
+var activeColWipLock sync.Mutex
 
 var KibanaInternalBaseDir string
 
@@ -83,13 +83,27 @@ var wipCbufPool = sync.Pool{
 	},
 }
 
-func getNumOfActiveColWips() int64 {
-	value := atomic.LoadInt64(&activeColWips)
-	return value
+func getActiveColWipIfAvailable(count int64) bool {
+	activeColWipLock.Lock()
+	defer activeColWipLock.Unlock()
+
+	if activeColWips+count > MAX_ACTIVE_COL_WIPS {
+		return false
+	}
+	activeColWips += count
+	return true
 }
 
-func addNumOfActiveColWips(count int64) {
-	atomic.AddInt64(&activeColWips, count)
+func releaseActiveColWips(count int64) {
+	activeColWipLock.Lock()
+	defer activeColWipLock.Unlock()
+
+	if count > activeColWips {
+		log.Errorf("releaseActiveColWips: releasing more col wips than allocated: activeColWips: %v, count: %v", activeColWips, count)
+		activeColWips = 0
+	} else {
+		activeColWips -= count
+	}
 }
 
 func InitKibanaInternalData() {
@@ -664,7 +678,7 @@ func rotateSegmentOnTime() {
 		// Check again here to make sure we are not deleting a segstore that was updated
 		if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
 			log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
-			addNumOfActiveColWips(-int64(len(segstore.wipBlock.colWips)))
+			releaseActiveColWips(int64(len(segstore.wipBlock.colWips)))
 			delete(allSegStores, streamid)
 		}
 	}
