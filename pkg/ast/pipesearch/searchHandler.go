@@ -308,7 +308,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			return nil, false, nil, err
 		}
 
-		_, querySummary, queryInfo, pqid, containsKibana, _, err :=
+		_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
 			query.PrepareToRunQuery(simpleNode, simpleNode.TimeRange, aggs, qid, qc)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
