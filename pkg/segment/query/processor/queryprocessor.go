@@ -69,7 +69,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
-	if len(dataProcessors) > 0 {
+	if len(dataProcessors) > 0 && !dataProcessors[0].IsGenerateDataProcessor() {
 		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
 	}
 	for i := 1; i < len(dataProcessors); i++ {
@@ -112,6 +112,18 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 	}, nil
 }
 
+func (dp *DataProcessor) IsGenerateDataProcessor() bool {
+	switch dp.processor.(type) {
+		case *gentimesProcessor:
+			return true
+		case *inputlookupProcessor:
+			if dp.processor.(*inputlookupProcessor).options.FirstCommand { 
+				return true
+			}
+	}
+	return false
+}
+
 func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 	if queryAgg == nil {
 		return nil
@@ -129,6 +141,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
 		return NewGentimesDP(queryAgg.GentimesExpr)
+	} else if queryAgg.InputLookupExpr != nil {
+		return NewInputLookupDP(queryAgg.InputLookupExpr)
 	} else if queryAgg.HeadExpr != nil {
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {
