@@ -55,7 +55,7 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	numBuffers := 5
 	numEntriesForBuffer := 10
-	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segBaseDir, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
 
 	searchReq := &SegmentSearchRequest{
 		SegmentKey:        segKey,

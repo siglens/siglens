@@ -49,7 +49,7 @@ func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, 
 	for i := 0; i < count; i++ {
 		segkey := segBaseDir + fmt.Sprint(i)
 		bsumFname := segBaseDir + fmt.Sprint(i) + ".bsu"
-		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir,
+		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
 
 		for colName := range cnames {
