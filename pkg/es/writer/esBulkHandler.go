@@ -20,6 +20,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -369,44 +370,35 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 	return indexNameConverted
 }
 
-func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
-	rid uint64, idxToStreamIdCache map[string]string,
-	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
-	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
-	cfgkey := config.GetTimeStampKey()
-
-	var docType segment.SIGNAL_TYPE
-	if strings.HasPrefix(indexNameConverted, "jaeger-") {
-		docType = segment.SIGNAL_JAEGER_TRACES
-		cfgkey = "startTimeMillis"
-	} else {
-		docType = segment.SIGNAL_EVENTS
-	}
-
-	tsMillis := utils.ExtractTimeStamp(rawJson, &cfgkey)
+func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*writer.ParsedLogEvent, error) {
+	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
 	if tsMillis == 0 {
 		tsMillis = tsNow
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
-
-	ple := segwriter.NewPLE()
+	ple := plePool.Get().(*writer.ParsedLogEvent)
+	ple.Reset()
 	ple.SetRawJson(rawJson)
 	ple.SetTimestamp(tsMillis)
-	ple.SetIndexName(indexNameConverted)
+	ple.SetIndexName(indexName)
+	err := segwriter.ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
+	}
+	return ple, nil
+}
 
-	err := segwriter.ParseRawJsonObject("", rawJson, &cfgkey, jsParsingStackbuf[:], ple)
-	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
-		return err
+func ReleasePLEs(pleArray []*writer.ParsedLogEvent) {
+	for _, ple := range pleArray {
+		plePool.Put(ple)
 	}
-	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, myid, 0,
-		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
-	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
-		return err
+}
+
+func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
+	var totalBytes uint64
+	for _, ple := range pleArray {
+		totalBytes += uint64(len(ple.GetRawJson()))
 	}
-	return nil
+	return totalBytes
 }
 
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
