@@ -34,7 +34,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -174,7 +173,7 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
 		return err
 	}
-	writer.BackFillPQSSegmetaEntry(segmentKey, pqid)
+	writer.AddToBackFillAndEmptyPQSChan(segmentKey, pqid, false)
 	pqs.AddPersistentQueryResult(segmentKey, pqid)
 	allPqmrFile = append(allPqmrFile, pqidFname)
 	err = blob.UploadIngestNodeDir()
@@ -261,8 +260,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 }
 
 func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
-	pqsmeta.AddEmptyResults(pqid, segKey)
-	writer.BackFillPQSSegmetaEntry(segKey, pqid)
+	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
 func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest, qid uint64) (string, bool) {
@@ -284,7 +282,7 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
-	if !toputils.IsSegmentRotated(searchReq.SegmentKey) {
+	if !toputils.IsFileForRotatedSegment(searchReq.SegmentKey) {
 		return
 	}
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
