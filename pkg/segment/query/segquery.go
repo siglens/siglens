@@ -208,7 +208,6 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
-	defer querySummary.LogSummaryAndEmitMetrics(qid, pqid, containsKibana, qc.Orgid)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
 	if err != nil {
 		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitSearchResults! error %+v", qid, err)
