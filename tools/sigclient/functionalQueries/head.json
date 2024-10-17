@@ -1,0 +1,3 @@
+{
+    "queryText": "app_name = Bracecould | head gender=\"female\" OR gender=\"male\" limit=2 keeplast=true"
+}

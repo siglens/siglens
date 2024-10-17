@@ -114,6 +114,13 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
 		}
 		usageStats.UpdateStats(uint64(numBytes), 1, orgId)
 	}
+	if err := scanner.Err(); err != nil {
+		log.Errorf("ProcessSyntheicDataRequest: Error scanning payload %v, err: %v", payload, err)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		responsebody["message"] = "Failed to ingest all of the data"
+		utils.WriteJsonResponse(ctx, responsebody)
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responsebody["message"] = "Successfully ingested 20k lines of logs!"

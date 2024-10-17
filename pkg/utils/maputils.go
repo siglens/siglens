@@ -38,6 +38,16 @@ func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
 	return result
 }
 
+func MapsConflict[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
+	for key, v1 := range map1 {
+		if v2, ok := map2[key]; ok && v1 != v2 {
+			return true
+		}
+	}
+
+	return false
+}
+
 func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	set := make(map[K]struct{}, len(m))
 
