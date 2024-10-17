@@ -518,23 +518,24 @@ func listenBackFillAndEmptyPQSRequests() {
 	ticker := time.NewTicker(PQS_TICKER * time.Second) // every 10 seconds
 	defer ticker.Stop()
 
-	buffer := make([]PQSChanMeta, 0, PQS_FLUSH_SIZE)
-
-	callProcessBackFillPQSRequests := func() {
-		processBackFillAndEmptyPQSRequests(buffer)
-		buffer = buffer[:0]
-	}
+	buffer := make([]PQSChanMeta, PQS_FLUSH_SIZE)
+	bufferIndex := 0
 
 	for {
 		select {
 		case pqsChanMeta := <-pqsChan:
-			buffer = append(buffer, pqsChanMeta)
-			if len(buffer) >= PQS_FLUSH_SIZE {
-				callProcessBackFillPQSRequests()
+			buffer[bufferIndex] = pqsChanMeta
+			bufferIndex++
+			if bufferIndex == PQS_FLUSH_SIZE {
+				processBackFillAndEmptyPQSRequests(buffer)
+				buffer = buffer[:0]
+				bufferIndex = 0
 			}
 		case <-ticker.C:
-			if len(buffer) > 0 {
-				callProcessBackFillPQSRequests()
+			if bufferIndex > 0 {
+				processBackFillAndEmptyPQSRequests(buffer)
+				buffer = buffer[:0]
+				bufferIndex = 0
 			}
 		}
 	}
@@ -545,22 +546,23 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 		return
 	}
 
-	// segKey -> pqid -> true
-	segKeyPqidMap := make(map[string]map[string]bool)
-	// pqid -> segKey -> true
-	pqidSegKeyMap := make(map[string]map[string]bool) // for empty PQS
+	// segKey -> pqid -> true ; Contains all PQIDs for a given segKey
+	segKeyToAllPQIDsMap := make(map[string]map[string]bool)
+
+	// pqid -> segKey -> true ; For empty PQS: Contains all empty segment Keys for a given pqid
+	pqidToEmptySegMap := make(map[string]map[string]bool)
 
 	for _, pqsRequest := range pqsRequests {
-		if _, ok := segKeyPqidMap[pqsRequest.segKey]; !ok {
-			segKeyPqidMap[pqsRequest.segKey] = make(map[string]bool)
+		if _, ok := segKeyToAllPQIDsMap[pqsRequest.segKey]; !ok {
+			segKeyToAllPQIDsMap[pqsRequest.segKey] = make(map[string]bool)
 		}
-		segKeyPqidMap[pqsRequest.segKey][pqsRequest.pqid] = true
+		segKeyToAllPQIDsMap[pqsRequest.segKey][pqsRequest.pqid] = true
 
 		if pqsRequest.emptyPqs {
-			if _, ok := pqidSegKeyMap[pqsRequest.pqid]; !ok {
-				pqidSegKeyMap[pqsRequest.pqid] = make(map[string]bool)
+			if _, ok := pqidToEmptySegMap[pqsRequest.pqid]; !ok {
+				pqidToEmptySegMap[pqsRequest.pqid] = make(map[string]bool)
 			}
-			pqidSegKeyMap[pqsRequest.pqid][pqsRequest.segKey] = true
+			pqidToEmptySegMap[pqsRequest.pqid][pqsRequest.segKey] = true
 		}
 	}
 
@@ -570,7 +572,7 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	go func() {
 		defer wg.Done()
 
-		for segKey, allPQIDs := range segKeyPqidMap {
+		for segKey, allPQIDs := range segKeyToAllPQIDsMap {
 			BulkBackFillPQSSegmetaEntries(segKey, allPQIDs)
 		}
 	}()
@@ -578,7 +580,7 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	go func() {
 		defer wg.Done()
 
-		for pqid, segKeyMap := range pqidSegKeyMap {
+		for pqid, segKeyMap := range pqidToEmptySegMap {
 			pqsmeta.BulkAddEmptyResults(pqid, segKeyMap)
 		}
 	}()
