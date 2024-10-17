@@ -1,0 +1,4 @@
+{
+    "queryText": "search _index=*ind* group=\"group 0\" | eval Status=if(like(http_status, \"%2%\"), 1, 0) | where Status=1 | rex field=app_version \"(?<major>\\d+)\\.(?<minor>\\d).*\" | stats latest(major) as major by http_method, app_name | eval appname_version=app_name . \":\" . major | stats values(appname_version) as app_data by http_method"
+  }
+  

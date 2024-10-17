@@ -1,5 +1,4 @@
 3stats.json
-9stats.json
 complex_search.json
 eval_groupby_2col_2stats.json
 grpby_1col_4stats.json
@@ -60,6 +59,7 @@ multi_value.json
 ## Inconsistent results
 # tail_stats.json
 # search_timechart_no_groupby.json
+# 9stats.json
 # streamstats_without_sort.json
 
 ## Failing on rotated data
