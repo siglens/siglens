@@ -73,17 +73,14 @@ func Test_AddSementInfo(t *testing.T) {
 }
 
 func testBlockRebalance(t *testing.T, fileCount int) {
-	blockSizeToLoad := GetAllSegmentMicroIndexForTest()[0].MicroIndexSize + GetAllSegmentMicroIndexForTest()[0].SearchMetadataSize
+	blockSizeToLoad := GetAllSegmentMicroIndexForTest()[0].loadedCmiSize + GetAllSegmentMicroIndexForTest()[0].SearchMetadataSize
 	RebalanceInMemoryCmi(blockSizeToLoad)
 
-	assert.True(t, GetAllSegmentMicroIndexForTest()[0].AreMicroIndicesLoaded())
 	loadedBlockFile := GetAllSegmentMicroIndexForTest()[0].SegmentKey
 	loadedBlockLatestTime := GetAllSegmentMicroIndexForTest()[0].LatestEpochMS
-	assert.True(t, GetSegmentMetadataReverseIndexForTest()[loadedBlockFile].AreMicroIndicesLoaded())
 	assert.Same(t, GetAllSegmentMicroIndexForTest()[0], GetSegmentMetadataReverseIndexForTest()[loadedBlockFile])
 
 	for i := 1; i < fileCount; i++ {
-		assert.False(t, GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
 		currFile := GetAllSegmentMicroIndexForTest()[i].SegmentKey
 		assert.Same(t, GetAllSegmentMicroIndexForTest()[i], GetSegmentMetadataReverseIndexForTest()[currFile])
 		assert.LessOrEqual(t, GetAllSegmentMicroIndexForTest()[i].LatestEpochMS, loadedBlockLatestTime, "we loaded the lastest timestamp")
@@ -92,10 +89,7 @@ func testBlockRebalance(t *testing.T, fileCount int) {
 	// load just one more search metadata
 	blockSizeToLoad += GetAllSegmentMicroIndexForTest()[1].SearchMetadataSize
 	RebalanceInMemoryCmi(blockSizeToLoad)
-	assert.True(t, GetAllSegmentMicroIndexForTest()[0].AreMicroIndicesLoaded())
-	assert.False(t, GetAllSegmentMicroIndexForTest()[1].AreMicroIndicesLoaded(), "only load search metadata for idx 1")
 	for i := 2; i < fileCount; i++ {
-		assert.False(t, GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
 		assert.False(t, GetAllSegmentMicroIndexForTest()[i].isSearchMetadataLoaded())
 		currFile := GetAllSegmentMicroIndexForTest()[i].SegmentKey
 		assert.Same(t, GetAllSegmentMicroIndexForTest()[i], GetSegmentMetadataReverseIndexForTest()[currFile])
@@ -116,9 +110,6 @@ func Test_RebalanceMetadata(t *testing.T) {
 	assert.Len(t, GetSegmentMetadataReverseIndexForTest(), fileCount)
 
 	RebalanceInMemoryCmi(0)
-	for i := 0; i < fileCount; i++ {
-		assert.False(t, GetAllSegmentMicroIndexForTest()[i].AreMicroIndicesLoaded())
-	}
 
 	testBlockRebalance(t, fileCount)
 }
@@ -169,7 +160,7 @@ func Test_readEmptyColumnMicroIndices(t *testing.T) {
 
 	bMicro := InitSegmentMicroIndex(segmeta, false)
 
-	err := bMicro.loadMicroIndices(map[uint16]map[string]bool{}, true, map[string]bool{}, false)
+	err := bMicro.readCmis(map[uint16]map[string]bool{}, map[string]bool{})
 	if err != nil {
 		log.Errorf("failed to read cmi, err=%v", err)
 	}
