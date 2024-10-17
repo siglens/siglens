@@ -10465,16 +10465,16 @@ func Test_GenTimes_5(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent)
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
 
-	expectedStartTime, err := getTimeAfterOffsetAndSnapDay(t, 6, time.Now())
+	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:23:11:56")
 	assert.Nil(t, err)
-	assert.Equal(t, expectedStartTime, aggregator.GenerateEvent.GenTimes.StartTime)
+	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
 
-	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:23:11:56")
+	expectedEndTime, err := getTimeAfterOffsetAndSnapDay(t, 6, time.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
-	assert.Equal(t, -11, aggregator.GenerateEvent.GenTimes.Interval.Num)
+	assert.Equal(t, 11, aggregator.GenerateEvent.GenTimes.Interval.Num)
 	assert.Equal(t, utils.TMHour, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
