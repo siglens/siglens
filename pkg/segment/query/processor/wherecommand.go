@@ -32,6 +32,8 @@ type whereProcessor struct {
 
 func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
+		// There's no more input. Since "where" doesn't store any unprocessed
+		// data, just return EOF.
 		return nil, io.EOF
 	}
 
