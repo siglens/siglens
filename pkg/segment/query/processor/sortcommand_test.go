@@ -98,3 +98,98 @@ func Test_SortCommand_simple(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actualCol1)
 }
+
+func Test_SortCommand_withTieBreakers(t *testing.T) {
+	sorter := &sortProcessor{
+		options: &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "col1", SortByAsc: true, Op: ""},
+				{Field: "col2", SortByAsc: false, Op: "num"},
+			},
+			Limit: 4,
+		},
+	}
+
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		},
+	})
+	assert.NoError(t, err)
+
+	_, err = sorter.Process(iqr1)
+	assert.NoError(t, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+	}
+
+	actualCol1, err := sorter.resultsSoFar.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := sorter.resultsSoFar.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+
+	// Add more records.
+	iqr2 := iqr.NewIQR(0)
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+		},
+	})
+	assert.NoError(t, err)
+
+	_, err = sorter.Process(iqr2)
+	assert.NoError(t, err)
+
+	expectedCol1 = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}
+	expectedCol2 = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+	}
+
+	actualCol1, err = sorter.resultsSoFar.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err = sorter.resultsSoFar.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+
+	// Get the final results.
+	finalIQR, err := sorter.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	actualCol1, err = finalIQR.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err = finalIQR.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+}
