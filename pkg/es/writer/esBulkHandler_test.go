@@ -49,9 +49,12 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
+		pleArray := make([]*segwriter.ParsedLogEvent, 0)
+		defer ReleasePLEs(pleArray)
 		ple, err := GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
-		err = ProcessIndexRequestPle(now, indexName, true, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], []*segwriter.ParsedLogEvent{ple})
+		pleArray = append(pleArray, ple)
+		err = ProcessIndexRequestPle(now, indexName, true, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 		assert.Nil(t, err)
 	}
 
@@ -76,6 +79,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 	err := ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	assert.Nil(t, err)
+	ReleasePLEs(pleArray)
+
 	flush()
 
 	// Ingest some data that will need to be converted to strings.
@@ -99,6 +104,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 	err = ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	assert.Nil(t, err)
+	ReleasePLEs(pleArray)
+
 	flush()
 
 	// Cleanup

@@ -106,6 +106,8 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer writer.ReleasePLEs(pleArray)
+
 	responsebody := make(map[string]interface{})
 	totalBytes := 0
 	for scanner.Scan() {

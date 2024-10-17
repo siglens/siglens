@@ -237,6 +237,8 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	tsKey := config.GetTimeStampKey()
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer writer.ReleasePLEs(pleArray)
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
 		ingestCommonFields := parseLabels(labels)
@@ -351,6 +353,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer writer.ReleasePLEs(pleArray)
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})

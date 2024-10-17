@@ -97,6 +97,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	numSpans := 0       // The total number of spans sent in this request.
 	numFailedSpans := 0 // The number of spans that we could not ingest.
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer writer.ReleasePLEs(pleArray)
 
 	for _, resourceSpans := range request.ResourceSpans {
 		// Find the service name.

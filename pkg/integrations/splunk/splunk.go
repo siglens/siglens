@@ -62,6 +62,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	localIndexMap := make(map[string]string)
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer writer.ReleasePLEs(pleArray)
 
 	for _, record := range jsonObjects {
 		err, statusCode, ple := getPLE(record, myid, &tsKey, jsParsingStackbuf[:])

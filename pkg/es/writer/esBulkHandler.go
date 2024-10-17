@@ -375,7 +375,8 @@ func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, js
 	if tsMillis == 0 {
 		tsMillis = tsNow
 	}
-	ple := segwriter.NewPLE()
+	ple := plePool.Get().(*writer.ParsedLogEvent)
+	ple.Reset()
 	ple.SetRawJson(rawJson)
 	ple.SetTimestamp(tsMillis)
 	ple.SetIndexName(indexName)
@@ -384,6 +385,12 @@ func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, js
 		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
 	}
 	return ple, nil
+}
+
+func ReleasePLEs(pleArray []*writer.ParsedLogEvent) {
+	for _, ple := range pleArray {
+		plePool.Put(ple)
+	}
 }
 
 func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
