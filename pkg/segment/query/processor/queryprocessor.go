@@ -112,11 +112,6 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 	}, nil
 }
 
-func (dp *DataProcessor) IsGenerateDataProcessor() bool {
-	_, ok := dp.processor.(*gentimesProcessor)
-	return ok
-}
-
 func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 	if queryAgg == nil {
 		return nil

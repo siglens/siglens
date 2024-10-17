@@ -760,6 +760,11 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
         return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
     }
 
+    if genTimeOption.Interval.Num < 0 {
+        genTimeOption.StartTime, genTimeOption.EndTime = genTimeOption.EndTime, genTimeOption.StartTime
+		genTimeOption.Interval.Num = -genTimeOption.Interval.Num
+    }
+
     return genTimeOption, nil
 }
 

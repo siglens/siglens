@@ -23,7 +23,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -106,6 +105,15 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 				return output, nil
 			}
 		}
+	}
+}
+
+func (dp *DataProcessor) IsGenerateDataProcessor() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -237,17 +245,6 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 }
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
-	if options.Interval == nil {
-		options.Interval = &structs.SpanLength{
-			Num:       1,
-			TimeScalr: segutils.TMDay,
-		}
-	}
-	if options.Interval.Num < 0 {
-		options.StartTime, options.EndTime = options.EndTime, options.StartTime
-		options.Interval.Num = -options.Interval.Num
-	}
-
 	return &DataProcessor{
 		streams: make([]*cachedStream, 0),
 		processor: &gentimesProcessor{
