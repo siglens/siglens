@@ -206,3 +206,31 @@ func Test_MergeSortedSlices(t *testing.T) {
 	actual := MergeSortedSlices(less, slice1, slice2, slice3)
 	assert.Equal(t, expected, actual)
 }
+
+func Test_MergeSortedSlices_someEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{2, 3, 5}
+	slice3 := []int{1, 4, 6}
+
+	expected := []int{1, 2, 3, 4, 5, 6}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_MergeSortedSlices_allEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{}
+	slice3 := []int{}
+
+	expected := []int{}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}

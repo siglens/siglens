@@ -21,25 +21,11 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
-	"github.com/siglens/siglens/pkg/segment/structs"
 )
 
 type streamer interface {
 	Fetch() (*iqr.IQR, error)
 	Rewind()
-}
-
-type searchStream struct {
-	qid  uint64
-	node *structs.ASTNode
-}
-
-func (ss *searchStream) Fetch() (*iqr.IQR, error) {
-	panic("not implemented")
-}
-
-func (ss *searchStream) Rewind() {
-	panic("not implemented")
 }
 
 type cachedStream struct {

@@ -126,16 +126,26 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
 
-	blockMetadata, err := writer.GetBlockSearchInfoForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
-	}
+	var blockMetadata map[uint16]*structs.BlockMetadataHolder
+	var blockSummary []*structs.BlockSummary
+	if writer.IsSegKeyUnrotated(segKey) {
+		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
 
-	blockSummary, err := writer.GetBlockSummaryForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
+		blockSummary, err = writer.GetBlockSummaryForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
+	} else {
+		blockMetadata, blockSummary, err = segmetadata.GetSearchInfoAndSummary(segKey)
+		if err != nil {
+			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			return nil, err
+		}
 	}
 
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value

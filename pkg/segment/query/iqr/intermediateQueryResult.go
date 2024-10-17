@@ -265,7 +265,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil
 		}
 
-		vTable := iqr.rrcs[0].VirtualTableName
+		vTable := rrcs[0].VirtualTableName
 		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
 		if err != nil {
 			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
@@ -344,11 +344,14 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
-	_, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
 		return err
 	}
+
+	iqr.mode = mergedIQR.mode
+	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
 	if iqr.mode == withRRCs {
 		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
@@ -488,8 +491,14 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		}
 
 		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
-				iqr.qid, iqr.mode, result.mode)
+			if result.mode == notSet {
+				result.mode = iqr.mode
+			} else if iqr.mode == notSet {
+				// Do nothing.
+			} else {
+				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+					iqr.qid, iqr.mode, result.mode)
+			}
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {

@@ -186,10 +186,13 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 	return nodeRes
 }
 
-func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
-	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
+// TODO: after we move to the new query pipeline, some of these return values
+// will not be needed, so they can be removed.
+func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+	qid uint64, qc *structs.QueryContext) (*time.Time, *summary.QuerySummary, *QueryInformation,
+	string, *structs.SearchNode, *segresults.SearchResults, int64, bool, []string, error) {
 
-	sTime := time.Now()
+	startTime := time.Now()
 	searchNode := ConvertASTNodeToSearchNode(node, qid)
 	kibanaIndices := qc.TableInfo.GetKibanaIndices()
 	nonKibanaIndices := qc.TableInfo.GetQueryTables()
@@ -205,13 +208,10 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
-	defer querySummary.LogSummaryAndEmitMetrics(qid, pqid, containsKibana, qc.Orgid)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
 	if err != nil {
-		log.Errorf("qid=%d Failed to InitSearchResults! error %+v", qid, err)
-		return &structs.NodeResult{
-			ErrList: []error{err},
-		}
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitSearchResults! error %+v", qid, err)
+		return nil, nil, nil, "", nil, nil, 0, false, nil, err
 	}
 
 	var dqs DistributedQueryServiceInterface
@@ -225,18 +225,36 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
 		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
 	if err != nil {
-		log.Errorf("qid=%d Failed to InitQueryInformation! error %+v", qid, err)
-		return &structs.NodeResult{
-			ErrList: []error{err},
-		}
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitQueryInformation! error %+v", qid, err)
+		return nil, nil, nil, "", nil, nil, 0, false, nil, err
 	}
 	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
 	if err != nil {
-		log.Errorf("qid=%d Failed to associate search results with qid! Error: %+v", qid, err)
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to associate search results with qid! Error: %+v", qid, err)
+		return nil, nil, nil, "", nil, nil, 0, false, nil, err
 	}
 
 	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
 		qid, searchNode.NodeType, parallelismPerFile)
+
+	return &startTime, querySummary, queryInfo, pqid, searchNode,
+		allSegFileResults, parallelismPerFile, containsKibana, kibanaIndices, nil
+}
+
+func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
+
+	sTime, querySummary, queryInfo, pqid, searchNode, allSegFileResults, parallelismPerFile,
+		containsKibana, kibanaIndices, err := PrepareToRunQuery(node, timeRange, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%d Failed to prepare to run query! Error: %+v", qid, err)
+		return &structs.NodeResult{
+			ErrList: []error{err},
+		}
+	}
+	defer querySummary.LogSummaryAndEmitMetrics(qid, pqid, containsKibana, qc.Orgid)
+
+	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
 
 	// Kibana requests will not honor time range sent in the query
 	// TODO: distibuted kibana requests?
@@ -244,7 +262,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		qc.SizeLimit, aggs, qid, querySummary)
 	switch qType {
 	case structs.SegmentStatsCmd:
-		return GetNodeResultsForSegmentStatsCmd(queryInfo, sTime, allSegFileResults, nil, querySummary, qc.Orgid)
+		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid)
 	case structs.RRCCmd, structs.GroupByCmd:
 		bucketLimit := MAX_GRP_BUCKS
 		if aggs != nil {
@@ -267,7 +285,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		if len(allColsInAggs) > 0 {
 			SetAllColsInAggsForQid(qid, allColsInAggs)
 		}
-		nodeRes := GetNodeResultsForRRCCmd(queryInfo, sTime, allSegFileResults, querySummary)
+		nodeRes := GetNodeResultsForRRCCmd(queryInfo, *sTime, allSegFileResults, querySummary)
 		nodeRes.AllColumnsInAggs = allColsInAggs
 
 		return nodeRes
@@ -292,7 +310,7 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 		}
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
-	setQidAsFinished(queryInfo.qid)
+	SetQidAsFinished(queryInfo.qid)
 	queryType := GetQueryType(queryInfo.qid)
 	bucketLimit := MAX_GRP_BUCKS
 	if queryInfo.aggs != nil {
@@ -412,7 +430,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		}
 	}
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
-	setQidAsFinished(queryInfo.qid)
+	SetQidAsFinished(queryInfo.qid)
 	return &structs.NodeResult{
 		ErrList:          allSegFileResults.GetAllErrors(),
 		TotalResults:     allSegFileResults.GetQueryCount(),

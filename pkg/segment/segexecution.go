@@ -29,7 +29,6 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
-	_ "github.com/siglens/siglens/pkg/segment/query/processor" // TODO: don't import as "_"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"

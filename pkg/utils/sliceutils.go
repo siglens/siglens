@@ -290,10 +290,13 @@ func IndexOfMin[T any](arr []T, less func(T, T) bool) int {
 
 // All input slices must already be sorted by the `less` function.
 func MergeSortedSlices[T any](less func(T, T) bool, slices ...[]T) []T {
-	remainingSlices := slices
+	remainingSlices := make([][]T, 0, len(slices))
 	nextIndices := make([]int, 0, len(slices))
-	for range slices {
-		nextIndices = append(nextIndices, 0)
+	for _, slice := range slices {
+		if len(slice) > 0 {
+			remainingSlices = append(remainingSlices, slice)
+			nextIndices = append(nextIndices, 0)
+		}
 	}
 
 	totalLen := 0
@@ -302,7 +305,7 @@ func MergeSortedSlices[T any](less func(T, T) bool, slices ...[]T) []T {
 	}
 	result := make([]T, 0, totalLen)
 
-	for {
+	for len(remainingSlices) > 0 {
 		// Find the slice with the next smallest element.
 		minValue := remainingSlices[0][nextIndices[0]]
 		indexOfMinSlice := 0
@@ -321,10 +324,6 @@ func MergeSortedSlices[T any](less func(T, T) bool, slices ...[]T) []T {
 			// This slice is exhausted.
 			remainingSlices = append(remainingSlices[:indexOfMinSlice], remainingSlices[indexOfMinSlice+1:]...)
 			nextIndices = append(nextIndices[:indexOfMinSlice], nextIndices[indexOfMinSlice+1:]...)
-
-			if len(remainingSlices) == 0 {
-				break
-			}
 		}
 	}
 
