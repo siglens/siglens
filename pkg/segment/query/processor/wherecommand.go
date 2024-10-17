@@ -18,8 +18,12 @@
 package processor
 
 import (
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type whereProcessor struct {
@@ -27,13 +31,53 @@ type whereProcessor struct {
 }
 
 func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr == nil {
+		return nil, io.EOF
+	}
+
+	requiredFields := p.options.GetFields()
+	valuesOfRequiredFields := make([][]segutils.CValueEnclosure, 0, len(requiredFields))
+	for _, field := range requiredFields {
+		values, err := iqr.ReadColumn(field)
+		if err != nil {
+			log.Errorf("where.Process: cannot get field values; field=%s; err=%v", field, err)
+			return nil, err
+		}
+
+		valuesOfRequiredFields = append(valuesOfRequiredFields, values)
+	}
+
+	rowsToDiscard := make([]int, 0, iqr.NumberOfRecords())
+	singleRow := make(map[string]segutils.CValueEnclosure, len(requiredFields))
+	for row := 0; row < iqr.NumberOfRecords(); row++ {
+		for col, field := range requiredFields {
+			singleRow[field] = valuesOfRequiredFields[col][row]
+		}
+
+		shouldKeep, err := p.options.Evaluate(singleRow)
+		if err != nil {
+			log.Errorf("where.Process: cannot evaluate expression; err=%v", err)
+			return nil, err
+		}
+
+		if !shouldKeep {
+			rowsToDiscard = append(rowsToDiscard, row)
+		}
+	}
+
+	err := iqr.DiscardRows(rowsToDiscard)
+	if err != nil {
+		log.Errorf("where.Process: cannot discard rows; err=%v", err)
+		return nil, err
+	}
+
+	return iqr, nil
 }
 
 func (p *whereProcessor) Rewind() {
-	panic("not implemented")
+	// Nothing to do.
 }
 
 func (p *whereProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing to do.
 }
