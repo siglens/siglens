@@ -99,10 +99,6 @@ func (iqr *IQR) validate() error {
 	return nil
 }
 
-func (iqr *IQR) SetModeWithoutRRC() {
-	iqr.mode = withoutRRCs
-}
-
 func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
 	if len(rrcs) == 0 {
 		return nil

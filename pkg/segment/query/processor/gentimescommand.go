@@ -71,11 +71,11 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	for curr < p.options.EndTime && count < utils.QUERY_EARLY_EXIT_LIMIT {
 		endTime, err := utils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
 		if err != nil {
-			return nil, fmt.Errorf("PerformGenTimes: Error while calculating end time, err: %v", err)
+			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating end time, err: %v", err)
 		}
 		intervalEndTime, err := utils.ApplyOffsetToTime(-1, utils.TMSecond, endTime)
 		if err != nil {
-			return nil, fmt.Errorf("PerformGenTimes: Error while calculating interval end time, err: %v", err)
+			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating interval end time, err: %v", err)
 		}
 
 		addGenTimeEvent(knownValues, currTime, intervalEndTime)
@@ -88,7 +88,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	err := iqr.AppendKnownValues(knownValues)
 
 	if err != nil {
-		return nil, fmt.Errorf("PerformGenTimes: Error while appending known values, err: %v", err)
+		return nil, fmt.Errorf("gentimesProcessor.Process: Error while appending known values, err: %v", err)
 	}
 
 	if curr >= p.options.EndTime {
@@ -99,7 +99,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *gentimesProcessor) Rewind() {
-	// We can generate the data again if needed, no need to store the state
+	// If more than one pass is there we need to generate the records again as we are not storing it
 	p.currStartTime = p.options.StartTime
 }
 
