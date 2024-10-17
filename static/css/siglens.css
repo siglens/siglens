@@ -4287,7 +4287,21 @@ color: #C8C7CC;
     font-weight: var(--fw-900);
 }
 
+#index-summary-prompt .summary-content{
+    border: 1px solid var(--border-btn-color);
+    padding: 20px;
+    border-radius: 10px;
+}
 
+.index-name {
+    color: var(--table-or-regular-text-color);
+    text-decoration: none;
+}
+
+.index-name:hover{
+    color: var(--lavender-2);
+    font-weight: bold;
+}
 
 /*SignUP Form*/
 .email-form input {
