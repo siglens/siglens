@@ -38,7 +38,7 @@ func Test_readTimeStamps(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 2000
-	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, numBlocks, numEntriesInBlock)
+	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	colName := config.GetTimeStampKey()
 	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, blockmeta, blockSums, 0)

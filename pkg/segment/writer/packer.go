@@ -916,11 +916,9 @@ func GetMockSegBaseDirAndKeyForTest(dataDir string, indexName string) (string, s
 	return segBaseDir, segKey, nil
 }
 
-func WriteMockColSegFile(segBaseDir string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
+func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
 	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
 	map[string]*ColSizeInfo) {
-
-	segkey := segBaseDir + "0"
 
 	allBlockBlooms := make([]map[string]*BloomIndex, numBlocks)
 	allBlockRangeIdx := make([]map[string]*RangeIndex, numBlocks)
