@@ -427,6 +427,9 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCa
 }
 
 func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggregators, error) {
+	if config.IsNewQueryPipelineEnabled() {
+		return node, nil
+	}
 	var err error
 	var pipeCommands *QueryAggregators
 	//todo return array of queryaggs
@@ -537,11 +540,9 @@ func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregator
 	}
 	if node.GenTimes != nil {
 		aggNode.GenerateEvent.GenTimes = node.GenTimes
-		aggNode.GentimesExpr = node.GenTimes
 	}
 	if node.InputLookup != nil {
 		aggNode.GenerateEvent.InputLookup = node.InputLookup
-		aggNode.InputLookupExpr = node.InputLookup
 	}
 
 	return aggNode, nil

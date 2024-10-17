@@ -74,10 +74,6 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
-func (iqr *IQR) GetQid() uint64 {
-	return iqr.qid
-}
-
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")

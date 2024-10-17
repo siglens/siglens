@@ -555,6 +555,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
         GenerateEvent: &structs.GenerateEvent{
             GenTimes: genTimesOption.(*structs.GenTimes),
         },
+        GentimesExpr: genTimesOption.(*structs.GenTimes),
     }
 
     if queryAggBlocks != nil {
