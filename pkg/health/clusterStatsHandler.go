@@ -345,20 +345,20 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
-	earliestEpochs := make(map[string]uint64)
-	latestEpochs := make(map[string]uint64)
+	indexEarliestEpochMs := make(map[string]uint64)
+	indexLatestEpochMs := make(map[string]uint64)
 
 	tsKey := config.GetTimeStampKey()
 
-	updateTimestamps := func(indexName string, earliestEpochMS, latestEpochMS uint64) {
-		if earliestEpochMS > 0 {
-			if earliest, ok := earliestEpochs[indexName]; !ok || earliestEpochMS < earliest {
-				earliestEpochs[indexName] = earliestEpochMS
+	updateTimestamps := func(indexName string, earliestEpochMs, latestEpochMs uint64) {
+		if earliestEpochMs > 0 {
+			if earliest, ok := indexEarliestEpochMs[indexName]; !ok || earliestEpochMs < earliest {
+				indexEarliestEpochMs[indexName] = earliestEpochMs
 			}
 		}
-		if latestEpochMS > 0 {
-			if latest, ok := latestEpochs[indexName]; !ok || latestEpochMS > latest {
-				latestEpochs[indexName] = latestEpochMS
+		if latestEpochMs > 0 {
+			if latest, ok := indexLatestEpochMs[indexName]; !ok || latestEpochMs > latest {
+				indexLatestEpochMs[indexName] = latestEpochMs
 			}
 		}
 	}
@@ -389,6 +389,9 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		totalCols[tsKey] = struct{}{}
 	}
 
+	// Get unrotated timestamps for all indexes
+	unrotatedTimestamps := segwriter.GetUnrotatedVTableTimestamps(myid)
+
 	for _, indexName := range indices {
 		if indexName == "" {
 			log.Errorf("getStats: skipping an empty index name indexName=%v", indexName)
@@ -403,8 +406,10 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-		unrotatedEarliest, unrotatedLatest := segwriter.GetUnrotatedVTableTimestamps(indexName, myid)
-		updateTimestamps(indexName, unrotatedEarliest, unrotatedLatest)
+
+		if unrotatedTS, ok := unrotatedTimestamps[indexName]; ok {
+			updateTimestamps(indexName, unrotatedTS.Earliest, unrotatedTS.Latest)
+		}
 
 		currentIndexCols := allIndexCols[indexName]
 		indexSegmentCount := segmentCounts[indexName]
@@ -437,8 +442,8 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			NumSegments:       uint64(indexSegmentCount),
 			NumColumns:        uint64(len(currentIndexCols)),
 			ColumnsSet:        currentIndexCols,
-			EarliestTimestamp: earliestEpochs[indexName],
-			LatestTimestamp:   latestEpochs[indexName],
+			EarliestTimestamp: indexEarliestEpochMs[indexName],
+			LatestTimestamp:   indexLatestEpochMs[indexName],
 			TotalOnDiskBytes:  totalOnDiskBytesCountForIndex,
 		}
 

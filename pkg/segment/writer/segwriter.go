@@ -1001,31 +1001,40 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
-func GetUnrotatedVTableTimestamps(vtable string, orgid uint64) (uint64, uint64) {
-	var earliest uint64 = math.MaxUint64
-	var latest uint64 = 0
+func GetUnrotatedVTableTimestamps(orgid uint64) map[string]struct{ Earliest, Latest uint64 } {
+	result := make(map[string]struct{ Earliest, Latest uint64 })
 
 	allSegStoresLock.RLock()
 	defer allSegStoresLock.RUnlock()
 
 	for _, segstore := range allSegStores {
-		if segstore.VirtualTableName == vtable && segstore.OrgId == orgid {
-			segstore.Lock.Lock()
-			if segstore.earliest_millis < earliest {
-				earliest = segstore.earliest_millis
+		if segstore.OrgId == orgid {
+			indexName := segstore.VirtualTableName
+			timestamps, exists := result[indexName]
+			if !exists {
+				timestamps = struct{ Earliest, Latest uint64 }{math.MaxUint64, 0}
 			}
-			if segstore.latest_millis > latest {
-				latest = segstore.latest_millis
+
+			if segstore.earliest_millis < timestamps.Earliest {
+				timestamps.Earliest = segstore.earliest_millis
 			}
-			segstore.Lock.Unlock()
+			if segstore.latest_millis > timestamps.Latest {
+				timestamps.Latest = segstore.latest_millis
+			}
+
+			result[indexName] = timestamps
 		}
 	}
+
 	// If no data was found, return 0 for both
-	if earliest == math.MaxUint64 {
-		earliest = 0
+	for indexName, timestamps := range result {
+		if timestamps.Earliest == math.MaxUint64 {
+			timestamps.Earliest = 0
+			result[indexName] = timestamps
+		}
 	}
 
-	return earliest, latest
+	return result
 }
 
 func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {
