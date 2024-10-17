@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -33,6 +34,7 @@ type processor interface {
 }
 
 type DataProcessor struct {
+	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -110,6 +112,9 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
+		if dp.IsGenerateDataProcessor() {
+			return iqr.NewIQR(dp.qid), nil
+		}
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()
@@ -232,9 +237,23 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 }
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
+	if options.Interval == nil {
+		options.Interval = &structs.SpanLength{
+			Num:       1,
+			TimeScalr: segutils.TMDay,
+		}
+	}
+	if options.Interval.Num < 0 {
+		options.StartTime, options.EndTime = options.EndTime, options.StartTime
+		options.Interval.Num = -options.Interval.Num
+	}
+
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &gentimesProcessor{options: options},
+		streams: make([]*cachedStream, 0),
+		processor: &gentimesProcessor{
+			options:       options,
+			currStartTime: options.StartTime,
+		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,

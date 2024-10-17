@@ -74,6 +74,10 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func (iqr *IQR) GetQid() uint64 {
+	return iqr.qid
+}
+
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")
@@ -93,6 +97,10 @@ func (iqr *IQR) validate() error {
 	}
 
 	return nil
+}
+
+func (iqr *IQR) SetModeWithoutRRC() {
+	iqr.mode = withoutRRCs
 }
 
 func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
