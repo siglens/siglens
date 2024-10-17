@@ -303,7 +303,7 @@ function setDownloadLogsDialog() {
                     $('#progressbar').hide();
                     setProgress(progressBar, 100);
                     if (!confirmDownload) return;
-                    if (res && res.hits && res.hits.records && res.hits.records.length > 0 && res.qtype === 'log-query') {
+                    if (res && res.hits && res.hits.records && res.hits.records.length > 0 && res.qtype === 'logs-query') {
                         let json = JSON.stringify(res.hits.records);
                         downloadData(json, name);
                     } else if (res && res.qtype === 'aggs-query' && res.aggregations && res.aggregations[''].buckets.length > 0) {
