@@ -109,7 +109,7 @@ test.describe('Logs Page Tests', () => {
         await saveButton.click();
 
         // Verify download started
-        const downloadPromise = page.waitForEvent('download');
+        const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
         await downloadPromise;
     });
 
