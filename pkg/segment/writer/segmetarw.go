@@ -528,13 +528,11 @@ func listenBackFillAndEmptyPQSRequests() {
 			bufferIndex++
 			if bufferIndex == PQS_FLUSH_SIZE {
 				processBackFillAndEmptyPQSRequests(buffer)
-				buffer = buffer[:0]
 				bufferIndex = 0
 			}
 		case <-ticker.C:
 			if bufferIndex > 0 {
-				processBackFillAndEmptyPQSRequests(buffer)
-				buffer = buffer[:0]
+				processBackFillAndEmptyPQSRequests(buffer[:bufferIndex])
 				bufferIndex = 0
 			}
 		}
