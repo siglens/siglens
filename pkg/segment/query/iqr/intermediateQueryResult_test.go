@@ -254,6 +254,56 @@ func Test_Append(t *testing.T) {
 	}
 }
 
+func Test_Sort(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	less := func(a, b *Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	err = iqr.Sort(less)
+	assert.NoError(t, err)
+
+	expected := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(iqr.knownValues))
+	for cname, expectedValues := range expected {
+		if _, ok := iqr.knownValues[cname]; !ok {
+			assert.Fail(t, "missing column %v", cname)
+		}
+
+		assert.Equal(t, expectedValues, iqr.knownValues[cname],
+			"actual=%v, expected=%v, cname=%v", iqr.knownValues[cname],
+			expectedValues, cname)
+	}
+}
+
 func Test_MergeIQRs(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)

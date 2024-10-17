@@ -2259,6 +2259,7 @@ SortBlock <- PIPE CMD_SORT limit:(SortLimit)? sortByEles:SortElements {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        SortExpr: sortExpr,
     }
 
     return root, nil
