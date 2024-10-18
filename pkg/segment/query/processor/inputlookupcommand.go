@@ -63,6 +63,7 @@ func min(a, b int) int {
 }
 
 func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
+	fmt.Println("Called INPUTLOOKUP PROCESS")
 	if inpIqr != nil && !p.options.FirstCommand {
 		p.qid = inpIqr.GetQid()
 		return inpIqr, nil
@@ -157,6 +158,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PerformInputLookup: Error appending known values, err: %v", err)
 	}
+	fmt.Println("Processed inputlookup ", len(records))
 
 	return nIQR, nil
 }

@@ -562,8 +562,14 @@ func (iqr *IQR) getRRCIQRFromWithoutRRCIQR(other *IQR) (*IQR, error) {
 	}
 	fmt.Println("valuesLen: ", valuesLen)
 	newIQR := NewIQR(iqr.qid)
-	newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
-	newIQR.AppendKnownValues(other.knownValues)
+	err := newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
+	if err != nil {
+		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending RRCs: %v", err)
+	}
+	err = newIQR.AppendKnownValues(other.knownValues)
+	if err != nil {
+		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending known values: %v", err)
+	}
 
 	return newIQR, nil
 }
@@ -722,38 +728,4 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 	}
 
 	return response, nil
-}
-
-
-func (iqr *IQR) AppendKnownValuesAsNewRows(knownValues map[string][]utils.CValueEnclosure) error {
-	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AppendKnownValuesAsNewRows: validation failed: %v", err)
-	}
-
-	valuesLen := 0
-	for _, values := range knownValues {
-		if valuesLen == 0 {
-			valuesLen = len(values)
-		} else if valuesLen != len(values) {
-			return fmt.Errorf("IQR.AppendKnownValuesAsNewRows: inconsistent number of rows")
-		}
-	}
-
-	switch iqr.mode {
-	case notSet:
-		iqr.AppendKnownValues(knownValues)
-	case withRRCs:
-		newIQR := NewIQR(iqr.qid)
-		newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
-		newIQR.AppendKnownValues(knownValues)
-		iqr.Append(newIQR)
-	case withoutRRCs:
-		newIQR := NewIQR(iqr.qid)
-		newIQR.AppendKnownValues(knownValues)
-		iqr.Append(newIQR)
-	default:
-		return fmt.Errorf("IQR.AppendKnownValuesAsNewRows: unexpected mode %v", iqr.mode)
-	}
-
-	return nil
 }
