@@ -430,7 +430,6 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 	if config.IsNewQueryPipelineEnabled() {
 		return node, nil
 	}
-
 	var err error
 	var pipeCommands *QueryAggregators
 	//todo return array of queryaggs

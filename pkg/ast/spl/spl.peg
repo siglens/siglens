@@ -555,6 +555,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
         GenerateEvent: &structs.GenerateEvent{
             GenTimes: genTimesOption.(*structs.GenTimes),
         },
+        GentimesExpr: genTimesOption.(*structs.GenTimes),
     }
 
     if queryAggBlocks != nil {
@@ -757,6 +758,11 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
     _, exist := optionWasSpecified["start"]
     if !exist {
         return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
+    }
+
+    if genTimeOption.Interval.Num < 0 {
+        genTimeOption.StartTime, genTimeOption.EndTime = genTimeOption.EndTime, genTimeOption.StartTime
+		genTimeOption.Interval.Num = -genTimeOption.Interval.Num
     }
 
     return genTimeOption, nil
