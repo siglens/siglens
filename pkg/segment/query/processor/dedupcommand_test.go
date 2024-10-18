@@ -201,4 +201,27 @@ func Test_Dedup_nonconsecutive(t *testing.T) {
 	actual, err := result1.ReadColumn("col1")
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+
+	iqr2 := iqr.NewIQR(0)
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	result2, err := dataProcessor.processor.Process(iqr2)
+	assert.NoError(t, err)
+	assert.NotNil(t, result2)
+
+	// The previous batch already had "a" and "b", so they should be dropped.
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+	}
+	actual, err = result2.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
