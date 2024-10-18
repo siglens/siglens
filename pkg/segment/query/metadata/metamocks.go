@@ -36,15 +36,9 @@ import (
 // function to init mock server in memory. Should only be called by tests
 func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, entryCount int) {
 
-	// _ = os.Remove(dir)
-
 	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
-	// err := os.MkdirAll(dir, os.FileMode(0755))
-	// if err != nil {
-	// 	log.Fatalf("InitMockColumnarMetadataStore: Could not create directory %v", err)
-	// }
 
 	for i := 0; i < count; i++ {
 		segkey := segBaseDir + fmt.Sprint(i)
