@@ -89,9 +89,7 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	qid := uint64(0)
-
-	cTypeFillValue, err := getTheFinalFillValue(p.options.Value, qid)
+	cTypeFillValue, err := getTheFinalFillValue(p.options.Value, iqr.GetQID())
 	if err != nil {
 		return nil, err
 	}
