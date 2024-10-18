@@ -31,7 +31,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 type inputlookupProcessor struct {
@@ -40,26 +39,6 @@ type inputlookupProcessor struct {
 
 func checkCSVFormat(filename string) bool {
 	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
-}
-
-func getRecordFieldValues(fieldToValue map[string]utils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {
-	for _, field := range fieldsInExpr {
-		value, exists := record[field]
-		if !exists {
-			return fmt.Errorf("getRecordFieldValues: field %v does not exist in record", field)
-		}
-
-		dVal, err := utils.CreateDtypeEnclosure(value, 0)
-		if err != nil {
-			log.Errorf("failed to create dtype enclosure for field %s, err=%v", field, err)
-			dVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_STRING, StringVal: fmt.Sprintf("%v", value), StringValBytes: []byte(fmt.Sprintf("%v", value))}
-			value = fmt.Sprintf("%v", value)
-		}
-
-		fieldToValue[field] = utils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
-	}
-
-	return nil
 }
 
 

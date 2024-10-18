@@ -112,6 +112,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return true
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).options.FirstCommand
 	default:
 		return false
 	}
