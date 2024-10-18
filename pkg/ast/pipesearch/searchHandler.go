@@ -452,7 +452,9 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
-	highlightSearchTerms(qid, qc.SearchTerms, allJsons)
+	if qc.SearchTerms != nil {
+		highlightSearchTerms(qid, qc.SearchTerms, allJsons)
+	}
 	return allJsons, allCols, nil
 }
 func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []map[string]interface{}) {
