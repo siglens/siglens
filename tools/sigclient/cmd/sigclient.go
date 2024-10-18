@@ -125,7 +125,7 @@ var functionalTestCmd = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		sleepDuration := 15 * time.Second
+		sleepDuration := 0 * time.Second // Also change this to 15 seconds once any query is ready
 
 		if longer {
 			totalEvents = 20_000_000
