@@ -71,16 +71,9 @@ jobs:
           name: Build Siglens
           command: make build
       - run:
-          name: Delete data directory
-          command: |
-            rm -rf data
-            mkdir data  # Recreate empty data directory if needed
-      - run:
           name: Update config.yml
           command: |
             echo -e "\nisNewQueryPipelineEnabled: true" >> server.yaml
-            cat server.yaml
-
       - run:
           name: Run Siglens
           command: ./siglens --config server.yaml
