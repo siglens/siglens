@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -181,8 +182,11 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	}
 
 	var iqr *iqr.IQR
+	i := 0
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
+		fmt.Println("i: ", i, " len: ", iqr.NumberOfRecords())
+		i += 1
 		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
 		}

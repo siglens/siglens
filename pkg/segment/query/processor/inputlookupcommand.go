@@ -128,15 +128,16 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 
 	count := 0
 	records := map[string][]utils.CValueEnclosure{}
+	var eof error
 	left := int(segutils.QUERY_EARLY_EXIT_LIMIT) - inpIqr.NumberOfRecords()
 
 	for count < min(int(p.options.Max), left) {
 		count++
-		csvRecord, readErr := reader.Read()
-		if readErr != nil {
+		csvRecord, err := reader.Read()
+		if err != nil {
 			// Check if we've reached the end of the file
-			if readErr.Error() == "EOF" {
-				err = io.EOF
+			if err.Error() == "EOF" {
+				eof = io.EOF
 				break
 			}
 			return nil, fmt.Errorf("PerformInputLookup: Error reading record, err: %v", err)
@@ -159,22 +160,17 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 			records[field] = append(records[field], CValEnc)
 		}
 	}
+	_ = eof
+	// if count >= int(p.options.Max) {
+	// 	eof = io.EOF
+	// }
 
-	if inpIqr.NumberOfRecords() > 0 {
-		newIqr := iqr.NewIQR(inpIqr.GetQid())
-		newIqr.AppendRRCs(make([]*utils.RecordResultContainer, inpIqr.NumberOfRecords()), nil)
-		newIqr.SetMode(inpIqr.GetMode())
-		newIqr.AppendKnownValues(records)
-		inpIqr.Append(newIqr)
-	} else {
-		inpIqr.AppendKnownValues(records)
-	}
-	
-	if count >= int(p.options.Max) {
-		err = io.EOF
-	}
+	// err = inpIqr.AppendKnownValuesAsNewRows(records)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("PerformInputLookup: Error appending known values as new rows, err: %v", err)
+	// }
 
-	return inpIqr, err
+	return inpIqr, nil
 }
 
 func (p *inputlookupProcessor) Rewind() {
