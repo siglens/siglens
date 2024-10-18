@@ -59,6 +59,41 @@ jobs:
             go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/restart.csv
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
 
+  functional-test:
+    working_directory: ~/repo
+    docker:
+      - image: cimg/go:1.19
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: docker23
+      - run:
+          name: Build Siglens
+          command: make build
+      - run:
+          name: Delete data directory
+          command: |
+            rm -rf data
+            mkdir data  # Recreate empty data directory if needed
+      - run:
+          name: Update config.yml
+          command: |
+            echo "\nisNewQueryPipelineEnabled: true" >> server.yaml
+            cat server.yaml
+
+      - run:
+          name: Run Siglens
+          command: ./siglens --config server.yaml
+          background: true
+      
+      - run:
+          name: Run Functional Test
+          command: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
+            
+
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:

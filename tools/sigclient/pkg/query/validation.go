@@ -207,7 +207,7 @@ func GetStringValueFromResponse(resp map[string]interface{}, key string) (string
 
 func ValidateUniqueKeyColsInResult(res *Result) error {
 	if len(res.UniqueKeyCols) == 0 {
-		return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueKeyCols not found in result")
+		return nil // check records directly in that order
 	}
 	for _, record := range res.Records {
 		for _, col := range res.UniqueKeyCols {
@@ -254,12 +254,11 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	}
 	if expRes.Qtype == "logs-query" {
 		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
-		if !exist {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKeyCols not found in logs-query, file: %v", filePath)
-		}
-		expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
-		if err != nil {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+		if exist {
+			expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
+			if err != nil {
+				return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+			}
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -551,14 +550,16 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
 	}
 
-	queryRes.UniqueKeyCols = expRes.UniqueKeyCols
-	err = ValidateUniqueKeyColsInResult(queryRes)
-	if err != nil {
-		return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
-	}
+	if len(expRes.UniqueKeyCols) > 0 {
+		queryRes.UniqueKeyCols = expRes.UniqueKeyCols
+		err = ValidateUniqueKeyColsInResult(queryRes)
+		if err != nil {
+			return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
+		}
 
-	sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
-	sortRecords(expRes.Records, expRes.UniqueKeyCols)
+		sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
+		sortRecords(expRes.Records, expRes.UniqueKeyCols)
+	}
 
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
