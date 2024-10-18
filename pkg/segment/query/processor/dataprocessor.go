@@ -79,9 +79,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	for {
 		gotEOF := false
 		input, err := dp.getStreamInput()
-		if err == io.EOF {
-			gotEOF = true
-		} else if err != nil {
+		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 		}
 
@@ -90,6 +88,8 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			gotEOF = true
 		} else if err != nil {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+		} else {
+			gotEOF = false
 		}
 
 		if gotEOF {

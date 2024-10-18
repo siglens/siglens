@@ -35,14 +35,13 @@ import (
 
 type inputlookupProcessor struct {
 	options *structs.InputLookup
-	eof bool
-	qid uint64
+	eof     bool
+	qid     uint64
 }
 
 func checkCSVFormat(filename string) bool {
 	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
 }
-
 
 func createRecord(columnNames []string, record []string) (map[string]utils.CValueEnclosure, error) {
 	if len(columnNames) != len(record) {

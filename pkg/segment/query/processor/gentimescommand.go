@@ -61,7 +61,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 	if iqr == nil {
 		return nil, fmt.Errorf("gentimesProcessor.Process: IQR is nil")
-	}	
+	}
 
 	if p.options == nil {
 		return nil, fmt.Errorf("gentimesProcessor.Process: GenTimes is nil")

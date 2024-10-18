@@ -115,12 +115,12 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 
 func (dp *DataProcessor) IsGenerateDataProcessor() bool {
 	switch dp.processor.(type) {
-		case *gentimesProcessor:
+	case *gentimesProcessor:
+		return true
+	case *inputlookupProcessor:
+		if dp.processor.(*inputlookupProcessor).options.FirstCommand {
 			return true
-		case *inputlookupProcessor:
-			if dp.processor.(*inputlookupProcessor).options.FirstCommand { 
-				return true
-			}
+		}
 	}
 	return false
 }
