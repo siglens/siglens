@@ -180,6 +180,47 @@ func Test_RemoveElements(t *testing.T) {
 	assert.Equal(t, newSlice, []int{1, 5})
 }
 
+func Test_RemoveSortedIndices_valid(t *testing.T) {
+	slice := []int{3, 2, 1}
+	slice, err := RemoveSortedIndices(slice, []int{0})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{2, 1}, slice)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{2})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 2}, slice)
+
+	slice = []int{5, 4, 3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{0, 2, 3})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{4, 1}, slice)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{0, 1, 2})
+	assert.NoError(t, err)
+	assert.Len(t, slice, 0)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 2, 1}, slice)
+}
+
+func Test_RemoveSortedIndices_invalid(t *testing.T) {
+	_, err := RemoveSortedIndices([]int{1, 2, 3}, []int{2, 0})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{3})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{-1})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{1, 1})
+	assert.Error(t, err)
+}
+
 func Test_IndexOfMin(t *testing.T) {
 	slice := []int{5, 3, 1, 4, 2}
 	less := func(a, b int) bool {
@@ -203,6 +244,34 @@ func Test_MergeSortedSlices(t *testing.T) {
 	slice3 := []int{0, 9, 10, 11}
 
 	expected := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_MergeSortedSlices_someEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{2, 3, 5}
+	slice3 := []int{1, 4, 6}
+
+	expected := []int{1, 2, 3, 4, 5, 6}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_MergeSortedSlices_allEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{}
+	slice3 := []int{}
+
+	expected := []int{}
 	actual := MergeSortedSlices(less, slice1, slice2, slice3)
 	assert.Equal(t, expected, actual)
 }

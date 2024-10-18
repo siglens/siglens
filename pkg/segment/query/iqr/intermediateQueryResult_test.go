@@ -150,6 +150,38 @@ func Test_mergeMetadata(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func Test_mergeMetadata_modes(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	// Incompatible modes.
+	iqr1.mode = withRRCs
+	iqr2.mode = withoutRRCs
+	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.Error(t, err)
+
+	// Same modes.
+	iqr1.mode = withRRCs
+	iqr2.mode = withRRCs
+	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, iqr.mode)
+
+	// First is unset.
+	iqr1.mode = notSet
+	iqr2.mode = withoutRRCs
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+
+	// Second is unset.
+	iqr1.mode = withoutRRCs
+	iqr2.mode = notSet
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+}
+
 func Test_mergeMetadata_differentQids(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(1)

@@ -1,0 +1,4 @@
+{
+    "queryText": "| search _index=\"ind-0\" http_method=\"GET\" | spath input=event_payload | stats count, values(event_type) as event_type, values(user) as user by app_id | eval user_category = case( like(lower(user), \"%guest%\"), \"Guest\", like(lower(user), \"%admin%\"), \"Admin\", like(lower(user), \"%superuser%\"), \"Super User\") | stats count by user_category, app_name | sort by user_category, app_name"
+}
+  

@@ -303,3 +303,22 @@ func Test_TransposeMapOfSlices(t *testing.T) {
 		assert.Equal(t, expected[i], result[i])
 	}
 }
+
+func Test_TwoWayMap(t *testing.T) {
+	twm := NewTwoWayMap[string, int]()
+	twm.Set("key1", 1)
+
+	value, ok := twm.Get("key1")
+	assert.True(t, ok)
+	assert.Equal(t, 1, value)
+
+	_, ok = twm.Get("key2")
+	assert.False(t, ok)
+
+	key, ok := twm.GetReverse(1)
+	assert.True(t, ok)
+	assert.Equal(t, "key1", key)
+
+	_, ok = twm.GetReverse(2)
+	assert.False(t, ok)
+}

@@ -29,10 +29,12 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -298,10 +300,49 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
-	result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+	if config.IsNewQueryPipelineEnabled() {
+		_, err = query.StartQuery(qid, false, nil)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
+				qid, err)
+			return nil, false, nil, err
+		}
 
-	return &httpRespOuter, false, simpleNode.TimeRange, nil
+		_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
+			query.PrepareToRunQuery(simpleNode, simpleNode.TimeRange, aggs, qid, qc)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+		defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
+
+		queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to set cleanup callback, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		httpResponse, err := queryProcessor.GetFullResult()
+		if err != nil {
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		query.SetQidAsFinished(qid)
+
+		return httpResponse, false, simpleNode.TimeRange, nil
+	} else {
+		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+
+		return &httpRespOuter, false, simpleNode.TimeRange, nil
+	}
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {

@@ -375,11 +375,14 @@ type AllIndexesStats struct {
 }
 
 type IndexStats struct {
-	NumBytesIngested uint64
-	NumRecords       uint64
-	NumSegments      uint64
-	NumColumns       uint64
-	ColumnsSet       map[string]struct{}
+	NumBytesIngested  uint64
+	NumRecords        uint64
+	NumSegments       uint64
+	NumColumns        uint64
+	ColumnsSet        map[string]struct{}
+	EarliestTimestamp uint64
+	LatestTimestamp   uint64
+	TotalOnDiskBytes  uint64
 }
 
 type ClusterStatsResponseInfo struct {

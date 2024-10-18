@@ -265,7 +265,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil
 		}
 
-		vTable := iqr.rrcs[0].VirtualTableName
+		vTable := rrcs[0].VirtualTableName
 		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
 		if err != nil {
 			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
@@ -344,11 +344,14 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
-	_, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
 		return err
 	}
+
+	iqr.mode = mergedIQR.mode
+	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
 	if iqr.mode == withRRCs {
 		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
@@ -488,8 +491,14 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		}
 
 		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
-				iqr.qid, iqr.mode, result.mode)
+			if result.mode == notSet {
+				result.mode = iqr.mode
+			} else if iqr.mode == notSet {
+				// Do nothing.
+			} else {
+				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+					iqr.qid, iqr.mode, result.mode)
+			}
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
@@ -568,6 +577,39 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 		}
 
 		iqr.knownValues[cname] = values[:numRecords]
+	}
+
+	return nil
+}
+
+func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.DiscardRows: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if iqr.mode == withRRCs {
+		newRRCs, err := toputils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
+				iqr.qid, err)
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues, err := toputils.RemoveSortedIndices(values, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
+				iqr.qid, cname, err)
+		}
+
+		iqr.knownValues[cname] = newValues
 	}
 
 	return nil

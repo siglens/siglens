@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"io"
 	"math"
 	"sort"
 	"time"
@@ -51,7 +52,7 @@ type searcher struct {
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 
 	unsentRRCs  []*segutils.RecordResultContainer
-	segEncToKey map[uint16]string
+	segEncToKey *toputils.TwoWayMap[uint16, string]
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
@@ -74,7 +75,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
-		segEncToKey:           make(map[uint16]string),
+		segEncToKey:           toputils.NewTwoWayMap[uint16, string](),
 	}, nil
 }
 
@@ -82,7 +83,7 @@ func (s *searcher) Rewind() {
 	s.gotBlocks = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
-	s.segEncToKey = make(map[uint16]string)
+	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
@@ -117,6 +118,16 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
+	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
+		err := query.SetRawSearchFinished(s.qid)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
+			return nil, err
+		}
+
+		return nil, io.EOF
+	}
+
 	endTime, err := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get next end time: %v", s.qid, err)
@@ -135,18 +146,23 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, len(nextBlocks)+1)
 	for i, nextBlock := range nextBlocks {
-		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock})
+		segkey := nextBlock.parentSSR.SegmentKey
+		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock}, segkey)
 		if err != nil {
 			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to read RRCs: %v", s.qid, err)
 			return nil, err
 		}
 
-		if toputils.MapsConflict(s.segEncToKey, segEncToKey) {
+		if s.segEncToKey.Conflicts(segEncToKey) {
 			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: conflicting segEncToKey (%v and %v)",
 				s.qid, s.segEncToKey, segEncToKey)
 		}
 
-		toputils.MergeMapsRetainingFirst(s.segEncToKey, segEncToKey)
+		// There's no conflicts, so we can safely merge the two maps.
+		for k, v := range segEncToKey {
+			s.segEncToKey.Set(k, v)
+		}
+
 		allRRCsSlices[i] = rrcs
 	}
 
@@ -171,7 +187,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err = iqr.AppendRRCs(validRRCs, s.segEncToKey)
+	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapForReading())
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
@@ -313,7 +329,7 @@ func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*b
 	return selectedBlocks, nil
 }
 
-func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
+func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
 	allSegRequests, err := getSSRs(blocks)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get SSRs: %v", s.qid, err)
@@ -334,6 +350,13 @@ func (s *searcher) readSortedRRCs(blocks []*block) ([]*segutils.RecordResultCont
 		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
 		return nil, nil, err
 	}
+
+	encoding, ok := s.segEncToKey.GetReverse(segkey)
+	if !ok {
+		encoding = uint16(s.segEncToKey.Len())
+		s.segEncToKey.Set(encoding, segkey)
+	}
+	searchResults.NextSegKeyEnc = encoding
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)

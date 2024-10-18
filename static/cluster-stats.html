@@ -154,6 +154,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <button type="button" id="del-index-btn" class="btn" disabled="true">Delete</button>
                             </div>
                         </div>
+                        <div class="popupContent" id="index-summary-prompt">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h3 class="header">Index Summary: <span id="index-name"></span></h3>
+                                <div class="close-btn"></div>
+                            </div>
+                            <div class="summary-content">
+                                <p><strong>Incoming Volume:</strong> <span id="incoming-volume"></span></p>
+                                <p><strong>Total Bytes Received:</strong> <span id="total-bytes-received"></span></p>
+                                <p><strong>Storage Used:</strong> <span id="storage-used"></span></p>
+                                <p><strong>Event Count:</strong> <span id="event-count"></span></p>
+                                <p><strong>Number of Records:</strong> <span id="record-count"></span></p>
+                                <p><strong>Segment Count:</strong> <span id="segment-count"></span></p>
+                                <p><strong>Column Count:</strong> <span id="column-count"></span></p>
+                                <p><strong>Earliest Record:</strong> <span id="earliest-record"></span></p>
+                                <p><strong>Latest Record:</strong> <span id="latest-record"></span></p>
+                            </div>
+                            <div class="mt-2 d-flex justify-content-end">
+                                <button type="button" id="close-popup" class="saveqButton">OK</button>
+                            </div>
+                        </div>
                         <div class="popupOverlay"></div>
                     </div>
                     <hr>

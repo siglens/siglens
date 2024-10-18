@@ -19,9 +19,11 @@ package processor
 
 import (
 	"io"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -46,20 +48,21 @@ func (qp *QueryProcessor) Cleanup() {
 	}
 }
 
-func NewQueryProcessor(searchNode *structs.ASTNode, firstAgg *structs.QueryAggregators,
-	qid uint64) (*QueryProcessor, error) {
+func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
+	querySummary *summary.QuerySummary) (*QueryProcessor, error) {
 
-	searcher := &searchStream{
-		qid:  qid,
-		node: searchNode,
+	startTime := time.Now()
+	sortMode := recentFirst // TODO: compute this from the query.
+	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
 	}
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor, err := asDataProcessor(curAgg)
-		if err != nil {
-			return nil, utils.TeeErrorf("NewQueryProcessor: cannot make data processor for %+v; err=%v",
-				curAgg, err)
+		dataProcessor := asDataProcessor(curAgg)
+		if dataProcessor == nil {
+			break
 		}
 
 		dataProcessors = append(dataProcessors, dataProcessor)
@@ -109,51 +112,51 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 	}, nil
 }
 
-func asDataProcessor(queryAgg *structs.QueryAggregators) (*DataProcessor, error) {
+func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 	if queryAgg == nil {
-		return nil, utils.TeeErrorf("asDataProcessor: got nil query aggregator")
+		return nil
 	}
 
 	if queryAgg.BinExpr != nil {
-		return NewBinDP(queryAgg.BinExpr), nil
+		return NewBinDP(queryAgg.BinExpr)
 	} else if queryAgg.DedupExpr != nil {
-		return NewDedupDP(queryAgg.DedupExpr), nil
+		return NewDedupDP(queryAgg.DedupExpr)
 	} else if queryAgg.EvalExpr != nil {
-		return NewEvalDP(queryAgg.EvalExpr), nil
+		return NewEvalDP(queryAgg.EvalExpr)
 	} else if queryAgg.FieldsExpr != nil {
-		return NewFieldsDP(queryAgg.FieldsExpr), nil
+		return NewFieldsDP(queryAgg.FieldsExpr)
 	} else if queryAgg.FillNullExpr != nil {
-		return NewFillnullDP(queryAgg.FillNullExpr), nil
+		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
-		return NewGentimesDP(queryAgg.GentimesExpr), nil
+		return NewGentimesDP(queryAgg.GentimesExpr)
 	} else if queryAgg.HeadExpr != nil {
-		return NewHeadDP(queryAgg.HeadExpr), nil
+		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {
-		return NewMakemvDP(queryAgg.MakeMVExpr), nil
+		return NewMakemvDP(queryAgg.MakeMVExpr)
 	} else if queryAgg.RareExpr != nil {
-		return NewRareDP(queryAgg.RareExpr), nil
+		return NewRareDP(queryAgg.RareExpr)
 	} else if queryAgg.RegexExpr != nil {
-		return NewRegexDP(queryAgg.RegexExpr), nil
+		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {
-		return NewRexDP(queryAgg.RexExpr), nil
+		return NewRexDP(queryAgg.RexExpr)
 	} else if queryAgg.SortExpr != nil {
-		return NewSortDP(queryAgg.SortExpr), nil
+		return NewSortDP(queryAgg.SortExpr)
 	} else if queryAgg.StatsExpr != nil {
-		return NewStatsDP(queryAgg.StatsExpr), nil
+		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.StreamstatsExpr != nil {
-		return NewStreamstatsDP(queryAgg.StreamstatsExpr), nil
+		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
-		return NewTailDP(queryAgg.TailExpr), nil
+		return NewTailDP(queryAgg.TailExpr)
 	} else if queryAgg.TimechartExpr != nil {
-		return NewTimechartDP(queryAgg.TimechartExpr), nil
+		return NewTimechartDP(queryAgg.TimechartExpr)
 	} else if queryAgg.TopExpr != nil {
-		return NewTopDP(queryAgg.TopExpr), nil
+		return NewTopDP(queryAgg.TopExpr)
 	} else if queryAgg.TransactionExpr != nil {
-		return NewTransactionDP(queryAgg.TransactionExpr), nil
+		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {
-		return NewWhereDP(queryAgg.WhereExpr), nil
+		return NewWhereDP(queryAgg.WhereExpr)
 	} else {
-		return nil, utils.TeeErrorf("asDataProcessor: all commands are nil in %+v", queryAgg)
+		return nil
 	}
 }
 
