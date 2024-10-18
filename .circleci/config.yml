@@ -100,3 +100,4 @@ workflows:
   test_and_lint:
     jobs:
       - e2e-server
+      - functional-test
