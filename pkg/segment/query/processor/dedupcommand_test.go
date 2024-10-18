@@ -175,3 +175,30 @@ func Test_Dedup_keepEvents(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
+
+func Test_Dedup_nonconsecutive(t *testing.T) {
+	dataProcessor := makeDedup(t, 1, []string{"col1"}, false, false, false)
+
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	result1, err := dataProcessor.processor.Process(iqr1)
+	assert.NoError(t, err)
+	assert.NotNil(t, result1)
+
+	expected := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}
+	actual, err := result1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
