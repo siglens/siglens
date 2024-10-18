@@ -88,8 +88,6 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			gotEOF = true
 		} else if err != nil {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
-		} else {
-			gotEOF = false
 		}
 
 		if gotEOF {
