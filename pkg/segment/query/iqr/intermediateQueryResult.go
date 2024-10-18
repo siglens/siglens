@@ -53,7 +53,6 @@ type IQR struct {
 	// Used in both modes.
 	qid            uint64
 	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
-	createdColums  map[string]struct{}                // new columns that were created
 	deletedColumns map[string]struct{}
 	renamedColumns map[string]string // old name -> new name
 
@@ -69,7 +68,6 @@ func NewIQR(qid uint64) *IQR {
 		rrcs:             make([]*utils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint16]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
-		createdColums:    make(map[string]struct{}),
 		deletedColumns:   make(map[string]struct{}),
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
@@ -269,22 +267,11 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 
 		vTable := rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.knownValues, iqr.qid)
+		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
 		if err != nil {
 			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
 				segKey, err)
 			return nil
-		}
-
-		rrcsLen := len(rrcs)
-		for cname := range iqr.createdColums {
-			values, ok := iqr.knownValues[cname]
-			if ok {
-				colToValues[cname] = values[:rrcsLen]
-				iqr.knownValues[cname] = values[rrcsLen:]
-			} else {
-				colToValues[cname] = make([]utils.CValueEnclosure, rrcsLen)
-			}
 		}
 
 		return colToValues
@@ -532,10 +519,6 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
 	}
 
-	for cname := range iqrs[0].createdColums {
-		result.createdColums[cname] = struct{}{}
-	}
-
 	for cname := range iqrs[0].deletedColumns {
 		result.deletedColumns[cname] = struct{}{}
 	}
@@ -572,11 +555,6 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
 					iqr.qid, iqr.mode, result.mode)
 			}
-		}
-
-		if !reflect.DeepEqual(iqr.createdColums, result.createdColums) {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent created columns (%v and %v)",
-				iqr.qid, iqr.createdColums, result.createdColums)
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
@@ -787,8 +765,6 @@ func (iqr *IQR) AddColumnWithDefaultValue(cname string, value utils.CValueEnclos
 	}
 	iqr.knownValues[cname] = values
 
-	iqr.createdColums[cname] = struct{}{}
-
 	return nil
 }
 
@@ -805,8 +781,6 @@ func (iqr *IQR) AddNewCreatedColumn(cname string) error {
 	if _, ok := iqr.deletedColumns[cname]; ok {
 		return fmt.Errorf("IQR.AddNewCreatedColumn: column %s is deleted", cname)
 	}
-
-	iqr.createdColums[cname] = struct{}{}
 
 	return nil
 }
