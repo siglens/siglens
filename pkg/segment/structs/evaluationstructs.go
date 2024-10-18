@@ -120,10 +120,11 @@ type DedupOptions struct {
 }
 
 type SortExpr struct {
-	SortEles []*SortElement
-	Limit    uint64
+	SortEles      []*SortElement
+	SortAscending []int
+	Limit         uint64
 
-	SortAscending         []int
+	// The following will be deprecated when we move to the new query pipeline.
 	SortRecords           map[string]map[string]interface{}
 	NumProcessedSegments  uint64
 	processedSegmentsLock sync.Mutex
