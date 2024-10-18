@@ -178,6 +178,7 @@ type QueryAggregators struct {
 	FieldsExpr      *ColumnsRequest
 	FillNullExpr    *FillNullExpr
 	GentimesExpr    *GenTimes
+	InputLookupExpr *InputLookup
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
 	RareExpr        *StatisticExpr

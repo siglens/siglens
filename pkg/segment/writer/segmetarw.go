@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -37,6 +36,9 @@ import (
 )
 
 const ONE_MiB = 1024 * 1024
+const PQS_TICKER = 10 // seconds
+const PQS_FLUSH_SIZE = 100
+const PQS_CHAN_SIZE = 1000
 
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
@@ -49,7 +51,7 @@ type PQSChanMeta struct {
 	emptyPqs bool
 }
 
-var pqsChan = make(chan PQSChanMeta, 1000)
+var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
 
@@ -509,41 +511,29 @@ func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, emptyPqs bool) 
 }
 
 func listenBackFillAndEmptyPQSRequests() {
-	// Listen on the channel, every 10 seconds or if the size of the channel is 100,
+	// Listen on the channel, every PQS_TICKER seconds or if the size of the channel is PQS_FLUSH_SIZE,
 	// it would get all the data in the channel and then do the process of Backfilling PQMR files.
 	// This is to avoid multiple writes to the same file
 
-	ticker := time.NewTicker(10 * time.Second) // every 10 seconds
+	ticker := time.NewTicker(PQS_TICKER * time.Second) // every 10 seconds
 	defer ticker.Stop()
 
-	buffer := make([]PQSChanMeta, 0, 100)
-	var processing int32
-
-	isProcessing := func() bool {
-		return atomic.LoadInt32(&processing) == 1
-	}
-
-	callProcessBackFillPQSRequests := func() {
-		atomic.StoreInt32(&processing, 1)
-		bufferCopy := make([]PQSChanMeta, len(buffer))
-		copy(bufferCopy, buffer)
-		buffer = buffer[:0]
-		go func(pqsRequests []PQSChanMeta) {
-			processBackFillAndEmptyPQSRequests(pqsRequests)
-			atomic.StoreInt32(&processing, 0)
-		}(bufferCopy)
-	}
+	buffer := make([]PQSChanMeta, PQS_FLUSH_SIZE)
+	bufferIndex := 0
 
 	for {
 		select {
 		case pqsChanMeta := <-pqsChan:
-			buffer = append(buffer, pqsChanMeta)
-			if len(buffer) >= 100 && !isProcessing() {
-				callProcessBackFillPQSRequests()
+			buffer[bufferIndex] = pqsChanMeta
+			bufferIndex++
+			if bufferIndex == PQS_FLUSH_SIZE {
+				processBackFillAndEmptyPQSRequests(buffer)
+				bufferIndex = 0
 			}
 		case <-ticker.C:
-			if len(buffer) > 0 && !isProcessing() {
-				callProcessBackFillPQSRequests()
+			if bufferIndex > 0 {
+				processBackFillAndEmptyPQSRequests(buffer[:bufferIndex])
+				bufferIndex = 0
 			}
 		}
 	}
@@ -554,20 +544,23 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 		return
 	}
 
-	segKeyPqidMap := make(map[string]map[string]bool)
-	pqidSegKeyMap := make(map[string]map[string]bool) // for empty PQS
+	// segKey -> pqid -> true ; Contains all PQIDs for a given segKey
+	segKeyToAllPQIDsMap := make(map[string]map[string]bool)
+
+	// pqid -> segKey -> true ; For empty PQS: Contains all empty segment Keys for a given pqid
+	pqidToEmptySegMap := make(map[string]map[string]bool)
 
 	for _, pqsRequest := range pqsRequests {
-		if _, ok := segKeyPqidMap[pqsRequest.segKey]; !ok {
-			segKeyPqidMap[pqsRequest.segKey] = make(map[string]bool)
+		if _, ok := segKeyToAllPQIDsMap[pqsRequest.segKey]; !ok {
+			segKeyToAllPQIDsMap[pqsRequest.segKey] = make(map[string]bool)
 		}
-		segKeyPqidMap[pqsRequest.segKey][pqsRequest.pqid] = true
+		segKeyToAllPQIDsMap[pqsRequest.segKey][pqsRequest.pqid] = true
 
 		if pqsRequest.emptyPqs {
-			if _, ok := pqidSegKeyMap[pqsRequest.pqid]; !ok {
-				pqidSegKeyMap[pqsRequest.pqid] = make(map[string]bool)
+			if _, ok := pqidToEmptySegMap[pqsRequest.pqid]; !ok {
+				pqidToEmptySegMap[pqsRequest.pqid] = make(map[string]bool)
 			}
-			pqidSegKeyMap[pqsRequest.pqid][pqsRequest.segKey] = true
+			pqidToEmptySegMap[pqsRequest.pqid][pqsRequest.segKey] = true
 		}
 	}
 
@@ -577,15 +570,15 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	go func() {
 		defer wg.Done()
 
-		for segKey, pqidMap := range segKeyPqidMap {
-			BulkBackFillPQSSegmetaEntries(segKey, pqidMap)
+		for segKey, allPQIDs := range segKeyToAllPQIDsMap {
+			BulkBackFillPQSSegmetaEntries(segKey, allPQIDs)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 
-		for pqid, segKeyMap := range pqidSegKeyMap {
+		for pqid, segKeyMap := range pqidToEmptySegMap {
 			pqsmeta.BulkAddEmptyResults(pqid, segKeyMap)
 		}
 	}()
