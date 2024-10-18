@@ -254,6 +254,50 @@ func Test_Append(t *testing.T) {
 	}
 }
 
+func Test_Append_withRRCs(t *testing.T) {
+	iqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	otherIqr := NewIQR(0)
+	segKeyInfo2 := utils.SegKeyInfo{
+		SegKeyEnc: 2,
+	}
+	encodingToSegKey2 := map[uint16]string{2: "segKey2"}
+	rrcs2 := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 3},
+	}
+	err = otherIqr.AppendRRCs(rrcs2, encodingToSegKey2)
+	assert.NoError(t, err)
+
+	err = otherIqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr.Append(otherIqr)
+	assert.NoError(t, err)
+	assert.NoError(t, iqr.validate())
+	assert.Equal(t, withRRCs, iqr.mode)
+	assert.Equal(t, 6, iqr.NumberOfRecords())
+	assert.Equal(t, append(rrcs, rrcs2...), iqr.rrcs)
+}
+
 func Test_Sort(t *testing.T) {
 	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
