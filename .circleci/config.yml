@@ -78,7 +78,7 @@ jobs:
       - run:
           name: Update config.yml
           command: |
-            echo "\nisNewQueryPipelineEnabled: true" >> server.yaml
+            echo -e "\nisNewQueryPipelineEnabled: true" >> server.yaml
             cat server.yaml
 
       - run:
