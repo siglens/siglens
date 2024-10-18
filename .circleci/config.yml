@@ -99,5 +99,5 @@ jobs:
 workflows:
   test_and_lint:
     jobs:
-      - e2e-server
       - functional-test
+      - e2e-server
