@@ -586,6 +586,39 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	return nil
 }
 
+func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.DiscardRows: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if iqr.mode == withRRCs {
+		newRRCs, err := toputils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
+				iqr.qid, err)
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues, err := toputils.RemoveSortedIndices(values, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
+				iqr.qid, cname, err)
+		}
+
+		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {

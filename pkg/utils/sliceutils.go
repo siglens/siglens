@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -275,6 +276,38 @@ func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
 	}
 
 	return newArr
+}
+
+// The indicesToRemove must be sorted in increasing order.
+// Note: if this returns an error, the slice may be partially modified.
+func RemoveSortedIndices[T any](slice []T, indicesToRemove []int) ([]T, error) {
+	// Validate the indices.
+	prevIndex := -1
+	for _, index := range indicesToRemove {
+		if index < 0 || index >= len(slice) {
+			return nil, fmt.Errorf("RemoveSortedIndices: index %v out of range for slice of length %v",
+				index, len(slice))
+		}
+
+		if index <= prevIndex {
+			return nil, fmt.Errorf("RemoveSortedIndices: indicesToRemove must be increasing; found %v after %v",
+				index, prevIndex)
+		}
+
+		prevIndex = index
+	}
+
+	numRemoved := 0
+	for i := 0; i < len(slice); i++ {
+		if numRemoved < len(indicesToRemove) && i == indicesToRemove[numRemoved] {
+			numRemoved++
+			continue
+		}
+
+		slice[i-numRemoved] = slice[i]
+	}
+
+	return slice[:len(slice)-len(indicesToRemove)], nil
 }
 
 func IndexOfMin[T any](arr []T, less func(T, T) bool) int {
