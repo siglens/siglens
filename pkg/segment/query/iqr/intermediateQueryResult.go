@@ -287,6 +287,10 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 	}
 
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
+	}
+
 	return results, nil
 }
 
