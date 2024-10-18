@@ -87,11 +87,18 @@ func (iqr *IQR) validate() error {
 		return fmt.Errorf("IQR.mode is invalid")
 	}
 
-	for cname, values := range iqr.knownValues {
-		if len(values) != len(iqr.rrcs) && len(iqr.rrcs) != 0 {
-			if _, ok := iqr.deletedColumns[cname]; !ok {
-				return fmt.Errorf("knownValues for column %s has %v values, but there are %v RRCs",
-					cname, len(values), len(iqr.rrcs))
+	if len(iqr.rrcs) == 0 {
+		err := ValidateKnownValues(iqr.knownValues)
+		if err != nil {
+			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
+		}
+	} else {
+		for cname, values := range iqr.knownValues {
+			if len(values) != len(iqr.rrcs) {
+				if _, ok := iqr.deletedColumns[cname]; !ok {
+					return fmt.Errorf("knownValues for column %s has %v values, but there are %v RRCs",
+						cname, len(values), len(iqr.rrcs))
+				}
 			}
 		}
 	}
@@ -131,6 +138,19 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 	return nil
 }
 
+func ValidateKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
+	numRecords := 0
+	for col, values := range knownValues {
+		if numRecords == 0 {
+			numRecords = len(values)
+		} else if numRecords != len(values) {
+			return fmt.Errorf("inconsistent number of rows for col: %v, expected: %v, got: %v", col, numRecords, len(values))
+		}
+	}
+
+	return nil
+}
+
 func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
@@ -143,6 +163,12 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 	}
 
 	numExistingRecords := iqr.NumberOfRecords()
+	if numExistingRecords == 0 {
+		err := ValidateKnownValues(knownValues)
+		if err != nil {
+			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
+		}
+	}
 
 	for cname, values := range knownValues {
 		if _, ok := iqr.deletedColumns[cname]; ok {
@@ -355,7 +381,10 @@ func (iqr *IQR) Append(other *IQR) error {
 	}
 
 	if iqr.mode == withRRCs && other.mode == withoutRRCs {
-		newIQR, err := iqr.getRRCIQRFromWithoutRRCIQR(other)
+		if iqr.qid != other.qid {
+			return toputils.TeeErrorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, other.qid)
+		}
+		newIQR, err := other.getRRCIQRFromWithoutRRCIQR()
 		if err != nil {
 			log.Errorf("IQR.Append: error getting RRC IQR from without RRC IQR: %v", err)
 			return err
@@ -544,28 +573,22 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	return result, nil
 }
 
-func (iqr *IQR) getRRCIQRFromWithoutRRCIQR(other *IQR) (*IQR, error) {
-	if iqr.mode != withRRCs {
-		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: mode is not withRRCs")
-	}
-	if other.mode != withoutRRCs {
+// Caller should validate iqr before.
+func (iqr *IQR) getRRCIQRFromWithoutRRCIQR() (*IQR, error) {
+	if iqr.mode != withoutRRCs {
 		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: other mode is not withoutRRCs")
 	}
 	valuesLen := 0
-	for _, values := range other.knownValues {
-		if valuesLen == 0 {
-			valuesLen = len(values)
-		} else if valuesLen != len(values) {
-			return nil, fmt.Errorf("IQR.AppendKnownValuesAsNewRows: inconsistent number of rows")
-		}
+	for _, values := range iqr.knownValues {
+		valuesLen = len(values)
+		break
 	}
-	fmt.Println("valuesLen: ", valuesLen)
 	newIQR := NewIQR(iqr.qid)
 	err := newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending RRCs: %v", err)
 	}
-	err = newIQR.AppendKnownValues(other.knownValues)
+	err = newIQR.AppendKnownValues(iqr.knownValues)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending known values: %v", err)
 	}
