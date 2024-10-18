@@ -24,6 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type fillnullProcessor struct {
@@ -69,11 +70,17 @@ func performFillNullForTheFields(iqr *iqr.IQR, fields []string, cTypeFillValue u
 			}
 		}
 
-		iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
+		err = iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
+		if err != nil {
+			log.Errorf("performFillNullForTheFields: failed to append known values; err=%v", err)
+		}
 	}
 
 	for field := range fillNullForAllRecords {
-		iqr.AddColumnWithDefaultValue(field, cTypeFillValue)
+		err := iqr.AddColumnWithDefaultValue(field, cTypeFillValue)
+		if err != nil {
+			log.Errorf("performFillNullForTheFields: failed to add column with default value; err=%v", err)
+		}
 	}
 }
 
