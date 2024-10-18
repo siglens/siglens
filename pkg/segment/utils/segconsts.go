@@ -799,6 +799,30 @@ type CValueEnclosure struct {
 	CVal  interface{}
 }
 
+func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {
+	if e.Dtype != other.Dtype {
+		return false
+	}
+
+	switch e.Dtype {
+	case SS_DT_STRING:
+		return e.CVal.(string) == other.CVal.(string)
+	case SS_DT_BOOL:
+		return e.CVal.(bool) == other.CVal.(bool)
+	case SS_DT_UNSIGNED_NUM:
+		return e.CVal.(uint64) == other.CVal.(uint64)
+	case SS_DT_SIGNED_NUM:
+		return e.CVal.(int64) == other.CVal.(int64)
+	case SS_DT_FLOAT:
+		return e.CVal.(float64) == other.CVal.(float64)
+	case SS_DT_BACKFILL:
+		return true
+	default:
+		log.Errorf("CValueEnclosure.Equal: unsupported Dtype: %v", e.Dtype)
+		return false
+	}
+}
+
 // resets the CValueEnclosure to the given value
 func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	switch val := val.(type) {
