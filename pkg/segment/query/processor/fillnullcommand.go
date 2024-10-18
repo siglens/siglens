@@ -18,16 +18,82 @@
 package processor
 
 import (
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
 type fillnullProcessor struct {
 	options *structs.FillNullExpr
 }
 
+func getTheFinalFillValue(fillValue string, qid uint64) (utils.CValueEnclosure, error) {
+	fillValueDtype, err := utils.CreateDtypeEnclosure(fillValue, qid)
+	if err != nil {
+		return utils.CValueEnclosure{}, toputils.TeeErrorf("qid=%v, performFillNullForTheFields: cannot create dtype for the fill Value; err=%v", qid, err)
+	}
+
+	var finalFillValue interface{}
+
+	if fillValueDtype.IsBool() {
+		finalFillValue = fillValueDtype.BoolVal
+	} else if fillValueDtype.IsInt() {
+		finalFillValue = fillValueDtype.SignedVal
+	} else if fillValueDtype.IsFloat() {
+		finalFillValue = fillValueDtype.FloatVal
+	} else {
+		finalFillValue = fillValue
+	}
+
+	return utils.CValueEnclosure{CVal: finalFillValue, Dtype: fillValueDtype.Dtype}, nil
+}
+
+func performFillNullForTheFields(iqr *iqr.IQR, fields []string, cTypeFillValue utils.CValueEnclosure) {
+	fillNullForAllRecords := make(map[string]struct{})
+
+	for _, field := range fields {
+		values, err := iqr.ReadColumn(field)
+		if err != nil {
+			fillNullForAllRecords[field] = struct{}{}
+			continue
+		}
+
+		for i, value := range values {
+			if value.IsNull() {
+				value.CVal = cTypeFillValue.CVal
+				value.Dtype = cTypeFillValue.Dtype
+				values[i] = value
+			}
+		}
+
+		iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
+	}
+
+	for field := range fillNullForAllRecords {
+		iqr.AddColumnWithDefaultValue(field, cTypeFillValue)
+	}
+}
+
 func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr == nil {
+		return nil, io.EOF
+	}
+
+	qid := uint64(0)
+
+	cTypeFillValue, err := getTheFinalFillValue(p.options.Value, qid)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(p.options.FieldList) > 0 {
+		performFillNullForTheFields(iqr, p.options.FieldList, cTypeFillValue)
+	}
+
+	return iqr, nil
 }
 
 // In the two-pass version of fillnull, Rewind() should remember all the

@@ -91,7 +91,7 @@ func Test_BatchProcess(t *testing.T) {
 		return a > b
 	})
 	actualBatchSizes := make([]int, 0)
-	operation := func(slice []int) []int {
+	operation := func(slice []int) ([]int, error) {
 		result := make([]int, 0, len(slice))
 		for _, i := range slice {
 			result = append(result, i+len(slice))
@@ -99,13 +99,13 @@ func Test_BatchProcess(t *testing.T) {
 
 		actualBatchSizes = append(actualBatchSizes, len(slice))
 
-		return result
+		return result, nil
 	}
 
 	input := []int{1, 2, 3, 20, 42, 100, 47}
 	expected := []int{4, 5, 6, 21, 44, 101, 49}
 	expectedBatchSizes := []int{1, 2, 1, 3} // Batches should be 100s, 40s, 20s, 0s
-	actual := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
+	actual, _ := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
 	assert.Equal(t, expected, actual)
 	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
 }
