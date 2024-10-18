@@ -2908,6 +2908,7 @@ WhereBlock <- PIPE CMD_WHERE condition:BoolExpr {
         OutputTransforms: &structs.OutputTransforms {
             FilterRows: condition.(*structs.BoolExpr),
         },
+        WhereExpr: condition.(*structs.BoolExpr),
     }
 
     return queryAgg, nil
