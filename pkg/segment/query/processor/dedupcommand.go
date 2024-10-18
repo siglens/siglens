@@ -29,7 +29,6 @@ import (
 
 type dedupProcessor struct {
 	options           *structs.DedupExpr
-	prevCombination   []*segutils.CValueEnclosure
 	combinationHashes map[uint64]int
 }
 
@@ -69,67 +68,36 @@ func (p *dedupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		fieldToValues[field] = values
 	}
 
+	numRecords := len(fieldToValues[p.options.FieldList[0]])
 	rowsToDiscard := make([]int, 0)
 
-	if p.options.DedupOptions.Consecutive {
-		numRecords := len(fieldToValues[p.options.FieldList[0]])
-		curCombination := make([]*segutils.CValueEnclosure, len(p.options.FieldList))
+RecordLoop:
+	for i := 0; i < numRecords; i++ {
+		hash := uint64(0)
+		for _, field := range p.options.FieldList {
+			hash ^= fieldToValues[field][i].Hash()
 
-		startIndex := 0
-		if p.prevCombination == nil {
-			startIndex = 1
-			p.prevCombination = make([]*segutils.CValueEnclosure, len(p.options.FieldList))
-			for i, field := range p.options.FieldList {
-				p.prevCombination[i] = &fieldToValues[field][0]
+			if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL {
+				if !p.options.DedupOptions.KeepEmpty {
+					rowsToDiscard = append(rowsToDiscard, i)
+				}
+
+				continue RecordLoop
 			}
 		}
 
-	RecordLoop:
-		for i := startIndex; i < numRecords; i++ {
-			for k, field := range p.options.FieldList {
-				curCombination[k] = &fieldToValues[field][i]
-
-				if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL {
-					if !p.options.DedupOptions.KeepEmpty {
-						rowsToDiscard = append(rowsToDiscard, i)
-					}
-
-					copy(p.prevCombination, curCombination)
-					continue RecordLoop
-				}
-			}
-
-			if shouldDiscardConsecutive(p.prevCombination, curCombination) {
-				rowsToDiscard = append(rowsToDiscard, i)
-			}
-
-			copy(p.prevCombination, curCombination)
+		if _, ok := p.combinationHashes[hash]; ok {
+			rowsToDiscard = append(rowsToDiscard, i)
+		} else {
+			p.combinationHashes[hash] = 1
 		}
-	} else {
-		numRecords := len(fieldToValues[p.options.FieldList[0]])
-		curCombination := make([]*segutils.CValueEnclosure, len(p.options.FieldList))
 
-	RecordLoop2:
-		for i := 0; i < numRecords; i++ {
-			hash := uint64(0)
-			for _, field := range p.options.FieldList {
-				hash ^= fieldToValues[field][i].Hash()
-
-				if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL {
-					if !p.options.DedupOptions.KeepEmpty {
-						rowsToDiscard = append(rowsToDiscard, i)
-					}
-
-					copy(p.prevCombination, curCombination)
-					continue RecordLoop2
-				}
+		if p.options.DedupOptions.Consecutive {
+			// Keep only this hash.
+			for k := range p.combinationHashes {
+				delete(p.combinationHashes, k)
 			}
-
-			if _, ok := p.combinationHashes[hash]; ok {
-				rowsToDiscard = append(rowsToDiscard, i)
-			} else {
-				p.combinationHashes[hash] = 1
-			}
+			p.combinationHashes[hash] = 1
 		}
 	}
 
@@ -154,32 +122,9 @@ func (p *dedupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *dedupProcessor) Rewind() {
-	p.prevCombination = nil
 	p.combinationHashes = nil
 }
 
 func (p *dedupProcessor) Cleanup() {
-	p.prevCombination = nil
 	p.combinationHashes = nil
-}
-
-func shouldDiscardConsecutive(prevCombination, curCombination []*segutils.CValueEnclosure) bool {
-	if len(prevCombination) == 0 {
-		// The curCombination is the first record.
-		return false
-	}
-
-	if len(prevCombination) != len(curCombination) {
-		log.Errorf("shouldDiscardConsecutive: combinations have different lengths (%v and %v)",
-			len(prevCombination), len(curCombination))
-		return false
-	}
-
-	for i := 0; i < len(prevCombination); i++ {
-		if *prevCombination[i] != *curCombination[i] {
-			return false
-		}
-	}
-
-	return true
 }
