@@ -40,7 +40,7 @@ type QueryContext struct {
 	Scroll      int
 	Orgid       uint64
 	RawQuery    string
-	SearchTerms []string
+	SearchTerms map[string]string
 }
 
 // Input for filter operator can either be the result of a ASTNode or an expression

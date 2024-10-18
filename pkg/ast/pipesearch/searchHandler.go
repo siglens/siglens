@@ -455,17 +455,20 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	highlightSearchTerms(qid, qc.SearchTerms, allJsons)
 	return allJsons, allCols, nil
 }
-func highlightSearchTerms(qid uint64, searchTerms []string, allJsons []map[string]interface{}) {
+func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []map[string]interface{}) {
 	replacement := `<mark>$0</mark>`
-	for _, k := range searchTerms {
-		re, err := regexp.Compile(`(?i)` + k)
+	for colName, colValue := range searchTerms {
+		re, err := regexp.Compile(`(?i)` + colValue)
 		if err != nil {
 			log.Errorf("qid=%d, highlightSearchTerms: Invalid regex pattern: %v", qid, err)
 		}
 		for i, item := range allJsons {
 			for key, value := range item {
 				if strVal, ok := value.(string); ok {
-					if re.MatchString(strVal) {
+					if re.MatchString(strVal) && colName == "*" {
+						highlighted := re.ReplaceAllString(strVal, replacement)
+						allJsons[i][key] = highlighted
+					} else if re.MatchString(strVal) && colName == key {
 						highlighted := re.ReplaceAllString(strVal, replacement)
 						allJsons[i][key] = highlighted
 					}

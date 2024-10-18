@@ -1288,24 +1288,29 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	return qsrs, nil
 }
 
-func getSearchTermsForNode(sNode *structs.SearchNode) []string {
-	searchTerms := make([]string, 0)
+func getSearchTermsForNode(sNode *structs.SearchNode) map[string]string {
+	searchTerms := make(map[string]string, 0)
+	colName := "*"
+	var condition *structs.SearchCondition
 	if sNode.AndSearchConditions != nil {
-		condition := sNode.AndSearchConditions
-		for _, query := range condition.SearchQueries {
-			bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
-			for word := range bloomWords {
-				searchTerms = append(searchTerms, word)
+		condition = sNode.AndSearchConditions
+	} else if sNode.OrSearchConditions != nil {
+		condition = sNode.OrSearchConditions
+	}
+	for _, query := range condition.SearchQueries {
+		if query.ExpressionFilter != nil {
+			if query.ExpressionFilter.LeftSearchInput != nil {
+				colName = query.ExpressionFilter.LeftSearchInput.ColumnName
 			}
 		}
-	}
-	if sNode.OrSearchConditions != nil {
-		condition := sNode.OrSearchConditions
-		for _, query := range condition.SearchQueries {
-			bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
-			for word := range bloomWords {
-				searchTerms = append(searchTerms, word)
+		if query.MatchFilter != nil {
+			if query.MatchFilter.MatchColumn == "*" {
+				colName = "*"
 			}
+		}
+		bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
+		for word := range bloomWords {
+			searchTerms[colName] = word
 		}
 	}
 	return searchTerms
