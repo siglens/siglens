@@ -150,8 +150,8 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		assert.Len(t, errs, 0)
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "all blocks will be checked")
 		if qsr.segKey == randomFile {
-			// assert.Len(t, searchRequests, 1, "file with segKey == %+v should be the only match", qsr.segKey)
-			// assert.Equal(t, uint64(numBlocks), matchedBlocks, "a single file with have the right value for key10")
+			assert.Len(t, searchRequests, 1, "file with segKey == %+v should be the only match", qsr.segKey)
+			assert.Equal(t, uint64(numBlocks), matchedBlocks, "a single file with have the right value for key10")
 			for _, sReq := range searchRequests {
 				assert.Len(t, sReq.AllBlocksToSearch, len(sReq.SearchMetadata.BlockSummaries))
 			}

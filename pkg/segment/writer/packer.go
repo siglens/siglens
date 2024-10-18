@@ -906,7 +906,7 @@ func GetNumValFromRec(rec []byte, qid uint64, retVal *Number) (uint16, error) {
 }
 
 func GetMockSegBaseDirAndKeyForTest(dataDir string, indexName string) (string, string, error) {
-	// segBaseDir := dataDir + "mock-host.test/final/segreader/stream-1/0/"
+	// segBaseDir format: data Dir / host / final / indexName / stream-id / suffix
 	segBaseDir := fmt.Sprintf("%smock-host.test/final/%s/stream-1/0/", dataDir, indexName)
 	err := os.MkdirAll(segBaseDir, 0755)
 	if err != nil {
