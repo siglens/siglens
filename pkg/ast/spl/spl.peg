@@ -5074,6 +5074,7 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
         GenerateEvent: &structs.GenerateEvent{
             InputLookup: inputLookup,
         },
+        InputLookupExpr: inputLookup,
     }, nil
 }
 
