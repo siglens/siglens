@@ -275,12 +275,14 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil
 		}
 
+		rrcsLen := len(rrcs)
 		for cname := range iqr.createdColums {
 			values, ok := iqr.knownValues[cname]
 			if ok {
-				colToValues[cname] = values
+				colToValues[cname] = values[:rrcsLen]
+				iqr.knownValues[cname] = values[rrcsLen:]
 			} else {
-				colToValues[cname] = make([]utils.CValueEnclosure, len(rrcs))
+				colToValues[cname] = make([]utils.CValueEnclosure, rrcsLen)
 			}
 		}
 
