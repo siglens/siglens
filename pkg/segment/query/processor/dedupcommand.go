@@ -86,8 +86,11 @@ RecordLoop:
 			}
 		}
 
-		if _, ok := p.combinationHashes[hash]; ok {
-			rowsToDiscard = append(rowsToDiscard, i)
+		if value, ok := p.combinationHashes[hash]; ok {
+			if value >= int(p.options.Limit) {
+				rowsToDiscard = append(rowsToDiscard, i)
+			}
+			p.combinationHashes[hash]++
 		} else {
 			p.combinationHashes[hash] = 1
 		}
