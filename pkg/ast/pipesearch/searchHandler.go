@@ -300,7 +300,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+	httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, qc)
 
 	return &httpRespOuter, false, simpleNode.TimeRange, nil
 }
@@ -366,7 +366,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}) structs.PipeSearchResponseOuter {
+func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, qc *structs.QueryContext) structs.PipeSearchResponseOuter {
 	var httpRespOuter structs.PipeSearchResponseOuter
 	var httpResp structs.PipeSearchResponse
 
@@ -385,7 +385,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		measFuncs = nodeResult.MeasureFunctions
 	}
 
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs, allColsInAggs, nil)
+	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs, allColsInAggs, qc)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
@@ -452,7 +452,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
-	if qc.SearchTerms != nil {
+	if qc.SearchTerms != nil && allJsons != nil {
 		highlightSearchTerms(qid, qc.SearchTerms, allJsons)
 	}
 	return allJsons, allCols, nil
