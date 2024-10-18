@@ -33,6 +33,7 @@ type processor interface {
 }
 
 type DataProcessor struct {
+	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -107,9 +108,21 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
+func (dp *DataProcessor) IsDataGenerator() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return true
+	default:
+		return false
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
+		if dp.IsDataGenerator() {
+			return iqr.NewIQR(dp.qid), nil
+		}
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()
@@ -234,8 +247,11 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &gentimesProcessor{options: options},
+		streams: make([]*cachedStream, 0),
+		processor: &gentimesProcessor{
+			options:       options,
+			currStartTime: options.StartTime,
+		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
