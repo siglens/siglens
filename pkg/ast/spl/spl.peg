@@ -1943,6 +1943,7 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        DedupExpr: dedupExpr.(*structs.DedupExpr),
     }
 
     return root, nil
