@@ -36,7 +36,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
+func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer, knownValues map[string][]utils.CValueEnclosure,
 	qid uint64) (map[string][]utils.CValueEnclosure, error) {
 
 	allCols, err := getColsForSegKey(segKey, vTable)
@@ -45,9 +45,15 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 			qid, segKey, err)
 		return nil, err
 	}
+	rrcsLen := len(rrcs)
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
+		if values, ok := knownValues[cname]; ok {
+			colToValues[cname] = values[:rrcsLen]
+			continue
+		}
+
 		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
