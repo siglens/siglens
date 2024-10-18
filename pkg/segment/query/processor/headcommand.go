@@ -32,7 +32,7 @@ type headProcessor struct {
 
 func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
-		return nil, nil
+		return nil, io.EOF
 	}
 
 	limit := p.options.MaxRows
