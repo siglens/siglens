@@ -50,7 +50,9 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
 		if values, ok := knownValues[cname]; ok {
+			log.Infof("Mani: ReadAllColsForRRCs: knownValues for column %s, len=%d, rrcsLen=%v", cname, len(values), rrcsLen)
 			colToValues[cname] = values[:rrcsLen]
+			knownValues[cname] = values[rrcsLen:]
 			continue
 		}
 
