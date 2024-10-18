@@ -18,16 +18,58 @@
 package processor
 
 import (
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type fillnullProcessor struct {
 	options *structs.FillNullExpr
 }
 
+func performFillNullForTheFields(iqr *iqr.IQR, fields []string, cTypeFillValue utils.CValueEnclosure) {
+
+	for _, field := range fields {
+		values, err := iqr.ReadColumn(field)
+		if err != nil {
+			values = toputils.ResizeSliceWithDefault(values, iqr.NumberOfRecords(), cTypeFillValue)
+		} else {
+
+			for i := range values {
+				if values[i].IsNull() {
+					values[i].CVal = cTypeFillValue.CVal
+					values[i].Dtype = cTypeFillValue.Dtype
+				}
+			}
+		}
+
+		err = iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
+		if err != nil {
+			log.Errorf("performFillNullForTheFields: failed to append known values; err=%v", err)
+		}
+	}
+}
+
 func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr == nil {
+		return nil, io.EOF
+	}
+
+	cTypeFillValue := utils.CValueEnclosure{}
+	err := cTypeFillValue.ConvertValue(p.options.Value)
+	if err != nil {
+		return nil, toputils.TeeErrorf("performFillNullForTheFields: cannot convert fill value; err=%v", err)
+	}
+
+	if len(p.options.FieldList) > 0 {
+		performFillNullForTheFields(iqr, p.options.FieldList, cTypeFillValue)
+	}
+
+	return iqr, nil
 }
 
 // In the two-pass version of fillnull, Rewind() should remember all the
