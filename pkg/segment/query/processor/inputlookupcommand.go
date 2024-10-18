@@ -30,13 +30,15 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 )
 
 type inputlookupProcessor struct {
-	options *structs.InputLookup
-	eof     bool
-	qid     uint64
+	options   *structs.InputLookup
+	eof       bool
+	qid       uint64
+	start     uint64
+	processed uint64
 }
 
 func checkCSVFormat(filename string) bool {
@@ -45,7 +47,7 @@ func checkCSVFormat(filename string) bool {
 
 func createRecord(columnNames []string, record []string) (map[string]utils.CValueEnclosure, error) {
 	if len(columnNames) != len(record) {
-		return nil, fmt.Errorf("CreateRecord: Column and record lengths are not equal")
+		return nil, fmt.Errorf("createRecord: Column and record lengths are not equal, columnNames: %v, record: %v", columnNames, record)
 	}
 	recordMap := make(map[string]utils.CValueEnclosure)
 	for i, col := range columnNames {
@@ -54,15 +56,7 @@ func createRecord(columnNames []string, record []string) (map[string]utils.CValu
 	return recordMap, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
-	fmt.Println("Called INPUTLOOKUP PROCESS")
 	if inpIqr != nil && !p.options.FirstCommand {
 		p.qid = inpIqr.GetQid()
 		return inpIqr, nil
@@ -72,19 +66,19 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	if p.options == nil {
-		return nil, fmt.Errorf("PerformInputLookup: InputLookup is nil")
+		return nil, fmt.Errorf("inputlookupProcessor.Process: InputLookup is nil")
 	}
 	filename := p.options.Filename
 
 	if !checkCSVFormat(filename) {
-		return nil, fmt.Errorf("PerformInputLookup: Only .csv and .csv.gz formats are currently supported")
+		return nil, fmt.Errorf("inputlookupProcessor.Process: Only .csv and .csv.gz formats are currently supported")
 	}
 
 	filePath := filepath.Join(config.GetLookupPath(), filename)
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("PerformInputLookup: Error while opening file %v, err: %v", filePath, err)
+		return nil, fmt.Errorf("inputlookupProcessor.Process: Error while opening file %v, err: %v", filePath, err)
 	}
 	defer file.Close()
 
@@ -92,7 +86,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	if strings.HasSuffix(filename, ".csv.gz") {
 		gzipReader, err := gzip.NewReader(file)
 		if err != nil {
-			return nil, fmt.Errorf("PerformInputLookup: Error while creating gzip reader, err: %v", err)
+			return nil, fmt.Errorf("inputlookupProcessor.Process: Error while creating gzip reader, err: %v", err)
 		}
 		defer gzipReader.Close()
 		reader = csv.NewReader(gzipReader)
@@ -103,23 +97,28 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	// read columns from first row of csv file
 	columnNames, err := reader.Read()
 	if err != nil {
-		return nil, fmt.Errorf("PerformInputLookup: Error reading column names, err: %v", err)
+		return nil, fmt.Errorf("inputlookupProcessor.Process: Error reading column names, err: %v", err)
 	}
 
-	curr := 0
-	for curr < int(p.options.Start) {
+	curr := uint64(0)
+	for curr < p.start {
 		_, err := reader.Read()
 		if err != nil {
-			return nil, fmt.Errorf("PerformInputLookup: Error skipping rows, err: %v", err)
+			if err.Error() == "EOF" {
+				p.eof = true
+				break
+			}
+			return nil, fmt.Errorf("inputlookupProcessor.Process: Error skipping rows, err: %v", err)
 		}
 		curr++
 	}
 
-	count := 0
+	count := p.processed
 	records := map[string][]utils.CValueEnclosure{}
 
-	for count < min(int(p.options.Max), int(segutils.QUERY_EARLY_EXIT_LIMIT)) {
+	for !p.eof && count < putils.MinUint64(p.options.Max, utils.QUERY_EARLY_EXIT_LIMIT) {
 		count++
+		curr++
 		csvRecord, err := reader.Read()
 		if err != nil {
 			// Check if we've reached the end of the file
@@ -127,17 +126,17 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 				p.eof = true
 				break
 			}
-			return nil, fmt.Errorf("PerformInputLookup: Error reading record, err: %v", err)
+			return nil, fmt.Errorf("inputlookupProcessor.Process: Error reading record, err: %v", err)
 		}
 
 		record, err := createRecord(columnNames, csvRecord)
 		if err != nil {
-			return nil, fmt.Errorf("PerformInputLookup: Error creating record, err: %v", err)
+			return nil, fmt.Errorf("inputlookupProcessor.Process: Error creating record, err: %v", err)
 		}
 		if p.options.WhereExpr != nil {
 			conditionPassed, err := p.options.WhereExpr.EvaluateForInputLookup(record)
 			if err != nil {
-				return nil, fmt.Errorf("PerformInputLookup: Error evaluating where expression, err: %v", err)
+				return nil, fmt.Errorf("inputlookupProcessor.Process: Error evaluating where expression, err: %v", err)
 			}
 			if !conditionPassed {
 				continue
@@ -148,24 +147,28 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
-	if count >= int(p.options.Max) {
+	if count >= p.options.Max {
 		p.eof = true
 	}
+
+	p.start = curr
+	p.processed = count
 
 	nIQR := iqr.NewIQR(p.qid)
 	err = nIQR.AppendKnownValues(records)
 	if err != nil {
-		return nil, fmt.Errorf("PerformInputLookup: Error appending known values, err: %v", err)
+		return nil, fmt.Errorf("inputlookupProcessor.Process: Error appending known values, err: %v", err)
 	}
-	fmt.Println("Processed inputlookup ", len(records))
 
 	return nIQR, nil
 }
 
 func (p *inputlookupProcessor) Rewind() {
-	panic("not implemented")
+	p.eof = false
+	p.start = 0
+	p.processed = 0
 }
 
 func (p *inputlookupProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing is stored in memory, so nothing to cleanup
 }

@@ -375,7 +375,7 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	assert.Equal(t, withRRCs, convertedRRCIQR.mode)
 	assert.Equal(t, 3, len(convertedRRCIQR.rrcs))
 	assert.Equal(t, knownValues, convertedRRCIQR.knownValues)
-	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())	
+	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())
 
 	err = rrcIqr.Append(withoutRRCIqr)
 	assert.Nil(t, err)
@@ -394,12 +394,12 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 		}
 	}
 
-	knownValues["col1"] = knownValues["col1"][1:]	
+	knownValues["col1"] = knownValues["col1"][1:]
 	newIQR := NewIQR(0)
 	err = newIQR.AppendKnownValues(knownValues)
 	assert.Error(t, err)
 
 	withoutRRCIqr.knownValues["col1"] = withoutRRCIqr.knownValues["col1"][1:]
 	err = rrcIqr.Append(withoutRRCIqr)
-	assert.Error(t, err)	
+	assert.Error(t, err)
 }

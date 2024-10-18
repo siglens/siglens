@@ -262,8 +262,11 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 
 func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &inputlookupProcessor{options: options},
+		streams: make([]*cachedStream, 0),
+		processor: &inputlookupProcessor{
+			options: options,
+			start:   options.Start,
+		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
