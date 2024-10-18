@@ -395,6 +395,28 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
+func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
+	}
+
+	segKey, ok := iqr.encodingToSegKey[iqr.rrcs[0].SegKeyInfo.SegKeyEnc]
+	if !ok {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", iqr.rrcs[0].SegKeyInfo.SegKeyEnc)
+	}
+
+	vTable := iqr.rrcs[0].VirtualTableName
+
+	allColumns, err := record.GetColsForSegKey(segKey, vTable)
+	if err != nil {
+		return nil, err
+	}
+
+	toputils.AddMapKeysToSet(allColumns, iqr.knownValues)
+
+	return allColumns, nil
+}
+
 func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
