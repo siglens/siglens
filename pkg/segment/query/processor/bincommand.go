@@ -78,6 +78,14 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
+	if newName, ok := p.options.NewFieldName.Get(); ok {
+		err = iqr.RenameColumn(p.options.Field, newName)
+		if err != nil {
+			return nil, utils.TeeErrorf("bin.Process: cannot rename column %v to %v; err=%v",
+				p.options.Field, newName, err)
+		}
+	}
+
 	return iqr, nil
 }
 
