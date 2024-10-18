@@ -190,13 +190,14 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 }
 
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
+	hasSpan := options.BinSpanOptions != nil
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false, // TODO: depends on whether the span option was set
-		isTwoPassCmd:      false, // TODO: depends on whether the span option was set
+		isBottleneckCmd:   !hasSpan,
+		isTwoPassCmd:      !hasSpan,
 	}
 }
 

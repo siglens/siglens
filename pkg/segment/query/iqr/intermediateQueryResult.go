@@ -228,10 +228,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
 	}
 
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
-	}
-
 	if values, ok := iqr.knownValues[cname]; ok {
 		return values, nil
 	}
@@ -285,6 +281,16 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil, toputils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
 				len(iqr.rrcs), len(values))
 		}
+	}
+
+	for oldName := range iqr.renamedColumns {
+		// TODO: don't read these columns from the RRCs, instead of reading and
+		// then deleting them.
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
 	}
 
 	return results, nil
@@ -655,6 +661,21 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 		}
 
 		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	iqr.renamedColumns[oldName] = newName
+	if values, ok := iqr.knownValues[oldName]; ok {
+		iqr.knownValues[newName] = values
+		delete(iqr.knownValues, oldName)
 	}
 
 	return nil
