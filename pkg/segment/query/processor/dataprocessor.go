@@ -108,7 +108,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (dp *DataProcessor) IsGenerateDataProcessor() bool {
+func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return true
@@ -120,7 +120,7 @@ func (dp *DataProcessor) IsGenerateDataProcessor() bool {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
-		if dp.IsGenerateDataProcessor() {
+		if dp.IsDataGenerator() {
 			return iqr.NewIQR(dp.qid), nil
 		}
 		return nil, errors.New("no streams")
