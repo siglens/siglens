@@ -28,7 +28,9 @@ import (
 )
 
 type fillnullProcessor struct {
-	options *structs.FillNullExpr
+	options      *structs.FillNullExpr
+	knownColumns map[string]struct{}
+	secondPass   bool
 }
 
 func getTheFinalFillValue(fillValue string, qid uint64) (utils.CValueEnclosure, error) {
@@ -52,10 +54,10 @@ func getTheFinalFillValue(fillValue string, qid uint64) (utils.CValueEnclosure, 
 	return utils.CValueEnclosure{CVal: finalFillValue, Dtype: fillValueDtype.Dtype}, nil
 }
 
-func performFillNullForTheFields(iqr *iqr.IQR, fields []string, cTypeFillValue utils.CValueEnclosure) {
+func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue utils.CValueEnclosure) {
 	fillNullForAllRecords := make(map[string]struct{})
 
-	for _, field := range fields {
+	for field := range fields {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
 			fillNullForAllRecords[field] = struct{}{}
@@ -95,7 +97,32 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	if len(p.options.FieldList) > 0 {
-		performFillNullForTheFields(iqr, p.options.FieldList, cTypeFillValue)
+		fieldListMap := make(map[string]struct{}, len(p.options.FieldList))
+		toputils.AddSliceToSet(fieldListMap, p.options.FieldList)
+
+		performFillNullForTheFields(iqr, fieldListMap, cTypeFillValue)
+		return iqr, nil
+	}
+
+	/* If no fields are specified, fill null for all columns. */
+
+	if p.secondPass {
+		// This means that the firstPass is done, and we have all the columns for all the possible records.
+		// So, we can fill null for all the columns.
+		performFillNullForTheFields(iqr, p.knownColumns, cTypeFillValue)
+		return iqr, nil
+	}
+
+	// If we are in first Pass: Then Fetch all columns from the IQR and store in knownColumns.
+	columns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("fillnull.Process: cannot get columns; err=%v", err)
+	}
+
+	if p.knownColumns == nil {
+		p.knownColumns = columns
+	} else {
+		toputils.AddMapKeysToSet(p.knownColumns, columns)
 	}
 
 	return iqr, nil
@@ -104,9 +131,10 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 // In the two-pass version of fillnull, Rewind() should remember all the
 // columns it saw in the first pass.
 func (p *fillnullProcessor) Rewind() {
-	panic("not implemented")
+	p.secondPass = true
 }
 
 func (p *fillnullProcessor) Cleanup() {
-	panic("not implemented")
+	p.knownColumns = nil
+	p.secondPass = false
 }
