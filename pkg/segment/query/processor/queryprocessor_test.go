@@ -96,6 +96,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{FieldsExpr: &structs.ColumnsRequest{}},
 		{FillNullExpr: &structs.FillNullExpr{}},
 		{GentimesExpr: &structs.GenTimes{}},
+		{InputLookupExpr: &structs.InputLookup{}},
 		{HeadExpr: &structs.HeadExpr{}},
 		{MakeMVExpr: &structs.MultiValueColLetRequest{}},
 		{RareExpr: &structs.StatisticExpr{}},
