@@ -20,6 +20,7 @@ package iqr
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -426,6 +427,50 @@ func (iqr *IQR) Append(other *IQR) error {
 		if _, ok := other.knownValues[cname]; !ok {
 			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
 		}
+	}
+
+	return nil
+}
+
+func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.Sort: validation failed: %v", err)
+		return err
+	}
+
+	if less == nil {
+		return toputils.TeeErrorf("IQR.Sort: the less function is nil")
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	records := make([]*Record, iqr.NumberOfRecords())
+	for i := 0; i < iqr.NumberOfRecords(); i++ {
+		records[i] = &Record{iqr: iqr, index: i}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return less(records[i], records[j])
+	})
+
+	if iqr.mode == withRRCs {
+		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
+		for i, record := range records {
+			newRRCs[i] = iqr.rrcs[record.index]
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+		for i, record := range records {
+			newValues[i] = values[record.index]
+		}
+
+		iqr.knownValues[cname] = newValues
 	}
 
 	return nil
