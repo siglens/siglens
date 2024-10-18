@@ -56,6 +56,13 @@ func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time,
 }
 
 func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if p.currStartTime >= p.options.EndTime {
+		return nil, io.EOF
+	}
+	if iqr == nil {
+		return nil, fmt.Errorf("gentimesProcessor.Process: IQR is nil")
+	}	
+
 	if p.options == nil {
 		return nil, fmt.Errorf("gentimesProcessor.Process: GenTimes is nil")
 	}

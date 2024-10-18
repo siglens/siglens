@@ -58,6 +58,7 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
+	EOF bool
 }
 
 func NewIQR(qid uint64) *IQR {
@@ -255,11 +256,17 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+		if rrc == nil {
+			return uint16(9999) // Default Segkey for nil RRCs
+		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) map[string][]utils.CValueEnclosure {
 		if len(rrcs) == 0 {
+			return nil
+		}
+		if rrcs[0] == nil {
 			return nil
 		}
 
@@ -348,6 +355,15 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
+	if iqr.mode == withRRCs && other.mode == withoutRRCs {
+		newIQR, err := iqr.getRRCIQRFromWithoutRRCIQR(other)
+		if err != nil {
+			log.Errorf("IQR.Append: error getting RRC IQR from without RRC IQR: %v", err)
+			return err
+		}
+		other = newIQR
+	}
+
 	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
@@ -357,13 +373,13 @@ func (iqr *IQR) Append(other *IQR) error {
 	iqr.mode = mergedIQR.mode
 	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
-	if iqr.mode == withRRCs {
-		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
-	}
-
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
 	numFinalRecords := numInitialRecords + numAddedRecords
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
@@ -529,6 +545,29 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	return result, nil
 }
 
+func (iqr *IQR) getRRCIQRFromWithoutRRCIQR(other *IQR) (*IQR, error) {
+	if iqr.mode != withRRCs {
+		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: mode is not withRRCs")
+	}
+	if other.mode != withoutRRCs {
+		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: other mode is not withoutRRCs")
+	}
+	valuesLen := 0
+	for _, values := range other.knownValues {
+		if valuesLen == 0 {
+			valuesLen = len(values)
+		} else if valuesLen != len(values) {
+			return nil, fmt.Errorf("IQR.AppendKnownValuesAsNewRows: inconsistent number of rows")
+		}
+	}
+	fmt.Println("valuesLen: ", valuesLen)
+	newIQR := NewIQR(iqr.qid)
+	newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
+	newIQR.AppendKnownValues(other.knownValues)
+
+	return newIQR, nil
+}
+
 func (iqr *IQR) discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.discard: validation failed: %v", err)
@@ -638,6 +677,22 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		if err != nil {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
+		}
+		numOfRecords := 0
+		for col, values := range records {
+			if numOfRecords == 0 {
+				numOfRecords = len(values)
+			}
+			if numOfRecords != len(values) {
+				return nil, fmt.Errorf("IQR.AsResult: inconsistent number of rows for column %v, expected: %v, got: %v", col, numOfRecords, len(values))
+			}
+		}
+		// Populate knownValues
+		for cname, values := range iqr.knownValues {
+			if numOfRecords != len(values) {
+				return nil, fmt.Errorf("IQR.AsResult: inconsistent number of rows for column %v, expected: %v, got: %v", cname, numOfRecords, len(values))
+			}
+			records[cname] = values
 		}
 	case withoutRRCs:
 		records = iqr.knownValues
