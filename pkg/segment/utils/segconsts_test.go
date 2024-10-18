@@ -36,3 +36,30 @@ func Test_CVal_Equal(t *testing.T) {
 	c2 = &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)}
 	assert.False(t, c1.Equal(c2))
 }
+
+func Test_CVal_Hash(t *testing.T) {
+	assert.NotEqual(t,
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "world"}).Hash(),
+	)
+
+	assert.NotEqual(t,
+		(&CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(123)}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)}).Hash(),
+	)
+
+	assert.NotEqual(t,
+		(&CValueEnclosure{Dtype: SS_DT_BOOL, CVal: false}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil}).Hash(),
+	)
+
+	assert.Equal(t,
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
+	)
+
+	assert.Equal(t,
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: 123}).Hash(),
+	)
+}

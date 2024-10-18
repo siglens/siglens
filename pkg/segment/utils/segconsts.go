@@ -823,6 +823,31 @@ func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {
 	}
 }
 
+func (e *CValueEnclosure) Hash() uint64 {
+	bytes := make([]byte, 0)
+	bytes = append(bytes, byte(e.Dtype))
+
+	switch e.Dtype {
+	case SS_DT_STRING:
+		bytes = append(bytes, []byte(e.CVal.(string))...)
+	case SS_DT_BOOL:
+		bytes = append(bytes, []byte(strconv.FormatBool(e.CVal.(bool)))...)
+	case SS_DT_UNSIGNED_NUM:
+		bytes = append(bytes, []byte(strconv.FormatUint(e.CVal.(uint64), 10))...)
+	case SS_DT_SIGNED_NUM:
+		bytes = append(bytes, []byte(strconv.FormatInt(e.CVal.(int64), 10))...)
+	case SS_DT_FLOAT:
+		bytes = append(bytes, []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))...)
+	case SS_DT_BACKFILL:
+		// Do nothing.
+	default:
+		log.Errorf("CValueEnclosure.Hash: unsupported Dtype: %v", e.Dtype)
+		return 0
+	}
+
+	return xxhash.Sum64(bytes)
+}
+
 // resets the CValueEnclosure to the given value
 func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	switch val := val.(type) {
