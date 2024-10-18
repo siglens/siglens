@@ -74,7 +74,7 @@ func InitMemoryLimiter() {
 func printMemoryManagerSummary() {
 	numLoadedUnrotated, totalUnrotated := writer.GetUnrotatedMetadataInfo()
 	unrotaedSize := writer.GetSizeOfUnrotatedMetadata()
-	log.Infof("GlobalMemoryTracker: Total  memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
+	log.Infof("GlobalMemoryTracker: Total memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
 	log.Infof("GlobalMemoryTracker: segCount: %v, indexCount: %v, CmiInMemoryAllocated: %+v MB",
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalSegmentCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalTableCount,
