@@ -97,10 +97,11 @@ RecordLoop:
 
 		if p.options.DedupOptions.Consecutive {
 			// Keep only this hash.
-			for k := range p.combinationHashes {
-				delete(p.combinationHashes, k)
+			for other := range p.combinationHashes {
+				if other != hash {
+					delete(p.combinationHashes, other)
+				}
 			}
-			p.combinationHashes[hash] = 1
 		}
 	}
 
