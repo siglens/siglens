@@ -36,13 +36,14 @@ import (
 
 func Test_segReader(t *testing.T) {
 
-	config.InitializeTestingConfig(t.TempDir())
-	segDir := "data/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test"
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
+	assert.Nil(t, err)
+
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bsm, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	_, bsm, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
@@ -65,7 +66,7 @@ func Test_segReader(t *testing.T) {
 	}
 
 	// invalid block
-	err := multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
 	assert.NotNil(t, err)
 
 	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
@@ -100,18 +101,19 @@ func Test_segReader(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }
 
 func Test_timeReader(t *testing.T) {
 
-	config.InitializeTestingConfig(t.TempDir())
-	segDir := "data/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test-time"
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
+	assert.Nil(t, err)
+
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
 	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
@@ -129,7 +131,7 @@ func Test_timeReader(t *testing.T) {
 			startTs++
 		}
 	}
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }
 
 func Benchmark_readColumnarFile(b *testing.B) {

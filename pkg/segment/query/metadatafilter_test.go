@@ -18,6 +18,7 @@
 package query
 
 import (
+	"os"
 	"testing"
 
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
@@ -28,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -289,16 +291,21 @@ func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
 	numEntriesInBlock := 10
 	fileCount := 5
-	config.InitializeDefaultConfig(t.TempDir())
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
+	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
 
-	metadata.InitMockColumnarMetadataStore(t.TempDir(), fileCount, numBlocks, numEntriesInBlock)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBlocks, numEntriesInBlock)
 	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
+
+	os.RemoveAll(dir)
 }

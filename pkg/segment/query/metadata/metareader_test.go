@@ -36,7 +36,7 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	segKey := segDir + "test"
 	blockSummariesFile := structs.GetBsuFnameFromSegKey(segKey)
 	numBlocks := 10
-	_, blockSummaries, _, _, allBmh, allColsSizes := writer.WriteMockColSegFile(segKey, numBlocks, 30)
+	_, blockSummaries, _, _, allBmh, allColsSizes := writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
 	writer.WriteMockBlockSummary(blockSummariesFile, blockSummaries, allBmh)
 
 	bMicro := &segmetadata.SegmentMicroIndex{
