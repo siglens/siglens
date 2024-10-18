@@ -33,6 +33,7 @@ type processor interface {
 }
 
 type DataProcessor struct {
+	qid uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -110,6 +111,9 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
+		if dp.IsGenerateDataProcessor() {
+			return iqr.NewIQR(dp.qid), nil
+		}
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()

@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -62,7 +63,25 @@ func getRecordFieldValues(fieldToValue map[string]utils.CValueEnclosure, fieldsI
 }
 
 
-func (p *inputlookupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+func createRecord(columnNames []string, record []string) (map[string]utils.CValueEnclosure, error) {
+	if len(columnNames) != len(record) {
+		return nil, fmt.Errorf("CreateRecord: Column and record lengths are not equal")
+	}
+	recordMap := make(map[string]utils.CValueEnclosure)
+	for i, col := range columnNames {
+		recordMap[col] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
+	}
+	return recordMap, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.options == nil {
 		return nil, fmt.Errorf("PerformInputLookup: InputLookup is nil")
 	}
@@ -108,28 +127,27 @@ func (p *inputlookupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	count := 0
-	fieldToValue := make(map[string]utils.CValueEnclosure)
-	for count < int(p.options.Max) {
+	records := map[string][]utils.CValueEnclosure{}
+	left := int(segutils.QUERY_EARLY_EXIT_LIMIT) - inpIqr.NumberOfRecords()
+
+	for count < min(int(p.options.Max), left) {
 		count++
-		csvRecord, err := reader.Read()
-		if err != nil {
+		csvRecord, readErr := reader.Read()
+		if readErr != nil {
 			// Check if we've reached the end of the file
-			if err.Error() == "EOF" {
+			if readErr.Error() == "EOF" {
+				err = io.EOF
 				break
 			}
 			return nil, fmt.Errorf("PerformInputLookup: Error reading record, err: %v", err)
 		}
 
-		record, err := putils.CreateRecord(columnNames, csvRecord)
+		record, err := createRecord(columnNames, csvRecord)
 		if err != nil {
 			return nil, fmt.Errorf("PerformInputLookup: Error creating record, err: %v", err)
 		}
-		err = getRecordFieldValues(fieldToValue, columnNames, record)
-		if err != nil {
-			return nil, fmt.Errorf("PerformInputLookup: Error getting field values, err: %v", err)
-		}
 		if p.options.WhereExpr != nil {
-			conditionPassed, err := p.options.WhereExpr.EvaluateForInputLookup(fieldToValue)
+			conditionPassed, err := p.options.WhereExpr.EvaluateForInputLookup(record)
 			if err != nil {
 				return nil, fmt.Errorf("PerformInputLookup: Error evaluating where expression, err: %v", err)
 			}
@@ -137,10 +155,26 @@ func (p *inputlookupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				continue
 			}
 		}
-		iqr.AppendKnownValues(nil)
+		for field, CValEnc := range record {
+			records[field] = append(records[field], CValEnc)
+		}
 	}
 
-	return iqr, nil
+	if inpIqr.NumberOfRecords() > 0 {
+		newIqr := iqr.NewIQR(inpIqr.GetQid())
+		newIqr.AppendRRCs(make([]*utils.RecordResultContainer, inpIqr.NumberOfRecords()), nil)
+		newIqr.SetMode(inpIqr.GetMode())
+		newIqr.AppendKnownValues(records)
+		inpIqr.Append(newIqr)
+	} else {
+		inpIqr.AppendKnownValues(records)
+	}
+	
+	if count >= int(p.options.Max) {
+		err = io.EOF
+	}
+
+	return inpIqr, err
 }
 
 func (p *inputlookupProcessor) Rewind() {

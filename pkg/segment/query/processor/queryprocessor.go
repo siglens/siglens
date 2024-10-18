@@ -64,7 +64,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		if dataProcessor == nil {
 			break
 		}
-
+		dataProcessor.qid = searcher.qid
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
