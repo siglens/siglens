@@ -279,3 +279,47 @@ func Test_Dedup_withLimit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
+
+func Test_Dedup_multipleCols(t *testing.T) {
+	dataProcessor := makeDedup(t, 1, []string{"col1", "col2"}, false, false, false)
+
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_STRING, CVal: "x"},
+			{Dtype: utils.SS_DT_STRING, CVal: "y"},
+			{Dtype: utils.SS_DT_STRING, CVal: "z"},
+			{Dtype: utils.SS_DT_STRING, CVal: "x"},
+		},
+	})
+	assert.NoError(t, err)
+
+	result1, err := dataProcessor.processor.Process(iqr1)
+	assert.NoError(t, err)
+	assert.NotNil(t, result1)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "x"},
+		{Dtype: utils.SS_DT_STRING, CVal: "y"},
+		{Dtype: utils.SS_DT_STRING, CVal: "z"},
+	}
+
+	actualCol1, err := result1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := result1.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+}
