@@ -99,7 +99,6 @@ func Test_simpleRawSearch(t *testing.T) {
 	// get file name
 	pqid := querytracker.GetHashForQuery(node)
 	pqidFname := fmt.Sprintf("%v/pqmr/%v.pqmr", searchReq.SegmentKey, pqid)
-	log.Infof("pqidFname=%v", pqidFname)
 
 	// check if that file exist, assert on file not exist
 	_, err = os.Stat(pqidFname)
