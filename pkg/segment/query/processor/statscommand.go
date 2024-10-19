@@ -18,41 +18,50 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
+	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/stats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	bbp "github.com/valyala/bytebufferpool"
 )
 
 type ErrorData struct {
-	readColumns map[string]error // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
+	readColumns           map[string]error       // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
+	cValueGetStringErr    map[string]interface{} // columnName -> error. Tracks errors while converting CValue to string
+	notSupportedStatsType map[string]struct{}    // columnName -> struct{}. Tracks unsupported stats types
 }
 
 type statsProcessor struct {
 	options             *structs.StatsExpr
 	bucketKeyWorkingBuf []byte
-	errorData           *ErrorData
+	byteBuffer          *bbp.ByteBuffer
 	searchResults       *segresults.SearchResults
 	qid                 uint64
+	errorData           *ErrorData
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
-			readColumns: make(map[string]error),
+			readColumns:           make(map[string]error),
+			cValueGetStringErr:    make(map[string]interface{}),
+			notSupportedStatsType: make(map[string]struct{}),
 		}
 	}
 
 	if p.options.GroupByRequest != nil {
 		return p.processGroupByRequest(inputIQR)
 	} else if p.options.MeasureOperations != nil {
-		// TODO: Implement measure operations
-		return nil, toputils.TeeErrorf("stats.Process: measure operations not implemented")
+		return p.processMeasureOperations(inputIQR)
 	} else {
 		return nil, toputils.TeeErrorf("qid=%v, stats.Process: no group by or measure operations specified", inputIQR.GetQID())
 	}
@@ -63,10 +72,13 @@ func (p *statsProcessor) Rewind() {
 }
 
 func (p *statsProcessor) Cleanup() {
-	if p.searchResults != nil {
-		p.searchResults = nil
-	}
 	p.bucketKeyWorkingBuf = nil
+	if p.byteBuffer != nil {
+		bbp.Put(p.byteBuffer)
+		p.byteBuffer = nil
+	}
+
+	p.searchResults = nil
 	p.errorData = nil
 }
 
@@ -163,8 +175,117 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, io.EOF
 }
 
+func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	if inputIQR == nil {
+		if p.searchResults != nil {
+			inputIQR = iqr.NewIQR(p.qid)
+			return p.extractSegmentStatsResults(inputIQR)
+		}
+		return nil, io.EOF
+	}
+
+	numOfRecords := uint64(inputIQR.NumberOfRecords())
+
+	if p.searchResults == nil {
+		searchResults, err := segresults.InitSearchResults(numOfRecords, &structs.QueryAggregators{MeasureOperations: p.options.MeasureOperations}, structs.SegmentStatsCmd, inputIQR.GetQID())
+		if err != nil {
+			return nil, toputils.TeeErrorf("stats.Process.processMeasureOperations: cannot initialize search results; err=%v", err)
+		}
+		p.searchResults = searchResults
+		p.searchResults.InitSegmentStatsResults(p.options.MeasureOperations)
+	}
+
+	if p.byteBuffer == nil {
+		p.byteBuffer = bbp.Get()
+	}
+
+	segStatsMap := make(map[string]*structs.SegStats)
+
+	measureColsMap, aggColUsage, valuesUsage, listUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
+	delete(measureColsMap, config.GetTimeStampKey())
+
+	for colName := range measureColsMap {
+		if colName == "*" {
+			stats.AddSegStatsCount(segStatsMap, colName, numOfRecords)
+			continue
+		}
+
+		values, err := inputIQR.ReadColumn(colName)
+		if err != nil {
+			p.errorData.readColumns[colName] = err
+			continue
+		}
+
+		for i := range values {
+			hasValuesFunc := valuesUsage[colName]
+			hasListFunc := listUsage[colName]
+
+			if values[i].IsString() {
+				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+			} else if values[i].IsNumeric() {
+				stringVal, err := values[i].GetString()
+				if err != nil {
+					p.errorData.cValueGetStringErr[colName] = err
+					stringVal = fmt.Sprintf("%v", values[i].CVal)
+				}
+
+				if values[i].IsFloat() {
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, values[i].CVal.(float64), stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+				} else {
+					intVal, err := values[i].GetIntValue()
+					if err != nil {
+						// This should never happen
+						log.Errorf("stats.Process: cannot get int value; err=%v", err)
+						intVal = 0
+					}
+
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+				}
+			} else {
+				p.errorData.notSupportedStatsType[colName] = struct{}{}
+				continue
+			}
+		}
+	}
+
+	err := p.searchResults.UpdateSegmentStats(segStatsMap, p.options.MeasureOperations)
+	if err != nil {
+		log.Errorf("stats.Process: cannot update segment stats; err=%v", err)
+		p.searchResults.AddError(err)
+	}
+
+	return nil, nil
+}
+
+func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if p.searchResults == nil {
+		return iqr, nil
+	}
+
+	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0)
+
+	err := iqr.AppendStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
+	if err != nil {
+		return nil, toputils.TeeErrorf("stats.Process.extractSegmentStatsResults: cannot append stats results; err=%v", err)
+	}
+
+	return iqr, io.EOF
+}
+
 func (p *statsProcessor) logErrors(qid uint64) {
 	if len(p.errorData.readColumns) > 0 {
 		log.Errorf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
+	}
+
+	if len(p.errorData.cValueGetStringErr) > 0 {
+		log.Errorf("stats.Process: failed to get string from CValue: %v", p.errorData.cValueGetStringErr)
+	}
+
+	if len(p.errorData.notSupportedStatsType) > 0 {
+		log.Errorf("stats.Process: not supported stats type: %v", p.errorData.notSupportedStatsType)
+	}
+
+	if len(p.searchResults.AllErrors) > 0 {
+		log.Errorf("stats.Process: search results errors: %v", p.searchResults.AllErrors)
 	}
 }

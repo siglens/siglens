@@ -992,6 +992,39 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 	}
 }
 
+/*
+Returns a int64 representation of the value
+
+if its a number, casts to int64
+if its a string, try to parse as int64, if fails, xxhashes and returns it
+*/
+func (e *CValueEnclosure) GetIntValue() (int64, error) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		int64Val, err := strconv.ParseInt(e.CVal.(string), 10, 64)
+		if err != nil {
+			int64Val = int64(xxhash.Sum64String(e.CVal.(string)))
+		}
+		return int64Val, nil
+	case SS_DT_BACKFILL:
+		return 0, nil
+	case SS_DT_BOOL:
+		if e.CVal.(bool) {
+			return 1, nil
+		} else {
+			return 0, nil
+		}
+	case SS_DT_UNSIGNED_NUM:
+		return int64(e.CVal.(uint64)), nil
+	case SS_DT_SIGNED_NUM:
+		return e.CVal.(int64), nil
+	case SS_DT_FLOAT:
+		return int64(e.CVal.(float64)), nil
+	default:
+		return 0, fmt.Errorf("CValueEnclosure GetIntValue: unsupported Dtype: %v", e.Dtype)
+	}
+}
+
 func (e *CValueEnclosure) AsBytes() []byte {
 	switch e.Dtype {
 	case SS_DT_BOOL:
@@ -1040,6 +1073,34 @@ func (e *CValueEnclosure) AsBytes() []byte {
 
 func (e *CValueEnclosure) IsNull() bool {
 	return e.Dtype == SS_DT_BACKFILL || e.Dtype == SS_INVALID || e.CVal == nil
+}
+
+func (e *CValueEnclosure) IsString() bool {
+	return e.Dtype == SS_DT_STRING
+}
+
+func (e *CValueEnclosure) IsBool() bool {
+	return e.Dtype == SS_DT_BOOL
+}
+
+func (e *CValueEnclosure) IsNumeric() bool {
+	return e.Dtype == SS_DT_FLOAT || e.Dtype == SS_DT_SIGNED_NUM || e.Dtype == SS_DT_UNSIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsFloat() bool {
+	return e.Dtype == SS_DT_FLOAT
+}
+
+func (e *CValueEnclosure) IsInt() bool {
+	return e.Dtype == SS_DT_SIGNED_NUM || e.Dtype == SS_DT_UNSIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsSignedInt() bool {
+	return e.Dtype == SS_DT_SIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsUnsignedInt() bool {
+	return e.Dtype == SS_DT_UNSIGNED_NUM
 }
 
 type CValueDictEnclosure struct {
