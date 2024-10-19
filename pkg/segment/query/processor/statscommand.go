@@ -77,7 +77,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	if inputIQR == nil {
 		if p.searchResults != nil {
 			inputIQR = iqr.NewIQR(p.qid)
-			return p.ExtractGroupByResults(inputIQR)
+			return p.extractGroupByResults(inputIQR)
 		}
 		return nil, io.EOF
 	}
@@ -93,7 +93,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}, structs.GroupByCmd, inputIQR.GetQID())
 		if err != nil {
-			return nil, toputils.TeeErrorf("stats.Process: cannot initialize search results; err=%v", err)
+			return nil, toputils.TeeErrorf("stats.Process.processGroupByRequest: cannot initialize search results; err=%v", err)
 		}
 		p.searchResults = searchResults
 	}
@@ -144,7 +144,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	return nil, nil
 }
 
-func (p *statsProcessor) ExtractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
+func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.searchResults == nil {
 		return iqr, nil
 	}
@@ -183,7 +183,7 @@ func (p *statsProcessor) ExtractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	err := iqr.AppendKnownValues(knownValues)
 	if err != nil {
-		return nil, toputils.TeeErrorf("stats.Process: cannot append known values; err=%v", err)
+		return nil, toputils.TeeErrorf("stats.Process.extractGroupByResults: cannot append known values; err=%v", err)
 	}
 
 	p.logErrors()
