@@ -29,7 +29,9 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -459,9 +461,48 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	}
 
 	go func() {
-		_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
+		if config.IsNewQueryPipelineEnabled() {
+			_ = executeNewPipelineQueryInternal(root, aggs, qid, qc)
+		} else {
+			_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
+		}
 	}()
 	return rQuery.StateChan, nil
+}
+
+func executeNewPipelineQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
+	
+	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
+		query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
+		return nil
+	}
+	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
+
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+		return nil
+	}
+
+	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to set cleanup callback, err: %v", qid, err)
+		return nil
+	}
+
+	httpResponse, err := queryProcessor.GetFullResult()
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+		return nil
+	}
+
+	query.SetNewQueryPipelineResponse(httpResponse, qid)
+
+	query.SetQidAsFinished(qid)
+
+	return nil
 }
 
 func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64,

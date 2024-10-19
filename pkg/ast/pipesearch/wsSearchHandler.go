@@ -26,6 +26,7 @@ import (
 	"github.com/fasthttp/websocket"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -325,7 +326,6 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &structs.PipeSearchCompleteResponse{
-		TotalMatched:        convertQueryCountToTotalResponse(queryC),
 		State:               query.COMPLETE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
 		CanScrollMore:       canScrollMore,
@@ -338,6 +338,15 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		IsTimechart:         aggs.UsedByTimechart(),
 		ColumnsOrder:        columnsOrder,
 	}
+
+	if !config.IsNewQueryPipelineEnabled() {
+		resp.TotalMatched = convertQueryCountToTotalResponse(queryC)
+	} else {
+		response := query.GetNewQueryPipelineResponse(qid)
+		resp.TotalMatched = response.Hits.TotalMatched
+		resp.TotalRRCCount = response.TotalRRCCount
+	}
+
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get search Errors for qid! Error: %v", qid, err)
@@ -366,6 +375,28 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 	}
 }
 
+func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.QueryType, qid uint64) error {
+	getResp := query.GetNewQueryPipelineResponse(qid)
+	if getResp == nil {
+		return fmt.Errorf("qid=%d, UpdateWSResp: failed to get new query pipeline response", qid)
+	}
+	switch qType {
+	case structs.SegmentStatsCmd, structs.GroupByCmd:
+		wsResponse.MeasureResults = getResp.MeasureResults
+		wsResponse.MeasureFunctions = getResp.MeasureFunctions
+		wsResponse.GroupByCols = getResp.GroupByCols
+		wsResponse.BucketCount = getResp.BucketCount
+		wsResponse.ColumnsOrder = getResp.ColumnsOrder
+		wsResponse.Qtype = qType.String()
+	case structs.RRCCmd:
+		wsResponse.Hits = getResp.Hits
+		wsResponse.AllPossibleColumns = getResp.AllPossibleColumns
+		wsResponse.Qtype = qType.String()
+		wsResponse.ColumnsOrder = getResp.ColumnsOrder
+	}
+	return nil
+}
+
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
 	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*structs.PipeSearchWSUpdateResponse, error) {
 
@@ -377,6 +408,11 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		TotalPossibleEvents:      humanize.Comma(int64(totalPossibleEvents)),
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
+	}
+
+	if config.IsNewQueryPipelineEnabled() {
+		UpdateWSResp(wsResponse, qType, qid)
+		return wsResponse, nil
 	}
 
 	switch qType {
