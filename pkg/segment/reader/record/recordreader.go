@@ -39,7 +39,7 @@ import (
 func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := getColsForSegKey(segKey, vTable)
+	allCols, err := GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -61,13 +61,13 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
 
@@ -156,6 +156,11 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		return nil, err
 	}
 	defer sharedReader.Close()
+
+	if len(sharedReader.ErrorColMap) > 0 {
+		return nil, sharedReader.ErrorColMap[cname]
+	}
+
 	multiReader := sharedReader.MultiColReaders[0]
 
 	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
@@ -165,15 +170,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcsInBatch []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcsInBatch) == 0 {
-			return nil
+			return nil, nil
 		}
 
-		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
+		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid), nil
 	}
 
-	enclosures := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
 	return enclosures, nil
 }
 

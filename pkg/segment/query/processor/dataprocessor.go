@@ -234,13 +234,14 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 }
 
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
+	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false, // TODO: depends on whether the fieldlist option was set
-		isTwoPassCmd:      false, // TODO: depends on whether the fieldlist option was set
+		isBottleneckCmd:   !isFieldListSet,
+		isTwoPassCmd:      !isFieldListSet,
 	}
 }
 
@@ -346,7 +347,7 @@ func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
 	}
 }
 
-func NewStatsDP(options *structs.StatsOptions) *DataProcessor {
+func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &statsProcessor{options: options},

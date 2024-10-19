@@ -75,6 +75,10 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func (iqr *IQR) GetQID() uint64 {
+	return iqr.qid
+}
+
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")
@@ -296,27 +300,28 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
-			return nil
+			return nil, nil
 		}
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
-		return values
+		return values, nil
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
@@ -382,6 +387,28 @@ func (iqr *IQR) Append(other *IQR) error {
 	}
 
 	return nil
+}
+
+func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
+	}
+
+	segKey, ok := iqr.encodingToSegKey[iqr.rrcs[0].SegKeyInfo.SegKeyEnc]
+	if !ok {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", iqr.rrcs[0].SegKeyInfo.SegKeyEnc)
+	}
+
+	vTable := iqr.rrcs[0].VirtualTableName
+
+	allColumns, err := record.GetColsForSegKey(segKey, vTable)
+	if err != nil {
+		return nil, err
+	}
+
+	toputils.AddMapKeysToSet(allColumns, iqr.knownValues)
+
+	return allColumns, nil
 }
 
 func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
@@ -680,6 +707,11 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
 		}
+
+		// Append the known values to the result.
+		for cname, values := range iqr.knownValues {
+			records[cname] = values
+		}
 	case withoutRRCs:
 		records = iqr.knownValues
 	default:
@@ -708,4 +740,52 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 	}
 
 	return response, nil
+}
+
+func (iqr *IQR) AddColumnWithDefaultValue(cname string, value utils.CValueEnclosure) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.AddColumnWithDefaultValue: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if _, ok := iqr.deletedColumns[cname]; ok {
+		return fmt.Errorf("IQR.AddColumnWithDefaultValue: column %s is deleted", cname)
+	}
+
+	values, ok := iqr.knownValues[cname]
+	if !ok {
+		values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+	}
+
+	for i := range values {
+		values[i] = value
+	}
+	iqr.knownValues[cname] = values
+
+	return nil
+}
+
+func (iqr *IQR) AddNewCreatedColumn(cname string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.AddNewCreatedColumn: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if _, ok := iqr.deletedColumns[cname]; ok {
+		return fmt.Errorf("IQR.AddNewCreatedColumn: column %s is deleted", cname)
+	}
+
+	return nil
+}
+
+func (iqr *IQR) GetRecord(index int) *Record {
+	return &Record{iqr: iqr, index: index}
 }
