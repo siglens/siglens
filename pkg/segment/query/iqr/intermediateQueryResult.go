@@ -20,6 +20,7 @@ package iqr
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -227,10 +228,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
 	}
 
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
-	}
-
 	if values, ok := iqr.knownValues[cname]; ok {
 		return values, nil
 	}
@@ -284,6 +281,16 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil, toputils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
 				len(iqr.rrcs), len(values))
 		}
+	}
+
+	for oldName := range iqr.renamedColumns {
+		// TODO: don't read these columns from the RRCs, instead of reading and
+		// then deleting them.
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
 	}
 
 	return results, nil
@@ -353,13 +360,13 @@ func (iqr *IQR) Append(other *IQR) error {
 	iqr.mode = mergedIQR.mode
 	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
-	if iqr.mode == withRRCs {
-		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
-	}
-
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
 	numFinalRecords := numInitialRecords + numAddedRecords
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
@@ -378,6 +385,50 @@ func (iqr *IQR) Append(other *IQR) error {
 		if _, ok := other.knownValues[cname]; !ok {
 			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
 		}
+	}
+
+	return nil
+}
+
+func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.Sort: validation failed: %v", err)
+		return err
+	}
+
+	if less == nil {
+		return toputils.TeeErrorf("IQR.Sort: the less function is nil")
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	records := make([]*Record, iqr.NumberOfRecords())
+	for i := 0; i < iqr.NumberOfRecords(); i++ {
+		records[i] = &Record{iqr: iqr, index: i}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return less(records[i], records[j])
+	})
+
+	if iqr.mode == withRRCs {
+		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
+		for i, record := range records {
+			newRRCs[i] = iqr.rrcs[record.index]
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+		for i, record := range records {
+			newValues[i] = values[record.index]
+		}
+
+		iqr.knownValues[cname] = newValues
 	}
 
 	return nil
@@ -610,6 +661,21 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 		}
 
 		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	iqr.renamedColumns[oldName] = newName
+	if values, ok := iqr.knownValues[oldName]; ok {
+		iqr.knownValues[newName] = values
+		delete(iqr.knownValues, oldName)
 	}
 
 	return nil
