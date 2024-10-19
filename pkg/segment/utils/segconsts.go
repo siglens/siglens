@@ -20,10 +20,12 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -121,8 +123,8 @@ var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")
 
-var BYTE_UNDERSCORE = []byte("_")
-var BYTE_UNDERSCORE_LEN = len(BYTE_UNDERSCORE)
+var BYTE_TILDE = []byte("~")
+var BYTE_TILDE_LEN = len(BYTE_TILDE)
 
 var VALTYPE_ENC_BOOL = []byte{0x01}
 var VALTYPE_ENC_SMALL_STRING = []byte{0x02}
@@ -943,13 +945,40 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 
 func (e *CValueEnclosure) ConvertToBytesValue() []byte {
 	switch e.Dtype {
+	case SS_DT_BOOL:
+		if e.CVal.(bool) {
+			return []byte("true")
+		}
+		return []byte("false")
+	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
+		return []byte(strconv.FormatInt(e.CVal.(int64), 10))
+	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
+		return []byte(strconv.FormatUint(e.CVal.(uint64), 10))
+	case SS_DT_FLOAT:
+		return []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))
 	case SS_DT_STRING:
 		return []byte(e.CVal.(string))
+	case SS_DT_STRING_SLICE:
+		return []byte(strings.Join(e.CVal.([]string), ","))
+	case SS_DT_STRING_SET:
+		// convert set to sorted slice and join
+		stringSet := e.CVal.(map[string]struct{})
+		strs := make([]string, 0, len(stringSet))
+		for s := range stringSet {
+			strs = append(strs, s)
+		}
+		sort.Strings(strs)
+		return []byte(strings.Join(strs, ","))
 	case SS_DT_BACKFILL:
 		return VALTYPE_ENC_BACKFILL
+	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
+		jsonBytes, err := json.Marshal(e.CVal)
+		if err != nil {
+			return []byte("invalid_json")
+		}
+		return jsonBytes
 	default:
-		strVersion := fmt.Sprintf("%v", e.CVal)
-		return []byte(strVersion)
+		return []byte(fmt.Sprintf("%v", e.CVal))
 	}
 }
 

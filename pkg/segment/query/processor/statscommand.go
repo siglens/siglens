@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type ErrorData struct {
@@ -36,16 +37,18 @@ type ErrorData struct {
 type statsProcessor struct {
 	options             *structs.StatsExpr
 	bucketKeyWorkingBuf []byte
-	errorData           ErrorData
+	errorData           *ErrorData
 	searchResults       *segresults.SearchResults
 	qid                 uint64
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	// Initialize/reset error data
-	p.errorData = ErrorData{
-		readColumns:        make(map[string]struct{}),
-		convertToCValueErr: make(map[string]interface{}),
+	// Initialize error data
+	if p.errorData == nil {
+		p.errorData = &ErrorData{
+			readColumns:        make(map[string]struct{}),
+			convertToCValueErr: make(map[string]interface{}),
+		}
 	}
 
 	if p.options.GroupByRequest != nil {
@@ -67,7 +70,7 @@ func (p *statsProcessor) Cleanup() {
 		p.searchResults = nil
 	}
 	p.bucketKeyWorkingBuf = nil
-	p.errorData = ErrorData{}
+	p.errorData = nil
 }
 
 func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, error) {
@@ -108,8 +111,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 
 		for idx, cname := range p.options.GroupByRequest.GroupByColumns {
 			if idx > 0 {
-				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.BYTE_UNDERSCORE)
-				bucketKeyBufIdx += utils.BYTE_UNDERSCORE_LEN
+				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.BYTE_TILDE)
+				bucketKeyBufIdx += utils.BYTE_TILDE_LEN
 			}
 
 			cValue, err := record.ReadColumn(cname)
@@ -183,5 +186,17 @@ func (p *statsProcessor) ExtractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("stats.Process: cannot append known values; err=%v", err)
 	}
 
+	p.logErrors()
+
 	return iqr, io.EOF
+}
+
+func (p *statsProcessor) logErrors() {
+	if len(p.errorData.readColumns) > 0 {
+		log.Errorf("stats.Process: failed to read columns: %v", p.errorData.readColumns)
+	}
+
+	if len(p.errorData.convertToCValueErr) > 0 {
+		log.Errorf("stats.Process: failed to convert to CValue: %v", p.errorData.convertToCValueErr)
+	}
 }

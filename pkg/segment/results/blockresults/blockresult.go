@@ -566,7 +566,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		var bucketKey interface{}
 		var err error
 		if req.IsBucketKeySeparatedByDelim {
-			bucketKey = strings.Split(key, string(utils.BYTE_UNDERSCORE))
+			bucketKey = strings.Split(key, string(utils.BYTE_TILDE))
 		} else {
 			bucketKey, err = utils.ConvertGroupByKey([]byte(key))
 			if len(bucketKey.([]string)) == 1 {
