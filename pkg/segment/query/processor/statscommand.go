@@ -18,22 +18,170 @@
 package processor
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
-type statsProcessor struct {
-	options *structs.StatsOptions
+type ErrorData struct {
+	readColumns        map[string]struct{}
+	convertToCValueErr map[string]interface{}
 }
 
-func (p *statsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+type statsProcessor struct {
+	options             *structs.StatsExpr
+	bucketKeyWorkingBuf []byte
+	errorData           ErrorData
+	searchResults       *segresults.SearchResults
+	qid                 uint64
+}
+
+func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	// Initialize/reset error data
+	p.errorData = ErrorData{
+		readColumns:        make(map[string]struct{}),
+		convertToCValueErr: make(map[string]interface{}),
+	}
+
+	if p.options.GroupByRequest != nil {
+		return p.processGroupByRequest(inputIQR)
+	} else if p.options.MeasureOperations != nil {
+		// TODO: Implement measure operations
+		return nil, toputils.TeeErrorf("stats.Process: measure operations not implemented")
+	} else {
+		return nil, toputils.TeeErrorf("stats.Process: no group by or measure operations specified")
+	}
 }
 
 func (p *statsProcessor) Rewind() {
-	panic("not implemented")
+	// nothing to do
 }
 
 func (p *statsProcessor) Cleanup() {
-	panic("not implemented")
+	if p.searchResults != nil {
+		p.searchResults = nil
+	}
+	p.bucketKeyWorkingBuf = nil
+	p.errorData = ErrorData{}
+}
+
+func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	if inputIQR == nil {
+		if p.searchResults != nil {
+			inputIQR = iqr.NewIQR(p.qid)
+			return p.ExtractGroupByResults(inputIQR)
+		}
+		return nil, io.EOF
+	}
+
+	numOfRecords := inputIQR.NumberOfRecords()
+
+	if p.bucketKeyWorkingBuf == nil {
+		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*utils.MAX_RECORD_SIZE)
+	}
+
+	if p.searchResults == nil {
+		p.options.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
+		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
+		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}, structs.GroupByCmd, inputIQR.GetQID())
+		if err != nil {
+			return nil, toputils.TeeErrorf("stats.Process: cannot initialize search results; err=%v", err)
+		}
+		p.searchResults = searchResults
+	}
+
+	blkResults := p.searchResults.BlockResults
+
+	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
+	measureResults := make([]utils.CValueEnclosure, len(internalMops))
+
+	for i := 0; i < numOfRecords; i++ {
+		record := inputIQR.GetRecord(i)
+
+		// Bucket Key
+		bucketKeyBufIdx := 0
+
+		for idx, cname := range p.options.GroupByRequest.GroupByColumns {
+			if idx > 0 {
+				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.BYTE_UNDERSCORE)
+				bucketKeyBufIdx += utils.BYTE_UNDERSCORE_LEN
+			}
+
+			cValue, err := record.ReadColumn(cname)
+			if err != nil {
+				p.errorData.readColumns[cname] = struct{}{}
+				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
+				bucketKeyBufIdx += 1
+			} else {
+				bytesVal := cValue.ConvertToBytesValue()
+				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], bytesVal)
+				bucketKeyBufIdx += len(bytesVal)
+			}
+		}
+
+		for cname, indices := range measureInfo {
+			cValue, err := record.ReadColumn(cname)
+			if err != nil {
+				p.errorData.readColumns[cname] = struct{}{}
+				cValue = &utils.CValueEnclosure{CVal: utils.VALTYPE_ENC_BACKFILL, Dtype: utils.SS_DT_BACKFILL}
+			}
+
+			for _, idx := range indices {
+				measureResults[idx] = *cValue
+			}
+		}
+		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, inputIQR.GetQID())
+	}
+
+	return nil, nil
+}
+
+func (p *statsProcessor) ExtractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if p.searchResults == nil {
+		return iqr, nil
+	}
+
+	// load and convert the bucket results
+	_ = p.searchResults.GetBucketResults()
+
+	bucketHolderArr, retMFuns, aggGroupByCols, _, _ := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+
+	knownValues := make(map[string][]utils.CValueEnclosure)
+
+	for _, aggGroupByCol := range aggGroupByCols {
+		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, len(bucketHolderArr))
+	}
+	for _, retMFun := range retMFuns {
+		knownValues[retMFun] = make([]utils.CValueEnclosure, len(bucketHolderArr))
+	}
+
+	for i, bucketHolder := range bucketHolderArr {
+		for idx, aggGroupByCol := range aggGroupByCols {
+			colValue := bucketHolder.GroupByValues[idx]
+			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
+			if err != nil {
+				p.errorData.convertToCValueErr[fmt.Sprintf("%v_%v", i, aggGroupByCol)] = colValue
+			}
+		}
+
+		for _, retMFun := range retMFuns {
+			value := bucketHolder.MeasureVal[retMFun]
+			err := knownValues[retMFun][i].ConvertValue(value)
+			if err != nil {
+				p.errorData.convertToCValueErr[fmt.Sprintf("%v_%v", i, retMFun)] = value
+			}
+		}
+	}
+
+	err := iqr.AppendKnownValues(knownValues)
+	if err != nil {
+		return nil, toputils.TeeErrorf("stats.Process: cannot append known values; err=%v", err)
+	}
+
+	return iqr, io.EOF
 }

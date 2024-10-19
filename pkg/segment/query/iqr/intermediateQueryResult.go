@@ -785,3 +785,7 @@ func (iqr *IQR) AddNewCreatedColumn(cname string) error {
 
 	return nil
 }
+
+func (iqr *IQR) GetRecord(index int) *Record {
+	return &Record{iqr: iqr, index: index}
+}

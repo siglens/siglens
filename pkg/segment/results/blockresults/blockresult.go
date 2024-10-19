@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -563,13 +564,19 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		}
 
 		var bucketKey interface{}
-		bucketKey, err := utils.ConvertGroupByKey([]byte(key))
-		if len(bucketKey.([]string)) == 1 {
-			bucketKey = bucketKey.([]string)[0]
+		var err error
+		if req.IsBucketKeySeparatedByDelim {
+			bucketKey = strings.Split(key, string(utils.BYTE_UNDERSCORE))
+		} else {
+			bucketKey, err = utils.ConvertGroupByKey([]byte(key))
+			if len(bucketKey.([]string)) == 1 {
+				bucketKey = bucketKey.([]string)[0]
+			}
+			if err != nil {
+				log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
+			}
 		}
-		if err != nil {
-			log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
-		}
+
 		results[bucketNum] = &structs.BucketResult{
 			ElemCount:   bucket.count,
 			BucketKey:   bucketKey,

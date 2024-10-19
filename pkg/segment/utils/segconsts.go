@@ -121,6 +121,9 @@ var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")
 
+var BYTE_UNDERSCORE = []byte("_")
+var BYTE_UNDERSCORE_LEN = len(BYTE_UNDERSCORE)
+
 var VALTYPE_ENC_BOOL = []byte{0x01}
 var VALTYPE_ENC_SMALL_STRING = []byte{0x02}
 var VALTYPE_ENC_UINT8 = []byte{0x03}
@@ -179,8 +182,8 @@ const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
 const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
-var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
-var QUERY_MAX_BUCKETS = uint64(10_000)
+const QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
+const QUERY_MAX_BUCKETS = uint64(10_000)
 
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
@@ -935,6 +938,18 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 		return uint64(e.CVal.(int64)), nil
 	default:
 		return 0, errors.New("CValueEnclosure GetUIntValue: unsupported Dtype")
+	}
+}
+
+func (e *CValueEnclosure) ConvertToBytesValue() []byte {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		return []byte(e.CVal.(string))
+	case SS_DT_BACKFILL:
+		return VALTYPE_ENC_BACKFILL
+	default:
+		strVersion := fmt.Sprintf("%v", e.CVal)
+		return []byte(strVersion)
 	}
 }
 
