@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,7 +69,7 @@ func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
 		"col1": {ms.allRecords["col1"][ms.numSent]},
 	}
 
-	iqr := iqr.NewIQR(ms.qid)
+	iqr := iqr.NewIQR(ms.qid, structs.RRCCmd)
 	err := iqr.AppendKnownValues(knownValues)
 	if err != nil {
 		return nil, err
