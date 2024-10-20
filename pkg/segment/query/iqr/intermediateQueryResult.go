@@ -553,7 +553,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
 
-	result := NewIQR(iqrs[0].qid)
+	result := NewIQR(iqrs[0].qid, iqrs[0].qType)
 	result.mode = iqrs[0].mode
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
