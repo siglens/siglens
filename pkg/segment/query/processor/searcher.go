@@ -266,7 +266,7 @@ func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContaine
 func (s *searcher) initializeQSRs() error {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, searchProcessor.GetAndSetQSRs: failed to get sorted QSRs: %v", s.qid, err)
+		log.Errorf("qid=%v, searchProcessor.initializeQSRs: failed to get sorted QSRs: %v", s.qid, err)
 		return err
 	}
 

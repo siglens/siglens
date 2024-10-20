@@ -511,7 +511,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
 
-	result := NewIQR(iqrs[0].qid)
+	result := NewIQR(iqrs[0].qid, iqrs[0].qType)
 	result.mode = iqrs[0].mode
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
@@ -726,7 +726,8 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 
 	var response *structs.PipeSearchResponseOuter
 
-	if iqr.qType == structs.RRCCmd {
+	switch iqr.qType {
+	case structs.RRCCmd:
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
 				TotalMatched: iqr.NumberOfRecords(),
@@ -738,7 +739,7 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			CanScrollMore:      false,
 			ColumnsOrder:       toputils.GetSortedStringKeys(records),
 		}
-	} else if iqr.qType == structs.GroupByCmd { // TODO: Handle SegmentStatsCmd
+	case structs.GroupByCmd:
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalResultForGroupBy()
 		if err != nil {
 			return nil, toputils.TeeErrorf("IQR.AsResult: error getting final result for GroupBy: %v", err)
@@ -760,6 +761,10 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			GroupByCols:        aggGroupByCols,
 			// TODO: add IsTimechart flag
 		}
+	case structs.SegmentStatsCmd: // TODO: implement
+		panic("IQR.AsResult: SegmentStatsCmd not implemented")
+	default:
+		return nil, fmt.Errorf("IQR.AsResult: unexpected query type %v", iqr.qType)
 	}
 
 	return response, nil
@@ -772,7 +777,7 @@ func (iqr *IQR) AppendGroupByResults(bucketHolderArr []*structs.BucketHolder, me
 	}
 
 	if iqr.qType != structs.GroupByCmd {
-		return fmt.Errorf("IQR.AppendGroupByResults: not a GroupBy query")
+		return fmt.Errorf("IQR.AppendGroupByResults: not a GroupBy query. queryType=%v", iqr.qType)
 	}
 
 	iqr.mode = withoutRRCs
@@ -780,28 +785,31 @@ func (iqr *IQR) AppendGroupByResults(bucketHolderArr []*structs.BucketHolder, me
 	knownValues := make(map[string][]utils.CValueEnclosure)
 
 	for _, aggGroupByCol := range aggGroupByCols {
-		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, len(bucketHolderArr))
+		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, bucketCount)
 	}
 	for _, retMFun := range measureFuncs {
-		knownValues[retMFun] = make([]utils.CValueEnclosure, len(bucketHolderArr))
+		knownValues[retMFun] = make([]utils.CValueEnclosure, bucketCount)
 	}
 
-	conversionErrors := make(map[string]interface{})
+	conversionErrors := make([]string, utils.MAX_SIMILAR_ERRORS_TO_LOG)
+	errIndex := 0
 
 	for i, bucketHolder := range bucketHolderArr {
 		for idx, aggGroupByCol := range aggGroupByCols {
 			colValue := bucketHolder.GroupByValues[idx]
 			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
-			if err != nil {
-				conversionErrors[fmt.Sprintf("%v_%v", i, aggGroupByCol)] = colValue
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v", i, aggGroupByCol, colValue)
+				errIndex++
 			}
 		}
 
 		for _, measureFunc := range measureFuncs {
 			value := bucketHolder.MeasureVal[measureFunc]
 			err := knownValues[measureFunc][i].ConvertValue(value)
-			if err != nil {
-				conversionErrors[fmt.Sprintf("%v_%v", i, measureFunc)] = value
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v", i, measureFunc, value)
+				errIndex++
 			}
 		}
 	}
@@ -814,7 +822,7 @@ func (iqr *IQR) AppendGroupByResults(bucketHolderArr []*structs.BucketHolder, me
 	iqr.groupbyColumns = append(iqr.groupbyColumns, aggGroupByCols...)
 	iqr.measureColumns = append(iqr.measureColumns, measureFuncs...)
 
-	if len(conversionErrors) > 0 {
+	if errIndex > 0 {
 		log.Errorf("IQR.AppendGroupByResults: conversion errors: %v", conversionErrors)
 	}
 
@@ -828,6 +836,7 @@ func (iqr *IQR) getFinalResultForGroupBy() ([]*structs.BucketHolder, []string, [
 		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: knownValues is empty")
 	}
 
+	// The bucket count is the number of rows in the final result. So we can use the length of any column.
 	bucketCount := len(knownValues[iqr.groupbyColumns[0]])
 	if bucketCount == 0 {
 		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: bucketCount is 0")
@@ -836,23 +845,25 @@ func (iqr *IQR) getFinalResultForGroupBy() ([]*structs.BucketHolder, []string, [
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
 
 	// Rename groupbyColumns and measureColumns based on the renamedColumns map
-	for i := range iqr.groupbyColumns {
-		if newColName, ok := iqr.renamedColumns[iqr.groupbyColumns[i]]; ok {
+	for i, groupColName := range iqr.groupbyColumns {
+		if newColName, ok := iqr.renamedColumns[groupColName]; ok {
 			iqr.groupbyColumns[i] = newColName
 		}
 	}
 
-	for i := range iqr.measureColumns {
-		if newColName, ok := iqr.renamedColumns[iqr.measureColumns[i]]; ok {
+	for i, measureColName := range iqr.measureColumns {
+		if newColName, ok := iqr.renamedColumns[measureColName]; ok {
 			iqr.measureColumns[i] = newColName
 		}
 	}
+
+	groupByColLen := len(iqr.groupbyColumns)
 
 	// Fill in the bucketHolderArr with values from knownValues
 	for i := 0; i < bucketCount; i++ {
 
 		bucketHolderArr[i] = &structs.BucketHolder{
-			GroupByValues: make([]string, len(iqr.groupbyColumns)),
+			GroupByValues: make([]string, groupByColLen),
 			MeasureVal:    make(map[string]interface{}),
 		}
 
