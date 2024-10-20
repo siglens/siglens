@@ -59,6 +59,7 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
+	qType          structs.QueryType
 }
 
 func NewIQR(qid uint64) *IQR {
@@ -72,6 +73,7 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
+		qType:            structs.RRCCmd,
 	}
 }
 
