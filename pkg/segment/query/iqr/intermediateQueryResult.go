@@ -865,7 +865,7 @@ func (iqr *IQR) getFinalResultForGroupBy() ([]*structs.BucketHolder, []string, [
 			colValue := knownValues[aggGroupByCol][i]
 			convertedValue, err := colValue.GetString()
 			if err != nil {
-				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: conversion error for aggGroupByCol %v with value:%v", aggGroupByCol, colValue, err)
+				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
 			}
 			bucketHolderArr[i].GroupByValues[idx] = convertedValue
 		}

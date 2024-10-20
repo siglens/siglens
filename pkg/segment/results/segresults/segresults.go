@@ -875,9 +875,7 @@ func CreateMeasResultsFromAggResults(limit int,
 				groupByValues = append(groupByValues, bKeyConv)
 				added++
 			case []string:
-				for _, bk := range aggVal.BucketKey.([]string) {
-					groupByValues = append(groupByValues, bk)
-				}
+				groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
 				added++
 			case string:
 				groupByValues = append(groupByValues, bKey)
