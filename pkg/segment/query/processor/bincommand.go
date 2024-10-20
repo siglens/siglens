@@ -424,12 +424,8 @@ func (p *binProcessor) updateTheMinMaxValues(iqr *iqr.IQR) {
 			continue
 		}
 
-		if value < p.minVal {
-			p.minVal = value
-		}
+		p.minVal = math.Min(p.minVal, value)
 
-		if value > p.maxVal {
-			p.maxVal = value
-		}
+		p.maxVal = math.Max(p.maxVal, value)
 	}
 }
