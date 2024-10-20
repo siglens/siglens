@@ -62,7 +62,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
-		// If query Type is GroupByCmd/SegmentStatsCmd, this agg wil be processed by the searcher.
+		// If query Type is GroupByCmd/SegmentStatsCmd, this agg will be processed by the searcher.
 		if queryType != structs.RRCCmd {
 			continue
 		}

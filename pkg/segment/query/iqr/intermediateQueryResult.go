@@ -734,11 +734,11 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			},
 			AllPossibleColumns: toputils.GetKeysOfMap(records),
 			Errors:             nil,
-			Qtype:              iqr.qType.String(), // TODO: handle stats queries
+			Qtype:              iqr.qType.String(),
 			CanScrollMore:      false,
 			ColumnsOrder:       toputils.GetSortedStringKeys(records),
 		}
-	} else if iqr.qType == structs.GroupByCmd {
+	} else if iqr.qType == structs.GroupByCmd { // TODO: Handle SegmentStatsCmd
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalResultForGroupBy()
 		if err != nil {
 			return nil, toputils.TeeErrorf("IQR.AsResult: error getting final result for GroupBy: %v", err)

@@ -200,7 +200,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 
 func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 	if s.qsrs == nil {
-		err := s.getAndSetQSRs()
+		err := s.initializeQSRs()
 		if err != nil {
 			log.Errorf("qid=%v, searchProcessor.fetchGroupByResults: failed to get and set QSRs: %v", s.qid, err)
 			return nil, err
@@ -235,10 +235,13 @@ func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 	iqr := iqr.NewIQRWithQueryType(s.queryInfo.GetQid(), queryType)
 
 	err = iqr.AppendGroupByResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
+	if err != nil {
+		return nil, toputils.TeeErrorf("searchProcessor.fetchGroupByResults: failed to append group by results: %v", err)
+	}
 
 	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
 
-	return iqr, io.EOF
+	return iqr, io.EOF // io.EOF because we fetched the group by results for all the QSRs.
 }
 
 func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
@@ -260,7 +263,7 @@ func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContaine
 	}
 }
 
-func (s *searcher) getAndSetQSRs() error {
+func (s *searcher) initializeQSRs() error {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.GetAndSetQSRs: failed to get sorted QSRs: %v", s.qid, err)
