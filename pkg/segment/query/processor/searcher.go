@@ -188,7 +188,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	// the memory at the beginning (which will never be used again).
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
-	iqr := iqr.NewIQR(s.queryInfo.GetQid())
+	iqr := iqr.NewIQR(s.queryInfo.GetQid(), s.queryInfo.GetQueryType())
 	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapForReading())
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
@@ -232,7 +232,7 @@ func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
-	iqr := iqr.NewIQRWithQueryType(s.queryInfo.GetQid(), queryType)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid(), queryType)
 
 	err = iqr.AppendGroupByResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {

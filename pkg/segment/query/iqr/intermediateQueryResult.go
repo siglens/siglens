@@ -62,7 +62,7 @@ type IQR struct {
 	qType          structs.QueryType
 }
 
-func NewIQR(qid uint64) *IQR {
+func NewIQR(qid uint64, qType structs.QueryType) *IQR {
 	return &IQR{
 		mode:             notSet,
 		qid:              qid,
@@ -73,14 +73,8 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
-		qType:            structs.RRCCmd,
+		qType:            qType,
 	}
-}
-
-func NewIQRWithQueryType(qid uint64, qtype structs.QueryType) *IQR {
-	iqr := NewIQR(qid)
-	iqr.qType = qtype
-	return iqr
 }
 
 func (iqr *IQR) validate() error {
