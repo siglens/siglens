@@ -90,10 +90,8 @@ func (s *searcher) Rewind() {
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
-	case structs.SegmentStatsCmd:
-		panic("not implemented") // TODO
-	case structs.GroupByCmd:
-		return s.fetchGroupByResults()
+	case structs.SegmentStatsCmd, structs.GroupByCmd:
+		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
@@ -198,12 +196,11 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
+func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 	if s.qsrs == nil {
 		err := s.initializeQSRs()
 		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.fetchGroupByResults: failed to get and set QSRs: %v", s.qid, err)
-			return nil, err
+			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchSegmentStatsResults: failed to get and set QSRs: %v", s.qid, err)
 		}
 	}
 
@@ -214,6 +211,8 @@ func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 	sizeLimit := uint64(0)
 	aggs := s.queryInfo.GetAggregators()
 	qid := s.queryInfo.GetQid()
+	qType := s.queryInfo.GetQueryType()
+	orgId := s.queryInfo.GetOrgId()
 
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
@@ -222,26 +221,45 @@ func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 		return nil, err
 	}
 
+	var nodeResult *structs.NodeResult
+
+	if qType == structs.SegmentStatsCmd {
+		nodeResult = query.GetNodeResultsForSegmentStatsCmd(s.queryInfo, s.startTime, searchResults, s.qsrs, s.querySummary, orgId)
+	} else if qType == structs.GroupByCmd {
+		nodeResult = s.fetchGroupByResults(searchResults, aggs)
+	} else {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: invalid query type: %v", qid, qType)
+	}
+
+	// post getting of stats results
+	iqr := iqr.NewIQR(s.queryInfo.GetQid(), queryType)
+
+	err = iqr.AppendRRCStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: failed to append stats results: %v", qid, err)
+	}
+
+	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
+
+	return iqr, io.EOF
+}
+
+func (s *searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) *structs.NodeResult {
 	bucketLimit := int(utils.QUERY_MAX_BUCKETS)
 	if aggs.BucketLimit != 0 && aggs.BucketLimit < bucketLimit {
 		bucketLimit = aggs.BucketLimit
 	}
 	aggs.BucketLimit = bucketLimit
 
-	_ = query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary)
+	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary)
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+	nodeResult.MeasureResults = bucketHolderArr
+	nodeResult.MeasureFunctions = measureFuncs
+	nodeResult.GroupByCols = aggGroupByCols
+	nodeResult.BucketCount = bucketCount
 
-	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-
-	err = iqr.AppendGroupByResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
-	if err != nil {
-		return nil, toputils.TeeErrorf("searchProcessor.fetchGroupByResults: failed to append group by results: %v", err)
-	}
-
-	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
-
-	return iqr, io.EOF // io.EOF because we fetched the group by results for all the QSRs.
+	return nodeResult
 }
 
 func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
