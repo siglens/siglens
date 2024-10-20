@@ -111,8 +111,8 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-// In the two-pass version of bin, Rewind() should remember the span it
-// calculated in the first pass.
+// In the two-pass version of bin, Rewind() will calculate the bin span options
+// based on the min and max values seen in the first pass.
 func (p *binProcessor) Rewind() {
 	p.secondPass = true
 
