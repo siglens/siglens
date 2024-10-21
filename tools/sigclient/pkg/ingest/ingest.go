@@ -286,6 +286,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			time.Sleep(sleepTime)
 		}
 
+		SendPerformanceData(rdr)
+
 		if iType == ESBulk {
 			bytebufferpool.Put(bb)
 		}
@@ -307,6 +309,14 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			}
 		}
 	}
+}
+
+func SendPerformanceData(rdr utils.Generator) {
+	dynamicUserGen, isDUG := rdr.(*utils.DynamicUserGenerator)
+	if !isDUG || dynamicUserGen.DataConfig == nil {
+		return
+	}
+	dynamicUserGen.DataConfig.SendLog()
 }
 
 func populateActionLines(idxPrefix string, indexName string, numIndices int) []string {
@@ -360,6 +370,11 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		seed := int64(1001 + processIndex)
 		accFakerSeed := int64(10000 + processIndex)
 		rdr, err = utils.InitFunctionalUserGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
+	case "performance":
+		log.Infof("Initializing performance reader")
+		seed := int64(1001 + processIndex)
+		accFakerSeed := int64(10000 + processIndex)
+		rdr, err = utils.InitPerfTestGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001)

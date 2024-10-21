@@ -74,6 +74,7 @@ func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 
 func (r *DynamicUserGenerator) generateRandomBody() {
 	randomizeBody(r.faker, r.baseBody, r.tsKey)
+
 }
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, tsKey string) {
