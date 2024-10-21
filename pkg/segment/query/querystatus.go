@@ -947,6 +947,10 @@ func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid 
 	defer rQuery.rqsLock.Unlock()
 	rQuery.NewPipeLineResponse = response
 	rQuery.totalRecsSearched = rQuery.totalRecsToBeSearched
+	rQuery.queryCount = &structs.QueryCount{
+		TotalCount: uint64(len(response.Hits.Hits)),
+		EarlyExit: true,
+	}
 	
 	rQuery.StateChan <- &QueryStateChanData{
 		StateName:       QUERY_UPDATE,

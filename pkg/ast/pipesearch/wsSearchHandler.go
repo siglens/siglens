@@ -326,6 +326,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &structs.PipeSearchCompleteResponse{
+		TotalMatched: convertQueryCountToTotalResponse(queryC),
 		State:               query.COMPLETE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
 		CanScrollMore:       canScrollMore,
@@ -339,12 +340,9 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		ColumnsOrder:        columnsOrder,
 	}
 
-	if !config.IsNewQueryPipelineEnabled() {
-		resp.TotalMatched = convertQueryCountToTotalResponse(queryC)
-	} else {
+	if config.IsNewQueryPipelineEnabled() {
 		response := query.GetNewQueryPipelineResponse(qid)
-		resp.TotalMatched = response.Hits.TotalMatched
-		resp.TotalRRCCount = response.TotalRRCCount
+		resp.TotalRRCCount = len(response.Hits.Hits)
 	}
 
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
@@ -411,7 +409,10 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 	}
 
 	if config.IsNewQueryPipelineEnabled() {
-		UpdateWSResp(wsResponse, qType, qid)
+		err := UpdateWSResp(wsResponse, qType, qid)
+		if err != nil {
+			return nil, fmt.Errorf("qid=%d, createRecsWsResp: failed to update ws response, err: %+v", qid, err)
+		}
 		return wsResponse, nil
 	}
 
