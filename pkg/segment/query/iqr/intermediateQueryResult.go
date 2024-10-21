@@ -222,7 +222,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 
 func (iqr *IQR) GetAllColumnNames() (map[string]struct{}, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
+		log.Errorf("IQR.GetAllColumnNames: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -236,7 +236,7 @@ func (iqr *IQR) GetAllColumnNames() (map[string]struct{}, error) {
 		if iqr.mode == withRRCs {
 			err := iqr.readAllColumnNamesWithRRCs(allCnames)
 			if err != nil {
-				return nil, fmt.Errorf("IQR.ReadAllColumns: error reading all column names: %v", err)
+				return nil, fmt.Errorf("IQR.GetAllColumnNames: error reading all column names from rrc: %v", err)
 			}
 		}
 		for cname := range iqr.knownValues {
@@ -251,7 +251,7 @@ func (iqr *IQR) GetAllColumnNames() (map[string]struct{}, error) {
 			allCnames[cname] = struct{}{}
 		}
 	default:
-		return nil, fmt.Errorf("IQR.ReadAllColumns: unexpected mode %v", iqr.mode)
+		return nil, fmt.Errorf("IQR.GetAllColumnNames: unexpected mode %v", iqr.mode)
 	}
 
 	return allCnames, nil
@@ -295,12 +295,12 @@ func (iqr *IQR) readAllColumnNamesWithRRCs(allCnames map[string]struct{}) error 
 		if rrc == nil {
 			continue
 		}
-		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
-		if !ok {
+		segKey, exists := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
+		if !exists {
 			return toputils.TeeErrorf("IQR.readAllColumnNamesWithRRCs: unknown encoding %v",
 				rrc.SegKeyInfo.SegKeyEnc)
 		}
-		if _, ok := segKeyToVTable[segKey]; ok {
+		if _, exists := segKeyToVTable[segKey]; exists {
 			continue
 		}
 		segKeyToVTable[segKey] = rrc.VirtualTableName
@@ -665,11 +665,7 @@ func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
 
 func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
 	for cname, index := range cnamesToIndex {
-		// Some iqrs might have different number of columns which resulted in different column index
-		// We pick the largest index for each column
-		if presentIndex, ok := iqr.columnIndex[cname]; !ok || presentIndex > index {
-			iqr.columnIndex[cname] = index
-		}
+		iqr.columnIndex[cname] = index
 	}
 }
 

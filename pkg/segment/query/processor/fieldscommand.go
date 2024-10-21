@@ -30,10 +30,8 @@ type fieldsProcessor struct {
 	options *structs.ColumnsRequest
 }
 
-// Return all the columns in finalCols that match any of the wildcardCols,
-// which may or may not contain wildcards.
-// Note that the results may have duplicates if a column in finalCols matches
-// multiple wildcardCols.
+// Return all the columns in finalCols that match any of the wildcardCols
+// along with the first index of the match
 func getMatchingColumns(wildcardCols []string, finalCols map[string]struct{}) map[string]int {
 	currentCols := make([]string, len(finalCols))
 	for col := range finalCols {
@@ -60,7 +58,7 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 	allCnames, err := iqr.GetAllColumnNames()
 	if err != nil {
-		return nil, fmt.Errorf("fieldsProcessor.Process: cannot get all column names; err=%v", err)
+		return nil, fmt.Errorf("fieldsProcessor.Process: cannot get all column names, err: %v", err)
 	}
 
 	colsToDelete := make(map[string]struct{})
