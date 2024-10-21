@@ -78,6 +78,22 @@ func MergeMapsRetainingFirst[K comparable, V any](firstMap map[K]V, secondMap ma
 	}
 }
 
+// Appends the Second map to the First Map.
+// The slice values from the Second Map will be appended to the slice values of the First Map.
+// If the First Map does not have a key from the Second Map, the key will be added to the First Map
+// And the slice with givem will be backfilled with the backFillValue.
+func MergeMapSlicesWithBackfill[K comparable, V any](map1 map[K][]V, map2 map[K][]V, backFillValue V, size int) map[K][]V {
+	for k, v := range map2 {
+		v1, ok := map1[k]
+		if !ok {
+			v1 = ResizeSliceWithDefault(v1, size, backFillValue)
+		}
+		map1[k] = append(v1, v...)
+	}
+
+	return map1
+}
+
 func CreateRecord(columnNames []string, record []string) (map[string]interface{}, error) {
 	if len(columnNames) != len(record) {
 		return nil, fmt.Errorf("CreateRecord: Column and record lengths are not equal")

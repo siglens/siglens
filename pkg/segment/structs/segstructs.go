@@ -371,8 +371,10 @@ type LetColumnsRequest struct {
 }
 
 type FillNullExpr struct {
-	Value          string   // value to fill nulls with. Default 0
-	FieldList      []string // list of fields to fill nulls with
+	Value     string   // value to fill nulls with. Default 0
+	FieldList []string // list of fields to fill nulls with
+
+	// The following fields can be removed once we switch to the new query pipeline
 	Records        map[string]map[string]interface{}
 	FinalCols      map[string]bool
 	ColumnsRequest *ColumnsRequest
