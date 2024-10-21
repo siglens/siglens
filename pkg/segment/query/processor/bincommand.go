@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type binProcessor struct {
@@ -38,6 +39,8 @@ type binProcessor struct {
 	secondPass        bool
 	spanError         error
 }
+
+const MAX_SIMILAR_ERRORS_TO_LOG = 5
 
 func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
@@ -116,7 +119,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *binProcessor) Rewind() {
 	p.secondPass = true
 
-	if p.options.Field != "timestamp" {
+	if p.options.Field != config.GetTimeStampKey() {
 		if p.options.Start != nil && *p.options.Start < p.minVal {
 			p.minVal = *p.options.Start
 		}
@@ -287,7 +290,7 @@ func findBucketMonth(utcTime time.Time, numOfMonths int) uint64 {
 }
 
 func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength, field string) (*structs.BinSpanOptions, error) {
-	if field == "timestamp" {
+	if field == config.GetTimeStampKey() {
 		return findEstimatedTimeSpan(minValue, maxValue, maxBins, minSpan)
 	}
 	if minValue == maxValue {
@@ -413,6 +416,9 @@ func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBi
 }
 
 func (p *binProcessor) updateTheMinMaxValues(iqr *iqr.IQR) {
+	fetchingFloatValueErrors := make([]error, MAX_SIMILAR_ERRORS_TO_LOG)
+	fetchingFloatValueErrIndex := 0
+
 	values, err := iqr.ReadColumn(p.options.Field)
 	if err != nil {
 		return
@@ -421,6 +427,11 @@ func (p *binProcessor) updateTheMinMaxValues(iqr *iqr.IQR) {
 	for i := range values {
 		value, err := values[i].GetFloatValue()
 		if err != nil {
+			if fetchingFloatValueErrIndex < MAX_SIMILAR_ERRORS_TO_LOG {
+				fetchingFloatValueErrors[fetchingFloatValueErrIndex] = fmt.Errorf("value=%v; err=%v", values[i], err)
+				fetchingFloatValueErrIndex++
+			}
+
 			continue
 		}
 
@@ -428,4 +439,14 @@ func (p *binProcessor) updateTheMinMaxValues(iqr *iqr.IQR) {
 
 		p.maxVal = math.Max(p.maxVal, value)
 	}
+
+	if fetchingFloatValueErrIndex > 0 {
+		relation := "exactly"
+		if fetchingFloatValueErrIndex == MAX_SIMILAR_ERRORS_TO_LOG {
+			relation = "more than"
+		}
+
+		log.Errorf("bin.updateTheMinMaxValues: Error fetching float value for %v %v records;  Errors=%v", relation, fetchingFloatValueErrIndex, fetchingFloatValueErrors)
+	}
+
 }
