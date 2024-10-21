@@ -463,6 +463,7 @@ func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []
 		re, err := regexp.Compile(`(?i)` + colValue)
 		if err != nil {
 			log.Errorf("qid=%d, highlightSearchTerms: Invalid regex pattern: %v", qid, err)
+			return
 		}
 		for i, item := range allJsons {
 			for key, value := range item {
