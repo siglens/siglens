@@ -814,7 +814,7 @@ func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {
 	case SS_DT_SIGNED_NUM:
 		return e.CVal.(int64) == other.CVal.(int64)
 	case SS_DT_FLOAT:
-		return e.CVal.(float64) == other.CVal.(float64)
+		return math.Abs(e.CVal.(float64)-other.CVal.(float64)) < 1e-6
 	case SS_DT_BACKFILL:
 		return true
 	default:

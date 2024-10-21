@@ -35,6 +35,14 @@ func Test_CVal_Equal(t *testing.T) {
 	c1 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: uint64(123)}
 	c2 = &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)}
 	assert.False(t, c1.Equal(c2))
+
+	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)}
+	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456001)}
+	assert.True(t, c1.Equal(c2))
+
+	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)}
+	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.457)}
+	assert.False(t, c1.Equal(c2))
 }
 
 func Test_CVal_Hash(t *testing.T) {
