@@ -28,6 +28,7 @@ import (
 )
 
 func Test_GetFullResult_notTruncated(t *testing.T) {
+	qid := uint64(0)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
 			"col1": {
@@ -36,10 +37,10 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
 			},
 		},
-		qid: 0,
+		qid: qid,
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -50,9 +51,10 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 }
 
 func Test_GetFullResult_truncated(t *testing.T) {
+	qid := uint64(0)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{"col1": {}},
-		qid:        0,
+		qid:        qid,
 	}
 
 	for i := 0; i < int(utils.QUERY_EARLY_EXIT_LIMIT+10); i++ {
@@ -62,7 +64,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()

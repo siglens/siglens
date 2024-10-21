@@ -742,7 +742,6 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	switch iqr.mode {
 	case notSet:
 		// There's no data.
-		return nil, nil
 	case withRRCs:
 		records, err = iqr.readAllColumnsWithRRCs()
 		if err != nil {
