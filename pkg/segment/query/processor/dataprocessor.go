@@ -79,7 +79,12 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	for {
 		gotEOF := false
 		input, err := dp.getStreamInput()
-		if err != nil && err != io.EOF {
+		if err == io.EOF {
+			if input != nil {
+				input.EOF = true
+			}
+			gotEOF = true
+		} else if err != nil {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 		}
 
@@ -121,7 +126,7 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
 		if dp.IsDataGenerator() {
-			return iqr.NewIQR(dp.qid), nil
+			return iqr.NewIQR(dp.qid), io.EOF
 		}
 		return nil, errors.New("no streams")
 	case 1:

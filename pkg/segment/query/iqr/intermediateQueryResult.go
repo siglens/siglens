@@ -61,6 +61,7 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
+	EOF            bool
 }
 
 func NewIQR(qid uint64) *IQR {

@@ -58,7 +58,7 @@ func createRecord(columnNames []string, record []string) (map[string]utils.CValu
 }
 
 func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
-	if inpIqr != nil && !p.options.FirstCommand {
+	if inpIqr != nil && !inpIqr.EOF {
 		p.qid = inpIqr.GetQid()
 		return inpIqr, nil
 	}
@@ -159,6 +159,14 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	err = nIQR.AppendKnownValues(records)
 	if err != nil {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Error appending known values, err: %v", err)
+	}
+
+	if inpIqr != nil && inpIqr.NumberOfRecords() > 0 {
+		err = inpIqr.Append(nIQR)
+		if err != nil {
+			return nil, fmt.Errorf("inputlookupProcessor.Process: Error appending iqr, err: %v", err)
+		}
+		return inpIqr, nil
 	}
 
 	return nIQR, nil
