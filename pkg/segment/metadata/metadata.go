@@ -275,7 +275,7 @@ func (hm *allSegmentMetadata) loadParallelSsm(idxToLoad []int) (uint64, int) {
 func (hm *allSegmentMetadata) deleteSegmentKey(key string) {
 	hm.updateLock.Lock()
 	defer hm.updateLock.Unlock()
-	hm.deleteSegmentKeyInternal(key)
+	hm.deleteSegmentKeyWithLock(key)
 }
 
 func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
@@ -294,7 +294,7 @@ func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
 		}
 	}
 	for segKey := range allSegKeysInTable {
-		hm.deleteSegmentKeyInternal(segKey)
+		hm.deleteSegmentKeyWithLock(segKey)
 	}
 	delete(hm.tableSortedMetadata, table)
 	GlobalSegStoreSummary.DecrementTotalTableCount()
@@ -302,7 +302,7 @@ func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
 
 // internal function to delete segment key from all SiglensMetadata structs
 // caller is responsible for acquiring locks
-func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
+func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 	var tName string
 	for i, sMetadata := range hm.allSegmentMicroIndex {
 		if sMetadata.SegmentKey == key {
@@ -313,7 +313,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 	}
 	delete(hm.segmentMetadataReverseIndex, key)
 	if tName == "" {
-		log.Debugf("DeleteSegmentKey key %+v was not found in metadata", key)
+		log.Errorf("deleteSegmentKeyWithLock: key %+v was not found in allSegmentMicroIndex", key)
 		return
 	}
 	sortedTableSlice, ok := hm.tableSortedMetadata[tName]
