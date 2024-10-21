@@ -345,6 +345,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 	renameHardcodedCols := map[string]string{}
 	var err error
 	tableName := "*"
+	log.Infof("************* SQL %+v", currStmt.SelectExprs[0])
 	if len(currStmt.From) > 1 {
 		return astNode, aggNode, columsArray, fmt.Errorf("qid=%v, parseSelect: FROM clause has too many arguments! Only one table selection is supported", qid)
 	}
@@ -365,7 +366,12 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 			}
 			switch agg := alias.Expr.(type) {
 			case *sqlparser.ColName:
-				columsArray = append(columsArray, agg.Name.CompliantName())
+				colnamePart := agg.Qualifier.Name.String()
+				if colnamePart != "" {
+					columsArray = append(columsArray, colnamePart+"."+agg.Name.CompliantName())
+				} else {
+					columsArray = append(columsArray, agg.Name.CompliantName())
+				}
 				if len(label) != 0 {
 					renameCols[agg.Name.CompliantName()] = label
 				}
