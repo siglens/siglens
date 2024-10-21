@@ -736,6 +736,28 @@ func (dte *DtypeEnclosure) IsString() bool {
 	}
 }
 
+func (dte *DtypeEnclosure) IsBool() bool {
+	switch dte.Dtype {
+	case SS_DT_BOOL:
+		return true
+	default:
+		return false
+	}
+}
+
+func (dte *DtypeEnclosure) IsFloat() bool {
+	switch dte.Dtype {
+	case SS_DT_FLOAT:
+		return true
+	default:
+		return false
+	}
+}
+
+func (dte *DtypeEnclosure) IsInt() bool {
+	return dte.IsNumeric() && !dte.IsFloat()
+}
+
 func IsBoolean(str string) bool {
 	lowerStr := strings.ToLower(str)
 	return lowerStr == "true" || lowerStr == "false"
@@ -963,6 +985,10 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 	default:
 		return 0, errors.New("CValueEnclosure GetUIntValue: unsupported Dtype")
 	}
+}
+
+func (e *CValueEnclosure) IsNull() bool {
+	return e.Dtype == SS_DT_BACKFILL || e.Dtype == SS_INVALID || e.CVal == nil
 }
 
 type CValueDictEnclosure struct {

@@ -75,6 +75,10 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func (iqr *IQR) GetQID() uint64 {
+	return iqr.qid
+}
+
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")
@@ -302,27 +306,28 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
-			return nil
+			return nil, nil
 		}
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
-		return values
+		return values, nil
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
@@ -700,6 +705,11 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		if err != nil {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
+		}
+
+		// Append the known values to the result.
+		for cname, values := range iqr.knownValues {
+			records[cname] = values
 		}
 	case withoutRRCs:
 		records = iqr.knownValues
