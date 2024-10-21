@@ -129,6 +129,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
 		return NewGentimesDP(queryAgg.GentimesExpr)
+	} else if queryAgg.InputLookupExpr != nil {
+		return NewInputLookupDP(queryAgg.InputLookupExpr)
 	} else if queryAgg.HeadExpr != nil {
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {

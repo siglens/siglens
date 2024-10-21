@@ -79,9 +79,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	for {
 		gotEOF := false
 		input, err := dp.getStreamInput()
-		if err == io.EOF {
-			gotEOF = true
-		} else if err != nil {
+		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 		}
 
@@ -112,6 +110,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return true
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).options.FirstCommand
 	default:
 		return false
 	}
@@ -251,6 +251,20 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 		processor: &gentimesProcessor{
 			options:       options,
 			currStartTime: options.StartTime,
+		},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
+	return &DataProcessor{
+		streams: make([]*cachedStream, 0),
+		processor: &inputlookupProcessor{
+			options: options,
+			start:   options.Start,
 		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
