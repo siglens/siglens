@@ -43,6 +43,7 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -989,9 +990,16 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 	}
 
 	sTime := time.Now()
-	rawSearchSSRs := ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
-		qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
+	var rawSearchSSRs map[string]*structs.SegmentSearchRequest
+	if toputils.IsFileForRotatedSegment(qsr.segKey) {
+		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
+			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
+	} else {
+		rawSearchSSRs = metadata.ExtractUnrotatedSSRFromSearchNode(qsr.sNode, qsr.queryRange,
+			qsr.indexInfo.GetQueryTables(), blocksToRawSearch, querySummary, qsr.qid)
+	}
 	querySummary.UpdateExtractSSRTime(time.Since(sTime))
+
 	for _, req := range rawSearchSSRs {
 		req.SType = qsr.sType
 		req.ConsistentCValLenMap = qsr.ConsistentCValLenMap
