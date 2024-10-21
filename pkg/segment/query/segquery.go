@@ -385,6 +385,30 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 	}
 	querySummary.UpdateRemainingDistributedQueries(distributedQueries)
 
+	if config.IsNewQueryPipelineEnabled() {
+		for _, qsr := range sortedQSRSlice {
+			if qsr.blkTracker != nil {
+				continue
+			}
+
+			switch qsr.sType {
+			case structs.PQS:
+				spqmr, err := pqs.GetAllPersistentQueryResults(qsr.segKey, qsr.QueryInformation.pqid)
+				if err != nil {
+					log.Errorf("qid=%d, GetSortedQSRs: Cannot get persistent query results; searching all blocks; err=%v",
+						queryInfo.qid, err)
+					qsr.sType = structs.RAW_SEARCH
+					qsr.blkTracker = structs.InitEntireFileBlockTracker()
+				} else {
+					qsr.blkTracker = structs.InitExclusionBlockTracker(spqmr)
+				}
+			default:
+				return nil, utils.TeeErrorf("qid=%d GetSortedQSRs: BlockTracker is nil for QSR with type %v",
+					queryInfo.qid, qsr.sType)
+			}
+		}
+	}
+
 	return sortedQSRSlice, nil
 }
 
