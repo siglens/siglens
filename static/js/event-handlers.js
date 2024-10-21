@@ -964,8 +964,9 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
 function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
     const logsColumnDef = gridOptions.columnApi.getColumn('logs').getColDef();
     const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+    
     if (currentView === 'table') {
-        logsColumnDef.cellRenderer = null; // Use default renderer for table view
+        logsColumnDef.cellRenderer = null;
     } else {
         logsColumnDef.cellRenderer = (params) => {
             const data = params.data || {};
@@ -973,7 +974,7 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
             let addSeparator = false;
 
             Object.entries(data)
-                .filter(([key]) => key !== 'timestamp' && selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns))
+                .filter(([key]) => key !== 'timestamp' && key !== 'logs')
                 .forEach(([key, value]) => {
                     let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
                     let formattedValue;
@@ -982,11 +983,17 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
                     } else if (currentView === 'multi-line') {
                         formattedValue = formatLogsValue(value);
                     }
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${formattedValue}</span>`;
+                    
+                    const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
+                    const visibilityClass = isVisible ? '' : 'style="display:none;"';
+                    
+                    logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
                     addSeparator = true;
                 });
 
-            return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
+            return currentView === 'single-line' 
+                ? `<div style="white-space: nowrap;">${logString}</div>` 
+                : `<div style="white-space: pre-wrap;">${logString}</div>`;
         };
     }
 
