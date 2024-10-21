@@ -43,7 +43,6 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -991,7 +990,7 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 
 	sTime := time.Now()
 	var rawSearchSSRs map[string]*structs.SegmentSearchRequest
-	if toputils.IsFileForRotatedSegment(qsr.segKey) {
+	if utils.IsFileForRotatedSegment(qsr.segKey) {
 		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
 			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
 	} else {
