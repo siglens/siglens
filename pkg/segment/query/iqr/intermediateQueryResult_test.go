@@ -497,3 +497,32 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	err = rrcIqr.Append(withoutRRCIqr)
 	assert.Error(t, err)
 }
+
+func Test_RenameColumn(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr.RenameColumn("col1", "newCol1")
+	assert.NoError(t, err)
+	_, err = iqr.ReadColumn("col1")
+	assert.Error(t, err)
+	values, err := iqr.ReadColumn("newCol1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
+
+	// Rename the renamed column.
+	err = iqr.RenameColumn("newCol1", "superNewCol1")
+	assert.NoError(t, err)
+	_, err = iqr.ReadColumn("col1")
+	assert.Error(t, err)
+	_, err = iqr.ReadColumn("newCol1")
+	assert.Error(t, err)
+	values, err = iqr.ReadColumn("superNewCol1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
+}
