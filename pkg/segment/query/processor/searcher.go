@@ -232,7 +232,7 @@ func (s *searcher) fetchGroupByResults() (*iqr.IQR, error) {
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
-	iqr := iqr.NewIQRWithQueryType(s.queryInfo.GetQid(), queryType)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
 	err = iqr.AppendGroupByResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {

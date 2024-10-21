@@ -59,7 +59,6 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
-	qType          structs.QueryType
 }
 
 func NewIQR(qid uint64) *IQR {
@@ -73,14 +72,7 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
-		qType:            structs.RRCCmd,
 	}
-}
-
-func NewIQRWithQueryType(qid uint64, qtype structs.QueryType) *IQR {
-	iqr := NewIQR(qid)
-	iqr.qType = qtype
-	return iqr
 }
 
 func (iqr *IQR) validate() error {
@@ -511,7 +503,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
 
-	result := NewIQR(iqrs[0].qid, iqrs[0].qType)
+	result := NewIQR(iqrs[0].qid)
 	result.mode = iqrs[0].mode
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
@@ -691,7 +683,7 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -726,7 +718,7 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 
 	var response *structs.PipeSearchResponseOuter
 
-	switch iqr.qType {
+	switch qType {
 	case structs.RRCCmd:
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
@@ -735,7 +727,7 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			},
 			AllPossibleColumns: toputils.GetKeysOfMap(records),
 			Errors:             nil,
-			Qtype:              iqr.qType.String(),
+			Qtype:              qType.String(),
 			CanScrollMore:      false,
 			ColumnsOrder:       toputils.GetSortedStringKeys(records),
 		}
@@ -752,7 +744,7 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 			},
 			AllPossibleColumns: toputils.GetKeysOfMap(records),
 			Errors:             nil,
-			Qtype:              iqr.qType.String(),
+			Qtype:              qType.String(),
 			CanScrollMore:      false,
 			ColumnsOrder:       toputils.GetSortedStringKeys(records),
 			BucketCount:        bucketCount,
@@ -764,7 +756,7 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 	case structs.SegmentStatsCmd: // TODO: implement
 		panic("IQR.AsResult: SegmentStatsCmd not implemented")
 	default:
-		return nil, fmt.Errorf("IQR.AsResult: unexpected query type %v", iqr.qType)
+		return nil, fmt.Errorf("IQR.AsResult: unexpected query type %v", qType)
 	}
 
 	return response, nil
@@ -774,10 +766,6 @@ func (iqr *IQR) AppendGroupByResults(bucketHolderArr []*structs.BucketHolder, me
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendGroupByResults: validation failed: %v", err)
 		return err
-	}
-
-	if iqr.qType != structs.GroupByCmd {
-		return fmt.Errorf("IQR.AppendGroupByResults: not a GroupBy query. queryType=%v", iqr.qType)
 	}
 
 	iqr.mode = withoutRRCs
