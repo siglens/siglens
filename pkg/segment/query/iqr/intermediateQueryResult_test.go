@@ -464,7 +464,7 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	numGeneratedCol := withoutRRCIqr.NumberOfRecords()
 	assert.Equal(t, 3, numGeneratedCol)
 
-	convertedRRCIQR, err := withoutRRCIqr.getRRCIQRFromWithoutRRCIQR()
+	convertedRRCIQR, err := withoutRRCIqr.getRRCIQR()
 	assert.NoError(t, err)
 	assert.Equal(t, withRRCs, convertedRRCIQR.mode)
 	assert.Equal(t, 3, len(convertedRRCIQR.rrcs))

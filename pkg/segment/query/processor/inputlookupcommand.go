@@ -47,11 +47,12 @@ func checkCSVFormat(filename string) bool {
 
 func createRecord(columnNames []string, record []string) (map[string]utils.CValueEnclosure, error) {
 	if len(columnNames) != len(record) {
-		return nil, fmt.Errorf("createRecord: Column and record lengths are not equal, columnNames: %v, record: %v", columnNames, record)
+		return nil, fmt.Errorf("createRecord: columnNames and record lengths are not equal, len(columnNames): %v, len(record): %v",
+			len(columnNames), len(record))
 	}
 	recordMap := make(map[string]utils.CValueEnclosure)
-	for i, col := range columnNames {
-		recordMap[col] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
+	for i, cname := range columnNames {
+		recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
 	}
 	return recordMap, nil
 }
@@ -76,22 +77,22 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 
 	filePath := filepath.Join(config.GetLookupPath(), filename)
 
-	file, err := os.Open(filePath)
+	fd, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Error while opening file %v, err: %v", filePath, err)
 	}
-	defer file.Close()
+	defer fd.Close()
 
 	var reader *csv.Reader
 	if strings.HasSuffix(filename, ".csv.gz") {
-		gzipReader, err := gzip.NewReader(file)
+		gzipReader, err := gzip.NewReader(fd)
 		if err != nil {
 			return nil, fmt.Errorf("inputlookupProcessor.Process: Error while creating gzip reader, err: %v", err)
 		}
 		defer gzipReader.Close()
 		reader = csv.NewReader(gzipReader)
 	} else {
-		reader = csv.NewReader(file)
+		reader = csv.NewReader(fd)
 	}
 
 	// read columns from first row of csv file

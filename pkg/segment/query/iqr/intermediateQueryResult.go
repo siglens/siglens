@@ -43,6 +43,8 @@ const (
 	withoutRRCs
 )
 
+const NIL_RRC_SEGKEY = uint16(9999)
+
 type IQR struct {
 	mode iqrMode
 
@@ -283,7 +285,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 	// Prepare to call BatchProcessToMap().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
 		if rrc == nil {
-			return uint16(9999) // Default Segkey for nil RRCs
+			return NIL_RRC_SEGKEY
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
@@ -385,7 +387,7 @@ func (iqr *IQR) Append(other *IQR) error {
 		if iqr.qid != other.qid {
 			return toputils.TeeErrorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, other.qid)
 		}
-		newIQR, err := other.getRRCIQRFromWithoutRRCIQR()
+		newIQR, err := other.getRRCIQR()
 		if err != nil {
 			log.Errorf("IQR.Append: error getting RRC IQR from without RRC IQR: %v", err)
 			return err
@@ -619,9 +621,10 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 }
 
 // Caller should validate iqr before.
-func (iqr *IQR) getRRCIQRFromWithoutRRCIQR() (*IQR, error) {
+// It can create a new IQR with RRCs from an IQR without RRCs.
+func (iqr *IQR) getRRCIQR() (*IQR, error) {
 	if iqr.mode != withoutRRCs {
-		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: other mode is not withoutRRCs")
+		return nil, fmt.Errorf("IQR.getRRCIQR: other mode is not withoutRRCs")
 	}
 	valuesLen := 0
 	for _, values := range iqr.knownValues {
@@ -631,11 +634,11 @@ func (iqr *IQR) getRRCIQRFromWithoutRRCIQR() (*IQR, error) {
 	newIQR := NewIQR(iqr.qid)
 	err := newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
 	if err != nil {
-		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending RRCs: %v", err)
+		return nil, fmt.Errorf("IQR.getRRCIQR: error appending RRCs: %v", err)
 	}
 	err = newIQR.AppendKnownValues(iqr.knownValues)
 	if err != nil {
-		return nil, fmt.Errorf("IQR.mergeWithoutRRCIntoRRCIQR: error appending known values: %v", err)
+		return nil, fmt.Errorf("IQR.getRRCIQR: error appending known values: %v", err)
 	}
 
 	return newIQR, nil
