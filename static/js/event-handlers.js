@@ -25,10 +25,10 @@ function setupEventHandlers() {
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#available-fields').on('click', availableFieldsClickHandler);
+    $('#available-fields').off('click').on('click', availableFieldsClickHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
-    $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
+    $('#available-fields .fields').off('click').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
     $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
