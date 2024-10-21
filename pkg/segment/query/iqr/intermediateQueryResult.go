@@ -55,6 +55,7 @@ type IQR struct {
 	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
 	deletedColumns map[string]struct{}
 	renamedColumns map[string]string // old name -> new name
+	columnIndex    map[string]int
 
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
@@ -72,6 +73,7 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
+		columnIndex:      make(map[string]int),
 	}
 }
 
@@ -231,9 +233,12 @@ func (iqr *IQR) GetAllColumnNames() (map[string]struct{}, error) {
 		// There's no data.
 		return nil, nil
 	case withRRCs, withoutRRCs:
-		if withRRCs == iqr.mode {
-			iqr.readAllColumnNamesWithRRCs(allCnames)
-		} 
+		if iqr.mode == withRRCs {
+			err := iqr.readAllColumnNamesWithRRCs(allCnames)
+			if err != nil {
+				return nil, fmt.Errorf("IQR.ReadAllColumns: error reading all column names: %v", err)
+			}
+		}
 		for cname := range iqr.knownValues {
 			if _, ok := iqr.deletedColumns[cname]; !ok {
 				allCnames[cname] = struct{}{}
@@ -422,6 +427,10 @@ func (iqr *IQR) Append(other *IQR) error {
 		log.Errorf("IQR.Append: validation failed on other: %v", err)
 		return err
 	}
+
+	iqr.AddColumnsToDelete(other.deletedColumns)
+
+	iqr.AddColumnIndex(other.columnIndex)
 
 	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
@@ -648,17 +657,20 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	return result, nil
 }
 
-func (iqr *IQR) DeleteColumns(cnames map[string]struct{}) error {
-	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.DeleteColumns: validation failed: %v", err)
-		return err
-	}
-
+func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
 	for cname := range cnames {
 		iqr.deletedColumns[cname] = struct{}{}
 	}
+}
 
-	return nil
+func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
+	for cname, index := range cnamesToIndex {
+		// Some iqrs might have different number of columns which resulted in different column index
+		// We pick the largest index for each column
+		if presentIndex, ok := iqr.columnIndex[cname]; !ok || presentIndex > index {
+			iqr.columnIndex[cname] = index
+		}
+	}
 }
 
 func (iqr *IQR) discard(numRecords int) error {
@@ -766,6 +778,34 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 	return nil
 }
 
+func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
+	indexToCols := make(map[int][]string)
+	withoutIndexCols := []string{}
+	finalColumnOrder := []string{}
+
+	for _, cname := range allCnames {
+		if idx, isIndexAvailable := iqr.columnIndex[cname]; isIndexAvailable {
+			indexToCols[idx] = append(indexToCols[idx], cname)
+		} else {
+			withoutIndexCols = append(withoutIndexCols, cname)
+		}
+	}
+
+	allIndexes := toputils.GetKeysOfMap(indexToCols)
+	sort.Ints(allIndexes)
+
+	for _, idx := range allIndexes {
+		allColsAtIdx := indexToCols[idx]
+		sort.Strings(allColsAtIdx)
+		finalColumnOrder = append(finalColumnOrder, allColsAtIdx...)
+	}
+
+	sort.Strings(withoutIndexCols)
+	finalColumnOrder = append(finalColumnOrder, withoutIndexCols...)
+
+	return finalColumnOrder
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
@@ -789,6 +829,9 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 
 		// Append the known values to the result.
 		for cname, values := range iqr.knownValues {
+			if _, isDeleted := iqr.deletedColumns[cname]; isDeleted {
+				continue
+			}
 			records[cname] = values
 		}
 	case withoutRRCs:
@@ -806,16 +849,18 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		}
 	}
 
+	allCNames := toputils.GetKeysOfMap(records)
+
 	response := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
 			TotalMatched: iqr.NumberOfRecords(),
 			Hits:         recordsAsAny,
 		},
-		AllPossibleColumns: toputils.GetKeysOfMap(records),
+		AllPossibleColumns: allCNames,
 		Errors:             nil,
 		Qtype:              "logs-query", // TODO: handle stats queries
 		CanScrollMore:      false,
-		ColumnsOrder:       toputils.GetSortedStringKeys(records),
+		ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
 	}
 
 	return response, nil

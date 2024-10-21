@@ -34,20 +34,24 @@ type fieldsProcessor struct {
 // which may or may not contain wildcards.
 // Note that the results may have duplicates if a column in finalCols matches
 // multiple wildcardCols.
-func getMatchingColumns(wildcardCols []string, finalCols map[string]struct{}) []string {
+func getMatchingColumns(wildcardCols []string, finalCols map[string]struct{}) map[string]int {
 	currentCols := make([]string, len(finalCols))
-	i := 0
 	for col := range finalCols {
-		currentCols[i] = col
-		i++
+		currentCols = append(currentCols, col)
 	}
 
-	matchingCols := make([]string, 0)
-	for _, wildcardCol := range wildcardCols {
-		matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(wildcardCol, currentCols)...)
+	matchedCnames := make(map[string]int)
+
+	for idx, wildcardCol := range wildcardCols {
+		matchedCols := utils.SelectMatchingStringsWithWildcard(wildcardCol, currentCols)
+		for _, col := range matchedCols {
+			if _, ok := matchedCnames[col]; !ok {
+				matchedCnames[col] = idx
+			}
+		}
 	}
 
-	return matchingCols
+	return matchedCnames
 }
 
 func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -60,11 +64,12 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	colsToDelete := make(map[string]struct{})
+	colsIndex := make(map[string]int)
 
 	// Add excluded columns to deletedColumns
 	if p.options.ExcludeColumns != nil {
 		matchedCnames := getMatchingColumns(p.options.ExcludeColumns, allCnames)
-		for _, cname := range matchedCnames {
+		for cname := range matchedCnames {
 			colsToDelete[cname] = struct{}{}
 		}
 	}
@@ -73,10 +78,11 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.options.IncludeColumns != nil {
 		matchedCnames := getMatchingColumns(p.options.IncludeColumns, allCnames)
 		includeCnames := make(map[string]struct{})
-		for _, cname := range matchedCnames {
+		for cname, index := range matchedCnames {
 			includeCnames[cname] = struct{}{}
+			colsIndex[cname] = index
 		}
-		
+
 		// remove all columns that should not be included
 		for cname := range allCnames {
 			if _, ok := includeCnames[cname]; !ok {
@@ -85,12 +91,8 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
-	if len(colsToDelete) > 0 {
-		err := iqr.DeleteColumns(colsToDelete)
-		if err != nil {
-			return nil, fmt.Errorf("fieldsProcessor.Process: cannot delete columns; err: %v", err)
-		}
-	}
+	iqr.AddColumnsToDelete(colsToDelete)
+	iqr.AddColumnIndex(colsIndex)
 
 	return iqr, nil
 }
