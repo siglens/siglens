@@ -58,13 +58,21 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
 	}
 
+	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
+
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		// If query Type is GroupByCmd/SegmentStatsCmd, this agg will be processed by the searcher.
+		if queryType != structs.RRCCmd {
+			continue
+		}
+
 		dataProcessor := asDataProcessor(curAgg)
 		if dataProcessor == nil {
 			break
 		}
 		dataProcessor.qid = searcher.qid
+		dataProcessor.qType = queryType
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
@@ -80,8 +88,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
-
-	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors)
 }
