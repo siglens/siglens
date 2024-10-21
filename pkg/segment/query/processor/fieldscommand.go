@@ -19,6 +19,7 @@ package processor
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -49,49 +50,55 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]struct{}) []
 	return matchingCols
 }
 
-
 func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	
+	if iqr == nil {
+		return nil, io.EOF
+	}
 	allCnames, err := iqr.GetAllColumnNames()
 	if err != nil {
 		return nil, fmt.Errorf("fieldsProcessor.Process: cannot get all column names; err=%v", err)
 	}
 
-	
+	colsToDelete := make(map[string]struct{})
 
+	// Add excluded columns to deletedColumns
 	if p.options.ExcludeColumns != nil {
-		// Remove the specified columns, which may have wildcards.
-		matchingCols := getMatchingColumns(p.options.ExcludeColumns, finalCols)
-		for _, matchingCol := range matchingCols {
-			delete(finalCols, matchingCol)
+		matchedCnames := getMatchingColumns(p.options.ExcludeColumns, allCnames)
+		for _, cname := range matchedCnames {
+			colsToDelete[cname] = struct{}{}
 		}
 	}
 
+	// Add all the columns except the include columns to deletedColumns
 	if p.options.IncludeColumns != nil {
-		// Remove all columns except the specified ones, which may have wildcards.
-		if finalCols == nil {
-			return errors.New("performColumnsRequest: finalCols is nil")
+		matchedCnames := getMatchingColumns(p.options.IncludeColumns, allCnames)
+		includeCnames := make(map[string]struct{})
+		for _, cname := range matchedCnames {
+			includeCnames[cname] = struct{}{}
 		}
-
-		matchingCols := getMatchingColumns(p.options.IncludeColumns, finalCols)
-
-		// First remove everything.
-		for col := range finalCols {
-			delete(finalCols, col)
-		}
-
-		// Add the matching columns.
-		for index, matchingCol := range matchingCols {
-			finalCols[matchingCol] = true
-			nodeResult.ColumnsOrder[matchingCol] = index
+		
+		// remove all columns that should not be included
+		for cname := range allCnames {
+			if _, ok := includeCnames[cname]; !ok {
+				colsToDelete[cname] = struct{}{}
+			}
 		}
 	}
+
+	if len(colsToDelete) > 0 {
+		err := iqr.DeleteColumns(colsToDelete)
+		if err != nil {
+			return nil, fmt.Errorf("fieldsProcessor.Process: cannot delete columns; err: %v", err)
+		}
+	}
+
+	return iqr, nil
 }
 
 func (p *fieldsProcessor) Rewind() {
-	panic("not implemented")
+	// do nothing
 }
 
 func (p *fieldsProcessor) Cleanup() {
-	panic("not implemented")
+	// do nothing
 }
