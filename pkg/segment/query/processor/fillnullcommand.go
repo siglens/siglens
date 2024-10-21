@@ -28,7 +28,9 @@ import (
 )
 
 type fillnullProcessor struct {
-	options *structs.FillNullExpr
+	options      *structs.FillNullExpr
+	knownColumns map[string]struct{}
+	secondPass   bool
 }
 
 func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue utils.CValueEnclosure) {
