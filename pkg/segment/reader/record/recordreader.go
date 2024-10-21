@@ -156,6 +156,11 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		return nil, err
 	}
 	defer sharedReader.Close()
+
+	if len(sharedReader.ErrorColMap) > 0 {
+		return nil, sharedReader.ErrorColMap[cname]
+	}
+
 	multiReader := sharedReader.MultiColReaders[0]
 
 	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
@@ -165,15 +170,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcsInBatch []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcsInBatch) == 0 {
-			return nil
+			return nil, nil
 		}
 
-		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
+		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid), nil
 	}
 
-	enclosures := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
 	return enclosures, nil
 }
 

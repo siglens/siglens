@@ -4929,6 +4929,7 @@ FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:Fill
                 FillNullRequest: fillNullExpr,
             },
         },
+        FillNullExpr: fillNullExpr,
     }, nil
 }
 
