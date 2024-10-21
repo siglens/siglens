@@ -342,6 +342,10 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 
 	if config.IsNewQueryPipelineEnabled() {
 		response := query.GetNewQueryPipelineResponse(qid)
+		if response == nil {
+			log.Errorf("qid=%d, processCompleteUpdate: failed to get new query pipeline response, err: %+v", qid, err)
+			return
+		}
 		resp.TotalRRCCount = len(response.Hits.Hits)
 	}
 

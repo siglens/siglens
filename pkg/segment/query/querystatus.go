@@ -549,6 +549,10 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 
 	if config.IsNewQueryPipelineEnabled() {
 		resp := rQuery.NewPipeLineResponse
+		if resp == nil {
+			log.Errorf("GetMeasureResultsForQid: qid %+v does not have NewPipeLineResponse!", qid)
+			return nil, nil, nil, nil, 0
+		}
 		return resp.MeasureResults, resp.MeasureFunctions, resp.GroupByCols, resp.ColumnsOrder, len(resp.MeasureResults)
 	}
 
@@ -934,13 +938,13 @@ func LogGlobalSearchErrors(qid uint64) {
 	}
 }
 
-func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid uint64) {
+func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid uint64) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
 		log.Errorf("SetQueryResponse: qid %+v does not exist!", qid)
-		return
+		return fmt.Errorf("qid does not exist")
 	}
 
 	rQuery.rqsLock.Lock()
@@ -957,6 +961,7 @@ func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid 
 		QueryUpdate:     &QueryUpdate{QUpdate: QUERY_UPDATE_LOCAL},
 		PercentComplete: 100,
 	}
+	return nil
 }
 
 func GetNewQueryPipelineResponse(qid uint64) *structs.PipeSearchResponseOuter {

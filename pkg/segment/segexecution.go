@@ -475,30 +475,34 @@ func executeNewPipelineQueryInternal(root *structs.ASTNode, aggs *structs.QueryA
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
 		query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
+		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to prepare to run query, err: %v", qid, err)
 		return nil
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
+		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to create query processor, err: %v", qid, err)
 		return nil
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to set cleanup callback, err: %v", qid, err)
+		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to set cleanup callback, err: %v", qid, err)
 		return nil
 	}
 
 	httpResponse, err := queryProcessor.GetFullResult()
 	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to get full result, err: %v", qid, err)
 		return nil
 	}
 
-	query.SetNewQueryPipelineResponse(httpResponse, qid)
+	err = query.SetNewQueryPipelineResponse(httpResponse, qid)
+	if err != nil {
+		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to set new query pipeline response, err: %v", qid, err)
+		return nil
+	}
 
 	query.SetQidAsFinished(qid)
 
