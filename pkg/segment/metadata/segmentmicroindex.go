@@ -339,16 +339,14 @@ func (smi *SegmentMicroIndex) LoadCmiForSearchTime(segkey string,
 
 	var finalColsToCheck map[string]bool
 
-	smi.smiLock.RLock()
+	smi.smiLock.Lock()
+	defer smi.smiLock.Unlock()
+
 	if wildcardCol {
 		finalColsToCheck = smi.GetColumns()
 	} else {
 		finalColsToCheck = colsToCheck
 	}
-	smi.smiLock.RUnlock()
-
-	smi.smiLock.Lock()
-	defer smi.smiLock.Unlock()
 
 	var missingBlockCMI bool
 	err := smi.readCmis(timeFilteredBlocks, finalColsToCheck)
