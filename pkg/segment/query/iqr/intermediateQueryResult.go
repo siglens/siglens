@@ -199,7 +199,28 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	return nil
 }
 
+func 
+
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
+		return nil, err
+	}
+
+	switch iqr.mode {
+	case notSet:
+		// There's no data.
+		return nil, nil
+	case withRRCs:
+		return iqr.readAllColumnsWithRRCs()
+	case withoutRRCs:
+		return iqr.knownValues, nil
+	default:
+		return nil, fmt.Errorf("IQR.ReadAllColumns: unexpected mode %v", iqr.mode)
+	}
+}
+
+func (iqr *IQR) GetAllColumnNames() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 		return nil, err
@@ -247,6 +268,40 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	default:
 		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
 	}
+}
+
+func (iqr *IQR) readAllColumnNamesWithRRCs() (map[string]struct{}, error) {
+	allCnames := make(map[string]struct{})
+	segKeyToVTable := make(map[string]string)
+
+	for _, rrc := range iqr.rrcs {
+		if rrc == nil {
+			continue
+		}
+		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
+		if !ok {
+			return nil, toputils.TeeErrorf("IQR.readAllColumnNamesWithRRCs: unknown encoding %v",
+				rrc.SegKeyInfo.SegKeyEnc)
+		}
+		if _, ok := segKeyToVTable[segKey]; ok {
+			continue
+		}
+		segKeyToVTable[segKey] = rrc.VirtualTableName
+	}
+
+	for segKey, vTable := range segKeyToVTable {
+		cnames, err := record.GetColsForSegKey(segKey, vTable)
+		if err != nil {
+			return nil, toputils.TeeErrorf("IQR.readAllColumnNamesWithRRCs: error reading all columns for segKey %v; err=%v",
+				segKey, err)
+		}
+
+		for cname := range cnames {
+			allCnames[cname] = struct{}{}
+		}
+	}
+
+	return allCnames, nil
 }
 
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {

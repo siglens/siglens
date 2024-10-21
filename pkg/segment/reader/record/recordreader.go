@@ -39,7 +39,7 @@ import (
 func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := getColsForSegKey(segKey, vTable)
+	allCols, err := GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -61,7 +61,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
