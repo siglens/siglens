@@ -75,6 +75,10 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func (iqr *IQR) GetQID() uint64 {
+	return iqr.qid
+}
+
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")
@@ -228,10 +232,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
 	}
 
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
-	}
-
 	if values, ok := iqr.knownValues[cname]; ok {
 		return values, nil
 	}
@@ -287,6 +287,16 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 	}
 
+	for oldName := range iqr.renamedColumns {
+		// TODO: don't read these columns from the RRCs, instead of reading and
+		// then deleting them.
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
+	}
+
 	return results, nil
 }
 
@@ -296,27 +306,28 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
-			return nil
+			return nil, nil
 		}
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
-		return values
+		return values, nil
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
@@ -660,6 +671,21 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	return nil
 }
 
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	iqr.renamedColumns[oldName] = newName
+	if values, ok := iqr.knownValues[oldName]; ok {
+		iqr.knownValues[newName] = values
+		delete(iqr.knownValues, oldName)
+	}
+
+	return nil
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
@@ -679,6 +705,11 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		if err != nil {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
+		}
+
+		// Append the known values to the result.
+		for cname, values := range iqr.knownValues {
+			records[cname] = values
 		}
 	case withoutRRCs:
 		records = iqr.knownValues
