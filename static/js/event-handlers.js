@@ -44,9 +44,20 @@ function setupEventHandlers() {
 
     $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
-    $('#log-opt-single-btn').on('click', logOptionSingleHandler);
-    $('#log-opt-multi-btn').on('click', logOptionMultiHandler);
-    $('#log-opt-table-btn').on('click', logOptionTableHandler);
+    $('#log-opt-single-btn').on('click', function () {
+        logOptionSingleHandler();
+        refreshColumnVisibility();
+    });
+
+    $('#log-opt-multi-btn').on('click', function () {
+        logOptionMultiHandler();
+        refreshColumnVisibility();
+    });
+
+    $('#log-opt-table-btn').on('click', function () {
+        logOptionTableHandler();
+        refreshColumnVisibility();
+    });
 
     $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
     $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
@@ -888,13 +899,14 @@ function handleHideNullColumnsCheckbox(event) {
 
 function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
     const columnDefs = gridOptions.columnApi?.getColumns().map((col) => ({ field: col.getColId() }));
-    let updatedSelectedFieldsList = [...selectedFieldsList]; // Use selectedFieldsList instead of availColNames
+    let updatedSelectedFieldsList = [...selectedFieldsList];
 
     if (!nullColumns) {
         //eslint-disable-next-line no-undef
         nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
     }
 
+    const currentView = Cookies.get('log-view');
     columnDefs?.forEach((colDef) => {
         const colField = colDef.field;
         if (colField !== 'timestamp' && colField !== 'logs') {
@@ -906,19 +918,16 @@ function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
             if (hideNullColumns && isNullColumn && isSelected) {
                 shouldBeVisible = false;
                 updatedSelectedFieldsList = updatedSelectedFieldsList.filter((field) => field !== colField);
-            }
-
-            gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
-
-            if (shouldBeVisible) {
-                $(`.toggle-${string2Hex(colField)}`).addClass('active');
-            } else {
-                $(`.toggle-${string2Hex(colField)}`).removeClass('active');
+                if (currentView === 'table') {
+                    gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
+                }
             }
         }
     });
     updateAvailableFieldsUI(updatedSelectedFieldsList);
     gridOptions.api?.sizeColumnsToFit();
+
+    updateLogsColumnRenderer(currentView, updatedSelectedFieldsList, nullColumns);
 }
 
 function updateAvailableFieldsUI(updatedSelectedFieldsList) {
@@ -950,4 +959,41 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
             el.find('.select-unselect-checkmark').remove();
         }
     }
+}
+
+function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
+    const logsColumnDef = gridOptions.columnApi.getColumn('logs').getColDef();
+    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+    if (currentView === 'table') {
+        logsColumnDef.cellRenderer = null; // Use default renderer for table view
+    } else {
+        logsColumnDef.cellRenderer = (params) => {
+            const data = params.data || {};
+            let logString = '';
+            let addSeparator = false;
+
+            Object.entries(data)
+                .filter(([key]) => key !== 'timestamp' && selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns))
+                .forEach(([key, value]) => {
+                    let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
+                    let formattedValue;
+                    if (currentView === 'single-line') {
+                        formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
+                    } else if (currentView === 'multi-line') {
+                        formattedValue = formatLogsValue(value);
+                    }
+                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${formattedValue}</span>`;
+                    addSeparator = true;
+                });
+
+            return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
+        };
+    }
+
+    gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
+}
+
+function refreshColumnVisibility() {
+    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+    updateColumnsVisibility(hideNullColumns);
 }
