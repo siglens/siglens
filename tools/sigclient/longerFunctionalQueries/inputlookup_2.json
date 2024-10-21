@@ -1,0 +1,6 @@
+{
+    "queryText": "| inputlookup start=1 max=6 test_lookup.csv where Test > 0 AND Department != \"Sales\" | stats sum(Salary) as sum, avg(PerformanceScore) as avg, min(EmployeeID), max(Salary), values(Department), dc(Test) as dc, count as cnt",
+    "expectedResult": {
+    }
+ }
+ 

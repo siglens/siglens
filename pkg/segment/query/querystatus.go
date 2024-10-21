@@ -301,12 +301,12 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 
 // This sets RawSearchIsFinished to true and sends a COMPLETE message to the query's StateChan
 // If there are no aggregations
-func setQidAsFinished(qid uint64) {
+func SetQidAsFinished(qid uint64) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("setRRCsAsCompleted: qid %+v does not exist!", qid)
+		log.Errorf("SetQidAsFinished: qid %+v does not exist!", qid)
 		return
 	}
 
@@ -377,6 +377,21 @@ func GetCurrentSearchResultCount(qid uint64) (int, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	return rQuery.currentSearchResultCount, nil
+}
+
+func SetCleanupCallback(qid uint64, cleanupCallback func()) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("SetCleanupCallback: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.cleanupCallback = cleanupCallback
+	rQuery.rqsLock.Unlock()
+
+	return nil
 }
 
 func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo *structs.TableInfo, timeRange *dtu.TimeRange, orgid uint64) {

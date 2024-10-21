@@ -1,0 +1,4 @@
+{
+    "queryText": "search _index=\"ind-0\" group=\"group 0\" | lookup user_roles user_id as user output role | stats count by role, app_id | sort - count"
+}
+  

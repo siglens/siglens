@@ -126,16 +126,26 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
 
-	blockMetadata, err := writer.GetBlockSearchInfoForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
-	}
+	var blockMetadata map[uint16]*structs.BlockMetadataHolder
+	var blockSummary []*structs.BlockSummary
+	if writer.IsSegKeyUnrotated(segKey) {
+		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
 
-	blockSummary, err := writer.GetBlockSummaryForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
+		blockSummary, err = writer.GetBlockSummaryForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
+	} else {
+		blockMetadata, blockSummary, err = segmetadata.GetSearchInfoAndSummary(segKey)
+		if err != nil {
+			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			return nil, err
+		}
 	}
 
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
@@ -146,6 +156,11 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		return nil, err
 	}
 	defer sharedReader.Close()
+
+	if len(sharedReader.ErrorColMap) > 0 {
+		return nil, sharedReader.ErrorColMap[cname]
+	}
+
 	multiReader := sharedReader.MultiColReaders[0]
 
 	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
@@ -155,15 +170,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcsInBatch []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcsInBatch) == 0 {
-			return nil
+			return nil, nil
 		}
 
-		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
+		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid), nil
 	}
 
-	enclosures := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
 	return enclosures, nil
 }
 

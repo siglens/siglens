@@ -33,6 +33,7 @@ type processor interface {
 }
 
 type DataProcessor struct {
+	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -107,9 +108,21 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
+func (dp *DataProcessor) IsDataGenerator() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return true
+	default:
+		return false
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
+		if dp.IsDataGenerator() {
+			return iqr.NewIQR(dp.qid), nil
+		}
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()
@@ -177,23 +190,25 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 }
 
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
+	hasSpan := options.BinSpanOptions != nil
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false, // TODO: depends on whether the span option was set
-		isTwoPassCmd:      false, // TODO: depends on whether the span option was set
+		isBottleneckCmd:   !hasSpan,
+		isTwoPassCmd:      !hasSpan,
 	}
 }
 
 func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
+	hasSort := len(options.DedupSortEles) > 0
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false,
+		isBottleneckCmd:   hasSort,
 		isTwoPassCmd:      false,
 	}
 }
@@ -221,20 +236,24 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 }
 
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
+	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false, // TODO: depends on whether the fieldlist option was set
-		isTwoPassCmd:      false, // TODO: depends on whether the fieldlist option was set
+		isBottleneckCmd:   !isFieldListSet,
+		isTwoPassCmd:      !isFieldListSet,
 	}
 }
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &gentimesProcessor{options: options},
+		streams: make([]*cachedStream, 0),
+		processor: &gentimesProcessor{
+			options:       options,
+			currStartTime: options.StartTime,
+		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
@@ -290,17 +309,6 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &rexProcessor{options: options},
-		inputOrderMatters: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   false,
-		isTwoPassCmd:      false,
-	}
-}
-
-func NewSearchDP(options *structs.ASTNode) *DataProcessor {
-	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &searchProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,

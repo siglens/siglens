@@ -38,6 +38,16 @@ func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
 	return result
 }
 
+func MapsConflict[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
+	for key, v1 := range map1 {
+		if v2, ok := map2[key]; ok && v1 != v2 {
+			return true
+		}
+	}
+
+	return false
+}
+
 func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	set := make(map[K]struct{}, len(m))
 
@@ -166,4 +176,44 @@ func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 	}
 
 	return result
+}
+
+type TwoWayMap[T1, T2 comparable] struct {
+	normal  map[T1]T2
+	reverse map[T2]T1
+}
+
+func NewTwoWayMap[T1, T2 comparable]() *TwoWayMap[T1, T2] {
+	return &TwoWayMap[T1, T2]{
+		normal:  make(map[T1]T2),
+		reverse: make(map[T2]T1),
+	}
+}
+
+func (twm *TwoWayMap[T1, T2]) Set(key T1, value T2) {
+	twm.normal[key] = value
+	twm.reverse[value] = key
+}
+
+func (twm *TwoWayMap[T1, T2]) Get(key T1) (T2, bool) {
+	value, exists := twm.normal[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) GetReverse(key T2) (T1, bool) {
+	value, exists := twm.reverse[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
+	return MapsConflict(twm.normal, other)
+}
+
+// Do not modify the returned map. Modifying it will break the two-way mapping.
+func (twm *TwoWayMap[T1, T2]) GetMapForReading() map[T1]T2 {
+	return twm.normal
+}
+
+func (twm *TwoWayMap[T1, T2]) Len() int {
+	return len(twm.normal)
 }
