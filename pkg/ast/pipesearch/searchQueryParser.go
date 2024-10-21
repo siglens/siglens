@@ -476,8 +476,14 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 			VectorArithmeticExpr: node.VectorArithmeticExpr,
 		}
 	default:
-		log.Errorf("searchPipeCommandsToASTnode: node type %d not supported", node.PipeCommandType)
-		return nil, errors.New("searchPipeCommandsToASTnode: node type not supported")
+		if node.RegexExpr != nil {
+			pipeCommands = &structs.QueryAggregators{
+				RegexExpr: node.RegexExpr,
+			}
+		} else {
+			log.Errorf("searchPipeCommandsToASTnode: node type %d not supported", node.PipeCommandType)
+			return nil, errors.New("searchPipeCommandsToASTnode: node type not supported")
+		}
 	}
 	pipeCommands.StatsOptions = node.StatsOptions
 	pipeCommands.StreamStatsOptions = node.StreamStatsOptions

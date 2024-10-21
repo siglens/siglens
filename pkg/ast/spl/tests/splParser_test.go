@@ -1752,6 +1752,30 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.GetRegexp(), compiledRegex)
 }
 
+func Test_regexAsAggregator(t *testing.T) {
+	query := []byte(`A=1 | where n="10" | regex n="^\d$"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+
+	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	fmt.Println("err", err)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	nextAgg := aggregator.Next
+	assert.NotNil(t, nextAgg)
+	assert.NotNil(t, nextAgg.RegexExpr)
+
+	assert.Equal(t, nextAgg.RegexExpr.Field, "n")
+	assert.Equal(t, nextAgg.RegexExpr.RawRegex, `^\d$`)
+	assert.NotNil(t, nextAgg.RegexExpr.Regexp)
+}
+
 func Test_aggCountWithoutField(t *testing.T) {
 	query := []byte(`search A=1 | stats count`)
 	res, err := spl.Parse("", query)
