@@ -341,7 +341,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 
 	if config.IsNewQueryPipelineEnabled() {
-		response := query.GetNewQueryPipelineResponse(qid)
+		response := query.GetPipeResp(qid)
 		if response == nil {
 			log.Errorf("qid=%d, processCompleteUpdate: failed to get new query pipeline response, err: %+v", qid, err)
 			return
@@ -378,7 +378,7 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.QueryType, qid uint64) error {
-	getResp := query.GetNewQueryPipelineResponse(qid)
+	getResp := query.GetPipeResp(qid)
 	if getResp == nil {
 		return fmt.Errorf("qid=%d, UpdateWSResp: failed to get new query pipeline response", qid)
 	}

@@ -462,7 +462,7 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 
 	go func() {
 		if config.IsNewQueryPipelineEnabled() {
-			_ = executeNewPipelineQueryInternal(root, aggs, qid, qc)
+			_ = executePipeRespQueryInternal(root, aggs, qid, qc)
 		} else {
 			_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
 		}
@@ -470,37 +470,37 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	return rQuery.StateChan, nil
 }
 
-func executeNewPipelineQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
+func executePipeRespQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
 		query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
-		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to prepare to run query, err: %v", qid, err)
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to prepare to run query, err: %v", qid, err)
 		return nil
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to create query processor, err: %v", qid, err)
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to create query processor, err: %v", qid, err)
 		return nil
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
-		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to set cleanup callback, err: %v", qid, err)
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to set cleanup callback, err: %v", qid, err)
 		return nil
 	}
 
 	httpResponse, err := queryProcessor.GetFullResult()
 	if err != nil {
-		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to get full result, err: %v", qid, err)
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to get full result, err: %v", qid, err)
 		return nil
 	}
 
-	err = query.SetNewQueryPipelineResponse(httpResponse, qid)
+	err = query.SetPipeResp(httpResponse, qid)
 	if err != nil {
-		log.Errorf("qid=%v, executeNewPipelineQueryInternal: failed to set new query pipeline response, err: %v", qid, err)
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to set pipeResp, err: %v", qid, err)
 		return nil
 	}
 

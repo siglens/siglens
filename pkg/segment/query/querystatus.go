@@ -114,7 +114,7 @@ type RunningQueryState struct {
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
 	AllColsInAggs            map[string]struct{}
-	NewPipeLineResponse      *structs.PipeSearchResponseOuter
+	pipeResp      *structs.PipeSearchResponseOuter
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -548,9 +548,9 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 	}
 
 	if config.IsNewQueryPipelineEnabled() {
-		resp := rQuery.NewPipeLineResponse
+		resp := rQuery.pipeResp
 		if resp == nil {
-			log.Errorf("GetMeasureResultsForQid: qid %+v does not have NewPipeLineResponse!", qid)
+			log.Errorf("GetMeasureResultsForQid: qid %+v does not have pipeResp!", qid)
 			return nil, nil, nil, nil, 0
 		}
 		return resp.MeasureResults, resp.MeasureFunctions, resp.GroupByCols, resp.ColumnsOrder, len(resp.MeasureResults)
@@ -938,18 +938,17 @@ func LogGlobalSearchErrors(qid uint64) {
 	}
 }
 
-func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid uint64) error {
+func SetPipeResp(response *structs.PipeSearchResponseOuter, qid uint64) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("SetQueryResponse: qid %+v does not exist!", qid)
-		return fmt.Errorf("qid does not exist")
+		return putils.TeeErrorf("SetPipeResp: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
-	rQuery.NewPipeLineResponse = response
+	rQuery.pipeResp = response
 	rQuery.totalRecsSearched = rQuery.totalRecsToBeSearched
 	rQuery.queryCount = &structs.QueryCount{
 		TotalCount: uint64(len(response.Hits.Hits)),
@@ -964,16 +963,16 @@ func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid 
 	return nil
 }
 
-func GetNewQueryPipelineResponse(qid uint64) *structs.PipeSearchResponseOuter {
+func GetPipeResp(qid uint64) *structs.PipeSearchResponseOuter {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("GetQueryResponse: qid %+v does not exist!", qid)
+		log.Errorf("GetPipeResp: qid %+v does not exist!", qid)
 		return nil
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
-	return rQuery.NewPipeLineResponse
+	return rQuery.pipeResp
 }
