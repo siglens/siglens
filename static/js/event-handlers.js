@@ -964,7 +964,7 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
 function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
     const logsColumnDef = gridOptions.columnApi.getColumn('logs').getColDef();
     const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
-    
+
     if (currentView === 'table') {
         logsColumnDef.cellRenderer = null;
     } else {
@@ -983,17 +983,15 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
                     } else if (currentView === 'multi-line') {
                         formattedValue = formatLogsValue(value);
                     }
-                    
+
                     const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
                     const visibilityClass = isVisible ? '' : 'style="display:none;"';
-                    
+
                     logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
                     addSeparator = true;
                 });
 
-            return currentView === 'single-line' 
-                ? `<div style="white-space: nowrap;">${logString}</div>` 
-                : `<div style="white-space: pre-wrap;">${logString}</div>`;
+            return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
         };
     }
 
