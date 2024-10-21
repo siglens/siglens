@@ -35,6 +35,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -470,31 +471,36 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	return rQuery.StateChan, nil
 }
 
-func executePipeRespQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-
-	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
-		query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
+func ExecutePipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, error) {
+	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to prepare to run query, err: %v", qid, err)
-		return nil
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to create query processor, err: %v", qid, err)
-		return nil
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to set cleanup callback, err: %v", qid, err)
-		return nil
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
 	}
 
 	httpResponse, err := queryProcessor.GetFullResult()
 	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to get full result, err: %v", qid, err)
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to get full result, err: %v", qid, err)
+	}
+
+	return httpResponse, nil
+}
+
+func executePipeRespQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
+
+	httpResponse, err := ExecutePipeResQuery(root, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to ExecutePipeResQuery, err: %v", qid, err)
 		return nil
 	}
 

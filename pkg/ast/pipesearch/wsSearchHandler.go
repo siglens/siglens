@@ -395,6 +395,8 @@ func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.
 		wsResponse.AllPossibleColumns = getResp.AllPossibleColumns
 		wsResponse.Qtype = qType.String()
 		wsResponse.ColumnsOrder = getResp.ColumnsOrder
+	default:
+		return fmt.Errorf("qid=%d, UpdateWSResp: unknown query type: %v", qid, qType)
 	}
 	return nil
 }
