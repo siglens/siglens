@@ -114,7 +114,7 @@ type RunningQueryState struct {
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
 	AllColsInAggs            map[string]struct{}
-	NewPipeLineResponse 	*structs.PipeSearchResponseOuter
+	NewPipeLineResponse      *structs.PipeSearchResponseOuter
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -549,7 +549,7 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 
 	if config.IsNewQueryPipelineEnabled() {
 		resp := rQuery.NewPipeLineResponse
-		return resp.MeasureResults, resp.MeasureFunctions, resp.GroupByCols, resp.ColumnsOrder, len(resp.MeasureResults) 
+		return resp.MeasureResults, resp.MeasureFunctions, resp.GroupByCols, resp.ColumnsOrder, len(resp.MeasureResults)
 	}
 
 	switch rQuery.QType {
@@ -949,9 +949,9 @@ func SetNewQueryPipelineResponse(response *structs.PipeSearchResponseOuter, qid 
 	rQuery.totalRecsSearched = rQuery.totalRecsToBeSearched
 	rQuery.queryCount = &structs.QueryCount{
 		TotalCount: uint64(len(response.Hits.Hits)),
-		EarlyExit: true,
+		EarlyExit:  true,
 	}
-	
+
 	rQuery.StateChan <- &QueryStateChanData{
 		StateName:       QUERY_UPDATE,
 		QueryUpdate:     &QueryUpdate{QUpdate: QUERY_UPDATE_LOCAL},

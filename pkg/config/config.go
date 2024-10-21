@@ -333,7 +333,7 @@ func GetMaxParallelS3IngestBuffers() uint64 {
 
 func IsNewQueryPipelineEnabled() bool {
 	// TODO: when we fully switch to the new pipeline, we can delete this function.
-	return true
+	return false
 }
 
 // returns a map of s3 config

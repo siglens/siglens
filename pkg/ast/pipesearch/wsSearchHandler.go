@@ -326,7 +326,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &structs.PipeSearchCompleteResponse{
-		TotalMatched: convertQueryCountToTotalResponse(queryC),
+		TotalMatched:        convertQueryCountToTotalResponse(queryC),
 		State:               query.COMPLETE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
 		CanScrollMore:       canScrollMore,

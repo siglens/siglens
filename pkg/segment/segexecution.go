@@ -25,13 +25,13 @@ import (
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/query/processor"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -471,7 +471,7 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 }
 
 func executeNewPipelineQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-	
+
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
 		query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
