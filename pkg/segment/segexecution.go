@@ -510,7 +510,7 @@ func executePipeRespQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggr
 		return nil
 	}
 
-	query.SetQidAsFinished(qid)
+	query.SetQidAsFinishedForPipeRespQuery(qid)
 
 	return nil
 }

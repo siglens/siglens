@@ -1,7 +1,10 @@
 {
     "queryText": "city=Boston | where country=\"India\"",
     "expectedResult": {
-        "totalMatched": 7,
+        "totalMatched": {
+            "value": 7,
+            "relation": "eq"
+        },
         "qtype": "logs-query",
         "records": [
             {
