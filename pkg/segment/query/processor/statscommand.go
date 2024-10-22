@@ -29,7 +29,7 @@ import (
 )
 
 type ErrorData struct {
-	readColumns map[string]struct{} // columnName -> struct{}. Tracks errors while reading the column through iqr.Record.ReadColumn
+	readColumns map[string]error // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
 }
 
 type statsProcessor struct {
@@ -44,7 +44,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
-			readColumns: make(map[string]struct{}),
+			readColumns: make(map[string]error),
 		}
 	}
 
@@ -114,7 +114,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
-				p.errorData.readColumns[cname] = struct{}{}
+				p.errorData.readColumns[cname] = err
 				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
 				bucketKeyBufIdx += 1
 			} else {
@@ -127,7 +127,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		for cname, indices := range measureInfo {
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
-				p.errorData.readColumns[cname] = struct{}{}
+				p.errorData.readColumns[cname] = err
 				cValue = &utils.CValueEnclosure{CVal: utils.VALTYPE_ENC_BACKFILL, Dtype: utils.SS_DT_BACKFILL}
 			}
 
