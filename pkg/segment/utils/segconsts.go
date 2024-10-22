@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1001,24 +1000,31 @@ func (e *CValueEnclosure) ConvertToBytesValue() []byte {
 		}
 		return []byte("false")
 	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
-		return []byte(strconv.FormatInt(e.CVal.(int64), 10))
+		buf := make([]byte, 0, 20)
+		return strconv.AppendInt(buf, e.CVal.(int64), 10)
 	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
-		return []byte(strconv.FormatUint(e.CVal.(uint64), 10))
+		buf := make([]byte, 0, 20)
+		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
 	case SS_DT_FLOAT:
-		return []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))
+		buf := make([]byte, 0, 64)
+		return strconv.AppendFloat(buf, e.CVal.(float64), 'f', -1, 64)
 	case SS_DT_STRING:
 		return []byte(e.CVal.(string))
 	case SS_DT_STRING_SLICE:
-		return []byte(strings.Join(e.CVal.([]string), ","))
-	case SS_DT_STRING_SET:
-		// convert set to sorted slice and join
-		stringSet := e.CVal.(map[string]struct{})
-		strs := make([]string, 0, len(stringSet))
-		for s := range stringSet {
-			strs = append(strs, s)
+		stringSlice := e.CVal.([]string)
+		if len(stringSlice) == 0 {
+			return []byte{}
 		}
-		sort.Strings(strs)
-		return []byte(strings.Join(strs, ","))
+		totalSize := 0
+		for _, str := range stringSlice {
+			totalSize += len(str)
+		}
+		// Pre-allocate buffer with total size
+		buffer := bytes.NewBuffer(make([]byte, 0, totalSize))
+		for _, s := range stringSlice {
+			buffer.WriteString(s)
+		}
+		return buffer.Bytes()
 	case SS_DT_BACKFILL:
 		return VALTYPE_ENC_BACKFILL
 	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
