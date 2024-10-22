@@ -100,10 +100,6 @@ func BulkAddEmptyResults(pqid string, segKeyMap map[string]bool) {
 	}
 }
 
-func AddEmptyResults(pqid string, segKey string) {
-	BulkAddEmptyResults(pqid, map[string]bool{segKey: true})
-}
-
 func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {
 
 	fd, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0764)
@@ -160,17 +156,22 @@ func removePqmrFilesAndDirectory(pqid string) error {
 	return nil
 }
 
-func DeleteSegmentFromPqid(pqid string, segKey string) {
+// This function will remove the PQMRFiles and directory if there are no segments left in the PQID
+func BulkDeleteSegKeysFromPqid(pqid string, segKeyMap map[string]bool) {
 	pqFname := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(pqFname)
 	if err != nil {
-		log.Errorf("DeleteSegmentFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
+		log.Errorf("BulkDeleteSegKeysFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
 	}
-	delete(emptyPQS, segKey)
+
+	for segKey := range segKeyMap {
+		delete(emptyPQS, segKey)
+	}
+
 	if len(emptyPQS) == 0 {
 		err := removePqmrFilesAndDirectory(pqid)
 		if err != nil {
-			log.Errorf("DeleteSegmentFromPqid: Error removing segKey %v from %v pqid, Error=%v", segKey, pqid, err)
+			log.Errorf("BulkDeleteSegKeysFromPqid: Error removing segKeyMap %v from %v pqid, Error=%v", segKeyMap, pqid, err)
 		}
 		return
 	}
