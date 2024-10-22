@@ -1087,8 +1087,24 @@ func DeleteSegmentsForIndex(indexName string) {
 	removeSegmentsByIndexOrSegkeys(nil, indexName)
 }
 
-func RemoveSegments(segmentsToDelete map[string]struct{}) {
-	removeSegmentsByIndexOrSegkeys(segmentsToDelete, "")
+func RemoveSegMetas(segmentsToDelete map[string]*structs.SegMeta) map[string]struct{} {
+
+	segKeysToDelete := make(map[string]struct{})
+	for segkey := range segmentsToDelete {
+		segKeysToDelete[segkey] = struct{}{}
+	}
+
+	return removeSegmetas(segKeysToDelete, "")
+}
+
+func RemoveSegBasedirs(segbaseDirs map[string]struct{}) {
+	for segdir := range segbaseDirs {
+		if err := os.RemoveAll(segdir); err != nil {
+			log.Errorf("RemoveSegBasedirs: Failed to remove directory name=%v, err:%v",
+				segdir, err)
+		}
+		fileutils.RecursivelyDeleteEmptyParentDirectories(segdir)
+	}
 }
 
 func removeSegmentsByIndexOrSegkeys(segmentsToDelete map[string]struct{}, indexName string) {
