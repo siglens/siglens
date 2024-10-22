@@ -10735,7 +10735,7 @@ func Test_InputLookup(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10759,7 +10759,7 @@ func Test_InputLookup_2(t *testing.T) {
 	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10783,7 +10783,7 @@ func Test_InputLookup_3(t *testing.T) {
 	assert.Equal(t, uint64(5), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10807,7 +10807,7 @@ func Test_InputLookup_4(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10876,7 +10876,7 @@ func Test_InputLookup_5(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10969,7 +10969,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -11056,7 +11056,7 @@ func Test_InputLookup_10(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
@@ -11090,7 +11090,7 @@ func Test_InputLookup_11(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
 
@@ -11114,7 +11114,7 @@ func Test_InputLookup_12(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	aggregator = aggregator.Next
@@ -11123,7 +11123,7 @@ func Test_InputLookup_12(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
-	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.FirstCommand)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
 

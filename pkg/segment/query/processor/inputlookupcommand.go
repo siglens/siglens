@@ -34,14 +34,14 @@ import (
 )
 
 type inputlookupProcessor struct {
-	options   *structs.InputLookup
-	eof       bool
-	qid       uint64
-	start     uint64
-	processed uint64
+	options      *structs.InputLookup
+	eof          bool
+	qid          uint64
+	start        uint64
+	numprocessed uint64
 }
 
-func checkCSVFormat(filename string) bool {
+func isCSVFormat(filename string) bool {
 	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
 }
 
@@ -57,8 +57,25 @@ func createRecord(columnNames []string, record []string) (map[string]utils.CValu
 	return recordMap, nil
 }
 
+func (p *inputlookupProcessor) skipToStartPos(reader *csv.Reader) (uint64, error) {
+	curr := uint64(0)
+	for curr < p.start {
+		_, err := reader.Read()
+		if err != nil {
+			if err == io.EOF {
+				p.eof = true
+				return curr, err
+			}
+			return 0, fmt.Errorf("skipToStartPos: Error skipping rows, err: %v", err)
+		}
+		curr++
+	}
+
+	return curr, nil
+}
+
 func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
-	if inpIqr != nil && !inpIqr.EOF {
+	if inpIqr != nil {
 		p.qid = inpIqr.GetQid()
 		return inpIqr, nil
 	}
@@ -71,7 +88,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 	filename := p.options.Filename
 
-	if !checkCSVFormat(filename) {
+	if !isCSVFormat(filename) {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Only .csv and .csv.gz formats are currently supported")
 	}
 
@@ -101,20 +118,12 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Error reading column names, err: %v", err)
 	}
 
-	curr := uint64(0)
-	for curr < p.start {
-		_, err := reader.Read()
-		if err != nil {
-			if err.Error() == "EOF" {
-				p.eof = true
-				break
-			}
-			return nil, fmt.Errorf("inputlookupProcessor.Process: Error skipping rows, err: %v", err)
-		}
-		curr++
+	curr, err := p.skipToStartPos(reader)
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("inputlookupProcessor.Process: Error skipping rows, err: %v", err)
 	}
 
-	count := p.processed
+	count := p.numprocessed
 	records := map[string][]utils.CValueEnclosure{}
 
 	for !p.eof && count < putils.MinUint64(p.options.Max, utils.QUERY_EARLY_EXIT_LIMIT) {
@@ -123,7 +132,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		csvRecord, err := reader.Read()
 		if err != nil {
 			// Check if we've reached the end of the file
-			if err.Error() == "EOF" {
+			if err == io.EOF {
 				p.eof = true
 				break
 			}
@@ -153,29 +162,21 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	p.start = curr
-	p.processed = count
+	p.numprocessed = count
 
-	nIQR := iqr.NewIQR(p.qid)
-	err = nIQR.AppendKnownValues(records)
+	newIQR := iqr.NewIQR(p.qid)
+	err = newIQR.AppendKnownValues(records)
 	if err != nil {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Error appending known values, err: %v", err)
 	}
 
-	if inpIqr != nil && inpIqr.NumberOfRecords() > 0 {
-		err = inpIqr.Append(nIQR)
-		if err != nil {
-			return nil, fmt.Errorf("inputlookupProcessor.Process: Error appending iqr, err: %v", err)
-		}
-		return inpIqr, nil
-	}
-
-	return nIQR, nil
+	return newIQR, nil
 }
 
 func (p *inputlookupProcessor) Rewind() {
 	p.eof = false
 	p.start = 0
-	p.processed = 0
+	p.numprocessed = 0
 }
 
 func (p *inputlookupProcessor) Cleanup() {

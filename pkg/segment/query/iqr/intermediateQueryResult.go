@@ -19,6 +19,7 @@ package iqr
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 
@@ -43,7 +44,7 @@ const (
 	withoutRRCs
 )
 
-const NIL_RRC_SEGKEY = uint16(9999)
+const NIL_RRC_SEGKEY = math.MaxUint16
 
 type IQR struct {
 	mode iqrMode
@@ -61,7 +62,6 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
-	EOF            bool
 }
 
 func NewIQR(qid uint64) *IQR {
@@ -92,7 +92,7 @@ func (iqr *IQR) validate() error {
 	}
 
 	if len(iqr.rrcs) == 0 {
-		err := ValidateKnownValues(iqr.knownValues)
+		err := validateKnownValues(iqr.knownValues)
 		if err != nil {
 			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
 		}
@@ -142,7 +142,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 	return nil
 }
 
-func ValidateKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
+func validateKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	numRecords := 0
 	for col, values := range knownValues {
 		if numRecords == 0 {
@@ -168,7 +168,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 
 	numExistingRecords := iqr.NumberOfRecords()
 	if numExistingRecords == 0 {
-		err := ValidateKnownValues(knownValues)
+		err := validateKnownValues(knownValues)
 		if err != nil {
 			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
 		}

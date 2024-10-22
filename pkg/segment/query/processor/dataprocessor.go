@@ -79,12 +79,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	for {
 		gotEOF := false
 		input, err := dp.getStreamInput()
-		if err == io.EOF {
-			if input != nil {
-				input.EOF = true
-			}
-			gotEOF = true
-		} else if err != nil {
+		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 		}
 
@@ -111,12 +106,14 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (dp *DataProcessor) IsDataGenerator() bool {
+func (dp *DataProcessor) IsDataGenerator(qid uint64) bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).qid = qid
 		return true
 	case *inputlookupProcessor:
-		return dp.processor.(*inputlookupProcessor).options.FirstCommand
+		dp.processor.(*inputlookupProcessor).qid = qid
+		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
 	}
@@ -125,8 +122,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
-		if dp.IsDataGenerator() {
-			return iqr.NewIQR(dp.qid), io.EOF
+		if dp.IsDataGenerator(dp.qid) {
+			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")
 	case 1:
