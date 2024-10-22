@@ -323,6 +323,71 @@ func Test_TwoWayMap(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func Test_MergeMapSlicesWithBackfill(t *testing.T) {
+	tests := []struct {
+		name           string
+		map1           map[string][]int
+		map2           map[string][]int
+		backFillValue  int
+		size           int
+		expectedResult map[string][]int
+	}{
+		{
+			name: "Basic merge with no missing keys",
+			map1: map[string][]int{
+				"a": {1, 2},
+				"b": {3, 4},
+			},
+			map2: map[string][]int{
+				"a": {5, 6},
+				"b": {7, 8},
+			},
+			backFillValue: 0,
+			size:          2,
+			expectedResult: map[string][]int{
+				"a": {1, 2, 5, 6},
+				"b": {3, 4, 7, 8},
+			},
+		},
+		{
+			name: "Adding new keys with backfilling",
+			map1: map[string][]int{
+				"a": {1, 2},
+			},
+			map2: map[string][]int{
+				"b": {7, 8},
+			},
+			backFillValue: 0,
+			size:          2,
+			expectedResult: map[string][]int{
+				"a": {1, 2},
+				"b": {0, 0, 7, 8},
+			},
+		},
+		{
+			name: "Empty map1, backfill with default values",
+			map1: map[string][]int{},
+			map2: map[string][]int{
+				"c": {9, 10},
+			},
+			backFillValue: 0,
+			size:          3,
+			expectedResult: map[string][]int{
+				"c": {0, 0, 0, 9, 10},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeMapSlicesWithBackfill(tt.map1, tt.map2, tt.backFillValue, tt.size)
+			if !reflect.DeepEqual(result, tt.expectedResult) {
+				t.Errorf("Test %s failed: got %v, expected %v", tt.name, result, tt.expectedResult)
+			}
+		})
+	}
+}
+
 func TestGetOrCreateNestedMap(t *testing.T) {
 	m := make(map[string]map[string]int)
 
