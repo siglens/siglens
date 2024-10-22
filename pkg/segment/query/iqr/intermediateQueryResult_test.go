@@ -28,7 +28,7 @@ import (
 )
 
 func Test_initIQR(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	err := iqr.validate()
 	assert.NoError(t, err)
 
@@ -38,7 +38,7 @@ func Test_initIQR(t *testing.T) {
 }
 
 func Test_AppendRRCs(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
@@ -54,11 +54,10 @@ func Test_AppendRRCs(t *testing.T) {
 	assert.Equal(t, withRRCs, iqr.mode)
 	assert.Equal(t, rrcs, iqr.rrcs)
 	assert.Equal(t, encodingToSegKey, iqr.encodingToSegKey)
-	assert.Equal(t, structs.RRCCmd, iqr.qType)
 }
 
 func Test_AppendKnownValues_OnEmptyIQR(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 
 	knownValues1 := map[string][]utils.CValueEnclosure{
 		"col1": {
@@ -94,7 +93,7 @@ func Test_AppendKnownValues_OnEmptyIQR(t *testing.T) {
 }
 
 func Test_AsResult(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	knownValues := map[string][]utils.CValueEnclosure{
 		"col1": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
@@ -124,8 +123,8 @@ func Test_AsResult(t *testing.T) {
 }
 
 func Test_mergeMetadata(t *testing.T) {
-	iqr1 := NewIQR(0, structs.RRCCmd)
-	iqr2 := NewIQR(0, structs.RRCCmd)
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
 
 	// Disjoint encodings.
 	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
@@ -152,8 +151,8 @@ func Test_mergeMetadata(t *testing.T) {
 }
 
 func Test_mergeMetadata_modes(t *testing.T) {
-	iqr1 := NewIQR(0, structs.RRCCmd)
-	iqr2 := NewIQR(0, structs.RRCCmd)
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
 
 	// Incompatible modes.
 	iqr1.mode = withRRCs
@@ -184,16 +183,16 @@ func Test_mergeMetadata_modes(t *testing.T) {
 }
 
 func Test_mergeMetadata_differentQids(t *testing.T) {
-	iqr1 := NewIQR(0, structs.RRCCmd)
-	iqr2 := NewIQR(1, structs.RRCCmd)
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(1)
 
 	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
 	assert.Error(t, err)
 }
 
 func Test_Append(t *testing.T) {
-	iqr1 := NewIQR(0, structs.RRCCmd)
-	iqr2 := NewIQR(0, structs.RRCCmd)
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
 
 	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
@@ -256,7 +255,7 @@ func Test_Append(t *testing.T) {
 }
 
 func Test_Append_withRRCs(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
@@ -269,7 +268,7 @@ func Test_Append_withRRCs(t *testing.T) {
 	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
 	assert.NoError(t, err)
 
-	otherIqr := NewIQR(0, structs.RRCCmd)
+	otherIqr := NewIQR(0)
 	segKeyInfo2 := utils.SegKeyInfo{
 		SegKeyEnc: 2,
 	}
@@ -300,7 +299,7 @@ func Test_Append_withRRCs(t *testing.T) {
 }
 
 func Test_Sort(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
@@ -350,9 +349,9 @@ func Test_Sort(t *testing.T) {
 }
 
 func Test_MergeIQRs(t *testing.T) {
-	iqr1 := NewIQR(0, structs.RRCCmd)
-	iqr2 := NewIQR(0, structs.RRCCmd)
-	iqr3 := NewIQR(0, structs.RRCCmd)
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+	iqr3 := NewIQR(0)
 
 	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
@@ -408,7 +407,7 @@ func Test_MergeIQRs(t *testing.T) {
 }
 
 func Test_DiscardAfter(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
@@ -433,7 +432,7 @@ func Test_DiscardAfter(t *testing.T) {
 }
 
 func Test_RenameColumn(t *testing.T) {
-	iqr := NewIQR(0, structs.RRCCmd)
+	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},

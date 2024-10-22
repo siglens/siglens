@@ -80,7 +80,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			break
 		}
 		dataProcessor.qid = searcher.qid
-		dataProcessor.qType = queryType
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 

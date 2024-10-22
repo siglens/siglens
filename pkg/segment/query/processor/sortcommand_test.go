@@ -37,7 +37,7 @@ func Test_SortCommand_simple(t *testing.T) {
 		},
 	}
 
-	iqr1 := iqr.NewIQR(0, structs.RRCCmd)
+	iqr1 := iqr.NewIQR(0)
 	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "c"},
@@ -65,7 +65,7 @@ func Test_SortCommand_simple(t *testing.T) {
 	assert.Equal(t, expected, actualCol1)
 
 	// Add more records that should replace some existing ones.
-	iqr2 := iqr.NewIQR(0, structs.RRCCmd)
+	iqr2 := iqr.NewIQR(0)
 	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "g"},
@@ -110,7 +110,7 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 		},
 	}
 
-	iqr1 := iqr.NewIQR(0, structs.RRCCmd)
+	iqr1 := iqr.NewIQR(0)
 	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "a"},
@@ -144,7 +144,7 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 	assert.Equal(t, expectedCol2, actualCol2)
 
 	// Add more records.
-	iqr2 := iqr.NewIQR(0, structs.RRCCmd)
+	iqr2 := iqr.NewIQR(0)
 	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "a"},
