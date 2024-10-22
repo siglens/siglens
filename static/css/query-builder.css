@@ -393,6 +393,8 @@ input.form-control {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    list-style: none;
+    padding: 0px;
 }
 
 #tabs-2 {
@@ -408,6 +410,13 @@ input.form-control {
 .tab-li {
     height: 34px;
     border-radius: 5px;
+}
+
+.tab-li a{
+    text-decoration: none;
+    font-size: 12px;
+    padding: 2px 5px !important;
+    color: var(--border-switch) !important;
 }
 
 .tab-li-query {
