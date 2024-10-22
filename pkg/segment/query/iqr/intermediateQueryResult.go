@@ -315,14 +315,12 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("qid=%v, IQR.readColumnWithRRCs: unknown encoding %v", iqr.qid, rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("qid=%v, IQR.readColumnWithRRCs: error reading column %s: %v", iqr.qid, cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
 		return values, nil
