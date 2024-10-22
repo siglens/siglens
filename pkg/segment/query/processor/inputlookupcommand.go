@@ -76,7 +76,7 @@ func (p *inputlookupProcessor) skipToStartPos(reader *csv.Reader) (uint64, error
 
 func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	if inpIqr != nil {
-		p.qid = inpIqr.GetQid()
+		p.qid = inpIqr.GetQID()
 		return inpIqr, nil
 	}
 	if p.eof {
