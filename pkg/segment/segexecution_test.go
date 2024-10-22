@@ -1473,21 +1473,25 @@ func getMyIds() []uint64 {
 }
 
 func Test_Query(t *testing.T) {
-	t.Cleanup(func() { os.RemoveAll("data/") })
+	dir := t.TempDir()
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	config.InitializeDefaultConfig(t.TempDir())
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
+	assert.Nil(t, err)
+
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
 
-	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
 
 	simpleQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 	wildcardQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
@@ -1506,20 +1510,24 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Scroll(t *testing.T) {
-	t.Cleanup(func() { os.RemoveAll("data/") })
+	dir := t.TempDir()
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	config.InitializeDefaultConfig(t.TempDir())
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
+	assert.Nil(t, err)
+
 	limit.InitMemoryLimiter()
 	_ = localstorage.InitLocalStorage()
 
-	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
 	testESScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 	testPipesearchScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 }
@@ -1683,7 +1691,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 		log.Fatal(err)
 	}
 	currFile := dir + "query_test.seg"
-	_, blockSummaries, _, _, allBmhInMem, _ := writer.WriteMockColSegFile(currFile, batchSize, entryCount)
+	_, blockSummaries, _, _, allBmhInMem, _ := writer.WriteMockColSegFile(currFile, currFile, batchSize, entryCount)
 	blockSumFile := dir + "query_test.bsu"
 
 	writer.WriteMockBlockSummary(blockSumFile, blockSummaries, allBmhInMem)

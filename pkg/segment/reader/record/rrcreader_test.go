@@ -27,19 +27,20 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetJsonFromAllRrc(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig(t.TempDir())
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
-
-	segkey := dir + "query_test_" + fmt.Sprint(0)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
 	segencmap := make(map[uint16]string)
 	segencmap[uint16(0)] = segkey
@@ -105,15 +106,15 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 }
 
 func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig(t.TempDir())
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
-
-	segkey := dir + "query_test_" + fmt.Sprint(0)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
 	segencmap := make(map[uint16]string)
 	segencmap[uint16(0)] = segkey
@@ -169,15 +170,15 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 }
 
 func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig(t.TempDir())
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
-
-	segkey := dir + "query_test_" + fmt.Sprint(0)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
 	segencmap := make(map[uint16]string)
 	segencmap[uint16(0)] = segkey

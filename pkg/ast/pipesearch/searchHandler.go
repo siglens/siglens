@@ -34,7 +34,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -308,29 +307,9 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			return nil, false, nil, err
 		}
 
-		_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err :=
-			query.PrepareToRunQuery(simpleNode, simpleNode.TimeRange, aggs, qid, qc)
+		httpResponse, err := segment.ExecutePipeResQuery(simpleNode, aggs, qid, qc)
 		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to prepare to run query, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-		defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
-
-		queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to create query processor, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to set cleanup callback, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		httpResponse, err := queryProcessor.GetFullResult()
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to ExecutePipeResQuery, err: %v", qid, err)
 			return nil, false, nil, err
 		}
 

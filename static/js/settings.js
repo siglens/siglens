@@ -98,16 +98,37 @@ function addSystemInfoTable(systemInfo) {
 }
 
 function formatUptime(uptimeMinutes) {
-    if (uptimeMinutes < 60) {
-        return uptimeMinutes + " mins";
-    } else if (uptimeMinutes < 24 * 60) {
-        return Math.floor(uptimeMinutes / 60) + " hours";
-    } else if (uptimeMinutes < 7 * 24 * 60) {
-        return Math.floor(uptimeMinutes / (24 * 60)) + " days";
-    } else if (uptimeMinutes < 30 * 24 * 60) {
-        return Math.floor(uptimeMinutes / (7 * 24 * 60)) + " weeks";
+    if (uptimeMinutes === 0) {
+        return "0 minutes";
+    }
+
+    const minutes = uptimeMinutes % 60;
+    const hours = Math.floor(uptimeMinutes / 60) % 24;
+    const days = Math.floor(uptimeMinutes / (24 * 60)) % 7;
+    const weeks = Math.floor(uptimeMinutes / (7 * 24 * 60));
+    const months = Math.floor(uptimeMinutes / (30 * 24 * 60));
+
+    const formatUnit = (value, unit) => 
+        value > 0 ? `${value} ${unit}${value > 1 ? 's' : ''}` : '';
+
+    if (months > 0) {
+        const remainingDays = Math.floor((uptimeMinutes % (30 * 24 * 60)) / (24 * 60));
+        const remainingWeeks = Math.floor(remainingDays / 7);
+        const monthPart = formatUnit(months, 'month');
+        if (remainingWeeks > 0) {
+            return `${monthPart} ${formatUnit(remainingWeeks, 'week')}`.trim();
+        } else if (remainingDays > 0) {
+            return `${monthPart} ${formatUnit(remainingDays, 'day')}`.trim();
+        }
+        return monthPart;
+    } else if (weeks > 0) {
+        return `${formatUnit(weeks, 'week')} ${formatUnit(days, 'day')}`.trim();
+    } else if (days > 0) {
+        return `${formatUnit(days, 'day')} ${formatUnit(hours, 'hour')}`.trim();
+    } else if (hours > 0) {
+        return `${formatUnit(hours, 'hour')} ${formatUnit(minutes, 'minute')}`.trim();
     } else {
-        return Math.floor(uptimeMinutes / (30 * 24 * 60)) + " months";
+        return formatUnit(minutes, 'minute');
     }
 }
 
