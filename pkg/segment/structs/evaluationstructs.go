@@ -100,6 +100,8 @@ type DedupExpr struct {
 	DedupSortEles      []*SortElement
 	DedupSortAscending []int // Derived from DedupSortEles.SortByAsc values.
 
+	// TODO: remove the below fields after we move to the new query pipeline.
+
 	// DedupCombinations maps combinations to a map mapping the record index
 	// (of all included records for this combination) to the sort values for
 	// that record. For example, if Limit is 3, each inner map will have at

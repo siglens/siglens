@@ -202,12 +202,13 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 }
 
 func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
+	hasSort := len(options.DedupSortEles) > 0
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false,
+		isBottleneckCmd:   hasSort,
 		isTwoPassCmd:      false,
 	}
 }
@@ -235,13 +236,14 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 }
 
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
+	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
-		isBottleneckCmd:   false, // TODO: depends on whether the fieldlist option was set
-		isTwoPassCmd:      false, // TODO: depends on whether the fieldlist option was set
+		isBottleneckCmd:   !isFieldListSet,
+		isTwoPassCmd:      !isFieldListSet,
 	}
 }
 
