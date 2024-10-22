@@ -37,7 +37,7 @@ import (
 )
 
 func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-	qid uint64, deletedCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
 
 	allCols, err := GetColsForSegKey(segKey, vTable)
 	if err != nil {
@@ -48,7 +48,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
-		if _, isDeleted := deletedCols[cname]; isDeleted {
+		if _, ignore := ignoredCols[cname]; ignore {
 			continue
 		}
 		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)

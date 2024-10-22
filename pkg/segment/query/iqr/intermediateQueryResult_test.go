@@ -459,3 +459,38 @@ func Test_RenameColumn(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
 }
+
+func Test_GetColumnsOrder(t *testing.T) {
+	iqr := NewIQR(0)
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col22": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+		"col0": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+		"col23": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	iqr.AddColumnIndex(map[string]int{
+		"col1":  0,
+		"col2":  1,
+		"col22": 1,
+		"col3":  2,
+	})
+
+	assert.Equal(t, []string{"col1", "col2", "col22", "col3", "col0", "col23"}, iqr.GetColumnsOrder(toputils.GetKeysOfMap(knownValues)))
+}

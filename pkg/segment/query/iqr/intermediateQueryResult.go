@@ -660,6 +660,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
 	for cname := range cnames {
 		iqr.deletedColumns[cname] = struct{}{}
+		delete(iqr.knownValues, cname)
 	}
 }
 
@@ -821,14 +822,6 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		if err != nil {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
-		}
-
-		// Append the known values to the result.
-		for cname, values := range iqr.knownValues {
-			if _, isDeleted := iqr.deletedColumns[cname]; isDeleted {
-				continue
-			}
-			records[cname] = values
 		}
 	case withoutRRCs:
 		records = iqr.knownValues
