@@ -395,6 +395,49 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
+func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
+	// segKey -> virtual table name
+	segKeyVTableMap := make(map[string]string)
+	for _, rrc := range iqr.rrcs {
+		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
+		if !ok {
+			// This should never happen.
+			log.Errorf("qid=%v, IQR.getSegKeysFromRRCs: unknown encoding %v", iqr.qid, rrc.SegKeyInfo.SegKeyEnc)
+			continue
+		}
+
+		if _, ok := segKeyVTableMap[segKey]; ok {
+			continue
+		}
+		segKeyVTableMap[segKey] = rrc.VirtualTableName
+	}
+
+	return segKeyVTableMap
+}
+
+func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
+	}
+
+	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
+
+	allColumns := make(map[string]struct{})
+
+	for segkey, vTable := range segKeyVTableMap {
+		columns, err := record.GetColsForSegKey(segkey, vTable)
+		if err != nil {
+			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
+		}
+
+		toputils.AddMapKeysToSet(allColumns, columns)
+	}
+
+	toputils.AddMapKeysToSet(allColumns, iqr.knownValues)
+
+	return allColumns, nil
+}
+
 func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
