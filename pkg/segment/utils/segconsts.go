@@ -151,6 +151,8 @@ var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
+const MAX_SIMILAR_ERRORS_TO_LOG = 5 // max number of similar errors to log: This is used to avoid flooding the logs with similar errors
+
 type SS_DTYPE uint8
 
 const (
@@ -937,7 +939,7 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
 	default:
-		return "", errors.New("CValueEnclosure GetString: unsupported Dtype")
+		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
 	}
 }
 
