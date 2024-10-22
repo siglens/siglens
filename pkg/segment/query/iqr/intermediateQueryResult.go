@@ -358,10 +358,6 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
-	iqr.AddColumnsToDelete(other.deletedColumns)
-
-	iqr.AddColumnIndex(other.columnIndex)
-
 	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
@@ -576,8 +572,9 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
 	}
 
-	for cname := range iqrs[0].deletedColumns {
-		result.deletedColumns[cname] = struct{}{}
+	for _, iqrToMerge := range iqrs {
+		result.AddColumnsToDelete(iqrToMerge.deletedColumns)
+		result.AddColumnIndex(iqrToMerge.columnIndex)
 	}
 
 	for oldName, newName := range iqrs[0].renamedColumns {
@@ -612,11 +609,6 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
 					iqr.qid, iqr.mode, result.mode)
 			}
-		}
-
-		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent deleted columns (%v and %v)",
-				iqr.qid, iqr.deletedColumns, result.deletedColumns)
 		}
 
 		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
@@ -761,6 +753,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 	withoutIndexCols := []string{}
 	finalColumnOrder := []string{}
 
+	// For each column find its group based on the index.
 	for _, cname := range allCnames {
 		if idx, isIndexAvailable := iqr.columnIndex[cname]; isIndexAvailable {
 			indexToCols[idx] = append(indexToCols[idx], cname)
@@ -769,15 +762,19 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 		}
 	}
 
+	// Sort the value of indexes to get the order for each group.
 	allIndexes := toputils.GetKeysOfMap(indexToCols)
 	sort.Ints(allIndexes)
 
+	// Since multiple columns can have same index we will sort them lexicographically within each group.
+	// Then all of these groups will be appended in the order of their index.
 	for _, idx := range allIndexes {
 		allColsAtIdx := indexToCols[idx]
 		sort.Strings(allColsAtIdx)
 		finalColumnOrder = append(finalColumnOrder, allColsAtIdx...)
 	}
 
+	// Columns without any index would be sorted lexicographically and added at the end.
 	sort.Strings(withoutIndexCols)
 	finalColumnOrder = append(finalColumnOrder, withoutIndexCols...)
 
