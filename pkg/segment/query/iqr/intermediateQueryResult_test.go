@@ -494,3 +494,176 @@ func Test_GetColumnsOrder(t *testing.T) {
 
 	assert.Equal(t, []string{"col1", "col2", "col22", "col3", "col0", "col23"}, iqr.GetColumnsOrder(toputils.GetKeysOfMap(knownValues)))
 }
+
+func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
+	groupByCols := []string{"val1", "val2"}
+	measureFuncs := []string{"count", "sum(x)", "avg(y)"}
+
+	bucketHolderSlice := []*structs.BucketHolder{
+		&structs.BucketHolder{
+			GroupByValues: []string{"a", "b"},
+			MeasureVal: map[string]interface{}{
+				"count":  int64(10),
+				"sum(x)": int64(100),
+				"avg(y)": int64(10),
+			},
+		},
+		&structs.BucketHolder{
+			GroupByValues: []string{"a", "c"},
+			MeasureVal: map[string]interface{}{
+				"count":  int64(20),
+				"sum(x)": int64(200),
+				"avg(y)": int64(20),
+			},
+		},
+		&structs.BucketHolder{
+			GroupByValues: []string{"d", "e"},
+			MeasureVal: map[string]interface{}{
+				"count":  int64(30),
+				"sum(x)": int64(300),
+				"avg(y)": int64(30),
+			},
+		},
+	}
+
+	return bucketHolderSlice, groupByCols, measureFuncs
+}
+
+func getTestValuesForSegmentStats() ([]*structs.BucketHolder, []string, []string) {
+	groupByCols := []string{}
+	measureFuncs := []string{"count", "sum(x)", "avg(y)"}
+
+	bucketHolderSlice := []*structs.BucketHolder{
+		&structs.BucketHolder{
+			GroupByValues: []string{},
+			MeasureVal: map[string]interface{}{
+				"count":  int64(10),
+				"sum(x)": int64(100),
+				"avg(y)": int64(10),
+			},
+		},
+	}
+
+	return bucketHolderSlice, groupByCols, measureFuncs
+}
+
+func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
+	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForGroupBy()
+
+	bucketCount := len(bucketHolderSlice)
+
+	iqr := NewIQR(0)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+
+	expected := map[string][]utils.CValueEnclosure{
+		"val1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+		"val2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+		"count": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(20)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(30)},
+		},
+		"sum(x)": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(100)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(200)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(300)},
+		},
+		"avg(y)": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(20)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(30)},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(iqr.knownValues))
+	assert.Equal(t, groupByCols, iqr.groupbyColumns)
+	assert.Equal(t, measureFuncs, iqr.measureColumns)
+
+	for cname, expectedValues := range expected {
+		values, err := iqr.ReadColumn(cname)
+		assert.NoError(t, err)
+
+		assert.Equal(t, expectedValues, values, "cname=%v", cname)
+	}
+}
+
+func Test_AppendRRCStatsResults_SegmentStats(t *testing.T) {
+	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForSegmentStats()
+	bucketCount := len(bucketHolderSlice)
+
+	iqr := NewIQR(0)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+
+	expected := map[string][]utils.CValueEnclosure{
+		"count": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+		},
+		"sum(x)": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(100)},
+		},
+		"avg(y)": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(iqr.knownValues))
+	assert.Equal(t, groupByCols, iqr.groupbyColumns)
+	assert.Equal(t, measureFuncs, iqr.measureColumns)
+
+	for cname, expectedValues := range expected {
+		values, err := iqr.ReadColumn(cname)
+		assert.NoError(t, err)
+
+		assert.Equal(t, expectedValues, values, "cname=%v", cname)
+	}
+}
+
+func Test_getFinalStatsResults(t *testing.T) {
+	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForGroupBy()
+	bucketCount := len(bucketHolderSlice)
+
+	iqr := NewIQR(0)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	assert.NoError(t, err)
+
+	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err := iqr.getFinalStatsResults()
+	assert.NoError(t, err)
+	assert.Equal(t, bucketCount, actualBucketCount)
+	assert.Equal(t, groupByCols, actualGroupByCols)
+	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+
+	for i, expectedBucketHolder := range bucketHolderSlice {
+		actualBucketHolder := actualBucketHolderSlice[i]
+		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
+	}
+
+	bucketHolderSlice, groupByCols, measureFuncs = getTestValuesForSegmentStats()
+	bucketCount = len(bucketHolderSlice)
+
+	iqr = NewIQR(0)
+	err = iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	assert.NoError(t, err)
+
+	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err = iqr.getFinalStatsResults()
+	assert.NoError(t, err)
+	assert.Equal(t, bucketCount, actualBucketCount)
+	assert.Equal(t, groupByCols, actualGroupByCols)
+	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+
+	for i, expectedBucketHolder := range bucketHolderSlice {
+		actualBucketHolder := actualBucketHolderSlice[i]
+		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
+	}
+}
