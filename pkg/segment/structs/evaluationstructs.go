@@ -60,7 +60,10 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
-type EvalExpr struct{} // TODO
+type EvalExpr struct {
+	ValueExpr *ValueExpr
+	FieldName string
+}
 
 type RenameExpr struct {
 	RenameExprMode  RenameExprMode
