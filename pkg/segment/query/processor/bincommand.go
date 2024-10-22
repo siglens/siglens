@@ -138,11 +138,7 @@ func (p *binProcessor) Rewind() {
 }
 
 func (p *binProcessor) Cleanup() {
-	p.initializedMinMax = false
-	p.minVal = 0
-	p.maxVal = 0
-	p.secondPass = false
-	p.spanError = nil
+	// Nothing to do
 }
 
 func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error {
