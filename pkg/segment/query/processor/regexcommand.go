@@ -44,7 +44,7 @@ func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	case "!=":
 		keepMatch = false
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, regex.Process.Process: unknown operator; op=%s", iqr.GetQID(), p.options.Op)
+		return nil, toputils.TeeErrorf("qid=%v, regex.Process: unknown operator; op=%s", iqr.GetQID(), p.options.Op)
 	}
 
 	if p.options.Field == "*" {
