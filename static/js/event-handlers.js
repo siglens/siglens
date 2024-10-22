@@ -966,7 +966,7 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
 function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
     const logsColumnDef = gridOptions.columnApi?.getColumn('logs').getColDef();
     const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
-    
+
     if (logsColumnDef) {
         if (currentView === 'table') {
             logsColumnDef.cellRenderer = null;
@@ -997,7 +997,7 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
                 return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
             };
         }
-        
+
         gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
     }
 }
