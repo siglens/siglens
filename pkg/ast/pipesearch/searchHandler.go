@@ -340,7 +340,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, qc)
 
 		return &httpRespOuter, false, simpleNode.TimeRange, nil
 	}
@@ -499,6 +499,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	return allJsons, allCols, nil
 }
 func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []map[string]interface{}) {
+	var strVal string
 	replacement := `<mark>$0</mark>`
 	for colName, colValue := range searchTerms {
 		re, err := regexp.Compile(`(?i)` + colValue)
@@ -508,14 +509,25 @@ func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []
 		}
 		for i, item := range allJsons {
 			for key, value := range item {
-				if strVal, ok := value.(string); ok {
-					if re.MatchString(strVal) && colName == "*" {
-						highlighted := re.ReplaceAllString(strVal, replacement)
-						allJsons[i][key] = highlighted
-					} else if re.MatchString(strVal) && colName == key {
-						highlighted := re.ReplaceAllString(strVal, replacement)
-						allJsons[i][key] = highlighted
-					}
+				log.Info(value)
+				switch value.(type) {
+				case string:
+					strVal = value.(string)
+				case float64:
+					strVal = fmt.Sprintf("%f", value.(float64))
+				case int64:
+					strVal = fmt.Sprintf("%d", value.(int64))
+				case uint64:
+					strVal = fmt.Sprintf("%d", value.(uint64))
+				default:
+					continue
+				}
+				if re.MatchString(strVal) && colName == "*" {
+					highlighted := re.ReplaceAllString(strVal, replacement)
+					allJsons[i][key] = highlighted
+				} else if re.MatchString(strVal) && colName == key {
+					highlighted := re.ReplaceAllString(strVal, replacement)
+					allJsons[i][key] = highlighted
 				}
 			}
 		}

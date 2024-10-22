@@ -206,7 +206,8 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 		parallelismPerFile = 1
 	}
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
-	qc.SearchTerms = getSearchTermsForNode(searchNode)
+	qc.SearchTerms = make(map[string]string, 0)
+	getSearchTermsForNode(searchNode, qc.SearchTerms)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
@@ -1319,8 +1320,7 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	return qsrs, nil
 }
 
-func getSearchTermsForNode(sNode *structs.SearchNode) map[string]string {
-	searchTerms := make(map[string]string, 0)
+func getSearchTermsForNode(sNode *structs.SearchNode, searchTerms map[string]string) {
 	colName := "*"
 	var condition *structs.SearchCondition
 	if sNode.AndSearchConditions != nil {
@@ -1328,21 +1328,27 @@ func getSearchTermsForNode(sNode *structs.SearchNode) map[string]string {
 	} else if sNode.OrSearchConditions != nil {
 		condition = sNode.OrSearchConditions
 	}
-	for _, query := range condition.SearchQueries {
-		if query.ExpressionFilter != nil {
-			if query.ExpressionFilter.LeftSearchInput != nil {
-				colName = query.ExpressionFilter.LeftSearchInput.ColumnName
-			}
-		}
-		if query.MatchFilter != nil {
-			if query.MatchFilter.MatchColumn == "*" {
-				colName = "*"
-			}
-		}
-		bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
-		for word := range bloomWords {
-			searchTerms[colName] = word
+	if condition.SearchNode != nil {
+		for _, sNode := range condition.SearchNode {
+			getSearchTermsForNode(sNode, searchTerms)
 		}
 	}
-	return searchTerms
+	if condition.SearchQueries != nil {
+		for _, query := range condition.SearchQueries {
+			if query.ExpressionFilter != nil {
+				if query.ExpressionFilter.LeftSearchInput != nil {
+					colName = query.ExpressionFilter.LeftSearchInput.ColumnName
+				}
+			}
+			if query.MatchFilter != nil {
+				if query.MatchFilter.MatchColumn == "*" {
+					colName = "*"
+				}
+			}
+			bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
+			for word := range bloomWords {
+				searchTerms[colName] = word
+			}
+		}
+	}
 }
