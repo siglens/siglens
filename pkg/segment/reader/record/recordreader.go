@@ -70,7 +70,7 @@ func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
 

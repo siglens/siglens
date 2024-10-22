@@ -117,7 +117,7 @@ func Test_AsResult(t *testing.T) {
 		CanScrollMore:      false,
 		ColumnsOrder:       []string{"col1"},
 	}
-	result, err := iqr.AsResult()
+	result, err := iqr.AsResult(structs.RRCCmd)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
 }
