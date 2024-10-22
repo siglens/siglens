@@ -510,15 +510,15 @@ func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []
 		for i, item := range allJsons {
 			for key, value := range item {
 				log.Info(value)
-				switch value.(type) {
+				switch value := value.(type) {
 				case string:
-					strVal = value.(string)
+					strVal = value
 				case float64:
-					strVal = fmt.Sprintf("%f", value.(float64))
+					strVal = fmt.Sprintf("%f", value)
 				case int64:
-					strVal = fmt.Sprintf("%d", value.(int64))
+					strVal = fmt.Sprintf("%d", value)
 				case uint64:
-					strVal = fmt.Sprintf("%d", value.(uint64))
+					strVal = fmt.Sprintf("%d", value)
 				default:
 					continue
 				}
