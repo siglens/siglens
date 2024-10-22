@@ -395,6 +395,10 @@ input.form-control {
     justify-content: space-between;
 }
 
+#tabs-2 {
+    display: none;
+}
+
 .dropdown-box {
     display: flex;
     flex-direction: row;
