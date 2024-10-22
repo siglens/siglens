@@ -132,7 +132,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	err = iqr.AppendKnownValues(knownValues)
 	if err != nil {
-		return nil, fmt.Errorf("evalProcessor.Process: failed to append known values, err=%v", err)
+		return nil, fmt.Errorf("evalProcessor.Process: failed to append known values, err: %v", err)
 	}
 
 	return iqr, nil
