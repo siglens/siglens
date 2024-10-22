@@ -144,3 +144,51 @@ func Test_NilOptionStruct(t *testing.T) {
 	_, ok = optionPtr.Get()
 	assert.False(t, ok)
 }
+
+func Test_Option_EncodeDecode_newOption(t *testing.T) {
+	option := NewOptionWithValue(42)
+	encoded, err := option.GobEncode()
+	assert.NoError(t, err)
+
+	decoded := NewUnsetOption[int]()
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+
+	value, ok := decoded.Get()
+	assert.True(t, ok)
+	assert.Equal(t, 42, value)
+}
+
+func Test_Option_EncodeDecode_replaceOption(t *testing.T) {
+	option := NewOptionWithValue(42)
+	encoded, err := option.GobEncode()
+	assert.NoError(t, err)
+
+	decoded := NewOptionWithValue(1)
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+
+	value, ok := decoded.Get()
+	assert.True(t, ok)
+	assert.Equal(t, 42, value)
+}
+
+func Test_Option_EncodeDecode_badEncoding(t *testing.T) {
+	encoded := []byte("bad encoding")
+	decoded := NewOptionWithValue(42)
+	err := decoded.GobDecode(encoded)
+	assert.Error(t, err)
+}
+
+func Test_Option_EncodeDecode_nilOption(t *testing.T) {
+	option := NewUnsetOption[int]()
+	encoded, err := option.GobEncode()
+	assert.NoError(t, err)
+
+	decoded := NewOptionWithValue(1)
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+
+	_, ok := decoded.Get()
+	assert.False(t, ok)
+}
