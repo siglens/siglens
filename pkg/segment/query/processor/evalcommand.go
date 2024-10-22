@@ -94,7 +94,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			fieldsInExpr = append(fieldsInExpr, cname)
 		}
 	}
-	
+
 	records := make(map[string][]utils.CValueEnclosure)
 	for _, field := range fieldsInExpr {
 		record, err := iqr.ReadColumn(field)
@@ -129,8 +129,6 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, fmt.Errorf("failed to append known values, err=%v", err)
 	}
 
-	
-	
 	return iqr, nil
 }
 
