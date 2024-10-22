@@ -1678,7 +1678,10 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         NewColName: field.(string),
     }
     if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binOptions := binCmdOption.(*structs.BinCmdOptions)
+        binOptions.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1943,6 +1946,7 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        DedupExpr: dedupExpr.(*structs.DedupExpr),
     }
 
     return root, nil

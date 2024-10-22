@@ -282,7 +282,7 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
-	if !toputils.IsSegmentRotated(searchReq.SegmentKey) {
+	if !toputils.IsFileForRotatedSegment(searchReq.SegmentKey) {
 		return
 	}
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {

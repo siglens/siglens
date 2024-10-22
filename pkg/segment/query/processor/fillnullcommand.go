@@ -33,55 +33,25 @@ type fillnullProcessor struct {
 	secondPass   bool
 }
 
-func getTheFinalFillValue(fillValue string, qid uint64) (utils.CValueEnclosure, error) {
-	fillValueDtype, err := utils.CreateDtypeEnclosure(fillValue, qid)
-	if err != nil {
-		return utils.CValueEnclosure{}, toputils.TeeErrorf("qid=%v, performFillNullForTheFields: cannot create dtype for the fill Value; err=%v", qid, err)
-	}
-
-	var finalFillValue interface{}
-
-	if fillValueDtype.IsBool() {
-		finalFillValue = fillValueDtype.BoolVal
-	} else if fillValueDtype.IsInt() {
-		finalFillValue = fillValueDtype.SignedVal
-	} else if fillValueDtype.IsFloat() {
-		finalFillValue = fillValueDtype.FloatVal
-	} else {
-		finalFillValue = fillValue
-	}
-
-	return utils.CValueEnclosure{CVal: finalFillValue, Dtype: fillValueDtype.Dtype}, nil
-}
-
 func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue utils.CValueEnclosure) {
-	fillNullForAllRecords := make(map[string]struct{})
 
 	for field := range fields {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
-			fillNullForAllRecords[field] = struct{}{}
-			continue
-		}
+			values = toputils.ResizeSliceWithDefault(values, iqr.NumberOfRecords(), cTypeFillValue)
+		} else {
 
-		for i, value := range values {
-			if value.IsNull() {
-				value.CVal = cTypeFillValue.CVal
-				value.Dtype = cTypeFillValue.Dtype
-				values[i] = value
+			for i := range values {
+				if values[i].IsNull() {
+					values[i].CVal = cTypeFillValue.CVal
+					values[i].Dtype = cTypeFillValue.Dtype
+				}
 			}
 		}
 
 		err = iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
 		if err != nil {
 			log.Errorf("performFillNullForTheFields: failed to append known values; err=%v", err)
-		}
-	}
-
-	for field := range fillNullForAllRecords {
-		err := iqr.AddColumnWithDefaultValue(field, cTypeFillValue)
-		if err != nil {
-			log.Errorf("performFillNullForTheFields: failed to add column with default value; err=%v", err)
 		}
 	}
 }
@@ -91,9 +61,10 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	cTypeFillValue, err := getTheFinalFillValue(p.options.Value, iqr.GetQID())
+	cTypeFillValue := utils.CValueEnclosure{}
+	err := cTypeFillValue.ConvertValue(p.options.Value)
 	if err != nil {
-		return nil, err
+		return nil, toputils.TeeErrorf("performFillNullForTheFields: cannot convert fill value; err=%v", err)
 	}
 
 	if len(p.options.FieldList) > 0 {

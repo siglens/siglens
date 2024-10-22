@@ -232,10 +232,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
 	}
 
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
-	}
-
 	if values, ok := iqr.knownValues[cname]; ok {
 		return values, nil
 	}
@@ -289,6 +285,16 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil, toputils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
 				len(iqr.rrcs), len(values))
 		}
+	}
+
+	for oldName := range iqr.renamedColumns {
+		// TODO: don't read these columns from the RRCs, instead of reading and
+		// then deleting them.
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
 	}
 
 	return results, nil
@@ -389,21 +395,42 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
+func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
+	// segKey -> virtual table name
+	segKeyVTableMap := make(map[string]string)
+	for _, rrc := range iqr.rrcs {
+		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
+		if !ok {
+			// This should never happen.
+			log.Errorf("qid=%v, IQR.getSegKeysFromRRCs: unknown encoding %v", iqr.qid, rrc.SegKeyInfo.SegKeyEnc)
+			continue
+		}
+
+		if _, ok := segKeyVTableMap[segKey]; ok {
+			continue
+		}
+		segKeyVTableMap[segKey] = rrc.VirtualTableName
+	}
+
+	return segKeyVTableMap
+}
+
 func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 	if err := iqr.validate(); err != nil {
 		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
 	}
 
-	segKey, ok := iqr.encodingToSegKey[iqr.rrcs[0].SegKeyInfo.SegKeyEnc]
-	if !ok {
-		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", iqr.rrcs[0].SegKeyInfo.SegKeyEnc)
-	}
+	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
-	vTable := iqr.rrcs[0].VirtualTableName
+	allColumns := make(map[string]struct{})
 
-	allColumns, err := record.GetColsForSegKey(segKey, vTable)
-	if err != nil {
-		return nil, err
+	for segkey, vTable := range segKeyVTableMap {
+		columns, err := record.GetColsForSegKey(segkey, vTable)
+		if err != nil {
+			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
+		}
+
+		toputils.AddMapKeysToSet(allColumns, columns)
 	}
 
 	toputils.AddMapKeysToSet(allColumns, iqr.knownValues)
@@ -687,9 +714,24 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	return nil
 }
 
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	iqr.renamedColumns[oldName] = newName
+	if values, ok := iqr.knownValues[oldName]; ok {
+		iqr.knownValues[newName] = values
+		delete(iqr.knownValues, oldName)
+	}
+
+	return nil
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -727,65 +769,158 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		}
 	}
 
-	response := &structs.PipeSearchResponseOuter{
-		Hits: structs.PipeSearchResponse{
-			TotalMatched: iqr.NumberOfRecords(),
-			Hits:         recordsAsAny,
-		},
-		AllPossibleColumns: toputils.GetKeysOfMap(records),
-		Errors:             nil,
-		Qtype:              "logs-query", // TODO: handle stats queries
-		CanScrollMore:      false,
-		ColumnsOrder:       toputils.GetSortedStringKeys(records),
+	var response *structs.PipeSearchResponseOuter
+
+	switch qType {
+	case structs.RRCCmd:
+		response = &structs.PipeSearchResponseOuter{
+			Hits: structs.PipeSearchResponse{
+				TotalMatched: iqr.NumberOfRecords(),
+				Hits:         recordsAsAny,
+			},
+			AllPossibleColumns: toputils.GetKeysOfMap(records),
+			Errors:             nil,
+			Qtype:              qType.String(),
+			CanScrollMore:      false,
+			ColumnsOrder:       toputils.GetSortedStringKeys(records),
+		}
+	case structs.GroupByCmd:
+		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalResultForGroupBy()
+		if err != nil {
+			return nil, toputils.TeeErrorf("IQR.AsResult: error getting final result for GroupBy: %v", err)
+		}
+
+		response = &structs.PipeSearchResponseOuter{
+			Hits: structs.PipeSearchResponse{
+				TotalMatched: 0, // TODO: get the total matched records
+				Hits:         nil,
+			},
+			AllPossibleColumns: toputils.GetKeysOfMap(records),
+			Errors:             nil,
+			Qtype:              qType.String(),
+			CanScrollMore:      false,
+			ColumnsOrder:       toputils.GetSortedStringKeys(records),
+			BucketCount:        bucketCount,
+			MeasureFunctions:   measureFuncs,
+			MeasureResults:     bucketHolderArr,
+			GroupByCols:        aggGroupByCols,
+			// TODO: add IsTimechart flag
+		}
+	case structs.SegmentStatsCmd: // TODO: implement
+		panic("IQR.AsResult: SegmentStatsCmd not implemented")
+	default:
+		return nil, fmt.Errorf("IQR.AsResult: unexpected query type %v", qType)
 	}
 
 	return response, nil
 }
 
-func (iqr *IQR) AddColumnWithDefaultValue(cname string, value utils.CValueEnclosure) error {
+func (iqr *IQR) AppendGroupByResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AddColumnWithDefaultValue: validation failed: %v", err)
+		log.Errorf("IQR.AppendGroupByResults: validation failed: %v", err)
 		return err
 	}
 
-	if iqr.mode == notSet {
-		return nil
+	iqr.mode = withoutRRCs
+
+	knownValues := make(map[string][]utils.CValueEnclosure)
+
+	for _, aggGroupByCol := range aggGroupByCols {
+		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, bucketCount)
+	}
+	for _, retMFun := range measureFuncs {
+		knownValues[retMFun] = make([]utils.CValueEnclosure, bucketCount)
 	}
 
-	if _, ok := iqr.deletedColumns[cname]; ok {
-		return fmt.Errorf("IQR.AddColumnWithDefaultValue: column %s is deleted", cname)
+	conversionErrors := make([]string, utils.MAX_SIMILAR_ERRORS_TO_LOG)
+	errIndex := 0
+
+	for i, bucketHolder := range bucketHolderArr {
+		for idx, aggGroupByCol := range aggGroupByCols {
+			colValue := bucketHolder.GroupByValues[idx]
+			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v", i, aggGroupByCol, colValue)
+				errIndex++
+			}
+		}
+
+		for _, measureFunc := range measureFuncs {
+			value := bucketHolder.MeasureVal[measureFunc]
+			err := knownValues[measureFunc][i].ConvertValue(value)
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v", i, measureFunc, value)
+				errIndex++
+			}
+		}
 	}
 
-	values, ok := iqr.knownValues[cname]
-	if !ok {
-		values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+	err := iqr.AppendKnownValues(knownValues)
+	if err != nil {
+		return err
 	}
 
-	for i := range values {
-		values[i] = value
+	iqr.groupbyColumns = append(iqr.groupbyColumns, aggGroupByCols...)
+	iqr.measureColumns = append(iqr.measureColumns, measureFuncs...)
+
+	if errIndex > 0 {
+		log.Errorf("IQR.AppendGroupByResults: conversion errors: %v", conversionErrors)
 	}
-	iqr.knownValues[cname] = values
 
 	return nil
 }
 
-func (iqr *IQR) AddNewCreatedColumn(cname string) error {
-	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AddNewCreatedColumn: validation failed: %v", err)
-		return err
+func (iqr *IQR) getFinalResultForGroupBy() ([]*structs.BucketHolder, []string, []string, int, error) {
+	knownValues := iqr.knownValues
+
+	if len(knownValues) == 0 {
+		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: knownValues is empty")
 	}
 
-	if iqr.mode == notSet {
-		return nil
+	// The bucket count is the number of rows in the final result. So we can use the length of any column.
+	bucketCount := len(knownValues[iqr.groupbyColumns[0]])
+	if bucketCount == 0 {
+		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: bucketCount is 0")
 	}
 
-	if _, ok := iqr.deletedColumns[cname]; ok {
-		return fmt.Errorf("IQR.AddNewCreatedColumn: column %s is deleted", cname)
+	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
+
+	// Rename groupbyColumns and measureColumns based on the renamedColumns map
+	for i, groupColName := range iqr.groupbyColumns {
+		if newColName, ok := iqr.renamedColumns[groupColName]; ok {
+			iqr.groupbyColumns[i] = newColName
+		}
 	}
 
-	return nil
-}
+	for i, measureColName := range iqr.measureColumns {
+		if newColName, ok := iqr.renamedColumns[measureColName]; ok {
+			iqr.measureColumns[i] = newColName
+		}
+	}
 
-func (iqr *IQR) GetRecord(index int) *Record {
-	return &Record{iqr: iqr, index: index}
+	groupByColLen := len(iqr.groupbyColumns)
+
+	// Fill in the bucketHolderArr with values from knownValues
+	for i := 0; i < bucketCount; i++ {
+
+		bucketHolderArr[i] = &structs.BucketHolder{
+			GroupByValues: make([]string, groupByColLen),
+			MeasureVal:    make(map[string]interface{}),
+		}
+
+		for idx, aggGroupByCol := range iqr.groupbyColumns {
+			colValue := knownValues[aggGroupByCol][i]
+			convertedValue, err := colValue.GetString()
+			if err != nil {
+				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalResultForGroupBy: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
+			}
+			bucketHolderArr[i].GroupByValues[idx] = convertedValue
+		}
+
+		for _, measureFunc := range iqr.measureColumns {
+			bucketHolderArr[i].MeasureVal[measureFunc] = knownValues[measureFunc][i].CVal
+		}
+	}
+
+	return bucketHolderArr, iqr.groupbyColumns, iqr.measureColumns, bucketCount, nil
 }

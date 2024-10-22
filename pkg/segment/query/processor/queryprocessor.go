@@ -38,6 +38,7 @@ const (
 )
 
 type QueryProcessor struct {
+	queryType structs.QueryType
 	DataProcessor
 	chain []*DataProcessor // This shouldn't be modified after initialization.
 }
@@ -58,8 +59,22 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
 	}
 
+	firstProcessorAgg := firstAgg
+
+	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
+
+	if queryType != structs.RRCCmd {
+		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
+		if !firstAgg.HasStatsBlock() {
+			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+		}
+
+		// skip the first agg
+		firstProcessorAgg = firstProcessorAgg.Next
+	}
+
 	dataProcessors := make([]*DataProcessor, 0)
-	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
 		dataProcessor := asDataProcessor(curAgg)
 		if dataProcessor == nil {
 			break
@@ -80,8 +95,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
-
-	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors)
 }
@@ -107,6 +120,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
 
 	return &QueryProcessor{
+		queryType:     queryType,
 		DataProcessor: *headDP,
 		chain:         chain,
 	}, nil
@@ -185,7 +199,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		}
 	}
 
-	return finalIQR.AsResult()
+	return finalIQR.AsResult(qp.queryType)
 }
 
 // Usage:
