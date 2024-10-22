@@ -399,11 +399,6 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
-	for _, qsr := range sortedQSRSlice {
-		if qsr.sType == structs.RAW_SEARCH || qsr.sType == structs.PQS {
-			qsr.sType = structs.SEGMENT_STATS_SEARCH
-		}
-	}
 
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numDistributed)
 	if err != nil {
