@@ -71,7 +71,12 @@ type RenameExpr struct {
 	NewPattern      string
 }
 
-type RegexExpr struct{} // TODO
+type RegexExpr struct {
+	Op       string // must be "=" or "!="
+	Field    string
+	RawRegex string
+	Regexp   *regexp.Regexp
+}
 
 type RexExpr struct {
 	Pattern     string
