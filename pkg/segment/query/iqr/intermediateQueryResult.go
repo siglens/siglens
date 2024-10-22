@@ -55,6 +55,7 @@ type IQR struct {
 	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
 	deletedColumns map[string]struct{}
 	renamedColumns map[string]string // old name -> new name
+	columnIndex    map[string]int
 
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
@@ -72,6 +73,7 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
+		columnIndex:      make(map[string]int),
 	}
 }
 
@@ -267,7 +269,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 
 		vTable := rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
+		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
 		if err != nil {
 			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
 				iqr.qid, segKey, err)
@@ -430,10 +432,18 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
 		}
 
-		toputils.AddMapKeysToSet(allColumns, columns)
+		for column := range columns {
+			if _, ok := iqr.deletedColumns[column]; !ok {
+				allColumns[column] = struct{}{}
+			}
+		}
 	}
 
-	toputils.AddMapKeysToSet(allColumns, iqr.knownValues)
+	for column := range iqr.knownValues {
+		if _, ok := iqr.deletedColumns[column]; !ok {
+			allColumns[column] = struct{}{}
+		}
+	}
 
 	return allColumns, nil
 }
@@ -562,8 +572,9 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
 	}
 
-	for cname := range iqrs[0].deletedColumns {
-		result.deletedColumns[cname] = struct{}{}
+	for _, iqrToMerge := range iqrs {
+		result.AddColumnsToDelete(iqrToMerge.deletedColumns)
+		result.AddColumnIndex(iqrToMerge.columnIndex)
 	}
 
 	for oldName, newName := range iqrs[0].renamedColumns {
@@ -600,11 +611,6 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 			}
 		}
 
-		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent deleted columns (%v and %v)",
-				iqr.qid, iqr.deletedColumns, result.deletedColumns)
-		}
-
 		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent renamed columns (%v and %v)",
 				iqr.qid, iqr.renamedColumns, result.renamedColumns)
@@ -622,6 +628,19 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	}
 
 	return result, nil
+}
+
+func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
+	for cname := range cnames {
+		iqr.deletedColumns[cname] = struct{}{}
+		delete(iqr.knownValues, cname)
+	}
+}
+
+func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
+	for cname, index := range cnamesToIndex {
+		iqr.columnIndex[cname] = index
+	}
 }
 
 func (iqr *IQR) discard(numRecords int) error {
@@ -729,6 +748,39 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 	return nil
 }
 
+func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
+	indexToCols := make(map[int][]string)
+	withoutIndexCols := []string{}
+	finalColumnOrder := []string{}
+
+	// For each column find its group based on the index.
+	for _, cname := range allCnames {
+		if idx, isIndexAvailable := iqr.columnIndex[cname]; isIndexAvailable {
+			indexToCols[idx] = append(indexToCols[idx], cname)
+		} else {
+			withoutIndexCols = append(withoutIndexCols, cname)
+		}
+	}
+
+	// Sort the value of indexes to get the order for each group.
+	allIndexes := toputils.GetKeysOfMap(indexToCols)
+	sort.Ints(allIndexes)
+
+	// Since multiple columns can have same index we will sort them lexicographically within each group.
+	// Then all of these groups will be appended in the order of their index.
+	for _, idx := range allIndexes {
+		allColsAtIdx := indexToCols[idx]
+		sort.Strings(allColsAtIdx)
+		finalColumnOrder = append(finalColumnOrder, allColsAtIdx...)
+	}
+
+	// Columns without any index would be sorted lexicographically and added at the end.
+	sort.Strings(withoutIndexCols)
+	finalColumnOrder = append(finalColumnOrder, withoutIndexCols...)
+
+	return finalColumnOrder
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
@@ -749,11 +801,6 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 			log.Errorf("qid=%v, IQR.AsResult: error reading all columns: %v", iqr.qid, err)
 			return nil, err
 		}
-
-		// Append the known values to the result.
-		for cname, values := range iqr.knownValues {
-			records[cname] = values
-		}
 	case withoutRRCs:
 		records = iqr.knownValues
 	default:
@@ -769,8 +816,9 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 		}
 	}
 
-	var response *structs.PipeSearchResponseOuter
+	allCNames := toputils.GetKeysOfMap(records)
 
+	var response *structs.PipeSearchResponseOuter
 	switch qType {
 	case structs.RRCCmd:
 		response = &structs.PipeSearchResponseOuter{
@@ -778,11 +826,11 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 				TotalMatched: iqr.NumberOfRecords(),
 				Hits:         recordsAsAny,
 			},
-			AllPossibleColumns: toputils.GetKeysOfMap(records),
+			AllPossibleColumns: allCNames,
 			Errors:             nil,
 			Qtype:              qType.String(),
 			CanScrollMore:      false,
-			ColumnsOrder:       toputils.GetSortedStringKeys(records),
+			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
 		}
 	case structs.GroupByCmd, structs.SegmentStatsCmd:
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalStatsResults()
@@ -795,11 +843,11 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 				TotalMatched: 0, // TODO: get the total matched records
 				Hits:         nil,
 			},
-			AllPossibleColumns: toputils.GetKeysOfMap(records),
+			AllPossibleColumns: allCNames,
 			Errors:             nil,
 			Qtype:              qType.String(),
 			CanScrollMore:      false,
-			ColumnsOrder:       toputils.GetSortedStringKeys(records),
+			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
 			BucketCount:        bucketCount,
 			MeasureFunctions:   measureFuncs,
 			MeasureResults:     bucketHolderArr,
