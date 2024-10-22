@@ -139,6 +139,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, inputIQR.GetQID())
 	}
 
+	p.logErrors()
+
 	return nil, nil
 }
 
@@ -156,8 +158,6 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if err != nil {
 		return nil, toputils.TeeErrorf("stats.Process.extractGroupByResults: cannot append stats results; err=%v", err)
 	}
-
-	p.logErrors()
 
 	return iqr, io.EOF
 }
