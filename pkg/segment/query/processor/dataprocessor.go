@@ -33,7 +33,6 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -106,13 +105,17 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (dp *DataProcessor) IsDataGenerator(qid uint64) bool {
+func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64, set bool) bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
-		dp.processor.(*gentimesProcessor).qid = qid
+		if set {
+			dp.processor.(*gentimesProcessor).qid = qid
+		}
 		return true
 	case *inputlookupProcessor:
-		dp.processor.(*inputlookupProcessor).qid = qid
+		if set {
+			dp.processor.(*inputlookupProcessor).qid = qid
+		}
 		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
@@ -122,7 +125,7 @@ func (dp *DataProcessor) IsDataGenerator(qid uint64) bool {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
-		if dp.IsDataGenerator(dp.qid) {
+		if dp.CheckAndSetQidForDataGenerator(0, false) {
 			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")
