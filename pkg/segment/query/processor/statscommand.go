@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -30,8 +29,7 @@ import (
 )
 
 type ErrorData struct {
-	readColumns        map[string]struct{}
-	convertToCValueErr map[string]interface{}
+	readColumns map[string]struct{} // columnName -> struct{}. Tracks errors while reading the column through iqr.Record.ReadColumn
 }
 
 type statsProcessor struct {
@@ -46,8 +44,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
-			readColumns:        make(map[string]struct{}),
-			convertToCValueErr: make(map[string]interface{}),
+			readColumns: make(map[string]struct{}),
 		}
 	}
 
@@ -152,38 +149,11 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	// load and convert the bucket results
 	_ = p.searchResults.GetBucketResults()
 
-	bucketHolderArr, retMFuns, aggGroupByCols, _, _ := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
-	knownValues := make(map[string][]utils.CValueEnclosure)
-
-	for _, aggGroupByCol := range aggGroupByCols {
-		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, len(bucketHolderArr))
-	}
-	for _, retMFun := range retMFuns {
-		knownValues[retMFun] = make([]utils.CValueEnclosure, len(bucketHolderArr))
-	}
-
-	for i, bucketHolder := range bucketHolderArr {
-		for idx, aggGroupByCol := range aggGroupByCols {
-			colValue := bucketHolder.GroupByValues[idx]
-			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
-			if err != nil {
-				p.errorData.convertToCValueErr[fmt.Sprintf("%v_%v", i, aggGroupByCol)] = colValue
-			}
-		}
-
-		for _, retMFun := range retMFuns {
-			value := bucketHolder.MeasureVal[retMFun]
-			err := knownValues[retMFun][i].ConvertValue(value)
-			if err != nil {
-				p.errorData.convertToCValueErr[fmt.Sprintf("%v_%v", i, retMFun)] = value
-			}
-		}
-	}
-
-	err := iqr.AppendKnownValues(knownValues)
+	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("stats.Process.extractGroupByResults: cannot append known values; err=%v", err)
+		return nil, toputils.TeeErrorf("stats.Process.extractGroupByResults: cannot append stats results; err=%v", err)
 	}
 
 	p.logErrors()
@@ -194,9 +164,5 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *statsProcessor) logErrors() {
 	if len(p.errorData.readColumns) > 0 {
 		log.Errorf("stats.Process: failed to read columns: %v", p.errorData.readColumns)
-	}
-
-	if len(p.errorData.convertToCValueErr) > 0 {
-		log.Errorf("stats.Process: failed to convert to CValue: %v", p.errorData.convertToCValueErr)
 	}
 }
