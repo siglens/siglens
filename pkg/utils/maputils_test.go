@@ -387,3 +387,55 @@ func Test_MergeMapSlicesWithBackfill(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOrCreateNestedMap(t *testing.T) {
+	m := make(map[string]map[string]int)
+
+	// Test when key1 does not exist
+	innerMap := GetOrCreateNestedMap(m, "key1")
+	assert.NotNil(t, innerMap)
+	assert.Equal(t, 0, len(innerMap))
+
+	// Test if key1 now exists and inner map is accessible
+	innerMap["key2"] = 42
+	newInnerMap := GetOrCreateNestedMap(m, "key1")
+	assert.Equal(t, 42, newInnerMap["key2"])
+}
+
+func TestGetEntryFromNestedMap(t *testing.T) {
+	m := make(map[string]map[string]int)
+
+	// Test when outer map key1 does not exist
+	value, exists := GetEntryFromNestedMap(m, "key1", "key2")
+	assert.False(t, exists, "Value should not exist for a non-existent outer key")
+	assert.Equal(t, 0, value, "Returned value should be the zero value of the type")
+
+	// Test when key1 exists but key2 does not
+	m["key1"] = map[string]int{"key3": 100}
+	value, exists = GetEntryFromNestedMap(m, "key1", "key2")
+	assert.False(t, exists, "Value should not exist for a non-existent inner key")
+	assert.Equal(t, 0, value, "Returned value should be the zero value of the type")
+
+	// Test when both key1 and key2 exist
+	value, exists = GetEntryFromNestedMap(m, "key1", "key3")
+	assert.True(t, exists, "Value should exist when both outer and inner keys exist")
+	assert.Equal(t, 100, value, "The correct value should be returned")
+}
+
+func TestRemoveKeyFromNestedMap(t *testing.T) {
+	m := make(map[string]map[string]bool)
+
+	// Test removing key from an empty map (no-op)
+	RemoveKeyFromNestedMap(m, "key1", "key2")
+	assert.Equal(t, 0, len(m))
+
+	// Test removing an existing inner key and leaving the outer map intact
+	m["key1"] = map[string]bool{"key2": true, "key3": true}
+	RemoveKeyFromNestedMap(m, "key1", "key2")
+	assert.Equal(t, 1, len(m["key1"]), "One key should remain in the inner map after removing one key")
+	assert.Equal(t, true, m["key1"]["key3"], "The remaining key should still exist in the map")
+
+	// Test removing the last inner key and removing the outer map key
+	RemoveKeyFromNestedMap(m, "key1", "key3")
+	assert.Equal(t, 0, len(m), "Outer map key should be removed when the inner map becomes empty")
+}
