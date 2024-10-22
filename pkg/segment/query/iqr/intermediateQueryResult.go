@@ -438,6 +438,10 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 	return allColumns, nil
 }
 
+func (iqr *IQR) GetRecord(index int) *Record {
+	return &Record{iqr: iqr, index: index}
+}
+
 func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
