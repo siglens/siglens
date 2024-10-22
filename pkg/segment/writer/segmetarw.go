@@ -46,9 +46,10 @@ var localSegmetaFname string
 var SegmetaFilename = "segmeta.json"
 
 type PQSChanMeta struct {
-	pqid     string
-	segKey   string
-	emptyPqs bool
+	pqid                 string
+	segKey               string
+	writeToEmptyPQIDMeta bool
+	writeToSegFullMeta   bool
 }
 
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
@@ -505,9 +506,22 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 }
 
 // AddToBackFillAndEmptyPQSChan adds a new pqid to the channel
-// if emptyPqs is true, then it will also add the EmptyResults for this pqid
-func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, emptyPqs bool) {
-	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, emptyPqs: emptyPqs}
+// Adds the pqid to the segfullmeta file for the given segkey
+// if writeToEmptyPQIDMeta is true, then it will write the EmptyResults for this pqid
+func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, writeToEmptyPQIDMeta bool) {
+	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, writeToSegFullMeta: true, writeToEmptyPQIDMeta: writeToEmptyPQIDMeta}
+}
+
+// AddEmptyPQIDToChan adds a new pqid to the channel
+// if writeToEmptyPQIDMeta is true, then it will write the EmptyResults for this pqid
+func AddEmptyPQIDToChan(pqid string, segKey string) {
+	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, writeToEmptyPQIDMeta: true}
+}
+
+func AddEmptyPQIDMapToChan(pqid string, pqidToEmptySegMap map[string]bool) {
+	for segKey := range pqidToEmptySegMap {
+		AddEmptyPQIDToChan(pqid, segKey)
+	}
 }
 
 func listenBackFillAndEmptyPQSRequests() {
@@ -551,12 +565,14 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	pqidToEmptySegMap := make(map[string]map[string]bool)
 
 	for _, pqsRequest := range pqsRequests {
-		if _, ok := segKeyToAllPQIDsMap[pqsRequest.segKey]; !ok {
-			segKeyToAllPQIDsMap[pqsRequest.segKey] = make(map[string]bool)
+		if pqsRequest.writeToSegFullMeta {
+			if _, ok := segKeyToAllPQIDsMap[pqsRequest.segKey]; !ok {
+				segKeyToAllPQIDsMap[pqsRequest.segKey] = make(map[string]bool)
+			}
+			segKeyToAllPQIDsMap[pqsRequest.segKey][pqsRequest.pqid] = true
 		}
-		segKeyToAllPQIDsMap[pqsRequest.segKey][pqsRequest.pqid] = true
 
-		if pqsRequest.emptyPqs {
+		if pqsRequest.writeToEmptyPQIDMeta {
 			if _, ok := pqidToEmptySegMap[pqsRequest.pqid]; !ok {
 				pqidToEmptySegMap[pqsRequest.pqid] = make(map[string]bool)
 			}

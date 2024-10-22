@@ -40,7 +40,6 @@ import (
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
@@ -776,7 +775,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				if err != nil {
 					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
-				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey)
+				go AddEmptyPQIDToChan(pqid, segstore.SegmentKey)
 			}
 		}
 
