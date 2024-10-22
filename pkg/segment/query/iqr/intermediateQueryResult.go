@@ -553,7 +553,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
 
-	result := NewIQR(iqrs[0].qid, iqrs[0].qType)
+	result := NewIQR(iqrs[0].qid)
 	result.mode = iqrs[0].mode
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
@@ -828,8 +828,8 @@ func (iqr *IQR) AppendRRCStatsResults(bucketHolderArr []*structs.BucketHolder, m
 	for _, aggGroupByCol := range aggGroupByCols {
 		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, bucketCount)
 	}
-	for _, retMFun := range measureFuncs {
-		knownValues[retMFun] = make([]utils.CValueEnclosure, bucketCount)
+	for _, measureFunction := range measureFuncs {
+		knownValues[measureFunction] = make([]utils.CValueEnclosure, bucketCount)
 	}
 
 	conversionErrors := make([]string, utils.MAX_SIMILAR_ERRORS_TO_LOG)
@@ -840,7 +840,7 @@ func (iqr *IQR) AppendRRCStatsResults(bucketHolderArr []*structs.BucketHolder, m
 			colValue := bucketHolder.GroupByValues[idx]
 			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
 			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
-				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v", i, aggGroupByCol, colValue)
+				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v. Error=%v", i, aggGroupByCol, colValue, err)
 				errIndex++
 			}
 		}
@@ -849,7 +849,7 @@ func (iqr *IQR) AppendRRCStatsResults(bucketHolderArr []*structs.BucketHolder, m
 			value := bucketHolder.MeasureVal[measureFunc]
 			err := knownValues[measureFunc][i].ConvertValue(value)
 			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
-				conversionErrors[i] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v", i, measureFunc, value)
+				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)
 				errIndex++
 			}
 		}

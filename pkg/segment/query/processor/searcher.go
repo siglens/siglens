@@ -232,7 +232,7 @@ func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 	}
 
 	// post getting of stats results
-	iqr := iqr.NewIQR(s.queryInfo.GetQid(), queryType)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
 	err = iqr.AppendRRCStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
 	if err != nil {
