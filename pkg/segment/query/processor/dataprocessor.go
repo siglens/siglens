@@ -33,7 +33,6 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -79,9 +78,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	for {
 		gotEOF := false
 		input, err := dp.getStreamInput()
-		if err == io.EOF {
-			gotEOF = true
-		} else if err != nil {
+		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 		}
 
@@ -108,10 +105,18 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (dp *DataProcessor) IsDataGenerator() bool {
+func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64, set bool) bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
+		if set {
+			dp.processor.(*gentimesProcessor).qid = qid
+		}
 		return true
+	case *inputlookupProcessor:
+		if set {
+			dp.processor.(*inputlookupProcessor).qid = qid
+		}
+		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
 	}
@@ -120,8 +125,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
-		if dp.IsDataGenerator() {
-			return iqr.NewIQR(dp.qid), nil
+		if dp.CheckAndSetQidForDataGenerator(0, false) {
+			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")
 	case 1:
@@ -253,6 +258,20 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 		processor: &gentimesProcessor{
 			options:       options,
 			currStartTime: options.StartTime,
+		},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
+	return &DataProcessor{
+		streams: make([]*cachedStream, 0),
+		processor: &inputlookupProcessor{
+			options: options,
+			start:   options.Start,
 		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
