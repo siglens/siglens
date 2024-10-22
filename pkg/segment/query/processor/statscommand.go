@@ -54,7 +54,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		// TODO: Implement measure operations
 		return nil, toputils.TeeErrorf("stats.Process: measure operations not implemented")
 	} else {
-		return nil, toputils.TeeErrorf("stats.Process: no group by or measure operations specified")
+		return nil, toputils.TeeErrorf("qid=%v, stats.Process: no group by or measure operations specified", inputIQR.GetQID())
 	}
 }
 
@@ -80,6 +80,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	}
 
 	numOfRecords := inputIQR.NumberOfRecords()
+	qid := inputIQR.GetQID()
 
 	if p.bucketKeyWorkingBuf == nil {
 		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*utils.MAX_RECORD_SIZE)
@@ -89,9 +90,9 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		p.options.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
 		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
-		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, inputIQR.GetQID())
+		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("stats.Process.processGroupByRequest: cannot initialize search results; err=%v", err)
+			return nil, toputils.TeeErrorf("qid=%v, stats.Process.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
@@ -136,10 +137,10 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 				measureResults[idx] = *cValue
 			}
 		}
-		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, inputIQR.GetQID())
+		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, qid)
 	}
 
-	p.logErrors()
+	p.logErrors(qid)
 
 	return nil, nil
 }
@@ -156,14 +157,14 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("stats.Process.extractGroupByResults: cannot append stats results; err=%v", err)
+		return nil, toputils.TeeErrorf("qid=%v, stats.Process.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, io.EOF
 }
 
-func (p *statsProcessor) logErrors() {
+func (p *statsProcessor) logErrors(qid uint64) {
 	if len(p.errorData.readColumns) > 0 {
-		log.Errorf("stats.Process: failed to read columns: %v", p.errorData.readColumns)
+		log.Errorf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
 }
