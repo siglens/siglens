@@ -385,30 +385,6 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 	}
 	querySummary.UpdateRemainingDistributedQueries(distributedQueries)
 
-	if config.IsNewQueryPipelineEnabled() {
-		for _, qsr := range sortedQSRSlice {
-			if qsr.blkTracker != nil {
-				continue
-			}
-
-			switch qsr.sType {
-			case structs.PQS:
-				spqmr, err := pqs.GetAllPersistentQueryResults(qsr.segKey, qsr.QueryInformation.pqid)
-				if err != nil {
-					log.Errorf("qid=%d, GetSortedQSRs: Cannot get persistent query results; searching all blocks; err=%v",
-						queryInfo.qid, err)
-					qsr.sType = structs.RAW_SEARCH
-					qsr.blkTracker = structs.InitEntireFileBlockTracker()
-				} else {
-					qsr.blkTracker = structs.InitExclusionBlockTracker(spqmr)
-				}
-			default:
-				return nil, utils.TeeErrorf("qid=%d GetSortedQSRs: BlockTracker is nil for QSR with type %v",
-					queryInfo.qid, qsr.sType)
-			}
-		}
-	}
-
 	return sortedQSRSlice, nil
 }
 
@@ -983,7 +959,7 @@ func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *
 		qsr.blkTracker = structs.InitEntireFileBlockTracker()
 		return applyFilterOperatorRawSearchRequest(qsr, allSegFileResults, qs)
 	}
-	err = applyPQSToRotatedRequest(qsr, allSegFileResults, spqmr, qs)
+	err = ApplyPQSToRotatedRequest(qsr, allSegFileResults, spqmr, qs)
 	if err != nil {
 		qsr.sType = structs.RAW_SEARCH
 		qsr.blkTracker = structs.InitEntireFileBlockTracker()
@@ -1220,16 +1196,16 @@ func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleK
 }
 
 // gets search metadata for a segKey and runs raw search
-func applyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
+func ApplyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
 
 	searchMetadata, blkSummaries, err := segmetadata.GetSearchInfoAndSummaryForPQS(qsr.segKey, spqmr)
 	if err != nil {
-		log.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get search info for pqs query %+v. Error: %+v",
+		log.Errorf("qid=%d, ApplyPQSToRotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)
 		return err
 	}
 
-	return applySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
+	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
 }
 
 // gets search metadata for a segKey and runs raw search
@@ -1241,13 +1217,13 @@ func applyPQSToUnrotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segr
 			qsr.qid, qsr.segKey, err)
 		return err
 	}
-	return applySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
+	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
 }
 
-func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder,
+func ApplySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder,
 	blkSummaries []*structs.BlockSummary, qs *summary.QuerySummary) error {
 	if len(searchMetadata) == 0 {
-		log.Infof("qid=%d, applyRawSearchToPQSMatches: segKey %+v has 0 blocks in segment PQMR results", qsr.qid, qsr.segKey)
+		log.Infof("qid=%d, ApplySinglePQSRawSearch: segKey %+v has 0 blocks in segment PQMR results", qsr.qid, qsr.segKey)
 		return nil
 	}
 	req := &structs.SegmentSearchRequest{
@@ -1263,7 +1239,7 @@ func applySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 	}
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qsr.qid)
 	if err != nil {
-		return fmt.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get or create query search node result! Error: %v", qsr.qid, err)
+		return fmt.Errorf("qid=%d, ApplySinglePQSRawSearch: failed to get or create query search node result! Error: %v", qsr.qid, err)
 	}
 	search.RawSearchPQMResults(req, qsr.parallelismPerFile, qsr.queryRange, qsr.aggs, qsr.sizeLimit, spqmr, allSearchResults, qsr.qid, qs, nodeRes)
 

@@ -130,6 +130,18 @@ func (qsr *QuerySegmentRequest) GetTableName() string {
 	return qsr.tableName
 }
 
+func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
+	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
+	qsr.sType = sType
+}
+
+func (qsr *QuerySegmentRequest) SetBlockTracker(blkTracker *structs.BlockTracker) {
+	qsr.blkTracker = blkTracker
+}
+
 /*
 Returns a holder struct with query information
 
