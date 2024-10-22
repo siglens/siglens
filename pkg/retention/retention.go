@@ -30,7 +30,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -194,10 +193,7 @@ func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.SegMeta) {
 	for _, segmetaEntry := range segmentsToDelete {
 		for pqid := range segmetaEntry.AllPQIDs {
-			updatedEmptyPQSMap := pqsmeta.GetUpdatedPQSMapAfterSegmentRemoval(pqid, segmetaEntry.SegmentKey)
-			if updatedEmptyPQSMap != nil {
-				go writer.AddEmptyPQIDMapToChan(pqid, updatedEmptyPQSMap)
-			}
+			go writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
 		}
 	}
 }

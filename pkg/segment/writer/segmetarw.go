@@ -46,10 +46,11 @@ var localSegmetaFname string
 var SegmetaFilename = "segmeta.json"
 
 type PQSChanMeta struct {
-	pqid                 string
-	segKey               string
-	writeToEmptyPQIDMeta bool
-	writeToSegFullMeta   bool
+	pqid                  string
+	segKey                string
+	writeToSegFullMeta    bool
+	writeToEmptyPqMeta    bool
+	deleteFromEmptyPqMeta bool
 }
 
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
@@ -507,21 +508,21 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 
 // AddToBackFillAndEmptyPQSChan adds a new pqid to the channel
 // Adds the pqid to the segfullmeta file for the given segkey
-// if writeToEmptyPQIDMeta is true, then it will write the EmptyResults for this pqid
-func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, writeToEmptyPQIDMeta bool) {
-	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, writeToSegFullMeta: true, writeToEmptyPQIDMeta: writeToEmptyPQIDMeta}
+// if writeToEmptyPqMeta is true, then it will write the EmptyResults for this pqid
+func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, writeToEmptyPqMeta bool) {
+	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, writeToSegFullMeta: true, writeToEmptyPqMeta: writeToEmptyPqMeta}
 }
 
-// AddEmptyPQIDToChan adds a new pqid to the channel
+// AddToEmptyPqmetaChan adds a new pqid to the channel
 // if writeToEmptyPQIDMeta is true, then it will write the EmptyResults for this pqid
-func AddEmptyPQIDToChan(pqid string, segKey string) {
-	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, writeToEmptyPQIDMeta: true}
+func AddToEmptyPqmetaChan(pqid string, segKey string) {
+	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, writeToEmptyPqMeta: true}
 }
 
-func AddEmptyPQIDMapToChan(pqid string, pqidToEmptySegMap map[string]bool) {
-	for segKey := range pqidToEmptySegMap {
-		AddEmptyPQIDToChan(pqid, segKey)
-	}
+// RemoveSegmentFromEmptyPqmetaChan adds a new pqid to the channel
+// This will remove the segment from the emptyPQIDMeta when this entry is processed
+func RemoveSegmentFromEmptyPqmeta(pqid string, segKey string) {
+	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, deleteFromEmptyPqMeta: true}
 }
 
 func listenBackFillAndEmptyPQSRequests() {
@@ -564,19 +565,28 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	// pqid -> segKey -> true ; For empty PQS: Contains all empty segment Keys for a given pqid
 	pqidToEmptySegMap := make(map[string]map[string]bool)
 
+	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
+	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
+
 	for _, pqsRequest := range pqsRequests {
 		if pqsRequest.writeToSegFullMeta {
-			if _, ok := segKeyToAllPQIDsMap[pqsRequest.segKey]; !ok {
-				segKeyToAllPQIDsMap[pqsRequest.segKey] = make(map[string]bool)
-			}
-			segKeyToAllPQIDsMap[pqsRequest.segKey][pqsRequest.pqid] = true
+			allPqidsMap := utils.GetOrCreateNestedMap(segKeyToAllPQIDsMap, pqsRequest.segKey)
+			allPqidsMap[pqsRequest.pqid] = true
 		}
 
-		if pqsRequest.writeToEmptyPQIDMeta {
-			if _, ok := pqidToEmptySegMap[pqsRequest.pqid]; !ok {
-				pqidToEmptySegMap[pqsRequest.pqid] = make(map[string]bool)
-			}
-			pqidToEmptySegMap[pqsRequest.pqid][pqsRequest.segKey] = true
+		// For empty PQS: Check if we need to write to emptyPQIDMeta or delete from it
+		if pqsRequest.writeToEmptyPqMeta {
+			segKeyMap := utils.GetOrCreateNestedMap(pqidToEmptySegMap, pqsRequest.pqid)
+			segKeyMap[pqsRequest.segKey] = true
+
+			// Check if this segkey already exists in the delete Map, if so, remove it.
+			utils.RemoveKeyFromNestedMap(emptyPqidSegKeysToDeleteMap, pqsRequest.pqid, pqsRequest.segKey)
+		} else if pqsRequest.deleteFromEmptyPqMeta {
+			deleteSegKeyMap := utils.GetOrCreateNestedMap(emptyPqidSegKeysToDeleteMap, pqsRequest.pqid)
+			deleteSegKeyMap[pqsRequest.segKey] = true
+
+			// Check if this segkey already exists in the write of emptyPQIDMeta, if so, remove it.
+			utils.RemoveKeyFromNestedMap(pqidToEmptySegMap, pqsRequest.pqid, pqsRequest.segKey)
 		}
 	}
 
@@ -596,6 +606,10 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 
 		for pqid, segKeyMap := range pqidToEmptySegMap {
 			pqsmeta.BulkAddEmptyResults(pqid, segKeyMap)
+		}
+
+		for pqid, segKeyMap := range emptyPqidSegKeysToDeleteMap {
+			pqsmeta.BulkDeleteSegKeysFromPqid(pqid, segKeyMap)
 		}
 	}()
 

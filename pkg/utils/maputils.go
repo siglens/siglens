@@ -22,6 +22,41 @@ import (
 	"sort"
 )
 
+// GetOrCreateNestedMap returns the inner map corresponding to key1 from the outer map.
+// If the key1 does not exist in the outer map, a new inner map is created and returned.
+func GetOrCreateNestedMap[K1 comparable, K2 comparable, V any](m map[K1]map[K2]V, key1 K1) map[K2]V {
+	if _, exists := m[key1]; !exists {
+		m[key1] = make(map[K2]V)
+	}
+
+	return m[key1]
+}
+
+// GetEntryFromNestedMap returns the value corresponding to key1 and key2 from the nested map.
+// If the key1 does not exist in the outer map, the function returns false.
+// If the key2 does not exist in the inner map, the function returns false.
+func GetEntryFromNestedMap[K1 comparable, K2 comparable, V any](m map[K1]map[K2]V, key1 K1, key2 K2) (V, bool) {
+	if innerMap, exists := m[key1]; exists {
+		value, exists := innerMap[key2]
+		return value, exists
+	}
+
+	var nilOrZeroValue V
+
+	return nilOrZeroValue, false
+}
+
+// RemoveKeyFromNestedMap removes the key2 from the inner map corresponding to key1.
+// If the inner map becomes empty after removing key2, the inner map is also removed.
+func RemoveKeyFromNestedMap[K1 comparable, K2 comparable](m map[K1]map[K2]bool, key1 K1, key2 K2) {
+	if innerMap, exists := m[key1]; exists {
+		delete(innerMap, key2)
+		if len(innerMap) == 0 {
+			delete(m, key1)
+		}
+	}
+}
+
 // If there are duplicate keys, values from the second map will overwrite those
 // from the first map.
 func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
