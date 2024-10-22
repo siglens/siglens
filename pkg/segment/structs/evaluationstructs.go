@@ -69,7 +69,7 @@ type RenameExpr struct {
 }
 
 type RegexExpr struct {
-	Op       string
+	Op       string // must be "=" or "!="
 	Field    string
 	RawRegex string
 	Regexp   *regexp.Regexp

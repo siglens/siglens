@@ -1166,7 +1166,7 @@ RegexAggBlock <- PIPE node:RegexBlock {
 			Op:       astNode.Comparison.Op,
 			Field:    astNode.Comparison.Field,
 			RawRegex: rawRegex,
-			Regexp:    regexp,
+			Regexp:   regexp,
 		},
 	}, nil
 }

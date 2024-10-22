@@ -1757,14 +1757,10 @@ func Test_regexAsAggregator(t *testing.T) {
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
+	aggregator := res.(ast.QueryStruct).PipeCommands
 
 	assert.NotNil(t, filterNode)
 	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
-
-	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	fmt.Println("err", err)
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
 
 	nextAgg := aggregator.Next
