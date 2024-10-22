@@ -723,6 +723,7 @@ function logOptionSingleHandler() {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
+            colDef.suppressSizeToFit = true;
             colDef.cellRenderer = function (params) {
                 const data = params.data || {};
                 let logString = '';
@@ -767,6 +768,7 @@ function logOptionMultiHandler() {
         if (colDef.field === 'logs') {
             colDef.cellStyle = { 'white-space': 'normal' };
             colDef.autoHeight = true;
+            colDef.suppressSizeToFit = false;
             colDef.cellRenderer = function (params) {
                 const data = params.data || {};
                 let logString = '';
