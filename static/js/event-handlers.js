@@ -964,40 +964,42 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
 }
 
 function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
-    const logsColumnDef = gridOptions.columnApi.getColumn('logs').getColDef();
+    const logsColumnDef = gridOptions.columnApi?.getColumn('logs').getColDef();
     const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+    
+    if (logsColumnDef) {
+        if (currentView === 'table') {
+            logsColumnDef.cellRenderer = null;
+        } else {
+            logsColumnDef.cellRenderer = (params) => {
+                const data = params.data || {};
+                let logString = '';
+                let addSeparator = false;
 
-    if (currentView === 'table') {
-        logsColumnDef.cellRenderer = null;
-    } else {
-        logsColumnDef.cellRenderer = (params) => {
-            const data = params.data || {};
-            let logString = '';
-            let addSeparator = false;
+                Object.entries(data)
+                    .filter(([key]) => key !== 'timestamp' && key !== 'logs')
+                    .forEach(([key, value]) => {
+                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
+                        let formattedValue;
+                        if (currentView === 'single-line') {
+                            formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
+                        } else if (currentView === 'multi-line') {
+                            formattedValue = formatLogsValue(value);
+                        }
 
-            Object.entries(data)
-                .filter(([key]) => key !== 'timestamp' && key !== 'logs')
-                .forEach(([key, value]) => {
-                    let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                    let formattedValue;
-                    if (currentView === 'single-line') {
-                        formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
-                    } else if (currentView === 'multi-line') {
-                        formattedValue = formatLogsValue(value);
-                    }
+                        const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
+                        const visibilityClass = isVisible ? '' : 'style="display:none;"';
 
-                    const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
-                    const visibilityClass = isVisible ? '' : 'style="display:none;"';
+                        logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
+                        addSeparator = true;
+                    });
 
-                    logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
-                    addSeparator = true;
-                });
-
-            return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
-        };
+                return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
+            };
+        }
+        
+        gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
     }
-
-    gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
 }
 
 function refreshColumnVisibility() {
