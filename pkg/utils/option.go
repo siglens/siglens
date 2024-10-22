@@ -18,6 +18,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/gob"
 	"reflect"
 )
 
@@ -82,4 +84,43 @@ func isNil(value interface{}) bool {
 	default:
 		return false
 	}
+}
+
+// Implement the GobEncoder interface.
+func (o Option[T]) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	if err := encoder.Encode(o.hasValue); err != nil {
+		return nil, err
+	}
+
+	if o.hasValue {
+		if err := encoder.Encode(o.value); err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Implement the GobDecoder interface.
+func (o *Option[T]) GobDecode(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+
+	if err := decoder.Decode(&o.hasValue); err != nil {
+		return err
+	}
+
+	if o.hasValue {
+		if err := decoder.Decode(&o.value); err != nil {
+			return err
+		}
+	} else {
+		var defaultValue T
+		o.value = defaultValue
+	}
+
+	return nil
 }
