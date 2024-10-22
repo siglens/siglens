@@ -100,7 +100,7 @@
                         {
                             "name": "a",
                             "qlType": "promql",
-                            "query": "ss_current_on_disk_bytes / ss_current_bytes_received"
+                            "query": "ss_current_bytes_received/ss_current_on_disk_bytes"
                         }
                     ],
                     "start": "now-1h"
