@@ -56,7 +56,7 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
 		return nil, io.EOF
 	}
-	allCnames, err := iqr.GetAllColumnNames()
+	allCnames, err := iqr.GetColumns()
 	if err != nil {
 		return nil, fmt.Errorf("fieldsProcessor.Process: cannot get all column names, err: %v", err)
 	}
