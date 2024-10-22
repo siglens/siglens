@@ -152,3 +152,101 @@ func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol3, actualCol3)
 }
+
+func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
+	pattern := "^Bos.*on$"
+	regexp, err := regexp.Compile(pattern)
+	assert.Nil(t, err)
+
+	regexProcessor := &regexProcessor{
+		options: &structs.RegexExpr{
+			Op:       "=",
+			Field:    "col1",
+			RawRegex: pattern,
+			Regexp:   regexp,
+		},
+	}
+
+	values := getTestValues()
+
+	iqr1 := iqr.NewIQR(0)
+	err = iqr1.AppendKnownValues(values)
+	assert.NoError(t, err)
+
+	_, err = regexProcessor.Process(iqr1)
+	assert.NoError(t, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
+		{Dtype: utils.SS_DT_STRING, CVal: "Bos___some_on"},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
+	}
+	expectedCol3 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
+	}
+
+	actualCol1, err := iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := iqr1.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+
+	actualCol3, err := iqr1.ReadColumn("col3")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol3, actualCol3)
+}
+
+func Test_processRegexOnSingleColumns_DiscardMatch(t *testing.T) {
+	pattern := "^Bos.*on$"
+	regexp, err := regexp.Compile(pattern)
+	assert.Nil(t, err)
+
+	regexProcessor := &regexProcessor{
+		options: &structs.RegexExpr{
+			Op:       "!=",
+			Field:    "col1",
+			RawRegex: pattern,
+			Regexp:   regexp,
+		},
+	}
+
+	values := getTestValues()
+
+	iqr1 := iqr.NewIQR(0)
+	err = iqr1.AppendKnownValues(values)
+	assert.NoError(t, err)
+
+	_, err = regexProcessor.Process(iqr1)
+	assert.NoError(t, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "New York"},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	}
+	expectedCol3 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
+	}
+
+	actualCol1, err := iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := iqr1.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+
+	actualCol3, err := iqr1.ReadColumn("col3")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol3, actualCol3)
+}
