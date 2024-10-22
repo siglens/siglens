@@ -66,6 +66,7 @@ type SharedMultiColReaders struct {
 	allInUseFiles   []string            // all files that need to be released by blob
 	numReaders      int
 	numOpenFDs      int64
+	ErrorColMap     map[string]error
 }
 
 /*
@@ -160,6 +161,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		numReaders:      numReaders,
 		numOpenFDs:      maxOpenFds,
 		allFDs:          allFDs,
+		ErrorColMap:     make(map[string]error),
 	}
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(maxOpenFds, 10, fmt.Sprintf("InitSharedMultiColumnReaders.qid=%d", qid))
@@ -195,9 +197,10 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 			var rotatedErr error
 			currFd, rotatedErr = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
 			if rotatedErr != nil {
-				log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
+				err := toputils.TeeErrorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
 					" Error: %v. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
+				sharedReader.ErrorColMap[colName] = err
 				continue
 			}
 		}
