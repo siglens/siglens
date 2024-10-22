@@ -323,10 +323,17 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 	if len(segmentsToDelete) == 0 {
 		return
 	}
-	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
-	// Delete segment key from all SiglensMetadata structs
+
+	// 1) First delete from segmeta.json
+	segBaseDirs := writer.RemoveSegMetas(segmentsToDelete)
+
+	// 2) Then from in memory metadata
 	for _, segMetaEntry := range segmentsToDelete {
 		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+	}
+
+	// 3) then iterate through blob
+	for _, segMetaEntry := range segmentsToDelete {
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
@@ -354,7 +361,11 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
 	}
 
-	writer.RemoveSegments(utils.MapToSet(segmentsToDelete))
+	// 4) then recursively delete local files
+	writer.RemoveSegBasedirs(segBaseDirs)
+
+	//	5) then emptyPqMeta files
+	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {
