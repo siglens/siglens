@@ -156,6 +156,7 @@ func removePqmrFilesAndDirectory(pqid string) error {
 	return nil
 }
 
+// This function will remove the PQMRFiles and directory if there are no segments left in the PQID
 func GetUpdatedPQSMapAfterSegmentRemoval(pqid string, segKey string) map[string]bool {
 	pqFname := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(pqFname)
