@@ -518,7 +518,7 @@ func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendRRCStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -567,7 +567,7 @@ func Test_AppendRRCStatsResults_SegmentStats(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendRRCStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -600,7 +600,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendRRCStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err := iqr.getFinalStatsResults()
@@ -618,7 +618,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount = len(bucketHolderSlice)
 
 	iqr = NewIQR(0)
-	err = iqr.AppendRRCStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err = iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err = iqr.getFinalStatsResults()
