@@ -762,7 +762,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.SegmentKey)
+		err := toputils.WriteValidityFile(segstore.segbaseDir)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
 				segstore.SegmentKey, err)
@@ -776,7 +776,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				if err != nil {
 					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
-				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey, segstore.VirtualTableName)
+				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey)
 			}
 		}
 
@@ -801,7 +801,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		AddNewRotatedSegment(segmeta)
+		addNewRotatedSegmeta(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {
@@ -1458,10 +1458,10 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 	}
 
-	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
-	fd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tempSSTFile := fmt.Sprintf("%v.sst.tmp", ss.SegmentKey)
+	fd, err := os.OpenFile(tempSSTFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("FlushSegStats: Failed to open file=%v, err=%v", fname, err)
+		log.Errorf("FlushSegStats: Failed to open tempSSTFile=%v, err=%v", tempSSTFile, err)
 		return err
 	}
 	defer fd.Close()
@@ -1508,6 +1508,12 @@ func (ss *SegStore) FlushSegStats() error {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err
 		}
+	}
+
+	finalName := fmt.Sprintf("%v.sst", ss.SegmentKey)
+	err = os.Rename(tempSSTFile, finalName)
+	if err != nil {
+		return fmt.Errorf("FlushSegStats: error while migrating %v to %v, err: %v", tempSSTFile, finalName, err)
 	}
 
 	return nil

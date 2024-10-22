@@ -150,6 +150,38 @@ func Test_mergeMetadata(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func Test_mergeMetadata_modes(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	// Incompatible modes.
+	iqr1.mode = withRRCs
+	iqr2.mode = withoutRRCs
+	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.Error(t, err)
+
+	// Same modes.
+	iqr1.mode = withRRCs
+	iqr2.mode = withRRCs
+	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, iqr.mode)
+
+	// First is unset.
+	iqr1.mode = notSet
+	iqr2.mode = withoutRRCs
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+
+	// Second is unset.
+	iqr1.mode = withoutRRCs
+	iqr2.mode = notSet
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	assert.NoError(t, err)
+	assert.Equal(t, withoutRRCs, iqr.mode)
+}
+
 func Test_mergeMetadata_differentQids(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(1)
@@ -218,6 +250,100 @@ func Test_Append(t *testing.T) {
 
 		assert.Equal(t, expectedValues, iqr1.knownValues[cname],
 			"actual=%v, expected=%v, cname=%v", iqr1.knownValues[cname],
+			expectedValues, cname)
+	}
+}
+
+func Test_Append_withRRCs(t *testing.T) {
+	iqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+	err := iqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	otherIqr := NewIQR(0)
+	segKeyInfo2 := utils.SegKeyInfo{
+		SegKeyEnc: 2,
+	}
+	encodingToSegKey2 := map[uint16]string{2: "segKey2"}
+	rrcs2 := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 3},
+	}
+	err = otherIqr.AppendRRCs(rrcs2, encodingToSegKey2)
+	assert.NoError(t, err)
+
+	err = otherIqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr.Append(otherIqr)
+	assert.NoError(t, err)
+	assert.NoError(t, iqr.validate())
+	assert.Equal(t, withRRCs, iqr.mode)
+	assert.Equal(t, 6, iqr.NumberOfRecords())
+	assert.Equal(t, append(rrcs, rrcs2...), iqr.rrcs)
+}
+
+func Test_Sort(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	less := func(a, b *Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	err = iqr.Sort(less)
+	assert.NoError(t, err)
+
+	expected := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(iqr.knownValues))
+	for cname, expectedValues := range expected {
+		if _, ok := iqr.knownValues[cname]; !ok {
+			assert.Fail(t, "missing column %v", cname)
+		}
+
+		assert.Equal(t, expectedValues, iqr.knownValues[cname],
+			"actual=%v, expected=%v, cname=%v", iqr.knownValues[cname],
 			expectedValues, cname)
 	}
 }
@@ -303,4 +429,33 @@ func Test_DiscardAfter(t *testing.T) {
 	err = iqr.DiscardAfter(1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, iqr.NumberOfRecords())
+}
+
+func Test_RenameColumn(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr.RenameColumn("col1", "newCol1")
+	assert.NoError(t, err)
+	_, err = iqr.ReadColumn("col1")
+	assert.Error(t, err)
+	values, err := iqr.ReadColumn("newCol1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
+
+	// Rename the renamed column.
+	err = iqr.RenameColumn("newCol1", "superNewCol1")
+	assert.NoError(t, err)
+	_, err = iqr.ReadColumn("col1")
+	assert.Error(t, err)
+	_, err = iqr.ReadColumn("newCol1")
+	assert.Error(t, err)
+	values, err = iqr.ReadColumn("superNewCol1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
 }

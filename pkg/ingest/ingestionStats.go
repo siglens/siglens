@@ -38,7 +38,7 @@ func ingestionMetricsLooper() {
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
 
-		allSegmetas := segwriter.ReadAllSegmetas()
+		allSegmetas := segwriter.ReadGlobalSegmetas()
 
 		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
 

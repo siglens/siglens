@@ -29,6 +29,7 @@ multi_value.json
 # bin.json
 # stats_eval.json
 # transaction.json
+# head.json
 
 ## Queries that have different Websocket and Http client results
 # stats_top.json
@@ -59,6 +60,7 @@ multi_value.json
 ## Inconsistent results
 # tail_stats.json
 # search_timechart_no_groupby.json
+# streamstats_without_sort.json
 
 ## Failing on rotated data
 # fillnull_with_eval.json

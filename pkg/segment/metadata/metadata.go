@@ -87,10 +87,7 @@ func GetTableSortedMetadataForTest() map[string][]*SegmentMicroIndex {
 }
 
 func ProcessSegmetaInfo(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
-	for pqid := range segMetaInfo.AllPQIDs {
-		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
-	}
-
+	pqs.AddAllPqidResults(segMetaInfo.SegmentKey, segMetaInfo.AllPQIDs)
 	return InitSegmentMicroIndex(segMetaInfo, false)
 }
 

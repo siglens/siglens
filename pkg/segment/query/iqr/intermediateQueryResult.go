@@ -20,6 +20,7 @@ package iqr
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -72,6 +73,10 @@ func NewIQR(qid uint64) *IQR {
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
 	}
+}
+
+func (iqr *IQR) GetQID() uint64 {
+	return iqr.qid
 }
 
 func (iqr *IQR) validate() error {
@@ -227,10 +232,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
 	}
 
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
-	}
-
 	if values, ok := iqr.knownValues[cname]; ok {
 		return values, nil
 	}
@@ -265,7 +266,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 			return nil
 		}
 
-		vTable := iqr.rrcs[0].VirtualTableName
+		vTable := rrcs[0].VirtualTableName
 		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
 		if err != nil {
 			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
@@ -286,6 +287,16 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 	}
 
+	for oldName := range iqr.renamedColumns {
+		// TODO: don't read these columns from the RRCs, instead of reading and
+		// then deleting them.
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
+	}
+
 	return results, nil
 }
 
@@ -295,27 +306,28 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
-			return nil
+			return nil, nil
 		}
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
-		return values
+		return values, nil
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
@@ -344,19 +356,22 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
-	_, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
 		log.Errorf("IQR.Append: error merging metadata: %v", err)
 		return err
 	}
 
-	if iqr.mode == withRRCs {
-		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
-	}
+	iqr.mode = mergedIQR.mode
+	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
 	numFinalRecords := numInitialRecords + numAddedRecords
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
@@ -375,6 +390,50 @@ func (iqr *IQR) Append(other *IQR) error {
 		if _, ok := other.knownValues[cname]; !ok {
 			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
 		}
+	}
+
+	return nil
+}
+
+func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.Sort: validation failed: %v", err)
+		return err
+	}
+
+	if less == nil {
+		return toputils.TeeErrorf("IQR.Sort: the less function is nil")
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	records := make([]*Record, iqr.NumberOfRecords())
+	for i := 0; i < iqr.NumberOfRecords(); i++ {
+		records[i] = &Record{iqr: iqr, index: i}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return less(records[i], records[j])
+	})
+
+	if iqr.mode == withRRCs {
+		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
+		for i, record := range records {
+			newRRCs[i] = iqr.rrcs[record.index]
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+		for i, record := range records {
+			newValues[i] = values[record.index]
+		}
+
+		iqr.knownValues[cname] = newValues
 	}
 
 	return nil
@@ -488,8 +547,14 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		}
 
 		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
-				iqr.qid, iqr.mode, result.mode)
+			if result.mode == notSet {
+				result.mode = iqr.mode
+			} else if iqr.mode == notSet {
+				// Do nothing.
+			} else {
+				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+					iqr.qid, iqr.mode, result.mode)
+			}
 		}
 
 		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
@@ -573,6 +638,54 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	return nil
 }
 
+func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.DiscardRows: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if iqr.mode == withRRCs {
+		newRRCs, err := toputils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
+				iqr.qid, err)
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues, err := toputils.RemoveSortedIndices(values, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
+				iqr.qid, cname, err)
+		}
+
+		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	iqr.renamedColumns[oldName] = newName
+	if values, ok := iqr.knownValues[oldName]; ok {
+		iqr.knownValues[newName] = values
+		delete(iqr.knownValues, oldName)
+	}
+
+	return nil
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
@@ -592,6 +705,11 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		if err != nil {
 			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
 			return nil, err
+		}
+
+		// Append the known values to the result.
+		for cname, values := range iqr.knownValues {
+			records[cname] = values
 		}
 	case withoutRRCs:
 		records = iqr.knownValues

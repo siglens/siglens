@@ -555,6 +555,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
         GenerateEvent: &structs.GenerateEvent{
             GenTimes: genTimesOption.(*structs.GenTimes),
         },
+        GentimesExpr: genTimesOption.(*structs.GenTimes),
     }
 
     if queryAggBlocks != nil {
@@ -757,6 +758,11 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
     _, exist := optionWasSpecified["start"]
     if !exist {
         return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
+    }
+
+    if genTimeOption.Interval.Num < 0 {
+        genTimeOption.StartTime, genTimeOption.EndTime = genTimeOption.EndTime, genTimeOption.StartTime
+		genTimeOption.Interval.Num = -genTimeOption.Interval.Num
     }
 
     return genTimeOption, nil
@@ -1672,7 +1678,10 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         NewColName: field.(string),
     }
     if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binOptions := binCmdOption.(*structs.BinCmdOptions)
+        binOptions.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1937,6 +1946,7 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        DedupExpr: dedupExpr.(*structs.DedupExpr),
     }
 
     return root, nil
@@ -2259,6 +2269,7 @@ SortBlock <- PIPE CMD_SORT limit:(SortLimit)? sortByEles:SortElements {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        SortExpr: sortExpr,
     }
 
     return root, nil
@@ -2902,6 +2913,7 @@ WhereBlock <- PIPE CMD_WHERE condition:BoolExpr {
         OutputTransforms: &structs.OutputTransforms {
             FilterRows: condition.(*structs.BoolExpr),
         },
+        WhereExpr: condition.(*structs.BoolExpr),
     }
 
     return queryAgg, nil
@@ -4918,6 +4930,7 @@ FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:Fill
                 FillNullRequest: fillNullExpr,
             },
         },
+        FillNullExpr: fillNullExpr,
     }, nil
 }
 

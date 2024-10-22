@@ -60,6 +60,8 @@ type Result struct {
 	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
 }
 
+const TimeStamp_Col_Name = "timestamp"
+
 func CreateListOfMap(resp interface{}) ([]map[string]interface{}, error) {
 	items, isList := resp.([]interface{})
 	if !isList {
@@ -458,6 +460,9 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 	var err error
 
 	for col, value := range expRecord {
+		if col == TimeStamp_Col_Name {
+			continue
+		}
 		equal := false
 		actualValue, exist := record[col]
 		if !exist {

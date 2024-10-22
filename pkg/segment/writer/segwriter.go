@@ -18,10 +18,8 @@
 package writer
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -38,7 +36,6 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -60,9 +57,6 @@ var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 
 var KibanaInternalBaseDir string
-
-var smrLock sync.RWMutex = sync.RWMutex{}
-var localSegmetaFname string
 
 // Create a writer that caches compressors.
 // For this operation type we supply a nil Reader.
@@ -254,25 +248,6 @@ func InitWriterNode() {
 	go timeBasedUploadIngestNodeDir()
 	HostnameDir()
 	InitKibanaInternalData()
-}
-
-func initSmr() {
-
-	localSegmetaFname = GetLocalSegmetaFName()
-
-	fd, err := os.OpenFile(localSegmetaFname, os.O_RDONLY, 0666)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// for first time during bootup this will occur
-			_, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
-				return
-			}
-		}
-		return
-	}
-	fd.Close()
 }
 
 // TODO: this should be pushed based & we should have checks in uploadingestnode function to prevent uploading unupdated files.
@@ -1026,6 +1001,42 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
+func GetUnrotatedVTableTimestamps(orgid uint64) map[string]struct{ Earliest, Latest uint64 } {
+	result := make(map[string]struct{ Earliest, Latest uint64 })
+
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+
+	for _, segstore := range allSegStores {
+		if segstore.OrgId == orgid {
+			indexName := segstore.VirtualTableName
+			timestamps, exists := result[indexName]
+			if !exists {
+				timestamps = struct{ Earliest, Latest uint64 }{math.MaxUint64, 0}
+			}
+
+			if segstore.earliest_millis < timestamps.Earliest {
+				timestamps.Earliest = segstore.earliest_millis
+			}
+			if segstore.latest_millis > timestamps.Latest {
+				timestamps.Latest = segstore.latest_millis
+			}
+
+			result[indexName] = timestamps
+		}
+	}
+
+	// If no data was found, return 0 for both
+	for indexName, timestamps := range result {
+		if timestamps.Earliest == math.MaxUint64 {
+			timestamps.Earliest = 0
+			result[indexName] = timestamps
+		}
+	}
+
+	return result
+}
+
 func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {
 
 	var ok bool
@@ -1072,111 +1083,22 @@ func DeleteVirtualTableSegStore(virtualTableName string) {
 	allSegStoresLock.Unlock()
 }
 
-func DeleteSegmentsForIndex(segmetaFName, indexName string) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	removeSegmentsByIndexOrList(segmetaFName, indexName, nil)
+func DeleteSegmentsForIndex(indexName string) {
+	removeSegmentsByIndexOrSegkeys(nil, indexName)
 }
 
-func RemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	withLockRemoveSegments(segmetaFName, segmentsToDelete)
+func RemoveSegments(segmentsToDelete map[string]struct{}) {
+	removeSegmentsByIndexOrSegkeys(segmentsToDelete, "")
 }
 
-func withLockRemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
-	removeSegmentsByIndexOrList(segmetaFName, "", segmentsToDelete)
-}
-
-func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]struct{}) {
-
-	if indexName == "" && segmentsToDelete == nil {
-		return // nothing to remove
-	}
-
-	preservedSmEntries := make([]*structs.SegMeta, 0)
-
-	entriesRead := 0
-	entriesRemoved := 0
-
-	fr, err := os.OpenFile(segMetaFile, os.O_RDONLY, 0644)
-	if err != nil {
-		log.Errorf("removeSegmentsByIndexOrList: Failed to open SegMetaFile name=%v, err:%v", segMetaFile, err)
-		return
-	}
-	defer fr.Close()
-
-	reader := bufio.NewScanner(fr)
-	for reader.Scan() {
-		segMetaData := structs.SegMeta{}
-		err = json.Unmarshal(reader.Bytes(), &segMetaData)
-		if err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to unmarshal fileName=%v, err:%v", segMetaFile, err)
-			continue
+func removeSegmentsByIndexOrSegkeys(segmentsToDelete map[string]struct{}, indexName string) {
+	segbaseDirs := removeSegmetas(segmentsToDelete, indexName)
+	for segdir := range segbaseDirs {
+		if err := os.RemoveAll(segdir); err != nil {
+			log.Errorf("RemoveSegments: Failed to remove directory name=%v, err:%v",
+				segdir, err)
 		}
-		entriesRead++
-
-		// only append the ones that we want to preserve
-		// check if it was based on indexName
-		if indexName != "" {
-			if segMetaData.VirtualTableName != indexName {
-				preservedSmEntries = append(preservedSmEntries, &segMetaData)
-				continue
-			}
-		} else {
-			// check if based on segmetas
-			_, ok := segmentsToDelete[segMetaData.SegmentKey]
-			if !ok {
-				preservedSmEntries = append(preservedSmEntries, &segMetaData)
-				continue
-			}
-		}
-
-		entriesRemoved++
-		if err := os.RemoveAll(segMetaData.SegbaseDir); err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to remove directory name=%v, err:%v",
-				segMetaData.SegbaseDir, err)
-		}
-		fileutils.RecursivelyDeleteEmptyParentDirectories(segMetaData.SegbaseDir)
-	}
-
-	if entriesRemoved > 0 {
-
-		// if we removed entries and there was nothing preserveed then we must delete this segmetafile
-		if len(preservedSmEntries) == 0 {
-			if err := os.RemoveAll(segMetaFile); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: Failed to remove smfile name=%v, err:%v", segMetaFile, err)
-			}
-			return
-		}
-
-		fd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to open temp SegMetaFile name=%v, err:%v", segMetaFile, err)
-			return
-		}
-		defer fd.Close()
-
-		for _, smentry := range preservedSmEntries {
-
-			segmetajson, err := json.Marshal(*smentry)
-			if err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to Marshal: err=%v", err)
-				return
-			}
-
-			if _, err := fd.Write(segmetajson); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to write segmeta filename=%v: err=%v", segMetaFile, err)
-				return
-			}
-
-			if _, err := fd.WriteString("\n"); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to write newline filename=%v: err=%v", segMetaFile, err)
-				return
-			}
-		}
+		fileutils.RecursivelyDeleteEmptyParentDirectories(segdir)
 	}
 }
 
@@ -1218,183 +1140,8 @@ func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	cw.cbufidx += uint32(n)
 }
 
-func AddOrReplaceRotatedSegment(segmeta structs.SegMeta) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	withLockRemoveSegments(GetLocalSegmetaFName(), map[string]struct{}{segmeta.SegmentKey: struct{}{}})
-	withLockAddRotatedSegment(segmeta)
-}
-
-func AddNewRotatedSegment(segmeta structs.SegMeta) {
-	if hook := hooks.GlobalHooks.AddSegMeta; hook != nil {
-		alreadyHandled, err := hook(&segmeta)
-		if err != nil {
-			log.Errorf("AddNewRotatedSegment: hook failed, err=%v", err)
-			return
-		}
-
-		if alreadyHandled {
-			return
-		}
-	}
-
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	withLockAddRotatedSegment(segmeta)
-}
-
-func withLockAddRotatedSegment(segmeta structs.SegMeta) {
-	fileName := GetLocalSegmetaFName()
-
-	segmetajson, err := json.Marshal(segmeta)
-	if err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to Marshal: err=%v", err)
-		return
-	}
-
-	fd, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			fd, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				log.Errorf("withLockAddRotatedSegment: failed to open a new filename=%v: err=%v", fileName, err)
-				return
-			}
-
-		} else {
-			log.Errorf("withLockAddRotatedSegment: failed to open filename=%v: err=%v", fileName, err)
-			return
-		}
-	}
-
-	defer fd.Close()
-
-	if _, err := fd.Write(segmetajson); err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to write segmeta filename=%v: err=%v", fileName, err)
-		return
-	}
-
-	if _, err := fd.WriteString("\n"); err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to write newline filename=%v: err=%v", fileName, err)
-		return
-	}
-	err = fd.Sync()
-	if err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to sync filename=%v: err=%v", fileName, err)
-		return
-	}
-}
-
-func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	// Read segmeta files
-	allSegMetas, err := getAllSegmetaToMap(localSegmetaFname)
-	if err != nil {
-		log.Errorf("BackFillPQSSegmetaEntry: failed to get Segmeta: err=%v", err)
-		return
-	}
-
-	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Errorf("BackFillPQSSegmetaEntry: Failed to open SegMetaFile name=%v, err:%v",
-			localSegmetaFname, err)
-		return
-	}
-	defer fd.Close()
-
-	for segkey, segMetaEntry := range allSegMetas {
-		if segkey == segsetkey {
-			if segMetaEntry.AllPQIDs == nil {
-				segMetaEntry.AllPQIDs = make(map[string]bool)
-			}
-			segMetaEntry.AllPQIDs[newpqid] = true
-		}
-
-		segmetajson, err := json.Marshal(*segMetaEntry)
-		if err != nil {
-			log.Errorf("BackFillPQSSegmetaEntry: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", localSegmetaFname, err, *segMetaEntry)
-			return
-		}
-
-		segmetajson = append(segmetajson, "\n"...)
-
-		if _, err := fd.Write(segmetajson); err != nil {
-			log.Errorf("BackFillPQSSegmetaEntry: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
-			return
-		}
-	}
-}
-
-func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
-	fd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
-	}
-	defer fd.Close()
-
-	for _, smentry := range segMetaEntries {
-
-		segmetajson, err := json.Marshal(*smentry)
-		if err != nil {
-			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
-		}
-
-		if _, err := fd.Write(segmetajson); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write segmeta filename=%v: err=%v", segmetaFname, err)
-		}
-
-		if _, err := fd.WriteString("\n"); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write newline filename=%v: err=%v", segmetaFname, err)
-		}
-	}
-
-	return nil
-}
-
 func GetPQMRDirFromSegKey(segKey string) string {
 	return filepath.Join(segKey, "pqmr")
-}
-
-func DeletePQSData() error {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	// Get segmeta entries
-	segMetaFilename := GetLocalSegmetaFName()
-	segmetaEntries, err := getAllSegmetas(segMetaFilename)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQS data
-	for _, smEntry := range segmetaEntries {
-		smEntry.AllPQIDs = nil
-	}
-
-	// Write back the segmeta data
-	err = WriteOverSegMeta(segMetaFilename, segmetaEntries)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to write segmeta data to %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQMR directories from segments
-	for _, smEntry := range segmetaEntries {
-		pqmrDir := GetPQMRDirFromSegKey(smEntry.SegmentKey)
-		err := os.RemoveAll(pqmrDir)
-		if err != nil {
-			log.Errorf("DeletePQSData: failed to remove pqmr dir %v, err: %v", pqmrDir, err)
-			return err
-		}
-	}
-
-	// Delete PQS meta directory
-	return pqsmeta.DeletePQMetaDir()
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,

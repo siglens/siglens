@@ -91,7 +91,7 @@ type SearchResults struct {
 	AllErrors              []error
 	SegKeyToEnc            map[string]uint16
 	SegEncToKey            map[uint16]string
-	MaxSegKeyEnc           uint16
+	NextSegKeyEnc          uint16
 	ColumnsOrder           map[string]int
 	ProcessedRemoteRecords map[string]map[string]struct{}
 
@@ -153,7 +153,7 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 		AllErrors:              allErrors,
 		SegKeyToEnc:            make(map[string]uint16),
 		SegEncToKey:            make(map[uint16]string),
-		MaxSegKeyEnc:           1,
+		NextSegKeyEnc:          1,
 		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
 }
@@ -813,10 +813,10 @@ func (sr *SearchResults) GetAddSegEnc(sk string) uint16 {
 		return retval
 	}
 
-	retval = sr.MaxSegKeyEnc
-	sr.SegEncToKey[sr.MaxSegKeyEnc] = sk
-	sr.SegKeyToEnc[sk] = sr.MaxSegKeyEnc
-	sr.MaxSegKeyEnc++
+	retval = sr.NextSegKeyEnc
+	sr.SegEncToKey[sr.NextSegKeyEnc] = sk
+	sr.SegKeyToEnc[sk] = sr.NextSegKeyEnc
+	sr.NextSegKeyEnc++
 	return retval
 }
 

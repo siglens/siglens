@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -125,7 +126,7 @@ type orderedItems[T any] struct {
 //
 // The output order is the same as the input order.
 func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
-	batchKeyLess Option[func(K, K) bool], operation func([]T) []R) []R {
+	batchKeyLess Option[func(K, K) bool], operation func([]T) ([]R, error)) ([]R, error) {
 
 	// Batch the items, but track their original order.
 	batches := make(map[K]*orderedItems[T])
@@ -155,13 +156,16 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	results := make([]R, len(slice))
 	for _, key := range batchKeys {
 		batch := batches[key]
-		batchResults := operation(batch.items)
+		batchResults, err := operation(batch.items)
+		if err != nil {
+			return nil, err
+		}
 		for i, result := range batchResults {
 			results[batch.order[i]] = result
 		}
 	}
 
-	return results
+	return results, nil
 }
 
 // This is similar to BatchProcess, but instead of returning a slice of
@@ -277,11 +281,85 @@ func RemoveElements[T any, T2 any](arr []T, idxsToRemove map[int]T2) []T {
 	return newArr
 }
 
+// The indicesToRemove must be sorted in increasing order.
+// Note: if this returns an error, the slice may be partially modified.
+func RemoveSortedIndices[T any](slice []T, indicesToRemove []int) ([]T, error) {
+	// Validate the indices.
+	prevIndex := -1
+	for _, index := range indicesToRemove {
+		if index < 0 || index >= len(slice) {
+			return nil, fmt.Errorf("RemoveSortedIndices: index %v out of range for slice of length %v",
+				index, len(slice))
+		}
+
+		if index <= prevIndex {
+			return nil, fmt.Errorf("RemoveSortedIndices: indicesToRemove must be increasing; found %v after %v",
+				index, prevIndex)
+		}
+
+		prevIndex = index
+	}
+
+	numRemoved := 0
+	for i := 0; i < len(slice); i++ {
+		if numRemoved < len(indicesToRemove) && i == indicesToRemove[numRemoved] {
+			numRemoved++
+			continue
+		}
+
+		slice[i-numRemoved] = slice[i]
+	}
+
+	return slice[:len(slice)-len(indicesToRemove)], nil
+}
+
 func IndexOfMin[T any](arr []T, less func(T, T) bool) int {
 	result := 0
 	for i := 1; i < len(arr); i++ {
 		if less(arr[i], arr[result]) {
 			result = i
+		}
+	}
+
+	return result
+}
+
+// All input slices must already be sorted by the `less` function.
+func MergeSortedSlices[T any](less func(T, T) bool, slices ...[]T) []T {
+	remainingSlices := make([][]T, 0, len(slices))
+	nextIndices := make([]int, 0, len(slices))
+	for _, slice := range slices {
+		if len(slice) > 0 {
+			remainingSlices = append(remainingSlices, slice)
+			nextIndices = append(nextIndices, 0)
+		}
+	}
+
+	totalLen := 0
+	for _, slice := range slices {
+		totalLen += len(slice)
+	}
+	result := make([]T, 0, totalLen)
+
+	for len(remainingSlices) > 0 {
+		// Find the slice with the next smallest element.
+		minValue := remainingSlices[0][nextIndices[0]]
+		indexOfMinSlice := 0
+		for i, slice := range remainingSlices {
+			if less(slice[nextIndices[i]], minValue) {
+				minValue = slice[nextIndices[i]]
+				indexOfMinSlice = i
+			}
+		}
+
+		result = append(result, minValue)
+
+		// Move to the next element in the selected slice.
+		nextIndices[indexOfMinSlice]++
+		if nextIndices[indexOfMinSlice] >= len(remainingSlices[indexOfMinSlice]) {
+			// This slice is exhausted.
+			remainingSlices = append(remainingSlices[:indexOfMinSlice], remainingSlices[indexOfMinSlice+1:]...)
+			nextIndices = append(nextIndices[:indexOfMinSlice], nextIndices[indexOfMinSlice+1:]...)
 		}
 	}
 
