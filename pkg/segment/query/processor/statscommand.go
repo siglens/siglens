@@ -88,7 +88,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	if p.searchResults == nil {
 		p.options.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
 		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
-		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}, structs.GroupByCmd, inputIQR.GetQID())
+		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
+		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, inputIQR.GetQID())
 		if err != nil {
 			return nil, toputils.TeeErrorf("stats.Process.processGroupByRequest: cannot initialize search results; err=%v", err)
 		}
@@ -118,7 +119,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
 				bucketKeyBufIdx += 1
 			} else {
-				bytesVal := cValue.ConvertToBytesValue()
+				bytesVal := cValue.AsBytes()
 				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], bytesVal)
 				bucketKeyBufIdx += len(bytesVal)
 			}

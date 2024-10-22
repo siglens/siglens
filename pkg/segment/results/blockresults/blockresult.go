@@ -569,11 +569,12 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			bucketKey = strings.Split(key, string(utils.BYTE_TILDE))
 		} else {
 			bucketKey, err = utils.ConvertGroupByKey([]byte(key))
-			if len(bucketKey.([]string)) == 1 {
-				bucketKey = bucketKey.([]string)[0]
-			}
 			if err != nil {
 				log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
+			}
+
+			if len(bucketKey.([]string)) == 1 {
+				bucketKey = bucketKey.([]string)[0]
 			}
 		}
 

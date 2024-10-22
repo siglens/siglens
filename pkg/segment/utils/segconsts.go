@@ -992,7 +992,7 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 	}
 }
 
-func (e *CValueEnclosure) ConvertToBytesValue() []byte {
+func (e *CValueEnclosure) AsBytes() []byte {
 	switch e.Dtype {
 	case SS_DT_BOOL:
 		if e.CVal.(bool) {
