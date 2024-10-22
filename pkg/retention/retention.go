@@ -195,7 +195,7 @@ func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.SegMeta) {
 	for _, segmetaEntry := range segmentsToDelete {
 		for pqid := range segmetaEntry.AllPQIDs {
-			go writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
+			writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
 		}
 	}
 }
