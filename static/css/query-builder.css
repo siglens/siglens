@@ -412,13 +412,6 @@ input.form-control {
     border-radius: 5px;
 }
 
-.tab-li a{
-    text-decoration: none;
-    font-size: 12px;
-    padding: 2px 5px !important;
-    color: var(--border-switch) !important;
-}
-
 .tab-li-query {
     width: 125px;
 }
