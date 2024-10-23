@@ -2322,6 +2322,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: first.(*structs.LetColumnsRequest),
         },
+        EvalExpr: &structs.EvalExpr{
+            ValueExpr: first.(*structs.LetColumnsRequest).ValueColRequest,
+            FieldName: first.(*structs.LetColumnsRequest).NewColName,
+        },
     }
 
     leafQueryAgg := root
@@ -2332,6 +2336,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms {
                 LetColumns: CommaSpaceAndEval[1].(*structs.LetColumnsRequest),
+            },
+            EvalExpr: &structs.EvalExpr{
+                ValueExpr: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).ValueColRequest,
+                FieldName: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).NewColName,
             },
         }
 

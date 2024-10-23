@@ -393,6 +393,12 @@ input.form-control {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    list-style: none;
+    padding: 0px;
+}
+
+#tabs-2 {
+    display: none;
 }
 
 .dropdown-box {

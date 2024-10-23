@@ -272,7 +272,7 @@ const gridOptions = {
                 display: none;
             }
               
-            .ag-header-cell:not([col-id="timestamp"]):hover .close-icon {
+            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
                 display: inline-block;
             }
             
