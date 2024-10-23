@@ -517,7 +517,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
-	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, len(sr.segStatsResults.measureResults)
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, 1
 }
 
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
@@ -875,19 +875,16 @@ func CreateMeasResultsFromAggResults(limit int,
 				groupByValues = append(groupByValues, bKeyConv)
 				added++
 			case []string:
-
-				for _, bk := range aggVal.BucketKey.([]string) {
-					groupByValues = append(groupByValues, bk)
-					added++
-				}
+				groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
+				added++
 			case string:
 				groupByValues = append(groupByValues, bKey)
 				added++
 			case []interface{}:
 				for _, bk := range aggVal.BucketKey.([]interface{}) {
 					groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
-					added++
 				}
+				added++
 			default:
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}

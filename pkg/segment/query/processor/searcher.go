@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -50,6 +51,7 @@ type searcher struct {
 
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
+	qsrs                  []*query.QuerySegmentRequest
 
 	unsentRRCs  []*segutils.RecordResultContainer
 	segEncToKey *toputils.TwoWayMap[uint16, string]
@@ -87,29 +89,27 @@ func (s *searcher) Rewind() {
 }
 
 func (s *searcher) Fetch() (*iqr.IQR, error) {
-	if !s.gotBlocks {
-		blocks, err := s.getBlocks()
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.Fetch: failed to get blocks: %v", s.qid, err)
-			return nil, err
-		}
-
-		err = sortBlocks(blocks, s.sortMode)
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.Fetch: failed to sort blocks: %v", s.qid, err)
-			return nil, err
-		}
-
-		s.remainingBlocksSorted = blocks
-		s.gotBlocks = true
-	}
-
 	switch s.queryInfo.GetQueryType() {
-	case structs.SegmentStatsCmd:
-		panic("not implemented") // TODO
-	case structs.GroupByCmd:
-		panic("not implemented") // TODO
+	case structs.SegmentStatsCmd, structs.GroupByCmd:
+		return s.fetchStatsResults()
 	case structs.RRCCmd:
+		if !s.gotBlocks {
+			blocks, err := s.getBlocks()
+			if err != nil {
+				log.Errorf("qid=%v, searchProcessor.Fetch: failed to get blocks: %v", s.qid, err)
+				return nil, err
+			}
+
+			err = sortBlocks(blocks, s.sortMode)
+			if err != nil {
+				log.Errorf("qid=%v, searchProcessor.Fetch: failed to sort blocks: %v", s.qid, err)
+				return nil, err
+			}
+
+			s.remainingBlocksSorted = blocks
+			s.gotBlocks = true
+		}
+
 		return s.fetchRRCs()
 	default:
 		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.Fetch: invalid query type: %v",
@@ -196,6 +196,75 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	return iqr, nil
 }
 
+func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
+	sizeLimit := uint64(0)
+	aggs := s.queryInfo.GetAggregators()
+	qid := s.queryInfo.GetQid()
+	qType := s.queryInfo.GetQueryType()
+	orgId := s.queryInfo.GetOrgId()
+
+	queryType := s.queryInfo.GetQueryType()
+	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.fetchGroupByResults: failed to initialize search results: %v", s.qid, err)
+		return nil, err
+	}
+
+	var nodeResult *structs.NodeResult
+
+	if qType == structs.SegmentStatsCmd {
+		nodeResult = query.GetNodeResultsForSegmentStatsCmd(s.queryInfo, s.startTime, searchResults, nil, s.querySummary, orgId)
+	} else if qType == structs.GroupByCmd {
+		nodeResult, err = s.fetchGroupByResults(searchResults, aggs)
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: failed to get group by results: %v", s.qid, err)
+		}
+	} else {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: invalid query type: %v", qid, qType)
+	}
+
+	// post getting of stats results
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
+
+	err = iqr.AppendStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: failed to append stats results: %v", qid, err)
+	}
+
+	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
+
+	return iqr, io.EOF
+}
+
+func (s *searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) (*structs.NodeResult, error) {
+	if s.qsrs == nil {
+		err := s.initializeQSRs()
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchSegmentStatsResults: failed to get and set QSRs: %v", s.qid, err)
+		}
+	}
+
+	if len(s.qsrs) == 0 {
+		return nil, io.EOF
+	}
+
+	bucketLimit := int(utils.QUERY_MAX_BUCKETS)
+	if aggs.BucketLimit != 0 && aggs.BucketLimit < bucketLimit {
+		bucketLimit = aggs.BucketLimit
+	}
+	aggs.BucketLimit = bucketLimit
+
+	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary)
+
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+	nodeResult.MeasureResults = bucketHolderArr
+	nodeResult.MeasureFunctions = measureFuncs
+	nodeResult.GroupByCols = aggGroupByCols
+	nodeResult.BucketCount = bucketCount
+
+	return nodeResult, nil
+}
+
 func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
 	switch sortMode {
 	case recentFirst:
@@ -213,6 +282,17 @@ func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContaine
 	default:
 		return nil, toputils.TeeErrorf("getSortingFunc: invalid sort mode: %v", sortMode)
 	}
+}
+
+func (s *searcher) initializeQSRs() error {
+	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.initializeQSRs: failed to get sorted QSRs: %v", s.qid, err)
+		return err
+	}
+
+	s.qsrs = qsrs
+	return nil
 }
 
 func (s *searcher) getBlocks() ([]*block, error) {

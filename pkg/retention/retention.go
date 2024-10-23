@@ -30,7 +30,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -40,6 +39,8 @@ import (
 )
 
 const MAXIMUM_WARNINGS_COUNT = 5
+
+const RETENTION_LOOP_SLEEP_TIMER = 30
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
@@ -64,7 +65,7 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
-		time.Sleep(1 * time.Hour)
+		time.Sleep(RETENTION_LOOP_SLEEP_TIMER * time.Minute)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
@@ -194,7 +195,7 @@ func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.SegMeta) {
 	for _, segmetaEntry := range segmentsToDelete {
 		for pqid := range segmetaEntry.AllPQIDs {
-			pqsmeta.DeleteSegmentFromPqid(pqid, segmetaEntry.SegmentKey)
+			writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
 		}
 	}
 }
@@ -322,10 +323,17 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 	if len(segmentsToDelete) == 0 {
 		return
 	}
-	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
-	// Delete segment key from all SiglensMetadata structs
+
+	// 1) First delete from segmeta.json
+	segBaseDirs := writer.RemoveSegMetas(segmentsToDelete)
+
+	// 2) Then from in memory metadata
 	for _, segMetaEntry := range segmentsToDelete {
 		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+	}
+
+	// 3) then iterate through blob
+	for _, segMetaEntry := range segmentsToDelete {
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
@@ -353,7 +361,11 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
 	}
 
-	writer.RemoveSegments(utils.MapToSet(segmentsToDelete))
+	// 4) then recursively delete local files
+	writer.RemoveSegBasedirs(segBaseDirs)
+
+	//	5) then emptyPqMeta files
+	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {
