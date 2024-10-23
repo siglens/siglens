@@ -60,33 +60,54 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return iqr, nil
 	}
 
+	qid := iqr.GetQID()
+
 	if p.spanError != nil {
-		return iqr, utils.TeeErrorf("bin.Process: error=%v", p.spanError)
+		return iqr, utils.TeeErrorf("qid=%v, bin.Process: error=%v", qid, p.spanError)
 	}
 
 	if p.secondPass && p.options.BinSpanOptions == nil {
-		return iqr, utils.TeeErrorf("bin.Process: second pass but no bin span options")
+		return iqr, utils.TeeErrorf("qid=%v, bin.Process: second pass but no bin span options", qid)
 	}
 
 	values, err := iqr.ReadColumn(p.options.Field)
 	if err != nil {
-		return nil, utils.TeeErrorf("bin.Process: cannot read values for field %v; err=%v",
-			p.options.Field, err)
+		return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot read values for field %v; err=%v",
+			qid, p.options.Field, err)
+	}
+
+	var newColResultValues []segutils.CValueEnclosure
+
+	newName, newNameExists := p.options.NewFieldName.Get()
+
+	// If the new field name is different from the current field name,
+	// we need to create a new slice to store the results
+	if newNameExists && newName != p.options.Field {
+		newColResultValues = make([]segutils.CValueEnclosure, len(values))
+	} else {
+		newNameExists = false
 	}
 
 	if p.options.Field == config.GetTimeStampKey() {
 		for i := range values {
-			value := &values[i]
+			var value *segutils.CValueEnclosure
+			if newNameExists {
+				newColResultValues[i] = values[i]
+				value = &newColResultValues[i]
+			} else {
+				value = &values[i]
+			}
+
 			floatVal, err := value.GetFloatValue()
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot convert value %v to float; err=%v",
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot convert value %v to float; err=%v", qid,
 					value, err)
 			}
 
 			bucket, err := p.performBinWithSpanTime(floatVal, p.options.AlignTime)
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot bin value %v; err=%v",
-					value, err)
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v; err=%v",
+					qid, value, err)
 			}
 
 			value.CVal = bucket
@@ -94,20 +115,28 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 	} else {
 		for i := range values {
-			value := &values[i]
+			var value *segutils.CValueEnclosure
+			if newNameExists {
+				newColResultValues[i] = values[i]
+				value = &newColResultValues[i]
+			} else {
+				value = &values[i]
+			}
 			err = p.performBinWithSpan(value)
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot bin value %v; err=%v",
-					value, err)
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v; err=%v",
+					qid, value, err)
 			}
 		}
 	}
 
-	if newName, ok := p.options.NewFieldName.Get(); ok {
-		err = iqr.RenameColumn(p.options.Field, newName)
+	if newNameExists {
+		knownValues := map[string][]segutils.CValueEnclosure{
+			newName: newColResultValues,
+		}
+		err = iqr.AppendKnownValues(knownValues)
 		if err != nil {
-			return nil, utils.TeeErrorf("bin.Process: cannot rename column %v to %v; err=%v",
-				p.options.Field, newName, err)
+			return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot append known values; err=%v", qid, err)
 		}
 	}
 
