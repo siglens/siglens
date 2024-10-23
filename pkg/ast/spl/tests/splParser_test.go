@@ -11397,10 +11397,9 @@ func Test_Eval_Expr(t *testing.T) {
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
+	aggregator := res.(ast.QueryStruct).PipeCommands
 
-	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
 	assert.NotNil(t, aggregator)
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)

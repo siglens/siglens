@@ -450,7 +450,6 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseColumnsCmd error: %v", qid, err)
 			return nil, err
 		}
-		pipeCommands.EvalExpr = node.EvalExpr
 	case MeasureAggsType:
 		pipeCommands, err = parseSegLevelStats(node.MeasureOperations, qid)
 		if err != nil {

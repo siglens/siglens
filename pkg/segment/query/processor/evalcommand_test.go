@@ -28,7 +28,7 @@ import (
 )
 
 func Test_EvalCommand(t *testing.T) {
-
+	// SPL command: | eval evalField = if(state in("Massachusetts", "RAW_STRING", 100), numField, country)
 	boolExpr := &structs.BoolExpr{
 		IsTerminal: true,
 		LeftValue: &structs.ValueExpr{
@@ -134,7 +134,7 @@ func Test_EvalCommand(t *testing.T) {
 		},
 	}
 
-	evalField := []utils.CValueEnclosure{
+	expected := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_STRING, CVal: "1"},
 		{Dtype: utils.SS_DT_STRING, CVal: "India"},
 		{Dtype: utils.SS_DT_STRING, CVal: "China"},
@@ -160,5 +160,5 @@ func Test_EvalCommand(t *testing.T) {
 	records, err := iqr.ReadColumn("evalField")
 	assert.NoError(t, err)
 	assert.Equal(t, 4, len(records))
-	assert.Equal(t, evalField, records)
+	assert.Equal(t, expected, records)
 }

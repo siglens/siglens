@@ -31,49 +31,6 @@ type evalProcessor struct {
 	options *structs.EvalExpr
 }
 
-func evaluateValueExpr(valueExpr *structs.ValueExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
-	switch valueExpr.ValueExprMode {
-	case structs.VEMConditionExpr:
-		value, err := valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("evaluateValueExpr: failed to evaluate condition expr, err: %v", err)
-		}
-		return value, nil
-	case structs.VEMStringExpr:
-		value, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("evaluateValueExpr: failed to evaluate string expr, err: %v", err)
-		}
-		return value, nil
-	case structs.VEMNumericExpr:
-		value, err := valueExpr.EvaluateToFloat(fieldToValue)
-		if err != nil {
-			// It failed to evaluate to a float, it could possibly that the field given is a string
-			valueStr, err := valueExpr.EvaluateToString(fieldToValue)
-			if err != nil {
-				return nil, fmt.Errorf("evaluateValueExpr: failed to evaluate numeric expr to numeric and string expr, err: %v", err)
-			}
-
-			return valueStr, err
-		}
-		return value, nil
-	case structs.VEMBooleanExpr:
-		value, err := valueExpr.EvaluateToString(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("evaluateValueExpr: failed to evaluate boolean expr, err: %v", err)
-		}
-		return value, nil
-	case structs.VEMMultiValueExpr:
-		mvSlice, err := valueExpr.EvaluateToMultiValue(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("evaluateValueExpr: failed to evaluate multi value expr, err: %v", err)
-		}
-		return mvSlice, nil
-	default:
-		return nil, fmt.Errorf("evaluateValueExpr: unknown value expr mode %v", valueExpr.ValueExprMode)
-	}
-}
-
 func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
 		return nil, io.EOF
@@ -85,11 +42,12 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return iqr, toputils.TeeErrorf("evalProcessor.Process: ValueExpr is nil")
 	}
 	fieldsInExpr := p.options.ValueExpr.GetFields()
-	allCnames, err := iqr.GetColumns()
-	if err != nil {
-		return nil, fmt.Errorf("evalProcessor.Process: failed to get all column names, err: %v", err)
-	}
+
 	if len(fieldsInExpr) == 1 && fieldsInExpr[0] == "*" {
+		allCnames, err := iqr.GetColumns()
+		if err != nil {
+			return nil, fmt.Errorf("evalProcessor.Process: failed to get all column names, err: %v", err)
+		}
 		fieldsInExpr = []string{}
 		for cname := range allCnames {
 			fieldsInExpr = append(fieldsInExpr, cname)
@@ -118,7 +76,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			fieldToValue[field] = record[i]
 		}
 
-		value, err := evaluateValueExpr(p.options.ValueExpr, fieldToValue)
+		value, err := p.options.ValueExpr.EvaluateValueExpr(fieldToValue)
 		if err != nil {
 			return nil, fmt.Errorf("evalProcessor.Process: failed to evaluate ValueExpr on raw record, err: %v", err)
 		}
@@ -130,7 +88,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		knownValues[p.options.FieldName] = append(knownValues[p.options.FieldName], CValEnc)
 	}
 
-	err = iqr.AppendKnownValues(knownValues)
+	err := iqr.AppendKnownValues(knownValues)
 	if err != nil {
 		return nil, fmt.Errorf("evalProcessor.Process: failed to append known values, err: %v", err)
 	}
