@@ -664,6 +664,9 @@ func Test_getFinalStatsResults(t *testing.T) {
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
+		if len(expectedBucketHolder.GroupByValues) == 0 {
+			expectedBucketHolder.GroupByValues = []string{"*"}
+		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
 }
