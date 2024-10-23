@@ -349,7 +349,7 @@ func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
 	}
 }
 
-func NewStatsDP(options *structs.StatsOptions) *DataProcessor {
+func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
 		processor:         &statsProcessor{options: options},

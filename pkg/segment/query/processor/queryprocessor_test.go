@@ -106,7 +106,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{RegexExpr: &structs.RegexExpr{}},
 		{RexExpr: &structs.RexExpr{}},
 		{SortExpr: &structs.SortExpr{}},
-		{StatsExpr: &structs.StatsOptions{}},
+		{StatsExpr: &structs.StatsExpr{}},
 		{StreamstatsExpr: &structs.StreamStatsOptions{}},
 		{TailExpr: &structs.TailExpr{}},
 		{TimechartExpr: &structs.TimechartExpr{}},
