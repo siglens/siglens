@@ -104,7 +104,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, stats.Process.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
+			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
@@ -169,7 +169,7 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, stats.Process.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, io.EOF
@@ -274,15 +274,15 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 
 func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 	if len(p.errorData.readColumns) > 0 {
-		log.Warnf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
+		log.Warnf("qid=%v, statsProcessor.logErrorsAndWarnings: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
 
 	if len(p.errorData.cValueGetStringErr) > 0 {
-		log.Errorf("qid=%v, statsProcessor.logErros: failed to get string from CValue: %v", qid, p.errorData.cValueGetStringErr)
+		log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: failed to get string from CValue: %v", qid, p.errorData.cValueGetStringErr)
 	}
 
 	if len(p.errorData.notSupportedStatsType) > 0 {
-		log.Errorf("qid=%v, statsProcessor.logErrors: not supported stats type: %v", qid, p.errorData.notSupportedStatsType)
+		log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: not supported stats type: %v", qid, p.errorData.notSupportedStatsType)
 	}
 
 	allErrorsLen := len(p.searchResults.AllErrors)
@@ -291,6 +291,6 @@ func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 		if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
 			size = utils.MAX_SIMILAR_ERRORS_TO_LOG
 		}
-		log.Errorf("qid=%v, statsProcessor.logErrors: search results errors: %v", qid, p.searchResults.AllErrors[:size])
+		log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 	}
 }
