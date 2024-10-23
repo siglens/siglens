@@ -20,6 +20,7 @@ package processor
 import (
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -28,7 +29,8 @@ import (
 )
 
 type regexProcessor struct {
-	options *structs.RegexExpr
+	options       *structs.RegexExpr
+	compiledRegex *regexp.Regexp
 }
 
 func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -47,6 +49,10 @@ func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("qid=%v, regex.Process: unknown operator; op=%s", iqr.GetQID(), p.options.Op)
 	}
 
+	if p.compiledRegex == nil {
+		p.compiledRegex = p.options.GobRegexp.GetCompiledRegex()
+	}
+
 	if p.options.Field == "*" {
 		return p.processRegexOnAllColumns(iqr, keepMatch)
 	} else {
@@ -63,13 +69,12 @@ func (p *regexProcessor) Cleanup() {
 }
 
 func (p *regexProcessor) performRegexMatch(value utils.CValueEnclosure) bool {
-	// Should I get bytes value and match the regex?
 	stringVal, err := value.GetString()
 	if err != nil {
 		stringVal = fmt.Sprintf("%v", value.CVal)
 	}
 
-	return p.options.Regexp.MatchString(stringVal)
+	return p.compiledRegex.MatchString(stringVal)
 }
 
 func (p *regexProcessor) processRegexOnAllColumns(iqr *iqr.IQR, keepMatch bool) (*iqr.IQR, error) {

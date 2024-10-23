@@ -1156,17 +1156,18 @@ RegexAggBlock <- PIPE node:RegexBlock {
 		return nil, fmt.Errorf("RegexAggBlock: regex given is not string. regex=%v, type=%T", astNode.Comparison.Values, astNode.Comparison.Values)
 	}
 
-	regexp, err := regexp.Compile(rawRegex)
-	if err != nil {
-		return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
-	}
+    gobRegex := toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(rawRegex)
+    if err != nil {
+        return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
+    }
 
 	return &structs.QueryAggregators{
 		RegexExpr: &structs.RegexExpr{
-			Op:       astNode.Comparison.Op,
-			Field:    astNode.Comparison.Field,
-			RawRegex: rawRegex,
-			Regexp:   regexp,
+			Op:        astNode.Comparison.Op,
+			Field:     astNode.Comparison.Field,
+			RawRegex:  rawRegex,
+			GobRegexp: &gobRegex,
 		},
 	}, nil
 }

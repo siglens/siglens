@@ -72,10 +72,10 @@ type RenameExpr struct {
 }
 
 type RegexExpr struct {
-	Op       string // must be "=" or "!="
-	Field    string
-	RawRegex string
-	Regexp   *regexp.Regexp
+	Op        string // must be "=" or "!="
+	Field     string
+	RawRegex  string
+	GobRegexp *toputils.GobbableRegex
 }
 
 type RexExpr struct {
