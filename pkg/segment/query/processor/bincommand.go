@@ -124,8 +124,8 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 			err = p.performBinWithSpan(value)
 			if err != nil {
-				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v; err=%v",
-					qid, value, err)
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v, field=%v; err=%v",
+					qid, value, p.options.Field, err)
 			}
 		}
 	}
