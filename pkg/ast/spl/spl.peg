@@ -1748,6 +1748,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        BinExpr: binCmdOption,
     }
 
     return queryAgg, nil
