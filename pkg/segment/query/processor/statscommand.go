@@ -29,7 +29,9 @@ import (
 )
 
 type ErrorData struct {
-	readColumns map[string]error // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
+	// columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn()
+	// This is logged as a warning. As the column may not exist in one segment but exist in another.
+	readColumns map[string]error
 }
 
 type statsProcessor struct {
@@ -140,7 +142,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, qid)
 	}
 
-	p.logErrors(qid)
+	p.logErrorsAndWarnings(qid)
 
 	return nil, nil
 }
@@ -163,8 +165,8 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, io.EOF
 }
 
-func (p *statsProcessor) logErrors(qid uint64) {
+func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 	if len(p.errorData.readColumns) > 0 {
-		log.Errorf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
+		log.Warnf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
 }
