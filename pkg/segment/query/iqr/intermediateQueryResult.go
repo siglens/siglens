@@ -954,7 +954,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
 
 	groupByColumns := make([]string, 0, len(iqr.groupbyColumns))
-	measureColumns := make([]string, 0, len(iqr.measureColumns))
+	measureColumns := make([]string, 0)
+
+	grpByCols := make(map[string]struct{})
 
 	// Rename and delete groupbyColumns and measureColumns based on the renamedColumns, deletedColumns map
 	for i, groupColName := range iqr.groupbyColumns {
@@ -968,15 +970,19 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		}
 
 		groupByColumns = append(groupByColumns, finalColName)
+		grpByCols[finalColName] = struct{}{}
 	}
 
-	for i, measureColName := range iqr.measureColumns {
-		if newColName, ok := iqr.renamedColumns[measureColName]; ok {
-			iqr.measureColumns[i] = newColName
+	for col := range iqr.knownValues {
+		finalColName := col
+		if newColName, ok := iqr.renamedColumns[col]; ok {
+			finalColName = newColName
 		}
-
-		finalColName := iqr.measureColumns[i]
+		iqr.measureColumns = append(iqr.measureColumns, finalColName)
 		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+		if _, ok := grpByCols[finalColName]; ok {
 			continue
 		}
 

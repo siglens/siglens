@@ -642,7 +642,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
@@ -660,7 +660,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
