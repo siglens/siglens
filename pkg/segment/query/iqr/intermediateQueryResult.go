@@ -942,20 +942,37 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
 
-	// Rename groupbyColumns and measureColumns based on the renamedColumns map
+	groupByColumns := make([]string, 0, len(iqr.groupbyColumns))
+	measureColumns := make([]string, 0, len(iqr.measureColumns))
+
+	// Rename and delete groupbyColumns and measureColumns based on the renamedColumns, deletedColumns map
 	for i, groupColName := range iqr.groupbyColumns {
 		if newColName, ok := iqr.renamedColumns[groupColName]; ok {
 			iqr.groupbyColumns[i] = newColName
 		}
+
+		finalColName := iqr.groupbyColumns[i]
+		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+
+		groupByColumns = append(groupByColumns, finalColName)
 	}
 
 	for i, measureColName := range iqr.measureColumns {
 		if newColName, ok := iqr.renamedColumns[measureColName]; ok {
 			iqr.measureColumns[i] = newColName
 		}
+
+		finalColName := iqr.measureColumns[i]
+		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+
+		measureColumns = append(measureColumns, finalColName)
 	}
 
-	groupByColLen := len(iqr.groupbyColumns)
+	groupByColLen := len(groupByColumns)
 
 	// Fill in the bucketHolderArr with values from knownValues
 	for i := 0; i < bucketCount; i++ {
@@ -965,7 +982,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 			MeasureVal:    make(map[string]interface{}),
 		}
 
-		for idx, aggGroupByCol := range iqr.groupbyColumns {
+		for idx, aggGroupByCol := range groupByColumns {
 			colValue := knownValues[aggGroupByCol][i]
 			convertedValue, err := colValue.GetString()
 			if err != nil {
@@ -974,10 +991,10 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 			bucketHolderArr[i].GroupByValues[idx] = convertedValue
 		}
 
-		for _, measureFunc := range iqr.measureColumns {
+		for _, measureFunc := range measureColumns {
 			bucketHolderArr[i].MeasureVal[measureFunc] = knownValues[measureFunc][i].CVal
 		}
 	}
 
-	return bucketHolderArr, iqr.groupbyColumns, iqr.measureColumns, bucketCount, nil
+	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
