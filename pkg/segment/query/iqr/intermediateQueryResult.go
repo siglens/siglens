@@ -292,10 +292,11 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 	for oldName, newName := range iqr.renamedColumns {
 		// TODO: don't read these columns from the RRCs, instead of reading and
 		// then deleting them.
-		_, exists := iqr.knownValues[newName]
+		_, exists := results[oldName]
 		if !exists {
-			results[newName] = results[oldName]
+			continue
 		}
+		results[newName] = results[oldName]
 		delete(results, oldName)
 	}
 
@@ -751,6 +752,12 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 	if values, ok := iqr.knownValues[oldName]; ok {
 		iqr.knownValues[newName] = values
 		delete(iqr.knownValues, oldName)
+	}
+
+	for old, new := range iqr.renamedColumns {
+		if new == oldName {
+			iqr.renamedColumns[old] = newName
+		}
 	}
 
 	for i, name := range iqr.groupbyColumns {

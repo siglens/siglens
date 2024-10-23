@@ -36,7 +36,7 @@ func (p *renameProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
 		return nil, io.EOF
 	}
-	
+
 	switch p.options.RenameExprMode {
 	case structs.REMPhrase, structs.REMOverride:
 		for oldName, newName := range p.options.RenameColumns {

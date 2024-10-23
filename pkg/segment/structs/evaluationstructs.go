@@ -72,8 +72,8 @@ type RenameExpr struct {
 }
 
 type RenameExp struct {
-	RenameExprMode  RenameExprMode
-	RenameColumns map[string]string
+	RenameExprMode RenameExprMode
+	RenameColumns  map[string]string
 }
 
 type RegexExpr struct {
