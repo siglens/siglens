@@ -827,8 +827,11 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	case structs.RRCCmd:
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
-				TotalMatched: iqr.NumberOfRecords(),
-				Hits:         recordsAsAny,
+				TotalMatched: toputils.HitsCount{
+					Value:    uint64(iqr.NumberOfRecords()),
+					Relation: "eq",
+				},
+				Hits: recordsAsAny,
 			},
 			AllPossibleColumns: allCNames,
 			Errors:             nil,

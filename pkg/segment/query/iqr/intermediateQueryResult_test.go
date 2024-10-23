@@ -105,7 +105,7 @@ func Test_AsResult(t *testing.T) {
 
 	expectedResult := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
-			TotalMatched: 2,
+			TotalMatched: toputils.HitsCount{Value: 2, Relation: "eq"},
 			Hits: []map[string]interface{}{
 				{"col1": "a"},
 				{"col1": "b"},

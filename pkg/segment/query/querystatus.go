@@ -976,3 +976,22 @@ func GetPipeResp(qid uint64) *structs.PipeSearchResponseOuter {
 	defer rQuery.rqsLock.Unlock()
 	return rQuery.pipeResp
 }
+
+func SetQidAsFinishedForPipeRespQuery(qid uint64) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("SetQidAsFinishedForPipeRespQuery: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.rawSearchIsFinished = true
+	rQuery.rqsLock.Unlock()
+
+	// Only async queries need to send COMPLETE
+	if rQuery.isAsync {
+		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
+	}
+}

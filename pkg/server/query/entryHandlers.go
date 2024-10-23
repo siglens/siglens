@@ -281,6 +281,7 @@ func esGetIndexAliasExistsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func pipeSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 		serverutils.CallWithOrgIdQuery(pipesearch.ProcessPipeSearchRequest, ctx)
 	}
 }
@@ -299,6 +300,7 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 func pipeSearchWebsocketHandler() func(ctx *fasthttp.RequestCtx) {
+	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			var orgId uint64
