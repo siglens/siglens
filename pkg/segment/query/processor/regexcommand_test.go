@@ -18,12 +18,12 @@
 package processor
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,15 +54,16 @@ func getTestValues() map[string][]utils.CValueEnclosure {
 
 func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	regexp, err := regexp.Compile(pattern)
+	gobRegex := &toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
 	regexProcessor := &regexProcessor{
 		options: &structs.RegexExpr{
-			Op:       "=",
-			Field:    "*",
-			RawRegex: pattern,
-			Regexp:   regexp,
+			Op:        "=",
+			Field:     "*",
+			RawRegex:  pattern,
+			GobRegexp: gobRegex,
 		},
 	}
 
@@ -107,15 +108,16 @@ func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 
 func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	regexp, err := regexp.Compile(pattern)
+	gobRegex := &toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
 	regexProcessor := &regexProcessor{
 		options: &structs.RegexExpr{
-			Op:       "!=",
-			Field:    "*",
-			RawRegex: pattern,
-			Regexp:   regexp,
+			Op:        "!=",
+			Field:     "*",
+			RawRegex:  pattern,
+			GobRegexp: gobRegex,
 		},
 	}
 
@@ -155,15 +157,16 @@ func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 
 func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	regexp, err := regexp.Compile(pattern)
+	gobRegex := &toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
 	regexProcessor := &regexProcessor{
 		options: &structs.RegexExpr{
-			Op:       "=",
-			Field:    "col1",
-			RawRegex: pattern,
-			Regexp:   regexp,
+			Op:        "=",
+			Field:     "col1",
+			RawRegex:  pattern,
+			GobRegexp: gobRegex,
 		},
 	}
 
@@ -204,15 +207,16 @@ func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 
 func Test_processRegexOnSingleColumns_DiscardMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	regexp, err := regexp.Compile(pattern)
+	gobRegex := &toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
 	regexProcessor := &regexProcessor{
 		options: &structs.RegexExpr{
-			Op:       "!=",
-			Field:    "col1",
-			RawRegex: pattern,
-			Regexp:   regexp,
+			Op:        "!=",
+			Field:     "col1",
+			RawRegex:  pattern,
+			GobRegexp: gobRegex,
 		},
 	}
 
