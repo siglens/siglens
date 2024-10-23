@@ -88,16 +88,18 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		newNameExists = false
 	}
 
-	if p.options.Field == config.GetTimeStampKey() {
-		for i := range values {
-			var value *segutils.CValueEnclosure
-			if newNameExists {
-				newColResultValues[i] = values[i]
-				value = &newColResultValues[i]
-			} else {
-				value = &values[i]
-			}
+	timestampField := p.options.Field == config.GetTimeStampKey()
 
+	for i := range values {
+		var value *segutils.CValueEnclosure
+		if newNameExists {
+			newColResultValues[i] = values[i]
+			value = &newColResultValues[i]
+		} else {
+			value = &values[i]
+		}
+
+		if timestampField {
 			floatVal, err := value.GetFloatValue()
 			if err != nil {
 				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot convert value %v to float; err=%v", qid,
@@ -112,16 +114,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 			value.CVal = bucket
 			value.Dtype = segutils.SS_DT_UNSIGNED_NUM
-		}
-	} else {
-		for i := range values {
-			var value *segutils.CValueEnclosure
-			if newNameExists {
-				newColResultValues[i] = values[i]
-				value = &newColResultValues[i]
-			} else {
-				value = &values[i]
-			}
+		} else {
 			err = p.performBinWithSpan(value)
 			if err != nil {
 				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v, field=%v; err=%v",
@@ -147,6 +140,11 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 // based on the min and max values seen in the first pass.
 func (p *binProcessor) Rewind() {
 	p.secondPass = true
+
+	if p.options.BinSpanOptions != nil {
+		// Already Exists or calculated the bin span options
+		return
+	}
 
 	if p.options.Field != config.GetTimeStampKey() {
 		if p.options.Start != nil && *p.options.Start < p.minVal {
