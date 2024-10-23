@@ -262,7 +262,7 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 		return iqr, nil
 	}
 
-	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0)
+	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0, false)
 
 	err := iqr.AppendStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {

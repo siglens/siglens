@@ -429,7 +429,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0, true)
 	SetQidAsFinished(queryInfo.qid)
 	return &structs.NodeResult{
 		ErrList:          allSegFileResults.GetAllErrors(),
