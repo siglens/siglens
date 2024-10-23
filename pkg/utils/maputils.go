@@ -268,3 +268,14 @@ func (twm *TwoWayMap[T1, T2]) GetMapForReading() map[T1]T2 {
 func (twm *TwoWayMap[T1, T2]) Len() int {
 	return len(twm.normal)
 }
+
+// AddIfNewEntryAndIncrementSize adds the key-value pair to the map if the key does not exist in the map.
+// If the key is added, the currentSize is incremented by 1.
+func AddIfNewEntryAndIncrementSize[K comparable, V any](m map[K]V, key K, value V, currentSize int) int {
+	if _, exists := m[key]; !exists {
+		currentSize++
+		m[key] = value
+	}
+
+	return currentSize
+}
