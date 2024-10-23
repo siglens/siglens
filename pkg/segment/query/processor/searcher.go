@@ -286,8 +286,6 @@ func (s *searcher) getBlocks() ([]*block, error) {
 		return nil, err
 	}
 
-	log.Errorf("andrew got %v qsrs", len(qsrs))
-
 	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
 
 	for i, qsr := range qsrs {
@@ -326,17 +324,12 @@ func (s *searcher) getBlocks() ([]*block, error) {
 				return nil, err
 			}
 
-			log.Errorf("andrew got len(fileToSSR)=%v", len(fileToSSR))
-
 			for file, ssr := range fileToSSR {
 				blocks := makeBlocksFromSSR(qsr, file, ssr, pqmrs[i])
-				log.Errorf("andrew made %v blocks for qsr %v", len(blocks), i)
 				allBlocks = append(allBlocks, blocks...)
 			}
 		}
 	}
-
-	log.Errorf("andrew made %v total blocks", len(allBlocks))
 
 	return allBlocks, nil
 }

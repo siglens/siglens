@@ -20,6 +20,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sort"
 	"time"
@@ -222,8 +223,9 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 		dqs = InitDistQueryService(querySummary, allSegFileResults)
 	}
 
+	sizeLimit := uint64(math.MaxUint64) // The query may filter out results after initial search.
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
-		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
+		sizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
 	if err != nil {
 		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, nil, "", nil, nil, 0, false, nil, err
