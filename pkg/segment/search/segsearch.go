@@ -434,14 +434,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						continue
 					}
 					convertedRecNum := uint16(recNum)
-					if err != nil {
-						log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get time stamp for record %+v in block %+v, segkey=%v, Err: %v",
-							qid, recNum, blockNum, req.SegmentKey, err)
-						continue
-					}
-					if blkResults.ShouldAddMore() {
+					if config.IsNewQueryPipelineEnabled() {
 						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
-						if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+						if !invalidCol {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
 									SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
@@ -454,6 +449,24 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 								TimeStamp:        recTs,
 							}
 							blkResults.Add(rrc)
+						}
+					} else {
+						if blkResults.ShouldAddMore() {
+							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+								rrc := &utils.RecordResultContainer{
+									SegKeyInfo: utils.SegKeyInfo{
+										SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
+										IsRemote:  false,
+									},
+									BlockNum:         blockNum,
+									RecordNum:        convertedRecNum,
+									SortColumnValue:  sortVal,
+									VirtualTableName: req.VirtualTableName,
+									TimeStamp:        recTs,
+								}
+								blkResults.Add(rrc)
+							}
 						}
 					}
 				}

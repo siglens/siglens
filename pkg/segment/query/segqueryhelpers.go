@@ -90,6 +90,10 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) SetSizeLimit(sizeLimit uint64) {
+	qi.sizeLimit = sizeLimit
+}
+
 func (qi *QueryInformation) GetScrollFrom() int {
 	return qi.scrollFrom
 }
@@ -128,6 +132,18 @@ func (qsr *QuerySegmentRequest) GetSegKey() string {
 
 func (qsr *QuerySegmentRequest) GetTableName() string {
 	return qsr.tableName
+}
+
+func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
+	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
+	qsr.sType = sType
+}
+
+func (qsr *QuerySegmentRequest) SetBlockTracker(blkTracker *structs.BlockTracker) {
+	qsr.blkTracker = blkTracker
 }
 
 /*
