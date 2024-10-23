@@ -293,6 +293,10 @@ func (s *searcher) getBlocks() ([]*block, error) {
 	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
 
 	for i, qsr := range qsrs {
+		// The query may require filtering out records after search, so we
+		// shouldn't limit the searcher.
+		qsr.SetSizeLimit(uint64(math.MaxUint64))
+
 		if qsr.GetSegType() != structs.PQS {
 			continue
 		}

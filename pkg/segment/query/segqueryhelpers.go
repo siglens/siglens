@@ -90,6 +90,10 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) SetSizeLimit(sizeLimit uint64) {
+	qi.sizeLimit = sizeLimit
+}
+
 func (qi *QueryInformation) GetScrollFrom() int {
 	return qi.scrollFrom
 }
