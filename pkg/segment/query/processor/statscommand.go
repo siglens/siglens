@@ -34,9 +34,9 @@ import (
 )
 
 type ErrorData struct {
-	readColumns           map[string]error       // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
-	cValueGetStringErr    map[string]interface{} // columnName -> error. Tracks errors while converting CValue to string
-	notSupportedStatsType map[string]struct{}    // columnName -> struct{}. Tracks unsupported stats types
+	readColumns           map[string]error    // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
+	cValueGetStringErr    map[string]error    // columnName -> error. Tracks errors while converting CValue to string
+	notSupportedStatsType map[string]struct{} // columnName -> struct{}. Tracks unsupported stats types
 }
 
 type statsProcessor struct {
@@ -53,7 +53,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
 			readColumns:           make(map[string]error),
-			cValueGetStringErr:    make(map[string]interface{}),
+			cValueGetStringErr:    make(map[string]error),
 			notSupportedStatsType: make(map[string]struct{}),
 		}
 	}
@@ -231,7 +231,8 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 				}
 
 				if values[i].IsFloat() {
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, values[i].CVal.(float64), stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
+						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
 				} else {
 					intVal, err := values[i].GetIntValue()
 					if err != nil {
