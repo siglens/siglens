@@ -558,7 +558,7 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 
 	switch rQuery.QType {
 	case structs.SegmentStatsCmd:
-		return rQuery.searchRes.GetSegmentStatsResults(skenc)
+		return rQuery.searchRes.GetSegmentStatsResults(skenc, true)
 	case structs.GroupByCmd:
 		if pullGrpBucks {
 			rowCnt := MAX_GRP_BUCKS
