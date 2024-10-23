@@ -51,6 +51,9 @@ func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	if p.compiledRegex == nil {
 		p.compiledRegex = p.options.GobRegexp.GetCompiledRegex()
+		if p.compiledRegex == nil {
+			return nil, toputils.TeeErrorf("qid=%v, regex.Process: Gob compiled regex is nil", iqr.GetQID())
+		}
 	}
 
 	if p.options.Field == "*" {
