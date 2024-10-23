@@ -5,13 +5,12 @@ complex_search.json
 complex_search_2.json
 search_with_eval.json
 search_1col_fields.json
-
+3stats.json
+grpby_1col_4stats.json
+eval_groupby_2col_2stats.json
 
 ## Uncomment when implemented for new pipline
-# 3stats.json
 # 9stats.json
-# eval_groupby_2col_2stats.json
-# grpby_1col_4stats.json
 # rare.json
 # sort_tail_eval_newField.json
 # stats_groupby_with_eval.json
