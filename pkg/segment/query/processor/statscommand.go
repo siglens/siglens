@@ -63,7 +63,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	} else if p.options.MeasureOperations != nil {
 		return p.processMeasureOperations(inputIQR)
 	} else {
-		return nil, toputils.TeeErrorf("qid=%v, stats.Process: no group by or measure operations specified", inputIQR.GetQID())
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.Process: no group by or measure operations specified", inputIQR.GetQID())
 	}
 }
 
@@ -104,7 +104,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, stats.Process.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
+			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
@@ -169,7 +169,7 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, stats.Process.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, io.EOF
@@ -185,11 +185,12 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 	}
 
 	numOfRecords := uint64(inputIQR.NumberOfRecords())
+	qid := inputIQR.GetQID()
 
 	if p.searchResults == nil {
 		searchResults, err := segresults.InitSearchResults(numOfRecords, &structs.QueryAggregators{MeasureOperations: p.options.MeasureOperations}, structs.SegmentStatsCmd, inputIQR.GetQID())
 		if err != nil {
-			return nil, toputils.TeeErrorf("stats.Process.processMeasureOperations: cannot initialize search results; err=%v", err)
+			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processMeasureOperations: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 		p.searchResults.InitSegmentStatsResults(p.options.MeasureOperations)
@@ -235,7 +236,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 					intVal, err := values[i].GetIntValue()
 					if err != nil {
 						// This should never happen
-						log.Errorf("stats.Process: cannot get int value; err=%v", err)
+						log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot get int value; err=%v", qid, err)
 						intVal = 0
 					}
 
@@ -250,8 +251,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 	err := p.searchResults.UpdateSegmentStats(segStatsMap, p.options.MeasureOperations)
 	if err != nil {
-		log.Errorf("stats.Process: cannot update segment stats; err=%v", err)
-		p.searchResults.AddError(err)
+		log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot update segment stats; err=%v", qid, err)
 	}
 
 	return nil, nil
@@ -266,7 +266,7 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 
 	err := iqr.AppendStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("stats.Process.extractSegmentStatsResults: cannot append stats results; err=%v", err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot append stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, io.EOF
@@ -274,18 +274,23 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 
 func (p *statsProcessor) logErrors(qid uint64) {
 	if len(p.errorData.readColumns) > 0 {
-		log.Errorf("qid=%v, stats.Process: failed to read columns: %v", qid, p.errorData.readColumns)
+		log.Errorf("qid=%v, statsProcessor.logErrors: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
 
 	if len(p.errorData.cValueGetStringErr) > 0 {
-		log.Errorf("stats.Process: failed to get string from CValue: %v", p.errorData.cValueGetStringErr)
+		log.Errorf("qid=%v, statsProcessor.logErros: failed to get string from CValue: %v", qid, p.errorData.cValueGetStringErr)
 	}
 
 	if len(p.errorData.notSupportedStatsType) > 0 {
-		log.Errorf("stats.Process: not supported stats type: %v", p.errorData.notSupportedStatsType)
+		log.Errorf("qid=%v, statsProcessor.logErrors: not supported stats type: %v", qid, p.errorData.notSupportedStatsType)
 	}
 
-	if len(p.searchResults.AllErrors) > 0 {
-		log.Errorf("stats.Process: search results errors: %v", p.searchResults.AllErrors)
+	allErrorsLen := len(p.searchResults.AllErrors)
+	if allErrorsLen > 0 {
+		size := allErrorsLen
+		if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
+			size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+		}
+		log.Errorf("qid=%v, statsProcessor.logErrors: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 	}
 }

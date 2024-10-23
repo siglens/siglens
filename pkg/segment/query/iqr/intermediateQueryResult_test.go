@@ -500,7 +500,7 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 	measureFuncs := []string{"count", "sum(x)", "avg(y)"}
 
 	bucketHolderSlice := []*structs.BucketHolder{
-		&structs.BucketHolder{
+		{
 			GroupByValues: []string{"a", "b"},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),
@@ -508,7 +508,7 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 				"avg(y)": int64(10),
 			},
 		},
-		&structs.BucketHolder{
+		{
 			GroupByValues: []string{"a", "c"},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(20),
@@ -516,7 +516,7 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 				"avg(y)": int64(20),
 			},
 		},
-		&structs.BucketHolder{
+		{
 			GroupByValues: []string{"d", "e"},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(30),
@@ -534,7 +534,7 @@ func getTestValuesForSegmentStats() ([]*structs.BucketHolder, []string, []string
 	measureFuncs := []string{"count", "sum(x)", "avg(y)"}
 
 	bucketHolderSlice := []*structs.BucketHolder{
-		&structs.BucketHolder{
+		{
 			GroupByValues: []string{},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),

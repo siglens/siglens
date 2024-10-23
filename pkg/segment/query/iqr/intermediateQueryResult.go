@@ -404,7 +404,7 @@ func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
 		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
 			// This should never happen.
-			log.Errorf("qid=%v, IQR.getSegKeysFromRRCs: unknown encoding %v", iqr.qid, rrc.SegKeyInfo.SegKeyEnc)
+			log.Errorf("qid=%v, IQR.getSegKeyToVirtualTableMapFromRRCs: unknown encoding %v", iqr.qid, rrc.SegKeyInfo.SegKeyEnc)
 			continue
 		}
 
