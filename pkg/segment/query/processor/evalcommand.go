@@ -93,8 +93,6 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, fmt.Errorf("evalProcessor.Process: failed to append known values, err: %v", err)
 	}
 
-	iqr.CheckAndAddMeasureCol(p.options.FieldName)
-
 	return iqr, nil
 }
 

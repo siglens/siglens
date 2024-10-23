@@ -201,15 +201,6 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	return nil
 }
 
-func (iqr *IQR) CheckAndAddMeasureCol(measureCol string) {
-	for _, col := range iqr.measureColumns {
-		if col == measureCol {
-			return
-		}
-	}
-	iqr.measureColumns = append(iqr.measureColumns, measureCol)
-}
-
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("qid=%v, IQR.ReadAllColumns: validation failed: %v", iqr.qid, err)
