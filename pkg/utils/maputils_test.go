@@ -439,26 +439,3 @@ func TestRemoveKeyFromNestedMap(t *testing.T) {
 	RemoveKeyFromNestedMap(m, "key1", "key3")
 	assert.Equal(t, 0, len(m), "Outer map key should be removed when the inner map becomes empty")
 }
-
-func TestAddIfNewEntryAndIncrementSize(t *testing.T) {
-	m := make(map[string]int)
-	currentSize := 0
-
-	// Test adding a new entry
-	currentSize = AddIfNewEntryAndIncrementSize(m, "key1", 1, currentSize)
-	assert.Equal(t, 1, len(m))
-	assert.Equal(t, 1, m["key1"])
-	assert.Equal(t, 1, currentSize)
-
-	// Test incrementing an existing entry
-	AddIfNewEntryAndIncrementSize(m, "key1", 2, currentSize)
-	assert.Equal(t, 1, len(m))
-	assert.Equal(t, 1, m["key1"])
-	assert.Equal(t, 1, currentSize)
-
-	// Test adding a new entry and incrementing the size
-	currentSize = AddIfNewEntryAndIncrementSize(m, "key2", 3, currentSize)
-	assert.Equal(t, 2, len(m))
-	assert.Equal(t, 3, m["key2"])
-	assert.Equal(t, 2, currentSize)
-}

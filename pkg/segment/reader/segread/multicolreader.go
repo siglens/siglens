@@ -163,7 +163,6 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		allFDs:          allFDs,
 		columnErrorMap:  make(map[string]error),
 	}
-	errColMapSize := len(sharedReader.columnErrorMap)
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(maxOpenFds, 10, fmt.Sprintf("InitSharedMultiColumnReaders.qid=%d", qid))
 	if err != nil {
@@ -201,8 +200,8 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 				err := toputils.TeeErrorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
 					" Error: %v. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
-				if errColMapSize < utils.MAX_SIMILAR_ERRORS_TO_LOG {
-					errColMapSize = toputils.AddIfNewEntryAndIncrementSize(sharedReader.columnErrorMap, colName, err, errColMapSize)
+				if len(sharedReader.columnErrorMap) < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+					sharedReader.columnErrorMap[colName] = err
 				}
 				continue
 			}
