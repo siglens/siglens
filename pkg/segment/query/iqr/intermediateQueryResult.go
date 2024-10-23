@@ -201,6 +201,15 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 	return nil
 }
 
+func (iqr *IQR) CheckAndAddMeasureCol(measureCol string) {
+	for _, col := range iqr.measureColumns {
+		if col == measureCol {
+			return
+		}
+	}
+	iqr.measureColumns = append(iqr.measureColumns, measureCol)
+}
+
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("qid=%v, IQR.ReadAllColumns: validation failed: %v", iqr.qid, err)
@@ -875,6 +884,9 @@ func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 	}
 
 	iqr.mode = withoutRRCs
+	for col := range iqr.knownValues {
+		delete(iqr.knownValues, col)
+	}
 
 	knownValues := make(map[string][]utils.CValueEnclosure)
 
@@ -913,8 +925,8 @@ func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 		return err
 	}
 
-	iqr.groupbyColumns = append(iqr.groupbyColumns, aggGroupByCols...)
-	iqr.measureColumns = append(iqr.measureColumns, measureFuncs...)
+	iqr.groupbyColumns = aggGroupByCols
+	iqr.measureColumns = measureFuncs
 
 	if errIndex > 0 {
 		log.Errorf("qid=%v, IQR.AppendStatsResults: conversion errors: %v", iqr.qid, conversionErrors)

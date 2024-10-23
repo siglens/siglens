@@ -45,3 +45,4 @@ tls:
 
 # SigLens server hostname
 queryHostname: ""
+isNewQueryPipelineEnabled: true

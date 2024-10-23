@@ -1,14 +1,17 @@
 ## Currently implemented in the new pipline
 simple_where.json
 simple_sort.json
+complex_search.json
+complex_search_2.json
+search_with_eval.json
+search_1col_fields.json
+
 
 ## Uncomment when implemented for new pipline
 # 3stats.json
 # 9stats.json
-# complex_search.json
 # eval_groupby_2col_2stats.json
 # grpby_1col_4stats.json
-# search_1col_fields.json
 # rare.json
 # sort_tail_eval_newField.json
 # stats_groupby_with_eval.json
@@ -26,7 +29,6 @@ simple_sort.json
 
 ## Queries not working for multi-index
 # 9stats_groupby_2col.json
-# complex_search_2.json
 # gentimes.json
 # inputlookup.json
 # inputlookup_2.json
@@ -69,7 +71,6 @@ simple_sort.json
 
 ## Failing on rotated data
 # fillnull_with_eval.json
-# search_with_eval.json
 
 ## Failing on unrotated data
 # mvexpand.json
