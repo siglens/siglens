@@ -961,7 +961,7 @@ func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *
 		qsr.blkTracker = structs.InitEntireFileBlockTracker()
 		return applyFilterOperatorRawSearchRequest(qsr, allSegFileResults, qs)
 	}
-	err = ApplyPQSToRotatedRequest(qsr, allSegFileResults, spqmr, qs)
+	err = applyPQSToRotatedRequest(qsr, allSegFileResults, spqmr, qs)
 	if err != nil {
 		qsr.sType = structs.RAW_SEARCH
 		qsr.blkTracker = structs.InitEntireFileBlockTracker()
@@ -1198,11 +1198,11 @@ func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleK
 }
 
 // gets search metadata for a segKey and runs raw search
-func ApplyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
+func applyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
 
 	searchMetadata, blkSummaries, err := segmetadata.GetSearchInfoAndSummaryForPQS(qsr.segKey, spqmr)
 	if err != nil {
-		log.Errorf("qid=%d, ApplyPQSToRotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
+		log.Errorf("qid=%d, applyPQSToRotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)
 		return err
 	}
@@ -1215,7 +1215,7 @@ func applyPQSToUnrotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segr
 
 	searchMetadata, blkSummaries, err := writer.GetSearchInfoForPQSQuery(qsr.segKey, spqmr)
 	if err != nil {
-		log.Errorf("qid=%d, applyRawSearchToPQSMatches: failed to get search info for pqs query %+v. Error: %+v",
+		log.Errorf("qid=%d, applyPQSToUnrotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)
 		return err
 	}

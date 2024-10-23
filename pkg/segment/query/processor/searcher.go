@@ -299,7 +299,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 
 		spqmr, err := pqs.GetAllPersistentQueryResults(qsr.GetSegKey(), qsr.QueryInformation.GetPqid())
 		if err != nil {
-			log.Errorf("qid=%d, searcher.getBlocks: Cannot get persistent query results; searching all blocks; err=%v",
+			log.Errorf("qid=%d, searchProcessor.getBlocks: Cannot get persistent query results; searching all blocks; err=%v",
 				s.qid, err)
 			qsr.SetSegType(structs.RAW_SEARCH)
 			qsr.SetBlockTracker(structs.InitEntireFileBlockTracker())
@@ -319,7 +319,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 				return nil, err
 			}
 
-			blocks := makeBlocksFromPQMR(qsr, blockToMetadata, blockSummaries, pqmr)
+			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
 			allBlocks = append(allBlocks, blocks...)
 		} else {
 			fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
@@ -338,9 +338,9 @@ func (s *searcher) getBlocks() ([]*block, error) {
 	return allBlocks, nil
 }
 
-func makeBlocksFromPQMR(qsr *query.QuerySegmentRequest,
-	blockToMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, pqmr *pqmr.SegmentPQMRResults) []*block {
+func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,
+	blockSummaries []*structs.BlockSummary, qsr *query.QuerySegmentRequest,
+	pqmr *pqmr.SegmentPQMRResults) []*block {
 
 	blocks := make([]*block, 0, len(blockToMetadata))
 	for blkNum, blockMeta := range blockToMetadata {
