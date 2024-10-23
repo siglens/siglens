@@ -28,7 +28,7 @@ import (
 )
 
 func Test_EvalCommand(t *testing.T) {
-	// SPL command: | eval evalField = if(state in("Massachusetts", "RAW_STRING", 100), numField, country)
+	// SPL command: | eval evalField = if(state in("Massa"."chusetts", "RAW_STRING", 99+1), numField, country)
 	boolExpr := &structs.BoolExpr{
 		IsTerminal: true,
 		LeftValue: &structs.ValueExpr{
@@ -100,10 +100,12 @@ func Test_EvalCommand(t *testing.T) {
 						},
 					},
 					FalseValue: &structs.ValueExpr{
-						ValueExprMode: structs.VEMStringExpr,
-						StringExpr: &structs.StringExpr{
-							StringExprMode: structs.SEMField,
-							FieldName:      "country",
+						ValueExprMode: structs.VEMNumericExpr,
+						NumericExpr: &structs.NumericExpr{
+							NumericExprMode: structs.NEMNumberField,
+							IsTerminal:      true,
+							ValueIsField:    true,
+							Value:           "country",
 						},
 					},
 				},

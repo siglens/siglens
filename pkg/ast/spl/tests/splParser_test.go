@@ -11400,7 +11400,6 @@ func Test_Eval_Expr(t *testing.T) {
 	aggregator := res.(ast.QueryStruct).PipeCommands
 
 	assert.NotNil(t, aggregator)
-	assert.NotNil(t, aggregator)
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
 	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
