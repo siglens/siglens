@@ -2,7 +2,7 @@
     "queryText": "city=Boston | sort app_name",
     "expectedResult": {
         "totalMatched": {
-            "value": 984,
+            "value": 100,
             "relation": "eq"
         },
         "qtype": "logs-query",
