@@ -41,8 +41,12 @@ import (
 type block struct {
 	*structs.BlockSummary
 	*structs.BlockMetadataHolder
-	parentQSR   *query.QuerySegmentRequest
-	parentPQMR  toputils.Option[*pqmr.SegmentPQMRResults]
+	parentQSR *query.QuerySegmentRequest
+
+	// For PQS blocks, these must be set.
+	parentPQMR toputils.Option[*pqmr.SegmentPQMRResults]
+
+	// For raw search blocks, these must be set.
 	parentSSR   *structs.SegmentSearchRequest
 	segkeyFname string
 }
@@ -325,7 +329,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 			}
 
 			for file, ssr := range fileToSSR {
-				blocks := makeBlocksFromSSR(qsr, file, ssr, pqmrs[i])
+				blocks := makeBlocksFromSSR(qsr, file, ssr)
 				allBlocks = append(allBlocks, blocks...)
 			}
 		}
@@ -352,8 +356,7 @@ func makeBlocksFromPQMR(qsr *query.QuerySegmentRequest,
 }
 
 func makeBlocksFromSSR(qsr *query.QuerySegmentRequest, segkeyFname string,
-	ssr *structs.SegmentSearchRequest,
-	segmentPQMR toputils.Option[*pqmr.SegmentPQMRResults]) []*block {
+	ssr *structs.SegmentSearchRequest) []*block {
 
 	blocks := make([]*block, 0, len(ssr.AllBlocksToSearch))
 
@@ -363,7 +366,6 @@ func makeBlocksFromSSR(qsr *query.QuerySegmentRequest, segkeyFname string,
 			BlockMetadataHolder: blockMeta,
 			parentQSR:           qsr,
 			parentSSR:           ssr,
-			parentPQMR:          segmentPQMR,
 			segkeyFname:         segkeyFname,
 		})
 	}
@@ -446,7 +448,12 @@ func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*b
 	return selectedBlocks, nil
 }
 
+// All of the blocks must be for the same segment.
 func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
+	if len(blocks) == 0 {
+		return nil, nil, nil
+	}
+
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
 	timeRange := s.queryInfo.GetQueryRange()
