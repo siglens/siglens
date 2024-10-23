@@ -66,7 +66,7 @@ type SharedMultiColReaders struct {
 	allInUseFiles   []string            // all files that need to be released by blob
 	numReaders      int
 	numOpenFDs      int64
-	ErrorColMap     map[string]error
+	columnErrorMap  map[string]error // column name -> error; Track errors while reading the column files for the shared readers
 }
 
 /*
@@ -161,7 +161,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		numReaders:      numReaders,
 		numOpenFDs:      maxOpenFds,
 		allFDs:          allFDs,
-		ErrorColMap:     make(map[string]error),
+		columnErrorMap:  make(map[string]error),
 	}
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(maxOpenFds, 10, fmt.Sprintf("InitSharedMultiColumnReaders.qid=%d", qid))
@@ -200,7 +200,9 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 				err := toputils.TeeErrorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
 					" Error: %v. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
-				sharedReader.ErrorColMap[colName] = err
+				if len(sharedReader.columnErrorMap) < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+					sharedReader.columnErrorMap[colName] = err
+				}
 				continue
 			}
 		}
@@ -243,6 +245,10 @@ func (scr *SharedMultiColReaders) Close() {
 		log.Errorf("SharedMultiColReaders.Close: Failed to release needed segment files from local storage %+v! err: %+v", scr.allInUseFiles, err)
 	}
 	fileutils.GLOBAL_FD_LIMITER.Release(scr.numOpenFDs)
+}
+
+func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
+	return scr.columnErrorMap
 }
 
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {

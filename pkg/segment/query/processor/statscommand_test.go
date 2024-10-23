@@ -300,3 +300,81 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 		assert.ElementsMatch(t, expectedValues, actualValues)
 	}
 }
+
+func getStatsMeasureProcessor() *statsProcessor {
+	measureOperations := []*structs.MeasureAggregator{
+		{
+			MeasureCol:  "col2",
+			MeasureFunc: utils.Count,
+		},
+		{
+			MeasureCol:  "col2",
+			MeasureFunc: utils.Sum,
+		},
+		{
+			MeasureCol:  "col2",
+			MeasureFunc: utils.Avg,
+		},
+	}
+
+	processor := &statsProcessor{
+		options: &structs.StatsExpr{
+			MeasureOperations: measureOperations,
+		},
+	}
+
+	return processor
+}
+
+func Test_ProcessSegmentStats(t *testing.T) {
+	knownValues := getTestData()
+	processor := getStatsMeasureProcessor()
+
+	iqr1 := iqr.NewIQR(0)
+
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	_, err = processor.Process(iqr1)
+	assert.NoError(t, err)
+
+	resultIqr, err := processor.Process(nil)
+	assert.Equal(t, io.EOF, err)
+	assert.NotNil(t, resultIqr)
+
+	// Check the results
+	actualKnownValues, err := resultIqr.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.NotNil(t, actualKnownValues)
+	fmt.Println(actualKnownValues)
+
+	expectedCountRes := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+	}
+
+	countColName := "count(col2)"
+	actualCountRes, ok := actualKnownValues[countColName]
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(actualCountRes))
+	assert.Equal(t, expectedCountRes, actualCountRes)
+
+	expectedSumRes := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(21)},
+	}
+
+	sumColName := "sum(col2)"
+	actualSumRes, ok := actualKnownValues[sumColName]
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(actualSumRes))
+	assert.Equal(t, expectedSumRes, actualSumRes)
+
+	expectedAvgRes := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3.5)},
+	}
+
+	avgColName := "avg(col2)"
+	actualAvgRes, ok := actualKnownValues[avgColName]
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(actualAvgRes))
+	assert.Equal(t, expectedAvgRes, actualAvgRes)
+}
