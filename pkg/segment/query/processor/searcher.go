@@ -470,9 +470,6 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	searchResults.NextSegKeyEnc = encoding
 
 	if segmentPQMR, ok := blocks[0].parentPQMR.Get(); ok {
-		log.Errorf("andrew using pqmr")
-		// func ApplySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder,
-		// 	blkSummaries []*structs.BlockSummary, qs *summary.QuerySummary) error {
 		metas := make(map[uint16]*structs.BlockMetadataHolder)
 		summaries := make([]*structs.BlockSummary, 0)
 		for _, block := range blocks {
@@ -487,17 +484,7 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply PQS: %v", s.qid, err)
 			return nil, nil, err
 		}
-
-		// nodeRes := &structs.NodeResult{}
-		// search.RawSearchPQMResults(blocks[0].parentSSR, parallelismPerFile, timeRange,
-		// 	aggs, sizeLimit, segmentPQMR, searchResults, qid, qs, nodeRes)
-		// allErrors := searchResults.GetAllErrors()
-		// if len(allErrors) > 0 {
-		// 	log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply PQS: %v", s.qid, allErrors)
-		// 	return nil, nil, allErrors[0]
-		// }
 	} else {
-		log.Errorf("andrew using raw search")
 		allSegRequests, err := getSSRs(blocks)
 		if err != nil {
 			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get SSRs: %v", s.qid, err)

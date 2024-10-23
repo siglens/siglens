@@ -434,11 +434,6 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						continue
 					}
 					convertedRecNum := uint16(recNum)
-					if err != nil {
-						log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get time stamp for record %+v in block %+v, segkey=%v, Err: %v",
-							qid, recNum, blockNum, req.SegmentKey, err)
-						continue
-					}
 					if config.IsNewQueryPipelineEnabled() {
 						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
 						if !invalidCol {
