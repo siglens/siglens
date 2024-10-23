@@ -71,6 +71,11 @@ type RenameExpr struct {
 	NewPattern      string
 }
 
+type RenameExp struct {
+	RenameExprMode  RenameExprMode
+	RenameColumns map[string]string
+}
+
 type RegexExpr struct {
 	Op        string // must be "=" or "!="
 	Field     string

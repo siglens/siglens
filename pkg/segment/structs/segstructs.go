@@ -188,6 +188,7 @@ type QueryAggregators struct {
 	MakeMVExpr      *MultiValueColLetRequest
 	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
+	RenameExp 	    *RenameExp
 	RexExpr         *RexExpr
 	SortExpr        *SortExpr
 	StatsExpr       *StatsExpr

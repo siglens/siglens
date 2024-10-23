@@ -141,6 +141,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewEvalDP(queryAgg.EvalExpr)
 	} else if queryAgg.FieldsExpr != nil {
 		return NewFieldsDP(queryAgg.FieldsExpr)
+	} else if queryAgg.RenameExp != nil {
+		return NewRenameDP(queryAgg.RenameExp)
 	} else if queryAgg.FillNullExpr != nil {
 		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
