@@ -41,6 +41,7 @@ type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
 	chain []*DataProcessor // This shouldn't be modified after initialization.
+	qid   uint64
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -96,11 +97,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors)
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid())
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -123,6 +124,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		queryType:     queryType,
 		DataProcessor: *headDP,
 		chain:         chain,
+		qid:           qid,
 	}, nil
 }
 
@@ -184,6 +186,10 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	finalIQR, err := qp.DataProcessor.Fetch()
 	if err != nil && err != io.EOF {
 		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
+	}
+
+	if finalIQR == nil {
+		finalIQR = iqr.NewIQR(qp.qid)
 	}
 
 	var iqr *iqr.IQR
