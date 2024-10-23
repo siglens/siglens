@@ -1752,6 +1752,27 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.GetRegexp(), compiledRegex)
 }
 
+func Test_regexAsAggregator(t *testing.T) {
+	query := []byte(`A=1 | where n="10" | regex n="^\d$"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	aggregator := res.(ast.QueryStruct).PipeCommands
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.NotNil(t, aggregator)
+
+	nextAgg := aggregator.Next
+	assert.NotNil(t, nextAgg)
+	assert.NotNil(t, nextAgg.RegexExpr)
+
+	assert.Equal(t, nextAgg.RegexExpr.Field, "n")
+	assert.Equal(t, nextAgg.RegexExpr.RawRegex, `^\d$`)
+	assert.NotNil(t, nextAgg.RegexExpr.GobRegexp)
+	assert.NotNil(t, nextAgg.RegexExpr.GobRegexp.GetCompiledRegex())
+}
+
 func Test_aggCountWithoutField(t *testing.T) {
 	query := []byte(`search A=1 | stats count`)
 	res, err := spl.Parse("", query)
@@ -11369,4 +11390,65 @@ func Test_Index_6(t *testing.T) {
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+}
+
+func Test_Eval_Expr(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status, "Error"), myField2=abs(http_status - 100) | eval myField3="Test concat:" . lower(state) . "  end"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+	aggregator := res.(ast.QueryStruct).PipeCommands
+
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.EvalExpr)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.FieldName, "myField")
+	assert.NotNil(t, aggregator.Next.Next.EvalExpr.ValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.EvalExpr.ValueExpr.ValueExprMode), structs.VEMConditionExpr)
+	assert.NotNil(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.LeftValue.NumericExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.LeftValue.NumericExpr.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Value, "http_status")
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.RightValue.NumericExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.RightValue.NumericExpr.ValueIsField, false)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.BoolExpr.RightValue.NumericExpr.Value, "400")
+
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.TrueValue.NumericExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.TrueValue.NumericExpr.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.TrueValue.NumericExpr.Value, "http_status")
+	assert.Equal(t, aggregator.Next.Next.EvalExpr.ValueExpr.ConditionExpr.FalseValue.StringExpr.RawString, "Error")
+
+	assert.NotNil(t, aggregator.Next.Next.Next.EvalExpr)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.FieldName, "myField2")
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.IsTerminal, false)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Op, "abs")
+	assert.Nil(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Right, err)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Op, "-")
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Left.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Left.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Left.Value, "http_status")
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Right.ValueIsField, false)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Right.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.Next.EvalExpr.ValueExpr.NumericExpr.Left.Right.Value, "100")
+
+	assert.NotNil(t, aggregator.Next.Next.Next.Next.EvalExpr)
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.FieldName, "myField3")
+	assert.NotNil(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr)
+	assert.NotNil(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr)
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[0].Value, "Test concat:")
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[0].IsField, false)
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[1].TextExpr.Op, "lower")
+	assert.Equal(t, int(aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.FieldName, "state")
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[1].IsField, false)
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[2].Value, "  end")
+	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[2].IsField, false)
 }

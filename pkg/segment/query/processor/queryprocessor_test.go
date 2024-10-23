@@ -24,6 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,9 +46,10 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 
 	response, err := queryProcessor.GetFullResult()
 	assert.NoError(t, err)
-	numMatched, ok := response.Hits.TotalMatched.(int)
+	hitsCount, ok := response.Hits.TotalMatched.(toputils.HitsCount)
 	assert.True(t, ok)
-	assert.Equal(t, 3, numMatched)
+	assert.Equal(t, 3, int(hitsCount.Value))
+	assert.Equal(t, "eq", hitsCount.Relation)
 }
 
 func Test_GetFullResult_truncated(t *testing.T) {
@@ -69,9 +71,10 @@ func Test_GetFullResult_truncated(t *testing.T) {
 
 	response, err := queryProcessor.GetFullResult()
 	assert.NoError(t, err)
-	numMatched, ok := response.Hits.TotalMatched.(int)
+	hitsCount, ok := response.Hits.TotalMatched.(toputils.HitsCount)
 	assert.True(t, ok)
-	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), numMatched)
+	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), int(hitsCount.Value))
+	assert.Equal(t, "eq", hitsCount.Relation)
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
@@ -105,7 +108,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{RegexExpr: &structs.RegexExpr{}},
 		{RexExpr: &structs.RexExpr{}},
 		{SortExpr: &structs.SortExpr{}},
-		{StatsExpr: &structs.StatsOptions{}},
+		{StatsExpr: &structs.StatsExpr{}},
 		{StreamstatsExpr: &structs.StreamStatsOptions{}},
 		{TailExpr: &structs.TailExpr{}},
 		{TimechartExpr: &structs.TimechartExpr{}},

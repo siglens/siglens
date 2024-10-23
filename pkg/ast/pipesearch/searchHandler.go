@@ -313,7 +313,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			return nil, false, nil, err
 		}
 
-		query.SetQidAsFinished(qid)
+		query.SetQidAsFinishedForPipeRespQuery(qid)
 
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {

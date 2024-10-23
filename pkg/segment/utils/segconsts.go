@@ -20,6 +20,7 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -120,6 +121,9 @@ var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")
 
+var BYTE_TILDE = []byte("~")
+var BYTE_TILDE_LEN = len(BYTE_TILDE)
+
 var VALTYPE_ENC_BOOL = []byte{0x01}
 var VALTYPE_ENC_SMALL_STRING = []byte{0x02}
 var VALTYPE_ENC_UINT8 = []byte{0x03}
@@ -180,8 +184,8 @@ const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
 const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
-var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
-var QUERY_MAX_BUCKETS = uint64(10_000)
+const QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
+const QUERY_MAX_BUCKETS = uint64(10_000)
 
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
@@ -985,6 +989,52 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 		return uint64(e.CVal.(int64)), nil
 	default:
 		return 0, errors.New("CValueEnclosure GetUIntValue: unsupported Dtype")
+	}
+}
+
+func (e *CValueEnclosure) AsBytes() []byte {
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		if e.CVal.(bool) {
+			return []byte("true")
+		}
+		return []byte("false")
+	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
+		buf := make([]byte, 0, 20)
+		return strconv.AppendInt(buf, e.CVal.(int64), 10)
+	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
+		buf := make([]byte, 0, 20)
+		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
+	case SS_DT_FLOAT:
+		buf := make([]byte, 0, 64)
+		return strconv.AppendFloat(buf, e.CVal.(float64), 'f', -1, 64)
+	case SS_DT_STRING:
+		return []byte(e.CVal.(string))
+	case SS_DT_STRING_SLICE:
+		stringSlice := e.CVal.([]string)
+		if len(stringSlice) == 0 {
+			return []byte{}
+		}
+		totalSize := 0
+		for _, str := range stringSlice {
+			totalSize += len(str)
+		}
+		// Pre-allocate buffer with total size
+		buffer := bytes.NewBuffer(make([]byte, 0, totalSize))
+		for _, s := range stringSlice {
+			buffer.WriteString(s)
+		}
+		return buffer.Bytes()
+	case SS_DT_BACKFILL:
+		return VALTYPE_ENC_BACKFILL
+	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
+		jsonBytes, err := json.Marshal(e.CVal)
+		if err != nil {
+			return []byte("invalid_json")
+		}
+		return jsonBytes
+	default:
+		return []byte(fmt.Sprintf("%v", e.CVal))
 	}
 }
 
