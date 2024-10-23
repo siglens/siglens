@@ -1769,7 +1769,8 @@ func Test_regexAsAggregator(t *testing.T) {
 
 	assert.Equal(t, nextAgg.RegexExpr.Field, "n")
 	assert.Equal(t, nextAgg.RegexExpr.RawRegex, `^\d$`)
-	assert.NotNil(t, nextAgg.RegexExpr.Regexp)
+	assert.NotNil(t, nextAgg.RegexExpr.GobRegexp)
+	assert.NotNil(t, nextAgg.RegexExpr.GobRegexp.GetCompiledRegex())
 }
 
 func Test_aggCountWithoutField(t *testing.T) {
