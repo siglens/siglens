@@ -366,6 +366,8 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	iqr.mode = mergedIQR.mode
 	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
+	iqr.deletedColumns = mergedIQR.deletedColumns
+	iqr.columnIndex = mergedIQR.columnIndex
 
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
