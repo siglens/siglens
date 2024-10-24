@@ -757,10 +757,10 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 		iqr.knownValues[newName] = values
 	} else {
 		// if oldname is not present in the knownValues map we need to check if this column
-		// was renamed earlier if so we rename it that to the newname
+		// was renamed earlier so we can rename it that to the latest newname
 		// for e.x. colA renamed to colB and then colB renamed to colC
 		// we need to make colA renamed to colC
-		// if not we add this to the renamedColumns map
+		// if colA to colB rename is not present, we just add colB to colC rename
 		found := false
 		for old, new := range iqr.renamedColumns {
 			if new == oldName {
