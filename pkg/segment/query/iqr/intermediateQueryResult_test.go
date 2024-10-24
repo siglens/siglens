@@ -254,6 +254,40 @@ func Test_Append(t *testing.T) {
 	}
 }
 
+func Test_Append_mergeMetaData(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
+	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2"}
+
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+	})
+	assert.NoError(t, err)
+
+	iqr1.deletedColumns = map[string]struct{}{"col10": {}}
+	iqr2.deletedColumns = map[string]struct{}{"col11": {}}
+	iqr1.columnIndex = map[string]int{"col1": 0}
+	iqr2.columnIndex = map[string]int{"col2": 1}
+
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+	assert.Equal(t, iqr1.mode, withoutRRCs)
+	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2"}, iqr1.encodingToSegKey)
+	assert.Equal(t, map[string]struct{}{"col10": {}, "col11": {}}, iqr1.deletedColumns)
+	assert.Equal(t, map[string]int{"col1": 0, "col2": 1}, iqr1.columnIndex)
+}
+
 func Test_Append_withRRCs(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
