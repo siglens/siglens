@@ -127,6 +127,7 @@ func Test_Fetch_nonBottleneck(t *testing.T) {
 type mockBottleneckProcessor struct {
 	numSeen     int
 	lastSeenIQR *iqr.IQR
+	name        string // For debugging.
 }
 
 func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
@@ -137,7 +138,7 @@ func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	mbp.numSeen += input.NumberOfRecords()
-	return input, nil
+	return nil, nil
 }
 
 func (mbp *mockBottleneckProcessor) Rewind()  {}
@@ -168,6 +169,26 @@ func Test_Fetch_bottleneck(t *testing.T) {
 	assert.Equal(t, 3, dp.processor.(*mockBottleneckProcessor).numSeen)
 }
 
+type mockTwoPassProcessor struct {
+	numSeen     int
+	lastSeenIQR *iqr.IQR
+	name        string // For debugging.
+}
+
+func (mtp *mockTwoPassProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	defer func() { mtp.lastSeenIQR = input }()
+
+	if input == nil {
+		return nil, io.EOF
+	}
+
+	mtp.numSeen += input.NumberOfRecords()
+	return input, nil
+}
+
+func (mtp *mockTwoPassProcessor) Rewind()  {}
+func (mtp *mockTwoPassProcessor) Cleanup() {}
+
 func Test_Fetch_twoPass(t *testing.T) {
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
@@ -182,7 +203,7 @@ func Test_Fetch_twoPass(t *testing.T) {
 
 	dp := &DataProcessor{
 		streams:           []*cachedStream{{stream, nil, false}},
-		processor:         &mockBottleneckProcessor{},
+		processor:         &mockTwoPassProcessor{},
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      true,
 		finishedFirstPass: false,
@@ -193,7 +214,7 @@ func Test_Fetch_twoPass(t *testing.T) {
 		assert.NoError(t, err, "iteration %d", i)
 		assert.NotNil(t, output, "iteration %d", i)
 		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
-		assert.Equal(t, 3+i+1, dp.processor.(*mockBottleneckProcessor).numSeen, "iteration %d", i)
+		assert.Equal(t, 3+i+1, dp.processor.(*mockTwoPassProcessor).numSeen, "iteration %d", i)
 	}
 
 	_, err := dp.Fetch()
@@ -255,4 +276,252 @@ func Test_Fetch_multipleStreams(t *testing.T) {
 
 	_, err := dp.Fetch()
 	assert.Equal(t, io.EOF, err)
+}
+
+func Test_Fetch_multipleBottleneck(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp0 := &DataProcessor{
+		streams:   []*cachedStream{{stream, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp1 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp0)},
+		processor:       &mockBottleneckProcessor{name: "dp1"},
+		isBottleneckCmd: true,
+		isTwoPassCmd:    false,
+	}
+
+	dp2 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockBottleneckProcessor{name: "dp2"},
+		isBottleneckCmd: true,
+		isTwoPassCmd:    false,
+	}
+
+	output, err := dp2.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.NotNil(t, output)
+	assert.Equal(t, 1, dp2.processor.(*mockBottleneckProcessor).numSeen)
+}
+
+func Test_Fetch_multipleBottleneck_inputNil(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{},
+		qid:        0,
+	}
+
+	dp1 := &DataProcessor{
+		streams:   []*cachedStream{{stream, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp2 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockBottleneckProcessor{name: "dp2"},
+		isBottleneckCmd: true,
+		isTwoPassCmd:    false,
+	}
+
+	dp3 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp2)},
+		processor:       &mockBottleneckProcessor{name: "dp3"},
+		isBottleneckCmd: true,
+		isTwoPassCmd:    false,
+	}
+
+	output, err := dp3.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.Nil(t, output)
+	assert.Equal(t, 0, dp3.processor.(*mockBottleneckProcessor).numSeen)
+}
+
+func Test_Fetch_multipleBottleneck_twoPass(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+	}
+
+	dp0 := &DataProcessor{
+		streams:   []*cachedStream{{stream, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp1 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp0)},
+		processor:       &mockBottleneckProcessor{name: "dp1"},
+		isBottleneckCmd: true,
+	}
+
+	dp2 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockBottleneckProcessor{name: "dp2"},
+		isBottleneckCmd: true,
+	}
+
+	dp3 := &DataProcessor{
+		streams:      []*cachedStream{NewCachedStream(dp2)},
+		processor:    &mockTwoPassProcessor{name: "dp3"},
+		isTwoPassCmd: true,
+	}
+
+	output, err := dp3.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.NotNil(t, output)
+	// Two records because, one record in the first pass and one record in the second pass.
+	assert.Equal(t, 2, dp3.processor.(*mockTwoPassProcessor).numSeen)
+}
+
+func Test_Fetch_multipleBottleneck_twoPass_inputNil(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{},
+	}
+
+	dp1 := &DataProcessor{
+		streams:         []*cachedStream{{stream, nil, false}},
+		processor:       &passThroughProcessor{},
+		isBottleneckCmd: true,
+	}
+
+	dp2 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockBottleneckProcessor{name: "dp2"},
+		isBottleneckCmd: true,
+	}
+
+	dp3 := &DataProcessor{
+		streams:      []*cachedStream{NewCachedStream(dp2)},
+		processor:    &mockTwoPassProcessor{name: "dp3"},
+		isTwoPassCmd: true,
+	}
+
+	output, err := dp3.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.Nil(t, output)
+	assert.Equal(t, 0, dp3.processor.(*mockTwoPassProcessor).numSeen)
+}
+
+func Test_Fetch_twoPass_Multiplebottleneck(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp0 := &DataProcessor{
+		streams:   []*cachedStream{{stream, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp1 := &DataProcessor{
+		streams:           []*cachedStream{NewCachedStream(dp0)},
+		processor:         &mockTwoPassProcessor{name: "dp1"},
+		isTwoPassCmd:      true,
+		finishedFirstPass: false,
+	}
+
+	dp2 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockBottleneckProcessor{name: "dp2"},
+		isBottleneckCmd: true,
+	}
+
+	dp3 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp2)},
+		processor:       &mockBottleneckProcessor{name: "dp3"},
+		isBottleneckCmd: true,
+	}
+
+	output, err := dp3.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.NotNil(t, output)
+	assert.Equal(t, 1, dp3.processor.(*mockBottleneckProcessor).numSeen)
+}
+
+func Test_Fetch_twoPass_Multiplebottleneck_inputNil(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{},
+		qid:        0,
+	}
+
+	dp1 := &DataProcessor{
+		streams:   []*cachedStream{{stream, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp2 := &DataProcessor{
+		streams:           []*cachedStream{NewCachedStream(dp1)},
+		processor:         &mockTwoPassProcessor{name: "dp2"},
+		isTwoPassCmd:      true,
+		finishedFirstPass: false,
+	}
+
+	dp3 := &DataProcessor{
+		streams:         []*cachedStream{NewCachedStream(dp2)},
+		processor:       &mockBottleneckProcessor{name: "dp3"},
+		isBottleneckCmd: true,
+	}
+
+	output, err := dp3.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.Nil(t, output)
+	assert.Equal(t, 0, dp3.processor.(*mockBottleneckProcessor).numSeen)
+}
+
+func Test_Fetch_Multiple_TwoPass(t *testing.T) {
+	stream1 := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			},
+		},
+		qid: 0,
+	}
+
+	dp0 := &DataProcessor{
+		streams:   []*cachedStream{{stream1, nil, false}},
+		processor: &passThroughProcessor{},
+	}
+
+	dp1 := &DataProcessor{
+		streams:      []*cachedStream{NewCachedStream(dp0)},
+		processor:    &mockTwoPassProcessor{name: "dp1"},
+		isTwoPassCmd: true,
+	}
+
+	dp2 := &DataProcessor{
+		streams:      []*cachedStream{NewCachedStream(dp1)},
+		processor:    &mockTwoPassProcessor{name: "dp2"},
+		isTwoPassCmd: true,
+	}
+
+	for i := 0; i < 3; i++ {
+		output, err := dp2.Fetch()
+		assert.NoError(t, err, "iteration %d", i)
+		assert.NotNil(t, output, "iteration %d", i)
+		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
+		assert.Equal(t, i+1, dp2.processor.(*mockTwoPassProcessor).numSeen, "iteration %d", i)
+	}
 }

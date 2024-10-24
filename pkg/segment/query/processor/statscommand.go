@@ -159,7 +159,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 
 func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.searchResults == nil {
-		return iqr, nil
+		return iqr, io.EOF
 	}
 
 	// load and convert the bucket results
@@ -260,7 +260,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.searchResults == nil {
-		return iqr, nil
+		return iqr, io.EOF
 	}
 
 	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0, false)
