@@ -206,6 +206,8 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 		parallelismPerFile = 1
 	}
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
+	qc.SearchTerms = make(map[string][]string)
+	getSearchTermsForNode(searchNode, qc.SearchTerms)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
@@ -1316,4 +1318,42 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	}
 
 	return qsrs, nil
+}
+
+func getSearchTermsForNode(sNode *structs.SearchNode, searchTerms map[string][]string) {
+	colName := "*"
+	var condition *structs.SearchCondition
+	if sNode.AndSearchConditions != nil {
+		condition = sNode.AndSearchConditions
+	} else if sNode.OrSearchConditions != nil {
+		condition = sNode.OrSearchConditions
+	}
+	if condition.SearchNode != nil {
+		for _, sNode := range condition.SearchNode {
+			getSearchTermsForNode(sNode, searchTerms)
+		}
+	}
+	if condition.SearchQueries != nil {
+		for _, query := range condition.SearchQueries {
+			if query.ExpressionFilter != nil {
+				if query.ExpressionFilter.LeftSearchInput != nil {
+					colName = query.ExpressionFilter.LeftSearchInput.ColumnName
+				}
+			}
+			if query.MatchFilter != nil {
+				if query.MatchFilter.MatchColumn == "*" {
+					colName = "*"
+				}
+			}
+			bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
+			for word := range bloomWords {
+				if value, exists := searchTerms[colName]; exists {
+					searchTerms[colName] = append(value, word)
+				} else {
+					searchTerms[colName] = append(searchTerms[colName], word)
+				}
+			}
+
+		}
+	}
 }
