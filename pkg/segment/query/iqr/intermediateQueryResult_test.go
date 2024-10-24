@@ -435,6 +435,17 @@ func Test_MergeIQR_withNotSetIQRs(t *testing.T) {
 	assert.Equal(t, 0, firstExhausted)
 }
 
+func Test_Mode_AfterAppendRRC(t *testing.T) {
+	iqr := NewIQR(0)
+	assert.Equal(t, notSet, iqr.mode)
+
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+
+	err := iqr.AppendRRCs([]*utils.RecordResultContainer{}, encodingToSegKey)
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, iqr.mode)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
