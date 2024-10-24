@@ -206,7 +206,7 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 		parallelismPerFile = 1
 	}
 	_, qType := GetNodeAndQueryTypes(searchNode, aggs)
-	qc.SearchTerms = make(map[string]string, 0)
+	qc.SearchTerms = make(map[string][]string)
 	getSearchTermsForNode(searchNode, qc.SearchTerms)
 	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
 	pqid := querytracker.GetHashForQuery(searchNode)
@@ -1320,7 +1320,7 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	return qsrs, nil
 }
 
-func getSearchTermsForNode(sNode *structs.SearchNode, searchTerms map[string]string) {
+func getSearchTermsForNode(sNode *structs.SearchNode, searchTerms map[string][]string) {
 	colName := "*"
 	var condition *structs.SearchCondition
 	if sNode.AndSearchConditions != nil {
@@ -1347,8 +1347,13 @@ func getSearchTermsForNode(sNode *structs.SearchNode, searchTerms map[string]str
 			}
 			bloomWords, _, _, _ := query.GetAllBlockBloomKeysToSearch()
 			for word := range bloomWords {
-				searchTerms[colName] = word
+				if value, exists := searchTerms[colName]; exists {
+					searchTerms[colName] = append(value, word)
+				} else {
+					searchTerms[colName] = append(searchTerms[colName], word)
+				}
 			}
+
 		}
 	}
 }

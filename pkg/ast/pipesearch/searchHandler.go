@@ -498,36 +498,37 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	}
 	return allJsons, allCols, nil
 }
-func highlightSearchTerms(qid uint64, searchTerms map[string]string, allJsons []map[string]interface{}) {
+func highlightSearchTerms(qid uint64, searchTerms map[string][]string, allJsons []map[string]interface{}) {
 	var strVal string
 	replacement := `<mark>$0</mark>`
-	for colName, colValue := range searchTerms {
-		re, err := regexp.Compile(`(?i)` + colValue)
-		if err != nil {
-			log.Errorf("qid=%d, highlightSearchTerms: Invalid regex pattern: %v", qid, err)
-			return
-		}
-		for i, item := range allJsons {
-			for key, value := range item {
-				log.Info(value)
-				switch value := value.(type) {
-				case string:
-					strVal = value
-				case float64:
-					strVal = fmt.Sprintf("%f", value)
-				case int64:
-					strVal = fmt.Sprintf("%d", value)
-				case uint64:
-					strVal = fmt.Sprintf("%d", value)
-				default:
-					continue
-				}
-				if re.MatchString(strVal) && colName == "*" {
-					highlighted := re.ReplaceAllString(strVal, replacement)
-					allJsons[i][key] = highlighted
-				} else if re.MatchString(strVal) && colName == key {
-					highlighted := re.ReplaceAllString(strVal, replacement)
-					allJsons[i][key] = highlighted
+	for colName, colValArr := range searchTerms {
+		for _, colValue := range colValArr {
+			re, err := regexp.Compile(`(?i)\b` + colValue + `\b`)
+			if err != nil {
+				log.Errorf("qid=%d, highlightSearchTerms: Invalid regex pattern: %v", qid, err)
+				return
+			}
+			for i, item := range allJsons {
+				for key, value := range item {
+					switch value := value.(type) {
+					case string:
+						strVal = value
+					case float64:
+						strVal = fmt.Sprintf("%f", value)
+					case int64:
+						strVal = fmt.Sprintf("%d", value)
+					case uint64:
+						strVal = fmt.Sprintf("%d", value)
+					default:
+						continue
+					}
+					if re.MatchString(strVal) && colName == "*" {
+						highlighted := re.ReplaceAllString(strVal, replacement)
+						allJsons[i][key] = highlighted
+					} else if re.MatchString(strVal) && colName == key {
+						highlighted := re.ReplaceAllString(strVal, replacement)
+						allJsons[i][key] = highlighted
+					}
 				}
 			}
 		}
