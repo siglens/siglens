@@ -1603,6 +1603,27 @@ func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, er
 	return result, nil
 }
 
+func ProcessRenameRegexExp(origPattern string, newPattern string, colName string) (string, error) {
+
+	regexPattern := `\b` + strings.ReplaceAll(origPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExp: There are some errors in the pattern: %v, err: %v", regexPattern, err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
 func (self *RenameExpr) RemoveColsByIndex(strs []string, indexToRemove []int) []string {
 	results := make([]string, 0)
 
