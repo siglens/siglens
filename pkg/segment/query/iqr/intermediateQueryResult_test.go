@@ -406,6 +406,35 @@ func Test_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 0, iqr3.NumberOfRecords())
 }
 
+func Test_MergeIQR_withNotSetIQRs(t *testing.T) {
+	less := func(a, b *Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	_, firstExhaustedIndex, err := MergeIQRs([]*IQR{NewIQR(0), NewIQR(0), NewIQR(0)}, less)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, firstExhaustedIndex)
+
+	iqr1 := NewIQR(0)
+	err = iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	})
+
+	assert.NoError(t, err)
+	_, firstExhausted, err := MergeIQRs([]*IQR{NewIQR(0), iqr1}, less)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, firstExhausted)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{

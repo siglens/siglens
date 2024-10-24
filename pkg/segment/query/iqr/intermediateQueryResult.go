@@ -511,6 +511,12 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, toputils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
+	for idx, iqr := range iqrs {
+		if iqr.NumberOfRecords() == 0 {
+			return iqr, idx, nil
+		}
+	}
+
 	iqr, err := mergeMetadata(iqrs)
 	if err != nil {
 		log.Errorf("qid=%v, MergeIQRs: error merging metadata: %v", iqr.qid, err)
