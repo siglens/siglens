@@ -103,9 +103,6 @@ func (iqr *IQR) validate() error {
 }
 
 func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
-	if len(rrcs) == 0 {
-		return nil
-	}
 
 	if err := iqr.validate(); err != nil {
 		log.Errorf("qid=%v, IQR.AppendRRCs: validation failed: %v", iqr.qid, err)
@@ -519,6 +516,12 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, err
 	}
 
+	for idx, iqrToCheck := range iqrs {
+		if iqrToCheck.NumberOfRecords() == 0 {
+			return iqr, idx, nil
+		}
+	}
+
 	nextRecords := make([]*Record, len(iqrs))
 	numRecordsTaken := make([]int, len(iqrs))
 	for i, iqr := range iqrs {
@@ -536,10 +539,8 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
 		}
 		for cname, values := range record.iqr.knownValues {
-			if _, ok := iqr.knownValues[cname]; !ok {
-				err := toputils.TeeErrorf("MergeIQRs: column %v is missing from destination IQR", cname)
-				return nil, 0, err
-			}
+			// we should not validate cname in the destination iqr because caching
+			// will have populated the knownValue in the source IQR
 			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
 		}
 
