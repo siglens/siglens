@@ -165,7 +165,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 
 func (iqr *IQR) NumberOfRecords() int {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.NumberOfRecords: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.NumberOfRecords: validation failed: %v", err)
 		return 0
 	}
 

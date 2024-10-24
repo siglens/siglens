@@ -90,6 +90,8 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			gotEOF = true
 		} else if err != nil {
 			return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+		} else if output == nil && dp.isBottleneckCmd {
+			gotEOF = false
 		}
 
 		if gotEOF {
