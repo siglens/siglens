@@ -867,9 +867,9 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	return response, nil
 }
 
-func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
+func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.AppendStatsResults: validation failed: %v", iqr.qid, err)
+		log.Errorf("qid=%v, IQR.CreateStatsResults: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
@@ -919,7 +919,7 @@ func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 	iqr.measureColumns = measureFuncs
 
 	if errIndex > 0 {
-		log.Errorf("qid=%v, IQR.AppendStatsResults: conversion errors: %v", iqr.qid, conversionErrors)
+		log.Errorf("qid=%v, IQR.CreateStatsResults: conversion errors: %v", iqr.qid, conversionErrors)
 	}
 
 	return nil

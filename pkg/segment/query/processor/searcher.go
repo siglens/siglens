@@ -235,9 +235,9 @@ func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 	// post getting of stats results
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
-	err = iqr.AppendStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
+	err = iqr.CreateStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: failed to append stats results: %v", qid, err)
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchStatsResults: failed to create stats results: %v", qid, err)
 	}
 
 	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
