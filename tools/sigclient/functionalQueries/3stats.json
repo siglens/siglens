@@ -17,7 +17,7 @@
                     "avg(http_status)": "351.673",
                     "max(latency)": "9,999,755",
                     "sum(longitude)": "1,742.191",
-                    "temp_value": "1"
+                    "temp_value": 1
                 }
             }
         ]
