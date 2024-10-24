@@ -1161,7 +1161,7 @@ func GetPQMRDirFromSegKey(segKey string) string {
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
-	cw *ColWip) error {
+	cw *ColWip, bloomSize uint) error {
 
 	// no bloom for timestamp column
 	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
@@ -1177,20 +1177,17 @@ func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 
 	switch encType[0] {
 	case ZSTD_COMLUNAR_BLOCK[0]:
-		return cw.writeNonDeBloom(buf, bi, ss.wipBlock.blockSummary.RecCount, cname)
+		return cw.writeNonDeBloom(buf, bi, bloomSize, ss.wipBlock.blockSummary.RecCount, cname)
 	case ZSTD_DICTIONARY_BLOCK[0]:
-		return cw.writeDeBloom(buf, bi)
+		return cw.writeDeBloom(buf, bi, bloomSize)
 	default:
 		log.Errorf("writeToBloom got an unknown encoding type: %+v", encType)
 		return fmt.Errorf("got an unknown encoding type: %+v", encType)
 	}
 }
 
-func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the cw.deData.deCount, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(cw.deData.deCount)*2, BLOOM_COLL_PROBABILITY)
+func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex, bloomSize uint) error {
+	bi.Bf = bloom.NewWithEstimates(bloomSize, BLOOM_COLL_PROBABILITY)
 	for dwordkey := range cw.deData.deMap {
 		dword := []byte(dwordkey)
 		switch dword[0] {
@@ -1219,18 +1216,34 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 	return nil
 }
 
-func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, bloomSize uint,
+	numRecs uint16, cname string) error {
+
+	bi.Bf = bloom.NewWithEstimates(bloomSize, BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+
+	err := cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error writing to bloom for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	return nil
+}
+
+func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 	cname string) error {
 
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the numRecs, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
+	if bi == nil {
+		return utils.TeeErrorf("writeToBloom: bloom index is nil for cname: %v", cname)
+	}
+
 	idx := uint32(0)
 	for recNum := uint16(0); recNum < numRecs; recNum++ {
 		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
 		if err != nil {
-			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
+			log.Errorf("writeToBloom: Could not extract val for cname: %v, idx: %v",
 				cname, idx)
 			return err
 		}
@@ -1247,6 +1260,25 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 		idx += uint32(endIdx)
 	}
 	return nil
+}
+
+func (cw *ColWip) getEncodingType(cname string) ([]byte, error) {
+	if cname == config.GetTimeStampKey() {
+		return TIMESTAMP_TOPDIFF_VARENC, nil
+	}
+
+	if cw == nil {
+		return nil, fmt.Errorf("getEncodingType: colWip is nil for cname=%v", cname)
+	} else if cw.deData == nil {
+		return nil, fmt.Errorf("getEncodingType: colWip.deData is nil for cname=%v", cname)
+	}
+
+	deCount := cw.deData.deCount
+	if deCount > 0 && deCount < wipCardLimit {
+		return ZSTD_DICTIONARY_BLOCK, nil
+	} else {
+		return ZSTD_COMLUNAR_BLOCK, nil
+	}
 }
 
 /*
@@ -1279,7 +1311,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	hasUpper := utils.HasUpper(copy)
 
 	// add the original full
-	_ = blockBloom.Add(copy)
+	if blockBloom.TestAndAdd(copy) {
+		blockWordCount++
+	}
 
 	var hasSubWords bool
 	for {
@@ -1289,7 +1323,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		}
 		hasSubWords = true
 		// add original sub word
-		_ = blockBloom.Add(copy[:i])
+		if blockBloom.TestAndAdd(copy[:i]) {
+			blockWordCount++
+		}
 
 		// add sub word lowercase
 		if hasUpper {
@@ -1297,19 +1333,25 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			_ = blockBloom.Add(word)
+			if blockBloom.TestAndAdd(word) {
+				blockWordCount++
+			}
 		}
 		copy = copy[i+BYTE_SPACE_LEN:]
 	}
 
 	// handle last word. If no word was found, then we have already added the full word
 	if hasSubWords && len(copy) > 0 {
-		_ = blockBloom.Add(copy)
+		if blockBloom.TestAndAdd(copy) {
+			blockWordCount++
+		}
 		word, err := utils.BytesToLower(copy, workBuf)
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 
 	if hasUpper {
@@ -1317,7 +1359,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 	return blockWordCount, nil
 }

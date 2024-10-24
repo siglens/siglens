@@ -997,6 +997,7 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 			ColumnBlockOffset: make(map[string]int64),
 			ColumnBlockLen:    make(map[string]uint32),
 		}
+
 		for cname, colWip := range segStore.wipBlock.colWips {
 			csgFname := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
 			var encType []byte
@@ -1006,7 +1007,9 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
 
-			err := segStore.writeToBloom(encType, compWorkBuf[:cap(compWorkBuf)], cname, colWip)
+			bloomSize := uint(100) // Just a rough estimate, since this is a mock.
+			err := segStore.writeToBloom(encType, compWorkBuf[:cap(compWorkBuf)],
+				cname, colWip, bloomSize)
 			if err != nil {
 				log.Fatalf("WriteMockColSegFile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
 			}
