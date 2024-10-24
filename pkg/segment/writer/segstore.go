@@ -553,30 +553,10 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			segstore.computeStarTree()
 		}
 
-		numRecords := segstore.wipBlock.blockSummary.RecCount
-		bloomIndex := BloomIndex{
-			Bf:              bloom.NewWithEstimates(uint(2*numRecords), utils.BLOOM_COLL_PROBABILITY),
-			uniqueWordCount: 0,
-			HistoricalCount: make([]uint32, 0),
-		}
-		cnameToBloomSize := make(map[string]uint64)
-		bufIndex := 0
-		for cname, colWip := range segstore.wipBlock.colWips {
-			if colWip.needsNonDeBloom(cname) {
-				bloomIndex.Bf.ClearAll()
-				bloomIndex.uniqueWordCount = 0
-
-				colData := segstore.workBufForCompression[bufIndex]
-				err := colWip.writeToBloom(colData, &bloomIndex, numRecords, cname)
-				if err != nil {
-					log.Errorf("AppendWipToSegfile: failed to compute bloom size for col=%v; err=%v",
-						cname, err)
-				}
-
-				cnameToBloomSize[cname] = uint64(bloomIndex.uniqueWordCount)
-			}
-
-			bufIndex++
+		cnameToBloomSize, err := segstore.getRequiredBloomSizes()
+		if err != nil {
+			log.Errorf("AppendWipToSegfile: failed to compute required bloom sizes; err=%v", err)
+			return err
 		}
 
 		compBufIdx := 0
@@ -601,8 +581,14 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 					}
 
 					if !isKibana {
+						bloomSize, ok := cnameToBloomSize[cname]
+						if !ok {
+							log.Errorf("AppendWipToSegfile: unknown bloom size for col=%v", cname)
+							return
+						}
+
 						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)],
-							cname, colWip, cnameToBloomSize)
+							cname, colWip, bloomSize)
 						if err != nil {
 							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
 							return
@@ -658,7 +644,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			allPQIDs[pqid] = true
 		}
 
-		err := segstore.FlushSegStats()
+		err = segstore.FlushSegStats()
 		if err != nil {
 			log.Errorf("AppendWipToSegfile: failed to flushsegstats, err=%v", err)
 			return err
@@ -703,6 +689,55 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 	}
 	return nil
+}
+
+func (segstore *SegStore) getRequiredBloomSizes() (map[string]uint, error) {
+	numRecords := segstore.wipBlock.blockSummary.RecCount
+	bloomIndex := BloomIndex{
+		Bf:              bloom.NewWithEstimates(uint(2*numRecords), utils.BLOOM_COLL_PROBABILITY),
+		uniqueWordCount: 0,
+		HistoricalCount: make([]uint32, 0),
+	}
+	cnameToBloomSize := make(map[string]uint)
+	bufIndex := 0
+	for cname, colWip := range segstore.wipBlock.colWips {
+		encoding, err := colWip.getEncodingType(cname)
+		if err != nil {
+			log.Errorf("AppendWipToSegfile: failed to get encoding type for col=%v; err=%v", cname, err)
+			return nil, err
+		}
+
+		switch encoding[0] {
+		case utils.ZSTD_DICTIONARY_BLOCK[0]:
+			// todo a better way to size the bloom might be to count the num of space and
+			// then add to the cw.deData.deCount, that should be the optimal size
+			// we add twice to avoid undersizing for above reason.
+			cnameToBloomSize[cname] = uint(colWip.deData.deCount) * 2
+		case utils.ZSTD_COMLUNAR_BLOCK[0]:
+			bloomIndex.Bf.ClearAll()
+			bloomIndex.uniqueWordCount = 0
+
+			colData := segstore.workBufForCompression[bufIndex]
+			err := colWip.writeToBloom(colData, &bloomIndex, numRecords, cname)
+			if err != nil {
+				log.Errorf("AppendWipToSegfile: failed to compute bloom size for col=%v; err=%v",
+					cname, err)
+			}
+
+			cnameToBloomSize[cname] = uint(bloomIndex.uniqueWordCount)
+		case utils.TIMESTAMP_TOPDIFF_VARENC[0]:
+			// Timestamp doesn't need a bloom.
+			cnameToBloomSize[cname] = 0
+		default:
+			err := toputils.TeeErrorf("AppendWipToSegfile: unknown encoding type %v for col=%v",
+				encoding, cname)
+			return nil, err
+		}
+
+		bufIndex++
+	}
+
+	return cnameToBloomSize, nil
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
