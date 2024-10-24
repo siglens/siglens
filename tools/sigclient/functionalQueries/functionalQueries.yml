@@ -7,6 +7,7 @@ search_with_eval.json
 search_1col_fields.json
 grpby_1col_4stats.json
 3stats.json
+bin.json
 # eval_groupby_2col_2stats.json
 
 ## Uncomment when implemented for new pipline
@@ -32,7 +33,6 @@ grpby_1col_4stats.json
 # inputlookup.json
 # inputlookup_2.json
 # inputlookup_3.json
-# bin.json
 # stats_eval.json
 # transaction.json
 # head.json

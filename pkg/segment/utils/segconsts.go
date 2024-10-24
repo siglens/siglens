@@ -184,7 +184,7 @@ const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
 const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
-const QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
+const QUERY_EARLY_EXIT_LIMIT = uint64(100)
 const QUERY_MAX_BUCKETS = uint64(10_000)
 
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
