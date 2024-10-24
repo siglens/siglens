@@ -1732,12 +1732,15 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     letColReq := &structs.LetColumnsRequest {
         NewColName: field.(string),
     }
-    if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
-    }
-
+    
     binCmdOption := &structs.BinCmdOptions{
         MaxBins: 100,
+    }
+
+    if newFieldName != nil {
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binCmdOption.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -1748,6 +1751,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        BinExpr: binCmdOption,
     }
 
     return queryAgg, nil

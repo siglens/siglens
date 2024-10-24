@@ -1,6 +1,7 @@
 ## Currently implemented in the new pipline
 simple_where.json
 simple_sort.json
+bin.json
 
 ## Uncomment when implemented for new pipline
 # 3stats.json
@@ -31,7 +32,6 @@ simple_sort.json
 # inputlookup.json
 # inputlookup_2.json
 # inputlookup_3.json
-# bin.json
 # stats_eval.json
 # transaction.json
 # head.json
