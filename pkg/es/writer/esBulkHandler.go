@@ -208,10 +208,11 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				} else {
 					ple, err := writer.GetNewPLE(line, tsNow, indexName, &tsKey, jsParsingStackbuf[:])
 					if err != nil {
-						log.Errorf("HandleBulkBody: GetNewPLE: failed to get new PLE, err=%v", err)
+						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", line, err)
 						success = false
+					} else {
+						allPLEs = append(allPLEs, ple)
 					}
-					allPLEs = append(allPLEs, ple)
 				}
 			} else {
 				success = false
