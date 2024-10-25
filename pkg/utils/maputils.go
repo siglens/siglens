@@ -22,6 +22,41 @@ import (
 	"sort"
 )
 
+// GetOrCreateNestedMap returns the inner map corresponding to key1 from the outer map.
+// If the key1 does not exist in the outer map, a new inner map is created and returned.
+func GetOrCreateNestedMap[K1 comparable, K2 comparable, V any](m map[K1]map[K2]V, key1 K1) map[K2]V {
+	if _, exists := m[key1]; !exists {
+		m[key1] = make(map[K2]V)
+	}
+
+	return m[key1]
+}
+
+// GetEntryFromNestedMap returns the value corresponding to key1 and key2 from the nested map.
+// If the key1 does not exist in the outer map, the function returns false.
+// If the key2 does not exist in the inner map, the function returns false.
+func GetEntryFromNestedMap[K1 comparable, K2 comparable, V any](m map[K1]map[K2]V, key1 K1, key2 K2) (V, bool) {
+	if innerMap, exists := m[key1]; exists {
+		value, exists := innerMap[key2]
+		return value, exists
+	}
+
+	var nilOrZeroValue V
+
+	return nilOrZeroValue, false
+}
+
+// RemoveKeyFromNestedMap removes the key2 from the inner map corresponding to key1.
+// If the inner map becomes empty after removing key2, the inner map is also removed.
+func RemoveKeyFromNestedMap[K1 comparable, K2 comparable](m map[K1]map[K2]bool, key1 K1, key2 K2) {
+	if innerMap, exists := m[key1]; exists {
+		delete(innerMap, key2)
+		if len(innerMap) == 0 {
+			delete(m, key1)
+		}
+	}
+}
+
 // If there are duplicate keys, values from the second map will overwrite those
 // from the first map.
 func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
@@ -36,6 +71,16 @@ func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
 	}
 
 	return result
+}
+
+func MapsConflict[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
+	for key, v1 := range map1 {
+		if v2, ok := map2[key]; ok && v1 != v2 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
@@ -66,6 +111,22 @@ func MergeMapsRetainingFirst[K comparable, V any](firstMap map[K]V, secondMap ma
 			firstMap[k] = v
 		}
 	}
+}
+
+// Appends the Second map to the First Map.
+// The slice values from the Second Map will be appended to the slice values of the First Map.
+// If the First Map does not have a key from the Second Map, the key will be added to the First Map
+// And the slice with givem will be backfilled with the backFillValue.
+func MergeMapSlicesWithBackfill[K comparable, V any](map1 map[K][]V, map2 map[K][]V, backFillValue V, size int) map[K][]V {
+	for k, v := range map2 {
+		v1, ok := map1[k]
+		if !ok {
+			v1 = ResizeSliceWithDefault(v1, size, backFillValue)
+		}
+		map1[k] = append(v1, v...)
+	}
+
+	return map1
 }
 
 func CreateRecord(columnNames []string, record []string) (map[string]interface{}, error) {
@@ -166,4 +227,44 @@ func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 	}
 
 	return result
+}
+
+type TwoWayMap[T1, T2 comparable] struct {
+	normal  map[T1]T2
+	reverse map[T2]T1
+}
+
+func NewTwoWayMap[T1, T2 comparable]() *TwoWayMap[T1, T2] {
+	return &TwoWayMap[T1, T2]{
+		normal:  make(map[T1]T2),
+		reverse: make(map[T2]T1),
+	}
+}
+
+func (twm *TwoWayMap[T1, T2]) Set(key T1, value T2) {
+	twm.normal[key] = value
+	twm.reverse[value] = key
+}
+
+func (twm *TwoWayMap[T1, T2]) Get(key T1) (T2, bool) {
+	value, exists := twm.normal[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) GetReverse(key T2) (T1, bool) {
+	value, exists := twm.reverse[key]
+	return value, exists
+}
+
+func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
+	return MapsConflict(twm.normal, other)
+}
+
+// Do not modify the returned map. Modifying it will break the two-way mapping.
+func (twm *TwoWayMap[T1, T2]) GetMapForReading() map[T1]T2 {
+	return twm.normal
+}
+
+func (twm *TwoWayMap[T1, T2]) Len() int {
+	return len(twm.normal)
 }

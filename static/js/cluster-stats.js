@@ -642,7 +642,7 @@ function processClusterStats(res) {
             res.indexStats.forEach((item) => {
                 _.forEach(item, (v, k) => {
                     let currRow = [];
-                    currRow[0] = k;
+                    currRow[0] = `<a href="#" class="index-name" data-index="${k}">${k}</a>`;
                     currRow[1] = formatIngestVolume(v.ingestVolume);
                     currRow[2] = v.eventCount;
                     currRow[3] = v.segmentCount;
@@ -705,6 +705,14 @@ function processClusterStats(res) {
             let indexName = $(btn).attr('id').split('index-del-btn-')[1];
             $(btn).on('click', () => showDelIndexPopup(indexName, currRowIndex));
         });
+
+        $('#index-data-table tbody').on('click', 'a.index-name', function(e) {
+            e.preventDefault();
+            const indexName = $(this).data('index');
+            const indexData = res.indexStats.find(item => item[indexName])[indexName];
+
+            showIndexDetailsPopup(indexName, indexData);
+        });
     }, 0);
 
     function showDelIndexPopup(indexName) {
@@ -712,8 +720,7 @@ function processClusterStats(res) {
         $('#del-index-name-input').keyup((e) => confirmIndexDeletion(e, indexName, allowDelete));
         $('#del-index-btn').attr('disabled', true);
         $('#del-index-name-input').val('');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#confirm-del-index-prompt').show();
+        $('.popupOverlay, #confirm-del-index-prompt').addClass('active');
         $('.del-org-prompt-text-container span').html(indexName);
     }
 
@@ -766,11 +773,34 @@ function processClusterStats(res) {
                 $('#del-index-btn').attr('disabled', false).html('Delete');
             });
     }
+
+    function bytesToMBFormatted(bytes) {
+        const mb = Math.round(bytes / (1024 * 1024));
+        return mb.toLocaleString() + ' MB';
+    }
+
+    function showIndexDetailsPopup(indexName, indexData) {
+        $('#index-name').text(indexName);
+        $('#incoming-volume').text(formatIngestVolume(indexData["ingestVolume"]));
+        $('#total-bytes-received').text(bytesToMBFormatted(indexData["bytesReceivedCount"]));
+        $('#storage-used').text(bytesToMBFormatted(indexData["onDiskBytes"]));
+        $('#event-count').text(indexData["eventCount"]);
+        $('#record-count').text(indexData["recordCount"]);
+        $('#segment-count').text(indexData["segmentCount"]);
+        $('#column-count').text(indexData["columnCount"]);
+        $('#earliest-record').text(indexData["earliestEpoch"]);
+        $('#latest-record').text(indexData["latestEpoch"]);
+    
+        $('.popupOverlay, #index-summary-prompt').addClass('active');
+    
+        $('#index-summary-prompt .close-btn, #close-popup').off('click').on('click', function() {
+            $('.popupOverlay, #index-summary-prompt').removeClass('active');
+        });
+    }
 }
 
 function hidePopUpsOnUsageStats() {
-    $('.popupOverlay, .popupContent').removeClass('active');
-    $('#confirm-del-index-prompt').hide();
+    $('.popupOverlay, #confirm-del-index-prompt').removeClass('active');
     $('#del-index-name-input').val('');
     $('#del-index-btn').attr('disabled', true);
     $('#del-index-btn').off('click');

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -113,6 +114,7 @@ type RunningQueryState struct {
 	nodeResult               *structs.NodeResult
 	totalRecsToBeSearched    uint64
 	AllColsInAggs            map[string]struct{}
+	pipeResp                 *structs.PipeSearchResponseOuter
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -249,7 +251,7 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		}
 	}
 	rQuery.rqsLock.Unlock()
-	if rQuery.isAsync {
+	if !config.IsNewQueryPipelineEnabled() && rQuery.isAsync {
 		var queryUpdate QueryUpdate
 		if remoteId != "" {
 			queryUpdate = QueryUpdate{
@@ -301,12 +303,12 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 
 // This sets RawSearchIsFinished to true and sends a COMPLETE message to the query's StateChan
 // If there are no aggregations
-func setQidAsFinished(qid uint64) {
+func SetQidAsFinished(qid uint64) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("setRRCsAsCompleted: qid %+v does not exist!", qid)
+		log.Errorf("SetQidAsFinished: qid %+v does not exist!", qid)
 		return
 	}
 
@@ -316,7 +318,7 @@ func setQidAsFinished(qid uint64) {
 
 	// Only async queries need to send COMPLETE, but if we need to do post
 	// aggregations, we'll send COMPLETE once we're done with those.
-	if rQuery.isAsync && (rQuery.aggs == nil || rQuery.aggs.Next == nil) {
+	if !config.IsNewQueryPipelineEnabled() && rQuery.isAsync && (rQuery.aggs == nil || rQuery.aggs.Next == nil) {
 		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
 	}
 }
@@ -377,6 +379,21 @@ func GetCurrentSearchResultCount(qid uint64) (int, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	return rQuery.currentSearchResultCount, nil
+}
+
+func SetCleanupCallback(qid uint64, cleanupCallback func()) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("SetCleanupCallback: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.cleanupCallback = cleanupCallback
+	rQuery.rqsLock.Unlock()
+
+	return nil
 }
 
 func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo *structs.TableInfo, timeRange *dtu.TimeRange, orgid uint64) {
@@ -529,9 +546,19 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 	if rQuery.searchRes == nil {
 		return nil, nil, nil, nil, 0
 	}
+
+	if config.IsNewQueryPipelineEnabled() {
+		resp := rQuery.pipeResp
+		if resp == nil {
+			log.Errorf("GetMeasureResultsForQid: qid %+v does not have pipeResp!", qid)
+			return nil, nil, nil, nil, 0
+		}
+		return resp.MeasureResults, resp.MeasureFunctions, resp.GroupByCols, resp.ColumnsOrder, len(resp.MeasureResults)
+	}
+
 	switch rQuery.QType {
 	case structs.SegmentStatsCmd:
-		return rQuery.searchRes.GetSegmentStatsResults(skenc)
+		return rQuery.searchRes.GetSegmentStatsResults(skenc, true)
 	case structs.GroupByCmd:
 		if pullGrpBucks {
 			rowCnt := MAX_GRP_BUCKS
@@ -908,5 +935,63 @@ func LogGlobalSearchErrors(qid uint64) {
 			continue
 		}
 		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
+	}
+}
+
+func SetPipeResp(response *structs.PipeSearchResponseOuter, qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("SetPipeResp: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	rQuery.pipeResp = response
+	rQuery.totalRecsSearched = rQuery.totalRecsToBeSearched
+	rQuery.queryCount = &structs.QueryCount{
+		TotalCount: uint64(len(response.Hits.Hits)),
+		EarlyExit:  true,
+	}
+
+	rQuery.StateChan <- &QueryStateChanData{
+		StateName:       QUERY_UPDATE,
+		QueryUpdate:     &QueryUpdate{QUpdate: QUERY_UPDATE_LOCAL},
+		PercentComplete: 100,
+	}
+	return nil
+}
+
+func GetPipeResp(qid uint64) *structs.PipeSearchResponseOuter {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetPipeResp: qid %+v does not exist!", qid)
+		return nil
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.pipeResp
+}
+
+func SetQidAsFinishedForPipeRespQuery(qid uint64) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("SetQidAsFinishedForPipeRespQuery: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.rawSearchIsFinished = true
+	rQuery.rqsLock.Unlock()
+
+	// Only async queries need to send COMPLETE
+	if rQuery.isAsync {
+		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
 	}
 }

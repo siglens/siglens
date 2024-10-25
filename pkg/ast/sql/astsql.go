@@ -365,7 +365,13 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 			}
 			switch agg := alias.Expr.(type) {
 			case *sqlparser.ColName:
-				columsArray = append(columsArray, agg.Name.CompliantName())
+				// Handle nested fields by joining the qualifier (if present) with the column name
+				colnamePart := agg.Qualifier.Name.String()
+				if colnamePart != "" {
+					columsArray = append(columsArray, colnamePart+"."+agg.Name.CompliantName())
+				} else {
+					columsArray = append(columsArray, agg.Name.CompliantName())
+				}
 				if len(label) != 0 {
 					renameCols[agg.Name.CompliantName()] = label
 				}

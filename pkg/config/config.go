@@ -331,6 +331,11 @@ func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
 }
 
+func IsNewQueryPipelineEnabled() bool {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	return runningConfig.IsNewQueryPipelineEnabled
+}
+
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)

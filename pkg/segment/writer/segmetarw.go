@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -35,11 +36,24 @@ import (
 )
 
 const ONE_MiB = 1024 * 1024
+const PQS_TICKER = 10 // seconds
+const PQS_FLUSH_SIZE = 100
+const PQS_CHAN_SIZE = 1000
 
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
 var SegmetaFilename = "segmeta.json"
+
+type PQSChanMeta struct {
+	pqid                  string
+	segKey                string
+	writeToSegFullMeta    bool
+	writeToEmptyPqMeta    bool
+	deleteFromEmptyPqMeta bool
+}
+
+var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
 
@@ -60,6 +74,9 @@ func initSmr() {
 		return
 	}
 	fd.Close()
+
+	// start a go routine to listen on the channel
+	go listenBackFillAndEmptyPQSRequests()
 }
 
 func getSegFullMetaFnameFromSegkey(segkey string) string {
@@ -236,6 +253,10 @@ func getAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, er
 		}
 		allSegMetaMap[segmeta.SegmentKey] = &segmeta
 	}
+	if err := scanner.Err(); err != nil {
+		return allSegMetaMap, utils.TeeErrorf("getAllSegmetaToMap: Error scanning file %v: %v", segMetaFilename, err)
+	}
+
 	return allSegMetaMap, nil
 }
 
@@ -459,8 +480,7 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 	return segbaseDirs
 }
 
-func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
-
+func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 	sfmData, err := readSfm(segkey)
 	if err != nil {
 		return
@@ -476,10 +496,124 @@ func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
 	if sfmData.AllPQIDs == nil {
 		sfmData.AllPQIDs = make(map[string]bool)
 	}
-	sfmData.AllPQIDs[newpqid] = true
 
-	// TODO this should be through a channel so that we only have one writer
+	utils.MergeMapsRetainingFirst(sfmData.AllPQIDs, pqidMap)
+
 	writeSfm(segkey, sfmData)
+}
+
+func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
+	BulkBackFillPQSSegmetaEntries(segkey, map[string]bool{newpqid: true})
+}
+
+// AddToBackFillAndEmptyPQSChan adds a new pqid to the channel
+// Adds the pqid to the segfullmeta file for the given segkey
+// if writeToEmptyPqMeta is true, then it will write the EmptyResults for this pqid
+func AddToBackFillAndEmptyPQSChan(segkey string, newpqid string, writeToEmptyPqMeta bool) {
+	pqsChan <- PQSChanMeta{pqid: newpqid, segKey: segkey, writeToSegFullMeta: true, writeToEmptyPqMeta: writeToEmptyPqMeta}
+}
+
+// AddToEmptyPqmetaChan adds a new pqid to the channel
+// if writeToEmptyPQIDMeta is true, then it will write the EmptyResults for this pqid
+func AddToEmptyPqmetaChan(pqid string, segKey string) {
+	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, writeToEmptyPqMeta: true}
+}
+
+// RemoveSegmentFromEmptyPqmetaChan adds a new pqid to the channel
+// This will remove the segment from the emptyPQIDMeta when this entry is processed
+func RemoveSegmentFromEmptyPqmeta(pqid string, segKey string) {
+	pqsChan <- PQSChanMeta{pqid: pqid, segKey: segKey, deleteFromEmptyPqMeta: true}
+}
+
+func listenBackFillAndEmptyPQSRequests() {
+	// Listen on the channel, every PQS_TICKER seconds or if the size of the channel is PQS_FLUSH_SIZE,
+	// it would get all the data in the channel and then do the process of Backfilling PQMR files.
+	// This is to avoid multiple writes to the same file
+
+	ticker := time.NewTicker(PQS_TICKER * time.Second) // every 10 seconds
+	defer ticker.Stop()
+
+	buffer := make([]PQSChanMeta, PQS_FLUSH_SIZE)
+	bufferIndex := 0
+
+	for {
+		select {
+		case pqsChanMeta := <-pqsChan:
+			buffer[bufferIndex] = pqsChanMeta
+			bufferIndex++
+			if bufferIndex == PQS_FLUSH_SIZE {
+				processBackFillAndEmptyPQSRequests(buffer)
+				bufferIndex = 0
+			}
+		case <-ticker.C:
+			if bufferIndex > 0 {
+				processBackFillAndEmptyPQSRequests(buffer[:bufferIndex])
+				bufferIndex = 0
+			}
+		}
+	}
+}
+
+func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
+	if len(pqsRequests) == 0 {
+		return
+	}
+
+	// segKey -> pqid -> true ; Contains all PQIDs for a given segKey
+	segKeyToAllPQIDsMap := make(map[string]map[string]bool)
+
+	// pqid -> segKey -> true ; For empty PQS: Contains all empty segment Keys for a given pqid
+	pqidToEmptySegMap := make(map[string]map[string]bool)
+
+	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
+	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
+
+	for _, pqsRequest := range pqsRequests {
+		if pqsRequest.writeToSegFullMeta {
+			allPqidsMap := utils.GetOrCreateNestedMap(segKeyToAllPQIDsMap, pqsRequest.segKey)
+			allPqidsMap[pqsRequest.pqid] = true
+		}
+
+		// For empty PQS: Check if we need to write to emptyPQIDMeta or delete from it
+		if pqsRequest.writeToEmptyPqMeta {
+			segKeyMap := utils.GetOrCreateNestedMap(pqidToEmptySegMap, pqsRequest.pqid)
+			segKeyMap[pqsRequest.segKey] = true
+
+			// Check if this segkey already exists in the delete Map, if so, remove it.
+			utils.RemoveKeyFromNestedMap(emptyPqidSegKeysToDeleteMap, pqsRequest.pqid, pqsRequest.segKey)
+		} else if pqsRequest.deleteFromEmptyPqMeta {
+			deleteSegKeyMap := utils.GetOrCreateNestedMap(emptyPqidSegKeysToDeleteMap, pqsRequest.pqid)
+			deleteSegKeyMap[pqsRequest.segKey] = true
+
+			// Check if this segkey already exists in the write of emptyPQIDMeta, if so, remove it.
+			utils.RemoveKeyFromNestedMap(pqidToEmptySegMap, pqsRequest.pqid, pqsRequest.segKey)
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for segKey, allPQIDs := range segKeyToAllPQIDsMap {
+			BulkBackFillPQSSegmetaEntries(segKey, allPQIDs)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for pqid, segKeyMap := range pqidToEmptySegMap {
+			pqsmeta.BulkAddEmptyResults(pqid, segKeyMap)
+		}
+
+		for pqid, segKeyMap := range emptyPqidSegKeysToDeleteMap {
+			pqsmeta.BulkDeleteSegKeysFromPqid(pqid, segKeyMap)
+		}
+	}()
+
+	wg.Wait()
 }
 
 func DeletePQSData() error {

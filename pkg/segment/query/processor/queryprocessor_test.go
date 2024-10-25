@@ -20,12 +20,16 @@ package processor
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetFullResult_notTruncated(t *testing.T) {
+	qid := uint64(0)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
 			"col1": {
@@ -34,23 +38,25 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
 			},
 		},
-		qid: 0,
+		qid: qid,
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
 	assert.NoError(t, err)
-	numMatched, ok := response.Hits.TotalMatched.(int)
+	hitsCount, ok := response.Hits.TotalMatched.(toputils.HitsCount)
 	assert.True(t, ok)
-	assert.Equal(t, 3, numMatched)
+	assert.Equal(t, 3, int(hitsCount.Value))
+	assert.Equal(t, "eq", hitsCount.Relation)
 }
 
 func Test_GetFullResult_truncated(t *testing.T) {
+	qid := uint64(0)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{"col1": {}},
-		qid:        0,
+		qid:        qid,
 	}
 
 	for i := 0; i < int(utils.QUERY_EARLY_EXIT_LIMIT+10); i++ {
@@ -60,19 +66,18 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
 	assert.NoError(t, err)
-	numMatched, ok := response.Hits.TotalMatched.(int)
+	hitsCount, ok := response.Hits.TotalMatched.(toputils.HitsCount)
 	assert.True(t, ok)
-	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), numMatched)
+	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), int(hitsCount.Value))
+	assert.Equal(t, "eq", hitsCount.Relation)
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
-	qid := uint64(0)
-	searchNode := structs.ASTNode{}
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
 	}
@@ -81,15 +86,14 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	}
 	agg1.Next = &agg2
 
-	queryProcessor, err := NewQueryProcessor(&searchNode, &agg1, qid)
+	queryInfo := &query.QueryInformation{}
+	querySummary := &summary.QuerySummary{}
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
-	qid := uint64(0)
-	searchNode := structs.ASTNode{}
-
 	aggs := []structs.QueryAggregators{
 		{BinExpr: &structs.BinCmdOptions{}},
 		{DedupExpr: &structs.DedupExpr{}},
@@ -97,13 +101,14 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{FieldsExpr: &structs.ColumnsRequest{}},
 		{FillNullExpr: &structs.FillNullExpr{}},
 		{GentimesExpr: &structs.GenTimes{}},
+		{InputLookupExpr: &structs.InputLookup{}},
 		{HeadExpr: &structs.HeadExpr{}},
 		{MakeMVExpr: &structs.MultiValueColLetRequest{}},
 		{RareExpr: &structs.StatisticExpr{}},
 		{RegexExpr: &structs.RegexExpr{}},
 		{RexExpr: &structs.RexExpr{}},
 		{SortExpr: &structs.SortExpr{}},
-		{StatsExpr: &structs.StatsOptions{}},
+		{StatsExpr: &structs.StatsExpr{}},
 		{StreamstatsExpr: &structs.StreamStatsOptions{}},
 		{TailExpr: &structs.TailExpr{}},
 		{TimechartExpr: &structs.TimechartExpr{}},
@@ -116,7 +121,9 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		aggs[i-1].Next = &aggs[i]
 	}
 
-	queryProcessor, err := NewQueryProcessor(&searchNode, &aggs[0], qid)
+	queryInfo := &query.QueryInformation{}
+	querySummary := &summary.QuerySummary{}
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }

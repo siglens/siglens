@@ -20,6 +20,7 @@ package iqr
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -54,6 +55,7 @@ type IQR struct {
 	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
 	deletedColumns map[string]struct{}
 	renamedColumns map[string]string // old name -> new name
+	columnIndex    map[string]int
 
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
@@ -71,7 +73,12 @@ func NewIQR(qid uint64) *IQR {
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
 		measureColumns:   make([]string, 0),
+		columnIndex:      make(map[string]int),
 	}
+}
+
+func (iqr *IQR) GetQID() uint64 {
+	return iqr.qid
 }
 
 func (iqr *IQR) validate() error {
@@ -96,12 +103,9 @@ func (iqr *IQR) validate() error {
 }
 
 func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
-	if len(rrcs) == 0 {
-		return nil
-	}
 
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.AppendRRCs: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
@@ -118,7 +122,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 
 	err := iqr.mergeEncodings(segEncToKey)
 	if err != nil {
-		log.Errorf("IQR.AppendRRCs: error merging encodings: %v", err)
+		log.Errorf("qid=%v, IQR.AppendRRCs: error merging encodings: %v", iqr.qid, err)
 		return err
 	}
 
@@ -129,7 +133,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 
 func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.AppendKnownValues: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
@@ -158,7 +162,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 
 func (iqr *IQR) NumberOfRecords() int {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.NumberOfRecords: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.NumberOfRecords: validation failed: %v", iqr.qid, err)
 		return 0
 	}
 
@@ -174,7 +178,7 @@ func (iqr *IQR) NumberOfRecords() int {
 
 		return 0
 	default:
-		log.Errorf("IQR.NumberOfRecords: unexpected mode %v", iqr.mode)
+		log.Errorf("qid=%v, IQR.NumberOfRecords: unexpected mode %v", iqr.qid, iqr.mode)
 		return 0
 	}
 }
@@ -196,7 +200,7 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.ReadAllColumns: validation failed: %v", iqr.qid, err)
 		return nil, err
 	}
 
@@ -215,7 +219,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.ReadColumn: validation failed: %v", iqr.qid, err)
 		return nil, err
 	}
 
@@ -225,10 +229,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 
 	if _, ok := iqr.deletedColumns[cname]; ok {
 		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
-	}
-
-	if newCname, ok := iqr.renamedColumns[cname]; ok {
-		cname = newCname
 	}
 
 	if values, ok := iqr.knownValues[cname]; ok {
@@ -261,15 +261,15 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readAllColumnsWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
+			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: unknown encoding %v", iqr.qid, rrcs[0].SegKeyInfo.SegKeyEnc)
 			return nil
 		}
 
-		vTable := iqr.rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid)
+		vTable := rrcs[0].VirtualTableName
+		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
 		if err != nil {
-			log.Errorf("IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
-				segKey, err)
+			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
+				iqr.qid, segKey, err)
 			return nil
 		}
 
@@ -286,6 +286,19 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 	}
 
+	for oldName, newName := range iqr.renamedColumns {
+		_, exists := results[oldName]
+		if !exists {
+			continue
+		}
+		results[newName] = results[oldName]
+		delete(results, oldName)
+	}
+
+	for cname, values := range iqr.knownValues {
+		results[cname] = values
+	}
+
 	return results, nil
 }
 
@@ -295,27 +308,28 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
-			return nil
+			return nil, nil
 		}
 
 		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
 		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
-			log.Errorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-			return nil
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
-		return values
+		return values, nil
 	}
 
-	results := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
 
 	if len(results) != len(iqr.rrcs) {
 		// This will happen if we got an error in the batch operation.
@@ -331,7 +345,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 func (iqr *IQR) Append(other *IQR) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.Append: validation failed on self: %v", err)
+		log.Errorf("qid=%v, IQR.Append: validation failed on self: %v", iqr.qid, err)
 		return err
 	}
 
@@ -340,23 +354,28 @@ func (iqr *IQR) Append(other *IQR) error {
 	}
 
 	if err := other.validate(); err != nil {
-		log.Errorf("IQR.Append: validation failed on other: %v", err)
+		log.Errorf("qid=%v, IQR.Append: validation failed on other: %v", iqr.qid, err)
 		return err
 	}
 
-	_, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
 	if err != nil {
-		log.Errorf("IQR.Append: error merging metadata: %v", err)
+		log.Errorf("qid=%v, IQR.Append: error merging metadata: %v", iqr.qid, err)
 		return err
 	}
 
-	if iqr.mode == withRRCs {
-		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
-	}
+	iqr.mode = mergedIQR.mode
+	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
+	iqr.deletedColumns = mergedIQR.deletedColumns
+	iqr.columnIndex = mergedIQR.columnIndex
 
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
 	numFinalRecords := numInitialRecords + numAddedRecords
+
+	if iqr.mode == withRRCs {
+		iqr.rrcs = append(iqr.rrcs, other.rrcs...)
+	}
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
@@ -380,6 +399,105 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
+func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
+	// segKey -> virtual table name
+	segKeyVTableMap := make(map[string]string)
+	for _, rrc := range iqr.rrcs {
+		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
+		if !ok {
+			// This should never happen.
+			log.Errorf("qid=%v, IQR.getSegKeyToVirtualTableMapFromRRCs: unknown encoding %v", iqr.qid, rrc.SegKeyInfo.SegKeyEnc)
+			continue
+		}
+
+		if _, ok := segKeyVTableMap[segKey]; ok {
+			continue
+		}
+		segKeyVTableMap[segKey] = rrc.VirtualTableName
+	}
+
+	return segKeyVTableMap
+}
+
+func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
+	}
+
+	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
+
+	allColumns := make(map[string]struct{})
+
+	for segkey, vTable := range segKeyVTableMap {
+		columns, err := record.GetColsForSegKey(segkey, vTable)
+		if err != nil {
+			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
+		}
+
+		for column := range columns {
+			if _, ok := iqr.deletedColumns[column]; !ok {
+				allColumns[column] = struct{}{}
+			}
+		}
+	}
+
+	for column := range iqr.knownValues {
+		if _, ok := iqr.deletedColumns[column]; !ok {
+			allColumns[column] = struct{}{}
+		}
+	}
+
+	return allColumns, nil
+}
+
+func (iqr *IQR) GetRecord(index int) *Record {
+	return &Record{iqr: iqr, index: index}
+}
+
+func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("qid=%v, IQR.Sort: validation failed: %v", iqr.qid, err)
+		return err
+	}
+
+	if less == nil {
+		return toputils.TeeErrorf("qid=%v, IQR.Sort: the less function is nil", iqr.qid)
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	records := make([]*Record, iqr.NumberOfRecords())
+	for i := 0; i < iqr.NumberOfRecords(); i++ {
+		records[i] = &Record{iqr: iqr, index: i}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return less(records[i], records[j])
+	})
+
+	if iqr.mode == withRRCs {
+		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
+		for i, record := range records {
+			newRRCs[i] = iqr.rrcs[record.index]
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+		for i, record := range records {
+			newValues[i] = values[record.index]
+		}
+
+		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
 // This merges multiple IQRs into one. It stops when one of the IQRs runs out
 // of records, and returns the index of the IQR that ran out of records.
 //
@@ -397,8 +515,14 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 	iqr, err := mergeMetadata(iqrs)
 	if err != nil {
-		log.Errorf("MergeIQRs: error merging metadata: %v", err)
+		log.Errorf("qid=%v, MergeIQRs: error merging metadata: %v", iqr.qid, err)
 		return nil, 0, err
+	}
+
+	for idx, iqrToCheck := range iqrs {
+		if iqrToCheck.NumberOfRecords() == 0 {
+			return iqr, idx, nil
+		}
 	}
 
 	nextRecords := make([]*Record, len(iqrs))
@@ -418,10 +542,8 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
 		}
 		for cname, values := range record.iqr.knownValues {
-			if _, ok := iqr.knownValues[cname]; !ok {
-				err := toputils.TeeErrorf("MergeIQRs: column %v is missing from destination IQR", cname)
-				return nil, 0, err
-			}
+			// we should not validate cname in the destination iqr because caching
+			// will have populated the knownValue in the source IQR
 			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
 		}
 
@@ -434,7 +556,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 			for i, numTaken := range numRecordsTaken {
 				err := iqrs[i].discard(numTaken)
 				if err != nil {
-					log.Errorf("MergeIQRs: error discarding records: %v", err)
+					log.Errorf("qid=%v, MergeIQRs: error discarding records: %v", iqr.qid, err)
 					return nil, 0, err
 				}
 			}
@@ -460,8 +582,9 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
 	}
 
-	for cname := range iqrs[0].deletedColumns {
-		result.deletedColumns[cname] = struct{}{}
+	for _, iqrToMerge := range iqrs {
+		result.AddColumnsToDelete(iqrToMerge.deletedColumns)
+		result.AddColumnIndex(iqrToMerge.columnIndex)
 	}
 
 	for oldName, newName := range iqrs[0].renamedColumns {
@@ -488,13 +611,14 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		}
 
 		if iqr.mode != result.mode {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
-				iqr.qid, iqr.mode, result.mode)
-		}
-
-		if !reflect.DeepEqual(iqr.deletedColumns, result.deletedColumns) {
-			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent deleted columns (%v and %v)",
-				iqr.qid, iqr.deletedColumns, result.deletedColumns)
+			if result.mode == notSet {
+				result.mode = iqr.mode
+			} else if iqr.mode == notSet {
+				// Do nothing.
+			} else {
+				return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent modes (%v and %v)",
+					iqr.qid, iqr.mode, result.mode)
+			}
 		}
 
 		if !reflect.DeepEqual(iqr.renamedColumns, result.renamedColumns) {
@@ -516,9 +640,22 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	return result, nil
 }
 
+func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
+	for cname := range cnames {
+		iqr.deletedColumns[cname] = struct{}{}
+		delete(iqr.knownValues, cname)
+	}
+}
+
+func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
+	for cname, index := range cnamesToIndex {
+		iqr.columnIndex[cname] = index
+	}
+}
+
 func (iqr *IQR) discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.discard: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.discard: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
@@ -547,7 +684,7 @@ func (iqr *IQR) discard(numRecords int) error {
 
 func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.DiscardAfter: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.DiscardAfter: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
@@ -573,11 +710,127 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	return nil
 }
 
+func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("qid=%v, IQR.DiscardRows: validation failed: %v", iqr.qid, err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if iqr.mode == withRRCs {
+		newRRCs, err := toputils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
+				iqr.qid, err)
+		}
+
+		iqr.rrcs = newRRCs
+	}
+
+	for cname, values := range iqr.knownValues {
+		newValues, err := toputils.RemoveSortedIndices(values, rowsToDiscard)
+		if err != nil {
+			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
+				iqr.qid, cname, err)
+		}
+
+		iqr.knownValues[cname] = newValues
+	}
+
+	return nil
+}
+
+func (iqr *IQR) RenameColumn(oldName, newName string) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("qid=%v, IQR.RenameColumn: validation failed: %v", iqr.qid, err)
+		return err
+	}
+
+	// delete newName since it would be overwritten
+	delete(iqr.knownValues, newName)
+
+	values, ok := iqr.knownValues[oldName]
+	if ok {
+		// if old name is present it means that it must be a created column
+		// so we will rename it and update the knownValues map
+		iqr.renamedColumns[oldName] = newName
+		iqr.knownValues[newName] = values
+	} else {
+		// if oldname is not present in the knownValues map we need to check if this column
+		// was renamed earlier so we can rename it that to the latest newname
+		// for e.x. colA renamed to colB and then colB renamed to colC
+		// we need to make colA renamed to colC
+		// if colA to colB rename is not present, we just add colB to colC rename
+		found := false
+		for old, new := range iqr.renamedColumns {
+			if new == oldName {
+				iqr.renamedColumns[old] = newName
+				found = true
+				break
+			}
+		}
+		if !found {
+			iqr.renamedColumns[oldName] = newName
+		}
+	}
+	delete(iqr.knownValues, oldName)
+
+	for i, name := range iqr.groupbyColumns {
+		if name == oldName {
+			iqr.groupbyColumns[i] = newName
+		}
+	}
+
+	for i, name := range iqr.measureColumns {
+		if name == oldName {
+			iqr.measureColumns[i] = newName
+		}
+	}
+
+	return nil
+}
+
+func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
+	indexToCols := make(map[int][]string)
+	withoutIndexCols := []string{}
+	finalColumnOrder := []string{}
+
+	// For each column find its group based on the index.
+	for _, cname := range allCnames {
+		if idx, isIndexAvailable := iqr.columnIndex[cname]; isIndexAvailable {
+			indexToCols[idx] = append(indexToCols[idx], cname)
+		} else {
+			withoutIndexCols = append(withoutIndexCols, cname)
+		}
+	}
+
+	// Sort the value of indexes to get the order for each group.
+	allIndexes := toputils.GetKeysOfMap(indexToCols)
+	sort.Ints(allIndexes)
+
+	// Since multiple columns can have same index we will sort them lexicographically within each group.
+	// Then all of these groups will be appended in the order of their index.
+	for _, idx := range allIndexes {
+		allColsAtIdx := indexToCols[idx]
+		sort.Strings(allColsAtIdx)
+		finalColumnOrder = append(finalColumnOrder, allColsAtIdx...)
+	}
+
+	// Columns without any index would be sorted lexicographically and added at the end.
+	sort.Strings(withoutIndexCols)
+	finalColumnOrder = append(finalColumnOrder, withoutIndexCols...)
+
+	return finalColumnOrder
+}
+
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.AsResult: validation failed: %v", err)
+		log.Errorf("qid=%v, IQR.AsResult: validation failed: %v", iqr.qid, err)
 		return nil, err
 	}
 
@@ -586,11 +839,10 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 	switch iqr.mode {
 	case notSet:
 		// There's no data.
-		return nil, nil
 	case withRRCs:
 		records, err = iqr.readAllColumnsWithRRCs()
 		if err != nil {
-			log.Errorf("IQR.AsResult: error reading all columns: %v", err)
+			log.Errorf("qid=%v, IQR.AsResult: error reading all columns: %v", iqr.qid, err)
 			return nil, err
 		}
 	case withoutRRCs:
@@ -608,17 +860,193 @@ func (iqr *IQR) AsResult() (*structs.PipeSearchResponseOuter, error) {
 		}
 	}
 
-	response := &structs.PipeSearchResponseOuter{
-		Hits: structs.PipeSearchResponse{
-			TotalMatched: iqr.NumberOfRecords(),
-			Hits:         recordsAsAny,
-		},
-		AllPossibleColumns: toputils.GetKeysOfMap(records),
-		Errors:             nil,
-		Qtype:              "logs-query", // TODO: handle stats queries
-		CanScrollMore:      false,
-		ColumnsOrder:       toputils.GetSortedStringKeys(records),
+	allCNames := toputils.GetKeysOfMap(records)
+
+	var response *structs.PipeSearchResponseOuter
+	switch qType {
+	case structs.RRCCmd:
+		response = &structs.PipeSearchResponseOuter{
+			Hits: structs.PipeSearchResponse{
+				TotalMatched: toputils.HitsCount{
+					Value:    uint64(iqr.NumberOfRecords()),
+					Relation: "eq",
+				},
+				Hits: recordsAsAny,
+			},
+			AllPossibleColumns: allCNames,
+			Errors:             nil,
+			Qtype:              qType.String(),
+			CanScrollMore:      false,
+			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
+		}
+	case structs.GroupByCmd, structs.SegmentStatsCmd:
+		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalStatsResults()
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, IQR.AsResult: error getting final result for GroupBy: %v", iqr.qid, err)
+		}
+
+		response = &structs.PipeSearchResponseOuter{
+			Hits: structs.PipeSearchResponse{
+				TotalMatched: 0, // TODO: get the total matched records
+				Hits:         nil,
+			},
+			AllPossibleColumns: allCNames,
+			Errors:             nil,
+			Qtype:              qType.String(),
+			CanScrollMore:      false,
+			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
+			BucketCount:        bucketCount,
+			MeasureFunctions:   measureFuncs,
+			MeasureResults:     bucketHolderArr,
+			GroupByCols:        aggGroupByCols,
+			// TODO: add IsTimechart flag
+		}
+	default:
+		return nil, fmt.Errorf("IQR.AsResult: unexpected query type %v", qType)
 	}
 
 	return response, nil
+}
+
+func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("qid=%v, IQR.CreateStatsResults: validation failed: %v", iqr.qid, err)
+		return err
+	}
+
+	iqr.mode = withoutRRCs
+	for col := range iqr.knownValues {
+		delete(iqr.knownValues, col)
+	}
+
+	knownValues := make(map[string][]utils.CValueEnclosure)
+
+	for _, aggGroupByCol := range aggGroupByCols {
+		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, bucketCount)
+	}
+	for _, measureFunction := range measureFuncs {
+		knownValues[measureFunction] = make([]utils.CValueEnclosure, bucketCount)
+	}
+
+	conversionErrors := make([]string, utils.MAX_SIMILAR_ERRORS_TO_LOG)
+	errIndex := 0
+
+	for i, bucketHolder := range bucketHolderArr {
+		for idx, aggGroupByCol := range aggGroupByCols {
+			colValue := bucketHolder.GroupByValues[idx]
+			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v. Error=%v", i, aggGroupByCol, colValue, err)
+				errIndex++
+			}
+		}
+
+		for _, measureFunc := range measureFuncs {
+			value := bucketHolder.MeasureVal[measureFunc]
+			err := knownValues[measureFunc][i].ConvertValue(value)
+			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)
+				errIndex++
+			}
+		}
+	}
+
+	err := iqr.AppendKnownValues(knownValues)
+	if err != nil {
+		return err
+	}
+
+	iqr.groupbyColumns = aggGroupByCols
+	iqr.measureColumns = measureFuncs
+
+	if errIndex > 0 {
+		log.Errorf("qid=%v, IQR.CreateStatsResults: conversion errors: %v", iqr.qid, conversionErrors)
+	}
+
+	return nil
+}
+
+func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []string, int, error) {
+	knownValues := iqr.knownValues
+
+	if len(knownValues) == 0 {
+		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: knownValues is empty")
+	}
+
+	if len(iqr.measureColumns) == 0 {
+		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: measureColumns is empty")
+	}
+
+	// The bucket count is the number of rows in the final result. So we can use the length of any column.
+	bucketCount := len(knownValues[iqr.measureColumns[0]])
+	if bucketCount == 0 {
+		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: bucketCount is 0")
+	}
+
+	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
+
+	groupByColumns := make([]string, 0, len(iqr.groupbyColumns))
+	measureColumns := make([]string, 0)
+
+	grpByCols := make(map[string]struct{})
+
+	// Rename and delete groupbyColumns and measureColumns based on the renamedColumns, deletedColumns map
+	for i, groupColName := range iqr.groupbyColumns {
+		if newColName, ok := iqr.renamedColumns[groupColName]; ok {
+			iqr.groupbyColumns[i] = newColName
+		}
+
+		finalColName := iqr.groupbyColumns[i]
+		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+
+		groupByColumns = append(groupByColumns, finalColName)
+		grpByCols[finalColName] = struct{}{}
+	}
+
+	for col := range iqr.knownValues {
+		finalColName := col
+		if newColName, ok := iqr.renamedColumns[col]; ok {
+			finalColName = newColName
+		}
+		iqr.measureColumns = append(iqr.measureColumns, finalColName)
+		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+		if _, ok := grpByCols[finalColName]; ok {
+			continue
+		}
+
+		measureColumns = append(measureColumns, finalColName)
+	}
+
+	groupByColLen := len(groupByColumns)
+
+	// Fill in the bucketHolderArr with values from knownValues
+	for i := 0; i < bucketCount; i++ {
+
+		bucketHolderArr[i] = &structs.BucketHolder{
+			GroupByValues: make([]string, groupByColLen),
+			MeasureVal:    make(map[string]interface{}),
+		}
+
+		for idx, aggGroupByCol := range groupByColumns {
+			colValue := knownValues[aggGroupByCol][i]
+			convertedValue, err := colValue.GetString()
+			if err != nil {
+				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
+			}
+			bucketHolderArr[i].GroupByValues[idx] = convertedValue
+		}
+		if groupByColLen == 0 {
+			bucketHolderArr[i].GroupByValues = []string{"*"}
+		}
+
+		for _, measureFunc := range measureColumns {
+			bucketHolderArr[i].MeasureVal[measureFunc] = knownValues[measureFunc][i].CVal
+		}
+	}
+
+	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
