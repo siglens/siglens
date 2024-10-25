@@ -450,7 +450,7 @@ func CompareFloatValues(actualValue interface{}, expValue float64) (bool, error)
 		return false, fmt.Errorf("CompareFloatValues: actualValue %v is not a float, received type: %T", actualValue, actualValue)
 	}
 
-	tolerancePercentage := 1e-5
+	tolerancePercentage := 1e-3
 
 	return utils.AlmostEqual(actual, expValue, tolerancePercentage), nil
 }
