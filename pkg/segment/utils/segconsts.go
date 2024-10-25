@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -887,9 +888,27 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	case bool:
 		e.Dtype = SS_DT_BOOL
 		e.CVal = val
+	case uint8:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
+	case uint16:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
+	case uint32:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
 	case uint64:
 		e.Dtype = SS_DT_UNSIGNED_NUM
 		e.CVal = val
+	case int8:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
+	case int16:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
+	case int32:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
 	case int64:
 		e.Dtype = SS_DT_SIGNED_NUM
 		e.CVal = val
@@ -1032,10 +1051,10 @@ func (e *CValueEnclosure) AsBytes() []byte {
 			return []byte("true")
 		}
 		return []byte("false")
-	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
+	case SS_DT_SIGNED_NUM:
 		buf := make([]byte, 0, 20)
 		return strconv.AppendInt(buf, e.CVal.(int64), 10)
-	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
+	case SS_DT_UNSIGNED_NUM:
 		buf := make([]byte, 0, 20)
 		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
 	case SS_DT_FLOAT:
@@ -1068,6 +1087,75 @@ func (e *CValueEnclosure) AsBytes() []byte {
 		return jsonBytes
 	default:
 		return []byte(fmt.Sprintf("%v", e.CVal))
+	}
+}
+
+func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
+	bufIdx := 0
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		copy(buf[bufIdx:], VALTYPE_ENC_BOOL)
+		bufIdx += 1
+		if e.CVal.(bool) {
+			buf[bufIdx] = 1
+		} else {
+			buf[bufIdx] = 0
+		}
+		bufIdx += 1
+		return bufIdx
+	case SS_DT_UNSIGNED_NUM:
+		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
+		bufIdx += 1
+		bytesVal := toputils.Uint64ToBytesLittleEndian(e.CVal.(uint64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
+	case SS_DT_SIGNED_NUM:
+		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
+		bufIdx += 1
+		bytesVal := toputils.Int64ToBytesLittleEndian(e.CVal.(int64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
+	case SS_DT_FLOAT:
+		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
+		bufIdx += 1
+		bytesVal := toputils.Float64ToBytesLittleEndian(e.CVal.(float64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
+	case SS_DT_STRING:
+		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
+		bufIdx += 1
+		strBytes := []byte(e.CVal.(string))
+		strLen := len(strBytes)
+		copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+		bufIdx += 2
+		copy(buf[bufIdx:], strBytes)
+		bufIdx += strLen
+		return bufIdx
+	case SS_DT_BACKFILL:
+		copy(buf[bufIdx:], VALTYPE_ENC_BACKFILL)
+		bufIdx += 1
+		return bufIdx
+	default:
+		str := fmt.Sprintf("%v", e.CVal)
+		strBytes := []byte(str)
+		strLen := len(strBytes)
+		if strLen <= 255 {
+			copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
+			bufIdx += 1
+			copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+			bufIdx += 2
+		} else {
+			copy(buf[bufIdx:], VALTYPE_ENC_LARGE_STRING)
+			bufIdx += 1
+			copy(buf[bufIdx:], toputils.Uint32ToBytesLittleEndian(uint32(strLen)))
+			bufIdx += 4
+		}
+		copy(buf[bufIdx:], strBytes)
+		bufIdx += strLen
+		return bufIdx
 	}
 }
 

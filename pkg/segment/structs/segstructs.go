@@ -453,8 +453,9 @@ type AggregationResult struct {
 }
 
 type BucketHolder struct {
-	GroupByValues []string
-	MeasureVal    map[string]interface{}
+	IGroupByValues []interface{} // the type of the each group by value is maintained as interface{}
+	GroupByValues  []string
+	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {

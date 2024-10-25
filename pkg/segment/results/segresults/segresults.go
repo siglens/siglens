@@ -27,6 +27,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -856,6 +857,7 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 
 func CreateMeasResultsFromAggResults(limit int,
 	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
+	newQueryPipeline := config.IsNewQueryPipelineEnabled()
 
 	bucketHolderArr := make([]*structs.BucketHolder, 0)
 	added := int(0)
@@ -864,6 +866,7 @@ func CreateMeasResultsFromAggResults(limit int,
 		for _, aggVal := range agg.Results {
 			measureVal := make(map[string]interface{})
 			groupByValues := make([]string, 0)
+			iGroupByValues := make([]interface{}, 0)
 			for mName, mVal := range aggVal.StatRes {
 				rawVal, err := mVal.GetValue()
 				if err != nil {
@@ -877,6 +880,16 @@ func CreateMeasResultsFromAggResults(limit int,
 			if added >= limit {
 				break
 			}
+
+			if newQueryPipeline {
+				bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
+				if !ok {
+					log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", aggVal.BucketKey)
+					continue
+				}
+				iGroupByValues = append(iGroupByValues, bucketKeySlice...)
+			}
+
 			switch bKey := aggVal.BucketKey.(type) {
 			case float64, uint64, int64:
 				bKeyConv := fmt.Sprintf("%+v", bKey)
@@ -897,8 +910,9 @@ func CreateMeasResultsFromAggResults(limit int,
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}
 			bucketHolder := &structs.BucketHolder{
-				GroupByValues: groupByValues,
-				MeasureVal:    measureVal,
+				IGroupByValues: iGroupByValues,
+				GroupByValues:  groupByValues,
+				MeasureVal:     measureVal,
 			}
 			bucketHolderArr = append(bucketHolderArr, bucketHolder)
 		}
