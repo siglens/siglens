@@ -173,20 +173,27 @@ type mockTwoPassProcessor struct {
 	numSeen     int
 	lastSeenIQR *iqr.IQR
 	name        string // For debugging.
+	secondPass  bool
 }
 
 func (mtp *mockTwoPassProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 	defer func() { mtp.lastSeenIQR = input }()
 
 	if input == nil {
-		return nil, io.EOF
+		var output *iqr.IQR
+		if mtp.secondPass {
+			output = mtp.lastSeenIQR
+		}
+		return output, io.EOF
 	}
 
 	mtp.numSeen += input.NumberOfRecords()
 	return input, nil
 }
 
-func (mtp *mockTwoPassProcessor) Rewind()  {}
+func (mtp *mockTwoPassProcessor) Rewind() {
+	mtp.secondPass = true
+}
 func (mtp *mockTwoPassProcessor) Cleanup() {}
 
 func Test_Fetch_twoPass(t *testing.T) {
@@ -375,12 +382,17 @@ func Test_Fetch_multipleBottleneck_twoPass(t *testing.T) {
 	}
 
 	dp3 := &DataProcessor{
-		streams:      []*cachedStream{NewCachedStream(dp2)},
-		processor:    &mockTwoPassProcessor{name: "dp3"},
-		isTwoPassCmd: true,
+		streams:         []*cachedStream{NewCachedStream(dp2)},
+		processor:       &mockTwoPassProcessor{name: "dp3"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
-	output, err := dp3.Fetch()
+	var output *iqr.IQR
+	var err error
+	for i := 0; i < 2; i++ {
+		output, err = dp3.Fetch()
+	}
 	assert.Equal(t, io.EOF, err)
 	assert.NotNil(t, output)
 	// Two records because, one record in the first pass and one record in the second pass.
@@ -405,9 +417,10 @@ func Test_Fetch_multipleBottleneck_twoPass_inputNil(t *testing.T) {
 	}
 
 	dp3 := &DataProcessor{
-		streams:      []*cachedStream{NewCachedStream(dp2)},
-		processor:    &mockTwoPassProcessor{name: "dp3"},
-		isTwoPassCmd: true,
+		streams:         []*cachedStream{NewCachedStream(dp2)},
+		processor:       &mockTwoPassProcessor{name: "dp3"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
 	output, err := dp3.Fetch()
@@ -434,10 +447,10 @@ func Test_Fetch_twoPass_Multiplebottleneck(t *testing.T) {
 	}
 
 	dp1 := &DataProcessor{
-		streams:           []*cachedStream{NewCachedStream(dp0)},
-		processor:         &mockTwoPassProcessor{name: "dp1"},
-		isTwoPassCmd:      true,
-		finishedFirstPass: false,
+		streams:         []*cachedStream{NewCachedStream(dp0)},
+		processor:       &mockTwoPassProcessor{name: "dp1"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
 	dp2 := &DataProcessor{
@@ -470,10 +483,10 @@ func Test_Fetch_twoPass_Multiplebottleneck_inputNil(t *testing.T) {
 	}
 
 	dp2 := &DataProcessor{
-		streams:           []*cachedStream{NewCachedStream(dp1)},
-		processor:         &mockTwoPassProcessor{name: "dp2"},
-		isTwoPassCmd:      true,
-		finishedFirstPass: false,
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockTwoPassProcessor{name: "dp2"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
 	dp3 := &DataProcessor{
@@ -506,22 +519,22 @@ func Test_Fetch_Multiple_TwoPass(t *testing.T) {
 	}
 
 	dp1 := &DataProcessor{
-		streams:      []*cachedStream{NewCachedStream(dp0)},
-		processor:    &mockTwoPassProcessor{name: "dp1"},
-		isTwoPassCmd: true,
+		streams:         []*cachedStream{NewCachedStream(dp0)},
+		processor:       &mockTwoPassProcessor{name: "dp1"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
 	dp2 := &DataProcessor{
-		streams:      []*cachedStream{NewCachedStream(dp1)},
-		processor:    &mockTwoPassProcessor{name: "dp2"},
-		isTwoPassCmd: true,
+		streams:         []*cachedStream{NewCachedStream(dp1)},
+		processor:       &mockTwoPassProcessor{name: "dp2"},
+		isTwoPassCmd:    true,
+		isBottleneckCmd: true,
 	}
 
-	for i := 0; i < 3; i++ {
-		output, err := dp2.Fetch()
-		assert.NoError(t, err, "iteration %d", i)
-		assert.NotNil(t, output, "iteration %d", i)
-		assert.Equal(t, 1, output.NumberOfRecords(), "iteration %d", i)
-		assert.Equal(t, i+1, dp2.processor.(*mockTwoPassProcessor).numSeen, "iteration %d", i)
-	}
+	output, err := dp2.Fetch()
+	assert.Equal(t, nil, err)
+	assert.NotNil(t, output)
+	// 5 because, 3 records in the first pass and 2 records in the second pass.
+	assert.Equal(t, 5, dp2.processor.(*mockTwoPassProcessor).numSeen)
 }

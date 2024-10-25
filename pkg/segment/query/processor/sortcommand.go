@@ -28,15 +28,20 @@ import (
 )
 
 type sortProcessor struct {
-	options      *structs.SortExpr
-	resultsSoFar *iqr.IQR
-	err          error
+	options       *structs.SortExpr
+	resultsSoFar  *iqr.IQR
+	err           error
+	isResultFinal bool
 }
 
 func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if inputIQR == nil {
 		// There's no more input, so we can send the results.
+		p.isResultFinal = true
 		return p.resultsSoFar, io.EOF
+	} else if p.isResultFinal {
+		// The result is already final, so this is being called for the second Pass.
+		return nil, nil
 	}
 
 	err := inputIQR.Sort(p.less)
