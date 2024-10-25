@@ -182,3 +182,7 @@ func (p *inputlookupProcessor) Rewind() {
 func (p *inputlookupProcessor) Cleanup() {
 	// Nothing is stored in memory, so nothing to cleanup
 }
+
+func (p *inputlookupProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
