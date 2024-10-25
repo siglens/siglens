@@ -50,8 +50,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
 		pleArray := make([]*segwriter.ParsedLogEvent, 0)
-		defer ReleasePLEs(pleArray)
-		ple, err := GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
+		defer segwriter.ReleasePLEs(pleArray)
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 		pleArray = append(pleArray, ple)
 		err = ProcessIndexRequestPle(now, indexName, true, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
@@ -73,13 +73,13 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	for _, jsonBytes := range jsons {
-		ple, err := GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 		pleArray = append(pleArray, ple)
 	}
 	err := ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	assert.Nil(t, err)
-	ReleasePLEs(pleArray)
+	segwriter.ReleasePLEs(pleArray)
 
 	flush()
 
@@ -98,13 +98,13 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	pleArray = make([]*segwriter.ParsedLogEvent, 0)
 	for _, jsonBytes := range jsons {
-		ple, err := GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
 		pleArray = append(pleArray, ple)
 	}
 	err = ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	assert.Nil(t, err)
-	ReleasePLEs(pleArray)
+	segwriter.ReleasePLEs(pleArray)
 
 	flush()
 

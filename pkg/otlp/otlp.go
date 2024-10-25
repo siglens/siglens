@@ -97,7 +97,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	numSpans := 0       // The total number of spans sent in this request.
 	numFailedSpans := 0 // The number of spans that we could not ingest.
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	for _, resourceSpans := range request.ResourceSpans {
 		// Find the service name.
@@ -121,7 +121,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 					continue
 				}
 
-				ple, err := writer.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
+				ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
 					numFailedSpans++

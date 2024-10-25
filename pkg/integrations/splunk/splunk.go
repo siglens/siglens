@@ -62,7 +62,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	localIndexMap := make(map[string]string)
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	for _, record := range jsonObjects {
 		err, statusCode, ple := getPLE(record, myid, &tsKey, jsParsingStackbuf[:])
@@ -129,7 +129,7 @@ func getPLE(record map[string]interface{}, myid uint64, tsKey *string, jsParsing
 		}
 	}
 
-	ple, err := writer.GetNewPLE(recordAsBytes, tsNow, indexNameIn, tsKey, jsParsingStackbuf[:])
+	ple, err := segwriter.GetNewPLE(recordAsBytes, tsNow, indexNameIn, tsKey, jsParsingStackbuf[:])
 	if err != nil {
 		return fmt.Errorf("Failed to get new PLE: %v", err), fasthttp.StatusServiceUnavailable, nil
 	}

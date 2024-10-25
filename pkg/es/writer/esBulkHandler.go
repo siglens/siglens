@@ -20,7 +20,6 @@ package writer
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +32,6 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
-	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -68,16 +66,6 @@ var respItemsPool = sync.Pool{
 		// value without an allocation:
 		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
 		return &slice
-	},
-}
-
-var plePool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		ple := writer.NewPLE()
-		return ple
 	},
 }
 
@@ -159,9 +147,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	allPLEs := make([]*writer.ParsedLogEvent, 0)
 	defer func() {
-		for _, ple := range allPLEs {
-			plePool.Put(ple)
-		}
+		writer.ReleasePLEs(allPLEs)
 	}()
 
 	var err error
@@ -220,18 +206,12 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					ple := plePool.Get().(*writer.ParsedLogEvent)
-					ple.Reset()
-					allPLEs = append(allPLEs, ple)
-
-					ple.SetIndexName(indexName)
-					ple.SetRawJson(line)
-
-					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
+					ple, err := writer.GetNewPLE(line, tsNow, indexName, &tsKey, jsParsingStackbuf[:])
 					if err != nil {
-						log.Errorf("HandleBulkBody: ParseRawJsonObject: failed to do parsing, err: %v", err)
+						log.Errorf("HandleBulkBody: GetNewPLE: failed to get new PLE, err=%v", err)
 						success = false
 					}
+					allPLEs = append(allPLEs, ple)
 				}
 			} else {
 				success = false
@@ -368,29 +348,6 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 		log.Errorf("AddAndGetRealIndexName: failed to add virtual table=%v, err=%v", indexNameConverted, err)
 	}
 	return indexNameConverted
-}
-
-func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*writer.ParsedLogEvent, error) {
-	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
-	if tsMillis == 0 {
-		tsMillis = tsNow
-	}
-	ple := plePool.Get().(*writer.ParsedLogEvent)
-	ple.Reset()
-	ple.SetRawJson(rawJson)
-	ple.SetTimestamp(tsMillis)
-	ple.SetIndexName(indexName)
-	err := segwriter.ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
-	if err != nil {
-		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
-	}
-	return ple, nil
-}
-
-func ReleasePLEs(pleArray []*writer.ParsedLogEvent) {
-	for _, ple := range pleArray {
-		plePool.Put(ple)
-	}
 }
 
 func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {

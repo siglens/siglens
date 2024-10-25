@@ -237,7 +237,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	tsKey := config.GetTimeStampKey()
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
@@ -281,7 +281,7 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				ple, err := writer.GetNewPLE(test, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
+				ple, err := segwriter.GetNewPLE(test, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessIndexRequest: failed to get new PLE, test: %v, err: %v", test, err)
 					return
@@ -353,7 +353,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})
@@ -400,7 +400,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			ple, err := writer.GetNewPLE(allIngestDataBytes, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
+			ple, err := segwriter.GetNewPLE(allIngestDataBytes, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 			if err != nil {
 				utils.SendError(ctx, "failed to get new PLE", fmt.Sprintf("allIngestData: %v", allIngestData), err)
 				return

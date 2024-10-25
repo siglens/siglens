@@ -439,7 +439,7 @@ func ProcessRedTracesIngest() {
 
 	idxToStreamIdCache := make(map[string]string)
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 	numBytes := 0
 
 	// Map from the service name to the RED metrics
@@ -478,7 +478,7 @@ func ProcessRedTracesIngest() {
 		// Setup ingestion parameters
 		now := putils.GetCurrentTimeInMs()
 
-		ple, err := writer.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
+		ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to get new PLE: %v", err)
 			continue
@@ -605,9 +605,9 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-	defer writer.ReleasePLEs(pleArray)
+	defer segwriter.ReleasePLEs(pleArray)
 
-	ple, err := writer.GetNewPLE(dependencyMatrixJSON, now, indexName, &tsKey, jsParsingStackbuf[:])
+	ple, err := segwriter.GetNewPLE(dependencyMatrixJSON, now, indexName, &tsKey, jsParsingStackbuf[:])
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to get new PLE: %v", err)
 		return
