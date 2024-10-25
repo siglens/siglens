@@ -59,6 +59,7 @@ type QueryStateChanData struct {
 	StateName       QueryState
 	QueryUpdate     *QueryUpdate
 	PercentComplete float64
+	PipeRes         *structs.PipeSearchResponseOuter
 }
 
 const (
@@ -115,6 +116,7 @@ type RunningQueryState struct {
 	totalRecsToBeSearched    uint64
 	AllColsInAggs            map[string]struct{}
 	pipeResp                 *structs.PipeSearchResponseOuter
+	Progress                 *structs.Progress
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -994,4 +996,122 @@ func SetQidAsFinishedForPipeRespQuery(qid uint64) {
 	if rQuery.isAsync {
 		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
 	}
+}
+
+func InitProgress(totalBlocks uint64, qid uint64) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("InitProgress: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if rQuery.Progress != nil {
+		return
+	}
+
+	rQuery.Progress = &structs.Progress{
+		TotalBlocks: totalBlocks,
+	}
+}
+
+func IncSearchedBlocks(blocksSearched uint64, qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("InitProgress: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if rQuery.Progress == nil {
+		return putils.TeeErrorf("IncSearchedBlocks: Progress is not initialized!")
+	}
+
+	rQuery.Progress.BlocksSearched += blocksSearched
+	return nil
+}
+
+func SendUpdate(resp *structs.PipeSearchResponseOuter, qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("SendUpdate: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if resp == nil {
+		return putils.TeeErrorf("SendUpdate: resp is nil!")
+	}
+
+	if rQuery.Progress == nil {
+		return putils.TeeErrorf("SendUpdate: Progress is not initialized!")
+	}
+
+	rQuery.Progress.TotalRecords += uint64(len(resp.Hits.Hits))
+
+	perComplete := float64(100)
+	if rQuery.Progress.TotalBlocks > 0 {
+		perComplete = float64(rQuery.Progress.BlocksSearched) / float64(rQuery.Progress.TotalBlocks) * 100
+	}
+
+	if rQuery.isAsync {
+		rQuery.StateChan <- &QueryStateChanData{
+			StateName: QUERY_UPDATE,
+			PercentComplete: perComplete,
+			QueryUpdate:     &QueryUpdate{QUpdate: QUERY_UPDATE_LOCAL},
+			PipeRes: 	   resp,
+		}
+	}
+
+	return nil
+}
+
+func SendComplete(qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("SendComplete: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	rQuery.rawSearchIsFinished = true
+
+	if rQuery.isAsync {
+		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
+	}
+
+	return nil
+}
+
+func GetProgress(qid uint64) (structs.Progress, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	if rQuery.Progress == nil {
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: Progress is not initialized!")
+	}
+
+	return structs.Progress{
+		TotalBlocks:    rQuery.Progress.TotalBlocks,
+		BlocksSearched: rQuery.Progress.BlocksSearched,
+	}, nil
 }

@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -217,7 +218,50 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 //
 // Once the final result is sent, no more updates will be sent.
 func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
-	completeChan chan *structs.PipeSearchCompleteResponse) {
+	completeChan chan *structs.PipeSearchCompleteResponse) error {
+	
+	finalIQR := iqr.NewIQR(qp.qid)
+	var err error
+	totalRecords := 0
 
-	panic("not implemented") // TODO
+	var iqr *iqr.IQR
+	completeResp := &structs.PipeSearchCompleteResponse{}
+	for err != io.EOF {
+		iqr, err = qp.DataProcessor.Fetch()
+		if err != nil && err != io.EOF {
+			return utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+		}
+
+		appendErr := finalIQR.Append(iqr)
+		if appendErr != nil {
+			return utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+		}
+		
+		result, wsErr := iqr.AsWSResult(qp.queryType, false)
+		if wsErr != nil {
+			return utils.TeeErrorf("GetFullResult: failed to convert iqr to result; wsErr: %v", err)
+		}
+		totalRecords += len(result.Hits.Hits)
+		fmt.Println("sending totalRecords: ", totalRecords)
+		updateChan <- result
+		if qp.queryType != structs.RRCCmd {
+			completeResp.MeasureResults = result.MeasureResults
+			completeResp.MeasureFunctions = result.MeasureFunctions
+			completeResp.GroupByCols = result.GroupByCols
+		}
+	}
+
+	progress, err := query.GetProgress(qp.qid)
+	if err != nil {
+		return utils.TeeErrorf("GetStreamedResult: failed to get progress; err=%v", err)
+	}
+
+	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: "eq"}
+	completeResp.State = query.COMPLETE.String()
+	completeResp.TotalEventsSearched = progress.TotalBlocks
+	completeResp.TotalRRCCount = totalRecords
+
+	completeChan <- completeResp
+
+	return nil
 }

@@ -68,7 +68,7 @@ type searcher struct {
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
 	sortMode sortMode, startTime time.Time) (*searcher, error) {
-
+	
 	if queryInfo == nil {
 		return nil, toputils.TeeErrorf("searchProcessor.NewSearcher: queryInfo is nil")
 	}
@@ -117,6 +117,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 
 			s.remainingBlocksSorted = blocks
 			s.gotBlocks = true
+			query.InitProgress(uint64(len(blocks)), s.qid)
 		}
 
 		return s.fetchRRCs()
@@ -201,6 +202,8 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
 	}
+
+	query.IncSearchedBlocks(uint64(len(nextBlocks)), s.qid)
 
 	return iqr, nil
 }
