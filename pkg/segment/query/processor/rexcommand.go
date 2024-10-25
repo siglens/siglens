@@ -37,3 +37,7 @@ func (p *rexProcessor) Rewind() {
 func (p *rexProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *rexProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

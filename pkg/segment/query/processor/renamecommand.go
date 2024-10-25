@@ -83,3 +83,7 @@ func (p *renameProcessor) Rewind() {
 func (p *renameProcessor) Cleanup() {
 	// Nothing to do
 }
+
+func (p *renameProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
