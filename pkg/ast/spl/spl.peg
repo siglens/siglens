@@ -783,7 +783,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1144,6 +1144,34 @@ RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString 
     }
 
     return node, nil
+}
+
+RegexAggBlock <- PIPE node:RegexBlock {
+
+	astNode, ok := node.(*ast.Node)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: Node is not ast.Node. node type is %T", node)
+	}
+
+	rawRegex, ok := astNode.Comparison.Values.(string)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: regex given is not string. regex=%v, type=%T", astNode.Comparison.Values, astNode.Comparison.Values)
+	}
+
+    gobRegex := toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(rawRegex)
+    if err != nil {
+        return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
+    }
+
+	return &structs.QueryAggregators{
+		RegexExpr: &structs.RegexExpr{
+			Op:        astNode.Comparison.Op,
+			Field:     astNode.Comparison.Field,
+			RawRegex:  rawRegex,
+			GobRegexp: &gobRegex,
+		},
+	}, nil
 }
 
 ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
@@ -1706,12 +1734,15 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     letColReq := &structs.LetColumnsRequest {
         NewColName: field.(string),
     }
-    if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
-    }
-
+    
     binCmdOption := &structs.BinCmdOptions{
         MaxBins: 100,
+    }
+
+    if newFieldName != nil {
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binCmdOption.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -1722,6 +1753,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        BinExpr: binCmdOption,
     }
 
     return queryAgg, nil
@@ -2297,6 +2329,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: first.(*structs.LetColumnsRequest),
         },
+        EvalExpr: &structs.EvalExpr{
+            ValueExpr: first.(*structs.LetColumnsRequest).ValueColRequest,
+            FieldName: first.(*structs.LetColumnsRequest).NewColName,
+        },
     }
 
     leafQueryAgg := root
@@ -2307,6 +2343,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms {
                 LetColumns: CommaSpaceAndEval[1].(*structs.LetColumnsRequest),
+            },
+            EvalExpr: &structs.EvalExpr{
+                ValueExpr: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).ValueColRequest,
+                FieldName: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).NewColName,
             },
         }
 

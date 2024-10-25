@@ -148,6 +148,11 @@ type TransactionGroupState struct {
 	Timestamp uint64
 }
 
+type StatsExpr struct {
+	MeasureOperations []*MeasureAggregator
+	GroupByRequest    *GroupByRequest
+}
+
 // Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
 // This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
@@ -185,7 +190,7 @@ type QueryAggregators struct {
 	RegexExpr       *RegexExpr
 	RexExpr         *RexExpr
 	SortExpr        *SortExpr
-	StatsExpr       *StatsOptions
+	StatsExpr       *StatsExpr
 	StreamstatsExpr *StreamStatsOptions
 	TailExpr        *TailExpr
 	TimechartExpr   *TimechartExpr
@@ -296,10 +301,11 @@ type HeadExpr struct {
 }
 
 type GroupByRequest struct {
-	MeasureOperations []*MeasureAggregator
-	GroupByColumns    []string
-	AggName           string // name of aggregation
-	BucketCount       int
+	MeasureOperations           []*MeasureAggregator
+	GroupByColumns              []string
+	AggName                     string // name of aggregation
+	BucketCount                 int
+	IsBucketKeySeparatedByDelim bool // if true, group by values= bucketKey.split(delimiter). This is used when the bucket key is already read in the correct format.
 }
 
 type MeasureAggregator struct {
@@ -372,8 +378,10 @@ type LetColumnsRequest struct {
 }
 
 type FillNullExpr struct {
-	Value          string   // value to fill nulls with. Default 0
-	FieldList      []string // list of fields to fill nulls with
+	Value     string   // value to fill nulls with. Default 0
+	FieldList []string // list of fields to fill nulls with
+
+	// The following fields can be removed once we switch to the new query pipeline
 	Records        map[string]map[string]interface{}
 	FinalCols      map[string]bool
 	ColumnsRequest *ColumnsRequest

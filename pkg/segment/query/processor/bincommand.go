@@ -28,75 +28,144 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type binProcessor struct {
-	options *structs.BinCmdOptions
+	options           *structs.BinCmdOptions
+	initializedMinMax bool
+	minVal            float64
+	maxVal            float64
+	secondPass        bool
+	spanError         error
 }
 
-func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	if p.options.BinSpanOptions == nil {
-		return nil, utils.TeeErrorf("bin.Process: computing span is not yet implemented")
-	}
+const MAX_SIMILAR_ERRORS_TO_LOG = 5
 
+func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
 		return nil, io.EOF
 	}
 
-	values, err := iqr.ReadColumn(p.options.Field)
-	if err != nil {
-		return nil, utils.TeeErrorf("bin.Process: cannot read values for field %v; err=%v",
-			p.options.Field, err)
+	if p.options.BinSpanOptions == nil && !p.secondPass {
+		// Initialize min and max values
+		if !p.initializedMinMax {
+			p.minVal = math.MaxFloat64
+			p.maxVal = -math.MaxFloat64
+			p.initializedMinMax = true
+		}
+
+		p.updateTheMinMaxValues(iqr)
+
+		return iqr, nil
 	}
 
-	if p.options.Field == config.GetTimeStampKey() {
-		for i := range values {
-			value := &values[i]
+	qid := iqr.GetQID()
+
+	if p.spanError != nil {
+		return iqr, utils.TeeErrorf("qid=%v, bin.Process: error=%v", qid, p.spanError)
+	}
+
+	if p.secondPass && p.options.BinSpanOptions == nil {
+		return iqr, utils.TeeErrorf("qid=%v, bin.Process: second pass but no bin span options", qid)
+	}
+
+	values, err := iqr.ReadColumn(p.options.Field)
+	if err != nil {
+		return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot read values for field %v; err=%v",
+			qid, p.options.Field, err)
+	}
+
+	var newColResultValues []segutils.CValueEnclosure
+
+	newName, newNameExists := p.options.NewFieldName.Get()
+
+	// If the new field name is different from the current field name,
+	// we need to create a new slice to store the results
+	if newNameExists && newName != p.options.Field {
+		newColResultValues = make([]segutils.CValueEnclosure, len(values))
+	} else {
+		newNameExists = false
+	}
+
+	timestampField := p.options.Field == config.GetTimeStampKey()
+
+	for i := range values {
+		var value *segutils.CValueEnclosure
+		if newNameExists {
+			newColResultValues[i] = values[i]
+			value = &newColResultValues[i]
+		} else {
+			value = &values[i]
+		}
+
+		if timestampField {
 			floatVal, err := value.GetFloatValue()
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot convert value %v to float; err=%v",
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot convert value %v to float; err=%v", qid,
 					value, err)
 			}
 
 			bucket, err := p.performBinWithSpanTime(floatVal, p.options.AlignTime)
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot bin value %v; err=%v",
-					value, err)
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v; err=%v",
+					qid, value, err)
 			}
 
 			value.CVal = bucket
 			value.Dtype = segutils.SS_DT_UNSIGNED_NUM
-		}
-	} else {
-		for i := range values {
-			value := &values[i]
+		} else {
 			err = p.performBinWithSpan(value)
 			if err != nil {
-				return nil, utils.TeeErrorf("bin.Process: cannot bin value %v; err=%v",
-					value, err)
+				return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot bin value %v, field=%v; err=%v",
+					qid, value, p.options.Field, err)
 			}
 		}
 	}
 
-	if newName, ok := p.options.NewFieldName.Get(); ok {
-		err = iqr.RenameColumn(p.options.Field, newName)
+	if newNameExists {
+		knownValues := map[string][]segutils.CValueEnclosure{
+			newName: newColResultValues,
+		}
+		err = iqr.AppendKnownValues(knownValues)
 		if err != nil {
-			return nil, utils.TeeErrorf("bin.Process: cannot rename column %v to %v; err=%v",
-				p.options.Field, newName, err)
+			return nil, utils.TeeErrorf("qid=%v, bin.Process: cannot append known values; err=%v", qid, err)
 		}
 	}
 
 	return iqr, nil
 }
 
-// In the two-pass version of bin, Rewind() should remember the span it
-// calculated in the first pass.
+// In the two-pass version of bin, Rewind() will calculate the bin span options
+// based on the min and max values seen in the first pass.
 func (p *binProcessor) Rewind() {
-	// TODO: handle this for two-pass bin.
+	p.secondPass = true
+
+	if p.options.BinSpanOptions != nil {
+		// Already Exists or calculated the bin span options
+		return
+	}
+
+	if p.options.Field != config.GetTimeStampKey() {
+		if p.options.Start != nil && *p.options.Start < p.minVal {
+			p.minVal = *p.options.Start
+		}
+		if p.options.End != nil && *p.options.End > p.maxVal {
+			p.maxVal = *p.options.End
+		}
+	}
+
+	binSpanOptions, err := findSpan(p.minVal, p.maxVal, p.options.MaxBins, p.options.MinSpan, p.options.Field)
+	if err != nil {
+		p.spanError = fmt.Errorf("bin.Rewind: cannot find span; err=%v", err)
+		return
+	}
+
+	p.options.BinSpanOptions = binSpanOptions
 }
 
 func (p *binProcessor) Cleanup() {
-	// Nothing to do.
+	// Nothing to do
 }
 
 func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error {
@@ -241,4 +310,166 @@ func findBucketMonth(utcTime time.Time, numOfMonths int) uint64 {
 	}
 
 	return uint64(finalTime.UnixMilli())
+}
+
+func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength, field string) (*structs.BinSpanOptions, error) {
+	if field == config.GetTimeStampKey() {
+		return findEstimatedTimeSpan(minValue, maxValue, maxBins, minSpan)
+	}
+	if minValue == maxValue {
+		return &structs.BinSpanOptions{
+			BinSpanLength: &structs.BinSpanLength{
+				Num:       1,
+				TimeScale: segutils.TMInvalid,
+			},
+		}, nil
+	}
+
+	// span ranges estimated are in powers of 10
+	span := (maxValue - minValue) / float64(maxBins)
+	exponent := math.Log10(span)
+	exponent = math.Ceil(exponent)
+	spanRange := math.Pow(10, exponent)
+
+	// verify if estimated span gives correct number of bins, refer the edge case like 301-500 for bins = 2
+	for {
+		lowerBound, _ := getBinRange(minValue, spanRange)
+		_, upperBound := getBinRange(maxValue, spanRange)
+
+		if (upperBound-lowerBound)/spanRange > float64(maxBins) && spanRange <= math.MaxFloat64/10 {
+			spanRange = spanRange * 10
+		} else {
+			break
+		}
+	}
+
+	// increase the spanRange till minSpan is satisfied
+	if minSpan != nil {
+		for {
+			if spanRange < minSpan.Num && spanRange <= math.MaxFloat64/10 {
+				spanRange = spanRange * 10
+			} else {
+				break
+			}
+		}
+	}
+
+	return &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       spanRange,
+			TimeScale: segutils.TMInvalid,
+		},
+	}, nil
+}
+
+func getSecsFromMinSpan(minSpan *structs.BinSpanLength) (float64, error) {
+	if minSpan == nil {
+		return 0, nil
+	}
+
+	switch minSpan.TimeScale {
+	case segutils.TMMillisecond, segutils.TMCentisecond, segutils.TMDecisecond:
+		// smallest granularity of estimated span is 1 second
+		return 1, nil
+	case segutils.TMSecond:
+		return minSpan.Num, nil
+	case segutils.TMMinute:
+		return minSpan.Num * 60, nil
+	case segutils.TMHour:
+		return minSpan.Num * 3600, nil
+	case segutils.TMDay:
+		return minSpan.Num * 86400, nil
+	case segutils.TMWeek, segutils.TMMonth, segutils.TMQuarter, segutils.TMYear:
+		// default returning num*(seconds in a month)
+		return minSpan.Num * 2592000, nil
+	default:
+		return 0, fmt.Errorf("getSecsFromMinSpan: Invalid time unit: %v", minSpan.TimeScale)
+	}
+}
+
+func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBins uint64, minSpan *structs.BinSpanLength) (*structs.BinSpanOptions, error) {
+	minSpanSecs, err := getSecsFromMinSpan(minSpan)
+	if err != nil {
+		return nil, fmt.Errorf("findEstimatedTimeSpan: Error while getting seconds from minspan, err: %v", err)
+	}
+	intervalSec := (maxValueMillis/1000 - minValueMillis/1000) / float64(maxBins)
+	if minSpanSecs > intervalSec {
+		intervalSec = minSpanSecs
+	}
+	var num float64
+	timeUnit := segutils.TMSecond
+	if intervalSec < 1 {
+		num = 1
+	} else if intervalSec <= 10 {
+		num = 10
+	} else if intervalSec <= 30 {
+		num = 30
+	} else if intervalSec <= 60 {
+		num = 1
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 300 {
+		num = 5
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 600 {
+		num = 10
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 1800 {
+		num = 30
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 3600 {
+		num = 1
+		timeUnit = segutils.TMHour
+	} else if intervalSec <= 86400 {
+		num = 1
+		timeUnit = segutils.TMDay
+	} else {
+		// maximum granularity is 1 month as per experiments
+		num = 1
+		timeUnit = segutils.TMMonth
+	}
+
+	estimatedSpan := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       num,
+			TimeScale: timeUnit,
+		},
+	}
+
+	return estimatedSpan, nil
+}
+
+func (p *binProcessor) updateTheMinMaxValues(iqr *iqr.IQR) {
+	fetchingFloatValueErrors := make([]error, MAX_SIMILAR_ERRORS_TO_LOG)
+	fetchingFloatValueErrIndex := 0
+
+	values, err := iqr.ReadColumn(p.options.Field)
+	if err != nil {
+		return
+	}
+
+	for i := range values {
+		value, err := values[i].GetFloatValue()
+		if err != nil {
+			if fetchingFloatValueErrIndex < MAX_SIMILAR_ERRORS_TO_LOG {
+				fetchingFloatValueErrors[fetchingFloatValueErrIndex] = fmt.Errorf("value=%v; err=%v", values[i], err)
+				fetchingFloatValueErrIndex++
+			}
+
+			continue
+		}
+
+		p.minVal = math.Min(p.minVal, value)
+
+		p.maxVal = math.Max(p.maxVal, value)
+	}
+
+	if fetchingFloatValueErrIndex > 0 {
+		relation := "exactly"
+		if fetchingFloatValueErrIndex == MAX_SIMILAR_ERRORS_TO_LOG {
+			relation = "more than"
+		}
+
+		log.Errorf("bin.updateTheMinMaxValues: Error fetching float value for %v %v records;  Errors=%v", relation, fetchingFloatValueErrIndex, fetchingFloatValueErrors)
+	}
+
 }

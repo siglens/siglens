@@ -60,7 +60,10 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
-type EvalExpr struct{} // TODO
+type EvalExpr struct {
+	ValueExpr *ValueExpr
+	FieldName string
+}
 
 type RenameExpr struct {
 	RenameExprMode  RenameExprMode
@@ -68,7 +71,12 @@ type RenameExpr struct {
 	NewPattern      string
 }
 
-type RegexExpr struct{} // TODO
+type RegexExpr struct {
+	Op        string // must be "=" or "!="
+	Field     string
+	RawRegex  string
+	GobRegexp *toputils.GobbableRegex
+}
 
 type RexExpr struct {
 	Pattern     string
@@ -1103,10 +1111,53 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]utils.CValueEnclo
 	}
 }
 
+func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	switch valueExpr.ValueExprMode {
+	case VEMConditionExpr:
+		value, err := valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate condition expr, err: %v", err)
+		}
+		return value, nil
+	case VEMStringExpr:
+		value, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate string expr, err: %v", err)
+		}
+		return value, nil
+	case VEMNumericExpr:
+		value, err := valueExpr.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			// It failed to evaluate to a float, it could possibly that the field given is a string
+			valueStr, err := valueExpr.EvaluateToString(fieldToValue)
+			if err != nil {
+				return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate numeric expr to numeric and string expr, err: %v", err)
+			}
+
+			return valueStr, err
+		}
+		return value, nil
+	case VEMBooleanExpr:
+		value, err := valueExpr.EvaluateToString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate boolean expr, err: %v", err)
+		}
+		return value, nil
+	case VEMMultiValueExpr:
+		mvSlice, err := valueExpr.EvaluateToMultiValue(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate multi value expr, err: %v", err)
+		}
+		return mvSlice, nil
+	default:
+		return nil, fmt.Errorf("EvaluateValueExpr: unknown value expr mode %v", valueExpr.ValueExprMode)
+	}
+}
+
 // This function will first try to evaluate the ValueExpr to a float. If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
-func (expr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
+func (expr *ValueExpr) EvaluateValueExprToFloatOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
 	value, err := expr.EvaluateToFloat(fieldToValue)
 	if err == nil {
 		return value, "float", nil
@@ -2394,12 +2445,12 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CVa
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
 
-	value1, _, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
+	value1, _, err := expr.ValueList[0].EvaluateValueExprToFloatOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
 	}
 
-	value2, _, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
+	value2, _, err := expr.ValueList[1].EvaluateValueExprToFloatOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
 	}

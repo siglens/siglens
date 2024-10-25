@@ -487,7 +487,7 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
-func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
+func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
@@ -498,12 +498,20 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 	bucketHolder := &structs.BucketHolder{}
 	bucketHolder.MeasureVal = make(map[string]interface{})
 	bucketHolder.GroupByValues = []string{EMPTY_GROUPBY_KEY}
+	var measureVal interface{}
 	for mfName, aggVal := range sr.segStatsResults.measureResults {
+		measureVal = aggVal.CVal
 		switch aggVal.Dtype {
 		case utils.SS_DT_FLOAT:
-			bucketHolder.MeasureVal[mfName] = humanize.CommafWithDigits(aggVal.CVal.(float64), 3)
+			if humanizeValues {
+				measureVal = humanize.CommafWithDigits(measureVal.(float64), 3)
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
 		case utils.SS_DT_SIGNED_NUM:
-			bucketHolder.MeasureVal[mfName] = humanize.Comma(aggVal.CVal.(int64))
+			if humanizeValues {
+				measureVal = humanize.Comma(aggVal.CVal.(int64))
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
 		case utils.SS_DT_STRING:
 			bucketHolder.MeasureVal[mfName] = aggVal.CVal
 		case utils.SS_DT_STRING_SLICE:
@@ -517,7 +525,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
-	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, len(sr.segStatsResults.measureResults)
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, 1
 }
 
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
@@ -875,19 +883,16 @@ func CreateMeasResultsFromAggResults(limit int,
 				groupByValues = append(groupByValues, bKeyConv)
 				added++
 			case []string:
-
-				for _, bk := range aggVal.BucketKey.([]string) {
-					groupByValues = append(groupByValues, bk)
-					added++
-				}
+				groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
+				added++
 			case string:
 				groupByValues = append(groupByValues, bKey)
 				added++
 			case []interface{}:
 				for _, bk := range aggVal.BucketKey.([]interface{}) {
 					groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
-					added++
 				}
+				added++
 			default:
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}

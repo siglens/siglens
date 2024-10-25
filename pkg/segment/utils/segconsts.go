@@ -20,6 +20,7 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -47,10 +48,9 @@ import (
 
 // GLOBAL Defs
 // proportion of available to allocate for specific uses
-const MICRO_IDX_MEM_PERCENT = 15 // percent allocated for both rotated & unrotated metadata (cmi/searchmetadata)
+const MICRO_IDX_MEM_PERCENT = 63 // percent allocated for both rotated & unrotated metadata (cmi/searchmetadata)
 const SSM_MEM_PERCENT = 20
-const MICRO_IDX_CHECK_MEM_PERCENT = 48 // percent allocated for runtime checking & loading of cmis
-const RAW_SEARCH_MEM_PERCENT = 15      // minimum percent allocated for segsearch
+const RAW_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const METRICS_MEMORY_MEM_PERCENT = 2
 
 // percent allocated for segmentsearchmeta (blocksummaries, blocklen/off)
@@ -121,6 +121,9 @@ var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")
 
+var BYTE_TILDE = []byte("~")
+var BYTE_TILDE_LEN = len(BYTE_TILDE)
+
 var VALTYPE_ENC_BOOL = []byte{0x01}
 var VALTYPE_ENC_SMALL_STRING = []byte{0x02}
 var VALTYPE_ENC_UINT8 = []byte{0x03}
@@ -152,6 +155,8 @@ var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
+const MAX_SIMILAR_ERRORS_TO_LOG = 5 // max number of similar errors to log: This is used to avoid flooding the logs with similar errors
+
 type SS_DTYPE uint8
 
 const (
@@ -179,8 +184,8 @@ const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
 const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
 
-var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
-var QUERY_MAX_BUCKETS = uint64(10_000)
+const QUERY_EARLY_EXIT_LIMIT = uint64(100)
+const QUERY_MAX_BUCKETS = uint64(10_000)
 
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
@@ -938,7 +943,7 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
 	default:
-		return "", errors.New("CValueEnclosure GetString: unsupported Dtype")
+		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
 	}
 }
 
@@ -987,8 +992,115 @@ func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 	}
 }
 
+/*
+Returns a int64 representation of the value
+
+if its a number, casts to int64
+if its a string, try to parse as int64, if fails, xxhashes and returns it
+*/
+func (e *CValueEnclosure) GetIntValue() (int64, error) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		int64Val, err := strconv.ParseInt(e.CVal.(string), 10, 64)
+		if err != nil {
+			int64Val = int64(xxhash.Sum64String(e.CVal.(string)))
+		}
+		return int64Val, nil
+	case SS_DT_BACKFILL:
+		return 0, nil
+	case SS_DT_BOOL:
+		if e.CVal.(bool) {
+			return 1, nil
+		} else {
+			return 0, nil
+		}
+	case SS_DT_UNSIGNED_NUM:
+		return int64(e.CVal.(uint64)), nil
+	case SS_DT_SIGNED_NUM:
+		return e.CVal.(int64), nil
+	case SS_DT_FLOAT:
+		return int64(e.CVal.(float64)), nil
+	default:
+		return 0, fmt.Errorf("CValueEnclosure GetIntValue: unsupported Dtype: %v", e.Dtype)
+	}
+}
+
+func (e *CValueEnclosure) AsBytes() []byte {
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		if e.CVal.(bool) {
+			return []byte("true")
+		}
+		return []byte("false")
+	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
+		buf := make([]byte, 0, 20)
+		return strconv.AppendInt(buf, e.CVal.(int64), 10)
+	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
+		buf := make([]byte, 0, 20)
+		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
+	case SS_DT_FLOAT:
+		buf := make([]byte, 0, 64)
+		return strconv.AppendFloat(buf, e.CVal.(float64), 'f', -1, 64)
+	case SS_DT_STRING:
+		return []byte(e.CVal.(string))
+	case SS_DT_STRING_SLICE:
+		stringSlice := e.CVal.([]string)
+		if len(stringSlice) == 0 {
+			return []byte{}
+		}
+		totalSize := 0
+		for _, str := range stringSlice {
+			totalSize += len(str)
+		}
+		// Pre-allocate buffer with total size
+		buffer := bytes.NewBuffer(make([]byte, 0, totalSize))
+		for _, s := range stringSlice {
+			buffer.WriteString(s)
+		}
+		return buffer.Bytes()
+	case SS_DT_BACKFILL:
+		return VALTYPE_ENC_BACKFILL
+	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
+		jsonBytes, err := json.Marshal(e.CVal)
+		if err != nil {
+			return []byte("invalid_json")
+		}
+		return jsonBytes
+	default:
+		return []byte(fmt.Sprintf("%v", e.CVal))
+	}
+}
+
 func (e *CValueEnclosure) IsNull() bool {
 	return e.Dtype == SS_DT_BACKFILL || e.Dtype == SS_INVALID || e.CVal == nil
+}
+
+func (e *CValueEnclosure) IsString() bool {
+	return e.Dtype == SS_DT_STRING
+}
+
+func (e *CValueEnclosure) IsBool() bool {
+	return e.Dtype == SS_DT_BOOL
+}
+
+func (e *CValueEnclosure) IsNumeric() bool {
+	return e.Dtype == SS_DT_FLOAT || e.Dtype == SS_DT_SIGNED_NUM || e.Dtype == SS_DT_UNSIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsFloat() bool {
+	return e.Dtype == SS_DT_FLOAT
+}
+
+func (e *CValueEnclosure) IsInt() bool {
+	return e.Dtype == SS_DT_SIGNED_NUM || e.Dtype == SS_DT_UNSIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsSignedInt() bool {
+	return e.Dtype == SS_DT_SIGNED_NUM
+}
+
+func (e *CValueEnclosure) IsUnsignedInt() bool {
+	return e.Dtype == SS_DT_UNSIGNED_NUM
 }
 
 type CValueDictEnclosure struct {

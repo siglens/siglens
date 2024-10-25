@@ -37,9 +37,9 @@ import (
 )
 
 func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-	qid uint64) (map[string][]utils.CValueEnclosure, error) {
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := getColsForSegKey(segKey, vTable)
+	allCols, err := GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -48,6 +48,9 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
+		if _, ignore := ignoredCols[cname]; ignore {
+			continue
+		}
 		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
@@ -61,13 +64,13 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
 
@@ -157,8 +160,9 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 	defer sharedReader.Close()
 
-	if len(sharedReader.ErrorColMap) > 0 {
-		return nil, sharedReader.ErrorColMap[cname]
+	colErrorMap := sharedReader.GetColumnsErrorsMap()
+	if len(colErrorMap) > 0 {
+		return nil, colErrorMap[cname]
 	}
 
 	multiReader := sharedReader.MultiColReaders[0]
