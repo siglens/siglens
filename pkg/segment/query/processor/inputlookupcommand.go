@@ -123,7 +123,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, fmt.Errorf("inputlookupProcessor.Process: Error skipping rows, err: %v", err)
 	}
 
-	count := p.numprocessed
+	count := uint64(0)
 	records := map[string][]utils.CValueEnclosure{}
 
 	for !p.eof && count < putils.MinUint64(p.options.Max, utils.QUERY_EARLY_EXIT_LIMIT) {
@@ -162,7 +162,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	p.start = curr
-	p.numprocessed = count
+	p.numprocessed += count
 
 	newIQR := iqr.NewIQR(p.qid)
 	err = newIQR.AppendKnownValues(records)
@@ -175,7 +175,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 
 func (p *inputlookupProcessor) Rewind() {
 	p.eof = false
-	p.start = 0
+	p.start = p.options.Start
 	p.numprocessed = 0
 }
 
