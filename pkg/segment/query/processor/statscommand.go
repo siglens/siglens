@@ -210,9 +210,9 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
-	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	p.hasFinalResult = true
@@ -297,9 +297,9 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0, false)
 
-	err := iqr.AppendStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	p.hasFinalResult = true

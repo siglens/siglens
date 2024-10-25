@@ -254,6 +254,40 @@ func Test_Append(t *testing.T) {
 	}
 }
 
+func Test_Append_mergeMetaData(t *testing.T) {
+	iqr1 := NewIQR(0)
+	iqr2 := NewIQR(0)
+
+	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
+	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2"}
+
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+	})
+	assert.NoError(t, err)
+
+	iqr1.deletedColumns = map[string]struct{}{"col10": {}}
+	iqr2.deletedColumns = map[string]struct{}{"col11": {}}
+	iqr1.columnIndex = map[string]int{"col1": 0}
+	iqr2.columnIndex = map[string]int{"col2": 1}
+
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+	assert.Equal(t, iqr1.mode, withoutRRCs)
+	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2"}, iqr1.encodingToSegKey)
+	assert.Equal(t, map[string]struct{}{"col10": {}, "col11": {}}, iqr1.deletedColumns)
+	assert.Equal(t, map[string]int{"col1": 0, "col2": 1}, iqr1.columnIndex)
+}
+
 func Test_Append_withRRCs(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
@@ -406,6 +440,46 @@ func Test_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 0, iqr3.NumberOfRecords())
 }
 
+func Test_MergeIQR_withNotSetIQRs(t *testing.T) {
+	less := func(a, b *Record) bool {
+		aVal, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		return aVal.CVal.(string) < bVal.CVal.(string)
+	}
+
+	_, firstExhaustedIndex, err := MergeIQRs([]*IQR{NewIQR(0), NewIQR(0), NewIQR(0)}, less)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, firstExhaustedIndex)
+
+	iqr1 := NewIQR(0)
+	err = iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	})
+
+	assert.NoError(t, err)
+	_, firstExhausted, err := MergeIQRs([]*IQR{NewIQR(0), iqr1}, less)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, firstExhausted)
+}
+
+func Test_Mode_AfterAppendRRC(t *testing.T) {
+	iqr := NewIQR(0)
+	assert.Equal(t, notSet, iqr.mode)
+
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+
+	err := iqr.AppendRRCs([]*utils.RecordResultContainer{}, encodingToSegKey)
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, iqr.mode)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
@@ -547,13 +621,13 @@ func getTestValuesForSegmentStats() ([]*structs.BucketHolder, []string, []string
 	return bucketHolderSlice, groupByCols, measureFuncs
 }
 
-func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
+func Test_CreateRRCStatsResults_GroupBy(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForGroupBy()
 
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -597,12 +671,12 @@ func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
 	}
 }
 
-func Test_AppendRRCStatsResults_SegmentStats(t *testing.T) {
+func Test_CreateRRCStatsResults_SegmentStats(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForSegmentStats()
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -635,14 +709,14 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err := iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
@@ -653,17 +727,20 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount = len(bucketHolderSlice)
 
 	iqr = NewIQR(0)
-	err = iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err = iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err = iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
+		if len(expectedBucketHolder.GroupByValues) == 0 {
+			expectedBucketHolder.GroupByValues = []string{"*"}
+		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
 }
