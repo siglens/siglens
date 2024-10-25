@@ -231,7 +231,9 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 		if err != nil && err != io.EOF {
 			return utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
 		}
-
+		if iqr == nil {
+			break
+		}
 		appendErr := finalIQR.Append(iqr)
 		if appendErr != nil {
 			return utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
@@ -242,7 +244,6 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 			return utils.TeeErrorf("GetFullResult: failed to convert iqr to result; wsErr: %v", err)
 		}
 		totalRecords += len(result.Hits.Hits)
-		fmt.Println("sending totalRecords: ", totalRecords)
 		updateChan <- result
 		if qp.queryType != structs.RRCCmd {
 			completeResp.MeasureResults = result.MeasureResults
