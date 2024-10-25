@@ -61,15 +61,15 @@ func getTestData() map[string][]utils.CValueEnclosure {
 
 func getGroupByProcessor() *statsProcessor {
 	measureOperations := []*structs.MeasureAggregator{
-		&structs.MeasureAggregator{
+		{
 			MeasureCol:  "col2",
 			MeasureFunc: utils.Count,
 		},
-		&structs.MeasureAggregator{
+		{
 			MeasureCol:  "col2",
 			MeasureFunc: utils.Sum,
 		},
-		&structs.MeasureAggregator{
+		{
 			MeasureCol:  "col2",
 			MeasureFunc: utils.Avg,
 		},
@@ -77,14 +77,14 @@ func getGroupByProcessor() *statsProcessor {
 
 	groupByCols := []string{"col1", "col3"}
 
-	processor := &statsProcessor{
-		options: &structs.StatsExpr{
+	processor := NewStatsProcessor(
+		&structs.StatsExpr{
 			GroupByRequest: &structs.GroupByRequest{
 				MeasureOperations: measureOperations,
 				GroupByColumns:    groupByCols,
 			},
 		},
-	}
+	)
 
 	return processor
 }
@@ -268,7 +268,7 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	nilStr := utils.STR_VALTYPE_ENC_BACKFILL
 
 	expectedGroupByCols := map[string][]utils.CValueEnclosure{
-		"col1": []utils.CValueEnclosure{
+		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "e"},
 			{Dtype: utils.SS_DT_STRING, CVal: "a"},
 			{Dtype: utils.SS_DT_STRING, CVal: "b"},
@@ -317,11 +317,11 @@ func getStatsMeasureProcessor() *statsProcessor {
 		},
 	}
 
-	processor := &statsProcessor{
-		options: &structs.StatsExpr{
+	processor := NewStatsProcessor(
+		&structs.StatsExpr{
 			MeasureOperations: measureOperations,
 		},
-	}
+	)
 
 	return processor
 }

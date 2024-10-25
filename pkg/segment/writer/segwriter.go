@@ -58,6 +58,16 @@ var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 
 var KibanaInternalBaseDir string
 
+var plePool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		ple := NewPLE()
+		return ple
+	},
+}
+
 // Create a writer that caches compressors.
 // For this operation type we supply a nil Reader.
 var encoder, _ = zstd.NewWriter(nil)
@@ -148,6 +158,29 @@ func NewPLE() *ParsedLogEvent {
 		allCvals:        make([][]byte, 0),
 		allCvalsTypeLen: make([][9]byte, 0),
 		numCols:         0,
+	}
+}
+
+func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*ParsedLogEvent, error) {
+	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	ple := plePool.Get().(*ParsedLogEvent)
+	ple.Reset()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexName)
+	err := ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
+	}
+	return ple, nil
+}
+
+func ReleasePLEs(pleArray []*ParsedLogEvent) {
+	for _, ple := range pleArray {
+		plePool.Put(ple)
 	}
 }
 

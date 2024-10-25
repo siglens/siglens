@@ -28,14 +28,16 @@ import (
 )
 
 type sortProcessor struct {
-	options      *structs.SortExpr
-	resultsSoFar *iqr.IQR
-	err          error
+	options        *structs.SortExpr
+	resultsSoFar   *iqr.IQR
+	err            error
+	hasFinalResult bool
 }
 
 func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if inputIQR == nil {
 		// There's no more input, so we can send the results.
+		p.hasFinalResult = true
 		return p.resultsSoFar, io.EOF
 	}
 
@@ -222,4 +224,12 @@ func (p *sortProcessor) Rewind() {
 
 func (p *sortProcessor) Cleanup() {
 	// Nothing to do.
+}
+
+func (p *sortProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.hasFinalResult {
+		return p.resultsSoFar, true
+	}
+
+	return nil, false
 }

@@ -37,3 +37,7 @@ func (p *makemvProcessor) Rewind() {
 func (p *makemvProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *makemvProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

@@ -83,3 +83,7 @@ func (p *whereProcessor) Rewind() {
 func (p *whereProcessor) Cleanup() {
 	// Nothing to do.
 }
+
+func (p *whereProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

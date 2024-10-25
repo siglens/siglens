@@ -132,3 +132,7 @@ func (p *dedupProcessor) Rewind() {
 func (p *dedupProcessor) Cleanup() {
 	p.combinationHashes = nil
 }
+
+func (p *dedupProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

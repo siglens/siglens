@@ -251,7 +251,7 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		}
 	}
 	rQuery.rqsLock.Unlock()
-	if rQuery.isAsync {
+	if !config.IsNewQueryPipelineEnabled() && rQuery.isAsync {
 		var queryUpdate QueryUpdate
 		if remoteId != "" {
 			queryUpdate = QueryUpdate{
@@ -318,7 +318,7 @@ func SetQidAsFinished(qid uint64) {
 
 	// Only async queries need to send COMPLETE, but if we need to do post
 	// aggregations, we'll send COMPLETE once we're done with those.
-	if rQuery.isAsync && (rQuery.aggs == nil || rQuery.aggs.Next == nil) {
+	if !config.IsNewQueryPipelineEnabled() && rQuery.isAsync && (rQuery.aggs == nil || rQuery.aggs.Next == nil) {
 		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
 	}
 }

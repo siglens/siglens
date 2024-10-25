@@ -109,3 +109,7 @@ func (p *fillnullProcessor) Cleanup() {
 	p.knownColumns = nil
 	p.secondPass = false
 }
+
+func (p *fillnullProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

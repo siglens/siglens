@@ -45,7 +45,25 @@ type statsProcessor struct {
 	byteBuffer          *bbp.ByteBuffer
 	searchResults       *segresults.SearchResults
 	qid                 uint64
+	processorType       structs.QueryType
 	errorData           *ErrorData
+	hasFinalResult      bool
+}
+
+func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
+	processor := &statsProcessor{
+		options: options,
+	}
+
+	if options != nil {
+		if options.GroupByRequest != nil {
+			processor.processorType = structs.GroupByCmd
+		} else if options.MeasureOperations != nil {
+			processor.processorType = structs.SegmentStatsCmd
+		}
+	}
+
+	return processor
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
@@ -58,11 +76,17 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
-	if p.options.GroupByRequest != nil {
+	// If inputIQR is nil, we are done with the input
+	if inputIQR == nil {
+		return p.extractFinalStatsResults()
+	}
+
+	switch p.processorType {
+	case structs.GroupByCmd:
 		return p.processGroupByRequest(inputIQR)
-	} else if p.options.MeasureOperations != nil {
+	case structs.SegmentStatsCmd:
 		return p.processMeasureOperations(inputIQR)
-	} else {
+	default:
 		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.Process: no group by or measure operations specified", inputIQR.GetQID())
 	}
 }
@@ -82,15 +106,38 @@ func (p *statsProcessor) Cleanup() {
 	p.errorData = nil
 }
 
-func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	if inputIQR == nil {
-		if p.searchResults != nil {
-			inputIQR = iqr.NewIQR(p.qid)
-			return p.extractGroupByResults(inputIQR)
+func (p *statsProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.hasFinalResult {
+		iqr, err := p.extractFinalStatsResults()
+		if err != nil && err != io.EOF {
+			return nil, false
 		}
+
+		return iqr, true
+	}
+
+	return nil, false
+}
+
+func (p *statsProcessor) extractFinalStatsResults() (*iqr.IQR, error) {
+	// If searchResults is nil, it means there is no data to process
+	if p.searchResults == nil {
 		return nil, io.EOF
 	}
 
+	iqr := iqr.NewIQR(p.qid)
+
+	switch p.processorType {
+	case structs.GroupByCmd:
+		return p.extractGroupByResults(iqr)
+	case structs.SegmentStatsCmd:
+		return p.extractSegmentStatsResults(iqr)
+	default:
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractFinalStatsResults: invalid processor type", p.qid)
+	}
+}
+
+func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	numOfRecords := inputIQR.NumberOfRecords()
 	qid := inputIQR.GetQID()
 
@@ -158,32 +205,21 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 }
 
 func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
-	if p.searchResults == nil {
-		return iqr, nil
-	}
-
 	// load and convert the bucket results
 	_ = p.searchResults.GetBucketResults()
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
-	err := iqr.AppendStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
 
+	p.hasFinalResult = true
 	return iqr, io.EOF
 }
 
 func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	if inputIQR == nil {
-		if p.searchResults != nil {
-			inputIQR = iqr.NewIQR(p.qid)
-			return p.extractSegmentStatsResults(inputIQR)
-		}
-		return nil, io.EOF
-	}
-
 	numOfRecords := uint64(inputIQR.NumberOfRecords())
 	qid := inputIQR.GetQID()
 
@@ -259,17 +295,14 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 }
 
 func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, error) {
-	if p.searchResults == nil {
-		return iqr, nil
-	}
-
 	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0, false)
 
-	err := iqr.AppendStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot append stats results; err=%v", iqr.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
 
+	p.hasFinalResult = true
 	return iqr, io.EOF
 }
 
