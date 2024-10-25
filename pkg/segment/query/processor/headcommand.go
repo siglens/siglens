@@ -32,7 +32,7 @@ type headProcessor struct {
 
 func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
-		return nil, nil
+		return nil, io.EOF
 	}
 
 	limit := p.options.MaxRows
@@ -58,4 +58,8 @@ func (p *headProcessor) Rewind() {
 
 func (p *headProcessor) Cleanup() {
 	panic("not implemented")
+}
+
+func (p *headProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
 }

@@ -71,6 +71,10 @@ func (p *regexProcessor) Cleanup() {
 	// Nothing to do here.
 }
 
+func (p *regexProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
+
 func (p *regexProcessor) performRegexMatch(value utils.CValueEnclosure) bool {
 	stringVal, err := value.GetString()
 	if err != nil {

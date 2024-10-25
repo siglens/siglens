@@ -105,7 +105,7 @@ func (iqr *IQR) validate() error {
 func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
 
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.AppendRRCs: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
 		return err
 	}
 
@@ -133,7 +133,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 
 func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.AppendKnownValues: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 
 func (iqr *IQR) NumberOfRecords() int {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.NumberOfRecords: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.NumberOfRecords: validation failed: %v", err)
 		return 0
 	}
 
@@ -200,7 +200,7 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.ReadAllColumns: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -219,7 +219,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.ReadColumn: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -345,7 +345,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 func (iqr *IQR) Append(other *IQR) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.Append: validation failed on self: %v", iqr.qid, err)
+		log.Errorf("IQR.Append: validation failed on self: %v", err)
 		return err
 	}
 
@@ -354,7 +354,7 @@ func (iqr *IQR) Append(other *IQR) error {
 	}
 
 	if err := other.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.Append: validation failed on other: %v", iqr.qid, err)
+		log.Errorf("IQR.Append: validation failed on other: %v", err)
 		return err
 	}
 
@@ -456,7 +456,7 @@ func (iqr *IQR) GetRecord(index int) *Record {
 
 func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.Sort: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
 	}
 
@@ -655,7 +655,7 @@ func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
 
 func (iqr *IQR) discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.discard: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.discard: validation failed: %v", err)
 		return err
 	}
 
@@ -684,7 +684,7 @@ func (iqr *IQR) discard(numRecords int) error {
 
 func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.DiscardAfter: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.DiscardAfter: validation failed: %v", err)
 		return err
 	}
 
@@ -712,7 +712,7 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 
 func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.DiscardRows: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.DiscardRows: validation failed: %v", err)
 		return err
 	}
 
@@ -745,7 +745,7 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 
 func (iqr *IQR) RenameColumn(oldName, newName string) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.RenameColumn: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
 		return err
 	}
 
@@ -830,7 +830,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 // TODO: Add option/method to return the result for an ES/kibana query.
 func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.AsResult: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
 	}
 
@@ -910,7 +910,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 
 func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.CreateStatsResults: validation failed: %v", iqr.qid, err)
+		log.Errorf("IQR.AppendStatsResults: validation failed: %v", err)
 		return err
 	}
 
