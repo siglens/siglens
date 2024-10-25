@@ -587,6 +587,16 @@ func Test_getRRCIQR(t *testing.T) {
 	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())
 }
 
+func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
+	for _, oldName := range oldNames {
+		_, err := iqr.ReadColumn(oldName)
+		assert.Error(t, err)
+	}
+	values, err := iqr.ReadColumn(newName)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValue, values)
+}
+
 func Test_RenameColumn(t *testing.T) {
 	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
@@ -598,22 +608,96 @@ func Test_RenameColumn(t *testing.T) {
 
 	err = iqr.RenameColumn("col1", "newCol1")
 	assert.NoError(t, err)
-	_, err = iqr.ReadColumn("col1")
-	assert.Error(t, err)
-	values, err := iqr.ReadColumn("newCol1")
-	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
+	test_Rename(t, iqr, []string{"col1"}, "newCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
 
 	// Rename the renamed column.
 	err = iqr.RenameColumn("newCol1", "superNewCol1")
 	assert.NoError(t, err)
-	_, err = iqr.ReadColumn("col1")
-	assert.Error(t, err)
-	_, err = iqr.ReadColumn("newCol1")
-	assert.Error(t, err)
-	values, err = iqr.ReadColumn("superNewCol1")
+	test_Rename(t, iqr, []string{"col1", "newCol1"}, "superNewCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+}
+
+func Test_RenameColumn_GrpBy_MeasureCol(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+	})
+	iqr.measureColumns = []string{"col2", "col1"}
+	iqr.groupbyColumns = []string{"col3"}
 	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}}, values)
+
+	// Rename measure column
+	err = iqr.RenameColumn("col1", "newCol1")
+	assert.NoError(t, err)
+	test_Rename(t, iqr, []string{"col1"}, "newCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+
+	err = iqr.RenameColumn("col2", "newCol2")
+	assert.NoError(t, err)
+	test_Rename(t, iqr, []string{"col2"}, "newCol2", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "b"}})
+
+	// Rename group by Column
+	err = iqr.RenameColumn("col3", "newCol3")
+	assert.NoError(t, err)
+	test_Rename(t, iqr, []string{"col3"}, "newCol3", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "c"}})
+
+	assert.Equal(t, []string{"newCol2", "newCol1"}, iqr.measureColumns)
+	assert.Equal(t, []string{"newCol3"}, iqr.groupbyColumns)
+}
+
+func Test_RenameMultiple(t *testing.T) {
+	iqr1 := NewIQR(0)
+
+	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+		"col4": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	})
+	iqr1.measureColumns = []string{"col1"}
+	iqr1.groupbyColumns = []string{"col3"}
+	assert.NoError(t, err)
+
+	// Rename measure column
+	err = iqr1.RenameColumn("col1", "newCol1")
+	assert.NoError(t, err)
+	err = iqr1.RenameColumn("newCol1", "superNewCol1")
+	assert.NoError(t, err)
+	test_Rename(t, iqr1, []string{"col1", "newCol1"}, "superNewCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+
+	// Rename group by Column
+	err = iqr1.RenameColumn("col3", "newCol3")
+	assert.NoError(t, err)
+	test_Rename(t, iqr1, []string{"col3"}, "newCol3", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "c"}})
+
+	assert.Equal(t, []string{"superNewCol1"}, iqr1.measureColumns)
+	assert.Equal(t, []string{"newCol3"}, iqr1.groupbyColumns)
+
+	// Rename RRC column
+	err = iqr1.RenameColumn("rrcCol", "col2")
+	assert.NoError(t, err)
+	_, exist := iqr1.knownValues["col2"]
+	assert.False(t, exist)
+	assert.Equal(t, "col2", iqr1.renamedColumns["rrcCol"])
+
+	// Rename knownValue column over RRC column
+	err = iqr1.RenameColumn("col4", "col2")
+	assert.NoError(t, err)
+	test_Rename(t, iqr1, []string{"col4"}, "col2", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "d"}})
 }
 
 func Test_GetColumnsOrder(t *testing.T) {
@@ -703,13 +787,13 @@ func getTestValuesForSegmentStats() ([]*structs.BucketHolder, []string, []string
 	return bucketHolderSlice, groupByCols, measureFuncs
 }
 
-func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
+func Test_CreateRRCStatsResults_GroupBy(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForGroupBy()
 
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -753,12 +837,12 @@ func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
 	}
 }
 
-func Test_AppendRRCStatsResults_SegmentStats(t *testing.T) {
+func Test_CreateRRCStatsResults_SegmentStats(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForSegmentStats()
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -791,14 +875,14 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err := iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
@@ -809,17 +893,20 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount = len(bucketHolderSlice)
 
 	iqr = NewIQR(0)
-	err = iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err = iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err = iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
+		if len(expectedBucketHolder.GroupByValues) == 0 {
+			expectedBucketHolder.GroupByValues = []string{"*"}
+		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
 }

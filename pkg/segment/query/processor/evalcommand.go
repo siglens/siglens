@@ -103,3 +103,7 @@ func (p *evalProcessor) Rewind() {
 func (p *evalProcessor) Cleanup() {
 	// Nothing to do
 }
+
+func (p *evalProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

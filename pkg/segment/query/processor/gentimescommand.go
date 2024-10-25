@@ -112,3 +112,7 @@ func (p *gentimesProcessor) Rewind() {
 func (p *gentimesProcessor) Cleanup() {
 	// As there is no state to be stored, nothing to cleanup
 }
+
+func (p *gentimesProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

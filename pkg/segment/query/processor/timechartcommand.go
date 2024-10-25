@@ -37,3 +37,7 @@ func (p *timechartProcessor) Rewind() {
 func (p *timechartProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *timechartProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

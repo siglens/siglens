@@ -37,3 +37,7 @@ func (p *transactionProcessor) Rewind() {
 func (p *transactionProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *transactionProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

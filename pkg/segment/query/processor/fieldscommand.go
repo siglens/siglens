@@ -102,3 +102,7 @@ func (p *fieldsProcessor) Rewind() {
 func (p *fieldsProcessor) Cleanup() {
 	// do nothing
 }
+
+func (p *fieldsProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

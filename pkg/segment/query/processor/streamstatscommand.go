@@ -37,3 +37,7 @@ func (p *streamstatsProcessor) Rewind() {
 func (p *streamstatsProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *streamstatsProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

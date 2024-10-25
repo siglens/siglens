@@ -37,3 +37,7 @@ func (p *tailProcessor) Rewind() {
 func (p *tailProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *tailProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
