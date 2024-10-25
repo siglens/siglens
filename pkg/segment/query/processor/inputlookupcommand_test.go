@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -199,6 +200,107 @@ func Test_InputLookupMultipleFetchAndRewind(t *testing.T) {
 	dp.Rewind()
 
 	validate_MultiFetch(t, dp, expectedCols, start, numRecords, 2)
+
+	os.RemoveAll(config.GetDataPath())
+}
+
+func Test_MultipleInputlookups(t *testing.T) {
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	data1 := []string{
+		"a,b,c\n",
+		"1,2,3\n",
+		"4,5,6\n",
+		"7,8,9\n",
+	}
+
+	csvFile1 := "test1.csv"
+
+	err = prepareData(data1, csvFile1)
+	assert.Nil(t, err)
+
+	data2 := []string{
+		"a,b,c\n",
+		"10,20,30\n",
+		"40,50,60\n",
+		"70,80,90\n",
+	}
+
+	csvFile2 := "test2.csv"
+
+	err = prepareData(data2, csvFile2)
+	assert.Nil(t, err)
+
+	dp1 := NewInputLookupDP(&structs.InputLookup{
+		IsFirstCommand: true,
+		Filename:       csvFile1,
+		Max:            2,
+	},
+	)
+
+	dp2 := NewInputLookupDP(&structs.InputLookup{
+		Filename: csvFile2,
+		Start:    1,
+		Max:      3,
+	},
+	)
+	dp2.streams = append(dp2.streams, NewCachedStream(dp1))
+
+	expectedCols := map[string]struct{}{
+		"a": {},
+		"b": {},
+		"c": {},
+	}
+
+	finalRes := iqr.NewIQR(0)
+
+	for {
+		iqr, err := dp2.Fetch()
+		if err == io.EOF {
+			break
+		}
+		assert.Nil(t, err)
+		assert.NotNil(t, iqr)
+		err = finalRes.Append(iqr)
+		assert.Nil(t, err)
+	}
+
+	assert.Equal(t, 4, finalRes.NumberOfRecords())
+	actualCols, err := finalRes.GetColumns()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedCols, actualCols)
+
+	col_a, err := finalRes.ReadColumn("a")
+	assert.Nil(t, err)
+	expected := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "1"},
+		{Dtype: utils.SS_DT_STRING, CVal: "4"},
+		{Dtype: utils.SS_DT_STRING, CVal: "40"},
+		{Dtype: utils.SS_DT_STRING, CVal: "70"},
+	}
+	assert.Equal(t, expected, col_a)
+
+	col_b, err := finalRes.ReadColumn("b")
+	assert.Nil(t, err)
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "2"},
+		{Dtype: utils.SS_DT_STRING, CVal: "5"},
+		{Dtype: utils.SS_DT_STRING, CVal: "50"},
+		{Dtype: utils.SS_DT_STRING, CVal: "80"},
+	}
+	assert.Equal(t, expected, col_b)
+
+	col_c, err := finalRes.ReadColumn("c")
+	assert.Nil(t, err)
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "3"},
+		{Dtype: utils.SS_DT_STRING, CVal: "6"},
+		{Dtype: utils.SS_DT_STRING, CVal: "60"},
+		{Dtype: utils.SS_DT_STRING, CVal: "90"},
+	}
+	assert.Equal(t, expected, col_c)
 
 	os.RemoveAll(config.GetDataPath())
 }
