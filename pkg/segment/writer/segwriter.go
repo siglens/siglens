@@ -1161,7 +1161,7 @@ func GetPQMRDirFromSegKey(segKey string) string {
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
-	cw *ColWip, cnameToBloomSize map[string]uint64) error {
+	cw *ColWip) error {
 
 	// no bloom for timestamp column
 	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
@@ -1177,11 +1177,7 @@ func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
 
 	switch encType[0] {
 	case ZSTD_COMLUNAR_BLOCK[0]:
-		bloomSize, ok := cnameToBloomSize[cname]
-		if !ok {
-			return utils.TeeErrorf("writeToBloom: cnameToBloomSize does not have cname=%v", cname)
-		}
-		return cw.writeNonDeBloom(buf, bi, bloomSize, ss.wipBlock.blockSummary.RecCount, cname)
+		return cw.writeNonDeBloom(buf, bi, ss.wipBlock.blockSummary.RecCount, cname)
 	case ZSTD_DICTIONARY_BLOCK[0]:
 		return cw.writeDeBloom(buf, bi)
 	default:
@@ -1223,13 +1219,24 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 	return nil
 }
 
-func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, bloomSize uint64,
-	numRecs uint16, cname string) error {
+func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+	cname string) error {
 
+	bloomEstimate := uint(numRecs) * 2
+	bi.Bf = bloom.NewWithEstimates(bloomEstimate, BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+	err := cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error computing bloom size needed for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	bloomSize := bi.uniqueWordCount
 	bi.Bf = bloom.NewWithEstimates(uint(bloomSize), BLOOM_COLL_PROBABILITY)
 	bi.uniqueWordCount = 0
 
-	err := cw.writeToBloom(buf, bi, numRecs, cname)
+	err = cw.writeToBloom(buf, bi, numRecs, cname)
 	if err != nil {
 		log.Errorf("writeNonDeBloom: error writing to bloom for col: %v, err: %v",
 			cname, err)
@@ -1267,57 +1274,6 @@ func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 		idx += uint32(endIdx)
 	}
 	return nil
-}
-
-func (cw *ColWip) getEncodingType(cname string) ([]byte, error) {
-	if cname == config.GetTimeStampKey() {
-		return TIMESTAMP_TOPDIFF_VARENC, nil
-	}
-
-	if cw == nil {
-		return nil, fmt.Errorf("getEncodingType: colWip is nil for cname=%v", cname)
-	} else if cw.deData == nil {
-		return nil, fmt.Errorf("getEncodingType: colWip.deData is nil for cname=%v", cname)
-	}
-
-	deCount := cw.deData.deCount
-	if deCount > 0 && deCount < wipCardLimit {
-		return ZSTD_DICTIONARY_BLOCK, nil
-	} else {
-		return ZSTD_COMLUNAR_BLOCK, nil
-	}
-}
-
-func (cw *ColWip) needsNonDeBloom(cname string) bool {
-	encodingType, err := cw.getEncodingType(cname)
-	if err != nil {
-		log.Errorf("needsNonDeBloom: error getting encoding type for col: %v, err: %v",
-			cname, err)
-		return false
-	}
-
-	return bytes.Equal(encodingType, ZSTD_COMLUNAR_BLOCK)
-
-	// // we don't need bloom for timestamp column
-	// if cname == config.GetTimeStampKey() {
-	// 	return false
-	// }
-
-	// if cw == nil {
-	// 	log.Warnf("needsNonDeBloom: colWip is nil for cname=%v", cname)
-	// 	return false
-	// } else if cw.deData == nil {
-	// 	log.Warnf("needsNonDeBloom: colWip.deData is nil for cname=%v", cname)
-	// 	return false
-	// }
-
-	// deCount := cw.deData.deCount
-	// if deCount > 0 && deCount < wipCardLimit {
-	// 	// This is a DE column.
-	// 	return false
-	// }
-
-	// return true
 }
 
 /*

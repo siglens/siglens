@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
@@ -553,32 +552,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			segstore.computeStarTree()
 		}
 
-		numRecords := segstore.wipBlock.blockSummary.RecCount
-		bloomIndex := BloomIndex{
-			Bf:              bloom.NewWithEstimates(uint(2*numRecords), utils.BLOOM_COLL_PROBABILITY),
-			uniqueWordCount: 0,
-			HistoricalCount: make([]uint32, 0),
-		}
-		cnameToBloomSize := make(map[string]uint64)
-		bufIndex := 0
-		for cname, colWip := range segstore.wipBlock.colWips {
-			if colWip.needsNonDeBloom(cname) {
-				bloomIndex.Bf.ClearAll()
-				bloomIndex.uniqueWordCount = 0
-
-				colData := segstore.workBufForCompression[bufIndex]
-				err := colWip.writeToBloom(colData, &bloomIndex, numRecords, cname)
-				if err != nil {
-					log.Errorf("AppendWipToSegfile: failed to compute bloom size for col=%v; err=%v",
-						cname, err)
-				}
-
-				cnameToBloomSize[cname] = uint64(bloomIndex.uniqueWordCount)
-			}
-
-			bufIndex++
-		}
-
 		compBufIdx := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
@@ -601,8 +574,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 					}
 
 					if !isKibana {
-						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)],
-							cname, colWip, cnameToBloomSize)
+						err := segstore.writeToBloom(encType, compBuf[:cap(compBuf)], cname, colWip)
 						if err != nil {
 							log.Errorf("AppendWipToSegfile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
 							return
