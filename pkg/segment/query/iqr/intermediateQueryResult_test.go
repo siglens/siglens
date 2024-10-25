@@ -621,13 +621,13 @@ func getTestValuesForSegmentStats() ([]*structs.BucketHolder, []string, []string
 	return bucketHolderSlice, groupByCols, measureFuncs
 }
 
-func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
+func Test_CreateRRCStatsResults_GroupBy(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForGroupBy()
 
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -671,12 +671,12 @@ func Test_AppendRRCStatsResults_GroupBy(t *testing.T) {
 	}
 }
 
-func Test_AppendRRCStatsResults_SegmentStats(t *testing.T) {
+func Test_CreateRRCStatsResults_SegmentStats(t *testing.T) {
 	bucketHolderSlice, groupByCols, measureFuncs := getTestValuesForSegmentStats()
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
@@ -709,14 +709,14 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount := len(bucketHolderSlice)
 
 	iqr := NewIQR(0)
-	err := iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err := iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err := iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
@@ -727,17 +727,20 @@ func Test_getFinalStatsResults(t *testing.T) {
 	bucketCount = len(bucketHolderSlice)
 
 	iqr = NewIQR(0)
-	err = iqr.AppendStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
+	err = iqr.CreateStatsResults(bucketHolderSlice, measureFuncs, groupByCols, bucketCount)
 	assert.NoError(t, err)
 
 	actualBucketHolderSlice, actualGroupByCols, actualMeasureFuncs, actualBucketCount, err = iqr.getFinalStatsResults()
 	assert.NoError(t, err)
 	assert.Equal(t, bucketCount, actualBucketCount)
 	assert.Equal(t, groupByCols, actualGroupByCols)
-	assert.Equal(t, measureFuncs, actualMeasureFuncs)
+	assert.ElementsMatch(t, measureFuncs, actualMeasureFuncs)
 
 	for i, expectedBucketHolder := range bucketHolderSlice {
 		actualBucketHolder := actualBucketHolderSlice[i]
+		if len(expectedBucketHolder.GroupByValues) == 0 {
+			expectedBucketHolder.GroupByValues = []string{"*"}
+		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
 }

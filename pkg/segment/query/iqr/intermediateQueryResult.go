@@ -870,13 +870,16 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	return response, nil
 }
 
-func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
+func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("qid=%v, IQR.AppendStatsResults: validation failed: %v", iqr.qid, err)
+		log.Errorf("qid=%v, IQR.CreateStatsResults: validation failed: %v", iqr.qid, err)
 		return err
 	}
 
 	iqr.mode = withoutRRCs
+	for col := range iqr.knownValues {
+		delete(iqr.knownValues, col)
+	}
 
 	knownValues := make(map[string][]utils.CValueEnclosure)
 
@@ -915,11 +918,11 @@ func (iqr *IQR) AppendStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 		return err
 	}
 
-	iqr.groupbyColumns = append(iqr.groupbyColumns, aggGroupByCols...)
-	iqr.measureColumns = append(iqr.measureColumns, measureFuncs...)
+	iqr.groupbyColumns = aggGroupByCols
+	iqr.measureColumns = measureFuncs
 
 	if errIndex > 0 {
-		log.Errorf("qid=%v, IQR.AppendStatsResults: conversion errors: %v", iqr.qid, conversionErrors)
+		log.Errorf("qid=%v, IQR.CreateStatsResults: conversion errors: %v", iqr.qid, conversionErrors)
 	}
 
 	return nil
@@ -945,7 +948,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
 
 	groupByColumns := make([]string, 0, len(iqr.groupbyColumns))
-	measureColumns := make([]string, 0, len(iqr.measureColumns))
+	measureColumns := make([]string, 0)
+
+	grpByCols := make(map[string]struct{})
 
 	// Rename and delete groupbyColumns and measureColumns based on the renamedColumns, deletedColumns map
 	for i, groupColName := range iqr.groupbyColumns {
@@ -959,15 +964,19 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		}
 
 		groupByColumns = append(groupByColumns, finalColName)
+		grpByCols[finalColName] = struct{}{}
 	}
 
-	for i, measureColName := range iqr.measureColumns {
-		if newColName, ok := iqr.renamedColumns[measureColName]; ok {
-			iqr.measureColumns[i] = newColName
+	for col := range iqr.knownValues {
+		finalColName := col
+		if newColName, ok := iqr.renamedColumns[col]; ok {
+			finalColName = newColName
 		}
-
-		finalColName := iqr.measureColumns[i]
+		iqr.measureColumns = append(iqr.measureColumns, finalColName)
 		if _, ok := iqr.deletedColumns[finalColName]; ok {
+			continue
+		}
+		if _, ok := grpByCols[finalColName]; ok {
 			continue
 		}
 
@@ -991,6 +1000,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
 			}
 			bucketHolderArr[i].GroupByValues[idx] = convertedValue
+		}
+		if groupByColLen == 0 {
+			bucketHolderArr[i].GroupByValues = []string{"*"}
 		}
 
 		for _, measureFunc := range measureColumns {
