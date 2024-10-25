@@ -1262,24 +1262,24 @@ func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 	return nil
 }
 
-// func (cw *ColWip) getEncodingType(cname string) ([]byte, error) {
-// 	if cname == config.GetTimeStampKey() {
-// 		return TIMESTAMP_TOPDIFF_VARENC, nil
-// 	}
+func (cw *ColWip) getEncodingType(cname string) ([]byte, error) {
+	if cname == config.GetTimeStampKey() {
+		return TIMESTAMP_TOPDIFF_VARENC, nil
+	}
 
-// 	if cw == nil {
-// 		return nil, fmt.Errorf("getEncodingType: colWip is nil for cname=%v", cname)
-// 	} else if cw.deData == nil {
-// 		return nil, fmt.Errorf("getEncodingType: colWip.deData is nil for cname=%v", cname)
-// 	}
+	if cw == nil {
+		return nil, fmt.Errorf("getEncodingType: colWip is nil for cname=%v", cname)
+	} else if cw.deData == nil {
+		return nil, fmt.Errorf("getEncodingType: colWip.deData is nil for cname=%v", cname)
+	}
 
-// 	deCount := cw.deData.deCount
-// 	if deCount > 0 && deCount < wipCardLimit {
-// 		return ZSTD_DICTIONARY_BLOCK, nil
-// 	} else {
-// 		return ZSTD_COMLUNAR_BLOCK, nil
-// 	}
-// }
+	deCount := cw.deData.deCount
+	if deCount > 0 && deCount < wipCardLimit {
+		return ZSTD_DICTIONARY_BLOCK, nil
+	} else {
+		return ZSTD_COMLUNAR_BLOCK, nil
+	}
+}
 
 /*
 Adds the fullWord and sub-words (lowercase as well) to the bloom
