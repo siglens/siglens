@@ -243,6 +243,17 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 	}
 }
 
+func NewRenameDP(options *structs.RenameExp) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &renameProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
