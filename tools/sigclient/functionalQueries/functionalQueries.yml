@@ -8,13 +8,16 @@ search_1col_fields.json
 grpby_1col_4stats.json
 3stats.json
 bin.json
+9stats.json
+stats_groupby_with_eval.json
+9stats_groupby_2col.json
+# fillnull_with_eval.json
+# stats_group_by_eval.json
 # eval_groupby_2col_2stats.json
 
 ## Uncomment when implemented for new pipline
-# 9stats.json
 # rare.json
 # sort_tail_eval_newField.json
-# stats_groupby_with_eval.json
 # streamstats_win3.json
 # streamstats_win4_currF.json
 # streamstats_win4_grpby.json
@@ -28,7 +31,6 @@ bin.json
 # multi_value.json
 
 ## Queries not working for multi-index
-# 9stats_groupby_2col.json
 # gentimes.json
 # inputlookup.json
 # inputlookup_2.json

@@ -71,6 +71,11 @@ type RenameExpr struct {
 	NewPattern      string
 }
 
+type RenameExp struct {
+	RenameExprMode RenameExprMode
+	RenameColumns  map[string]string
+}
+
 type RegexExpr struct {
 	Op        string // must be "=" or "!="
 	Field     string
@@ -1583,6 +1588,27 @@ func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, er
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
 		return "", fmt.Errorf("RenameExpr.ProcessRenameRegexExpression: There are some errors in the pattern: %v, err: %v", regexPattern, err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
+func ProcessRenameRegexExp(origPattern string, newPattern string, colName string) (string, error) {
+
+	regexPattern := `\b` + strings.ReplaceAll(origPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExp: There are some errors in the pattern: %v, err: %v", regexPattern, err)
 	}
 
 	matchingParts := regex.FindStringSubmatch(colName)

@@ -286,9 +286,12 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 	}
 
-	for oldName := range iqr.renamedColumns {
-		// TODO: don't read these columns from the RRCs, instead of reading and
-		// then deleting them.
+	for oldName, newName := range iqr.renamedColumns {
+		_, exists := results[oldName]
+		if !exists {
+			continue
+		}
+		results[newName] = results[oldName]
 		delete(results, oldName)
 	}
 
@@ -746,10 +749,45 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 		return err
 	}
 
-	iqr.renamedColumns[oldName] = newName
-	if values, ok := iqr.knownValues[oldName]; ok {
+	// delete newName since it would be overwritten
+	delete(iqr.knownValues, newName)
+
+	values, ok := iqr.knownValues[oldName]
+	if ok {
+		// if old name is present it means that it must be a created column
+		// so we will rename it and update the knownValues map
+		iqr.renamedColumns[oldName] = newName
 		iqr.knownValues[newName] = values
-		delete(iqr.knownValues, oldName)
+	} else {
+		// if oldname is not present in the knownValues map we need to check if this column
+		// was renamed earlier so we can rename it that to the latest newname
+		// for e.x. colA renamed to colB and then colB renamed to colC
+		// we need to make colA renamed to colC
+		// if colA to colB rename is not present, we just add colB to colC rename
+		found := false
+		for old, new := range iqr.renamedColumns {
+			if new == oldName {
+				iqr.renamedColumns[old] = newName
+				found = true
+				break
+			}
+		}
+		if !found {
+			iqr.renamedColumns[oldName] = newName
+		}
+	}
+	delete(iqr.knownValues, oldName)
+
+	for i, name := range iqr.groupbyColumns {
+		if name == oldName {
+			iqr.groupbyColumns[i] = newName
+		}
+	}
+
+	for i, name := range iqr.measureColumns {
+		if name == oldName {
+			iqr.measureColumns[i] = newName
+		}
 	}
 
 	return nil

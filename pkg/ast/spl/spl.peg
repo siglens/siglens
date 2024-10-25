@@ -814,12 +814,17 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
     measureAggs := make([]*structs.MeasureAggregator, len(aggsSlice))
     columnsRequest := &structs.ColumnsRequest{}
     columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+    renameExp := &structs.RenameExp{
+        RenameExprMode: structs.REMOverride,
+        RenameColumns: make(map[string]string, 0),
+    }
 
     for i, agg := range aggsSlice {
         measureAggs[i] = agg.measureAgg
 
         if agg.renameOutputField {
             columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
+            renameExp.RenameColumns[measureAggs[i].String()] = agg.outputFieldNewName
         }
     }
 
@@ -830,6 +835,7 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
             OutputTransforms: &structs.OutputTransforms {
                 OutputColumns: columnsRequest,
             },
+            RenameExp: renameExp,
         }
 
         aggNode.Next = renameNode
@@ -2196,12 +2202,19 @@ RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
     letColReq := &structs.LetColumnsRequest {
         RenameColRequest: renameExpr.(*structs.RenameExpr),
     }
+    renameExp := &structs.RenameExp {
+        RenameExprMode: letColReq.RenameColRequest.RenameExprMode,
+        RenameColumns: map[string]string{
+            letColReq.RenameColRequest.OriginalPattern: letColReq.RenameColRequest.NewPattern,
+        },
+    }
 
     root := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RenameExp: renameExp,
     }
 
     return root, nil
