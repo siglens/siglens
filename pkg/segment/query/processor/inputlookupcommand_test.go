@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -114,3 +115,60 @@ func Test_InputLookup(t *testing.T) {
 }
 
 // TODO: Add more tests for different cases
+func Test_InputLookupMultiple(t *testing.T) {
+
+	data := []string{"a,b,c\n"}
+	for i := 0; i < 110; i++ {
+		idx := fmt.Sprintf("%v", i)
+		row := "a"+idx + ",b"+idx + ",c"+idx + "\n"
+		data = append(data, row)
+	}
+
+	csvFile := "test.csv"
+
+	err := prepareData(data, csvFile)
+	assert.Nil(t, err)
+
+	dp := NewInputLookupDP(&structs.InputLookup{
+		IsFirstCommand: true,
+		Filename:       csvFile,
+		Start:          1,
+		Max:            10000,
+	},
+	)
+
+	iqr, err := dp.Fetch()
+	assert.Nil(t, err)
+	assert.NotNil(t, iqr)
+	assert.Equal(t, 2, iqr.NumberOfRecords())
+
+	col_a, err := iqr.ReadColumn("a")
+	assert.Nil(t, err)
+	expected := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "4"},
+		{Dtype: utils.SS_DT_STRING, CVal: "7"},
+	}
+	assert.Equal(t, expected, col_a)
+
+	col_b, err := iqr.ReadColumn("b")
+	assert.Nil(t, err)
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "5"},
+		{Dtype: utils.SS_DT_STRING, CVal: "8"},
+	}
+	assert.Equal(t, expected, col_b)
+
+	col_c, err := iqr.ReadColumn("c")
+	assert.Nil(t, err)
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "6"},
+		{Dtype: utils.SS_DT_STRING, CVal: "9"},
+	}
+	assert.Equal(t, expected, col_c)
+
+	iqr, err = dp.Fetch()
+	assert.Equal(t, io.EOF, err)
+	assert.Nil(t, iqr)
+
+	os.RemoveAll(getLookupPath())
+}
