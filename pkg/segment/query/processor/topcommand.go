@@ -37,3 +37,7 @@ func (p *topProcessor) Rewind() {
 func (p *topProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *topProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

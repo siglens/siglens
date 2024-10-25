@@ -141,6 +141,10 @@ func (p *binProcessor) Cleanup() {
 	// Nothing to do
 }
 
+func (p *binProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
+
 func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error {
 	value, err := cval.GetFloatValue()
 	if err != nil {

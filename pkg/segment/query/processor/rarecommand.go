@@ -37,3 +37,7 @@ func (p *rareProcessor) Rewind() {
 func (p *rareProcessor) Cleanup() {
 	panic("not implemented")
 }
+
+func (p *rareProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}

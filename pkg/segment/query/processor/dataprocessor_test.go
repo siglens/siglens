@@ -94,6 +94,9 @@ func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 
 func (ptp *passThroughProcessor) Rewind()  {}
 func (ptp *passThroughProcessor) Cleanup() {}
+func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
 
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
@@ -125,15 +128,21 @@ func Test_Fetch_nonBottleneck(t *testing.T) {
 }
 
 type mockBottleneckProcessor struct {
-	numSeen     int
-	lastSeenIQR *iqr.IQR
-	name        string // For debugging.
+	numSeen          int
+	lastSeenIQR      *iqr.IQR
+	name             string // For debugging.
+	finalResultExits bool
 }
 
 func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
-	defer func() { mbp.lastSeenIQR = input }()
+	defer func() {
+		if input != nil {
+			mbp.lastSeenIQR = input
+		}
+	}()
 
 	if input == nil {
+		mbp.finalResultExits = true
 		return mbp.lastSeenIQR, io.EOF
 	}
 
@@ -143,6 +152,12 @@ func (mbp *mockBottleneckProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 
 func (mbp *mockBottleneckProcessor) Rewind()  {}
 func (mbp *mockBottleneckProcessor) Cleanup() {}
+func (mbp *mockBottleneckProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if mbp.finalResultExits {
+		return mbp.lastSeenIQR, true
+	}
+	return mbp.lastSeenIQR, false
+}
 
 func Test_Fetch_bottleneck(t *testing.T) {
 	stream := &mockStreamer{
@@ -195,6 +210,9 @@ func (mtp *mockTwoPassProcessor) Rewind() {
 	mtp.secondPass = true
 }
 func (mtp *mockTwoPassProcessor) Cleanup() {}
+func (mtp *mockTwoPassProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
 
 func Test_Fetch_twoPass(t *testing.T) {
 	stream := &mockStreamer{

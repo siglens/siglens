@@ -30,6 +30,7 @@ type processor interface {
 	Cleanup()
 	Process(*iqr.IQR) (*iqr.IQR, error)
 	Rewind()
+	GetFinalResultIfExists() (*iqr.IQR, bool)
 }
 
 type DataProcessor struct {
@@ -75,19 +76,28 @@ func (dp *DataProcessor) Rewind() {
 
 func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	var output *iqr.IQR
+	var resultExists bool
 
 	for {
 		gotEOF := false
-		input, err := dp.getStreamInput()
-		if err != nil && err != io.EOF {
-			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
-		}
 
-		output, err = dp.processor.Process(input)
-		if err == io.EOF {
+		// Check if the processor has a final result.
+		output, resultExists = dp.processor.GetFinalResultIfExists()
+		if resultExists {
 			gotEOF = true
-		} else if err != nil {
-			return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+		} else {
+			// if the processor doesn't have a final result, fetch it from the input streams.
+			input, err := dp.getStreamInput()
+			if err != nil && err != io.EOF {
+				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
+			}
+
+			output, err = dp.processor.Process(input)
+			if err == io.EOF {
+				gotEOF = true
+			} else if err != nil {
+				return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+			}
 		}
 
 		if gotEOF {
@@ -350,7 +360,7 @@ func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
 func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &statsProcessor{options: options},
+		processor:         NewStatsProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
