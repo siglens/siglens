@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"time"
 
