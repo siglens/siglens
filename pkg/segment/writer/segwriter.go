@@ -1306,7 +1306,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	hasUpper := utils.HasUpper(copy)
 
 	// add the original full
-	if blockBloom.TestAndAdd(copy) {
+	if !blockBloom.TestAndAdd(copy) {
 		blockWordCount++
 	}
 
@@ -1318,7 +1318,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		}
 		hasSubWords = true
 		// add original sub word
-		if blockBloom.TestAndAdd(copy[:i]) {
+		if !blockBloom.TestAndAdd(copy[:i]) {
 			blockWordCount++
 		}
 
@@ -1328,7 +1328,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			if blockBloom.TestAndAdd(word) {
+			if !blockBloom.TestAndAdd(word) {
 				blockWordCount++
 			}
 		}
@@ -1337,14 +1337,14 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 
 	// handle last word. If no word was found, then we have already added the full word
 	if hasSubWords && len(copy) > 0 {
-		if blockBloom.TestAndAdd(copy) {
+		if !blockBloom.TestAndAdd(copy) {
 			blockWordCount++
 		}
 		word, err := utils.BytesToLower(copy, workBuf)
 		if err != nil {
 			return 0, err
 		}
-		if blockBloom.TestAndAdd(word) {
+		if !blockBloom.TestAndAdd(word) {
 			blockWordCount++
 		}
 	}
@@ -1354,7 +1354,7 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		if err != nil {
 			return 0, err
 		}
-		if blockBloom.TestAndAdd(word) {
+		if !blockBloom.TestAndAdd(word) {
 			blockWordCount++
 		}
 	}
