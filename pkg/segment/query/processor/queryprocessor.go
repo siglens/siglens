@@ -21,6 +21,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -216,9 +217,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
-	completeChan chan *structs.PipeSearchCompleteResponse) error {
-	
+func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
+
 	var finalIQR *iqr.IQR
 	var err error
 	totalRecords := 0
@@ -227,10 +227,11 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 	completeResp := &structs.PipeSearchCompleteResponse{
 		Qtype: qp.queryType.String(),
 	}
+
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+			return utils.TeeErrorf("GetStreamedResult: failed to fetch; err=%v", err)
 		}
 		if iqr == nil {
 			break
@@ -240,35 +241,53 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 		} else {
 			appendErr := finalIQR.Append(iqr)
 			if appendErr != nil {
-				return utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+				return utils.TeeErrorf("GetStreamedResult: failed to append; err=%v", appendErr)
 			}
 		}
-		
-		result, wsErr := iqr.AsWSResult(qp.queryType, false)
-		if wsErr != nil {
-			return utils.TeeErrorf("GetFullResult: failed to convert iqr to result; wsErr: %v", err)
+
+		if qp.queryType == structs.RRCCmd {
+			result, wsErr := iqr.AsWSResult(qp.queryType, false)
+			if wsErr != nil {
+				return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; wsErr: %v", err)
+			}
+			totalRecords += len(result.Hits.Hits)
+			stateChan <- &query.QueryStateChanData{
+				StateName:    query.QUERY_UPDATE,
+				UpdateWSResp: result,
+			}
 		}
-		totalRecords += len(result.Hits.Hits)
-		updateChan <- result
-		if qp.queryType != structs.RRCCmd {
-			completeResp.MeasureResults = result.MeasureResults
-			completeResp.MeasureFunctions = result.MeasureFunctions
-			completeResp.GroupByCols = result.GroupByCols
-			completeResp.BucketCount = result.BucketCount
+	}
+
+	if qp.queryType != structs.RRCCmd {
+		result, err := finalIQR.AsWSResult(qp.queryType, false)
+		if err != nil {
+			return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; err: %v", err)
 		}
+		completeResp.MeasureResults = result.MeasureResults
+		completeResp.MeasureFunctions = result.MeasureFunctions
+		completeResp.GroupByCols = result.GroupByCols
+		completeResp.BucketCount = result.BucketCount
 	}
 
 	progress, err := query.GetProgress(qp.qid)
 	if err != nil {
-		return utils.TeeErrorf("GetStreamedResult: failed to get progress; err=%v", err)
+		return utils.TeeErrorf("GetStreamedResult: failed to get progress; err: %v", err)
 	}
 
-	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: "eq"}
-	completeResp.State = query.COMPLETE.String()
-	completeResp.TotalEventsSearched = progress.TotalRecords
-	completeResp.TotalRRCCount = totalRecords
+	relation := "eq"
+	if progress.UnitsSearched < progress.TotalUnits {
+		relation = "gte"
+	}
 
-	completeChan <- completeResp
+	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
+	completeResp.State = query.COMPLETE.String()
+	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
+	completeResp.TotalRRCCount = humanize.Comma(int64(totalRecords))
+
+	stateChan <- &query.QueryStateChanData{
+		StateName:      query.COMPLETE,
+		CompleteWSResp: completeResp,
+	}
 
 	return nil
 }

@@ -464,10 +464,11 @@ type QueryCount struct {
 }
 
 type Progress struct {
-	BlocksSearched uint64
-	TotalBlocks         uint64
+	UnitsSearched   uint64
+	TotalUnits      uint64
 	RecordsSearched uint64
-	TotalRecords        uint64
+	TotalRecords    uint64
+	Relation        string
 }
 
 // A helper struct to keep track of errors and results together

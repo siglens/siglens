@@ -451,34 +451,33 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	return res
 }
 
-func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, 
-	qc *structs.QueryContext, updateChan chan *structs.PipeSearchWSUpdateResponse, completeChan chan *structs.PipeSearchCompleteResponse) (chan *query.QueryStateChanData, error) {
+func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
 	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
+		log.Errorf("ExecuteAsyncQueryForNewPipeline: Error initializing query status! %+v", err)
 		return nil, err
 	}
 
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
-		log.Errorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to prepare to run query, err: %v", qid, err)
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to create query processor, err: %v", qid, err)
 		return nil, err
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
-		log.Errorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to set cleanup callback, err: %v", qid, err)
 		return nil, err
 	}
 
 	go func() {
-		queryProcessor.GetStreamedResult(updateChan, completeChan)
+		_ = queryProcessor.GetStreamedResult(rQuery.StateChan)
 	}()
 	return rQuery.StateChan, nil
 }

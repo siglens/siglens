@@ -1053,7 +1053,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 }
 
 func (iqr *IQR) AsWSResult(qType structs.QueryType, sortByTime bool) (*structs.PipeSearchWSUpdateResponse, error) {
-	
+
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting result: %v", err)
@@ -1063,20 +1063,11 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, sortByTime bool) (*structs.P
 	if err != nil {
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting progress: %v", err)
 	}
-	percComplete := float64(0)
-	if progress.TotalBlocks > 0 {
-		percComplete = (float64(progress.BlocksSearched) * 100) / float64(progress.TotalBlocks)
-	}
 
-	wsResponse := &structs.PipeSearchWSUpdateResponse{
-		Completion:               float64(percComplete),
-		State:                    query.QUERY_UPDATE.String(),
-		TotalEventsSearched:      progress.RecordsSearched,
-		TotalPossibleEvents:      progress.TotalRecords,
-		Qtype:                    qType.String(),
-		SortByTimestampAtDefault: sortByTime,
-		ColumnsOrder: resp.ColumnsOrder,
-	}
+	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress)
+
+	wsResponse.SortByTimestampAtDefault = sortByTime
+	wsResponse.ColumnsOrder = resp.ColumnsOrder
 
 	switch qType {
 	case structs.RRCCmd:

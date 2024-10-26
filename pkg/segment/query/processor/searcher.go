@@ -68,7 +68,7 @@ type searcher struct {
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
 	sortMode sortMode, startTime time.Time) (*searcher, error) {
-	
+
 	if queryInfo == nil {
 		return nil, toputils.TeeErrorf("searchProcessor.NewSearcher: queryInfo is nil")
 	}
@@ -125,7 +125,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 
 			s.remainingBlocksSorted = blocks
 			s.gotBlocks = true
-			query.InitProgress(uint64(len(blocks)), s.qid)
+			query.InitProgressForRRCCmd(uint64(len(blocks)), s.qid)
 		}
 
 		return s.fetchRRCs()
@@ -211,7 +211,10 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	query.IncProgress(getNumRecords(nextBlocks), uint64(len(nextBlocks)), s.qid)
+	err = query.IncProgressForRRCCmd(getNumRecords(nextBlocks), uint64(len(nextBlocks)), s.qid)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: failed to increment progress: %v", s.qid, err)
+	}
 
 	return iqr, nil
 }
