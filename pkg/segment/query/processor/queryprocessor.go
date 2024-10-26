@@ -219,12 +219,14 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
 	completeChan chan *structs.PipeSearchCompleteResponse) error {
 	
-	finalIQR := iqr.NewIQR(qp.qid)
+	var finalIQR *iqr.IQR
 	var err error
 	totalRecords := 0
 
 	var iqr *iqr.IQR
-	completeResp := &structs.PipeSearchCompleteResponse{}
+	completeResp := &structs.PipeSearchCompleteResponse{
+		Qtype: qp.queryType.String(),
+	}
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -233,9 +235,13 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 		if iqr == nil {
 			break
 		}
-		appendErr := finalIQR.Append(iqr)
-		if appendErr != nil {
-			return utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+		if finalIQR == nil {
+			finalIQR = iqr
+		} else {
+			appendErr := finalIQR.Append(iqr)
+			if appendErr != nil {
+				return utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+			}
 		}
 		
 		result, wsErr := iqr.AsWSResult(qp.queryType, false)
@@ -248,6 +254,7 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 			completeResp.MeasureResults = result.MeasureResults
 			completeResp.MeasureFunctions = result.MeasureFunctions
 			completeResp.GroupByCols = result.GroupByCols
+			completeResp.BucketCount = result.BucketCount
 		}
 	}
 
@@ -258,7 +265,7 @@ func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchW
 
 	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: "eq"}
 	completeResp.State = query.COMPLETE.String()
-	completeResp.TotalEventsSearched = progress.TotalBlocks
+	completeResp.TotalEventsSearched = progress.TotalRecords
 	completeResp.TotalRRCCount = totalRecords
 
 	completeChan <- completeResp

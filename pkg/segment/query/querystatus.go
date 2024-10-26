@@ -272,6 +272,18 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 			QueryUpdate:     &queryUpdate,
 			PercentComplete: perComp}
 	}
+
+	if config.IsNewQueryPipelineEnabled() && rQuery.isAsync{
+		if rQuery.Progress == nil {
+			rQuery.Progress = &structs.Progress{
+				TotalBlocks: rQuery.totalSegments,
+				TotalRecords: rQuery.totalRecsToBeSearched,
+			}
+		}
+		rQuery.Progress.BlocksSearched = rQuery.finishedSegments
+		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
+	}
+
 }
 
 func setTotalSegmentsToSearch(qid uint64, numSegments uint64) error {
@@ -1016,10 +1028,11 @@ func InitProgress(totalBlocks uint64, qid uint64) {
 
 	rQuery.Progress = &structs.Progress{
 		TotalBlocks: totalBlocks,
+		TotalRecords: rQuery.totalRecsToBeSearched,
 	}
 }
 
-func IncSearchedBlocks(blocksSearched uint64, qid uint64) error {
+func IncProgress(recordsSearched uint64, blocksSearched uint64, qid uint64) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -1035,6 +1048,8 @@ func IncSearchedBlocks(blocksSearched uint64, qid uint64) error {
 	}
 
 	rQuery.Progress.BlocksSearched += blocksSearched
+	rQuery.Progress.RecordsSearched += recordsSearched
+
 	return nil
 }
 
@@ -1113,5 +1128,7 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	return structs.Progress{
 		TotalBlocks:    rQuery.Progress.TotalBlocks,
 		BlocksSearched: rQuery.Progress.BlocksSearched,
+		TotalRecords:   rQuery.Progress.TotalRecords,
+		RecordsSearched: rQuery.Progress.RecordsSearched,
 	}, nil
 }

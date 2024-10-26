@@ -466,6 +466,7 @@ type QueryCount struct {
 type Progress struct {
 	BlocksSearched uint64
 	TotalBlocks         uint64
+	RecordsSearched uint64
 	TotalRecords        uint64
 }
 

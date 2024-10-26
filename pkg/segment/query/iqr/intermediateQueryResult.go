@@ -1071,8 +1071,8 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, sortByTime bool) (*structs.P
 	wsResponse := &structs.PipeSearchWSUpdateResponse{
 		Completion:               float64(percComplete),
 		State:                    query.QUERY_UPDATE.String(),
-		TotalEventsSearched:      progress.BlocksSearched,
-		TotalPossibleEvents:      progress.TotalBlocks,
+		TotalEventsSearched:      progress.RecordsSearched,
+		TotalPossibleEvents:      progress.TotalRecords,
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: sortByTime,
 		ColumnsOrder: resp.ColumnsOrder,

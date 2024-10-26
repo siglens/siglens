@@ -97,6 +97,14 @@ func (s *searcher) Rewind() {
 	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
 }
 
+func getNumRecords(blocks []*block) uint64 {
+	var totalRecords uint64
+	for _, block := range blocks {
+		totalRecords += uint64(block.RecCount)
+	}
+	return totalRecords
+}
+
 func (s *searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
@@ -203,7 +211,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	query.IncSearchedBlocks(uint64(len(nextBlocks)), s.qid)
+	query.IncProgress(getNumRecords(nextBlocks), uint64(len(nextBlocks)), s.qid)
 
 	return iqr, nil
 }
