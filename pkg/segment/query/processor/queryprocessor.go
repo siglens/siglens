@@ -251,7 +251,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 			}
 		}
 
-		if qp.queryType == structs.RRCCmd {
+		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; wsErr: %v", err)

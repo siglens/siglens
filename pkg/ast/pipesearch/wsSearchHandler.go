@@ -235,6 +235,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write complete response to websocket! err: %+v", qid, wErr)
 				}
 				query.DeleteQuery(qid)
+				return
 			default:
 				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got unknown state: %v", qid, qscd.StateName)
 			}
