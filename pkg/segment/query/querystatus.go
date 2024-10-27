@@ -1061,6 +1061,12 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery.Progress.UnitsSearched += unitsSearched
 	rQuery.Progress.RecordsSearched += recordsSearched
 
+	wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+	rQuery.StateChan <- &QueryStateChanData{
+		StateName:    QUERY_UPDATE,
+		UpdateWSResp: wsResponse,
+	}
+
 	return nil
 }
 

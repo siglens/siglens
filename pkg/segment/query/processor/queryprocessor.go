@@ -41,8 +41,9 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain []*DataProcessor // This shouldn't be modified after initialization.
-	qid   uint64
+	chain       []*DataProcessor // This shouldn't be modified after initialization.
+	qid         uint64
+	timeOrdered bool
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -75,8 +76,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
+	timeOrdered := true
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.SortExpr != nil {
+			timeOrdered = false
+		}
 		dataProcessor := asDataProcessor(curAgg)
 		if dataProcessor == nil {
 			break
@@ -98,11 +103,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid())
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), timeOrdered)
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, timeOrdered bool) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -126,6 +131,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		DataProcessor: *headDP,
 		chain:         chain,
 		qid:           qid,
+		timeOrdered:   timeOrdered,
 	}, nil
 }
 
@@ -246,7 +252,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		}
 
 		if qp.queryType == structs.RRCCmd {
-			result, wsErr := iqr.AsWSResult(qp.queryType, false)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; wsErr: %v", err)
 			}
@@ -259,7 +265,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType, false)
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.timeOrdered)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; err: %v", err)
 		}

@@ -1052,7 +1052,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, sortByTime bool) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, timeOrdered bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
@@ -1066,7 +1066,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, sortByTime bool) (*structs.P
 
 	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress)
 
-	wsResponse.SortByTimestampAtDefault = sortByTime
+	wsResponse.SortByTimestampAtDefault = timeOrdered
 	wsResponse.ColumnsOrder = resp.ColumnsOrder
 
 	switch qType {
