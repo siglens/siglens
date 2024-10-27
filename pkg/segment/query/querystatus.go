@@ -60,7 +60,6 @@ type QueryStateChanData struct {
 	StateName       QueryState
 	QueryUpdate     *QueryUpdate
 	PercentComplete float64
-	PipeRes         *structs.PipeSearchResponseOuter
 	UpdateWSResp    *structs.PipeSearchWSUpdateResponse
 	CompleteWSResp  *structs.PipeSearchCompleteResponse
 }
@@ -1055,7 +1054,7 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	defer rQuery.rqsLock.Unlock()
 
 	if rQuery.Progress == nil {
-		return putils.TeeErrorf("IncProgressForRRCCmd: Progress is not initialized!")
+		return putils.TeeErrorf("IncProgressForRRCCmd: Progress is not initialized! for qid=%v", qid)
 	}
 
 	rQuery.Progress.UnitsSearched += unitsSearched
@@ -1083,7 +1082,7 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.Progress == nil {
-		return structs.Progress{}, putils.TeeErrorf("GetProgress: Progress is not initialized!")
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: Progress is not initialized! for qid=%v", qid)
 	}
 
 	return structs.Progress{

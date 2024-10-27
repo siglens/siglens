@@ -237,7 +237,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return utils.TeeErrorf("GetStreamedResult: failed to fetch; err=%v", err)
+			return utils.TeeErrorf("GetStreamedResult: failed to fetch iqr, err: %v", err)
 		}
 		if iqr == nil {
 			break
@@ -247,14 +247,14 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		} else {
 			appendErr := finalIQR.Append(iqr)
 			if appendErr != nil {
-				return utils.TeeErrorf("GetStreamedResult: failed to append; err=%v", appendErr)
+				return utils.TeeErrorf("GetStreamedResult: failed to append iqr to the finalIQR, err: %v", appendErr)
 			}
 		}
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
 			if wsErr != nil {
-				return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; wsErr: %v", err)
+				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
 			totalRecords += len(result.Hits.Hits)
 			stateChan <- &query.QueryStateChanData{
@@ -267,7 +267,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	if qp.queryType != structs.RRCCmd {
 		result, err := finalIQR.AsWSResult(qp.queryType, qp.timeOrdered)
 		if err != nil {
-			return utils.TeeErrorf("GetStreamedResult: failed to convert iqr to result; err: %v", err)
+			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
 		completeResp.MeasureResults = result.MeasureResults
 		completeResp.MeasureFunctions = result.MeasureFunctions
