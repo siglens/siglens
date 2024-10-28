@@ -813,6 +813,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		}
 		isSegmentFullyEnclosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
 
+		// For Unrotated search, Check if the segment is rotated and update the search type accordingly
 		if segReq.sType != structs.SEGMENT_STATS_SEARCH {
 			if utils.IsFileForRotatedSegment(segReq.segKey) {
 				segReq.sType = structs.SEGMENT_STATS_SEARCH
