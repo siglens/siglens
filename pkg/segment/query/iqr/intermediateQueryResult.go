@@ -248,6 +248,28 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	}
 }
 
+func (iqr *IQR) ReadColumns(cnames []string) (map[string][]utils.CValueEnclosure, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumns: validation failed: %v", err)
+	}
+
+	if iqr.mode == notSet {
+		return nil, toputils.TeeErrorf("IQR.ReadColumns: mode not set")
+	}
+
+	result := make(map[string][]utils.CValueEnclosure)
+	for _, cname := range cnames {
+		values, err := iqr.ReadColumn(cname)
+		if err != nil {
+			return nil, toputils.TeeErrorf("IQR.ReadColumns: cannot get values for cname: %s; err: %v", cname, err)
+		}
+
+		result[cname] = values
+	}
+
+	return result, nil
+}
+
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {

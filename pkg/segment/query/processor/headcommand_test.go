@@ -21,10 +21,32 @@ import (
 	"io"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
+
+var BoolExpr = &structs.BoolExpr{
+	LeftValue: &structs.ValueExpr{
+		ValueExprMode: structs.VEMNumericExpr,
+		NumericExpr: &structs.NumericExpr{
+			NumericExprMode: structs.NEMNumberField,
+			Value:           "gender",
+			IsTerminal:      true,
+			ValueIsField:    true,
+		},
+	},
+	RightValue: &structs.ValueExpr{
+		ValueExprMode: structs.VEMStringExpr,
+		StringExpr: &structs.StringExpr{
+			StringExprMode: structs.SEMRawString,
+			RawString:      "male",
+		},
+	},
+	ValueOp:    "=",
+	IsTerminal: true,
+}
 
 func Test_Head_WithLimit(t *testing.T) {
 	const headLimit = 2
@@ -62,4 +84,214 @@ func Test_Head_WithLimit(t *testing.T) {
 	}
 
 	assert.Equal(t, headLimit, totalFetched)
+}
+
+func Test_Head_Expr_Basic(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"gender": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+		},
+		"ident": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	}
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	headProcessor1 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			MaxRows:  10,
+		},
+	}
+
+	iqr1, err = headProcessor1.Process(iqr1)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 3, iqr1.NumberOfRecords())
+
+	columnValues, err := iqr1.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:3], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
+
+	iqr2 := iqr.NewIQR(0)
+	err = iqr2.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	headProcessor2 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			MaxRows:  2,
+		},
+	}
+
+	iqr2, err = headProcessor2.Process(iqr2)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 2, iqr2.NumberOfRecords())
+
+	columnValues, err = iqr2.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:2], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:2], columnValues["ident"])
+}
+
+func Test_Head_Expr_Null(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"gender": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+		},
+		"ident": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	}
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	headProcessor1 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			Null:     true,
+			MaxRows:  10,
+		},
+	}
+
+	iqr1, err = headProcessor1.Process(iqr1)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 3, iqr1.NumberOfRecords())
+
+	columnValues, err := iqr1.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:3], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
+}
+
+func Test_Head_Expr_Keeplast(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"gender": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+		},
+		"ident": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		},
+	}
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	headProcessor1 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			Keeplast: true,
+			MaxRows:  10,
+		},
+	}
+
+	iqr1, err = headProcessor1.Process(iqr1)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 2, iqr1.NumberOfRecords())
+
+	columnValues, err := iqr1.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:2], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:2], columnValues["ident"])
+}
+
+func Test_Head_Expr_Multiple(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"gender": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+		},
+		"ident": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "g"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "h"},
+		},
+	}
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	headProcessor1 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			Null:     true,
+			Keeplast: true,
+			MaxRows:  10,
+		},
+	}
+
+	iqr1, err = headProcessor1.Process(iqr1)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 5, iqr1.NumberOfRecords())
+
+	columnValues, err := iqr1.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:5], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:5], columnValues["ident"])
+
+	headProcessor2 := &headProcessor{
+		options: &structs.HeadExpr{
+			BoolExpr: BoolExpr,
+			Null:     true,
+			Keeplast: true,
+			MaxRows:  3,
+		},
+	}
+
+	iqr2 := iqr.NewIQR(0)
+	err = iqr2.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	iqr2, err = headProcessor2.Process(iqr2)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, 3, iqr2.NumberOfRecords())
+
+	columnValues, err = iqr2.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["gender"][:3], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
 }
