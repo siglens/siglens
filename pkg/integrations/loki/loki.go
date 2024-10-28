@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -233,6 +234,11 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
+	tsKey := config.GetTimeStampKey()
+
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
 		ingestCommonFields := parseLabels(labels)
@@ -275,14 +281,20 @@ func ProcessLokiLogsPromtailIngestRequest(ctx *fasthttp.RequestCtx, myid uint64)
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
-					jsParsingStackbuf[:])
+				ple, err := segwriter.GetNewPLE(test, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
-					utils.SendError(ctx, "Failed to ingest record", "", err)
+					log.Errorf("ProcessIndexRequest: failed to get new PLE, test: %v, err: %v", test, err)
 					return
 				}
+				pleArray = append(pleArray, ple)
 			}
 		}
+	}
+
+	err = writer.ProcessIndexRequestPle(tsNow, indexNameIn, false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		utils.SendError(ctx, "Failed to ingest record", "", err)
+		return
 	}
 
 	responsebody["status"] = "Success"
@@ -322,7 +334,7 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SendError(ctx, "Unable to unmarshal request", "", err)
 		return
 	}
-
+	tsKey := config.GetTimeStampKey()
 	tsNow := utils.GetCurrentTimeInMs()
 	indexNameIn := LOKIINDEX
 	if !vtable.IsVirtualTablePresent(&indexNameIn, myid) {
@@ -339,6 +351,9 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	for _, stream := range logData.Streams {
 		allIngestData := make(map[string]interface{})
@@ -385,13 +400,19 @@ func ProcessLokiApiIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				return
 			}
 
-			err = writer.ProcessIndexRequest(allIngestDataBytes, tsNow, indexNameIn, uint64(len(allIngestDataBytes)), false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
-				jsParsingStackbuf[:])
+			ple, err := segwriter.GetNewPLE(allIngestDataBytes, tsNow, indexNameIn, &tsKey, jsParsingStackbuf[:])
 			if err != nil {
-				utils.SendError(ctx, "Failed to ingest record", "", err)
+				utils.SendError(ctx, "failed to get new PLE", fmt.Sprintf("allIngestData: %v", allIngestData), err)
 				return
 			}
+			pleArray = append(pleArray, ple)
 		}
+	}
+
+	err = writer.ProcessIndexRequestPle(tsNow, indexNameIn, false, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		utils.SendError(ctx, "Failed to ingest record", "", err)
+		return
 	}
 
 	responsebody["status"] = "Success"

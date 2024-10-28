@@ -58,6 +58,16 @@ var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 
 var KibanaInternalBaseDir string
 
+var plePool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		ple := NewPLE()
+		return ple
+	},
+}
+
 // Create a writer that caches compressors.
 // For this operation type we supply a nil Reader.
 var encoder, _ = zstd.NewWriter(nil)
@@ -148,6 +158,29 @@ func NewPLE() *ParsedLogEvent {
 		allCvals:        make([][]byte, 0),
 		allCvalsTypeLen: make([][9]byte, 0),
 		numCols:         0,
+	}
+}
+
+func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*ParsedLogEvent, error) {
+	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	ple := plePool.Get().(*ParsedLogEvent)
+	ple.Reset()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexName)
+	err := ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
+	}
+	return ple, nil
+}
+
+func ReleasePLEs(pleArray []*ParsedLogEvent) {
+	for _, ple := range pleArray {
+		plePool.Put(ple)
 	}
 }
 
@@ -1222,15 +1255,42 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 	cname string) error {
 
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the numRecs, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
+	bloomEstimate := uint(numRecs) * 2
+	bi.Bf = bloom.NewWithEstimates(bloomEstimate, BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+	err := cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error computing bloom size needed for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	bloomSize := bi.uniqueWordCount
+	bi.Bf = bloom.NewWithEstimates(uint(bloomSize), BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+
+	err = cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error writing to bloom for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	return nil
+}
+
+func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+	cname string) error {
+
+	if bi == nil {
+		return utils.TeeErrorf("writeToBloom: bloom index is nil for cname: %v", cname)
+	}
+
 	idx := uint32(0)
 	for recNum := uint16(0); recNum < numRecs; recNum++ {
 		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
 		if err != nil {
-			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
+			log.Errorf("writeToBloom: Could not extract val for cname: %v, idx: %v",
 				cname, idx)
 			return err
 		}
@@ -1279,7 +1339,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	hasUpper := utils.HasUpper(copy)
 
 	// add the original full
-	_ = blockBloom.Add(copy)
+	if !blockBloom.TestAndAdd(copy) {
+		blockWordCount++
+	}
 
 	var hasSubWords bool
 	for {
@@ -1289,7 +1351,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		}
 		hasSubWords = true
 		// add original sub word
-		_ = blockBloom.Add(copy[:i])
+		if !blockBloom.TestAndAdd(copy[:i]) {
+			blockWordCount++
+		}
 
 		// add sub word lowercase
 		if hasUpper {
@@ -1297,19 +1361,25 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			_ = blockBloom.Add(word)
+			if !blockBloom.TestAndAdd(word) {
+				blockWordCount++
+			}
 		}
 		copy = copy[i+BYTE_SPACE_LEN:]
 	}
 
 	// handle last word. If no word was found, then we have already added the full word
 	if hasSubWords && len(copy) > 0 {
-		_ = blockBloom.Add(copy)
+		if !blockBloom.TestAndAdd(copy) {
+			blockWordCount++
+		}
 		word, err := utils.BytesToLower(copy, workBuf)
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if !blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 
 	if hasUpper {
@@ -1317,7 +1387,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if !blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 	return blockWordCount, nil
 }
