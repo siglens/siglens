@@ -135,20 +135,6 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		reqLen += size
 	}
 
-	var idxEmpty uint32
-	emptyBitset := pqmr.CreatePQMatchResults(0)
-	bufEmpty := make([]byte, (4+emptyBitset.GetInMemSize())*uint64(len(cmiPassedCnames)))
-	for blockNum := range cmiPassedCnames {
-		if _, ok := segmentSearchRecords.AllBlockStatus[blockNum]; !ok {
-			packedLen, err := emptyBitset.EncodePqmr(bufEmpty[idxEmpty:], blockNum)
-			if err != nil {
-				log.Errorf("qid=%d, writePqmrFiles: failed to encode pqmr. Err:%v", qid, err)
-				return err
-			}
-			idxEmpty += uint32(packedLen)
-		}
-	}
-
 	// Creating a buffer of a required length
 	buf := make([]byte, reqLen)
 	var idx uint32
@@ -161,13 +147,6 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		idx += uint32(packedLen)
 	}
 
-	sizeToAdd := len(bufEmpty)
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		buf = append(buf, newArr...)
-	}
-	copy(buf[idx:], bufEmpty)
-	idx += uint32(sizeToAdd)
 	err := pqmr.WritePqmrToDisk(buf[0:idx], pqidFname)
 	if err != nil {
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
