@@ -866,7 +866,7 @@ func CreateMeasResultsFromAggResults(limit int,
 		for _, aggVal := range agg.Results {
 			measureVal := make(map[string]interface{})
 			groupByValues := make([]string, 0)
-			iGroupByValues := make([]interface{}, 0)
+			iGroupByValues := make([]utils.CValueEnclosure, 0)
 			for mName, mVal := range aggVal.StatRes {
 				rawVal, err := mVal.GetValue()
 				if err != nil {
@@ -887,7 +887,18 @@ func CreateMeasResultsFromAggResults(limit int,
 					log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", aggVal.BucketKey)
 					continue
 				}
-				iGroupByValues = append(iGroupByValues, bucketKeySlice...)
+				for _, bk := range bucketKeySlice {
+					cValue := utils.CValueEnclosure{}
+					err := cValue.ConvertValue(bk)
+					if err != nil {
+						log.Errorf("CreateMeasResultsFromAggResults: failed to convert bucket key %+v", err)
+						cValue = utils.CValueEnclosure{
+							Dtype: utils.SS_DT_STRING,
+							CVal:  fmt.Sprintf("%+v", bk),
+						}
+					}
+					iGroupByValues = append(iGroupByValues, cValue)
+				}
 			}
 
 			switch bKey := aggVal.BucketKey.(type) {

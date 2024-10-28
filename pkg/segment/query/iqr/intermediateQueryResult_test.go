@@ -659,8 +659,11 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 
 	bucketHolderSlice := []*structs.BucketHolder{
 		{
-			GroupByValues:  []string{"a", "b"},
-			IGroupByValues: []interface{}{"a", "b"},
+			GroupByValues: []string{"a", "b"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "b", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),
 				"sum(x)": int64(100),
@@ -668,8 +671,11 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 			},
 		},
 		{
-			GroupByValues:  []string{"a", "c"},
-			IGroupByValues: []interface{}{"a", "c"},
+			GroupByValues: []string{"a", "c"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "c", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(20),
 				"sum(x)": int64(200),
@@ -677,8 +683,11 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 			},
 		},
 		{
-			GroupByValues:  []string{"d", "e"},
-			IGroupByValues: []interface{}{"d", "e"},
+			GroupByValues: []string{"d", "e"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "d", Dtype: utils.SS_DT_STRING},
+				{CVal: "e", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(30),
 				"sum(x)": int64(300),
@@ -827,7 +836,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 		actualBucketHolder := actualBucketHolderSlice[i]
 		if len(expectedBucketHolder.GroupByValues) == 0 {
 			expectedBucketHolder.GroupByValues = []string{"*"}
-			expectedBucketHolder.IGroupByValues = []interface{}{"*"}
+			expectedBucketHolder.IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
 		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}

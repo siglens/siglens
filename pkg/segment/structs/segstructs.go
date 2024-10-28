@@ -458,7 +458,7 @@ type AggregationResult struct {
 // Ideally, we should update GroupByValues to have a type of []interface{}
 // and eliminate IGroupByValues.
 type BucketHolder struct {
-	IGroupByValues []interface{} // each group-by value is stored as interface{}
+	IGroupByValues []utils.CValueEnclosure // each group-by value is stored as interface{}
 	GroupByValues  []string
 	MeasureVal     map[string]interface{}
 }
