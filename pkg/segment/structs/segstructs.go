@@ -452,8 +452,13 @@ type AggregationResult struct {
 	Results         []*BucketResult // histogram results
 }
 
+// TODO: Retain either IGroupByValues or GroupByValues, as having both is unnecessary.
+// The goal is to preserve the group-by value type as interface{} to avoid issues
+// when processing subsequent commands.
+// Ideally, we should update GroupByValues to have a type of []interface{}
+// and eliminate IGroupByValues.
 type BucketHolder struct {
-	IGroupByValues []interface{} // the type of the each group by value is maintained as interface{}
+	IGroupByValues []interface{} // each group-by value is stored as interface{}
 	GroupByValues  []string
 	MeasureVal     map[string]interface{}
 }
