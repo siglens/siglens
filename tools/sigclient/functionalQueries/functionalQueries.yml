@@ -14,6 +14,7 @@ stats_groupby_with_eval.json
 # fillnull_with_eval.json
 # stats_group_by_eval.json
 # eval_groupby_2col_2stats.json
+eval_fields_timechart.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
