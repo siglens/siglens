@@ -43,3 +43,8 @@ func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 
 	return &values[record.index], nil
 }
+
+func (record *Record) GetTimestamp() uint64 {
+	rrc := record.iqr.rrcs[record.index]
+	return rrc.TimeStamp
+}
