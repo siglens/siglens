@@ -3695,25 +3695,32 @@ HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
     }
 
+    headExpr := &structs.HeadExpr{
+        MaxRows: limit,
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            HeadRequest: &structs.HeadExpr{
-                MaxRows: limit,
-            },
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
 }
 / PIPE CMD_HEAD_NO_SPACE {
+
+    headExpr := &structs.HeadExpr{
+        MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            HeadRequest: &structs.HeadExpr{
-                MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
-            },
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
