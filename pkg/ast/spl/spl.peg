@@ -3623,11 +3623,7 @@ HeadOption <- option:(HeadOptionKeeplast / HeadOptionNull / HeadOptionLimit / He
 
 HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
     restSlice := rest.([]any)
-    optionWasSpecified := make(map[string]bool)
-    optionWasSpecified["null"] = false
-    optionWasSpecified["keeplast"] = false
-    optionWasSpecified["boolexpr"] = false
-    optionWasSpecified["limit"] = false
+    optionWasSpecified := make(map[string]struct{})
 
     numOptions := 1 + len(restSlice)
 
@@ -3643,14 +3639,11 @@ HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
         }
 
         argOption := headOptArg.argOption
-        val, exist := optionWasSpecified[argOption]
-        if !exist {
-            return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
-        }
-        if val {
+        _, exist := optionWasSpecified[argOption]
+        if exist {
             return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
         }
-        optionWasSpecified[argOption] = true
+        optionWasSpecified[argOption] = struct{}{}
 
         switch argOption {
             case "null":
@@ -3666,15 +3659,17 @@ HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
         }
     }
 
-    isBoolExpr, _ := optionWasSpecified["boolexpr"]
-    if !isBoolExpr {
-        isNull, _ := optionWasSpecified["null"]
-        if isNull {
+    if headExpr.BoolExpr == nil {
+        if headExpr.Null {
             return nil, fmt.Errorf("Invalid Syntax, null option can only be present with condition boolean expression")
         }
-        isKeeplast, _ := optionWasSpecified["keeplast"]
-        if isKeeplast {
+        if headExpr.Keeplast {
             return nil, fmt.Errorf("Invalid Syntax, keeplast option can only be present with condition boolean expression")
+        }
+    } else {
+        _, hasLimit := optionWasSpecified["limit"]
+        if !hasLimit {
+            headExpr.MaxRows = math.MaxUint64
         }
     }
 

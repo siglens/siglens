@@ -19,6 +19,7 @@ package processor
 
 import (
 	"io"
+	"math"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -110,7 +111,7 @@ func Test_Head_Expr_Basic(t *testing.T) {
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
 			BoolExpr: BoolExpr,
-			MaxRows:  10,
+			MaxRows:  math.MaxUint64,
 		},
 	}
 
@@ -171,7 +172,7 @@ func Test_Head_Expr_Null(t *testing.T) {
 		options: &structs.HeadExpr{
 			BoolExpr: BoolExpr,
 			Null:     true,
-			MaxRows:  10,
+			MaxRows:  math.MaxUint64,
 		},
 	}
 
@@ -211,7 +212,7 @@ func Test_Head_Expr_Keeplast(t *testing.T) {
 		options: &structs.HeadExpr{
 			BoolExpr: BoolExpr,
 			Keeplast: true,
-			MaxRows:  10,
+			MaxRows:  math.MaxUint64,
 		},
 	}
 
@@ -258,7 +259,7 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 			BoolExpr: BoolExpr,
 			Null:     true,
 			Keeplast: true,
-			MaxRows:  10,
+			MaxRows:  math.MaxUint64,
 		},
 	}
 
