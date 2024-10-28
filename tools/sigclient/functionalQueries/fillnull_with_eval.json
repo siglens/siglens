@@ -20,7 +20,6 @@
                 "masked_email": "xxxxx@ledner.org",
                 "res": "pass",
                 "reparsed_time": "1719316800",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "original_parsed_time": "1719316800",
                 "original_date_string": "2024-06-25 12:00:00 UTC",
                 "rel_time": 1721738200000
@@ -35,7 +34,6 @@
                 "masked_email": "xxxxx@wilkinson.net",
                 "res": "pass",
                 "reparsed_time": "1719316800",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "original_parsed_time": "1719316800",
                 "original_date_string": "2024-06-25 12:00:00 UTC",
                 "rel_time": 1721738200000
