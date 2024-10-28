@@ -230,10 +230,14 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	querySummary.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
-		if finalMatched == 0 {
-			go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
-		} else {
+		if config.IsNewQueryPipelineEnabled() {
 			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+		} else {
+			if finalMatched == 0 {
+				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
+			} else {
+				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+			}
 		}
 	}
 }
