@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -52,7 +53,12 @@ func createRecord(columnNames []string, record []string) (map[string]utils.CValu
 	}
 	recordMap := make(map[string]utils.CValueEnclosure)
 	for i, cname := range columnNames {
-		recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
+		floatVal, floatErr := strconv.ParseFloat(record[i], 64)
+		if floatErr != nil {
+			recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
+		} else {
+			recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: floatVal}
+		}
 	}
 	return recordMap, nil
 }

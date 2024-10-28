@@ -70,9 +70,9 @@ func Test_InputLookup(t *testing.T) {
 
 	data := []string{
 		"a,b,c\n",
-		"1,2,3\n",
-		"4,5,6\n",
-		"7,8,9\n",
+		"a1,b2,c3\n",
+		"a4,b5,c6\n",
+		"a7,b8,c9\n",
 	}
 
 	csvFile := "test.csv"
@@ -96,24 +96,24 @@ func Test_InputLookup(t *testing.T) {
 	col_a, err := iqr.ReadColumn("a")
 	assert.Nil(t, err)
 	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "4"},
-		{Dtype: utils.SS_DT_STRING, CVal: "7"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a4"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a7"},
 	}
 	assert.Equal(t, expected, col_a)
 
 	col_b, err := iqr.ReadColumn("b")
 	assert.Nil(t, err)
 	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "5"},
-		{Dtype: utils.SS_DT_STRING, CVal: "8"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b5"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b8"},
 	}
 	assert.Equal(t, expected, col_b)
 
 	col_c, err := iqr.ReadColumn("c")
 	assert.Nil(t, err)
 	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "6"},
-		{Dtype: utils.SS_DT_STRING, CVal: "9"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c6"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c9"},
 	}
 	assert.Equal(t, expected, col_c)
 
@@ -211,9 +211,9 @@ func Test_MultipleInputlookups(t *testing.T) {
 
 	data1 := []string{
 		"a,b,c\n",
-		"1,2,3\n",
-		"4,5,6\n",
-		"7,8,9\n",
+		"a1,b2,c3\n",
+		"a4,b5,c6\n",
+		"a7,b8,c9\n",
 	}
 
 	csvFile1 := "test1.csv"
@@ -275,30 +275,30 @@ func Test_MultipleInputlookups(t *testing.T) {
 	col_a, err := finalRes.ReadColumn("a")
 	assert.Nil(t, err)
 	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_STRING, CVal: "4"},
-		{Dtype: utils.SS_DT_STRING, CVal: "40"},
-		{Dtype: utils.SS_DT_STRING, CVal: "70"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a4"},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(40)},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(70)},
 	}
 	assert.Equal(t, expected, col_a)
 
 	col_b, err := finalRes.ReadColumn("b")
 	assert.Nil(t, err)
 	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_STRING, CVal: "5"},
-		{Dtype: utils.SS_DT_STRING, CVal: "50"},
-		{Dtype: utils.SS_DT_STRING, CVal: "80"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b2"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b5"},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(50)},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(80)},
 	}
 	assert.Equal(t, expected, col_b)
 
 	col_c, err := finalRes.ReadColumn("c")
 	assert.Nil(t, err)
 	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "3"},
-		{Dtype: utils.SS_DT_STRING, CVal: "6"},
-		{Dtype: utils.SS_DT_STRING, CVal: "60"},
-		{Dtype: utils.SS_DT_STRING, CVal: "90"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c3"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c6"},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(60)},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(90)},
 	}
 	assert.Equal(t, expected, col_c)
 
