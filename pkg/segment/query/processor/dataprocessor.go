@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -357,10 +358,10 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	}
 }
 
-func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
+func NewTimechartDP(options *structs.QueryAggregators, queryTimeRange *dtypeutils.TimeRange, qid uint64) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &timechartProcessor{options: options},
+		processor:         NewTimechartProcessor(options, queryTimeRange, qid),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
