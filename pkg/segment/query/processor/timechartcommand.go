@@ -19,6 +19,7 @@ package processor
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -44,22 +45,26 @@ type errorData struct {
 type timechartProcessor struct {
 	options             *timechartOptions
 	spanError           error
+	qid                 uint64
 	searchResults       *segresults.SearchResults
 	bucketKeyWorkingBuf []byte
 	timeRangeBuckets    []uint64
 	errorData           *errorData
+	hasFinalResult      bool
 }
 
 func NewTimechartProcessor(aggs *structs.QueryAggregators, timeRange *dtypeutils.TimeRange, qid uint64) *timechartProcessor {
 	if aggs.TimeHistogram == nil || aggs.TimeHistogram.Timechart == nil {
-		return &timechartProcessor{options: nil}
+		return &timechartProcessor{options: nil, qid: qid}
 	}
 
 	if aggs.GroupByRequest != nil {
 		aggs.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
 	}
 
-	processor := &timechartProcessor{}
+	processor := &timechartProcessor{qid: qid}
+	aggs.TimeHistogram.StartTime = timeRange.StartEpochMs
+	aggs.TimeHistogram.EndTime = timeRange.EndEpochMs
 
 	if aggs.TimeHistogram.Timechart.BinOptions != nil &&
 		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
@@ -97,6 +102,10 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("timechartProcessor.Process: Timechart options is nil")
 	}
 
+	if inputIQR == nil {
+		return p.extractTimechartResults()
+	}
+
 	numOfRecords := inputIQR.NumberOfRecords()
 	qid := inputIQR.GetQID()
 
@@ -106,27 +115,15 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	if p.searchResults == nil {
 		p.options.groupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
-		p.options.groupByRequest.IsBucketKeySeparatedByDelim = true
-		aggs := &structs.QueryAggregators{GroupByRequest: p.options.groupByRequest}
+		aggs := &structs.QueryAggregators{GroupByRequest: p.options.groupByRequest, TimeHistogram: p.options.timeBucket}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
+			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.Process: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
 
 	blkResults := p.searchResults.BlockResults
-
-	// byField := timeHistogram.Timechart.ByField
-	// hasLimitOption = timeHistogram.Timechart.LimitExpr != nil
-	// cKeyidx, ok := multiColReader.GetColKeyIndex(byField)
-	// if ok {
-	// 	byFieldCnameKeyIdx = cKeyidx
-	// 	colsToReadIndices[cKeyidx] = struct{}{}
-	// }
-	// if timeHistogram.Timechart.ByField == config.GetTimeStampKey() {
-	// 	isTsCol = true
-	// }
 
 	byField := p.options.timeChartExpr.ByField
 	hasLimitOption := p.options.timeChartExpr.LimitExpr != nil
@@ -198,13 +195,45 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *timechartProcessor) Rewind() {
-	panic("not implemented")
+	// Nothing to do
 }
 
 func (p *timechartProcessor) Cleanup() {
-	panic("not implemented")
+	p.bucketKeyWorkingBuf = nil
+	p.timeRangeBuckets = nil
+	p.errorData = nil
+	p.searchResults = nil
 }
 
 func (p *timechartProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.hasFinalResult {
+		iqr, err := p.extractTimechartResults()
+		if err != nil && err != io.EOF {
+			return nil, false
+		}
+		return iqr, true
+	}
+
 	return nil, false
+}
+
+func (p *timechartProcessor) extractTimechartResults() (*iqr.IQR, error) {
+	if p.searchResults == nil {
+		return nil, io.EOF
+	}
+
+	iqr := iqr.NewIQR(p.qid)
+
+	// load and convert the bucket results
+	_ = p.searchResults.GetBucketResults()
+
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+
+	err := iqr.CreateStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot create timechart results; err=%v", iqr.GetQID(), err)
+	}
+
+	p.hasFinalResult = true
+	return iqr, io.EOF
 }
