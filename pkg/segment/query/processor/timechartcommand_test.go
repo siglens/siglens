@@ -89,7 +89,13 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 		EndEpochMs:   endTime,
 	}
 
-	return NewTimechartProcessor(aggs, timeRange, 0)
+	timechartOptions := &timechartOptions{
+		aggs:      aggs,
+		timeRange: timeRange,
+		qid:       0,
+	}
+
+	return NewTimechartProcessor(timechartOptions)
 }
 
 func Test_TimechartProcessor_NoByField(t *testing.T) {

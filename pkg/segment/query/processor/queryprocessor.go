@@ -161,7 +161,12 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 	} else if queryAgg.SortExpr != nil {
 		return NewSortDP(queryAgg.SortExpr)
 	} else if queryAgg.TimeHistogram != nil && queryAgg.TimeHistogram.Timechart != nil {
-		return NewTimechartDP(queryAgg, queryInfo.GetQueryRange(), queryInfo.GetQid())
+		timechartOptions := &timechartOptions{
+			aggs:      queryAgg,
+			qid:       queryInfo.GetQid(),
+			timeRange: queryInfo.GetQueryRange(),
+		}
+		return NewTimechartDP(timechartOptions)
 	} else if queryAgg.GroupByRequest != nil {
 		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
 		return NewStatsDP(queryAgg.StatsExpr)

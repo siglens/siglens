@@ -37,16 +37,20 @@ type timechartOptions struct {
 	timeBucket     *structs.TimeBucket
 	timeChartExpr  *structs.TimechartExpr
 	groupByRequest *structs.GroupByRequest
+	aggs           *structs.QueryAggregators
+	timeRange      *dtypeutils.TimeRange
+	qid            uint64
 }
 
 type errorData struct {
 	readColumns     map[string]error // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
 	getStringErrors map[string]error // columnName -> error. Tracks errors while converting CValue to string
+	timestampErrors uint64           // Tracks errors while converting timestamp to uint64
 }
 
 type timechartProcessor struct {
 	options             *timechartOptions
-	spanError           error
+	initializationError error
 	qid                 uint64
 	searchResults       *segresults.SearchResults
 	bucketKeyWorkingBuf []byte
@@ -55,9 +59,21 @@ type timechartProcessor struct {
 	hasFinalResult      bool
 }
 
-func NewTimechartProcessor(aggs *structs.QueryAggregators, timeRange *dtypeutils.TimeRange, qid uint64) *timechartProcessor {
-	if aggs.TimeHistogram == nil || aggs.TimeHistogram.Timechart == nil {
+func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
+	aggs := options.aggs
+	qid := options.qid
+	timeRange := options.timeRange
+
+	if aggs == nil || aggs.TimeHistogram == nil || aggs.TimeHistogram.Timechart == nil {
 		return &timechartProcessor{options: nil, qid: qid}
+	}
+
+	if timeRange == nil {
+		return &timechartProcessor{
+			options:             nil,
+			qid:                 qid,
+			initializationError: fmt.Errorf("timechartProcessor.NewTimechartProcessor: timeRange is nil"),
+		}
 	}
 
 	if aggs.GroupByRequest != nil {
@@ -73,7 +89,7 @@ func NewTimechartProcessor(aggs *structs.QueryAggregators, timeRange *dtypeutils
 		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
 		spanOptions, err := structs.GetDefaultTimechartSpanOptions(timeRange.StartEpochMs, timeRange.EndEpochMs, qid)
 		if err != nil {
-			processor.spanError = err
+			processor.initializationError = err
 			return processor
 		}
 		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
@@ -96,8 +112,8 @@ func NewTimechartProcessor(aggs *structs.QueryAggregators, timeRange *dtypeutils
 }
 
 func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	if p.spanError != nil {
-		return nil, p.spanError
+	if p.initializationError != nil {
+		return nil, p.initializationError
 	}
 
 	if p.options == nil {
@@ -127,9 +143,10 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	blkResults := p.searchResults.BlockResults
 
+	timestampKey := config.GetTimeStampKey()
 	byField := p.options.timeChartExpr.ByField
 	hasLimitOption := p.options.timeChartExpr.LimitExpr != nil
-	isTsCol := byField == config.GetTimeStampKey()
+	isTsCol := byField == timestampKey
 	groupByColValCount := make(map[string]int, 0)
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
@@ -140,11 +157,24 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		var groupByColVal string
 
 		record := inputIQR.GetRecord(i)
-		ts, err := record.GetTimestamp()
+		tsCValue, err := record.ReadColumn(timestampKey)
 		if err != nil {
-			p.errorData.readColumns["timestamp"] = err
-			ts = uint64(time.Now().UnixMilli())
+			p.errorData.readColumns[timestampKey] = err
+			tsCValue = &utils.CValueEnclosure{
+				Dtype: utils.SS_DT_UNSIGNED_NUM,
+				CVal:  uint64(time.Now().UnixMilli()),
+			}
 		}
+
+		ts, ok := tsCValue.CVal.(uint64)
+		if !ok {
+			ts, err = tsCValue.GetUIntValue()
+			if err != nil {
+				p.errorData.timestampErrors++
+				ts = uint64(time.Now().UnixMilli())
+			}
+		}
+
 		timePoint := aggregations.FindTimeRangeBucket(p.timeRangeBuckets, ts, p.options.timeBucket.IntervalMillis)
 
 		copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
