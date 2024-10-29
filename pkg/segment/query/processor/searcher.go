@@ -162,17 +162,31 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	// we always take blocks from the front of the list.
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
-	allRRCsSlices := make([][]*segutils.RecordResultContainer, len(nextBlocks)+1)
-	for i, nextBlock := range nextBlocks {
-		segkey := nextBlock.parentQSR.GetSegKey()
-		rrcs, segEncToKey, err := s.readSortedRRCs([]*block{nextBlock}, segkey)
+	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
+	log.Errorf("andrew len(nextBlocks)=%v", len(nextBlocks))
+
+	// Prepare to call BatchProcess.
+	getBatchKey := func(block *block) string {
+		return block.parentQSR.GetSegKey()
+	}
+	batchKeyLess := toputils.NewUnsetOption[func(string, string) bool]()
+	// The return value is not needed, so use struct{} as a placeholder.
+	batchOperation := func(blocks []*block) ([]*struct{}, error) {
+		log.Errorf("andrew len(blocksInBatch)=%v", len(blocks))
+		if len(blocks) == 0 {
+			// This should never happen.
+			return nil, nil
+		}
+
+		segkey := blocks[0].parentQSR.GetSegKey()
+		rrcs, segEncToKey, err := s.readSortedRRCs(blocks, segkey)
 		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to read RRCs: %v", s.qid, err)
+			log.Errorf("qid=%v, searcher.fetchRRCs: failed to read RRCs: %v", s.qid, err)
 			return nil, err
 		}
 
 		if s.segEncToKey.Conflicts(segEncToKey) {
-			return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: conflicting segEncToKey (%v and %v)",
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchRRCs: conflicting segEncToKey (%v and %v)",
 				s.qid, s.segEncToKey, segEncToKey)
 		}
 
@@ -181,11 +195,18 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 			s.segEncToKey.Set(k, v)
 		}
 
-		allRRCsSlices[i] = rrcs
+		allRRCsSlices = append(allRRCsSlices, rrcs)
+		return nil, nil
+	}
+
+	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation)
+	if err != nil {
+		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to batch process blocks: %v", s.qid, err)
+		return nil, err
 	}
 
 	// Merge all these RRCs with any leftover RRCs from previous fetches.
-	allRRCsSlices[len(nextBlocks)] = s.unsentRRCs
+	allRRCsSlices = append(allRRCsSlices, s.unsentRRCs)
 	sortingFunc, err := getSortingFunc(s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to get sorting function: %v", s.qid, err)
@@ -503,18 +524,12 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 		return nil, nil, nil
 	}
 
-	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
-	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetQueryRange()
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
-	qid := s.queryInfo.GetQid()
-	qs := s.querySummary
-
 	queryType := s.queryInfo.GetQueryType()
-	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
+	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, s.qid)
 	if err != nil {
-		log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
+		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
 		return nil, nil, err
 	}
 
@@ -525,50 +540,93 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	}
 	searchResults.NextSegKeyEnc = encoding
 
-	if _, ok := blocks[0].parentPQMR.Get(); ok {
-		metas := make(map[uint16]*structs.BlockMetadataHolder)
-		summaries := make([]*structs.BlockSummary, 0)
-		for _, block := range blocks {
-			metas[block.BlkNum] = block.BlockMetadataHolder
-			if block.BlkNum >= uint16(len(summaries)) {
-				summaries = toputils.ResizeSlice(summaries, int(block.BlkNum+1))
-			}
-			summaries[block.BlkNum] = block.BlockSummary
+	pqmrBlocks := make([]*block, 0, len(blocks))
+	rawSearchBlocks := make([]*block, 0, len(blocks))
+	for _, block := range blocks {
+		if _, ok := block.parentPQMR.Get(); ok {
+			pqmrBlocks = append(pqmrBlocks, block)
+		} else {
+			rawSearchBlocks = append(rawSearchBlocks, block)
 		}
-		for i := range summaries {
-			if summaries[i] == nil {
-				summaries[i] = &structs.BlockSummary{}
-			}
-		}
+	}
 
-		pqmr, err := getPQMR(blocks)
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get PQMR: %v", s.qid, err)
-			return nil, nil, err
-		}
+	err = s.addRRCsFromPQMR(searchResults, pqmrBlocks)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to get RRCs from PQMR: %v", s.qid, err)
+		return nil, nil, err
+	}
 
-		err = query.ApplySinglePQSRawSearch(blocks[0].parentQSR, searchResults, pqmr, metas, summaries, qs)
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply PQS: %v", s.qid, err)
-			return nil, nil, err
-		}
-	} else {
-		allSegRequests, err := getSSRs(blocks)
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get SSRs: %v", s.qid, err)
-			return nil, nil, err
-		}
-
-		err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
-			parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, qid, qs)
-		if err != nil {
-			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply filter operator: %v", s.qid, err)
-			return nil, nil, err
-		}
+	err = s.addRRCsFromRawSearch(searchResults, rawSearchBlocks)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to get RRCs from search: %v", s.qid, err)
+		return nil, nil, err
 	}
 
 	// TODO: verify the results or sorted, or sort them here.
 	return searchResults.GetResults(), searchResults.SegEncToKey, nil
+}
+
+func (s *searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, blocks []*block) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	metas := make(map[uint16]*structs.BlockMetadataHolder)
+	summaries := make([]*structs.BlockSummary, 0)
+	for _, block := range blocks {
+		metas[block.BlkNum] = block.BlockMetadataHolder
+		if block.BlkNum >= uint16(len(summaries)) {
+			summaries = toputils.ResizeSlice(summaries, int(block.BlkNum+1))
+		}
+		summaries[block.BlkNum] = block.BlockSummary
+	}
+	for i := range summaries {
+		if summaries[i] == nil {
+			summaries[i] = &structs.BlockSummary{}
+		}
+	}
+
+	pqmr, err := getPQMR(blocks)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.addRRCsFromPQMR: failed to get PQMR: %v", s.qid, err)
+		return err
+	}
+
+	err = query.ApplySinglePQSRawSearch(blocks[0].parentQSR, searchResults, pqmr,
+		metas, summaries, s.querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.addRRCsFromPQMR: failed to apply PQS: %v", s.qid, err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults, blocks []*block) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	allSegRequests, err := getSSRs(blocks)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.addRRCsFromRawSearch: failed to get SSRs: %v", s.qid, err)
+		return err
+	}
+
+	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
+	searchNode := s.queryInfo.GetSearchNode()
+	timeRange := s.queryInfo.GetQueryRange()
+	sizeLimit := uint64(math.MaxUint64)
+	aggs := s.queryInfo.GetAggregators()
+
+	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
+		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.addRRCsFromRawSearch: failed to apply filter operator: %v", s.qid, err)
+		return err
+	}
+
+	return nil
 }
 
 // All of the blocks should be for the same PQMR.
