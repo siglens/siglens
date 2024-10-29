@@ -18,7 +18,6 @@
 package processor
 
 import (
-	// "fmt"
 	"fmt"
 	"io"
 	"time"
@@ -247,13 +246,13 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
 
-	canScroll, relation, _, err := qp.getStatusParams()
+	canScrollMore, relation, _, err := qp.getStatusParams()
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get status params; err=%v", err)
 	}
 	if qp.queryType == structs.RRCCmd {
 		response.Hits.TotalMatched = utils.HitsCount{Value: uint64(finalIQR.NumberOfRecords()), Relation: relation}
-		response.CanScrollMore = canScroll
+		response.CanScrollMore = canScrollMore
 	}
 
 	return response, nil
@@ -269,13 +268,13 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 
 	var finalIQR *iqr.IQR
 	var err error
+	totalRecords := 0
 
 	var iqr *iqr.IQR
 	completeResp := &structs.PipeSearchCompleteResponse{
 		Qtype: qp.queryType.String(),
 	}
 
-	totalRecords := 0
 	scrollComplete := false
 	if qp.scrollFrom == 0 {
 		scrollComplete = true
