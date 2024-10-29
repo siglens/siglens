@@ -91,7 +91,7 @@ func Test_sortBlocks(t *testing.T) {
 	}
 }
 
-func Test_getNextEndTime_recentFirst(t *testing.T) {
+func Test_getNextBlocks_recentFirst(t *testing.T) {
 	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 40, low: 15},
 		{high: 30, low: 25},
@@ -125,7 +125,7 @@ func Test_getNextEndTime_recentFirst(t *testing.T) {
 	assert.Equal(t, uint64(10), blocks[3].HighTs)
 }
 
-func Test_getNextEndTime_recentLast(t *testing.T) {
+func Test_getNextBlocks_recentLast(t *testing.T) {
 	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 20, low: 5},
 		{high: 10, low: 8},
@@ -159,7 +159,7 @@ func Test_getNextEndTime_recentLast(t *testing.T) {
 	assert.Equal(t, uint64(25), blocks[3].LowTs)
 }
 
-func Test_getNextEndTime_anyOrder(t *testing.T) {
+func Test_getNextBlocks_anyOrder(t *testing.T) {
 	allBlocks := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 20, low: 5},
 		{high: 30, low: 25},
