@@ -300,25 +300,36 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		_, err = query.StartQuery(qid, false, nil)
+		rQuery, err := query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
 				qid, err)
 			return nil, false, nil, err
 		}
 
-		httpResponse, err := segment.ExecutePipeResQuery(simpleNode, aggs, qid, qc)
+		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc)
 		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to ExecutePipeResQuery, err: %v", qid, err)
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
 			return nil, false, nil, err
 		}
 
+		httpResponse, err := queryProcessor.GetFullResult()
+		if err != nil {
+			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+		}
+
 		query.SetQidAsFinishedForPipeRespQuery(qid)
+
+		startTime := rQuery.GetStartTime()
+		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(startTime))
+
+		query.DeleteQuery(qid)
 
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
 
 		return &httpRespOuter, false, simpleNode.TimeRange, nil
 	}

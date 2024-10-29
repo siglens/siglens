@@ -147,6 +147,11 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	qc.RawQuery = searchText
+	if config.IsNewQueryPipelineEnabled() {
+		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)
+		return
+	}
+
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query, err: %v", qid, err)
@@ -183,6 +188,60 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			}
 		case readMsg := <-websocketR:
 			log.Infof("qid=%d, Got message from websocket: %+v", qid, readMsg)
+			if readMsg["state"] == "cancel" {
+				query.CancelQuery(qid)
+				processCancelQuery(conn, qid)
+				query.DeleteQuery(qid)
+			}
+		}
+	}
+}
+
+func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
+	websocketR := make(chan map[string]interface{})
+	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
+		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+		if wErr != nil {
+			log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write error response to websocket! err: %+v", qid, wErr)
+		}
+		return
+	}
+
+	go listenToConnection(qid, websocketR, conn)
+	for {
+		select {
+		case queryStateChanData, ok := <-eventC:
+			if !ok {
+				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got non ok, state: %v", qid, queryStateChanData.StateName)
+				query.LogGlobalSearchErrors(qid)
+				return
+			}
+			switch queryStateChanData.StateName {
+			case query.RUNNING:
+				processRunningUpdate(conn, qid)
+			case query.TIMEOUT:
+				processTimeoutUpdate(conn, qid)
+				return
+			case query.QUERY_UPDATE:
+				wErr := conn.WriteJSON(queryStateChanData.UpdateWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write update response to websocket! err: %+v", qid, wErr)
+				}
+			case query.COMPLETE:
+				wErr := conn.WriteJSON(queryStateChanData.CompleteWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write complete response to websocket! err: %+v", qid, wErr)
+				}
+				query.DeleteQuery(qid)
+				return
+			default:
+				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got unknown state: %v", qid, queryStateChanData.StateName)
+			}
+		case readMsg := <-websocketR:
+			log.Infof("qid=%d, RunAsyncQueryForNewPipeline: Got message from websocket: %+v", qid, readMsg)
 			if readMsg["state"] == "cancel" {
 				query.CancelQuery(qid)
 				processCancelQuery(conn, qid)
@@ -316,8 +375,13 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	if err != nil {
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get number of RRCs for qid! Error: %v", qid, err)
 	}
+	startTime, err := query.GetQueryStartTime(qid)
+	if err != nil {
+		log.Errorf("qid=%d, processCompleteUpdate: failed to get query start time for qid! Error: %v", qid, err)
+	}
 
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
+	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -59,6 +60,8 @@ type QueryStateChanData struct {
 	StateName       QueryState
 	QueryUpdate     *QueryUpdate
 	PercentComplete float64
+	UpdateWSResp    *structs.PipeSearchWSUpdateResponse
+	CompleteWSResp  *structs.PipeSearchCompleteResponse
 }
 
 const (
@@ -92,6 +95,7 @@ func (qs QueryState) String() string {
 type RunningQueryState struct {
 	isAsync                  bool
 	isCancelled              bool
+	startTime                time.Time
 	timeoutCancelFunc        context.CancelFunc
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
 	cleanupCallback          func()
@@ -115,6 +119,7 @@ type RunningQueryState struct {
 	totalRecsToBeSearched    uint64
 	AllColsInAggs            map[string]struct{}
 	pipeResp                 *structs.PipeSearchResponseOuter
+	Progress                 *structs.Progress
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -132,6 +137,24 @@ func (rQuery *RunningQueryState) SendQueryStateComplete() {
 	if rQuery.cleanupCallback != nil {
 		rQuery.cleanupCallback()
 	}
+}
+
+func (rQuery *RunningQueryState) GetStartTime() time.Time {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.startTime
+}
+
+func GetQueryStartTime(qid uint64) (time.Time, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetQueryStartTime: qid %+v does not exist!", qid)
+		return time.Time{}, fmt.Errorf("qid does not exist")
+	}
+
+	return rQuery.GetStartTime(), nil
 }
 
 // Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
@@ -171,6 +194,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 	}
 
 	runningState := &RunningQueryState{
+		startTime:         time.Now(),
 		StateChan:         stateChan,
 		cleanupCallback:   cleanupCallback,
 		rqsLock:           &sync.Mutex{},
@@ -270,6 +294,24 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 			QueryUpdate:     &queryUpdate,
 			PercentComplete: perComp}
 	}
+
+	if config.IsNewQueryPipelineEnabled() && rQuery.isAsync && rQuery.QType != structs.RRCCmd {
+		if rQuery.Progress == nil {
+			rQuery.Progress = &structs.Progress{
+				TotalUnits:   rQuery.totalSegments,
+				TotalRecords: rQuery.totalRecsToBeSearched,
+			}
+		}
+		rQuery.Progress.UnitsSearched = rQuery.finishedSegments
+		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
+
+		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+		rQuery.StateChan <- &QueryStateChanData{
+			StateName:    QUERY_UPDATE,
+			UpdateWSResp: wsResponse,
+		}
+	}
+
 }
 
 func setTotalSegmentsToSearch(qid uint64, numSegments uint64) error {
@@ -993,5 +1035,116 @@ func SetQidAsFinishedForPipeRespQuery(qid uint64) {
 	// Only async queries need to send COMPLETE
 	if rQuery.isAsync {
 		rQuery.StateChan <- &QueryStateChanData{StateName: COMPLETE}
+	}
+}
+
+func InitProgressForRRCCmd(totalUnits uint64, qid uint64) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("InitProgressForRRCCmd: qid %+v does not exist!", qid)
+		return
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if rQuery.isAsync {
+		if rQuery.Progress != nil {
+			return
+		}
+
+		rQuery.Progress = &structs.Progress{
+			TotalUnits:   totalUnits,
+			TotalRecords: rQuery.totalRecsToBeSearched,
+		}
+	}
+}
+
+func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("IncProgressForRRCCmd: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if rQuery.isAsync {
+		if rQuery.Progress == nil {
+			return putils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
+		}
+
+		rQuery.Progress.UnitsSearched += unitsSearched
+		rQuery.Progress.RecordsSearched += recordsSearched
+
+		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+		rQuery.StateChan <- &QueryStateChanData{
+			StateName:    QUERY_UPDATE,
+			UpdateWSResp: wsResponse,
+		}
+	}
+
+	return nil
+}
+
+func GetProgress(qid uint64) (structs.Progress, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	if rQuery.Progress == nil {
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid=%v Progress is not initialized!", qid)
+	}
+
+	return structs.Progress{
+		RecordsSent:     rQuery.Progress.RecordsSent,
+		TotalUnits:      rQuery.Progress.TotalUnits,
+		UnitsSearched:   rQuery.Progress.UnitsSearched,
+		TotalRecords:    rQuery.Progress.TotalRecords,
+		RecordsSearched: rQuery.Progress.RecordsSearched,
+	}, nil
+}
+
+func IncRecordsSent(qid uint64, recordsSent uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("IncRecordsSent: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	if rQuery.Progress == nil {
+		return putils.TeeErrorf("IncRecordsSent: qid=%v Progress is not initialized!", qid)
+	}
+
+	rQuery.Progress.RecordsSent += recordsSent
+
+	return nil
+}
+
+func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress) *structs.PipeSearchWSUpdateResponse {
+	percCompleteBySearch := float64(0)
+	if progress.TotalUnits > 0 {
+		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+	}
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(utils.QUERY_EARLY_EXIT_LIMIT)
+
+	return &structs.PipeSearchWSUpdateResponse{
+		State:               QUERY_UPDATE.String(),
+		Completion:          math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent),
+		Qtype:               qType.String(),
+		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
+		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),
 	}
 }
