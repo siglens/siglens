@@ -18,12 +18,12 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"testing"
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -93,6 +93,9 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 }
 
 func Test_TimechartProcessor_NoByField(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+
 	startTime := uint64(time.Now().UnixMilli())
 	processor := getTimechartProcessor(startTime)
 
@@ -113,15 +116,18 @@ func Test_TimechartProcessor_NoByField(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(resultValues["timestamp"]))
 	assert.Equal(t, 3, len(resultValues["sum_measurecol"]))
-	assert.Equal(t, fmt.Sprintf("%v", startTime), resultValues["timestamp"][0].CVal)
-	assert.Equal(t, fmt.Sprintf("%v", startTime+uint64(time.Minute.Milliseconds())), resultValues["timestamp"][1].CVal)
-	assert.Equal(t, fmt.Sprintf("%v", startTime+2*uint64(time.Minute.Milliseconds())), resultValues["timestamp"][2].CVal)
+	assert.Equal(t, startTime, resultValues["timestamp"][0].CVal)
+	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
+	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
 	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][0].CVal)
 	assert.Equal(t, uint64(9), resultValues["sum_measurecol"][1].CVal)
 	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][2].CVal)
 }
 
 func Test_TimechartProcessor_WithByField(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+
 	startTime := uint64(time.Now().UnixMilli())
 	processor := getTimechartProcessor(startTime)
 	processor.options.timeChartExpr.ByField = "groupbycol"
@@ -145,9 +151,9 @@ func Test_TimechartProcessor_WithByField(t *testing.T) {
 	assert.Equal(t, 3, len(resultValues["sum_measurecol: b"]))
 	assert.Equal(t, 3, len(resultValues["sum_measurecol: c"]))
 
-	assert.Equal(t, fmt.Sprintf("%v", startTime), resultValues["timestamp"][0].CVal)
-	assert.Equal(t, fmt.Sprintf("%v", startTime+uint64(time.Minute.Milliseconds())), resultValues["timestamp"][1].CVal)
-	assert.Equal(t, fmt.Sprintf("%v", startTime+2*uint64(time.Minute.Milliseconds())), resultValues["timestamp"][2].CVal)
+	assert.Equal(t, startTime, resultValues["timestamp"][0].CVal)
+	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
+	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
 
 	assert.Equal(t, uint64(4), resultValues["sum_measurecol: a"][0].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: a"][1].CVal)
