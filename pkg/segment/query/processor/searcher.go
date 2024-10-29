@@ -336,6 +336,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 
 	allBlocks := make([]*block, 0)
 	for i, qsr := range qsrs {
+		pqmrBlockNumbers := make(map[uint16]struct{})
 		if pqmr, ok := pqmrs[i].Get(); ok {
 			blockToMetadata, blockSummaries, err := metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
 			if err != nil {
@@ -346,16 +347,25 @@ func (s *searcher) getBlocks() ([]*block, error) {
 
 			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
 			allBlocks = append(allBlocks, blocks...)
-		} else {
-			fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
-			if err != nil {
-				log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", s.qid, qsr, err)
-				return nil, err
-			}
 
-			for file, ssr := range fileToSSR {
-				blocks := makeBlocksFromSSR(qsr, file, ssr)
-				allBlocks = append(allBlocks, blocks...)
+			for _, block := range blocks {
+				pqmrBlockNumbers[block.BlkNum] = struct{}{}
+			}
+		}
+
+		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", s.qid, qsr, err)
+			return nil, err
+		}
+
+		for file, ssr := range fileToSSR {
+			blocks := makeBlocksFromSSR(qsr, file, ssr)
+
+			for _, block := range blocks {
+				if _, ok := pqmrBlockNumbers[block.BlkNum]; !ok {
+					allBlocks = append(allBlocks, block)
+				}
 			}
 		}
 	}
