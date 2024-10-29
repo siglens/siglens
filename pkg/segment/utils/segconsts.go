@@ -20,7 +20,6 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -30,6 +29,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -887,9 +887,27 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	case bool:
 		e.Dtype = SS_DT_BOOL
 		e.CVal = val
+	case uint8:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
+	case uint16:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
+	case uint32:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
 	case uint64:
 		e.Dtype = SS_DT_UNSIGNED_NUM
 		e.CVal = val
+	case int8:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
+	case int16:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
+	case int32:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
 	case int64:
 		e.Dtype = SS_DT_SIGNED_NUM
 		e.CVal = val
@@ -1025,49 +1043,72 @@ func (e *CValueEnclosure) GetIntValue() (int64, error) {
 	}
 }
 
-func (e *CValueEnclosure) AsBytes() []byte {
+func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
+	bufIdx := 0
 	switch e.Dtype {
 	case SS_DT_BOOL:
+		copy(buf[bufIdx:], VALTYPE_ENC_BOOL)
+		bufIdx += 1
 		if e.CVal.(bool) {
-			return []byte("true")
+			buf[bufIdx] = 1
+		} else {
+			buf[bufIdx] = 0
 		}
-		return []byte("false")
-	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
-		buf := make([]byte, 0, 20)
-		return strconv.AppendInt(buf, e.CVal.(int64), 10)
-	case SS_DT_UNSIGNED_NUM, SS_DT_USIGNED_32_NUM, SS_DT_USIGNED_16_NUM, SS_DT_USIGNED_8_NUM:
-		buf := make([]byte, 0, 20)
-		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
+		bufIdx += 1
+		return bufIdx
+	case SS_DT_UNSIGNED_NUM:
+		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
+		bufIdx += 1
+		bytesVal := toputils.Uint64ToBytesLittleEndian(e.CVal.(uint64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
+	case SS_DT_SIGNED_NUM:
+		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
+		bufIdx += 1
+		bytesVal := toputils.Int64ToBytesLittleEndian(e.CVal.(int64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
 	case SS_DT_FLOAT:
-		buf := make([]byte, 0, 64)
-		return strconv.AppendFloat(buf, e.CVal.(float64), 'f', -1, 64)
+		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
+		bufIdx += 1
+		bytesVal := toputils.Float64ToBytesLittleEndian(e.CVal.(float64))
+		copy(buf[bufIdx:], bytesVal)
+		bufIdx += 8
+		return bufIdx
 	case SS_DT_STRING:
-		return []byte(e.CVal.(string))
-	case SS_DT_STRING_SLICE:
-		stringSlice := e.CVal.([]string)
-		if len(stringSlice) == 0 {
-			return []byte{}
-		}
-		totalSize := 0
-		for _, str := range stringSlice {
-			totalSize += len(str)
-		}
-		// Pre-allocate buffer with total size
-		buffer := bytes.NewBuffer(make([]byte, 0, totalSize))
-		for _, s := range stringSlice {
-			buffer.WriteString(s)
-		}
-		return buffer.Bytes()
+		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
+		bufIdx += 1
+		strBytes := []byte(e.CVal.(string))
+		strLen := len(strBytes)
+		copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+		bufIdx += 2
+		copy(buf[bufIdx:], strBytes)
+		bufIdx += strLen
+		return bufIdx
 	case SS_DT_BACKFILL:
-		return VALTYPE_ENC_BACKFILL
-	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
-		jsonBytes, err := json.Marshal(e.CVal)
-		if err != nil {
-			return []byte("invalid_json")
-		}
-		return jsonBytes
+		copy(buf[bufIdx:], VALTYPE_ENC_BACKFILL)
+		bufIdx += 1
+		return bufIdx
 	default:
-		return []byte(fmt.Sprintf("%v", e.CVal))
+		str := fmt.Sprintf("%v", e.CVal)
+		strBytes := []byte(str)
+		strLen := len(strBytes)
+		if strLen <= 255 {
+			copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
+			bufIdx += 1
+			copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+			bufIdx += 2
+		} else {
+			copy(buf[bufIdx:], VALTYPE_ENC_LARGE_STRING)
+			bufIdx += 1
+			copy(buf[bufIdx:], toputils.Uint32ToBytesLittleEndian(uint32(strLen)))
+			bufIdx += 4
+		}
+		copy(buf[bufIdx:], strBytes)
+		bufIdx += strLen
+		return bufIdx
 	}
 }
 
