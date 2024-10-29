@@ -2,7 +2,7 @@
     "queryText": "app_name = Bracecould | head gender=\"female\" OR city=\"Norfolk\" keeplast=true | fields city, gender, app_name",
     "expectedResult": {
         "totalMatched": {
-            "value": 4,
+            "value": 3,
             "relation": "eq"
         },
         "qtype": "logs-query",

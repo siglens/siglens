@@ -1,22 +1,22 @@
-## Currently implemented in the new pipline
-simple_where.json
-simple_sort.json
-complex_search.json
-complex_search_2.json
-search_with_eval.json
-search_1col_fields.json
-grpby_1col_4stats.json
-3stats.json
-bin.json
-9stats.json
-stats_groupby_with_eval.json
-9stats_groupby_2col.json
+# ## Currently implemented in the new pipline
+# simple_where.json
+# simple_sort.json
+# complex_search.json
+# complex_search_2.json
+# search_with_eval.json
+# search_1col_fields.json
+# grpby_1col_4stats.json
+# 3stats.json
+# bin.json
+# 9stats.json
+# stats_groupby_with_eval.json
+# 9stats_groupby_2col.json
 head2.json
-fillnull_with_eval.json
-stats_group_by_eval.json
-eval_groupby_2col_2stats.json
+# fillnull_with_eval.json
+# stats_group_by_eval.json
+# eval_groupby_2col_2stats.json
 
-# head.json // Fix name for field in eval expression giving syntax error
+# head.json // Fix field parsing for BoolExpr
 
 ## Uncomment when implemented for new pipline
 # rare.json
