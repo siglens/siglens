@@ -18,6 +18,8 @@
 package aggregations
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -262,32 +264,49 @@ func SortTimechartRes(timechart *structs.TimechartExpr, results *[]*structs.Buck
 	}
 
 	sort.Slice(*results, func(i, j int) bool {
-		bucketKey1, ok := (*results)[i].BucketKey.(string)
-		if !ok {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[i].BucketKey)
+		timestamp1, err1 := extractTimestamp((*results)[i].BucketKey)
+		if err1 != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", i, err1)
 			return false
 		}
-
-		bucketKey2, ok := (*results)[j].BucketKey.(string)
-		if !ok {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[j].BucketKey)
+		timestamp2, err2 := extractTimestamp((*results)[j].BucketKey)
+		if err2 != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", j, err2)
 			return true
 		}
-
-		timestamp1, err := strconv.ParseUint(bucketKey1, 10, 64)
-		if err != nil {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey1)
-			return false
-		}
-
-		timestamp2, err := strconv.ParseUint(bucketKey2, 10, 64)
-		if err != nil {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey2)
-			return true
-		}
-
 		return timestamp1 < timestamp2
 	})
+}
+
+func extractTimestamp(bucketKey interface{}) (uint64, error) {
+	if bucketKey == nil {
+		return 0, errors.New("bucketKey is nil")
+	}
+
+	// Check if bucketKey is a slice and extract the first element
+	if bucketKeySlice, ok := bucketKey.([]interface{}); ok {
+		if len(bucketKeySlice) > 0 {
+			bucketKey = bucketKeySlice[0]
+		} else {
+			return 0, errors.New("bucketKey slice is empty")
+		}
+	}
+
+	// Attempt to assert bucketKey as uint64
+	if timestamp, ok := bucketKey.(uint64); ok {
+		return timestamp, nil
+	}
+
+	// Attempt to assert bucketKey as string and parse it
+	if bucketKeyStr, ok := bucketKey.(string); ok {
+		timestamp, err := strconv.ParseUint(bucketKeyStr, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot convert bucketKey to timestamp: %v", err)
+		}
+		return timestamp, nil
+	}
+
+	return 0, errors.New("bucketKey is not a string or uint64")
 }
 
 func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
