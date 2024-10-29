@@ -681,8 +681,6 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
             );
         }
 
-        // for sort function display
-        sortByTimestampAtDefault = res.sortByTimestampAtDefault;
         columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
 
         renderAvailableFields(columnOrder, columnCount);
@@ -1193,11 +1191,6 @@ function codeToBuilderParsing(filterValue) {
 }
 
 function renderLogsGrid(columnOrder, hits) {
-    if (sortByTimestampAtDefault) {
-        logsColumnDefs[0].sort = 'desc';
-    } else {
-        logsColumnDefs[0].sort = undefined;
-    }
     if (gridDiv == null) {
         gridDiv = document.querySelector('#LogResultsGrid');
         //eslint-disable-next-line no-undef
@@ -1255,8 +1248,7 @@ function renderLogsGrid(columnOrder, hits) {
             return reorderedHit;
         });
 
-        logsRowData = mappedHits.concat(logsRowData);
-
+        logsRowData = [...logsRowData, ...mappedHits];
         if (liveTailState && logsRowData.length > 500) {
             logsRowData = logsRowData.slice(0, 500);
         }
