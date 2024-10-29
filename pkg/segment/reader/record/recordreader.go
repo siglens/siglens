@@ -73,6 +73,7 @@ func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
+	allCols[config.GetTimeStampKey()] = true
 
 	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
 	// of a map[string]bool so we don't have to do the conversion here

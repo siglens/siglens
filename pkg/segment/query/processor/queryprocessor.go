@@ -21,6 +21,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -40,8 +41,9 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain []*DataProcessor // This shouldn't be modified after initialization.
-	qid   uint64
+	chain       []*DataProcessor // This shouldn't be modified after initialization.
+	qid         uint64
+	timeOrdered bool
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -74,8 +76,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
+	timeOrdered := true
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.SortExpr != nil {
+			timeOrdered = false
+		}
 		dataProcessor := asDataProcessor(curAgg)
 		if dataProcessor == nil {
 			break
@@ -97,11 +103,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid())
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), timeOrdered)
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, timeOrdered bool) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -125,6 +131,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		DataProcessor: *headDP,
 		chain:         chain,
 		qid:           qid,
+		timeOrdered:   timeOrdered,
 	}, nil
 }
 
@@ -216,8 +223,82 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(updateChan chan *structs.PipeSearchWSUpdateResponse,
-	completeChan chan *structs.PipeSearchCompleteResponse) {
+func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
 
-	panic("not implemented") // TODO
+	var finalIQR *iqr.IQR
+	var err error
+	totalRecords := 0
+
+	var iqr *iqr.IQR
+	completeResp := &structs.PipeSearchCompleteResponse{
+		Qtype: qp.queryType.String(),
+	}
+
+	for err != io.EOF {
+		iqr, err = qp.DataProcessor.Fetch()
+		if err != nil && err != io.EOF {
+			return utils.TeeErrorf("GetStreamedResult: failed to fetch iqr, err: %v", err)
+		}
+		if iqr == nil {
+			break
+		}
+		if finalIQR == nil {
+			finalIQR = iqr
+		} else {
+			appendErr := finalIQR.Append(iqr)
+			if appendErr != nil {
+				return utils.TeeErrorf("GetStreamedResult: failed to append iqr to the finalIQR, err: %v", appendErr)
+			}
+		}
+
+		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
+			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
+			if err != nil {
+				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
+			}
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
+			if wsErr != nil {
+				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
+			}
+			totalRecords += len(result.Hits.Hits)
+			stateChan <- &query.QueryStateChanData{
+				StateName:       query.QUERY_UPDATE,
+				PercentComplete: result.Completion,
+				UpdateWSResp:    result,
+			}
+		}
+	}
+
+	if qp.queryType != structs.RRCCmd {
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.timeOrdered)
+		if err != nil {
+			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
+		}
+		completeResp.MeasureResults = result.MeasureResults
+		completeResp.MeasureFunctions = result.MeasureFunctions
+		completeResp.GroupByCols = result.GroupByCols
+		completeResp.BucketCount = result.BucketCount
+	}
+
+	progress, err := query.GetProgress(qp.qid)
+	if err != nil {
+		return utils.TeeErrorf("GetStreamedResult: failed to get progress; err: %v", err)
+	}
+
+	relation := "eq"
+	if progress.UnitsSearched < progress.TotalUnits {
+		relation = "gte"
+	}
+
+	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
+	completeResp.State = query.COMPLETE.String()
+	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
+	completeResp.TotalRRCCount = humanize.Comma(int64(totalRecords))
+
+	stateChan <- &query.QueryStateChanData{
+		StateName:      query.COMPLETE,
+		CompleteWSResp: completeResp,
+	}
+
+	return nil
 }

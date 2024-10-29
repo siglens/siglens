@@ -463,6 +463,14 @@ type QueryCount struct {
 	EarlyExit  bool // if early exit was requested or not
 }
 
+type Progress struct {
+	RecordsSent     uint64
+	UnitsSearched   uint64
+	TotalUnits      uint64
+	RecordsSearched uint64
+	TotalRecords    uint64
+}
+
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
