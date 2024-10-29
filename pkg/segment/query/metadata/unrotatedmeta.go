@@ -125,13 +125,13 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 }
 
 func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.TimeRange, indexNames []string,
-	rawSearchKeys map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary, qid uint64) map[string]*structs.SegmentSearchRequest {
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary, qid uint64) map[string]*structs.SegmentSearchRequest {
 	// todo: better joining of intermediate results of block summaries
 	finalList := make(map[string]*structs.SegmentSearchRequest)
 
 	if node.AndSearchConditions != nil {
 		andSegmentFiles := extractUnrotatedSSRFromCondition(node.AndSearchConditions, segutils.And, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range andSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
@@ -143,7 +143,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 
 	if node.OrSearchConditions != nil {
 		orSegmentFiles := extractUnrotatedSSRFromCondition(node.OrSearchConditions, segutils.Or, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range orSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
@@ -156,7 +156,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 	// exclusion conditions should not influence raw blocks to search
 	if node.ExclusionSearchConditions != nil {
 		exclustionSegmentFiles := extractUnrotatedSSRFromCondition(node.ExclusionSearchConditions, segutils.And, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range exclustionSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				continue
@@ -169,7 +169,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 }
 
 func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op segutils.LogicalOperator, timeRange *dtu.TimeRange,
-	indexNames []string, rawSearchKeys map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary,
+	indexNames []string, allBlocksToSearch map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary,
 	qid uint64) map[string]*structs.SegmentSearchRequest {
 	finalSegFiles := make(map[string]*structs.SegmentSearchRequest)
 	if condition.SearchQueries != nil {
@@ -178,7 +178,7 @@ func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op seg
 			rangeFilter, rangeOp, isRange := query.ExtractRangeFilterFromQuery(qid)
 			bloomWords, originalBloomWords, wildcardBloom, bloomOp := query.GetAllBlockBloomKeysToSearch()
 			res, totalUnrotatedBlocks, filteredUnrotatedBlocks, err := CheckMicroIndicesForUnrotated(query, timeRange, indexNames,
-				rawSearchKeys, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
+				allBlocksToSearch, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
 
 			if err != nil {
 				log.Errorf("qid=%d, extractUnrotatedSSRFromCondition: an error occurred while checking unrotated data %+v", qid, err)
@@ -197,7 +197,7 @@ func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op seg
 
 	if condition.SearchNode != nil {
 		for _, node := range condition.SearchNode {
-			segmentFiles := ExtractUnrotatedSSRFromSearchNode(node, timeRange, indexNames, rawSearchKeys, querySummary, qid)
+			segmentFiles := ExtractUnrotatedSSRFromSearchNode(node, timeRange, indexNames, allBlocksToSearch, querySummary, qid)
 			for fileName, searchReq := range segmentFiles {
 				if _, ok := finalSegFiles[fileName]; !ok {
 					finalSegFiles[fileName] = searchReq
