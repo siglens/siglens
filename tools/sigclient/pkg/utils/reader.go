@@ -107,7 +107,7 @@ type FunctionalTestConfig struct {
 func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
 	variableColNames := make([]string, 0)
 
-	for i := 0;i < maxVariableColumns;i++ {
+	for i := 0; i < maxVariableColumns; i++ {
 		variableColNames = append(variableColNames, fmt.Sprintf("variable_col_%d", i))
 	}
 
