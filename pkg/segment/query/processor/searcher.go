@@ -159,7 +159,6 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
-	log.Errorf("andrew len(nextBlocks)=%v", len(nextBlocks))
 
 	// Prepare to call BatchProcess.
 	getBatchKey := func(block *block) string {
@@ -168,7 +167,6 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	batchKeyLess := toputils.NewUnsetOption[func(string, string) bool]()
 	// The return value is not needed, so use struct{} as a placeholder.
 	batchOperation := func(blocks []*block) ([]*struct{}, error) {
-		log.Errorf("andrew len(blocksInBatch)=%v", len(blocks))
 		if len(blocks) == 0 {
 			// This should never happen.
 			return nil, nil
