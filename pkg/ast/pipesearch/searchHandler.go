@@ -300,7 +300,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		_, err = query.StartQuery(qid, false, nil)
+		rQuery, err := query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
 				qid, err)
@@ -320,10 +320,16 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 		query.SetQidAsFinishedForPipeRespQuery(qid)
 
+		startTime := rQuery.GetStartTime()
+		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(startTime))
+
+		query.DeleteQuery(qid)
+
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
 
 		return &httpRespOuter, false, simpleNode.TimeRange, nil
 	}

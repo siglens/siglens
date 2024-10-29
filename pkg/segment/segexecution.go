@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
@@ -446,6 +445,9 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 		log.Errorf("qid=%d, ExecuteQuery: failed to get remote logs for qid! Error: %v", qid, err)
 	}
 
+	startTime := rQuery.GetStartTime()
+	res.QueryStartTime = startTime
+
 	query.DeleteQuery(qid)
 
 	return res
@@ -511,8 +513,6 @@ func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64,
 	qc *structs.QueryContext, rQuery *query.RunningQueryState) *structs.NodeResult {
 
-	startTime := time.Now()
-
 	if qc.GetNumTables() == 0 {
 		log.Infof("qid=%d, ExecuteQuery: empty array of Index Names provided", qid)
 		return &structs.NodeResult{
@@ -546,7 +546,6 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	if uint64(len(nodeRes.AllRecords)) > qc.SizeLimit {
 		nodeRes.AllRecords = nodeRes.AllRecords[0:qc.SizeLimit]
 	}
-	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGeneratedEventsWithoutSearch()) {
 		err := query.SetFinalStatsForQid(qid, nodeRes)
