@@ -19,7 +19,6 @@ package processor
 
 import (
 	// "fmt"
-	"fmt"
 	"io"
 	"time"
 
@@ -43,8 +42,8 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain []*DataProcessor // This shouldn't be modified after initialization.
-	qid   uint64
+	chain      []*DataProcessor // This shouldn't be modified after initialization.
+	qid        uint64
 	scrollFrom uint64
 }
 
@@ -129,7 +128,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		DataProcessor: *headDP,
 		chain:         chain,
 		qid:           qid,
-		scrollFrom:   uint64(scrollFrom),
+		scrollFrom:    uint64(scrollFrom),
 	}, nil
 }
 
@@ -199,7 +198,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		finalIQR = iqr.NewIQR(qp.qid)
 	}
 
-	scrolled := false
+	keepAll := qp.scrollFrom == 0
 
 	var iqr *iqr.IQR
 	for err != io.EOF {
@@ -213,8 +212,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 			return nil, utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
 		}
 
-		if !scrolled && finalIQR.NumberOfRecords() >= int(qp.scrollFrom) {
-			scrolled = true
+		if !keepAll && finalIQR.NumberOfRecords() >= int(qp.scrollFrom) {
+			keepAll = true
 			numRecordsToDiscard := finalIQR.NumberOfRecords() - int(qp.scrollFrom)
 			err := finalIQR.Discard(numRecordsToDiscard)
 			if err != nil {
@@ -241,11 +240,9 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	completeResp := &structs.PipeSearchCompleteResponse{
 		Qtype: qp.queryType.String(),
 	}
-	
+
 	totalRecords := 0
 	keepAll := qp.scrollFrom == 0
-
-	// fmt.Println("Scroll ", qp.scrollFrom)
 
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
@@ -263,7 +260,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to append iqr to the finalIQR, err: %v", appendErr)
 			}
 		}
-		// fmt.Println("Records ", iqr.NumberOfRecords())
+
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
 			if err != nil {
@@ -274,9 +271,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				continue
 			} else {
 				if !keepAll {
-					scrolledRecords := (totalRecords-int(qp.scrollFrom))
+					scrolledRecords := (totalRecords - int(qp.scrollFrom))
 					recordsToDiscard := iqr.NumberOfRecords() - scrolledRecords
-					// fmt.Println("Discarding Records ", recordsToDiscard)
 					err := iqr.Discard(recordsToDiscard)
 					if err != nil {
 						return utils.TeeErrorf("GetStreamedResult: failed to discard %v rows in iqr, err: %v", qp.scrollFrom, err)
@@ -284,7 +280,6 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 					keepAll = true
 				}
 			}
-			// fmt.Println("Sending Records ", iqr.NumberOfRecords())
 			result, wsErr := iqr.AsWSResult(qp.queryType)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
@@ -314,16 +309,26 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	relation := "eq"
-	if progress.UnitsSearched < progress.TotalUnits {
-		relation = "gte"
-		completeResp.CanScrollMore = true
+
+	if len(qp.chain) > 0 && qp.chain[0].IsDataGenerator() {
+		isEOF := qp.chain[0].IsEOFForDataGenerator()
+		if isEOF {
+			completeResp.CanScrollMore = false
+		} else {
+			completeResp.CanScrollMore = true
+			relation = "gte"
+		}
+	} else {
+		if progress.UnitsSearched < progress.TotalUnits {
+			relation = "gte"
+			completeResp.CanScrollMore = true
+		}
 	}
 
 	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
 	completeResp.TotalRRCCount = totalRecords
-	fmt.Println("Sending Complete ", totalRecords)
 
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,

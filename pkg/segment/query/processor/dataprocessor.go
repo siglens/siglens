@@ -20,7 +20,9 @@ package processor
 import (
 	"errors"
 	"io"
+	"math"
 
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -134,10 +136,20 @@ func (dp *DataProcessor) SetLimitForDataGenerator(limit uint64) {
 	}
 }
 
+func (dp *DataProcessor) IsEOFForDataGenerator() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return dp.processor.(*gentimesProcessor).IsEOF()
+	default:
+		return false
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
 		if dp.IsDataGenerator() {
+			query.InitProgressForRRCCmd(math.MaxUint64, dp.qid) // TODO: Find a good way to handle data generators for progress
 			return iqr.NewIQR(dp.qid), nil
 		}
 		return nil, errors.New("no streams")
