@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var BoolExpr = &structs.BoolExpr{
+var boolExpr = &structs.BoolExpr{
 	LeftValue: &structs.ValueExpr{
 		ValueExprMode: structs.VEMNumericExpr,
 		NumericExpr: &structs.NumericExpr{
@@ -110,7 +110,7 @@ func Test_Head_Expr_Basic(t *testing.T) {
 
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			MaxRows:  math.MaxUint64,
 		},
 	}
@@ -131,7 +131,7 @@ func Test_Head_Expr_Basic(t *testing.T) {
 
 	headProcessor2 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			MaxRows:  2,
 		},
 	}
@@ -170,7 +170,7 @@ func Test_Head_Expr_Null(t *testing.T) {
 
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			Null:     true,
 			MaxRows:  math.MaxUint64,
 		},
@@ -210,7 +210,7 @@ func Test_Head_Expr_Keeplast(t *testing.T) {
 
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			Keeplast: true,
 			MaxRows:  math.MaxUint64,
 		},
@@ -256,7 +256,7 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			Null:     true,
 			Keeplast: true,
 			MaxRows:  math.MaxUint64,
@@ -275,7 +275,7 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 
 	headProcessor2 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			Null:     true,
 			Keeplast: true,
 			MaxRows:  3,
@@ -316,7 +316,7 @@ func Test_Head_Expr_NonExistentCol(t *testing.T) {
 
 	headProcessor1 := &headProcessor{
 		options: &structs.HeadExpr{
-			BoolExpr: BoolExpr,
+			BoolExpr: boolExpr,
 			Null:     true,
 			Keeplast: true,
 			MaxRows:  3,
