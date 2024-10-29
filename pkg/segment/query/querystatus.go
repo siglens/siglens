@@ -1030,15 +1030,13 @@ func InitProgressForRRCCmd(totalUnits uint64, qid uint64) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 
-	if rQuery.isAsync {
-		if rQuery.Progress != nil {
-			return
-		}
+	if rQuery.Progress != nil {
+		return
+	}
 
-		rQuery.Progress = &structs.Progress{
-			TotalUnits:   totalUnits,
-			TotalRecords: rQuery.totalRecsToBeSearched,
-		}
+	rQuery.Progress = &structs.Progress{
+		TotalUnits:   totalUnits,
+		TotalRecords: rQuery.totalRecsToBeSearched,
 	}
 }
 
@@ -1053,14 +1051,14 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 
+	if rQuery.Progress == nil {
+		return putils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
+	}
+
+	rQuery.Progress.UnitsSearched += unitsSearched
+	rQuery.Progress.RecordsSearched += recordsSearched
+
 	if rQuery.isAsync {
-		if rQuery.Progress == nil {
-			return putils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
-		}
-
-		rQuery.Progress.UnitsSearched += unitsSearched
-		rQuery.Progress.RecordsSearched += recordsSearched
-
 		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
 		rQuery.StateChan <- &QueryStateChanData{
 			StateName:    QUERY_UPDATE,
