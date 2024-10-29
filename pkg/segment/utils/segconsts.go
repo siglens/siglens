@@ -20,7 +20,6 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -1041,52 +1040,6 @@ func (e *CValueEnclosure) GetIntValue() (int64, error) {
 		return int64(e.CVal.(float64)), nil
 	default:
 		return 0, fmt.Errorf("CValueEnclosure GetIntValue: unsupported Dtype: %v", e.Dtype)
-	}
-}
-
-func (e *CValueEnclosure) AsBytes() []byte {
-	switch e.Dtype {
-	case SS_DT_BOOL:
-		if e.CVal.(bool) {
-			return []byte("true")
-		}
-		return []byte("false")
-	case SS_DT_SIGNED_NUM:
-		buf := make([]byte, 0, 20)
-		return strconv.AppendInt(buf, e.CVal.(int64), 10)
-	case SS_DT_UNSIGNED_NUM:
-		buf := make([]byte, 0, 20)
-		return strconv.AppendUint(buf, e.CVal.(uint64), 10)
-	case SS_DT_FLOAT:
-		buf := make([]byte, 0, 64)
-		return strconv.AppendFloat(buf, e.CVal.(float64), 'f', -1, 64)
-	case SS_DT_STRING:
-		return []byte(e.CVal.(string))
-	case SS_DT_STRING_SLICE:
-		stringSlice := e.CVal.([]string)
-		if len(stringSlice) == 0 {
-			return []byte{}
-		}
-		totalSize := 0
-		for _, str := range stringSlice {
-			totalSize += len(str)
-		}
-		// Pre-allocate buffer with total size
-		buffer := bytes.NewBuffer(make([]byte, 0, totalSize))
-		for _, s := range stringSlice {
-			buffer.WriteString(s)
-		}
-		return buffer.Bytes()
-	case SS_DT_BACKFILL:
-		return VALTYPE_ENC_BACKFILL
-	case SS_DT_ARRAY_DICT, SS_DT_RAW_JSON:
-		jsonBytes, err := json.Marshal(e.CVal)
-		if err != nil {
-			return []byte("invalid_json")
-		}
-		return jsonBytes
-	default:
-		return []byte(fmt.Sprintf("%v", e.CVal))
 	}
 }
 
