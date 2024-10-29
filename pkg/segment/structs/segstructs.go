@@ -464,11 +464,11 @@ type QueryCount struct {
 }
 
 type Progress struct {
+	RecordsSent     uint64
 	UnitsSearched   uint64
 	TotalUnits      uint64
 	RecordsSearched uint64
 	TotalRecords    uint64
-	Relation        string
 }
 
 // A helper struct to keep track of errors and results together

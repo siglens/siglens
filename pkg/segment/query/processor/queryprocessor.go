@@ -252,14 +252,19 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		}
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
+			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
+			if err != nil {
+				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
+			}
 			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
 			totalRecords += len(result.Hits.Hits)
 			stateChan <- &query.QueryStateChanData{
-				StateName:    query.QUERY_UPDATE,
-				UpdateWSResp: result,
+				StateName:       query.QUERY_UPDATE,
+				PercentComplete: result.Completion,
+				UpdateWSResp:    result,
 			}
 		}
 	}

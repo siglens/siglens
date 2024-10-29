@@ -1055,7 +1055,7 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 
 	if rQuery.isAsync {
 		if rQuery.Progress == nil {
-			return putils.TeeErrorf("IncProgressForRRCCmd: Progress is not initialized! for qid=%v", qid)
+			return putils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
 		}
 
 		rQuery.Progress.UnitsSearched += unitsSearched
@@ -1082,10 +1082,11 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.Progress == nil {
-		return structs.Progress{}, putils.TeeErrorf("GetProgress: Progress is not initialized! for qid=%v", qid)
+		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid=%v Progress is not initialized!", qid)
 	}
 
 	return structs.Progress{
+		RecordsSent:     rQuery.Progress.RecordsSent,
 		TotalUnits:      rQuery.Progress.TotalUnits,
 		UnitsSearched:   rQuery.Progress.UnitsSearched,
 		TotalRecords:    rQuery.Progress.TotalRecords,
@@ -1093,14 +1094,35 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	}, nil
 }
 
-func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress) *structs.PipeSearchWSUpdateResponse {
-	percComplete := float64(0)
-	if progress.TotalUnits > 0 {
-		percComplete = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+func IncRecordsSent(qid uint64, recordsSent uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("IncRecordsSent: qid %+v does not exist!", qid)
 	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	if rQuery.Progress == nil {
+		return putils.TeeErrorf("IncRecordsSent: qid=%v Progress is not initialized!", qid)
+	}
+
+	rQuery.Progress.RecordsSent += recordsSent
+
+	return nil
+}
+
+func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress) *structs.PipeSearchWSUpdateResponse {
+	percCompleteBySearch := float64(0)
+	if progress.TotalUnits > 0 {
+		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+	}
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(utils.QUERY_EARLY_EXIT_LIMIT)
+
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
-		Completion:          float64(percComplete),
+		Completion:          math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent),
 		Qtype:               qType.String(),
 		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
 		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),
