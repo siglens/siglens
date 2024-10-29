@@ -41,7 +41,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		qid: qid,
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, true)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -66,7 +66,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, true)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -88,7 +88,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }
@@ -123,7 +123,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 }

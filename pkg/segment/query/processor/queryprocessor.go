@@ -42,9 +42,8 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain       []*DataProcessor // This shouldn't be modified after initialization.
-	qid         uint64
-	timeOrdered bool
+	chain []*DataProcessor // This shouldn't be modified after initialization.
+	qid   uint64
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -77,12 +76,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
-	timeOrdered := true
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
-		if curAgg.SortExpr != nil {
-			timeOrdered = false
-		}
 		dataProcessor := asDataProcessor(curAgg)
 		if dataProcessor == nil {
 			break
@@ -104,11 +99,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), timeOrdered, scrollFrom)
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom)
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64, timeOrdered bool, scrollFrom int) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, scrollFrom int) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -132,7 +127,6 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		DataProcessor: *headDP,
 		chain:         chain,
 		qid:           qid,
-		timeOrdered:   timeOrdered,
 	}, nil
 }
 
@@ -258,14 +252,17 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 			continue
 		} else {
 			if !keepAll {
-				iqr.Discard(scrollFrom)
+				err := iqr.Discard(scrollFrom)
+				if err != nil {
+					return utils.TeeErrorf("GetStreamedResult: failed to discard %v rows in iqr, err: %v", scrollFrom, err)
+				}
 				keepAll = true
 			}
 		}
 		fmt.Println("Row: ", row, iqr.NumberOfRecords())
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
-			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
+			result, wsErr := iqr.AsWSResult(qp.queryType)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
