@@ -97,6 +97,14 @@ func (s *searcher) Rewind() {
 	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
 }
 
+func getNumRecords(blocks []*block) uint64 {
+	var totalRecords uint64
+	for _, block := range blocks {
+		totalRecords += uint64(block.RecCount)
+	}
+	return totalRecords
+}
+
 func (s *searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
@@ -117,6 +125,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 
 			s.remainingBlocksSorted = blocks
 			s.gotBlocks = true
+			query.InitProgressForRRCCmd(uint64(len(blocks)), s.qid)
 		}
 
 		return s.fetchRRCs()
@@ -200,6 +209,11 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	if err != nil {
 		log.Errorf("qid=%v, searchProcessor.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
+	}
+
+	err = query.IncProgressForRRCCmd(getNumRecords(nextBlocks), uint64(len(nextBlocks)), s.qid)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searchProcessor.fetchRRCs: failed to increment progress: %v", s.qid, err)
 	}
 
 	return iqr, nil

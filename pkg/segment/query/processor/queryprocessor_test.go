@@ -41,7 +41,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		qid: qid,
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, true)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -66,7 +66,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 		})
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, true)
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()

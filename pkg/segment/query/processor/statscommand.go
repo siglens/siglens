@@ -79,6 +79,8 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	// If inputIQR is nil, we are done with the input
 	if inputIQR == nil {
 		return p.extractFinalStatsResults()
+	} else {
+		p.qid = inputIQR.GetQID()
 	}
 
 	switch p.processorType {
