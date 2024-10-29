@@ -174,8 +174,6 @@ func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, accou
 	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
 	m["question"] = f.Question()
 	m["latency"] = f.Number(0, 10_000_000)
-	m["rec"] = rec
-	rec++
 
 	m["account"] = map[string]interface{}{
 		"number":       accountFaker.Number(1000, 9999),

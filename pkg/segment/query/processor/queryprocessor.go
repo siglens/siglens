@@ -87,6 +87,10 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
+	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+		dataProcessors[0].SetLimitForDataGenerator(segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
+	}
+
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
 	if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
 		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
@@ -189,27 +193,26 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 }
 
 func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
-	finalIQR, err := qp.DataProcessor.Fetch()
-	if err != nil && err != io.EOF {
-		return nil, utils.TeeErrorf("GetFullResult: failed initial fetch; err=%v", err)
-	}
-
-	if finalIQR == nil {
-		finalIQR = iqr.NewIQR(qp.qid)
-	}
 
 	keepAll := qp.scrollFrom == 0
 
+	var finalIQR *iqr.IQR
 	var iqr *iqr.IQR
+	var err error
+
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
 		}
 
-		appendErr := finalIQR.Append(iqr)
-		if appendErr != nil {
-			return nil, utils.TeeErrorf("GetFullResult: failed to append; err=%v", appendErr)
+		if finalIQR == nil {
+			finalIQR = iqr
+		} else {
+			appendErr := finalIQR.Append(iqr)
+			if appendErr != nil {
+				return nil, utils.TeeErrorf("GetFullResult: failed to append iqr to the finalIQR, err: %v", appendErr)
+			}
 		}
 
 		if !keepAll && finalIQR.NumberOfRecords() >= int(qp.scrollFrom) {

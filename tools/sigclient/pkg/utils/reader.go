@@ -38,9 +38,6 @@ import (
 
 var json = jsoniter.ConfigFastest
 
-var rec = 0
-var now = time.Now().UnixMilli()
-
 type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
@@ -272,8 +269,7 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, acco
 	getStaticUserColumnValue(f, m, accountFaker)
 
 	if addts {
-		m["timestamp"] = now
-		now--
+		m["timestamp"] = uint64(time.Now().UnixMilli())
 	}
 }
 

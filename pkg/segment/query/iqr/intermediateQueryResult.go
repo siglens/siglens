@@ -555,7 +555,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
 			// Discard all the records that were merged.
 			for i, numTaken := range numRecordsTaken {
-				err := iqrs[i].discard(numTaken)
+				err := iqrs[i].Discard(numTaken)
 				if err != nil {
 					log.Errorf("qid=%v, MergeIQRs: error discarding records: %v", iqr.qid, err)
 					return nil, 0, err
@@ -654,7 +654,7 @@ func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
 	}
 }
 
-func (iqr *IQR) discard(numRecords int) error {
+func (iqr *IQR) Discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.discard: validation failed: %v", err)
 		return err
@@ -681,10 +681,6 @@ func (iqr *IQR) discard(numRecords int) error {
 	}
 
 	return nil
-}
-
-func (iqr *IQR) Discard(numRecords int) error {
-	return iqr.discard(numRecords)
 }
 
 func (iqr *IQR) DiscardAfter(numRecords uint64) error {

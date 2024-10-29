@@ -69,7 +69,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	knownValues := make(map[string][]utils.CValueEnclosure, 0)
 
 	count := uint64(0)
-	for curr < p.options.EndTime && count < utils.QUERY_EARLY_EXIT_LIMIT {
+	for curr < p.options.EndTime && count < p.limit {
 		endTime, err := utils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
 		if err != nil {
 			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating end time, err: %v", err)
