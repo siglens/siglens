@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -323,7 +324,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, qc)
 
 		return &httpRespOuter, false, simpleNode.TimeRange, nil
 	}
@@ -390,7 +391,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}) structs.PipeSearchResponseOuter {
+func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, qc *structs.QueryContext) structs.PipeSearchResponseOuter {
 	var httpRespOuter structs.PipeSearchResponseOuter
 	var httpResp structs.PipeSearchResponse
 
@@ -409,7 +410,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		measFuncs = nodeResult.MeasureFunctions
 	}
 
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs, allColsInAggs)
+	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs, allColsInAggs, qc)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
@@ -457,7 +458,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 
 // returns converted json, all columns, or any errors
 func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
+	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}, qc *structs.QueryContext) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)
 	// if sizeLimit is 0, return empty hits
@@ -476,7 +477,46 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
+	if qc.SearchTerms != nil && allJsons != nil {
+		highlightSearchTerms(qid, qc.SearchTerms, allJsons)
+	}
 	return allJsons, allCols, nil
+}
+func highlightSearchTerms(qid uint64, searchTerms map[string][]string, allJsons []map[string]interface{}) {
+	var strVal string
+	replacement := `<mark>$0</mark>`
+	for colName, colValArr := range searchTerms {
+		for _, colValue := range colValArr {
+			re, err := regexp.Compile(`(?i)\b` + colValue + `\b`)
+			if err != nil {
+				log.Errorf("qid=%d, highlightSearchTerms: Invalid regex pattern: %v", qid, err)
+				return
+			}
+			for i, item := range allJsons {
+				for key, value := range item {
+					switch value := value.(type) {
+					case string:
+						strVal = value
+					case float64:
+						strVal = fmt.Sprintf("%f", value)
+					case int64:
+						strVal = fmt.Sprintf("%d", value)
+					case uint64:
+						strVal = fmt.Sprintf("%d", value)
+					default:
+						continue
+					}
+					if re.MatchString(strVal) && colName == "*" {
+						highlighted := re.ReplaceAllString(strVal, replacement)
+						allJsons[i][key] = highlighted
+					} else if re.MatchString(strVal) && colName == key {
+						highlighted := re.ReplaceAllString(strVal, replacement)
+						allJsons[i][key] = highlighted
+					}
+				}
+			}
+		}
+	}
 }
 
 func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
