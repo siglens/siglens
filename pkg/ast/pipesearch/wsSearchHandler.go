@@ -375,8 +375,13 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	if err != nil {
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get number of RRCs for qid! Error: %v", qid, err)
 	}
+	startTime, err := query.GetQueryStartTime(qid)
+	if err != nil {
+		log.Errorf("qid=%d, processCompleteUpdate: failed to get query start time for qid! Error: %v", qid, err)
+	}
 
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
+	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {
