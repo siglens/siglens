@@ -38,7 +38,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	requiredFields := p.options.BoolExpr.GetFields()
-	records, err := iqr.ReadColumns(requiredFields)
+	records, err := iqr.ReadColumnsWithBackfill(requiredFields)
 	if err != nil {
 		return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: failed to read columns, requiredFields: %v, err: %v", requiredFields, err)
 	}

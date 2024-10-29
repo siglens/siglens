@@ -829,7 +829,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 	}
 }
 
-func Test_ReadColumns(t *testing.T) {
+func Test_ReadColumnsWithBackfill(t *testing.T) {
 	iqr := NewIQR(0)
 	knownValues := map[string][]utils.CValueEnclosure{
 		"col1": {
@@ -851,14 +851,19 @@ func Test_ReadColumns(t *testing.T) {
 	err := iqr.AppendKnownValues(knownValues)
 	assert.NoError(t, err)
 
-	columnValues, err := iqr.ReadColumns([]string{"col1", "col2"})
+	columnValues, err := iqr.ReadColumnsWithBackfill([]string{"col1", "col2"})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(columnValues))
 	assert.Equal(t, knownValues["col1"], columnValues["col1"])
 	assert.Equal(t, knownValues["col2"], columnValues["col2"])
 
-	columnValues, err = iqr.ReadColumns([]string{"col3"})
+	columnValues, err = iqr.ReadColumnsWithBackfill([]string{"col3", "col4"})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(columnValues))
+	assert.Equal(t, 2, len(columnValues))
 	assert.Equal(t, knownValues["col3"], columnValues["col3"])
+	expectedBackfilledCol := []utils.CValueEnclosure{}
+	for i := 0; i < 3; i++ {
+		expectedBackfilledCol = append(expectedBackfilledCol, *backfillCVal)
+	}
+	assert.Equal(t, expectedBackfilledCol, columnValues["col4"])
 }

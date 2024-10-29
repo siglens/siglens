@@ -248,20 +248,34 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	}
 }
 
-func (iqr *IQR) ReadColumns(cnames []string) (map[string][]utils.CValueEnclosure, error) {
+// This function returns backfilled columns if they do not exist in the IQR.
+func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		return nil, toputils.TeeErrorf("IQR.ReadColumns: validation failed: %v", err)
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: validation failed: %v", err)
 	}
 
 	if iqr.mode == notSet {
-		return nil, toputils.TeeErrorf("IQR.ReadColumns: mode not set")
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
+	}
+
+	allColumns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
 	}
 
 	result := make(map[string][]utils.CValueEnclosure)
 	for _, cname := range cnames {
-		values, err := iqr.ReadColumn(cname)
-		if err != nil {
-			return nil, toputils.TeeErrorf("IQR.ReadColumns: cannot get values for cname: %s; err: %v", cname, err)
+		var values []utils.CValueEnclosure
+		if _, exist := allColumns[cname]; !exist {
+			values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+			for i := range values {
+				values[i] = *backfillCVal
+			}
+		} else {
+			values, err = iqr.ReadColumn(cname)
+			if err != nil {
+				return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: cannot get values for cname: %s; err: %v", cname, err)
+			}
 		}
 
 		result[cname] = values
