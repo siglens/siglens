@@ -24,7 +24,6 @@ import (
 	"math"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/config"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -454,6 +453,28 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	return res
 }
 
+func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
+	rQuery, err := query.StartQuery(qid, true, nil)
+	if err != nil {
+		log.Errorf("ExecuteAsyncQueryForNewPipeline: Error initializing query status! %+v", err)
+		return nil, err
+	}
+
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
+		return nil, err
+	}
+
+	go func() {
+		err = queryProcessor.GetStreamedResult(rQuery.StateChan)
+		if err != nil {
+			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
+		}
+	}()
+	return rQuery.StateChan, nil
+}
+
 // The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.
 // Returns a channel that will have events for query status or any error. An error means the query was not successfully started
 func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
@@ -464,16 +485,12 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	}
 
 	go func() {
-		if config.IsNewQueryPipelineEnabled() {
-			_ = executePipeRespQueryInternal(root, aggs, qid, qc)
-		} else {
-			_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
-		}
+		_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
 	}()
 	return rQuery.StateChan, nil
 }
 
-func ExecutePipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, error) {
+func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (*processor.QueryProcessor, error) {
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
@@ -490,31 +507,7 @@ func ExecutePipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, 
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
 	}
 
-	httpResponse, err := queryProcessor.GetFullResult()
-	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to get full result, err: %v", qid, err)
-	}
-
-	return httpResponse, nil
-}
-
-func executePipeRespQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-
-	httpResponse, err := ExecutePipeResQuery(root, aggs, qid, qc)
-	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to ExecutePipeResQuery, err: %v", qid, err)
-		return nil
-	}
-
-	err = query.SetPipeResp(httpResponse, qid)
-	if err != nil {
-		log.Errorf("qid=%v, executePipeRespQueryInternal: failed to set pipeResp, err: %v", qid, err)
-		return nil
-	}
-
-	query.SetQidAsFinishedForPipeRespQuery(qid)
-
-	return nil
+	return queryProcessor, nil
 }
 
 func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64,

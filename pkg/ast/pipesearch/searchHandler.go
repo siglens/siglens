@@ -307,10 +307,15 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			return nil, false, nil, err
 		}
 
-		httpResponse, err := segment.ExecutePipeResQuery(simpleNode, aggs, qid, qc)
+		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc)
 		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to ExecutePipeResQuery, err: %v", qid, err)
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
 			return nil, false, nil, err
+		}
+
+		httpResponse, err := queryProcessor.GetFullResult()
+		if err != nil {
+			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
 		}
 
 		query.SetQidAsFinishedForPipeRespQuery(qid)

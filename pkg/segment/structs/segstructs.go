@@ -453,15 +453,29 @@ type AggregationResult struct {
 	Results         []*BucketResult // histogram results
 }
 
+// TODO: Retain either IGroupByValues or GroupByValues, as having both is unnecessary.
+// The goal is to preserve the group-by value type as interface{} to avoid issues
+// when processing subsequent commands.
+// Ideally, we should update GroupByValues to have a type of []interface{}
+// and eliminate IGroupByValues.
 type BucketHolder struct {
-	GroupByValues []string
-	MeasureVal    map[string]interface{}
+	IGroupByValues []utils.CValueEnclosure // each group-by value is stored as interface{}
+	GroupByValues  []string
+	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {
 	TotalCount uint64 // total number of
 	Op         utils.FilterOperator
 	EarlyExit  bool // if early exit was requested or not
+}
+
+type Progress struct {
+	RecordsSent     uint64
+	UnitsSearched   uint64
+	TotalUnits      uint64
+	RecordsSearched uint64
+	TotalRecords    uint64
 }
 
 // A helper struct to keep track of errors and results together
