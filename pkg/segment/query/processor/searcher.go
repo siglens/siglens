@@ -479,6 +479,14 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 		return nil, 0, nil
 	}
 
+	if mode == anyOrder {
+		if len(sortedBlocks) > maxBlocks {
+			return sortedBlocks[:maxBlocks], 0, nil
+		}
+
+		return sortedBlocks, 0, nil
+	}
+
 	var startTimeOf func(block *block) uint64
 	var endTimeOf func(block *block) uint64
 	switch mode {
@@ -531,7 +539,25 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 	}
 
 	if numBlocks >= len(sortedBlocks) {
-		return sortedBlocks, endTimeOf(sortedBlocks[len(sortedBlocks)-1]), nil
+		overallEndTime := endTimeOf(sortedBlocks[0])
+		for i := 0; i < len(sortedBlocks); i++ {
+			endTime := endTimeOf(sortedBlocks[i])
+
+			switch mode {
+			case recentFirst:
+				if endTime < overallEndTime {
+					overallEndTime = endTime
+				}
+			case recentLast:
+				if endTime > overallEndTime {
+					overallEndTime = endTime
+				}
+			default:
+				return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
+			}
+		}
+
+		return sortedBlocks, overallEndTime, nil
 	}
 
 	return sortedBlocks[:numBlocks], startTimeOf(sortedBlocks[numBlocks]), nil
