@@ -23,6 +23,7 @@ import (
 	"math"
 	"reflect"
 	"sync/atomic"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
@@ -498,6 +499,7 @@ type NodeResult struct {
 	FinalColumns                map[string]bool
 	AllColumnsInAggs            map[string]struct{}
 	RemoteLogs                  []map[string]interface{}
+	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
 
 type SegStats struct {
