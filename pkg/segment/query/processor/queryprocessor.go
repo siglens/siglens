@@ -258,12 +258,11 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 			continue
 		} else {
 			if !keepAll {
-				remove := row - scrollFrom
-				iqr.Discard(remove)
+				iqr.Discard(scrollFrom)
 				keepAll = true
 			}
 		}
-		fmt.Println("Row: ", row)
+		fmt.Println("Row: ", row, iqr.NumberOfRecords())
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
@@ -303,7 +302,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
-	completeResp.TotalRRCCount = totalRecords
+	completeResp.TotalRRCCount = row
 
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
