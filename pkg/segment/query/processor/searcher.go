@@ -20,6 +20,7 @@ package processor
 import (
 	"io"
 	"math"
+	"runtime"
 	"sort"
 	"time"
 
@@ -146,15 +147,10 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	endTime, err := getNextEndTime(s.remainingBlocksSorted, s.sortMode)
+	desiredMaxBlocks := runtime.GOMAXPROCS(0) // TODO: tune this
+	nextBlocks, endTime, err := getNextBlocks(s.remainingBlocksSorted, desiredMaxBlocks, s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get next end time: %v", s.qid, err)
-		return nil, err
-	}
-
-	nextBlocks, err := getBlocksForTimeRange(s.remainingBlocksSorted, s.sortMode, endTime)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get blocks for time range: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -471,51 +467,157 @@ func sortBlocks(blocks []*block, mode sortMode) error {
 	return nil
 }
 
-func getNextEndTime(sortedBlocks []*block, mode sortMode) (uint64, error) {
+// Returns the next blocks to search and the end time; every record before the
+// end time will be in one of the returned blocks; if a record has the exact
+// same timestamp as the end time, it may or may not be in the returned blocks.
+//
+// When possible (adhering to the above guarantee), no more than maxBlocks will
+// be returned. When the number of returned blocks does not exceed maxBlocks,
+// it will be as close to maxBlocks as possible.
+// func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*block, uint64, error) {
+// 	if len(sortedBlocks) == 0 {
+// 		return nil, 0, nil
+// 	}
+
+// 	var getEndTime func(block *block) uint64
+// 	switch mode {
+// 	case recentFirst:
+// 		getEndTime = func(block *block) uint64 {
+// 			return block.HighTs
+// 		}
+// 	case recentLast:
+// 		getEndTime = func(block *block) uint64 {
+// 			return block.LowTs
+// 		}
+// 	default:
+// 		return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
+// 	}
+
+// 	endTime := getEndTime(sortedBlocks[0])
+// 	selectedBlocks := make([]*block, 0, maxBlocks)
+// 	selectedBlocks = append(selectedBlocks, sortedBlocks[0])
+
+// 	for i := 1; i < len(sortedBlocks) && len(selectedBlocks) < maxBlocks; i++ {
+// 		currentBlock := sortedBlocks[i]
+// 		if mode == recentFirst {
+// 			// For recentFirst, we need all blocks whose HighTs is greater than the next block's HighTs
+// 			endTime = getEndTime(currentBlock)
+// 			selectedBlocks = append(selectedBlocks, currentBlock)
+// 		} else {
+// 			// Original logic for recentLast mode
+// 			nextPossibleEndTime := getEndTime(currentBlock)
+// 			numAddedBlocks := getNumBlocksBefore(sortedBlocks[i:], nextPossibleEndTime, mode)
+// 			if numAddedBlocks == 0 {
+// 				endTime = nextPossibleEndTime
+// 				continue
+// 			}
+
+// 			if len(selectedBlocks)+numAddedBlocks > maxBlocks {
+// 				break
+// 			}
+
+// 			endTime = nextPossibleEndTime
+// 			selectedBlocks = append(selectedBlocks, sortedBlocks[i:i+numAddedBlocks]...)
+// 			i += numAddedBlocks - 1
+// 		}
+// 	}
+
+// 	return selectedBlocks, endTime, nil
+// }
+
+func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*block, uint64, error) {
 	if len(sortedBlocks) == 0 {
-		return 0, nil
+		return nil, 0, nil
 	}
 
-	// TODO: we may want to optimize this; e.g., minimize the number of blocks
-	// that will be in this time range, or try to get a certain number of
-	// blocks.
+	var startTimeOf func(block *block) uint64
+	var endTimeOf func(block *block) uint64
 	switch mode {
 	case recentFirst:
-		return sortedBlocks[0].LowTs, nil
+		startTimeOf = func(block *block) uint64 {
+			return block.HighTs
+		}
+		endTimeOf = func(block *block) uint64 {
+			return block.LowTs
+		}
 	case recentLast:
-		return sortedBlocks[0].HighTs, nil
+		startTimeOf = func(block *block) uint64 {
+			return block.LowTs
+		}
+		endTimeOf = func(block *block) uint64 {
+			return block.HighTs
+		}
 	default:
-		return 0, toputils.TeeErrorf("getNextEndTime: invalid sort mode: %v", mode)
+		return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
 	}
+
+	numBlocks := 0
+	for i := 0; i < len(sortedBlocks); i++ {
+		if startTimeOf(sortedBlocks[i]) == startTimeOf(sortedBlocks[0]) {
+			numBlocks++
+		} else {
+			break
+		}
+	}
+
+	for {
+		nextPossibleNumBlocks := numBlocks + 1
+		for i := numBlocks; i < len(sortedBlocks); i++ {
+			if startTimeOf(sortedBlocks[i]) == startTimeOf(sortedBlocks[numBlocks]) {
+				nextPossibleNumBlocks = i + 1
+			} else {
+				break
+			}
+		}
+
+		if nextPossibleNumBlocks > maxBlocks {
+			break
+		}
+
+		numBlocks = nextPossibleNumBlocks
+
+		if numBlocks == len(sortedBlocks) {
+			break
+		}
+	}
+
+	if numBlocks >= len(sortedBlocks) {
+		return sortedBlocks, endTimeOf(sortedBlocks[len(sortedBlocks)-1]), nil
+	}
+
+	return sortedBlocks[:numBlocks], startTimeOf(sortedBlocks[numBlocks]), nil
 }
 
-func getBlocksForTimeRange(blocks []*block, mode sortMode, endTime uint64) ([]*block, error) {
-	if len(blocks) == 0 {
-		return nil, nil
+// Return all the blocks that must be searched in order to guarantee that all
+// records with timestamps before the endTime will be found.
+func getNumBlocksBefore(sortedBlocks []*block, endTime uint64, mode sortMode) int {
+	if len(sortedBlocks) == 0 {
+		return 0
 	}
 
-	selectedBlocks := make([]*block, 0)
+	numBlocks := 0
 
 	switch mode {
 	case recentFirst:
-		for _, block := range blocks {
-			if block.HighTs >= endTime {
-				selectedBlocks = append(selectedBlocks, block)
+		for _, block := range sortedBlocks {
+			if block.HighTs > endTime {
+				numBlocks++
 			}
 		}
 	case recentLast:
-		for _, block := range blocks {
-			if block.LowTs <= endTime {
-				selectedBlocks = append(selectedBlocks, block)
+		for _, block := range sortedBlocks {
+			if block.LowTs < endTime {
+				numBlocks++
 			}
 		}
 	case anyOrder:
-		selectedBlocks = blocks[0:]
+		return 1
 	default:
-		return nil, toputils.TeeErrorf("getBlocksForTimeRange: invalid sort mode: %v", mode)
+		log.Errorf("getNumBlocksBefore: invalid sort mode: %v", mode)
+		return 0
 	}
 
-	return selectedBlocks, nil
+	return numBlocks
 }
 
 // All of the blocks must be for the same segment.
