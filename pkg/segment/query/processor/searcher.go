@@ -350,6 +350,7 @@ func (s *searcher) getBlocks() ([]*block, error) {
 
 	allBlocks := make([]*block, 0)
 	for i, qsr := range qsrs {
+		pqmrBlockNumbers := make(map[uint16]struct{})
 		if pqmr, ok := pqmrs[i].Get(); ok {
 			blockToMetadata, blockSummaries, err := metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
 			if err != nil {
@@ -360,16 +361,25 @@ func (s *searcher) getBlocks() ([]*block, error) {
 
 			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
 			allBlocks = append(allBlocks, blocks...)
-		} else {
-			fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
-			if err != nil {
-				log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", s.qid, qsr, err)
-				return nil, err
-			}
 
-			for file, ssr := range fileToSSR {
-				blocks := makeBlocksFromSSR(qsr, file, ssr)
-				allBlocks = append(allBlocks, blocks...)
+			for _, block := range blocks {
+				pqmrBlockNumbers[block.BlkNum] = struct{}{}
+			}
+		}
+
+		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.getBlocks: failed to get SSRs from QSR %+v; err=%v", s.qid, qsr, err)
+			return nil, err
+		}
+
+		for file, ssr := range fileToSSR {
+			blocks := makeBlocksFromSSR(qsr, file, ssr)
+
+			for _, block := range blocks {
+				if _, ok := pqmrBlockNumbers[block.BlkNum]; !ok {
+					allBlocks = append(allBlocks, block)
+				}
 			}
 		}
 	}
@@ -515,7 +525,7 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	}
 	searchResults.NextSegKeyEnc = encoding
 
-	if segmentPQMR, ok := blocks[0].parentPQMR.Get(); ok {
+	if _, ok := blocks[0].parentPQMR.Get(); ok {
 		metas := make(map[uint16]*structs.BlockMetadataHolder)
 		summaries := make([]*structs.BlockSummary, 0)
 		for _, block := range blocks {
@@ -525,7 +535,19 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 			}
 			summaries[block.BlkNum] = block.BlockSummary
 		}
-		err := query.ApplySinglePQSRawSearch(blocks[0].parentQSR, searchResults, segmentPQMR, metas, summaries, qs)
+		for i := range summaries {
+			if summaries[i] == nil {
+				summaries[i] = &structs.BlockSummary{}
+			}
+		}
+
+		pqmr, err := getPQMR(blocks)
+		if err != nil {
+			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to get PQMR: %v", s.qid, err)
+			return nil, nil, err
+		}
+
+		err = query.ApplySinglePQSRawSearch(blocks[0].parentQSR, searchResults, pqmr, metas, summaries, qs)
 		if err != nil {
 			log.Errorf("qid=%v, searchProcessor.readSortedRRCs: failed to apply PQS: %v", s.qid, err)
 			return nil, nil, err
@@ -547,6 +569,40 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 
 	// TODO: verify the results or sorted, or sort them here.
 	return searchResults.GetResults(), searchResults.SegEncToKey, nil
+}
+
+// All of the blocks should be for the same PQMR.
+func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
+
+	// Each block should have come from the same PQMR.
+	firstPQMR, ok := blocks[0].parentPQMR.Get()
+	if !ok {
+		return nil, toputils.TeeErrorf("getPQMR: first block has no PQMR")
+	}
+
+	for _, block := range blocks {
+		pqmr, ok := block.parentPQMR.Get()
+		if !ok {
+			return nil, toputils.TeeErrorf("getPQMR: block has no PQMR")
+		} else if pqmr != firstPQMR {
+			return nil, toputils.TeeErrorf("getPQMR: blocks are from different PQMRs")
+		}
+	}
+
+	finalPQMR := pqmr.InitSegmentPQMResults()
+	for _, block := range blocks {
+		blockResults, ok := firstPQMR.GetBlockResults(block.BlkNum)
+		if !ok {
+			return nil, toputils.TeeErrorf("getPQMR: block %v not found", block.BlkNum)
+		}
+
+		finalPQMR.SetBlockResults(block.BlkNum, blockResults)
+	}
+
+	return finalPQMR, nil
 }
 
 // All of the blocks should be for the same SSR.

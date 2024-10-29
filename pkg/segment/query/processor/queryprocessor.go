@@ -271,14 +271,15 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 			}
 			totalRecords += len(result.Hits.Hits)
 			stateChan <- &query.QueryStateChanData{
-				StateName:    query.QUERY_UPDATE,
-				UpdateWSResp: result,
+				StateName:       query.QUERY_UPDATE,
+				PercentComplete: result.Completion,
+				UpdateWSResp:    result,
 			}
 		}
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType, qp.timeOrdered)
+		result, err := finalIQR.AsWSResult(qp.queryType)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
