@@ -474,57 +474,6 @@ func sortBlocks(blocks []*block, mode sortMode) error {
 // When possible (adhering to the above guarantee), no more than maxBlocks will
 // be returned. When the number of returned blocks does not exceed maxBlocks,
 // it will be as close to maxBlocks as possible.
-// func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*block, uint64, error) {
-// 	if len(sortedBlocks) == 0 {
-// 		return nil, 0, nil
-// 	}
-
-// 	var getEndTime func(block *block) uint64
-// 	switch mode {
-// 	case recentFirst:
-// 		getEndTime = func(block *block) uint64 {
-// 			return block.HighTs
-// 		}
-// 	case recentLast:
-// 		getEndTime = func(block *block) uint64 {
-// 			return block.LowTs
-// 		}
-// 	default:
-// 		return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
-// 	}
-
-// 	endTime := getEndTime(sortedBlocks[0])
-// 	selectedBlocks := make([]*block, 0, maxBlocks)
-// 	selectedBlocks = append(selectedBlocks, sortedBlocks[0])
-
-// 	for i := 1; i < len(sortedBlocks) && len(selectedBlocks) < maxBlocks; i++ {
-// 		currentBlock := sortedBlocks[i]
-// 		if mode == recentFirst {
-// 			// For recentFirst, we need all blocks whose HighTs is greater than the next block's HighTs
-// 			endTime = getEndTime(currentBlock)
-// 			selectedBlocks = append(selectedBlocks, currentBlock)
-// 		} else {
-// 			// Original logic for recentLast mode
-// 			nextPossibleEndTime := getEndTime(currentBlock)
-// 			numAddedBlocks := getNumBlocksBefore(sortedBlocks[i:], nextPossibleEndTime, mode)
-// 			if numAddedBlocks == 0 {
-// 				endTime = nextPossibleEndTime
-// 				continue
-// 			}
-
-// 			if len(selectedBlocks)+numAddedBlocks > maxBlocks {
-// 				break
-// 			}
-
-// 			endTime = nextPossibleEndTime
-// 			selectedBlocks = append(selectedBlocks, sortedBlocks[i:i+numAddedBlocks]...)
-// 			i += numAddedBlocks - 1
-// 		}
-// 	}
-
-// 	return selectedBlocks, endTime, nil
-// }
-
 func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*block, uint64, error) {
 	if len(sortedBlocks) == 0 {
 		return nil, 0, nil
@@ -586,38 +535,6 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 	}
 
 	return sortedBlocks[:numBlocks], startTimeOf(sortedBlocks[numBlocks]), nil
-}
-
-// Return all the blocks that must be searched in order to guarantee that all
-// records with timestamps before the endTime will be found.
-func getNumBlocksBefore(sortedBlocks []*block, endTime uint64, mode sortMode) int {
-	if len(sortedBlocks) == 0 {
-		return 0
-	}
-
-	numBlocks := 0
-
-	switch mode {
-	case recentFirst:
-		for _, block := range sortedBlocks {
-			if block.HighTs > endTime {
-				numBlocks++
-			}
-		}
-	case recentLast:
-		for _, block := range sortedBlocks {
-			if block.LowTs < endTime {
-				numBlocks++
-			}
-		}
-	case anyOrder:
-		return 1
-	default:
-		log.Errorf("getNumBlocksBefore: invalid sort mode: %v", mode)
-		return 0
-	}
-
-	return numBlocks
 }
 
 // All of the blocks must be for the same segment.

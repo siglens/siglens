@@ -91,48 +91,6 @@ func Test_sortBlocks(t *testing.T) {
 	}
 }
 
-func Test_getNumBlocksBefore_recentFirst(t *testing.T) {
-	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
-		{high: 40, low: 15},
-		{high: 30, low: 25},
-		{high: 20, low: 5},
-		{high: 10, low: 8},
-	})
-
-	numBlocksBefore := getNumBlocksBefore(blocksSortedHigh, 60, recentFirst)
-	assert.Equal(t, 0, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedHigh, 30, recentFirst)
-	assert.Equal(t, 1, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedHigh, 23, recentFirst)
-	assert.Equal(t, 2, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedHigh, 0, recentFirst)
-	assert.Equal(t, 4, numBlocksBefore)
-}
-
-func Test_getNumBlocksBefore_recentLast(t *testing.T) {
-	blocksSortedLow := makeBlocksWithSummaryOnly([]timeRange{
-		{high: 20, low: 5},
-		{high: 10, low: 8},
-		{high: 40, low: 15},
-		{high: 30, low: 25},
-	})
-
-	numBlocksBefore := getNumBlocksBefore(blocksSortedLow, 0, recentLast)
-	assert.Equal(t, 0, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedLow, 8, recentLast)
-	assert.Equal(t, 1, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedLow, 10, recentLast)
-	assert.Equal(t, 2, numBlocksBefore)
-
-	numBlocksBefore = getNumBlocksBefore(blocksSortedLow, 50, recentLast)
-	assert.Equal(t, 4, numBlocksBefore)
-}
-
 func Test_getNextEndTime_recentFirst(t *testing.T) {
 	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 40, low: 15},
