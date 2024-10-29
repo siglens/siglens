@@ -275,7 +275,7 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 			PercentComplete: perComp}
 	}
 
-	if config.IsNewQueryPipelineEnabled() && rQuery.isAsync && rQuery.QType != structs.RRCCmd {
+	if config.IsNewQueryPipelineEnabled() && rQuery.QType != structs.RRCCmd {
 		if rQuery.Progress == nil {
 			rQuery.Progress = &structs.Progress{
 				TotalUnits:   rQuery.totalSegments,
@@ -285,10 +285,12 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		rQuery.Progress.UnitsSearched = rQuery.finishedSegments
 		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
 
-		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
-		rQuery.StateChan <- &QueryStateChanData{
-			StateName:    QUERY_UPDATE,
-			UpdateWSResp: wsResponse,
+		if rQuery.isAsync {
+			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+			rQuery.StateChan <- &QueryStateChanData{
+				StateName:    QUERY_UPDATE,
+				UpdateWSResp: wsResponse,
+			}
 		}
 	}
 
