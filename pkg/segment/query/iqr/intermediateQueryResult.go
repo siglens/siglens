@@ -683,6 +683,10 @@ func (iqr *IQR) discard(numRecords int) error {
 	return nil
 }
 
+func (iqr *IQR) Discard(numRecords int) error {
+	return iqr.discard(numRecords)
+}
+
 func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.DiscardAfter: validation failed: %v", err)

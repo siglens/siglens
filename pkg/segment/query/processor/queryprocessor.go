@@ -236,6 +236,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 	fmt.Println("ScrollFrom: ", scrollFrom)
 	row := 0
+	keepAll := scrollFrom == 0
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -255,6 +256,12 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		row += iqr.NumberOfRecords()
 		if row < scrollFrom {
 			continue
+		} else {
+			if !keepAll {
+				remove := row - scrollFrom
+				iqr.Discard(remove)
+				keepAll = true
+			}
 		}
 		fmt.Println("Row: ", row)
 
@@ -296,7 +303,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
-	completeResp.TotalRRCCount = humanize.Comma(int64(totalRecords))
+	completeResp.TotalRRCCount = totalRecords
 
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
