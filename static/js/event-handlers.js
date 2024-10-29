@@ -21,14 +21,14 @@
 function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
 
-    $('#run-filter-btn').on('click', runFilterBtnHandler);
-    $('#query-builder-btn').on('click', runFilterBtnHandler);
+    $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
+    $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#available-fields').on('click', availableFieldsClickHandler);
+    $('#available-fields').off('click').on('click', availableFieldsClickHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
     $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
-    $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
+    $('#available-fields .fields').off('click').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
     $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
@@ -44,9 +44,20 @@ function setupEventHandlers() {
 
     $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
-    $('#log-opt-single-btn').on('click', logOptionSingleHandler);
-    $('#log-opt-multi-btn').on('click', logOptionMultiHandler);
-    $('#log-opt-table-btn').on('click', logOptionTableHandler);
+    $('#log-opt-single-btn').on('click', function () {
+        logOptionSingleHandler();
+        refreshColumnVisibility();
+    });
+
+    $('#log-opt-multi-btn').on('click', function () {
+        logOptionMultiHandler();
+        refreshColumnVisibility();
+    });
+
+    $('#log-opt-table-btn').on('click', function () {
+        logOptionTableHandler();
+        refreshColumnVisibility();
+    });
 
     $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
     $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
@@ -63,10 +74,10 @@ function setupEventHandlers() {
 
     $('#time-start').on('change', getStartTimeHandler);
     $('#time-end').on('change', getEndTimeHandler);
-    $('#customrange-btn').on('click', customRangeHandler);
+    $('#customrange-btn').off('click').on('click', customRangeHandler);
 
     $('.range-item').on('click', rangeItemHandler);
-    $('.db-range-item').on('click', dashboardRangeItemHandler);
+    $('.db-range-item').off('click').on('click', dashboardRangeItemHandler);
 
     $('.ui-widget input').on('keyup', saveqInputHandler);
 
@@ -712,6 +723,7 @@ function logOptionSingleHandler() {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
+            colDef.suppressSizeToFit = true;
             colDef.cellRenderer = function (params) {
                 const data = params.data || {};
                 let logString = '';
@@ -756,6 +768,7 @@ function logOptionMultiHandler() {
         if (colDef.field === 'logs') {
             colDef.cellStyle = { 'white-space': 'normal' };
             colDef.autoHeight = true;
+            colDef.suppressSizeToFit = false;
             colDef.cellRenderer = function (params) {
                 const data = params.data || {};
                 let logString = '';
@@ -888,13 +901,14 @@ function handleHideNullColumnsCheckbox(event) {
 
 function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
     const columnDefs = gridOptions.columnApi?.getColumns().map((col) => ({ field: col.getColId() }));
-    let updatedSelectedFieldsList = [...selectedFieldsList]; // Use selectedFieldsList instead of availColNames
+    let updatedSelectedFieldsList = [...selectedFieldsList];
 
     if (!nullColumns) {
         //eslint-disable-next-line no-undef
         nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
     }
 
+    const currentView = Cookies.get('log-view');
     columnDefs?.forEach((colDef) => {
         const colField = colDef.field;
         if (colField !== 'timestamp' && colField !== 'logs') {
@@ -906,19 +920,16 @@ function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
             if (hideNullColumns && isNullColumn && isSelected) {
                 shouldBeVisible = false;
                 updatedSelectedFieldsList = updatedSelectedFieldsList.filter((field) => field !== colField);
-            }
-
-            gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
-
-            if (shouldBeVisible) {
-                $(`.toggle-${string2Hex(colField)}`).addClass('active');
-            } else {
-                $(`.toggle-${string2Hex(colField)}`).removeClass('active');
+                if (currentView === 'table') {
+                    gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
+                }
             }
         }
     });
     updateAvailableFieldsUI(updatedSelectedFieldsList);
     gridOptions.api?.sizeColumnsToFit();
+
+    updateLogsColumnRenderer(currentView, updatedSelectedFieldsList, nullColumns);
 }
 
 function updateAvailableFieldsUI(updatedSelectedFieldsList) {
@@ -950,4 +961,48 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
             el.find('.select-unselect-checkmark').remove();
         }
     }
+}
+
+function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
+    const logsColumnDef = gridOptions.columnApi?.getColumn('logs').getColDef();
+    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+
+    if (logsColumnDef) {
+        if (currentView === 'table') {
+            logsColumnDef.cellRenderer = null;
+        } else {
+            logsColumnDef.cellRenderer = (params) => {
+                const data = params.data || {};
+                let logString = '';
+                let addSeparator = false;
+
+                Object.entries(data)
+                    .filter(([key]) => key !== 'timestamp' && key !== 'logs')
+                    .forEach(([key, value]) => {
+                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
+                        let formattedValue;
+                        if (currentView === 'single-line') {
+                            formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
+                        } else if (currentView === 'multi-line') {
+                            formattedValue = formatLogsValue(value);
+                        }
+
+                        const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
+                        const visibilityClass = isVisible ? '' : 'style="display:none;"';
+
+                        logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
+                        addSeparator = true;
+                    });
+
+                return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
+            };
+        }
+
+        gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
+    }
+}
+
+function refreshColumnVisibility() {
+    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
+    updateColumnsVisibility(hideNullColumns);
 }

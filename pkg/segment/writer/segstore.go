@@ -40,7 +40,6 @@ import (
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
@@ -539,14 +538,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				log.Errorf("AppendWipToSegfile: Failed to add virtual table %v for orgid %v: %v", segstore.VirtualTableName, segstore.OrgId, err)
 			}
 		}
-		// worst case, each column opens 2 files (.cmi/.csg) and 2 files for segment info (.sid, .bsu)
-		numOpenFDs := int64(len(segstore.wipBlock.colWips)*2 + 2)
-		err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFDs, 10, segstore.SegmentKey)
-		if err != nil {
-			log.Errorf("AppendWipToSegfile failed to acquire lock for opening %+v file descriptors. err %+v", numOpenFDs, err)
-			return err
-		}
-		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
 
 		//readjust workBufComp size based on num of columns in this wip
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
@@ -568,6 +559,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
+					var err error
 					if cname == config.GetTimeStampKey() {
 						encType, err = segstore.wipBlock.encodeTimestamps()
 						if err != nil {
@@ -638,7 +630,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			allPQIDs[pqid] = true
 		}
 
-		err = segstore.FlushSegStats()
+		err := segstore.FlushSegStats()
 		if err != nil {
 			log.Errorf("AppendWipToSegfile: failed to flushsegstats, err=%v", err)
 			return err
@@ -734,6 +726,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			onTreeRotate = true
 		}
 	}
+	maxSegFileSize := config.GetMaxSegFileSize()
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
@@ -768,7 +761,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.SegmentKey)
+		err := toputils.WriteValidityFile(segstore.segbaseDir)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
 				segstore.SegmentKey, err)
@@ -782,7 +775,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 				if err != nil {
 					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
-				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey, segstore.VirtualTableName)
+				go AddToEmptyPqmetaChan(pqid, segstore.SegmentKey)
 			}
 		}
 
@@ -807,7 +800,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		AddNewRotatedSegment(segmeta)
+		addNewRotatedSegmeta(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
 			err := hook(&segmeta)
 			if err != nil {
@@ -1464,10 +1457,10 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 	}
 
-	fname := fmt.Sprintf("%v.sst", ss.SegmentKey)
-	fd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tempSSTFile := fmt.Sprintf("%v.sst.tmp", ss.SegmentKey)
+	fd, err := os.OpenFile(tempSSTFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("FlushSegStats: Failed to open file=%v, err=%v", fname, err)
+		log.Errorf("FlushSegStats: Failed to open tempSSTFile=%v, err=%v", tempSSTFile, err)
 		return err
 	}
 	defer fd.Close()
@@ -1514,6 +1507,12 @@ func (ss *SegStore) FlushSegStats() error {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err
 		}
+	}
+
+	finalName := fmt.Sprintf("%v.sst", ss.SegmentKey)
+	err = os.Rename(tempSSTFile, finalName)
+	if err != nil {
+		return fmt.Errorf("FlushSegStats: error while migrating %v to %v, err: %v", tempSSTFile, finalName, err)
 	}
 
 	return nil

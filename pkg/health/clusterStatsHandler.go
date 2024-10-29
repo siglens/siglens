@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
@@ -45,7 +46,7 @@ var excludedInternalIndices = [...]string{"traces", "red-traces", "service-depen
 
 // GetTraceStatsForAllSegments retrieves all trace-related statistics.
 func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
-	allSegMetas := writer.ReadAllSegmetas()
+	allSegMetas := writer.ReadGlobalSegmetas()
 	return GetTracesStats(myid, allSegMetas)
 }
 
@@ -62,7 +63,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	allSegMetas := writer.ReadAllSegmetas()
+	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)
 	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
@@ -146,7 +147,8 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 }
 
 func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
-	segmentCountField string, columnCountField string) []map[string]map[string]interface{} {
+	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
+	recordCountField, bytesReceivedField, onDiskBytesField string) []map[string]map[string]interface{} {
 
 	indices := make([]string, 0)
 	for index := range allIndexStats.IndexToStats {
@@ -168,6 +170,11 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
 		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
 		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
+		nextVal[index][earliestEpochField] = time.Unix(int64(indexStats.EarliestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
+		nextVal[index][latestEpochField] = time.Unix(int64(indexStats.LatestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
+		nextVal[index][recordCountField] = humanize.Comma(int64(indexStats.NumRecords))
+		nextVal[index][bytesReceivedField] = float64(indexStats.NumBytesIngested)
+		nextVal[index][onDiskBytesField] = float64(indexStats.TotalOnDiskBytes)
 
 		retVal = append(retVal, nextVal)
 	}
@@ -176,11 +183,11 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 }
 
 func convertIndexDataToSlice(indexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount")
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "recordCount", "bytesReceivedCount", "onDiskBytes")
 }
 
 func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount")
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "recordCount", "bytesReceivedCount", "onDiskBytes")
 }
 
 func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
@@ -338,7 +345,24 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 
 	// Create a map to store segment counts per index
 	segmentCounts := make(map[string]int)
+	indexEarliestEpochMs := make(map[string]uint64)
+	indexLatestEpochMs := make(map[string]uint64)
+
 	tsKey := config.GetTimeStampKey()
+
+	updateTimestamps := func(indexName string, earliestEpochMs, latestEpochMs uint64) {
+		if earliestEpochMs > 0 {
+			if earliest, ok := indexEarliestEpochMs[indexName]; !ok || earliestEpochMs < earliest {
+				indexEarliestEpochMs[indexName] = earliestEpochMs
+			}
+		}
+		if latestEpochMs > 0 {
+			if latest, ok := indexLatestEpochMs[indexName]; !ok || latestEpochMs > latest {
+				indexLatestEpochMs[indexName] = latestEpochMs
+			}
+		}
+	}
+
 	for _, segMeta := range allSegMetas {
 		if segMeta == nil {
 			continue
@@ -348,6 +372,8 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 		indexName := segMeta.VirtualTableName
 		segmentCounts[indexName]++
+
+		updateTimestamps(indexName, segMeta.EarliestEpochMS, segMeta.LatestEpochMS)
 
 		_, exist := allIndexCols[indexName]
 		if !exist {
@@ -363,6 +389,9 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		totalCols[tsKey] = struct{}{}
 	}
 
+	// Get unrotated timestamps for all indexes
+	unrotatedTimestamps := segwriter.GetUnrotatedVTableTimestamps(myid)
+
 	for _, indexName := range indices {
 		if indexName == "" {
 			log.Errorf("getStats: skipping an empty index name indexName=%v", indexName)
@@ -377,6 +406,11 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+
+		if unrotatedTS, ok := unrotatedTimestamps[indexName]; ok {
+			updateTimestamps(indexName, unrotatedTS.Earliest, unrotatedTS.Latest)
+		}
+
 		currentIndexCols := allIndexCols[indexName]
 		indexSegmentCount := segmentCounts[indexName]
 		// Add the unrotated columns and segments to the current index
@@ -403,11 +437,14 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 		totalOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
 
 		indexStats := utils.IndexStats{
-			NumBytesIngested: uint64(totalBytesReceivedForIndex),
-			NumRecords:       totalEventsForIndex,
-			NumSegments:      uint64(indexSegmentCount),
-			NumColumns:       uint64(len(currentIndexCols)),
-			ColumnsSet:       currentIndexCols,
+			NumBytesIngested:  uint64(totalBytesReceivedForIndex),
+			NumRecords:        totalEventsForIndex,
+			NumSegments:       uint64(indexSegmentCount),
+			NumColumns:        uint64(len(currentIndexCols)),
+			ColumnsSet:        currentIndexCols,
+			EarliestTimestamp: indexEarliestEpochMs[indexName],
+			LatestTimestamp:   indexLatestEpochMs[indexName],
+			TotalOnDiskBytes:  totalOnDiskBytesCountForIndex,
 		}
 
 		stats.IndexToStats[indexName] = indexStats

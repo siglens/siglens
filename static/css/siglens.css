@@ -3374,6 +3374,7 @@ float: right;
     font-weight: 700;
     color: var(--empty-response-text-color);
     z-index: 1;
+    transform: none;
 }
 
 .panel-body #empty-response {
@@ -3468,10 +3469,11 @@ float: right;
     background-image: url(../assets/remove-icon-dark-mode.svg);
 }
 
-.search-db-input,.metrics-input{
+.search-db-input{
     padding-left: 1rem;
     padding-right: 4.4rem;
     height: 32px;
+    color: var(--text-color) !important;
 }
 
 .dbSet-textareaContainer .copy{
@@ -4285,7 +4287,21 @@ color: #C8C7CC;
     font-weight: var(--fw-900);
 }
 
+#index-summary-prompt .summary-content{
+    border: 1px solid var(--border-btn-color);
+    padding: 20px;
+    border-radius: 10px;
+}
 
+.index-name {
+    color: var(--table-or-regular-text-color);
+    text-decoration: none;
+}
+
+.index-name:hover{
+    color: var(--lavender-2);
+    font-weight: bold;
+}
 
 /*SignUP Form*/
 .email-form input {

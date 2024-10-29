@@ -35,6 +35,7 @@ import (
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 
 	"github.com/siglens/siglens/pkg/usersavedqueries"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
@@ -117,6 +118,10 @@ func updateVTable(vfname string, orgid uint64) error {
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return utils.TeeErrorf("updateVTable: Error while scanning vtable file %v, err: %v", vfname, err)
+	}
+
 	return err
 }
 
@@ -225,11 +230,7 @@ func populateMicroIndices(smFile string) error {
 		return nil
 	}
 
-	allSegMetas, err := writer.ReadSegmeta(smFile)
-	if err != nil {
-		log.Errorf("populateMicroIndices: error when trying to read meta file=%+v. Error=%+v", smFile, err)
-		return err
-	}
+	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, len(allSegMetas))
 	for idx, segMetaInfo := range allSegMetas {

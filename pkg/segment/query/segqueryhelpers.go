@@ -70,6 +70,10 @@ func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
 	return qi.aggs
 }
 
+func (qi *QueryInformation) GetQueryRange() *dtu.TimeRange {
+	return qi.queryRange
+}
+
 func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
 	return qi.queryRange.StartEpochMs
 }
@@ -86,12 +90,20 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) SetSizeLimit(sizeLimit uint64) {
+	qi.sizeLimit = sizeLimit
+}
+
 func (qi *QueryInformation) GetScrollFrom() int {
 	return qi.scrollFrom
 }
 
 func (qi *QueryInformation) GetPqid() string {
 	return qi.pqid
+}
+
+func (qi *QueryInformation) GetParallelismPerFile() int64 {
+	return qi.parallelismPerFile
 }
 
 func (qi *QueryInformation) GetQueryType() structs.QueryType {
@@ -120,6 +132,18 @@ func (qsr *QuerySegmentRequest) GetSegKey() string {
 
 func (qsr *QuerySegmentRequest) GetTableName() string {
 	return qsr.tableName
+}
+
+func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
+	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
+	qsr.sType = sType
+}
+
+func (qsr *QuerySegmentRequest) SetBlockTracker(blkTracker *structs.BlockTracker) {
+	qsr.blkTracker = blkTracker
 }
 
 /*

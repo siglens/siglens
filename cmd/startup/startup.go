@@ -137,7 +137,7 @@ func Main() {
 		log.SetOutput(&lumberjack.Logger{
 			Filename:   logOut,
 			MaxSize:    serverCfg.Log.LogFileRotationSizeMB,
-			MaxBackups: 30,
+			MaxBackups: 50,
 			MaxAge:     1, //days
 			Compress:   serverCfg.Log.CompressLogFile,
 		})
@@ -361,6 +361,9 @@ func startQueryServer(serverAddr string) {
 		StdOutLogger.Infof(siglensStartupLog)
 		StdOutLogger.Infof(siglensUIStartupLog)
 	}
+	if config.IsNewQueryPipelineEnabled() {
+		StdOutLogger.Infof("----- New Query Pipeline is enabled ----- \n")
+	}
 	log.Infof(siglensStartupLog)
 	log.Infof(siglensUIStartupLog)
 	cfg := config.DefaultQueryServerHttpConfig()
@@ -379,7 +382,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.2.43"
+					return "0.2.44"
 				},
 			})
 			textTemplate := texttemplate.New("other")

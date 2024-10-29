@@ -375,11 +375,14 @@ type AllIndexesStats struct {
 }
 
 type IndexStats struct {
-	NumBytesIngested uint64
-	NumRecords       uint64
-	NumSegments      uint64
-	NumColumns       uint64
-	ColumnsSet       map[string]struct{}
+	NumBytesIngested  uint64
+	NumRecords        uint64
+	NumSegments       uint64
+	NumColumns        uint64
+	ColumnsSet        map[string]struct{}
+	EarliestTimestamp uint64
+	LatestTimestamp   uint64
+	TotalOnDiskBytes  uint64
 }
 
 type ClusterStatsResponseInfo struct {
@@ -901,7 +904,8 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 	return objects, nil
 }
 
-func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageToUser string,
+	extraMessageToLog string, err error, statusCode int, doLogging bool) {
 	// Get the caller function name, file name, and line number.
 	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
 	caller := runtime.FuncForPC(pc)
@@ -920,11 +924,13 @@ func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageTo
 		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
 	}
 
-	// Log the error message.
-	if extraMessageToLog == "" {
-		logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
-	} else {
-		logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+	if doLogging {
+		// Log the error message.
+		if extraMessageToLog == "" {
+			logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+		} else {
+			logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+		}
 	}
 
 	// Send the error message to the client.
@@ -935,15 +941,23 @@ func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageTo
 }
 
 func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusBadRequest, true)
+}
+
+func SendErrorWithoutLogging(ctx *fasthttp.RequestCtx, messageToUser string, err error) {
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, "", err,
+		fasthttp.StatusBadRequest, false)
 }
 
 func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusInternalServerError, true)
 }
 
 func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusUnauthorized, true)
 }
 
 func IsValidURL(str string) bool {

@@ -146,8 +146,8 @@ func GetS3BucketPrefix() string {
 	return runningConfig.S3.BucketPrefix
 }
 
-func GetMaxSegFileSize() *uint64 {
-	return &runningConfig.MaxSegFileSize
+func GetMaxSegFileSize() uint64 {
+	return runningConfig.MaxSegFileSize
 }
 
 func GetESVersion() *string {
@@ -250,7 +250,7 @@ func GetUIDomain() string {
 		host, _, err := net.SplitHostPort(hostname)
 		if err != nil {
 			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
-			return "localhost"
+			return hostname
 		}
 		return host
 	}
@@ -329,6 +329,11 @@ func GetS3IngestBufferSize() uint64 {
 }
 func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
+}
+
+func IsNewQueryPipelineEnabled() bool {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	return runningConfig.IsNewQueryPipelineEnabled
 }
 
 // returns a map of s3 config

@@ -22,15 +22,19 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
 type processor interface {
+	Cleanup()
 	Process(*iqr.IQR) (*iqr.IQR, error)
 	Rewind()
+	GetFinalResultIfExists() (*iqr.IQR, bool)
 }
 
 type DataProcessor struct {
+	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -72,21 +76,28 @@ func (dp *DataProcessor) Rewind() {
 
 func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	var output *iqr.IQR
+	var resultExists bool
 
 	for {
 		gotEOF := false
-		input, err := dp.getStreamInput()
-		if err == io.EOF {
-			gotEOF = true
-		} else if err != nil {
-			return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
-		}
 
-		output, err = dp.processor.Process(input)
-		if err == io.EOF {
+		// Check if the processor has a final result.
+		output, resultExists = dp.processor.GetFinalResultIfExists()
+		if resultExists {
 			gotEOF = true
-		} else if err != nil {
-			return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+		} else {
+			// if the processor doesn't have a final result, fetch it from the input streams.
+			input, err := dp.getStreamInput()
+			if err != nil && err != io.EOF {
+				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
+			}
+
+			output, err = dp.processor.Process(input)
+			if err == io.EOF {
+				gotEOF = true
+			} else if err != nil {
+				return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+			}
 		}
 
 		if gotEOF {
@@ -105,9 +116,21 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
+func (dp *DataProcessor) IsDataGenerator() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return true
+	default:
+		return false
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
+		if dp.IsDataGenerator() {
+			return iqr.NewIQR(dp.qid), nil
+		}
 		return nil, errors.New("no streams")
 	case 1:
 		return dp.streams[0].Fetch()
@@ -172,4 +195,230 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 	}
 
 	return iqrs, streamIndices, nil
+}
+
+func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
+	hasSpan := options.BinSpanOptions != nil
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &binProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   !hasSpan,
+		isTwoPassCmd:      !hasSpan,
+	}
+}
+
+func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
+	hasSort := len(options.DedupSortEles) > 0
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &dedupProcessor{options: options},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   hasSort,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &evalProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &fieldsProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewRenameDP(options *structs.RenameExp) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &renameProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
+	isFieldListSet := len(options.FieldList) > 0
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &fillnullProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   !isFieldListSet,
+		isTwoPassCmd:      !isFieldListSet,
+	}
+}
+
+func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
+	return &DataProcessor{
+		streams: make([]*cachedStream, 0),
+		processor: &gentimesProcessor{
+			options:       options,
+			currStartTime: options.StartTime,
+		},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &headProcessor{options: options},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewTailDP(options *structs.TailExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &tailProcessor{options: options},
+		inputOrderMatters: true,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   true, // TODO: depends on the previous DPs in the chain.
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &makemvProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &regexProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewRexDP(options *structs.RexExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &rexProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &whereProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &streamstatsProcessor{options: options},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &timechartProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         NewStatsProcessor(options),
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &topProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewRareDP(options *structs.StatisticExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &rareProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &transactionProcessor{options: options},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewSortDP(options *structs.SortExpr) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &sortProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
 }

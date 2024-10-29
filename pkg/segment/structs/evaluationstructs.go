@@ -60,10 +60,27 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
+type EvalExpr struct {
+	ValueExpr *ValueExpr
+	FieldName string
+}
+
 type RenameExpr struct {
 	RenameExprMode  RenameExprMode
 	OriginalPattern string
 	NewPattern      string
+}
+
+type RenameExp struct {
+	RenameExprMode RenameExprMode
+	RenameColumns  map[string]string
+}
+
+type RegexExpr struct {
+	Op        string // must be "=" or "!="
+	Field     string
+	RawRegex  string
+	GobRegexp *toputils.GobbableRegex
 }
 
 type RexExpr struct {
@@ -96,6 +113,8 @@ type DedupExpr struct {
 	DedupSortEles      []*SortElement
 	DedupSortAscending []int // Derived from DedupSortEles.SortByAsc values.
 
+	// TODO: remove the below fields after we move to the new query pipeline.
+
 	// DedupCombinations maps combinations to a map mapping the record index
 	// (of all included records for this combination) to the sort values for
 	// that record. For example, if Limit is 3, each inner map will have at
@@ -116,10 +135,11 @@ type DedupOptions struct {
 }
 
 type SortExpr struct {
-	SortEles []*SortElement
-	Limit    uint64
+	SortEles      []*SortElement
+	SortAscending []int
+	Limit         uint64
 
-	SortAscending         []int
+	// The following will be deprecated when we move to the new query pipeline.
 	SortRecords           map[string]map[string]interface{}
 	NumProcessedSegments  uint64
 	processedSegmentsLock sync.Mutex
@@ -262,6 +282,7 @@ type BinCmdOptions struct {
 	End                  *float64
 	AlignTime            *uint64
 	Field                string
+	NewFieldName         toputils.Option[string]
 	Records              map[string]map[string]interface{}
 	RecordIndex          map[int]map[string]int
 	NumProcessedSegments uint64
@@ -1095,10 +1116,53 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]utils.CValueEnclo
 	}
 }
 
+func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	switch valueExpr.ValueExprMode {
+	case VEMConditionExpr:
+		value, err := valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate condition expr, err: %v", err)
+		}
+		return value, nil
+	case VEMStringExpr:
+		value, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate string expr, err: %v", err)
+		}
+		return value, nil
+	case VEMNumericExpr:
+		value, err := valueExpr.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			// It failed to evaluate to a float, it could possibly that the field given is a string
+			valueStr, err := valueExpr.EvaluateToString(fieldToValue)
+			if err != nil {
+				return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate numeric expr to numeric and string expr, err: %v", err)
+			}
+
+			return valueStr, err
+		}
+		return value, nil
+	case VEMBooleanExpr:
+		value, err := valueExpr.EvaluateToString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate boolean expr, err: %v", err)
+		}
+		return value, nil
+	case VEMMultiValueExpr:
+		mvSlice, err := valueExpr.EvaluateToMultiValue(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate multi value expr, err: %v", err)
+		}
+		return mvSlice, nil
+	default:
+		return nil, fmt.Errorf("EvaluateValueExpr: unknown value expr mode %v", valueExpr.ValueExprMode)
+	}
+}
+
 // This function will first try to evaluate the ValueExpr to a float. If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
-func (expr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
+func (expr *ValueExpr) EvaluateValueExprToFloatOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
 	value, err := expr.EvaluateToFloat(fieldToValue)
 	if err == nil {
 		return value, "float", nil
@@ -1524,6 +1588,27 @@ func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, er
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
 		return "", fmt.Errorf("RenameExpr.ProcessRenameRegexExpression: There are some errors in the pattern: %v, err: %v", regexPattern, err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
+func ProcessRenameRegexExp(origPattern string, newPattern string, colName string) (string, error) {
+
+	regexPattern := `\b` + strings.ReplaceAll(origPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExp: There are some errors in the pattern: %v, err: %v", regexPattern, err)
 	}
 
 	matchingParts := regex.FindStringSubmatch(colName)
@@ -2386,12 +2471,12 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CVa
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
 
-	value1, _, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
+	value1, _, err := expr.ValueList[0].EvaluateValueExprToFloatOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
 	}
 
-	value2, _, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
+	value2, _, err := expr.ValueList[1].EvaluateValueExprToFloatOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
 	}

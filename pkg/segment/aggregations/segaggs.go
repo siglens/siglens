@@ -3435,53 +3435,7 @@ func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fie
 		return nil, fmt.Errorf("invalid letColReq")
 	}
 
-	switch letColReq.ValueColRequest.ValueExprMode {
-	case structs.VEMConditionExpr:
-		value, err := letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
-		if err != nil {
-			log.Errorf("failed to evaluate condition expr, err=%v", err)
-			return nil, err
-		}
-		return value, nil
-	case structs.VEMStringExpr:
-		value, err := letColReq.ValueColRequest.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			log.Errorf("failed to evaluate string expr, err=%v", err)
-			return nil, err
-		}
-		return value, nil
-	case structs.VEMNumericExpr:
-		value, err := letColReq.ValueColRequest.EvaluateToFloat(fieldToValue)
-		if err != nil {
-			log.Errorf("failed to evaluate numeric expr, err=%v", err)
-
-			// It failed to evaluate to a float, it could possibly that the field given is a string
-			valueStr, err := letColReq.ValueColRequest.EvaluateToString(fieldToValue)
-			if err != nil {
-				log.Errorf("failed to evaluate numeric expr to Numeric Expr and string Expr, err=%v", err)
-				return nil, err
-			}
-
-			return valueStr, err
-		}
-		return value, nil
-	case structs.VEMBooleanExpr:
-		value, err := letColReq.ValueColRequest.EvaluateToString(fieldToValue)
-		if err != nil {
-			log.Errorf(" failed to evaluate boolean expr, err=%v", err)
-			return nil, err
-		}
-		return value, nil
-	case structs.VEMMultiValueExpr:
-		mvSlice, err := letColReq.ValueColRequest.EvaluateToMultiValue(fieldToValue)
-		if err != nil {
-			log.Errorf("failed to evaluate multi value expr, err=%v", err)
-			return nil, err
-		}
-		return mvSlice, nil
-	default:
-		return nil, fmt.Errorf("unknown value expr mode %v", letColReq.ValueColRequest.ValueExprMode)
-	}
+	return letColReq.ValueColRequest.EvaluateValueExpr(fieldToValue)
 }
 
 func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
@@ -4353,7 +4307,14 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, pro
 		groupedRecord["timestamp"] = currentState.Timestamp
 		groupedRecord["event"] = records
 		lastRecord := records[len(transactionArgs.OpenTransactionEvents[transactionKey])-1]
-		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
+		lastRecordTimestamp, _ := lastRecord["timestamp"].(uint64)
+		var duration uint64
+		if lastRecordTimestamp < currentState.Timestamp {
+			duration = currentState.Timestamp - lastRecordTimestamp
+		} else {
+			duration = lastRecordTimestamp - currentState.Timestamp
+		}
+		groupedRecord["duration"] = duration
 		groupedRecord["eventcount"] = uint64(len(records))
 		groupedRecord["transactionKey"] = transactionKey
 

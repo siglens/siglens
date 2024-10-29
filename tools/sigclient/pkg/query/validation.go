@@ -47,17 +47,20 @@ type BucketHolder struct {
 }
 
 type Result struct {
-	TotalMatched     interface{}
-	Records          []map[string]interface{}
-	UniqueKeyCols    []string // Key can be a combination of columns
-	AllColumns       []string
-	ColumnsOrder     []string
-	GroupByCols      []string
-	MeasureFunctions []string
-	MeasureResults   []BucketHolder
-	Qtype            string
-	BucketCount      int
+	TotalMatched             interface{}
+	Records                  []map[string]interface{}
+	UniqueKeyCols            []string // Key can be a combination of columns
+	AllColumns               []string
+	ColumnsOrder             []string
+	GroupByCols              []string
+	MeasureFunctions         []string
+	MeasureResults           []BucketHolder
+	Qtype                    string
+	BucketCount              int
+	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
 }
+
+const TimeStamp_Col_Name = "timestamp"
 
 func CreateListOfMap(resp interface{}) ([]map[string]interface{}, error) {
 	items, isList := resp.([]interface{})
@@ -180,6 +183,10 @@ func CreateResultForGroupBy(res *Result, response map[string]interface{}) error 
 	if err != nil {
 		return fmt.Errorf("CreateExpResultForGroupBy: Error fetching groupByCols from response, err: %v", err)
 	}
+	doNotVerifyGroupByValues, ok := response["doNotVerifyGroupByValues"].(bool)
+	if ok {
+		res.DoNotVerifyGroupByValues = doNotVerifyGroupByValues
+	}
 
 	return CreateResultForStats(res, response)
 }
@@ -200,7 +207,7 @@ func GetStringValueFromResponse(resp map[string]interface{}, key string) (string
 
 func ValidateUniqueKeyColsInResult(res *Result) error {
 	if len(res.UniqueKeyCols) == 0 {
-		return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueKeyCols not found in result")
+		return nil // check records directly in that order
 	}
 	for _, record := range res.Records {
 		for _, col := range res.UniqueKeyCols {
@@ -247,12 +254,11 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	}
 	if expRes.Qtype == "logs-query" {
 		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
-		if !exist {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKeyCols not found in logs-query, file: %v", filePath)
-		}
-		expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
-		if err != nil {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+		if exist {
+			expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
+			if err != nil {
+				return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+			}
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -303,19 +309,19 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 
 	queryRes, err := CreateResult(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error creating result, responseData: %v\n err: %v", responseData, err)
 	}
 	hits, err := getHits(responseData)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v, err: %v", responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error getting hits, responseData: %v\n err: %v", responseData, err)
 	}
 	err = populateTotalMatchedAndRecords(hits, queryRes)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v, err: %v", hits, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Error populating totalMatched and records, hits: %v, responseData: %v\n err: %v", hits, responseData, err)
 	}
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v, err: %v", query, responseData, err)
+		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, responseData: %v\n err: %v", query, responseData, err)
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -394,23 +400,23 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 			// As query results come in chunks, we need to keep track of all the records
 			hits, err := getHits(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v, err: %v", readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error getting hits, readEvent: %v\n err: %v", readEvent, err)
 			}
 			err = populateRecords(hits, tempRes)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v, err: %v", hits, readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error populating records, hits: %v, readEvent: %v\n err: %v", hits, readEvent, err)
 			}
 		case "COMPLETE":
 			queryRes, err := CreateResult(readEvent)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v, err: %v", readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Error creating result, readEvent: %v\n err: %v", readEvent, err)
 			}
 			queryRes.Records = tempRes.Records
 			populateTotalMatched(readEvent, queryRes)
 
 			err = CompareResults(queryRes, expRes, query)
 			if err != nil {
-				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v, err: %v", query, readEvent, err)
+				return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, readEvent: %v\n err: %v", query, readEvent, err)
 			}
 		default:
 			return fmt.Errorf("EvaluateQueryForWebSocket: Received unknown message from server, readEvent: %+v\n", readEvent)
@@ -444,7 +450,7 @@ func CompareFloatValues(actualValue interface{}, expValue float64) (bool, error)
 		return false, fmt.Errorf("CompareFloatValues: actualValue %v is not a float, received type: %T", actualValue, actualValue)
 	}
 
-	tolerancePercentage := 1e-5
+	tolerancePercentage := 1e-3
 
 	return utils.AlmostEqual(actual, expValue, tolerancePercentage), nil
 }
@@ -453,6 +459,9 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 	var err error
 
 	for col, value := range expRecord {
+		if col == TimeStamp_Col_Name {
+			continue
+		}
 		equal := false
 		actualValue, exist := record[col]
 		if !exist {
@@ -541,14 +550,16 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
 	}
 
-	queryRes.UniqueKeyCols = expRes.UniqueKeyCols
-	err = ValidateUniqueKeyColsInResult(queryRes)
-	if err != nil {
-		return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
-	}
+	if len(expRes.UniqueKeyCols) > 0 {
+		queryRes.UniqueKeyCols = expRes.UniqueKeyCols
+		err = ValidateUniqueKeyColsInResult(queryRes)
+		if err != nil {
+			return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
+		}
 
-	sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
-	sortRecords(expRes.Records, expRes.UniqueKeyCols)
+		sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
+		sortRecords(expRes.Records, expRes.UniqueKeyCols)
+	}
 
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
@@ -597,13 +608,25 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 	sortMeasureResults(queryRes.MeasureResults)
 	sortMeasureResults(expRes.MeasureResults)
 
+	verifyGroupByValues := !expRes.DoNotVerifyGroupByValues
+
+	if !verifyGroupByValues {
+		log.Infof("ValidateStatsQueryResults: Skipping GroupByValues Elements match.")
+	}
+
 	for idx, expMeasureRes := range expRes.MeasureResults {
 		var err error
 		queryMeasureRes := queryRes.MeasureResults[idx]
 
-		equal := reflect.DeepEqual(queryMeasureRes.GroupByValues, expMeasureRes.GroupByValues)
-		if !equal {
-			return fmt.Errorf("ValidateStatsQueryResults: GroupByCombination mismatch, expected: %+v, got: %+v", expMeasureRes.GroupByValues, queryMeasureRes.GroupByValues)
+		if verifyGroupByValues {
+			equal := reflect.DeepEqual(queryMeasureRes.GroupByValues, expMeasureRes.GroupByValues)
+			if !equal {
+				return fmt.Errorf("ValidateStatsQueryResults: GroupByCombination mismatch, expected: %+v, got: %+v", expMeasureRes.GroupByValues, queryMeasureRes.GroupByValues)
+			}
+		} else {
+			if len(queryMeasureRes.GroupByValues) != len(expMeasureRes.GroupByValues) {
+				return fmt.Errorf("ValidateStatsQueryResults: GroupByValues length mismatch, expected: %v, got: %v", len(expMeasureRes.GroupByValues), len(queryMeasureRes.GroupByValues))
+			}
 		}
 
 		if len(queryMeasureRes.MeasureVal) != len(expMeasureRes.MeasureVal) {

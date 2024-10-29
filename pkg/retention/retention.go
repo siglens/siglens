@@ -21,6 +21,7 @@ import (
 	"math"
 	"path"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -29,7 +30,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -39,6 +39,8 @@ import (
 )
 
 const MAXIMUM_WARNINGS_COUNT = 5
+
+const RETENTION_LOOP_SLEEP_TIMER = 30
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
@@ -63,7 +65,7 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
-		time.Sleep(1 * time.Hour)
+		time.Sleep(RETENTION_LOOP_SLEEP_TIMER * time.Minute)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
@@ -80,12 +82,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	currTime := time.Now()
 	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("DoRetentionBasedDeletion: Failed to read segmeta, filePath=%v, err: %v", currentSegmeta, err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
@@ -158,7 +155,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid)
 
 	// Delete all segment data
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
@@ -170,13 +167,8 @@ func DeleteEmptyIndices(ingestNodeDir string, myid uint64) {
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	segMetaEntries := writer.ReadLocalSegmeta(false)
 
-	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("deleteEmptyIndices: Error in reading segmeta file=%v, err: %v", currentSegmeta, err)
-		return
-	}
 	// Create a set of virtualTableName values from segMetaEntries
 	virtualTableNames := make(map[string]struct{})
 	for _, entry := range segMetaEntries {
@@ -203,7 +195,7 @@ func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.SegMeta) {
 	for _, segmetaEntry := range segmentsToDelete {
 		for pqid := range segmetaEntry.AllPQIDs {
-			pqsmeta.DeleteSegmentFromPqid(pqid, segmetaEntry.SegmentKey)
+			writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
 		}
 	}
 }
@@ -233,12 +225,7 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, filepath=%v, err: %v", currentSegmeta, err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
@@ -297,27 +284,25 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 			}
 		}
 	}
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 }
 
 func getSystemVolumeBytes() (uint64, error) {
 	currentVolume := uint64(0)
 
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
-	if err != nil {
-		log.Errorf("getSystemVolumeBytes: Error in getting virtual table names, err: %v", err)
-		return currentVolume, err
-	}
-	for indexName := range allVirtualTableNames {
+	allSegmetas := writer.ReadGlobalSegmetas()
+
+	allCnts := writer.GetVTableCountsForAll(0, allSegmetas)
+	writer.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Errorf("getSystemVolumeBytes: skipping an empty index name indexName=%v", indexName)
 			continue
 		}
-		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
-		unrotatedByteCount, _, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
 
-		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
+		totalVolumeForIndex := uint64(cnts.BytesCount)
 		currentVolume += uint64(totalVolumeForIndex)
 	}
 
@@ -333,21 +318,32 @@ func getSystemVolumeBytes() (uint64, error) {
 	return currentVolume, nil
 }
 
-func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
+func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
 
 	if len(segmentsToDelete) == 0 {
 		return
 	}
-	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
-	// Delete segment key from all SiglensMetadata structs
+
+	// 1) First delete from segmeta.json
+	segBaseDirs := writer.RemoveSegMetas(segmentsToDelete)
+
+	// 2) Then from in memory metadata
 	for _, segMetaEntry := range segmentsToDelete {
 		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+	}
+
+	// 3) then iterate through blob
+	for _, segMetaEntry := range segmentsToDelete {
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
 		filesToDelete := fileutils.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
-
+		svFileName := ""
 		for _, file := range filesToDelete {
+			if strings.Contains(file, utils.SegmentValidityFname) {
+				svFileName = file
+				continue
+			}
 			err := blob.DeleteBlob(file)
 			if err != nil {
 				log.Errorf("deleteSegmentData: Error in deleting segment file %v in blob, err: %v",
@@ -355,9 +351,21 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 				continue
 			}
 		}
+		if svFileName != "" {
+			err := blob.DeleteBlob(svFileName)
+			if err != nil {
+				log.Errorf("deleteSegmentData: Error deleting validity file %v in blob, err: %v",
+					svFileName, err)
+			}
+		}
+		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
 	}
 
-	writer.RemoveSegments(segmetaFile, utils.MapToSet(segmentsToDelete))
+	// 4) then recursively delete local files
+	writer.RemoveSegBasedirs(segBaseDirs)
+
+	//	5) then emptyPqMeta files
+	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {

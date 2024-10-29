@@ -34,7 +34,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -136,20 +135,6 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		reqLen += size
 	}
 
-	var idxEmpty uint32
-	emptyBitset := pqmr.CreatePQMatchResults(0)
-	bufEmpty := make([]byte, (4+emptyBitset.GetInMemSize())*uint64(len(cmiPassedCnames)))
-	for blockNum := range cmiPassedCnames {
-		if _, ok := segmentSearchRecords.AllBlockStatus[blockNum]; !ok {
-			packedLen, err := emptyBitset.EncodePqmr(bufEmpty[idxEmpty:], blockNum)
-			if err != nil {
-				log.Errorf("qid=%d, writePqmrFiles: failed to encode pqmr. Err:%v", qid, err)
-				return err
-			}
-			idxEmpty += uint32(packedLen)
-		}
-	}
-
 	// Creating a buffer of a required length
 	buf := make([]byte, reqLen)
 	var idx uint32
@@ -162,20 +147,13 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		idx += uint32(packedLen)
 	}
 
-	sizeToAdd := len(bufEmpty)
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		buf = append(buf, newArr...)
-	}
-	copy(buf[idx:], bufEmpty)
-	idx += uint32(sizeToAdd)
 	err := pqmr.WritePqmrToDisk(buf[0:idx], pqidFname)
 	if err != nil {
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
 		return err
 	}
-	writer.BackFillPQSSegmetaEntry(segmentKey, pqid)
-	pqs.AddPersistentQueryResult(segmentKey, virtualTableName, pqid)
+	writer.AddToBackFillAndEmptyPQSChan(segmentKey, pqid, false)
+	pqs.AddPersistentQueryResult(segmentKey, pqid)
 	allPqmrFile = append(allPqmrFile, pqidFname)
 	err = blob.UploadIngestNodeDir()
 	if err != nil {
@@ -252,17 +230,20 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	querySummary.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
-		if finalMatched == 0 {
-			go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey, searchReq.VirtualTableName)
-		} else {
+		if config.IsNewQueryPipelineEnabled() {
 			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+		} else {
+			if finalMatched == 0 {
+				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
+			} else {
+				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+			}
 		}
 	}
 }
 
-func writeEmptyPqmetaFilesWrapper(pqid string, segKey string, vTableName string) {
-	pqsmeta.AddEmptyResults(pqid, segKey, vTableName)
-	writer.BackFillPQSSegmetaEntry(segKey, pqid)
+func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
+	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
 func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest, qid uint64) (string, bool) {
@@ -284,7 +265,7 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
-	if !toputils.IsSegmentRotated(searchReq.SegmentKey) {
+	if !toputils.IsFileForRotatedSegment(searchReq.SegmentKey) {
 		return
 	}
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
@@ -436,14 +417,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						continue
 					}
 					convertedRecNum := uint16(recNum)
-					if err != nil {
-						log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get time stamp for record %+v in block %+v, segkey=%v, Err: %v",
-							qid, recNum, blockNum, req.SegmentKey, err)
-						continue
-					}
-					if blkResults.ShouldAddMore() {
+					if config.IsNewQueryPipelineEnabled() {
 						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
-						if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+						if !invalidCol {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
 									SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
@@ -456,6 +432,24 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 								TimeStamp:        recTs,
 							}
 							blkResults.Add(rrc)
+						}
+					} else {
+						if blkResults.ShouldAddMore() {
+							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+								rrc := &utils.RecordResultContainer{
+									SegKeyInfo: utils.SegKeyInfo{
+										SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
+										IsRemote:  false,
+									},
+									BlockNum:         blockNum,
+									RecordNum:        convertedRecNum,
+									SortColumnValue:  sortVal,
+									VirtualTableName: req.VirtualTableName,
+									TimeStamp:        recTs,
+								}
+								blkResults.Add(rrc)
+							}
 						}
 					}
 				}

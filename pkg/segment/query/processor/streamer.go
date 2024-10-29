@@ -34,6 +34,12 @@ type cachedStream struct {
 	isExhausted             bool
 }
 
+func NewCachedStream(stream streamer) *cachedStream {
+	return &cachedStream{
+		stream: stream,
+	}
+}
+
 func (cs *cachedStream) Fetch() (*iqr.IQR, error) {
 	if cs.isExhausted {
 		return nil, io.EOF
