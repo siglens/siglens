@@ -31,6 +31,7 @@ import (
 type gentimesProcessor struct {
 	options       *structs.GenTimes
 	currStartTime uint64
+	limit uint64
 }
 
 func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time, end time.Time) {

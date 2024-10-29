@@ -465,7 +465,7 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 	}
 
 	go func() {
-		_ = queryProcessor.GetStreamedResult(rQuery.StateChan, scrollFrom)
+		_ = queryProcessor.GetStreamedResult(rQuery.StateChan)
 	}()
 	return rQuery.StateChan, nil
 }

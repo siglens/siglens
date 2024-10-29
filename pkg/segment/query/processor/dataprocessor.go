@@ -125,6 +125,15 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	}
 }
 
+func (dp *DataProcessor) SetLimitForDataGenerator(limit uint64) {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).limit = limit
+	default:
+		return
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
