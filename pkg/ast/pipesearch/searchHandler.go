@@ -307,7 +307,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 			return nil, false, nil, err
 		}
 
-		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc)
+		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc, 0)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
 			return nil, false, nil, err

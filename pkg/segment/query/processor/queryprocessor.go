@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -53,7 +54,7 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int) (*QueryProcessor, error) {
 
 	startTime := time.Now()
 	sortMode := recentFirst // TODO: compute this from the query.
@@ -103,16 +104,16 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), timeOrdered)
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), timeOrdered, scrollFrom)
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64, timeOrdered bool) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, timeOrdered bool, scrollFrom int) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
-		limit = segutils.QUERY_EARLY_EXIT_LIMIT
+		limit = segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom)
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		limit = segutils.QUERY_MAX_BUCKETS
 	default:
@@ -223,7 +224,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
+func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData, scrollFrom int) error {
 
 	var finalIQR *iqr.IQR
 	var err error
@@ -233,7 +234,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	completeResp := &structs.PipeSearchCompleteResponse{
 		Qtype: qp.queryType.String(),
 	}
-
+	fmt.Println("ScrollFrom: ", scrollFrom)
+	row := 0
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -250,6 +252,11 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to append iqr to the finalIQR, err: %v", appendErr)
 			}
 		}
+		row += iqr.NumberOfRecords()
+		if row < scrollFrom {
+			continue
+		}
+		fmt.Println("Row: ", row)
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			result, wsErr := iqr.AsWSResult(qp.queryType, qp.timeOrdered)
@@ -283,6 +290,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	relation := "eq"
 	if progress.UnitsSearched < progress.TotalUnits {
 		relation = "gte"
+		completeResp.CanScrollMore = true
 	}
 
 	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
