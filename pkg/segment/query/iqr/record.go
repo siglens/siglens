@@ -44,7 +44,21 @@ func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 	return &values[record.index], nil
 }
 
-func (record *Record) GetTimestamp() uint64 {
+func (record *Record) GetTimestamp() (uint64, error) {
+	if record.index >= len(record.iqr.rrcs) {
+		values, err := record.iqr.ReadColumn("timestamp")
+		if err != nil {
+			return 0, toputils.TeeErrorf("Record.GetTimestamp: cannot read timestamp column from IQR or from rrcs; err=%v", err)
+		}
+
+		if record.index >= len(values) {
+			return 0, toputils.TeeErrorf("Record.GetTimestamp: index %v out of range (len is %v) for column timestamp; iqr has %v records",
+				record.index, len(values), record.iqr.NumberOfRecords())
+		}
+
+		return values[record.index].CVal.(uint64), nil
+	}
+
 	rrc := record.iqr.rrcs[record.index]
-	return rrc.TimeStamp
+	return rrc.TimeStamp, nil
 }

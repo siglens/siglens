@@ -943,6 +943,10 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 
 		for _, measureFunc := range measureFuncs {
 			value := bucketHolder.MeasureVal[measureFunc]
+			// For timechart, there can be nil values for some measure functions.
+			if value == nil {
+				value = int64(0)
+			}
 			err := knownValues[measureFunc][i].ConvertValue(value)
 			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
 				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)

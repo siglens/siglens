@@ -20,6 +20,7 @@ package processor
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -29,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type timechartOptions struct {
@@ -38,8 +40,8 @@ type timechartOptions struct {
 }
 
 type errorData struct {
-	readColumns     map[string]error
-	getStringErrors map[string]error
+	readColumns     map[string]error // columnName -> error. Tracks errors while reading the column through iqr.Record.ReadColumn
+	getStringErrors map[string]error // columnName -> error. Tracks errors while converting CValue to string
 }
 
 type timechartProcessor struct {
@@ -138,7 +140,11 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		var groupByColVal string
 
 		record := inputIQR.GetRecord(i)
-		ts := record.GetTimestamp()
+		ts, err := record.GetTimestamp()
+		if err != nil {
+			p.errorData.readColumns["timestamp"] = err
+			ts = uint64(time.Now().UnixMilli())
+		}
 		timePoint := aggregations.FindTimeRangeBucket(p.timeRangeBuckets, ts, p.options.timeBucket.IntervalMillis)
 
 		copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
@@ -191,6 +197,8 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
+	p.logErrorsAndWarnings(qid)
+
 	return nil, nil
 }
 
@@ -236,4 +244,23 @@ func (p *timechartProcessor) extractTimechartResults() (*iqr.IQR, error) {
 
 	p.hasFinalResult = true
 	return iqr, io.EOF
+}
+
+func (p *timechartProcessor) logErrorsAndWarnings(qid uint64) {
+	if len(p.errorData.readColumns) > 0 {
+		log.Warnf("qid=%v, timechartProcessor.logErrorsAndWarnings: failed to read columns: %v", qid, p.errorData.readColumns)
+	}
+
+	if len(p.errorData.getStringErrors) > 0 {
+		log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: failed to get string from CValue: %v", qid, p.errorData.getStringErrors)
+	}
+
+	allErrorsLen := len(p.searchResults.AllErrors)
+	if allErrorsLen > 0 {
+		size := allErrorsLen
+		if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
+			size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+		}
+		log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
+	}
 }
