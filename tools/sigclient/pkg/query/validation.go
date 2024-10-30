@@ -642,7 +642,7 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 			if isFloat {
 				equal, err = CompareFloatValues(actualValue, expFloatValue)
 				if err != nil {
-					return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, err: %v", err)
+					return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, key=%v, err: %v", key, err)
 				}
 			} else {
 				equal = reflect.DeepEqual(actualValue, value)

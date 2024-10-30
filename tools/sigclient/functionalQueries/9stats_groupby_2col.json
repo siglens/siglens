@@ -21,7 +21,7 @@
          "measure": [
             {
                 "GroupByValues": [
-                    "0",
+                    "false",
                     "female"
                 ],
                 "MeasureVal": {
@@ -48,7 +48,7 @@
             },
             {
                 "GroupByValues": [
-                    "1",
+                    "true",
                     "male"
                 ],
                 "MeasureVal": {
@@ -77,7 +77,7 @@
             },
             {
                 "GroupByValues": [
-                    "0",
+                    "false",
                     "male"
                 ],
                 "MeasureVal": {

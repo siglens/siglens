@@ -22,7 +22,7 @@
             {
                 "GroupByValues": [
                     "DELETE",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -43,7 +43,7 @@
             {
                 "GroupByValues": [
                     "PATCH",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -64,7 +64,7 @@
             {
                 "GroupByValues": [
                     "HEAD",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 10,
@@ -85,7 +85,7 @@
             {
                 "GroupByValues": [
                     "PUT",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -106,7 +106,7 @@
             {
                 "GroupByValues": [
                     "POST",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -127,7 +127,7 @@
             {
                 "GroupByValues": [
                     "PATCH",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 10,
@@ -148,7 +148,7 @@
             {
                 "GroupByValues": [
                     "PUT",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -169,7 +169,7 @@
             {
                 "GroupByValues": [
                     "HEAD",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 10,

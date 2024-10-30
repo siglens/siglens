@@ -813,6 +813,13 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		}
 		isSegmentFullyEnclosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
 
+		// For Unrotated search, Check if the segment is rotated and update the search type accordingly
+		if segReq.sType == structs.UNROTATED_SEGMENT_STATS_SEARCH {
+			if utils.IsFileForRotatedSegment(segReq.segKey) {
+				segReq.sType = structs.SEGMENT_STATS_SEARCH
+			}
+		}
+
 		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
