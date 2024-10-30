@@ -1139,7 +1139,7 @@ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, pro
 	if progress.TotalUnits > 0 {
 		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom + utils.QUERY_EARLY_EXIT_LIMIT)
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
 
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),

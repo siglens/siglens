@@ -21,14 +21,20 @@ import (
 	"io"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Scroll(t *testing.T) {
-	scrollFrom := uint64(3)
 	qid := uint64(0)
+	_, err := query.StartQuery(qid, true, nil)
+	assert.NoError(t, err)
+
+	query.InitProgressForRRCCmd(6, qid)
+
+	scrollFrom := uint64(3)
 	dp := NewScrollerDP(scrollFrom, qid)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
@@ -47,7 +53,7 @@ func Test_Scroll(t *testing.T) {
 	dp.streams = append(dp.streams, &cachedStream{stream, nil, false})
 
 	var finalIQR *iqr.IQR
-	
+
 	for {
 		iqr, err := dp.Fetch()
 		if err != io.EOF {
@@ -65,7 +71,7 @@ func Test_Scroll(t *testing.T) {
 		}
 	}
 
-	expectedValues := []utils.CValueEnclosure {
+	expectedValues := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_STRING, CVal: "d"},
 		{Dtype: utils.SS_DT_STRING, CVal: "e"},
 		{Dtype: utils.SS_DT_STRING, CVal: "f"},
@@ -77,4 +83,5 @@ func Test_Scroll(t *testing.T) {
 	assert.Equal(t, 3, len(colValues))
 	assert.Equal(t, expectedValues, colValues)
 
+	query.DeleteQuery(qid)
 }

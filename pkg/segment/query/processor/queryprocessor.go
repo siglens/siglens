@@ -322,7 +322,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
 	}
 
-	completeResp.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
+	completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
 	completeResp.TotalRRCCount = progress.RecordsSent

@@ -27,7 +27,7 @@ import (
 
 type scrollProcessor struct {
 	scrollFrom uint64
-	qid 	  uint64
+	qid        uint64
 }
 
 func (p *scrollProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -37,7 +37,7 @@ func (p *scrollProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.scrollFrom == 0 {
 		return iqr, nil
 	}
-	
+
 	numRecordsToDiscard := iqr.NumberOfRecords()
 	if p.scrollFrom < uint64(iqr.NumberOfRecords()) {
 		numRecordsToDiscard = int(p.scrollFrom)
