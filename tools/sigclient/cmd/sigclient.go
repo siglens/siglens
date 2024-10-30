@@ -142,6 +142,12 @@ var functionalTestCmd = &cobra.Command{
 
 		time.Sleep(sleepDuration)
 
+		err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+		if err != nil {
+			log.Fatalf("Error while migrating lookups: %v", err)
+			return
+		}
+
 		query.FunctionalTest(queryDest, filePath)
 	},
 }
