@@ -607,8 +607,17 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	}
 
 	rrcs := searchResults.GetResults()
+	err = sortRRCs(rrcs, s.sortMode)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to sort RRCs: %v", s.qid, err)
+		return nil, nil, err
+	}
 
-	switch s.sortMode {
+	return rrcs, searchResults.SegEncToKey, nil
+}
+
+func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
+	switch mode {
 	case recentFirst:
 		sort.Slice(rrcs, func(i, j int) bool {
 			return rrcs[i].TimeStamp > rrcs[j].TimeStamp
@@ -620,10 +629,10 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	case anyOrder:
 	// Do nothing.
 	default:
-		return nil, nil, toputils.TeeErrorf("readSortedRRCs: invalid sort mode: %v", s.sortMode)
+		return toputils.TeeErrorf("sortRRCs: invalid sort mode: %v", mode)
 	}
 
-	return rrcs, searchResults.SegEncToKey, nil
+	return nil
 }
 
 func (s *searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, blocks []*block) error {
