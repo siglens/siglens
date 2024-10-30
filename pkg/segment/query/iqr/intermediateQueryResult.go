@@ -1125,7 +1125,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, limit uint64) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
@@ -1137,7 +1137,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, limit uint64) (*structs.Pipe
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting progress: %v", err)
 	}
 
-	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress, limit)
+	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress, scrollFrom)
 
 	wsResponse.ColumnsOrder = resp.ColumnsOrder
 

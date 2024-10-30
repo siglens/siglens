@@ -469,3 +469,14 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		isTwoPassCmd:      false,
 	}
 }
+
+func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}

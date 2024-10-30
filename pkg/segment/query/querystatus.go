@@ -307,7 +307,7 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
 
 		if rQuery.isAsync {
-			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, utils.QUERY_EARLY_EXIT_LIMIT+rQuery.scrollFrom)
+			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, rQuery.scrollFrom)
 			rQuery.StateChan <- &QueryStateChanData{
 				StateName:    QUERY_UPDATE,
 				UpdateWSResp: wsResponse,
@@ -1082,7 +1082,7 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery.Progress.RecordsSearched += recordsSearched
 
 	if rQuery.isAsync {
-		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, utils.QUERY_EARLY_EXIT_LIMIT+rQuery.scrollFrom)
+		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, rQuery.scrollFrom)
 		rQuery.StateChan <- &QueryStateChanData{
 			StateName:    QUERY_UPDATE,
 			UpdateWSResp: wsResponse,
@@ -1134,12 +1134,12 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 	return nil
 }
 
-func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, limit uint64) *structs.PipeSearchWSUpdateResponse {
+func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
 	percCompleteBySearch := float64(0)
 	if progress.TotalUnits > 0 {
 		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(limit)
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom + utils.QUERY_EARLY_EXIT_LIMIT)
 
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
