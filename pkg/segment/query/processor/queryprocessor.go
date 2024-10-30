@@ -20,6 +20,7 @@ package processor
 import (
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -86,7 +87,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
-	if len(dataProcessors) > 0 {
+	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+		query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
 		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
 		dataProcessors[0].SetLimitForDataGenerator(segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
 	}

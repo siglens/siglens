@@ -40,6 +40,7 @@ type inputlookupProcessor struct {
 	qid          uint64
 	start        uint64
 	numprocessed uint64
+	limit 	     uint64
 }
 
 func isCSVFormat(filename string) bool {
@@ -132,7 +133,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	count := uint64(0)
 	records := map[string][]utils.CValueEnclosure{}
 
-	for !p.eof && count < putils.MinUint64(p.options.Max, utils.QUERY_EARLY_EXIT_LIMIT) {
+	for !p.eof && count < putils.MinUint64(p.options.Max, p.limit) {
 		count++
 		curr++
 		csvRecord, err := reader.Read()
@@ -191,4 +192,8 @@ func (p *inputlookupProcessor) Cleanup() {
 
 func (p *inputlookupProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
+}
+
+func (p *inputlookupProcessor) IsEOF() bool {
+	return p.eof
 }

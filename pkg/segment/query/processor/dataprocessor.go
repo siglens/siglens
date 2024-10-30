@@ -20,9 +20,7 @@ package processor
 import (
 	"errors"
 	"io"
-	"math"
 
-	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -132,6 +130,8 @@ func (dp *DataProcessor) SetLimitForDataGenerator(limit uint64) {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		dp.processor.(*gentimesProcessor).limit = limit
+	case *inputlookupProcessor:
+		dp.processor.(*inputlookupProcessor).limit = limit
 	default:
 		return
 	}
@@ -141,6 +141,8 @@ func (dp *DataProcessor) IsEOFForDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return dp.processor.(*gentimesProcessor).IsEOF()
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).IsEOF()
 	default:
 		return false
 	}
