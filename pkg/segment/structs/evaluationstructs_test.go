@@ -2183,3 +2183,79 @@ func Test_MultiValueExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, utils.CompareStringSlices(value, []string{"dc", "b2c"}))
 }
+
+func Test_GetDefaultTimechartSpanOptions(t *testing.T) {
+	type args struct {
+		startEpoch uint64
+		endEpoch   uint64
+		qid        uint64
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *SpanOptions
+		wantErr bool
+	}{
+		{"startEpoch = 0 should be error", args{0, 1, 1}, nil, true},
+		{"endEpoch = 0 should be error", args{1, 0, 1}, nil, true},
+		{"<15*60*1000 should be TMSecond with Num = 10",
+			args{1, 5*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			false},
+		{"15*60*1000 should be TMSecond with Num = 10",
+			args{1, 15*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			false},
+		{"<60*60*1000 should be TMMinute with Num = 1",
+			args{1, 30*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"60*60*1000 should be TMMinute with Num = 1",
+			args{1, 60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<4*60*60*1000 should be TMMinute with Num = 5",
+			args{1, 2*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"4*60*60*1000 should be TMMinute with Num = 5",
+			args{1, 4*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<24*60*60*1000 should be TMMinute with Num = 30",
+			args{1, 20*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"24*60*60*1000 should be TMMinute with Num = 30",
+			args{1, 24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<7*24*60*60*1000 should be TMHour with Num = 1",
+			args{1, 6*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			false},
+		{"7*24*60*60*1000 should be TMHour with Num = 1",
+			args{1, 7*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			false},
+		{"<180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 179*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			false},
+		{"180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 180*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			false},
+		{">180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 181*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMonth}, DefaultSettings: false},
+			false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetDefaultTimechartSpanOptions(tt.args.startEpoch, tt.args.endEpoch, tt.args.qid)
+			assert.Equal(t, err != nil, tt.wantErr)
+			assert.Equal(t, got, tt.want)
+		})
+	}
+}

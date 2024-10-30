@@ -82,7 +82,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
-					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
+					spanOptions, err := structs.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
 					if err != nil {
 						log.Errorf("qid=%d, ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
 						return nil, nil, []string{}, err
