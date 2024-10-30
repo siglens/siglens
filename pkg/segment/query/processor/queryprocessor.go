@@ -81,8 +81,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		if dataProcessor == nil {
 			break
 		}
-		dataProcessor.qid = searcher.qid
 		dataProcessors = append(dataProcessors, dataProcessor)
+	}
+
+	if len(dataProcessors) > 0 {
+		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
 	}
 
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
@@ -148,6 +151,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
 		return NewGentimesDP(queryAgg.GentimesExpr)
+	} else if queryAgg.InputLookupExpr != nil {
+		return NewInputLookupDP(queryAgg.InputLookupExpr)
 	} else if queryAgg.HeadExpr != nil {
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {
