@@ -34,16 +34,21 @@ func Test_parseSearchBody(t *testing.T) {
 	jssrc["endEpoch"] = "now"
 	jssrc["scroll"] = 0
 
-	stext, sepoch, eepoch, fsize, idxname, scroll := ParseSearchBody(jssrc, nowTs)
+	stext, sepoch, eepoch, fsize, idxname, scroll, includeNulls := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, "abc def", stext)
 	assert.Equal(t, nowTs-15*60_000, sepoch, "expected=%v, actual=%v", nowTs-15*60_000, sepoch)
 	assert.Equal(t, nowTs, eepoch, "expected=%v, actual=%v", nowTs, eepoch)
 	assert.Equal(t, uint64(200), fsize, "expected=%v, actual=%v", uint64(200), fsize)
 	assert.Equal(t, "svc-2", idxname, "expected=%v, actual=%v", "svc-2", idxname)
 	assert.Equal(t, 0, scroll, "expected=%v, actual=%v", 0, scroll)
+	assert.False(t, includeNulls, "includeNulls should default to false")
 
 	jssrc["from"] = 500
-	_, _, _, finalSize, _, scroll := ParseSearchBody(jssrc, nowTs)
+	_, _, _, finalSize, _, scroll, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, uint64(700), finalSize, "expected=%v, actual=%v", 700, scroll)
 	assert.Equal(t, 500, scroll, "expected=%v, actual=%v", 500, scroll)
+
+	jssrc["includeNulls"] = true
+    _, _, _, _, _, _, includeNulls = ParseSearchBody(jssrc, nowTs)
+    assert.True(t, includeNulls, "includeNulls should be true")
 }
