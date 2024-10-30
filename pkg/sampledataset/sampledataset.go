@@ -113,8 +113,11 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
 	for scanner.Scan() {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
+		jsonCopy := make([]byte, len(rawJson))
+		copy(jsonCopy, rawJson)
 		totalBytes += len(rawJson)
-		ple, err := segwriter.GetNewPLE(rawJson, tsNow, "test-data", &tsKey, jsParsingStackbuf[:])
+
+		ple, err := segwriter.GetNewPLE(jsonCopy, tsNow, "test-data", &tsKey, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return

@@ -182,6 +182,7 @@ const gridOptions = {
     singleClickEdit: true,
     headerHeight: 32,
     suppressDragLeaveHidesColumns: true,
+    maintainRowOrder: true,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,

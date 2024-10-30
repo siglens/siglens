@@ -934,12 +934,8 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 
 	for i, bucketHolder := range bucketHolderArr {
 		for idx, aggGroupByCol := range aggGroupByCols {
-			colValue := bucketHolder.GroupByValues[idx]
-			err := knownValues[aggGroupByCol][i].ConvertValue(colValue)
-			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
-				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, groupByCol=%v, ColumnValue=%v. Error=%v", i, aggGroupByCol, colValue, err)
-				errIndex++
-			}
+			colCValue := bucketHolder.IGroupByValues[idx]
+			knownValues[aggGroupByCol][i] = colCValue
 		}
 
 		for _, measureFunc := range measureFuncs {
@@ -1027,13 +1023,18 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	// Fill in the bucketHolderArr with values from knownValues
 	for i := 0; i < bucketCount; i++ {
 
+		// If we send the data in string formatting values,
+		// then we can remove IGroupByValues from BucketHolder
 		bucketHolderArr[i] = &structs.BucketHolder{
-			GroupByValues: make([]string, groupByColLen),
-			MeasureVal:    make(map[string]interface{}),
+			IGroupByValues: make([]utils.CValueEnclosure, groupByColLen),
+			GroupByValues:  make([]string, groupByColLen),
+			MeasureVal:     make(map[string]interface{}),
 		}
 
 		for idx, aggGroupByCol := range groupByColumns {
 			colValue := knownValues[aggGroupByCol][i]
+			bucketHolderArr[i].IGroupByValues[idx] = colValue
+
 			convertedValue, err := colValue.GetString()
 			if err != nil {
 				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
@@ -1042,6 +1043,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		}
 		if groupByColLen == 0 {
 			bucketHolderArr[i].GroupByValues = []string{"*"}
+			bucketHolderArr[i].IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
 		}
 
 		for _, measureFunc := range measureColumns {
@@ -1052,7 +1054,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, timeOrdered bool) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
@@ -1066,7 +1068,6 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, timeOrdered bool) (*structs.
 
 	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress)
 
-	wsResponse.SortByTimestampAtDefault = timeOrdered
 	wsResponse.ColumnsOrder = resp.ColumnsOrder
 
 	switch qType {
