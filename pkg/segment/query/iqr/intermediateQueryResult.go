@@ -247,6 +247,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	}
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
@@ -267,12 +268,21 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 
 	switch iqr.mode {
 	case withRRCs:
+		allColumns, err := iqr.GetColumns()
+		if err != nil {
+			return nil, toputils.TeeErrorf("IQR.ReadColumn: error getting all columns: %v", err)
+		}
+
+		if _, ok := allColumns[cname]; !ok {
+			return nil, nil
+		}
+
 		return iqr.readColumnWithRRCs(cname)
 	case withoutRRCs:
 		// We don't have RRCs, so we can't read the column. Since we got here
 		// and didn't already return results from knownValues, we don't know
 		// about this column.
-		return nil, toputils.TeeErrorf("IQR.ReadColumn: invalid column %v", cname)
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
 	}
