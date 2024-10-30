@@ -40,7 +40,7 @@ type inputlookupProcessor struct {
 	qid          uint64
 	start        uint64
 	numprocessed uint64
-	limit 	     uint64
+	limit        uint64
 }
 
 func isCSVFormat(filename string) bool {
@@ -88,6 +88,9 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 	if p.eof {
 		return nil, io.EOF
+	}
+	if p.limit == 0 {
+		p.limit = utils.QUERY_EARLY_EXIT_LIMIT // Find a better way to deal with scroll and set limit for later inputlookups
 	}
 
 	if p.options == nil {
