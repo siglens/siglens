@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"regexp"
@@ -8473,7 +8474,7 @@ func Test_Head3(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8505,7 +8506,7 @@ func Test_Head4(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8561,7 +8562,7 @@ func Test_Head9(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8593,7 +8594,7 @@ func Test_Head10(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8812,7 +8813,7 @@ func Test_Head16(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
