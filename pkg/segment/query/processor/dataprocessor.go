@@ -115,27 +115,31 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64, set bool) bool {
+func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
-		if set {
-			dp.processor.(*gentimesProcessor).qid = qid
-		}
 		return true
 	case *inputlookupProcessor:
-		if set {
-			dp.processor.(*inputlookupProcessor).qid = qid
-		}
 		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
 	}
 }
 
+func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).qid = qid
+	case *inputlookupProcessor:
+		dp.processor.(*inputlookupProcessor).qid = qid
+	default:
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
-		if dp.CheckAndSetQidForDataGenerator(0, false) {
+		if dp.IsDataGenerator() {
 			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")

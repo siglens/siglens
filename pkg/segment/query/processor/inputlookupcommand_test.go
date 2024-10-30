@@ -33,7 +33,6 @@ import (
 
 func initTestConfig(t *testing.T) error {
 	runningConfig := config.GetTestConfig(t.TempDir())
-	runningConfig.DataPath = "inputlookup-data/"
 	runningConfig.SSInstanceName = "test"
 	config.SetConfig(runningConfig)
 
@@ -149,7 +148,6 @@ func validate_MultiFetch(t *testing.T, dp *DataProcessor, expectedCols map[strin
 		assert.Nil(t, err)
 		assert.Equal(t, expectedCols, actualCols)
 
-		// Column values from 2 to 101 would be read
 		for col := range expectedCols {
 			colValues, err := iqr.ReadColumn(col)
 			assert.Nil(t, err)
@@ -169,7 +167,7 @@ func Test_InputLookupMultipleFetchAndRewind(t *testing.T) {
 	data := []string{"a,b,c\n"}
 	for i := 0; i < 110; i++ {
 		idx := fmt.Sprintf("%v", i)
-		row := "a" + idx + ",b" + idx + ",c" + idx + "\n"
+		row := fmt.Sprintf("a%v,b%v,c%v\n", idx, idx, idx)
 		data = append(data, row)
 	}
 

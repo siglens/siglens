@@ -505,7 +505,7 @@ func Test_DiscardAfter(t *testing.T) {
 	assert.Equal(t, 1, iqr.NumberOfRecords())
 }
 
-func getKnownValues() map[string][]utils.CValueEnclosure {
+func getTestKnownValues() map[string][]utils.CValueEnclosure {
 	return map[string][]utils.CValueEnclosure{
 		"col1": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
@@ -536,7 +536,7 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	assert.NoError(t, err)
 
 	withoutRRCIqr := NewIQR(0)
-	knownValues := getKnownValues()
+	knownValues := getTestKnownValues()
 	err = withoutRRCIqr.AppendKnownValues(knownValues)
 	assert.NoError(t, err)
 	numGeneratedCol := withoutRRCIqr.NumberOfRecords()
@@ -565,7 +565,7 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 }
 
 func Test_AppendKnownValuesWithIncorrectColValues(t *testing.T) {
-	knownValues := getKnownValues()
+	knownValues := getTestKnownValues()
 
 	knownValues["col1"] = knownValues["col1"][1:]
 	newIQR := NewIQR(0)
@@ -574,7 +574,7 @@ func Test_AppendKnownValuesWithIncorrectColValues(t *testing.T) {
 }
 
 func Test_getRRCIQR(t *testing.T) {
-	knownValues := getKnownValues()
+	knownValues := getTestKnownValues()
 	withoutRRCIqr := NewIQR(0)
 	err := withoutRRCIqr.AppendKnownValues(knownValues)
 	assert.NoError(t, err)

@@ -83,8 +83,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
+	if len(dataProcessors) > 0 {
+		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
+	}
+
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
-	if len(dataProcessors) > 0 && !dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid, true) {
+	if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
 		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
 	}
 	for i := 1; i < len(dataProcessors); i++ {
