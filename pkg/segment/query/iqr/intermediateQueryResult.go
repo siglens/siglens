@@ -268,15 +268,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 
 	switch iqr.mode {
 	case withRRCs:
-		allColumns, err := iqr.GetColumns()
-		if err != nil {
-			return nil, toputils.TeeErrorf("IQR.ReadColumn: error getting all columns: %v", err)
-		}
-
-		if _, ok := allColumns[cname]; !ok {
-			return nil, nil
-		}
-
 		return iqr.readColumnWithRRCs(cname)
 	case withoutRRCs:
 		// We don't have RRCs, so we can't read the column. Since we got here
@@ -384,7 +375,17 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 	return results, nil
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
+	allColumns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
+	}
+
+	if _, ok := allColumns[cname]; !ok {
+		return nil, nil
+	}
+
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.SegKeyInfo.SegKeyEnc
