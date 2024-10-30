@@ -421,6 +421,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        includeNulls: true, // Remove null values
     };
 }
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {

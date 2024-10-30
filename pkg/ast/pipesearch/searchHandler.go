@@ -53,10 +53,11 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
+	var includeNulls bool
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -204,9 +205,24 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			scrollFrom = 0
 		}
 	}
+
+	includeNullsVal, ok := jsonSource["includeNulls"]
+	if !ok {
+		includeNulls = false
+	} else {
+		switch val := includeNullsVal.(type) {
+		case bool:
+			includeNulls = val
+		case string:
+			includeNulls = val == "true"
+		default:
+			includeNulls = false
+		}
+	}
+
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
@@ -242,7 +258,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
@@ -328,7 +344,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		return httpResponse, false, simpleNode.TimeRange, nil
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
 		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
 
 		return &httpRespOuter, false, simpleNode.TimeRange, nil
@@ -396,7 +412,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}) structs.PipeSearchResponseOuter {
+func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, includeNulls bool) structs.PipeSearchResponseOuter {
 	var httpRespOuter structs.PipeSearchResponseOuter
 	var httpResp structs.PipeSearchResponse
 
@@ -415,7 +431,8 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		measFuncs = nodeResult.MeasureFunctions
 	}
 
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs, allColsInAggs)
+	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid,
+		nodeResult.SegEncToKey, aggs, allColsInAggs, includeNulls)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
@@ -463,7 +480,8 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 
 // returns converted json, all columns, or any errors
 func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
+	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators,
+	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)
 	// if sizeLimit is 0, return empty hits
@@ -479,10 +497,30 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 		return allJsons, allCols, err
 	}
 
+	// Filter out null values from each record
+	filteredJsons := make([]map[string]interface{}, len(allJsons))
+	for i, record := range allJsons {
+		filteredJsons[i] = filterNullValues(record, includeNulls)
+	}
+
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
-	return allJsons, allCols, nil
+	return filteredJsons, allCols, nil
+}
+
+func filterNullValues(record map[string]interface{}, includeNulls bool) map[string]interface{} {
+	if includeNulls {
+		return record
+	}
+
+	filtered := make(map[string]interface{})
+	for key, value := range record {
+		if value != nil || key == "_index" || key == "timestamp" {
+			filtered[key] = value
+		}
+	}
+	return filtered
 }
 
 func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
