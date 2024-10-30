@@ -218,6 +218,7 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
+	IsFirstCommand       bool
 	Filename             string
 	Append               bool
 	Start                uint64
