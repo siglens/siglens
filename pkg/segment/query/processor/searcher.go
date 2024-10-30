@@ -627,7 +627,7 @@ func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
 			return rrcs[i].TimeStamp < rrcs[j].TimeStamp
 		})
 	case anyOrder:
-	// Do nothing.
+		// Do nothing.
 	default:
 		return toputils.TeeErrorf("sortRRCs: invalid sort mode: %v", mode)
 	}
