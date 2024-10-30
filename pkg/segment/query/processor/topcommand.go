@@ -18,8 +18,11 @@
 package processor
 
 import (
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
 type topProcessor struct {
@@ -27,15 +30,26 @@ type topProcessor struct {
 }
 
 func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if p.options == nil {
+		return nil, toputils.TeeErrorf("topProcessor.Process: options is nil")
+	}
+
+	// countIsGroupByCol := toputils.SliceContainsString(p.options.GetFields(), p.options.StatisticOptions.CountField)
+	// percentIsGroupByCol := toputils.SliceContainsString(p.options.GetFields(), p.options.StatisticOptions.PercentField)
+
+	// resultCount := iqr.NumberOfRecords()
+
+	// groupByCols := p.options.GetFields()
+
+	return iqr, io.EOF
 }
 
 func (p *topProcessor) Rewind() {
-	panic("not implemented")
+	// Nothing to do
 }
 
 func (p *topProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing to do
 }
 
 func (p *topProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
