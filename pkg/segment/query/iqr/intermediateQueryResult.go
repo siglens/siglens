@@ -22,7 +22,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -643,11 +642,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 }
 
 func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
-	timestampKey := config.GetTimeStampKey()
 	for cname := range cnames {
-		if cname == timestampKey {
-			continue
-		}
 		iqr.deletedColumns[cname] = struct{}{}
 		delete(iqr.knownValues, cname)
 	}

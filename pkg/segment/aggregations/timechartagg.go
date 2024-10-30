@@ -264,14 +264,14 @@ func SortTimechartRes(timechart *structs.TimechartExpr, results *[]*structs.Buck
 	}
 
 	sort.Slice(*results, func(i, j int) bool {
-		timestamp1, err1 := extractTimestamp((*results)[i].BucketKey)
-		if err1 != nil {
-			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", i, err1)
+		timestamp1, err := extractTimestamp((*results)[i].BucketKey)
+		if err != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", i, err)
 			return false
 		}
-		timestamp2, err2 := extractTimestamp((*results)[j].BucketKey)
-		if err2 != nil {
-			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", j, err2)
+		timestamp2, err := extractTimestamp((*results)[j].BucketKey)
+		if err != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", j, err)
 			return true
 		}
 		return timestamp1 < timestamp2
