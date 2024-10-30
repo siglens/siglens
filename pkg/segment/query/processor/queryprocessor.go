@@ -64,6 +64,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
 	}
 
+	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
+	}
+
 	firstProcessorAgg := firstAgg
 
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
@@ -202,10 +207,12 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	if qp.scrollFrom == 0 {
 		scrollComplete = true
 	}
+	limit := segutils.QUERY_EARLY_EXIT_LIMIT + qp.scrollFrom
 
 	var finalIQR *iqr.IQR
 	var iqr *iqr.IQR
 	var err error
+	totalRecords := 0
 
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
@@ -226,6 +233,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 			if err != nil {
 				return nil, utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
+			totalRecords += iqr.NumberOfRecords()
 		}
 
 		if !scrollComplete && finalIQR.NumberOfRecords() >= int(qp.scrollFrom) {
@@ -250,7 +258,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
 
-	canScrollMore, relation, _, err := qp.getStatusParams()
+	canScrollMore, relation, _, err := qp.getStatusParams(limit, uint64(totalRecords))
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get status params; err=%v", err)
 	}
@@ -283,6 +291,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	if qp.scrollFrom == 0 {
 		scrollComplete = true
 	}
+
+	limit := segutils.QUERY_EARLY_EXIT_LIMIT + qp.scrollFrom
 
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
@@ -320,7 +330,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 					scrollComplete = true
 				}
 			}
-			result, wsErr := iqr.AsWSResult(qp.queryType)
+			result, wsErr := iqr.AsWSResult(qp.queryType, limit)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
@@ -333,7 +343,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType)
+		result, err := finalIQR.AsWSResult(qp.queryType, limit)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
@@ -343,7 +353,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		completeResp.BucketCount = result.BucketCount
 	}
 
-	canScrollMore, relation, progress, err := qp.getStatusParams()
+	canScrollMore, relation, progress, err := qp.getStatusParams(limit, uint64(totalRecords))
 	if err != nil {
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
 	}
@@ -363,7 +373,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 }
 
 // Returns whether more data can be scrolled, relation, and the progress.
-func (qp *QueryProcessor) getStatusParams() (bool, string, structs.Progress, error) {
+func (qp *QueryProcessor) getStatusParams(limit uint64, totalRecords uint64) (bool, string, structs.Progress, error) {
 	progress, err := query.GetProgress(qp.qid)
 	if err != nil {
 		return false, "", structs.Progress{}, fmt.Errorf("getStatusParams: failed to get progress; err: %v", err)
@@ -381,7 +391,7 @@ func (qp *QueryProcessor) getStatusParams() (bool, string, structs.Progress, err
 			relation = "gte"
 		}
 	} else {
-		if progress.UnitsSearched < progress.TotalUnits {
+		if totalRecords == limit {
 			relation = "gte"
 			canScrollMore = true
 		}

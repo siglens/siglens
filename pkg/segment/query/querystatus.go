@@ -120,6 +120,7 @@ type RunningQueryState struct {
 	AllColsInAggs            map[string]struct{}
 	pipeResp                 *structs.PipeSearchResponseOuter
 	Progress                 *structs.Progress
+	scrollFrom               uint64
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -306,7 +307,7 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
 
 		if rQuery.isAsync {
-			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, utils.QUERY_EARLY_EXIT_LIMIT+rQuery.scrollFrom)
 			rQuery.StateChan <- &QueryStateChanData{
 				StateName:    QUERY_UPDATE,
 				UpdateWSResp: wsResponse,
@@ -1081,7 +1082,7 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery.Progress.RecordsSearched += recordsSearched
 
 	if rQuery.isAsync {
-		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress)
+		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, utils.QUERY_EARLY_EXIT_LIMIT+rQuery.scrollFrom)
 		rQuery.StateChan <- &QueryStateChanData{
 			StateName:    QUERY_UPDATE,
 			UpdateWSResp: wsResponse,
@@ -1133,12 +1134,12 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 	return nil
 }
 
-func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress) *structs.PipeSearchWSUpdateResponse {
+func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, limit uint64) *structs.PipeSearchWSUpdateResponse {
 	percCompleteBySearch := float64(0)
 	if progress.TotalUnits > 0 {
 		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(utils.QUERY_EARLY_EXIT_LIMIT)
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(limit)
 
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
@@ -1147,4 +1148,19 @@ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, pro
 		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
 		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),
 	}
+}
+
+func InitScrollFrom(qid uint64, scrollFrom uint64) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("InitScrollFrom: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	rQuery.scrollFrom = scrollFrom
+
+	return nil
 }

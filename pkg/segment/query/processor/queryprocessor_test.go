@@ -97,6 +97,9 @@ func Test_GetFullResult_truncated(t *testing.T) {
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
+	_, err := query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
 	}
@@ -110,9 +113,14 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
+
+	query.DeleteQuery(0)
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
+	_, err := query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+
 	aggs := []structs.QueryAggregators{
 		{BinExpr: &structs.BinCmdOptions{}},
 		{DedupExpr: &structs.DedupExpr{}},
@@ -145,4 +153,6 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
+
+	query.DeleteQuery(0)
 }
