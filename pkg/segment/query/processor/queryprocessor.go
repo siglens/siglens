@@ -77,7 +77,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor := asDataProcessor(curAgg)
+		dataProcessor := asDataProcessor(curAgg, queryInfo)
 		if dataProcessor == nil {
 			break
 		}
@@ -132,7 +132,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 	}, nil
 }
 
-func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
+func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
 	}
@@ -165,6 +165,13 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewRexDP(queryAgg.RexExpr)
 	} else if queryAgg.SortExpr != nil {
 		return NewSortDP(queryAgg.SortExpr)
+	} else if queryAgg.TimeHistogram != nil && queryAgg.TimeHistogram.Timechart != nil {
+		timechartOptions := &timechartOptions{
+			aggs:      queryAgg,
+			qid:       queryInfo.GetQid(),
+			timeRange: queryInfo.GetQueryRange(),
+		}
+		return NewTimechartDP(timechartOptions)
 	} else if queryAgg.GroupByRequest != nil {
 		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
 		return NewStatsDP(queryAgg.StatsExpr)
@@ -177,8 +184,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
-	} else if queryAgg.TimechartExpr != nil {
-		return NewTimechartDP(queryAgg.TimechartExpr)
 	} else if queryAgg.TopExpr != nil {
 		return NewTopDP(queryAgg.TopExpr)
 	} else if queryAgg.TransactionExpr != nil {

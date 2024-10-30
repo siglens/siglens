@@ -278,6 +278,42 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	}
 }
 
+// This function returns backfilled columns if they do not exist in the IQR.
+func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CValueEnclosure, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: validation failed: %v", err)
+	}
+
+	if iqr.mode == notSet {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
+	}
+
+	allColumns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
+	}
+
+	result := make(map[string][]utils.CValueEnclosure)
+	for _, cname := range cnames {
+		var values []utils.CValueEnclosure
+		if _, exist := allColumns[cname]; !exist {
+			values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+			for i := range values {
+				values[i] = *backfillCVal
+			}
+		} else {
+			values, err = iqr.ReadColumn(cname)
+			if err != nil {
+				return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: cannot get values for cname: %s; err: %v", cname, err)
+			}
+		}
+
+		result[cname] = values
+	}
+
+	return result, nil
+}
+
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
@@ -1011,6 +1047,10 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 
 		for _, measureFunc := range measureFuncs {
 			value := bucketHolder.MeasureVal[measureFunc]
+			// For timechart, there can be nil values for some measure functions.
+			if value == nil {
+				value = int64(0)
+			}
 			err := knownValues[measureFunc][i].ConvertValue(value)
 			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
 				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)

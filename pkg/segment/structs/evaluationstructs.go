@@ -2706,3 +2706,29 @@ func CompareSortValueSlices(a []SortValue, b []SortValue, ascending []int) (int,
 
 	return 0, nil
 }
+
+func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*SpanOptions, error) {
+	if startEpoch == 0 || endEpoch == 0 {
+		err := fmt.Errorf("GetDefaultTimechartSpanOptions: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
+		return nil, err
+	}
+
+	duration := endEpoch - startEpoch
+
+	// 15 minutes
+	if duration <= 15*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: utils.TMSecond}}, nil
+	} else if duration <= 60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 4*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 7*24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMHour}}, nil
+	} else if duration <= 180*24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMDay}}, nil
+	} else {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMMonth}}, nil
+	}
+}
