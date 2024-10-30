@@ -13,9 +13,13 @@ stats_groupby_with_eval.json
 9stats_groupby_2col.json
 inputlookup.json 
 inputlookup_2.json
+head2.json
 fillnull_with_eval.json
 stats_group_by_eval.json
 eval_groupby_2col_2stats.json
+eval_fields_timechart.json
+
+# head.json // Fix field parsing for BoolExpr
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -39,7 +43,6 @@ eval_groupby_2col_2stats.json
 # inputlookup_3.json
 # stats_eval.json
 # transaction.json
-# head.json
 
 ## Queries that have different Websocket and Http client results
 # stats_top.json

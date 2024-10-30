@@ -404,10 +404,10 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	}
 }
 
-func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
+func NewTimechartDP(options *timechartOptions) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &timechartProcessor{options: options},
+		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
