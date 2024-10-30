@@ -100,7 +100,7 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 
 func Test_TimechartProcessor_NoByField(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewQueryPipeline = true
 
 	startTime := uint64(time.Now().UnixMilli())
 	processor := getTimechartProcessor(startTime)
@@ -132,7 +132,7 @@ func Test_TimechartProcessor_NoByField(t *testing.T) {
 
 func Test_TimechartProcessor_WithByField(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewQueryPipeline = true
 
 	startTime := uint64(time.Now().UnixMilli())
 	processor := getTimechartProcessor(startTime)
