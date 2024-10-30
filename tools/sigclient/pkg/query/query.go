@@ -1014,6 +1014,11 @@ var skipIndexes = map[int]bool{
 	403: true,
 	404: true,
 
+	// SQL NORESULT
+	22: true, // SQL query order by. NO RESULT
+	23: true, // SQL query order by. NO RESULT
+	24: true, // SQL query order by. NO RESULT
+
 	// NOT IMPLEMENTED
 	// TAIL
 	192: true,
@@ -1027,10 +1032,7 @@ var skipIndexes = map[int]bool{
 	// TOP/RARE
 	158: true, // rare
 	159: true, // top
-	// SQL NORESULT
-	22: true, // SQL query order by. NO RESULT
-	23: true, // SQL query order by. NO RESULT
-	24: true, // SQL query order by. NO RESULT
+
 	// MAKEMV
 	220: true,
 	221: true,
