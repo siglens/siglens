@@ -10757,6 +10757,7 @@ func Test_InputLookup(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10780,6 +10781,7 @@ func Test_InputLookup_2(t *testing.T) {
 	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10803,6 +10805,7 @@ func Test_InputLookup_3(t *testing.T) {
 	assert.Equal(t, uint64(5), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10826,6 +10829,7 @@ func Test_InputLookup_4(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10894,6 +10898,7 @@ func Test_InputLookup_5(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10986,6 +10991,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -11072,6 +11078,7 @@ func Test_InputLookup_10(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
@@ -11105,7 +11112,41 @@ func Test_InputLookup_11(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_InputLookup_12(t *testing.T) {
+	query := `| inputlookup myfile.csv | inputlookup append=true myfile2.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "myfile.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	aggregator = aggregator.Next
+	assert.Equal(t, "myfile2.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
 
 func Test_RemoveRedundantSearches(t *testing.T) {

@@ -569,7 +569,9 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
 }
 / SPACE? inputLookup:InputLookupBlock queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
-    q.PipeCommands = inputLookup.(*structs.QueryAggregators)
+    inpLookup := inputLookup.(*structs.QueryAggregators)
+    inpLookup.GenerateEvent.InputLookup.IsFirstCommand = true
+    q.PipeCommands = inpLookup
 
     if queryAggBlocks != nil {
         queryAggSlice := queryAggBlocks.([]any)
@@ -5140,6 +5142,7 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
         GenerateEvent: &structs.GenerateEvent{
             InputLookup: inputLookup,
         },
+        InputLookupExpr: inputLookup,
     }, nil
 }
 
