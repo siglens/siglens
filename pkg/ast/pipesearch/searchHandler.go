@@ -497,30 +497,26 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 		return allJsons, allCols, err
 	}
 
-	// Filter out null values from each record
-	filteredJsons := make([]map[string]interface{}, len(allJsons))
-	for i, record := range allJsons {
-		filteredJsons[i] = filterNullValues(record, includeNulls)
-	}
 
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
-	return filteredJsons, allCols, nil
+
+	if !includeNulls {
+        for _, record := range allJsons {
+            filterNullValuesInPlace(record)
+        }
+    }
+
+	return allJsons, allCols, nil
 }
 
-func filterNullValues(record map[string]interface{}, includeNulls bool) map[string]interface{} {
-	if includeNulls {
-		return record
-	}
-
-	filtered := make(map[string]interface{})
-	for key, value := range record {
-		if value != nil || key == "_index" || key == "timestamp" {
-			filtered[key] = value
-		}
-	}
-	return filtered
+func filterNullValuesInPlace(record map[string]interface{}) {
+    for key, value := range record {
+        if value == nil && key != "_index" && key != "timestamp" {
+            delete(record, key)
+        }
+    }
 }
 
 func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
