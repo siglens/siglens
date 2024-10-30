@@ -53,11 +53,11 @@ func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *headProcessor) Rewind() {
-	panic("not implemented")
+	// Nothing to do
 }
 
 func (p *headProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing to do
 }
 
 func (p *headProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
