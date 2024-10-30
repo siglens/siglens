@@ -49,6 +49,6 @@ func Test_parseSearchBody(t *testing.T) {
 	assert.Equal(t, 500, scroll, "expected=%v, actual=%v", 500, scroll)
 
 	jssrc["includeNulls"] = true
-    _, _, _, _, _, _, includeNulls = ParseSearchBody(jssrc, nowTs)
-    assert.True(t, includeNulls, "includeNulls should be true")
+	_, _, _, _, _, _, includeNulls = ParseSearchBody(jssrc, nowTs)
+	assert.True(t, includeNulls, "includeNulls should be true")
 }
