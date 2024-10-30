@@ -77,6 +77,8 @@ func (p *fieldsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if p.options.IncludeColumns != nil {
 		matchedCnames := getMatchingColumns(p.options.IncludeColumns, allCnames)
 		includeCnames := make(map[string]struct{})
+		// By default, the timestamp column is always included.
+		// Check SPL Fields cmd reference: https://docs.splunk.com/Documentation/Splunk/9.3.1/SearchReference/Fields
 		includeCnames[config.GetTimeStampKey()] = struct{}{}
 		colsIndex[config.GetTimeStampKey()] = 0
 		for cname, index := range matchedCnames {
