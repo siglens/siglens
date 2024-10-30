@@ -589,8 +589,9 @@ func Test_getRRCIQR(t *testing.T) {
 
 func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
 	for _, oldName := range oldNames {
-		_, err := iqr.ReadColumn(oldName)
-		assert.Error(t, err)
+		values, err := iqr.ReadColumn(oldName)
+		assert.NoError(t, err)
+		assert.Nil(t, values)
 	}
 	values, err := iqr.ReadColumn(newName)
 	assert.NoError(t, err)
