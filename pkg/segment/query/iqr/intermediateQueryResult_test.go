@@ -542,6 +542,88 @@ func Test_DiscardAfter(t *testing.T) {
 	assert.Equal(t, 1, iqr.NumberOfRecords())
 }
 
+func getTestKnownValues() map[string][]utils.CValueEnclosure {
+	return map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
+		},
+	}
+}
+
+func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
+	rrcIqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+
+	err := rrcIqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	withoutRRCIqr := NewIQR(0)
+	knownValues := getTestKnownValues()
+	err = withoutRRCIqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+	numGeneratedCol := withoutRRCIqr.NumberOfRecords()
+	assert.Equal(t, 3, numGeneratedCol)
+
+	err = rrcIqr.Append(withoutRRCIqr)
+	assert.Nil(t, err)
+	assert.Equal(t, withRRCs, rrcIqr.mode)
+	assert.Equal(t, 6, rrcIqr.NumberOfRecords())
+
+	nilCValEnc := utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}
+
+	for col, values := range rrcIqr.knownValues {
+		for i, value := range values {
+			if i < numGeneratedCol {
+				assert.Equal(t, nilCValEnc, value)
+			} else {
+				assert.Equal(t, knownValues[col][i-numGeneratedCol], value)
+			}
+		}
+	}
+
+	withoutRRCIqr.knownValues["col1"] = withoutRRCIqr.knownValues["col1"][1:]
+	err = rrcIqr.Append(withoutRRCIqr)
+	assert.Error(t, err)
+}
+
+func Test_AppendKnownValuesWithIncorrectColValues(t *testing.T) {
+	knownValues := getTestKnownValues()
+
+	knownValues["col1"] = knownValues["col1"][1:]
+	newIQR := NewIQR(0)
+	err := newIQR.AppendKnownValues(knownValues)
+	assert.Error(t, err)
+}
+
+func Test_getRRCIQR(t *testing.T) {
+	knownValues := getTestKnownValues()
+	withoutRRCIqr := NewIQR(0)
+	err := withoutRRCIqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	convertedRRCIQR, err := withoutRRCIqr.getRRCIQR()
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, convertedRRCIQR.mode)
+	assert.Equal(t, 3, len(convertedRRCIQR.rrcs))
+	assert.Equal(t, knownValues, convertedRRCIQR.knownValues)
+	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())
+}
+
 func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
 	for _, oldName := range oldNames {
 		_, err := iqr.ReadColumn(oldName)
@@ -697,6 +779,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 	bucketHolderSlice := []*structs.BucketHolder{
 		{
 			GroupByValues: []string{"a", "b"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "b", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),
 				"sum(x)": int64(100),
@@ -705,6 +791,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"a", "c"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "c", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(20),
 				"sum(x)": int64(200),
@@ -713,6 +803,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"d", "e"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "d", Dtype: utils.SS_DT_STRING},
+				{CVal: "e", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(30),
 				"sum(x)": int64(300),
@@ -861,6 +955,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 		actualBucketHolder := actualBucketHolderSlice[i]
 		if len(expectedBucketHolder.GroupByValues) == 0 {
 			expectedBucketHolder.GroupByValues = []string{"*"}
+			expectedBucketHolder.IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
 		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}

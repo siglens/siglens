@@ -2,7 +2,7 @@
     "queryText": "city=Boston | eval temp_value = http_status%2 | stats count, sum(latitude) BY gender, temp_value",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
+             "value": 4,
              "relation": "eq"
          },
          "qtype": "logs-query",

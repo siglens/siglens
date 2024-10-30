@@ -83,11 +83,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		if dataProcessor == nil {
 			break
 		}
-		dataProcessor.qid = searcher.qid
 		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
-	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+	if len(dataProcessors) > 0 {
+		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
 		dataProcessors[0].SetLimitForDataGenerator(segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
 	}
 
@@ -155,6 +155,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators) *DataProcessor {
 		return NewFillnullDP(queryAgg.FillNullExpr)
 	} else if queryAgg.GentimesExpr != nil {
 		return NewGentimesDP(queryAgg.GentimesExpr)
+	} else if queryAgg.InputLookupExpr != nil {
+		return NewInputLookupDP(queryAgg.InputLookupExpr)
 	} else if queryAgg.HeadExpr != nil {
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {

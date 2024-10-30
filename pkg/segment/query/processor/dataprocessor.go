@@ -36,7 +36,6 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -122,6 +121,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return true
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
 	}
@@ -145,12 +146,21 @@ func (dp *DataProcessor) IsEOFForDataGenerator() bool {
 	}
 }
 
+func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).qid = qid
+	case *inputlookupProcessor:
+		dp.processor.(*inputlookupProcessor).qid = qid
+	default:
+	}
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
 		if dp.IsDataGenerator() {
-			query.InitProgressForRRCCmd(math.MaxUint64, dp.qid) // TODO: Find a good way to handle data generators for progress
-			return iqr.NewIQR(dp.qid), nil
+			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")
 	case 1:
@@ -293,6 +303,20 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 		processor: &gentimesProcessor{
 			options:       options,
 			currStartTime: options.StartTime,
+		},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
+	return &DataProcessor{
+		streams: make([]*cachedStream, 0),
+		processor: &inputlookupProcessor{
+			options: options,
+			start:   options.Start,
 		},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,

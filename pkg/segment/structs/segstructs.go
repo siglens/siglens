@@ -23,6 +23,7 @@ import (
 	"math"
 	"reflect"
 	"sync/atomic"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
@@ -217,6 +218,7 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
+	IsFirstCommand       bool
 	Filename             string
 	Append               bool
 	Start                uint64
@@ -452,9 +454,15 @@ type AggregationResult struct {
 	Results         []*BucketResult // histogram results
 }
 
+// TODO: Retain either IGroupByValues or GroupByValues, as having both is unnecessary.
+// The goal is to preserve the group-by value type as interface{} to avoid issues
+// when processing subsequent commands.
+// Ideally, we should update GroupByValues to have a type of []interface{}
+// and eliminate IGroupByValues.
 type BucketHolder struct {
-	GroupByValues []string
-	MeasureVal    map[string]interface{}
+	IGroupByValues []utils.CValueEnclosure // each group-by value is stored as interface{}
+	GroupByValues  []string
+	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {
@@ -506,6 +514,7 @@ type NodeResult struct {
 	FinalColumns                map[string]bool
 	AllColumnsInAggs            map[string]struct{}
 	RemoteLogs                  []map[string]interface{}
+	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
 
 type SegStats struct {

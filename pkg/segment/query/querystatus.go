@@ -95,6 +95,7 @@ func (qs QueryState) String() string {
 type RunningQueryState struct {
 	isAsync                  bool
 	isCancelled              bool
+	startTime                time.Time
 	timeoutCancelFunc        context.CancelFunc
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
 	cleanupCallback          func()
@@ -138,6 +139,24 @@ func (rQuery *RunningQueryState) SendQueryStateComplete() {
 	}
 }
 
+func (rQuery *RunningQueryState) GetStartTime() time.Time {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.startTime
+}
+
+func GetQueryStartTime(qid uint64) (time.Time, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		log.Errorf("GetQueryStartTime: qid %+v does not exist!", qid)
+		return time.Time{}, fmt.Errorf("qid does not exist")
+	}
+
+	return rQuery.GetStartTime(), nil
+}
+
 // Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
 // If async, updates will be sent for any update to RunningQueryState. Caller is responsible to call DeleteQuery
 func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQueryState, error) {
@@ -175,6 +194,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 	}
 
 	runningState := &RunningQueryState{
+		startTime:         time.Now(),
 		StateChan:         stateChan,
 		cleanupCallback:   cleanupCallback,
 		rqsLock:           &sync.Mutex{},
