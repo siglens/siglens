@@ -948,11 +948,6 @@ var skipIndexes = map[int]bool{
 	158: true, // rare
 	159: true, // top
 
-	// MVEXPAND
-	375: true,
-	376: true,
-	377: true,
-	378: true,
 	// STREAMSTATS
 	313: true,
 	314: true,
