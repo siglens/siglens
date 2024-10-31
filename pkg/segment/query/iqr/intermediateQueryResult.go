@@ -649,7 +649,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
 			// Discard all the records that were merged.
 			for i, numTaken := range numRecordsTaken {
-				err := iqrs[i].discard(numTaken)
+				err := iqrs[i].Discard(numTaken)
 				if err != nil {
 					log.Errorf("qid=%v, MergeIQRs: error discarding records: %v", iqr.qid, err)
 					return nil, 0, err
@@ -772,7 +772,7 @@ func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
 	}
 }
 
-func (iqr *IQR) discard(numRecords int) error {
+func (iqr *IQR) Discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.discard: validation failed: %v", err)
 		return err
@@ -1176,7 +1176,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
@@ -1188,7 +1188,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType) (*structs.PipeSearchWSUpdate
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting progress: %v", err)
 	}
 
-	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress)
+	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress, scrollFrom)
 
 	wsResponse.ColumnsOrder = resp.ColumnsOrder
 

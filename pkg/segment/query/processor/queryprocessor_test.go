@@ -30,6 +30,10 @@ import (
 
 func Test_GetFullResult_notTruncated(t *testing.T) {
 	qid := uint64(0)
+	_, err := query.StartQuery(qid, true, nil)
+	assert.NoError(t, err)
+
+	query.InitProgressForRRCCmd(3, qid)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
 			"col1": {
@@ -41,7 +45,10 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		qid: qid,
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0)
+	assert.NoError(t, err)
+
+	err = query.IncProgressForRRCCmd(0, 3, qid) // Dummy increment for units searched
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -50,23 +57,33 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 3, int(hitsCount.Value))
 	assert.Equal(t, "eq", hitsCount.Relation)
+
+	query.DeleteQuery(qid)
 }
 
 func Test_GetFullResult_truncated(t *testing.T) {
 	qid := uint64(0)
+	_, err := query.StartQuery(qid, true, nil)
+	assert.NoError(t, err)
+
+	totalRecords := utils.QUERY_EARLY_EXIT_LIMIT + 10
+	query.InitProgressForRRCCmd(totalRecords, qid)
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{"col1": {}},
 		qid:        qid,
 	}
 
-	for i := 0; i < int(utils.QUERY_EARLY_EXIT_LIMIT+10); i++ {
+	for i := 0; i < int(totalRecords); i++ {
 		stream.allRecords["col1"] = append(stream.allRecords["col1"], utils.CValueEnclosure{
 			Dtype: utils.SS_DT_SIGNED_NUM,
 			CVal:  i,
 		})
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0)
+	assert.NoError(t, err)
+
+	err = query.IncProgressForRRCCmd(0, totalRecords-1, qid) // Dummy increment for units searched
 	assert.NoError(t, err)
 
 	response, err := queryProcessor.GetFullResult()
@@ -74,10 +91,15 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	hitsCount, ok := response.Hits.TotalMatched.(toputils.HitsCount)
 	assert.True(t, ok)
 	assert.Equal(t, int(utils.QUERY_EARLY_EXIT_LIMIT), int(hitsCount.Value))
-	assert.Equal(t, "eq", hitsCount.Relation)
+	assert.Equal(t, "gte", hitsCount.Relation)
+
+	query.DeleteQuery(qid)
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
+	_, err := query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
 	}
@@ -88,12 +110,17 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
+
+	query.DeleteQuery(0)
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
+	_, err := query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+
 	aggs := []structs.QueryAggregators{
 		{BinExpr: &structs.BinCmdOptions{}},
 		{DedupExpr: &structs.DedupExpr{}},
@@ -123,7 +150,9 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary)
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
+
+	query.DeleteQuery(0)
 }
