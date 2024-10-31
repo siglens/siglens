@@ -278,6 +278,42 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	}
 }
 
+// This function returns backfilled columns if they do not exist in the IQR.
+func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CValueEnclosure, error) {
+	if err := iqr.validate(); err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: validation failed: %v", err)
+	}
+
+	if iqr.mode == notSet {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
+	}
+
+	allColumns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
+	}
+
+	result := make(map[string][]utils.CValueEnclosure)
+	for _, cname := range cnames {
+		var values []utils.CValueEnclosure
+		if _, exist := allColumns[cname]; !exist {
+			values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+			for i := range values {
+				values[i] = *backfillCVal
+			}
+		} else {
+			values, err = iqr.ReadColumn(cname)
+			if err != nil {
+				return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: cannot get values for cname: %s; err: %v", cname, err)
+			}
+		}
+
+		result[cname] = values
+	}
+
+	return result, nil
+}
+
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
@@ -602,7 +638,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
 			// Discard all the records that were merged.
 			for i, numTaken := range numRecordsTaken {
-				err := iqrs[i].discard(numTaken)
+				err := iqrs[i].Discard(numTaken)
 				if err != nil {
 					log.Errorf("qid=%v, MergeIQRs: error discarding records: %v", iqr.qid, err)
 					return nil, 0, err
@@ -725,7 +761,7 @@ func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
 	}
 }
 
-func (iqr *IQR) discard(numRecords int) error {
+func (iqr *IQR) Discard(numRecords int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.discard: validation failed: %v", err)
 		return err
@@ -1011,6 +1047,10 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 
 		for _, measureFunc := range measureFuncs {
 			value := bucketHolder.MeasureVal[measureFunc]
+			// For timechart, there can be nil values for some measure functions.
+			if value == nil {
+				value = int64(0)
+			}
 			err := knownValues[measureFunc][i].ConvertValue(value)
 			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
 				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)
@@ -1125,7 +1165,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	resp, err := iqr.AsResult(qType)
 	if err != nil {
@@ -1137,7 +1177,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType) (*structs.PipeSearchWSUpdate
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting progress: %v", err)
 	}
 
-	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress)
+	wsResponse := query.CreateWSUpdateResponseWithProgress(iqr.qid, qType, &progress, scrollFrom)
 
 	wsResponse.ColumnsOrder = resp.ColumnsOrder
 

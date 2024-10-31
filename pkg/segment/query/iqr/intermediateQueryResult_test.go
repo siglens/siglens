@@ -480,6 +480,43 @@ func Test_Mode_AfterAppendRRC(t *testing.T) {
 	assert.Equal(t, withRRCs, iqr.mode)
 }
 
+func Test_Discard(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	}
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	err = iqr.Discard(3)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err := iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(0)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err = iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(1)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, iqr.NumberOfRecords())
+
+	err = iqr.Discard(1)
+	assert.Error(t, err)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
@@ -922,4 +959,43 @@ func Test_getFinalStatsResults(t *testing.T) {
 		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
+}
+
+func Test_ReadColumnsWithBackfill(t *testing.T) {
+	iqr := NewIQR(0)
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c1"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c2"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c3"},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	columnValues, err := iqr.ReadColumnsWithBackfill([]string{"col1", "col2"})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["col1"], columnValues["col1"])
+	assert.Equal(t, knownValues["col2"], columnValues["col2"])
+
+	columnValues, err = iqr.ReadColumnsWithBackfill([]string{"col3", "col4"})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["col3"], columnValues["col3"])
+	expectedBackfilledCol := []utils.CValueEnclosure{}
+	for i := 0; i < 3; i++ {
+		expectedBackfilledCol = append(expectedBackfilledCol, *backfillCVal)
+	}
+	assert.Equal(t, expectedBackfilledCol, columnValues["col4"])
 }

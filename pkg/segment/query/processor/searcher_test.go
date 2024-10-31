@@ -91,6 +91,36 @@ func Test_sortBlocks(t *testing.T) {
 	}
 }
 
+func Test_sortRRCs(t *testing.T) {
+	rrcs := []*segutils.RecordResultContainer{
+		{TimeStamp: 3},
+		{TimeStamp: 1},
+		{TimeStamp: 2},
+	}
+
+	err := sortRRCs(rrcs, recentFirst)
+	assert.NoError(t, err)
+	assert.Equal(t, rrcs, []*segutils.RecordResultContainer{
+		{TimeStamp: 3},
+		{TimeStamp: 2},
+		{TimeStamp: 1},
+	})
+
+	rrcs = []*segutils.RecordResultContainer{
+		{TimeStamp: 3},
+		{TimeStamp: 1},
+		{TimeStamp: 2},
+	}
+
+	err = sortRRCs(rrcs, recentLast)
+	assert.NoError(t, err)
+	assert.Equal(t, rrcs, []*segutils.RecordResultContainer{
+		{TimeStamp: 1},
+		{TimeStamp: 2},
+		{TimeStamp: 3},
+	})
+}
+
 func Test_getNextBlocks_exceedsMaxDesired(t *testing.T) {
 	blocksSortedHigh := makeBlocksWithSummaryOnly([]timeRange{
 		{high: 40, low: 20},

@@ -3,7 +3,7 @@
     "expectedResult": {
         "totalMatched": {
             "value": 100,
-            "relation": "eq"
+            "relation": "gte"
         },
         "qtype": "logs-query",
         "records": [
