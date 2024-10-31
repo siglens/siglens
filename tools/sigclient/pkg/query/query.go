@@ -1012,18 +1012,7 @@ var skipIndexes = map[int]bool{
 	158: true, // rare
 	159: true, // top
 
-	// MAKEMV
-	220: true,
-	221: true,
-	222: true,
-	223: true,
-	224: true,
-	225: true,
-	226: true,
-	227: true,
-	228: true,
-	229: true,
-	230: true,
+	// MVEXPAND
 	375: true,
 	376: true,
 	377: true,
