@@ -216,6 +216,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			includeNulls = val == "true"
 		default:
+			log.Infof("ParseSearchBody: unexpected type for includeNulls: %T, value: %+v. Defaulting to false", val, val)
 			includeNulls = false
 		}
 	}
