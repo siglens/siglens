@@ -960,6 +960,8 @@ func (e *CValueEnclosure) GetString() (string, error) {
 		return strconv.FormatInt(e.CVal.(int64), 10), nil
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
+	case SS_DT_BACKFILL:
+		return fmt.Sprintf("%v", nil), nil
 	default:
 		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
 	}
