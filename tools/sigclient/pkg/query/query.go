@@ -929,9 +929,7 @@ var skipIndexes = map[int]bool{
 	134: true,
 
 	// Misc
-	35:  true, // LogQL Query, IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
-	291: true, // sum(countVal) is not computed properly (most likely due to if which is returning data as string not number) so no results are returned for (where count=sum_count)
-	293: true, // where.Process: cannot evaluate expression; err=BoolExpr.Evaluate: left cannot be evaluated to a string or float
+	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
 	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!
 
 	// SQL NORESULT
