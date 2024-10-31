@@ -936,7 +936,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -964,6 +964,9 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	for i, record := range cValRecords {
 		recordsAsAny[i] = make(map[string]interface{})
 		for key, value := range record {
+			if !includeNulls && value.CVal == nil {
+				continue
+			}
 			recordsAsAny[i][key] = value.CVal
 		}
 	}
@@ -1165,9 +1168,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
-	resp, err := iqr.AsResult(qType)
+	resp, err := iqr.AsResult(qType, includeNulls)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting result: %v", err)
 	}
