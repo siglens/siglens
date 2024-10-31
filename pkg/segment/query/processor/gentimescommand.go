@@ -32,6 +32,7 @@ type gentimesProcessor struct {
 	options       *structs.GenTimes
 	qid           uint64
 	currStartTime uint64
+	limit         uint64
 }
 
 func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time, end time.Time) {
@@ -77,7 +78,7 @@ func (p *gentimesProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	knownValues := make(map[string][]utils.CValueEnclosure, 0)
 
 	count := uint64(0)
-	for curr < p.options.EndTime && count < utils.QUERY_EARLY_EXIT_LIMIT {
+	for curr < p.options.EndTime && count < p.limit {
 		endTime, err := utils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
 		if err != nil {
 			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating end time, err: %v", err)
@@ -91,6 +92,7 @@ func (p *gentimesProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 
 		currTime = endTime
 		curr = uint64(currTime.UnixMilli())
+		count++
 	}
 
 	p.currStartTime = curr
@@ -115,4 +117,8 @@ func (p *gentimesProcessor) Cleanup() {
 
 func (p *gentimesProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
+}
+
+func (p *gentimesProcessor) IsEOF() bool {
+	return p.currStartTime >= p.options.EndTime
 }

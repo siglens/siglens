@@ -200,7 +200,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
 	websocketR := make(chan map[string]interface{})
-	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc)
+	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc, scrollFrom)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))

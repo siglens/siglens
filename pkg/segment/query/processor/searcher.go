@@ -569,6 +569,7 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
+	aggs.Sort = nil // We'll sort later, so don't do extra sorting work.
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, s.qid)
 	if err != nil {
@@ -605,8 +606,33 @@ func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 		return nil, nil, err
 	}
 
-	// TODO: verify the results or sorted, or sort them here.
-	return searchResults.GetResults(), searchResults.SegEncToKey, nil
+	rrcs := searchResults.GetResults()
+	err = sortRRCs(rrcs, s.sortMode)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to sort RRCs: %v", s.qid, err)
+		return nil, nil, err
+	}
+
+	return rrcs, searchResults.SegEncToKey, nil
+}
+
+func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
+	switch mode {
+	case recentFirst:
+		sort.Slice(rrcs, func(i, j int) bool {
+			return rrcs[i].TimeStamp > rrcs[j].TimeStamp
+		})
+	case recentLast:
+		sort.Slice(rrcs, func(i, j int) bool {
+			return rrcs[i].TimeStamp < rrcs[j].TimeStamp
+		})
+	case anyOrder:
+		// Do nothing.
+	default:
+		return toputils.TeeErrorf("sortRRCs: invalid sort mode: %v", mode)
+	}
+
+	return nil
 }
 
 func (s *searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, blocks []*block) error {

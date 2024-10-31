@@ -75,6 +75,9 @@ type RunningBucketResultsJSON struct {
 }
 
 func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) (*BlockResults, error) {
+	if count > utils.MAX_RECS_PER_WIP {
+		count = utils.MAX_RECS_PER_WIP
+	}
 
 	blockRes := &BlockResults{aggs: aggs}
 	if aggs != nil && aggs.TimeHistogram != nil {
