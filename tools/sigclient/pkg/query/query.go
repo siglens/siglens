@@ -741,7 +741,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 							if !ok {
 								log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", value)
 							}
-							if receivedRelation == "gte" && relation != "eq" {
+							if receivedRelation == "gte" {
 								relation = "gte"
 							}
 							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
@@ -922,9 +922,7 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 
 var skipIndexes = map[int]bool{
 	// Working now
-	4:   true, // Not working Pipe QL
-	// 196: true, // Working now (fixed in head expression PR)
-	// 197: true, // Working now (fixed in head expression PR)
+	4: true, // Not working Pipe QL
 
 	// Misc
 	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
