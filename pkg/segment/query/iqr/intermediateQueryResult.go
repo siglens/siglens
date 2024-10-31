@@ -81,6 +81,10 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func (iqr *IQR) BlankCopy() *IQR {
+	return NewIQR(iqr.qid)
+}
+
 func (iqr *IQR) GetQID() uint64 {
 	return iqr.qid
 }
