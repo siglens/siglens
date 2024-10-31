@@ -59,11 +59,12 @@ func (p *mvexpandProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	orderedItems := make([]orderedItem[interface{}], 0, len(values))
+	limit, hasLimit := p.options.Limit.Get()
 	for i, value := range values {
 		switch value.Dtype {
 		case segutils.SS_DT_STRING_SLICE:
 			for j, v := range value.CVal.([]string) {
-				if p.options.Limit > 0 && j >= int(p.options.Limit) {
+				if hasLimit && j >= int(limit) {
 					break
 				}
 

@@ -23,6 +23,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,7 @@ func Test_MVExpand_noLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   0,
+			Limit:   toputils.NewUnsetOption[int64](),
 		},
 	}
 	iqr := iqr.NewIQR(0)
@@ -79,7 +80,7 @@ func Test_MVExpand_withLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   2,
+			Limit:   toputils.NewOptionWithValue[int64](2),
 		},
 	}
 	iqr := iqr.NewIQR(0)

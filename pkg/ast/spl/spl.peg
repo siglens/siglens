@@ -5000,24 +5000,22 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
     return fieldList, nil
 }
 
-MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
-	limitVal := int64(0) // default value indicating no limit
-	var err error
-	if limit != nil {
-		limitVal, err = strconv.ParseInt(limit.(string), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing limit value: %v", err)
-		}
-	}
+MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
+    limit := toputils.NewUnsetOption[int64]()
+    if limitStr != nil {
+        value, err := strconv.ParseInt(limitStr.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Error parsing limit value: %v", err)
+        }
 
-	mvexpandExpr := &structs.MultiValueColLetRequest{
-		Command: "mvexpand",
-		ColName: field.(string),
-	}
+        limit.Set(value)
+    }
 
-	if limitVal != 0 {
-		mvexpandExpr.Limit = limitVal
-	}
+    mvexpandExpr := &structs.MultiValueColLetRequest{
+        Command: "mvexpand",
+        ColName: field.(string),
+        Limit: limit,
+    }
 
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.OutputTransformType,

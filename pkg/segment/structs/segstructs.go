@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -440,7 +441,7 @@ type MultiValueColLetRequest struct {
 	IsRegex         bool
 	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
 	Setsv           bool // if true, split values are combined into a single value. default is false
-	Limit           int64
+	Limit           toputils.Option[int64]
 }
 
 type BucketResult struct {
