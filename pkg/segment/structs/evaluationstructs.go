@@ -1172,7 +1172,7 @@ func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CVal
 	}
 }
 
-// This function will first try to evaluate the ValueExpr to a float. If that
+// This function will first try to evaluate the ValueExpr to a Number (float64 or int64). If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
 func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
