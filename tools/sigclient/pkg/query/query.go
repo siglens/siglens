@@ -932,22 +932,6 @@ var skipIndexes = map[int]bool{
 	293: true, // where.Process: cannot evaluate expression; err=BoolExpr.Evaluate: left cannot be evaluated to a string or float
 	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!
 
-	// INPUTLOOKUP START (This should be fixed in the scroll PR)
-	305: true,
-	306: true,
-	307: true,
-	308: true,
-	309: true,
-	310: true,
-	311: true,
-	312: true,
-
-	// GENTIMES START (This should be fixed in the scroll PR)
-	295: true,
-	296: true,
-	297: true,
-	298: true,
-
 	// PQS Issue
 	214: true,
 	199: true,
@@ -975,8 +959,8 @@ var skipIndexes = map[int]bool{
 	419: true, // Floating point error expected: 89.228 got: 89.228823
 
 	// totalMatched Issues
-	// 1:   true,
-	// 3:   true,
+	1:   true,
+	3:   true,
 	11:  true,
 	12:  true,
 	13:  true,
