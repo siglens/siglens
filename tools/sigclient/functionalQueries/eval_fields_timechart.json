@@ -1,5 +1,5 @@
 {
-    "queryText": "search group=\"group 0\" city=Boston http_method=P* | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, http_method, lat_http, long_http, latency_http | timechart span=10m avg(lat_http) as avg_lat_http by http_method limit=100",
+    "queryText": "search group=\"group 0\" city=Boston http_method=P* | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, http_method, lat_http, long_http, latency_http | timechart span=30m avg(lat_http) as avg_lat_http by http_method limit=100",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
