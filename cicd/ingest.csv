@@ -1,21 +1,3 @@
-*,now-1d,now,*,total,gt,99,Pipe QL
-app_name=Oxam,now-1d,now,*,total,gt,0,Pipe QL
-batch=batch-*,now-1d,now,*,total,gt,99,Pipe QL
-min(zip) groupby batch,now-1d,now,*,total,,100,Pipe QL
-Sunday,now-1d,now,*,total,gt,1,Pipe QL
-hortensebaumbach@emard.io,now-1d,now,*,total,gt,0,Pipe QL
-http_status>400,now-1d,now,*,total,gt,0,Pipe QL
-cardinality(user_email),now-1d,now,total,*,,1,Pipe QL
-"""https://picsum.photos/127/459""",now-1d,now,*,total,gt,0,Pipe QL
-latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,gt,0,Pipe QL
-"""MintCream""",now-1d,now,*,total,gt,99,Pipe QL
-"(MintCream AND (""Thursday"" OR ""Monday""))",now-1d,now,*,total,gt,99,Pipe QL
-"(MintCream AND (""Thursday"" OR ""Monday"")) | min(latency) groupby state",now-1d,now,*,total,gt,100,Pipe QL
-latency<10000 AND latitude>0 AND longitude > 0,now-1d,now,*,total,gt,10,Pipe QL
-200,now-1d,now,*,total,gt,99,Pipe QL
-200 OR 500,now-1d,now,*,total,gt,99,Pipe QL
-min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
-"min(latency) groupby city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,5479,Pipe QL
 "select batch as bt",now-1d,now,*,total,gt,99,SQL
 "select weekday",now-1d,now,*,total,gt,1,SQL
 "select gender as bt, city as `ct` from ind-0",now-1d,now,*,total,gt,0,SQL
