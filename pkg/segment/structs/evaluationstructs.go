@@ -1116,6 +1116,19 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]utils.CValueEnclo
 	}
 }
 
+func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	floatValue, err := valueExpr.EvaluateToFloat(fieldToValue)
+	if err != nil {
+		return 0, err
+	}
+
+	if math.Mod(floatValue, 1) == 0 {
+		return int64(floatValue), nil
+	}
+
+	return floatValue, nil
+}
+
 func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 	switch valueExpr.ValueExprMode {
 	case VEMConditionExpr:
@@ -1162,17 +1175,17 @@ func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CVal
 // This function will first try to evaluate the ValueExpr to a float. If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
-func (expr *ValueExpr) EvaluateValueExprToFloatOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
-	value, err := expr.EvaluateToFloat(fieldToValue)
+func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	value, err := expr.EvaluateToNumber(fieldToValue)
 	if err == nil {
-		return value, "float", nil
+		return value, nil
 	}
 
 	valueStr, err := expr.EvaluateToString(fieldToValue)
 	if err == nil {
-		return valueStr, "string", nil
+		return valueStr, nil
 	}
-	return nil, "", fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
+	return nil, fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
 }
 
 func (self *ValueExpr) GetFields() []string {
@@ -1758,7 +1771,7 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
-func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (string, error) {
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (interface{}, error) {
 	switch functionName {
 	case "validate":
 		for _, cvPair := range self.ConditionValuePairs {
@@ -1774,7 +1787,7 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
 			}
 			if !res {
-				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+				val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
 				if err != nil {
 					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
 				}
@@ -2426,7 +2439,7 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 	return str, nil
 }
 
-func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
@@ -2438,7 +2451,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
 		}
 		if res {
-			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+			val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
 			if err != nil {
 				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
 			}
@@ -2449,14 +2462,14 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 	return "", nil
 }
 
-func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 	for _, valueExpr := range self.ValueList {
 		nullFields, err := valueExpr.GetNullFields(fieldToValue)
 		if err != nil || len(nullFields) > 0 {
 			continue
 		}
 
-		val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		val, err := valueExpr.EvaluateValueExprToNumberOrString(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
 		}
@@ -2471,12 +2484,12 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CVa
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
 
-	value1, _, err := expr.ValueList[0].EvaluateValueExprToFloatOrString(fieldToValue)
+	value1, err := expr.ValueList[0].EvaluateValueExprToNumberOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
 	}
 
-	value2, _, err := expr.ValueList[1].EvaluateValueExprToFloatOrString(fieldToValue)
+	value2, err := expr.ValueList[1].EvaluateValueExprToNumberOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
 	}
@@ -2498,17 +2511,22 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
 		}
 
-		trueValue, err := expr.TrueValue.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
-		}
-		falseValue, err := expr.FalseValue.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
-		}
+		var trueValue interface{}
+		var falseValue interface{}
+
 		if predicateFlag {
+			trueValue, err = expr.TrueValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a string or number ValueExpr: %v", err)
+			}
+
 			return trueValue, nil
 		} else {
+			falseValue, err = expr.FalseValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a string or number ValueExpr: %v", err)
+			}
+
 			return falseValue, nil
 		}
 	case "validate":
