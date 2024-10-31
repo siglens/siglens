@@ -921,32 +921,11 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 }
 
 var skipIndexes = map[int]bool{
-	// Working now
-	4:   true, // This is Workig now
-	196: true, // Working now (fixed in head expression PR)
-	197: true, // Working now (fixed in head expression PR)
-
 	// Misc
 	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
 	291: true, // sum(countVal) is not computed properly (most likely due to if which is returning data as string not number) so no results are returned for (where count=sum_count)
 	293: true, // where.Process: cannot evaluate expression; err=BoolExpr.Evaluate: left cannot be evaluated to a string or float
 	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!
-
-	// INPUTLOOKUP START (This should be fixed in the scroll PR)
-	305: true,
-	306: true,
-	307: true,
-	308: true,
-	309: true,
-	310: true,
-	311: true,
-	312: true,
-
-	// GENTIMES START (This should be fixed in the scroll PR)
-	295: true,
-	296: true,
-	297: true,
-	298: true,
 
 	// PQS Issue
 	214: true,
