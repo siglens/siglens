@@ -10589,28 +10589,13 @@ func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
 	// Get the current time in the local time zone
 	now := time.Now().In(time.Local)
 
-	// Check if it's the last day of the month
-	isLastDay := now.AddDate(0, 0, 1).Month() != now.Month()
+	// Calculate the expected earliest time: one month ago, snapped to the first of the month at midnight
+	firstOfLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
+	expectedEarliestTime := firstOfLastMonth
 
-	var expectedEarliestTime time.Time
-	var expectedLatestTime time.Time
-
-	if isLastDay {
-		// For last day of month:
-		// earliest time is first day of current month
-		expectedEarliestTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-
-		// latest time is first day of next month + 7 days
-		nextMonth := now.AddDate(0, 1, 0)
-		expectedLatestTime = time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
-	} else {
-		// For any other day of month:
-		// earliest time is first day of previous month
-		expectedEarliestTime = time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
-
-		// latest time is first day of next month + 7 days
-		expectedLatestTime = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
-	}
+	// Calculate the expected latest time: one month from now, snapped to the first of the month at midnight, plus 7 days
+	firstOfNextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local)
+	expectedLatestTime := firstOfNextMonth.AddDate(0, 0, 7)
 
 	// Convert the actual times from Unix milliseconds to local time
 	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
