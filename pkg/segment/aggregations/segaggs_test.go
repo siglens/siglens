@@ -1397,7 +1397,7 @@ func Test_performValueColRequestWithoutGroupBy_VEMConditionExpr(t *testing.T) {
 		if httpStatus == 400 || httpStatus == 500 {
 			assert.Equal(t, "Failure", record["http_status_mod"])
 		} else {
-			assert.Equal(t, fmt.Sprint(httpStatus), record["http_status_mod"])
+			assert.Equal(t, int64(httpStatus), record["http_status_mod"])
 		}
 	}
 }
