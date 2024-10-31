@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -25,6 +26,12 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
+
+// Convert a Perl-style regex pattern to RE2-style regex pattern.
+func convertPerlToRE2(pattern string) string {
+	pattern = strings.Replace(pattern, "(?<", "(?P<", -1)
+	return pattern
+}
 
 func Test_RexCommand_ValidColumn(t *testing.T) {
 	iqr := iqr.NewIQR(0)
@@ -39,7 +46,7 @@ func Test_RexCommand_ValidColumn(t *testing.T) {
 	rex := &rexProcessor{
 		options: &structs.RexExpr{
 			FieldName:   "col1",
-			Pattern:     `(?<item>.+)-(?<number>.+)`,
+			Pattern:     convertPerlToRE2(`(?<item>.+)-(?<number>.+)`),
 			RexColNames: []string{"item", "number"},
 		},
 	}
@@ -82,7 +89,7 @@ func Test_RexCommand_InvalidColumn(t *testing.T) {
 	rex := &rexProcessor{
 		options: &structs.RexExpr{
 			FieldName:   "col2",
-			Pattern:     `(?<item>.+)-(?<number>.+)`,
+			Pattern:     convertPerlToRE2(`(?<item>.+)-(?<number>.+)`),
 			RexColNames: []string{"item", "number"},
 		},
 	}
@@ -117,7 +124,7 @@ func Test_RexCommand_InvalidPattern(t *testing.T) {
 	rex := &rexProcessor{
 		options: &structs.RexExpr{
 			FieldName:   "col1",
-			Pattern:     `(?<item>.+)-(?<number>`,
+			Pattern:     convertPerlToRE2(`(?<item>.+)-(?<number>`),
 			RexColNames: []string{"item", "number"},
 		},
 	}
@@ -143,7 +150,7 @@ func Test_RexCommand_WriteOverExistingColumn(t *testing.T) {
 	rex := &rexProcessor{
 		options: &structs.RexExpr{
 			FieldName:   "col1",
-			Pattern:     `(?<item>.+)-(?<number>.+)`,
+			Pattern:     convertPerlToRE2(`(?<item>.+)-(?<number>.+)`),
 			RexColNames: []string{"item", "number"},
 		},
 	}
