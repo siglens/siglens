@@ -734,9 +734,14 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 							finalHits = eValue
 							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 						case map[string]interface{}:
-							value := eValue["value"]
-							receivedRelation := eValue["relation"]
-							var ok bool
+							value, ok := eValue["value"]
+							if !ok {
+								log.Fatalf("RunQueryFromFile: value not present in totalMatched")
+							}
+							receivedRelation, ok := eValue["relation"]
+							if !ok {
+								log.Fatalf("RunQueryFromFile: relation not present in totalMatched")
+							}
 							finalHits, ok = value.(float64)
 							if !ok {
 								log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", value)
@@ -921,7 +926,6 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 }
 
 var skipIndexes = map[int]bool{
-	// Working now
 	4: true, // Not working Pipe QL
 
 	// Misc
