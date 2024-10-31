@@ -734,17 +734,17 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 							finalHits = eValue
 							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 						case map[string]interface{}:
-							for k, v := range eValue {
-								if k == "value" {
-									var ok bool
-									finalHits, ok = v.(float64)
-									if !ok {
-										log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", v)
-									}
-									hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
-
-								}
+							value := eValue["value"]
+							receivedRelation := eValue["relation"]
+							var ok bool
+							finalHits, ok = value.(float64)
+							if !ok {
+								log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", value)
 							}
+							if receivedRelation == "gte" && relation != "eq" {
+								relation = "gte"
+							}
+							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 						}
 						if err != nil {
 							log.Fatalf("RunQueryFromFile: Error in verifying hits: %v", err)
@@ -922,9 +922,9 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 
 var skipIndexes = map[int]bool{
 	// Working now
-	4:   true, // This is Workig now
-	196: true, // Working now (fixed in head expression PR)
-	197: true, // Working now (fixed in head expression PR)
+	4:   true, // Not working Pipe QL
+	// 196: true, // Working now (fixed in head expression PR)
+	// 197: true, // Working now (fixed in head expression PR)
 
 	// Misc
 	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
@@ -975,8 +975,8 @@ var skipIndexes = map[int]bool{
 	419: true, // Floating point error expected: 89.228 got: 89.228823
 
 	// totalMatched Issues
-	1:   true,
-	3:   true,
+	// 1:   true,
+	// 3:   true,
 	11:  true,
 	12:  true,
 	13:  true,

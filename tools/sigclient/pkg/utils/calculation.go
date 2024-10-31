@@ -49,7 +49,7 @@ func VerifyInequalityForStr(actual string, relation, expected string) (bool, err
 // returns true, nil if relation is ""
 func VerifyInequality(actual float64, relation, expected string) (bool, error) {
 	if relation == "" {
-		return true, nil
+		return false, nil
 	}
 	fltVal, err := strconv.ParseFloat(expected, 64)
 	if err != nil {
@@ -61,12 +61,12 @@ func VerifyInequality(actual float64, relation, expected string) (bool, error) {
 		if actual == fltVal {
 			return true, nil
 		}
-	case "gt":
-		if actual > fltVal {
+	case "gte":
+		if actual >= fltVal {
 			return true, nil
 		}
-	case "lt":
-		if actual < fltVal {
+	case "gt":
+		if actual > fltVal {
 			return true, nil
 		}
 	case "approx":
