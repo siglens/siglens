@@ -2277,6 +2277,7 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RexExpr: rexExpr,
     }
 
     return root, nil
