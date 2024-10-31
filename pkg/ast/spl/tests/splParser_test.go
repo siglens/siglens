@@ -8092,7 +8092,7 @@ func Test_ParseRelativeTimeModifier_8(t *testing.T) {
 }
 
 func Test_ParseRelativeTimeModifier_9(t *testing.T) {
-	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s`
+	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s | eval n=1`
 	_, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 

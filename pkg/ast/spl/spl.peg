@@ -4043,7 +4043,7 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var endEpoch int64 = 0
     var err error
@@ -4084,7 +4084,7 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var err error
 
