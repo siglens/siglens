@@ -187,6 +187,7 @@ type QueryAggregators struct {
 	InputLookupExpr *InputLookup
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
+	MVExpandExpr    *MultiValueColLetRequest
 	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
 	RenameExp       *RenameExp

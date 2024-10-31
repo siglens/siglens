@@ -5026,6 +5026,7 @@ MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
                 MultiValueColRequest: mvexpandExpr,
             },
         },
+        MVExpandExpr: mvexpandExpr,
     }
     return queryAgg, nil
 }
