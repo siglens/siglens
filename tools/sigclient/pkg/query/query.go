@@ -926,7 +926,9 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 }
 
 var skipIndexes = map[int]bool{
-	4: true, // Not working Pipe QL
+	// Not working Pipe QL
+	4: true,
+	8: true,
 
 	// Misc
 	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
