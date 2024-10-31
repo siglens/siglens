@@ -53,7 +53,7 @@
                     "abs_sum": 61.451397,
                     "avg_latency": 7024047,
                     "avg_sum_min_max": 2341388.3016316667,
-                    "bool_success": "1",
+                    "bool_success": 1,
                     "cnt": 1,
                     "concated": "61.451397-61.451397_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
@@ -62,7 +62,7 @@
                     "finalResult": "Pass",
                     "formatted_time": "2024",
                     "gender_short": "F",
-                    "is_string": "0",
+                    "is_string": 0,
                     "len_gender": 6,
                     "list(http_method)": [
                         "POST"
@@ -103,7 +103,7 @@
                     "abs_sum": 113.240357,
                     "avg_latency": 8829612,
                     "avg_sum_min_max": 3094609.9803250004,
-                    "bool_success": "1",
+                    "bool_success": 1,
                     "cnt": 2,
                     "concated": "113.240357113.240357_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
@@ -112,7 +112,7 @@
                     "finalResult": "Pass",
                     "formatted_time": "2024",
                     "gender_short": "A",
-                    "is_string": "0",
+                    "is_string": 0,
                     "len_gender": 4,
                     "list(http_method)": [
                         "POST",
@@ -155,7 +155,7 @@
                     "abs_sum": 16.024489,
                     "avg_latency": 9233903,
                     "avg_sum_min_max": 3077959.8297806666,
-                    "bool_success": "1",
+                    "bool_success": 1,
                     "cnt": 1,
                     "concated": "16.02448916.024489_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
@@ -164,7 +164,7 @@
                     "finalResult": "Pass",
                     "formatted_time": "2024",
                     "gender_short": "F",
-                    "is_string": "0",
+                    "is_string": 0,
                     "len_gender": 6,
                     "list(http_method)": [
                         "POST"
@@ -205,7 +205,7 @@
                     "abs_sum": 51.49732900000001,
                     "avg_latency": 4692136.5,
                     "avg_sum_min_max": 2601563.373499667,
-                    "bool_success": "1",
+                    "bool_success": 1,
                     "cnt": 2,
                     "concated": "51.497329-51.497329_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
@@ -214,7 +214,7 @@
                     "finalResult": "Pass",
                     "formatted_time": "2024",
                     "gender_short": "A",
-                    "is_string": "0",
+                    "is_string": 0,
                     "len_gender": 4,
                     "list(http_method)": [
                         "POST",
@@ -257,7 +257,7 @@
                     "abs_sum": 36.876998,
                     "avg_latency": 7341637,
                     "avg_sum_min_max": 2447202.189019333,
-                    "bool_success": "1",
+                    "bool_success": 1,
                     "cnt": 1,
                     "concated": "36.876998-36.876998_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
@@ -266,7 +266,7 @@
                     "finalResult": "Pass",
                     "formatted_time": "2024",
                     "gender_short": "A",
-                    "is_string": "0",
+                    "is_string": 0,
                     "len_gender": 4,
                     "list(http_method)": [
                         "POST"

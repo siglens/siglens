@@ -56,7 +56,7 @@ jobs:
           command: |
             cd tools/sigclient
             sleep 5
-            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/restart.csv
+            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv -l ../../cicd/test_lookup.csv
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
 
   functional-test:
