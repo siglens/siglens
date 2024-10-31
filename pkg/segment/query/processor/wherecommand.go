@@ -59,7 +59,7 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		shouldKeep, err := p.options.Evaluate(singleRow)
 		if err != nil {
 			log.Errorf("where.Process: cannot evaluate expression; err=%v", err)
-			return nil, err
+			continue
 		}
 
 		if !shouldKeep {
