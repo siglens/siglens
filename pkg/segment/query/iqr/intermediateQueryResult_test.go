@@ -480,6 +480,43 @@ func Test_Mode_AfterAppendRRC(t *testing.T) {
 	assert.Equal(t, withRRCs, iqr.mode)
 }
 
+func Test_Discard(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	}
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	err = iqr.Discard(3)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err := iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(0)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err = iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(1)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, iqr.NumberOfRecords())
+
+	err = iqr.Discard(1)
+	assert.Error(t, err)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
@@ -589,8 +626,9 @@ func Test_getRRCIQR(t *testing.T) {
 
 func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
 	for _, oldName := range oldNames {
-		_, err := iqr.ReadColumn(oldName)
-		assert.Error(t, err)
+		values, err := iqr.ReadColumn(oldName)
+		assert.NoError(t, err)
+		assert.Nil(t, values)
 	}
 	values, err := iqr.ReadColumn(newName)
 	assert.NoError(t, err)

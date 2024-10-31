@@ -453,14 +453,14 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	return res
 }
 
-func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
+func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (chan *query.QueryStateChanData, error) {
 	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQueryForNewPipeline: Error initializing query status! %+v", err)
 		return nil, err
 	}
 
-	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc)
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
 		return nil, err
@@ -490,14 +490,14 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	return rQuery.StateChan, nil
 }
 
-func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (*processor.QueryProcessor, error) {
+func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (*processor.QueryProcessor, error) {
 	_, querySummary, queryInfo, pqid, _, _, _, containsKibana, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
-	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary)
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
