@@ -945,9 +945,6 @@ var skipIndexes = map[int]bool{
 	194: true,
 	195: true,
 	213: true,
-	// REX
-	156: true,
-	157: true,
 	// TOP/RARE
 	158: true, // rare
 	159: true, // top
