@@ -1,3 +1,21 @@
+*,now-1d,now,*,total,gt,99,Splunk QL
+app_name=Oxam,now-1d,now,*,total,gt,0,Splunk QL
+batch=batch-*,now-1d,now,*,total,gt,99,Splunk QL
+"* | stats min(zip) by batch",now-1d,now,*,total,gt,100,Splunk QL
+Sunday,now-1d,now,*,total,gt,1,Splunk QL
+hortensebaumbach@emard.io,now-1d,now,*,total,gt,0,Splunk QL
+http_status>400,now-1d,now,*,total,gt,0,Splunk QL
+"* | stats dc(user_email)",now-1d,now,*,total,gt,1,Splunk QL
+"""https://picsum.photos/127/459""",now-1d,now,*,total,eq,2,Splunk QL
+latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,eq,1,Splunk QL
+"""MintCream""",now-1d,now,*,total,gt,99,Splunk QL
+"(MintCream AND (""Thursday"" OR ""Monday""))",now-1d,now,*,total,gt,99,Splunk QL
+"(MintCream AND (""Thursday"" OR ""Monday"")) | stats min(latency) by state",now-1d,now,*,total,gt,100,Splunk QL
+latency<10000 AND latitude>0 AND longitude > 0,now-1d,now,*,total,eq,27,Splunk QL
+200,now-1d,now,*,total,gt,99,Splunk QL
+200 OR 500,now-1d,now,*,total,gt,99,Splunk QL
+"* | stats min(latency)",now-1d,now,*,group:min(latency):*,eq,110,Splunk QL
+"* | stats min(latency) by city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,5479,Splunk QL
 "select batch as bt",now-1d,now,*,total,gt,99,SQL
 "select weekday",now-1d,now,*,total,gt,1,SQL
 "select gender as bt, city as `ct` from ind-0",now-1d,now,*,total,gt,0,SQL

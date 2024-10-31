@@ -921,17 +921,18 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 }
 
 var skipIndexes = map[int]bool{
+
+	// Comparing totalMatched for stats query
+	4:   true,
+	8:   true,
+	13:  true,
+	134: true,
+
 	// Misc
-	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
+	35:  true, // LogQL Query, IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
 	291: true, // sum(countVal) is not computed properly (most likely due to if which is returning data as string not number) so no results are returned for (where count=sum_count)
 	293: true, // where.Process: cannot evaluate expression; err=BoolExpr.Evaluate: left cannot be evaluated to a string or float
 	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!
-
-	// Pipe QL not working
-	13: true,
-
-	// Matching totalValue for a stats query
-	134: true,
 
 	// SQL NORESULT
 	22: true, // SQL query order by. NO RESULT
