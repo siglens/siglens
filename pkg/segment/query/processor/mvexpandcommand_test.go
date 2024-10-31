@@ -73,3 +73,49 @@ func Test_MVExpand_noLimit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol2, actualCol2)
 }
+
+func Test_MVExpand_withLimit(t *testing.T) {
+	mvexpand := &mvexpandProcessor{
+		options: &structs.MultiValueColLetRequest{
+			Command: "mvexpand",
+			ColName: "col1",
+			Limit:   2,
+		},
+	}
+	iqr := iqr.NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_STRING, CVal: "red"},
+			{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+		},
+	})
+	assert.NoError(t, err)
+
+	iqr, err = mvexpand.Process(iqr)
+	assert.NoError(t, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "red"},
+		{Dtype: utils.SS_DT_STRING, CVal: "red"},
+		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+	}
+
+	actualCol1, err := iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := iqr.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+}

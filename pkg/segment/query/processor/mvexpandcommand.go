@@ -62,7 +62,11 @@ func (p *mvexpandProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	for i, value := range values {
 		switch value.Dtype {
 		case segutils.SS_DT_STRING_SLICE:
-			for _, v := range value.CVal.([]string) {
+			for j, v := range value.CVal.([]string) {
+				if p.options.Limit > 0 && j >= int(p.options.Limit) {
+					break
+				}
+
 				orderedItems = append(orderedItems, orderedItem[interface{}]{index: i, value: v})
 			}
 		default:
