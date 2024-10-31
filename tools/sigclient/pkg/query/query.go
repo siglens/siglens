@@ -741,7 +741,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 							if !ok {
 								log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", value)
 							}
-							if receivedRelation == "gte" {
+							if receivedRelation == "gte" && relation != "lt" {
 								relation = "gte"
 							}
 							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)

@@ -69,6 +69,10 @@ func VerifyInequality(actual float64, relation, expected string) (bool, error) {
 		if actual > fltVal {
 			return true, nil
 		}
+	case "lt":
+		if actual < fltVal {
+			return true, nil
+		}
 	case "approx":
 		return math.Abs(actual-fltVal) < TOLERANCE, nil
 	default:
