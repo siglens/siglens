@@ -1092,18 +1092,11 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: knownValues is empty")
 	}
 
-	if len(iqr.measureColumns) == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: measureColumns is empty")
-	}
-
 	bucketCount := 0
 	// The bucket count is the number of rows in the final result. So we can use the length of any column.
 	for _, values := range iqr.knownValues {
 		bucketCount = len(values)
 		break
-	}
-	if bucketCount == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: bucketCount is 0")
 	}
 
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
