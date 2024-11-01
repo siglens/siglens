@@ -39,14 +39,14 @@
         "allColumns": [
             "http_method",
             "gender",
-            "JjEVtUtVc",
+            "variable_col_9",
             "country",
             "app_name"
         ],
         "columnsOrder": [
             "country",
             "app_name",
-            "JjEVtUtVc",
+            "variable_col_9",
             "gender",
             "http_method"
         ]
