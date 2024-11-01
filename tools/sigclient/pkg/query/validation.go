@@ -479,7 +479,7 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 		}
 
 		if !equal {
-			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: %v, got: %v", col, value, actualValue)
+			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: value=%v, type=%T, got: value=%v, type=%T", col, value, value, actualValue, actualValue)
 		}
 	}
 
@@ -649,7 +649,7 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 			}
 
 			if !equal {
-				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: %v, got: %v", key, value, actualValue)
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: valu=%v, type=%T, got: value=%v, type=%T", key, value, value, actualValue, actualValue)
 			}
 		}
 	}

@@ -38,6 +38,11 @@ func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cType
 	for field := range fields {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
+			log.Errorf("performFillNullForTheFields: cannot read column %v; err=%v", field, err)
+			continue
+		}
+
+		if values == nil {
 			values = toputils.ResizeSliceWithDefault(values, iqr.NumberOfRecords(), cTypeFillValue)
 		} else {
 

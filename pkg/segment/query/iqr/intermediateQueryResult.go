@@ -247,6 +247,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	}
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
@@ -272,7 +273,7 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		// We don't have RRCs, so we can't read the column. Since we got here
 		// and didn't already return results from knownValues, we don't know
 		// about this column.
-		return nil, toputils.TeeErrorf("IQR.ReadColumn: invalid column %v", cname)
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
 	}
@@ -374,7 +375,17 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 	return results, nil
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
+	allColumns, err := iqr.GetColumns()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
+	}
+
+	if _, ok := allColumns[cname]; !ok {
+		return nil, nil
+	}
+
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.SegKeyInfo.SegKeyEnc

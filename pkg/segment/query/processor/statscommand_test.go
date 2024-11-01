@@ -92,7 +92,7 @@ func getGroupByProcessor() *statsProcessor {
 
 func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewPipelineConverted = true
 
 	knownValues := getTestData()
 	processor := getGroupByProcessor()
@@ -184,7 +184,7 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 
 func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewPipelineConverted = true
 
 	knownValues := getTestData()
 	processor := getGroupByProcessor()

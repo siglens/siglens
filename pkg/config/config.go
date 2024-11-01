@@ -333,7 +333,7 @@ func GetMaxParallelS3IngestBuffers() uint64 {
 
 func IsNewQueryPipelineEnabled() bool {
 	// TODO: when we fully switch to the new pipeline, we can delete this function.
-	return runningConfig.IsNewQueryPipelineEnabled
+	return runningConfig.UseNewPipelineConverted
 }
 
 // returns a map of s3 config
@@ -723,6 +723,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DualCaseCheck = "true"
 	}
 	config.DualCaseCheckConverted = dualCaseCheck
+
+	if len(config.UseNewQueryPipeline) <= 0 {
+		config.UseNewQueryPipeline = "true"
+	}
+	useNewPipeline, err := strconv.ParseBool(config.UseNewQueryPipeline)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse UseNewQueryPipeline flag. Defaulting to true. Error: %v", err)
+		useNewPipeline = true
+		config.UseNewQueryPipeline = "true"
+	}
+	config.UseNewPipelineConverted = useNewPipeline
 
 	if len(config.DataPath) <= 0 {
 		config.DataPath = "data/"
