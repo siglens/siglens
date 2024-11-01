@@ -1180,9 +1180,9 @@ func InitScrollFrom(qid uint64, scrollFrom uint64) error {
 	return nil
 }
 
-func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
+func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
 	if qc == nil {
-		return 0
+		return putils.HitsCount{Value: 0, Relation: "eq"}
 	}
 
 	if !qc.EarlyExit {
