@@ -9,12 +9,12 @@
 # 3stats.json
 # bin.json
 # 9stats.json
-# stats_groupby_with_eval.json
-# 9stats_groupby_2col.json
-# inputlookup.json 
-# inputlookup_2.json
-# head.json
-# head2.json
+stats_groupby_with_eval.json
+9stats_groupby_2col.json
+inputlookup.json 
+inputlookup_2.json
+head.json
+head2.json
 fillnull_with_eval.json
 stats_group_by_eval.json
 eval_groupby_2col_2stats.json
