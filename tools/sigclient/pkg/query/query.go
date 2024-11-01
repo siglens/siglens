@@ -922,12 +922,6 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 
 var skipIndexes = map[int]bool{
 
-	// Comparing totalMatched for stats query
-	4:   true,
-	8:   true,
-	13:  true,
-	134: true,
-
 	// Misc
 	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
 	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!

@@ -999,6 +999,8 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
 		}
 	case structs.GroupByCmd, structs.SegmentStatsCmd:
+		queryCount := query.GetQueryCountInfoForQid(iqr.qid)
+
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalStatsResults()
 		if err != nil {
 			return nil, toputils.TeeErrorf("qid=%v, IQR.AsResult: error getting final result for GroupBy: %v", iqr.qid, err)
@@ -1006,7 +1008,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
-				TotalMatched: 0, // TODO: get the total matched records
+				TotalMatched: query.ConvertQueryCountToTotalResponse(queryCount),
 				Hits:         nil,
 			},
 			AllPossibleColumns: allCNames,
@@ -1201,6 +1203,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs
 		wsResponse.MeasureFunctions = resp.MeasureFunctions
 		wsResponse.GroupByCols = resp.GroupByCols
 		wsResponse.BucketCount = resp.BucketCount
+		wsResponse.Hits = resp.Hits
 	default:
 		return nil, fmt.Errorf("IQR.AsWSResult: unexpected query type %v", qType)
 	}
