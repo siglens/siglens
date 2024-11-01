@@ -467,7 +467,7 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 	}
 
 	go func() {
-		err = queryProcessor.GetStreamedResult(rQuery.StateChan, qc.IncludeNulls)
+		err = queryProcessor.GetStreamedResult(rQuery.StateChan)
 		if err != nil {
 			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
 		}

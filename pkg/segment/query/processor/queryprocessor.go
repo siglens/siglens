@@ -267,7 +267,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 // 3. Read from the update channel and the final result channel.
 //
 // Once the final result is sent, no more updates will be sent.
-func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData, includeNulls bool) error {
+func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
 
 	var finalIQR *iqr.IQR
 	var err error
@@ -301,7 +301,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
-			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, includeNulls)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
