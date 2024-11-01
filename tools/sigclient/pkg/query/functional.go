@@ -82,7 +82,7 @@ func FunctionalTest(dest string, filePath string) {
 func RunQuery(filePath string, qid int, dest string) {
 
 	// Default values
-	startEpoch := "now-12h"
+	startEpoch := "now-90d"
 	endEpoch := "now"
 	queryLanguage := "Splunk QL"
 

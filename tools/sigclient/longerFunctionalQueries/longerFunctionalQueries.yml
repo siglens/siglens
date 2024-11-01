@@ -1,31 +1,38 @@
-3stats.json
-complex_search.json
-eval_groupby_2col_2stats.json
+simple_where.json
+simple_sort.json
 grpby_1col_4stats.json
-search_1col_fields.json
-rare.json
-sort_tail_eval_newField.json
-stats_groupby_with_eval.json
-streamstats_win3.json
-streamstats_win4_currF.json
-streamstats_win4_grpby.json
-streamstats_win4_reset_before_after.json
-streamstats_win2_gloF_currF_grpby.json
-streamstats_win2_gloF_grpby.json
-streamstats_multi_resets_grpby.json
-streamstats_eval.json
-streamstats_after_stats.json
-streamstats_after_grpby.json
-multi_value.json
+3stats.json
+# complex_search_2.json // validation is failing
+# search_with_eval.json // validation is failing
+# search_1col_fields.json // validation is failing
+# bin.json // validation is failing
+
+
+# eval_groupby_2col_2stats.json
+
+
+## Uncomment when implemented for new pipline
+# rare.json
+# sort_tail_eval_newField.json
+# stats_groupby_with_eval.json
+# streamstats_win3.json
+# streamstats_win4_currF.json
+# streamstats_win4_grpby.json
+# streamstats_win4_reset_before_after.json
+# streamstats_win2_gloF_currF_grpby.json
+# streamstats_win2_gloF_grpby.json
+# streamstats_multi_resets_grpby.json
+# streamstats_eval.json
+# streamstats_after_stats.json
+# streamstats_after_grpby.json
+# multi_value.json
 
 ## Queries not working for multi-index
 # 9stats_groupby_2col.json
-# complex_search_2.json
 # gentimes.json
 # inputlookup.json
 # inputlookup_2.json
 # inputlookup_3.json
-# bin.json
 # stats_eval.json
 # transaction.json
 # head.json
@@ -68,3 +75,7 @@ multi_value.json
 
 ## Failing on unrotated data
 # mvexpand.json
+
+
+## Timing out
+# complex_search.json

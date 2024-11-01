@@ -19,10 +19,10 @@
                     "female"
                 ],
                 "MeasureVal": {
-                    "count(*)": 49919,
-                    "max(latency)": 9999755,
+                    "count(*)": 10001392,
+                    "max(latency)": 10000000,
                     "min(http_status)": 200,
-                    "sum(longitude)": 8439.174139000083,
+                    "sum(longitude)": -20493.525678998936,
                     "temp_value": 1
                 }
             },
@@ -31,10 +31,10 @@
                     "male"
                 ],
                 "MeasureVal": {
-                    "count(*)": 50081,
-                    "max(latency)": 9999677,
+                    "count(*)": 9998608,
+                    "max(latency)": 9999999,
                     "min(http_status)": 200,
-                    "sum(longitude)": -6696.982691999995,
+                    "sum(longitude)": -248180.01273399784,
                     "temp_value": 1
                 }
             }
