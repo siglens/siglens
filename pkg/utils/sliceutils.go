@@ -365,3 +365,14 @@ func MergeSortedSlices[T any](less func(T, T) bool, slices ...[]T) []T {
 
 	return result
 }
+
+func SelectFromSlice[T any](slice []T, shouldKeep func(T) bool) []T {
+	result := make([]T, 0, len(slice))
+	for _, item := range slice {
+		if shouldKeep(item) {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
