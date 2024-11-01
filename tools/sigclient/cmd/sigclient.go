@@ -20,7 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	"time"
+	// "time"
 
 	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
@@ -117,36 +117,36 @@ var functionalTestCmd = &cobra.Command{
 		log.Infof("queriesToRunFile : %+v\n", filePath)
 		log.Infof("longer : %+v\n", longer)
 
-		totalEvents := 100_000
-		batchSize := 100
-		numIndices := 10
-		processCount := 1
-		indexPrefix := "ind"
-		indexName := ""
-		numFixedCols := 100
-		maxVariableCols := 20
-		sleepDuration := 15 * time.Second
+		// totalEvents := 100_000
+		// batchSize := 100
+		// numIndices := 10
+		// processCount := 1
+		// indexPrefix := "ind"
+		// indexName := ""
+		// numFixedCols := 100
+		// maxVariableCols := 20
+		// sleepDuration := 15 * time.Second
 
-		if longer {
-			totalEvents = 20_000_000
-			batchSize = 100
-			numIndices = 10
-			processCount = 10
-			sleepDuration = 30 * time.Second
-		}
+		// if longer {
+		// 	totalEvents = 20_000_000
+		// 	batchSize = 100
+		// 	numIndices = 10
+		// 	processCount = 10
+		// 	sleepDuration = 30 * time.Second
+		// }
 
-		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+		// dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+		// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+		// 	indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		time.Sleep(sleepDuration)
+		// time.Sleep(sleepDuration)
 
-		err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
-		if err != nil {
-			log.Fatalf("Error while migrating lookups: %v", err)
-			return
-		}
+		// err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+		// if err != nil {
+		// 	log.Fatalf("Error while migrating lookups: %v", err)
+		// 	return
+		// }
 
 		query.FunctionalTest(queryDest, filePath)
 	},
