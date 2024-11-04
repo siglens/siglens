@@ -182,7 +182,7 @@ Options:
 -l, --longer bool              Run a longer functional test.
 ```
 
-To run longer functional test use the following commands
+To run longer functional test use the following command
 ```
 go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122 -l true
 ```
