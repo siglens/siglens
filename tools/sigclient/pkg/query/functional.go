@@ -82,7 +82,7 @@ func FunctionalTest(dest string, filePath string) {
 func RunQuery(filePath string, qid int, dest string) {
 
 	// Default values
-	startEpoch := "now-12h"
+	startEpoch := "now-90d"
 	endEpoch := "now"
 	queryLanguage := "Splunk QL"
 
@@ -103,6 +103,7 @@ func RunQuery(filePath string, qid int, dest string) {
 
 	log.Infof("RunQuery: qid=%v, Running query=%v", qid, query)
 	queryReq["searchText"] = query
+
 	err = EvaluateQueryForWebSocket(dest, queryReq, qid, expRes)
 	if err != nil {
 		log.Fatalf("RunQuery: Failed evaluating query via websocket, file: %v, err: %v", filePath, err)

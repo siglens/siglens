@@ -91,7 +91,7 @@ func Test_BatchProcess(t *testing.T) {
 		return a > b
 	})
 	actualBatchSizes := make([]int, 0)
-	operation := func(slice []int) []int {
+	operation := func(slice []int) ([]int, error) {
 		result := make([]int, 0, len(slice))
 		for _, i := range slice {
 			result = append(result, i+len(slice))
@@ -99,13 +99,14 @@ func Test_BatchProcess(t *testing.T) {
 
 		actualBatchSizes = append(actualBatchSizes, len(slice))
 
-		return result
+		return result, nil
 	}
 
 	input := []int{1, 2, 3, 20, 42, 100, 47}
 	expected := []int{4, 5, 6, 21, 44, 101, 49}
 	expectedBatchSizes := []int{1, 2, 1, 3} // Batches should be 100s, 40s, 20s, 0s
-	actual := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
+	actual, err := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
+	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
 	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
 }
@@ -180,6 +181,47 @@ func Test_RemoveElements(t *testing.T) {
 	assert.Equal(t, newSlice, []int{1, 5})
 }
 
+func Test_RemoveSortedIndices_valid(t *testing.T) {
+	slice := []int{3, 2, 1}
+	slice, err := RemoveSortedIndices(slice, []int{0})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{2, 1}, slice)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{2})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 2}, slice)
+
+	slice = []int{5, 4, 3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{0, 2, 3})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{4, 1}, slice)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{0, 1, 2})
+	assert.NoError(t, err)
+	assert.Len(t, slice, 0)
+
+	slice = []int{3, 2, 1}
+	slice, err = RemoveSortedIndices(slice, []int{})
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 2, 1}, slice)
+}
+
+func Test_RemoveSortedIndices_invalid(t *testing.T) {
+	_, err := RemoveSortedIndices([]int{1, 2, 3}, []int{2, 0})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{3})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{-1})
+	assert.Error(t, err)
+
+	_, err = RemoveSortedIndices([]int{1, 2, 3}, []int{1, 1})
+	assert.Error(t, err)
+}
+
 func Test_IndexOfMin(t *testing.T) {
 	slice := []int{5, 3, 1, 4, 2}
 	less := func(a, b int) bool {
@@ -191,4 +233,55 @@ func Test_IndexOfMin(t *testing.T) {
 	slice = []int{1, 1, 0, 0}
 	index := IndexOfMin(slice, less)
 	assert.True(t, index == 2 || index == 3)
+}
+
+func Test_MergeSortedSlices(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{1, 3, 5, 7}
+	slice2 := []int{2, 4, 6, 8}
+	slice3 := []int{0, 9, 10, 11}
+
+	expected := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_MergeSortedSlices_someEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{2, 3, 5}
+	slice3 := []int{1, 4, 6}
+
+	expected := []int{1, 2, 3, 4, 5, 6}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_MergeSortedSlices_allEmpty(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+
+	slice1 := []int{}
+	slice2 := []int{}
+	slice3 := []int{}
+
+	expected := []int{}
+	actual := MergeSortedSlices(less, slice1, slice2, slice3)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_SelectFromSlice(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	evens := SelectFromSlice(slice, func(i int) bool {
+		return i%2 == 0
+	})
+
+	assert.Equal(t, []int{2, 4}, evens)
 }

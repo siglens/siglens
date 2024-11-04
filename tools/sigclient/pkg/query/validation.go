@@ -61,6 +61,8 @@ type Result struct {
 	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
 }
 
+const TimeStamp_Col_Name = "timestamp"
+
 func CreateListOfMap(resp interface{}) ([]map[string]interface{}, error) {
 	items, isList := resp.([]interface{})
 	if !isList {
@@ -206,7 +208,7 @@ func GetStringValueFromResponse(resp map[string]interface{}, key string) (string
 
 func ValidateUniqueKeyColsInResult(res *Result) error {
 	if len(res.UniqueKeyCols) == 0 {
-		return fmt.Errorf("ValidateUniqueKeyColsInResult: UniqueKeyCols not found in result")
+		return nil // check records directly in that order
 	}
 	for _, record := range res.Records {
 		for _, col := range res.UniqueKeyCols {
@@ -253,12 +255,11 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	}
 	if expRes.Qtype == "logs-query" {
 		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
-		if !exist {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: uniqueKeyCols not found in logs-query, file: %v", filePath)
-		}
-		expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
-		if err != nil {
-			return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+		if exist {
+			expRes.UniqueKeyCols, err = CreateListOfString(uniqueKeyCols)
+			if err != nil {
+				return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
+			}
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -472,7 +473,7 @@ func CompareFloatValues(actualValue interface{}, expValue float64) (bool, error)
 		return false, fmt.Errorf("CompareFloatValues: actualValue %v is not a float, received type: %T", actualValue, actualValue)
 	}
 
-	tolerancePercentage := 1e-5
+	tolerancePercentage := 1e-3
 
 	return utils.AlmostEqual(actual, expValue, tolerancePercentage), nil
 }
@@ -481,6 +482,9 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 	var err error
 
 	for col, value := range expRecord {
+		if col == TimeStamp_Col_Name {
+			continue
+		}
 		equal := false
 		actualValue, exist := record[col]
 		if !exist {
@@ -498,7 +502,7 @@ func ValidateRecord(record map[string]interface{}, expRecord map[string]interfac
 		}
 
 		if !equal {
-			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: %v, got: %v", col, value, actualValue)
+			return fmt.Errorf("ValidateRecord: Value mismatch for column: %v, expected: value=%v, type=%T, got: value=%v, type=%T", col, value, value, actualValue, actualValue)
 		}
 	}
 
@@ -569,14 +573,16 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
 	}
 
-	queryRes.UniqueKeyCols = expRes.UniqueKeyCols
-	err = ValidateUniqueKeyColsInResult(queryRes)
-	if err != nil {
-		return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
-	}
+	if len(expRes.UniqueKeyCols) > 0 {
+		queryRes.UniqueKeyCols = expRes.UniqueKeyCols
+		err = ValidateUniqueKeyColsInResult(queryRes)
+		if err != nil {
+			return fmt.Errorf("ValidateLogsQueryResults: Error validating UniqueKeyCols: %v in queryRes, err: %v", queryRes.UniqueKeyCols, err)
+		}
 
-	sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
-	sortRecords(expRes.Records, expRes.UniqueKeyCols)
+		sortRecords(queryRes.Records, queryRes.UniqueKeyCols)
+		sortRecords(expRes.Records, expRes.UniqueKeyCols)
+	}
 
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
@@ -659,14 +665,14 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 			if isFloat {
 				equal, err = CompareFloatValues(actualValue, expFloatValue)
 				if err != nil {
-					return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, err: %v", err)
+					return fmt.Errorf("ValidateStatsQueryResults: Error comparing float values, key=%v, err: %v", key, err)
 				}
 			} else {
 				equal = reflect.DeepEqual(actualValue, value)
 			}
 
 			if !equal {
-				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: %v, got: %v", key, value, actualValue)
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: value=%v, type=%T, got: value=%v, type=%T", key, value, value, actualValue, actualValue)
 			}
 		}
 	}

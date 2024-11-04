@@ -182,6 +182,7 @@ const gridOptions = {
     singleClickEdit: true,
     headerHeight: 32,
     suppressDragLeaveHidesColumns: true,
+    maintainRowOrder: true,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,
@@ -272,7 +273,7 @@ const gridOptions = {
                 display: none;
             }
               
-            .ag-header-cell:not([col-id="timestamp"]):hover .close-icon {
+            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
                 display: inline-block;
             }
             

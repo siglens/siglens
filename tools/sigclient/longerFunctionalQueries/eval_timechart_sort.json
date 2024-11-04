@@ -1,0 +1,4 @@
+{
+    "queryText": "search city=boston group=\"group 0\" hobby!=\"Acting\" AND hobby!=\"Walking\" user_agent=Mozilla*Mac* AND user_agent!=Opera* latency > 0 | eval hobby_http=hobby+\"@\"+http_method | timechart span=15m max(latency) by hobby_http | sort -max(latency)"
+}
+  

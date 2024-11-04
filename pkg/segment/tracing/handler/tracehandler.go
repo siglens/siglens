@@ -29,11 +29,13 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +52,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -403,6 +405,10 @@ func ProcessRedTracesIngest() {
 		entrySpans = append(entrySpans, span)
 	}
 
+	indexName := "red-traces"
+	shouldFlush := false
+	tsKey := config.GetTimeStampKey()
+
 	// Map the service name to: the number of entry spans, erroring entry spans, duration list of span
 	for _, entrySpan := range entrySpans {
 		spanCnt, exists := serviceToSpanCnt[entrySpan.Service]
@@ -432,6 +438,9 @@ func ProcessRedTracesIngest() {
 	}
 
 	idxToStreamIdCache := make(map[string]string)
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+	numBytes := 0
 
 	// Map from the service name to the RED metrics
 	for service, spanCnt := range serviceToSpanCnt {
@@ -468,20 +477,29 @@ func ProcessRedTracesIngest() {
 
 		// Setup ingestion parameters
 		now := putils.GetCurrentTimeInMs()
-		indexName := "red-traces"
-		shouldFlush := false
-		lenJsonData := uint64(len(jsonData))
-		localIndexMap := make(map[string]string)
-		orgId := uint64(0)
 
-		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+		ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+			log.Errorf("ProcessRedTracesIngest: failed to get new PLE: %v", err)
 			continue
 		}
-		usageStats.UpdateTracesStats(uint64(len(jsonData)), uint64(spanCnt), 0)
+		pleArray = append(pleArray, ple)
+		numBytes += len(jsonData)
 	}
+
+	localIndexMap := make(map[string]string)
+	orgId := uint64(0)
+	tsNow := putils.GetCurrentTimeInMs()
+
+	err := writer.ProcessIndexRequestPle(tsNow, indexName, shouldFlush, localIndexMap,
+		orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+		return
+	}
+
+	usageStats.UpdateTracesStats(uint64(numBytes), uint64(len(pleArray)), 0)
 }
 
 func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, error) {
@@ -579,20 +597,28 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	now := putils.GetCurrentTimeInMs()
 	indexName := "service-dependency"
 	shouldFlush := false
-	lenJsonData := uint64(len((dependencyMatrixJSON)))
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
+	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
 
-	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
-		jsParsingStackbuf[:])
+	ple, err := segwriter.GetNewPLE(dependencyMatrixJSON, now, indexName, &tsKey, jsParsingStackbuf[:])
+	if err != nil {
+		log.Errorf("MakeTracesDependancyGraph: failed to get new PLE: %v", err)
+		return
+	}
+	pleArray = append(pleArray, ple)
+
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
-
+		return
 	}
 }
 
@@ -685,7 +711,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)

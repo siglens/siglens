@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -280,6 +281,9 @@ func getVirtualTableNamesHelper(fileName string) (map[string]bool, error) {
 	for scanner.Scan() {
 		rawbytes := scanner.Bytes()
 		result[string(rawbytes)] = true
+	}
+	if err := scanner.Err(); err != nil {
+		return result, utils.TeeErrorf("getVirtualTableNamesHelper: Error scanning file %v, err: %v", fileName, err)
 	}
 	return result, nil
 }
@@ -705,6 +709,9 @@ func DeleteVirtualTable(tname *string, orgid uint64) error {
 		}
 		store += val
 		store += "\n"
+	}
+	if err := scanner.Err(); err != nil {
+		return utils.TeeErrorf("DeleteVirtualTable : Error while scanning file: %v, err: %v", vTableFileName, err)
 	}
 	errW := os.WriteFile(vTableFileName, []byte(store), 0644)
 	if errW != nil {

@@ -22,6 +22,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,9 +32,81 @@ type headProcessor struct {
 	numRecordsSent uint64
 }
 
+func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if iqr == nil || p.options.Done {
+		return nil, io.EOF
+	}
+
+	requiredFields := p.options.BoolExpr.GetFields()
+	records, err := iqr.ReadColumnsWithBackfill(requiredFields)
+	if err != nil {
+		return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: failed to read columns, requiredFields: %v, err: %v", requiredFields, err)
+	}
+
+	row := 0
+	for row < iqr.NumberOfRecords() && !p.options.Done && p.numRecordsSent < p.options.MaxRows {
+		fieldToValue := make(map[string]utils.CValueEnclosure, len(requiredFields))
+		for _, field := range requiredFields {
+			fieldToValue[field] = records[field][row]
+		}
+
+		conditionPassed, err := p.options.BoolExpr.Evaluate(fieldToValue)
+		if err != nil {
+			nullFields, errGetNullFields := p.options.BoolExpr.GetNullFields(fieldToValue)
+			if errGetNullFields != nil {
+				return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: error while getting null fields, err: %v", errGetNullFields)
+			} else if len(nullFields) > 0 {
+				// evaluation failed due to null fields
+				if p.options.Null {
+					// include the records since null is allowed
+				} else if p.options.Keeplast {
+					p.options.Done = true
+					// if keeplast is true, we need to include this record
+				} else {
+					// if null is not allowed and keeplast is false, we are done processing
+					p.options.Done = true
+					break
+				}
+			} else {
+				return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: Error while evaluating boolean expr, err: %v", err)
+			}
+		} else {
+			if !conditionPassed {
+				// false condition so adding last record if keeplast
+				if p.options.Keeplast {
+					p.options.Done = true
+				} else {
+					p.options.Done = true
+					break
+				}
+			}
+		}
+		row++
+		p.numRecordsSent++
+	}
+
+	if p.numRecordsSent == p.options.MaxRows {
+		p.options.Done = true
+	}
+	err = iqr.DiscardAfter(uint64(row))
+	if err != nil {
+		return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: failed to discard after %v records, totalRecords: %v, err: %v", row, iqr.NumberOfRecords(), err)
+	}
+
+	if p.options.Done {
+		return iqr, io.EOF
+	} else {
+		return iqr, nil
+	}
+}
+
 func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
-		return nil, nil
+		return nil, io.EOF
+	}
+
+	if p.options.BoolExpr != nil {
+		return p.processHeadExpr(iqr)
 	}
 
 	limit := p.options.MaxRows
@@ -53,9 +127,14 @@ func (p *headProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *headProcessor) Rewind() {
-	panic("not implemented")
+	p.options.Done = false
+	p.numRecordsSent = 0
 }
 
 func (p *headProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing to do.
+}
+
+func (p *headProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
 }

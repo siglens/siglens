@@ -60,7 +60,10 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
-type EvalExpr struct{} // TODO
+type EvalExpr struct {
+	ValueExpr *ValueExpr
+	FieldName string
+}
 
 type RenameExpr struct {
 	RenameExprMode  RenameExprMode
@@ -68,7 +71,17 @@ type RenameExpr struct {
 	NewPattern      string
 }
 
-type RegexExpr struct{} // TODO
+type RenameExp struct {
+	RenameExprMode RenameExprMode
+	RenameColumns  map[string]string
+}
+
+type RegexExpr struct {
+	Op        string // must be "=" or "!="
+	Field     string
+	RawRegex  string
+	GobRegexp *toputils.GobbableRegex
+}
 
 type RexExpr struct {
 	Pattern     string
@@ -100,6 +113,8 @@ type DedupExpr struct {
 	DedupSortEles      []*SortElement
 	DedupSortAscending []int // Derived from DedupSortEles.SortByAsc values.
 
+	// TODO: remove the below fields after we move to the new query pipeline.
+
 	// DedupCombinations maps combinations to a map mapping the record index
 	// (of all included records for this combination) to the sort values for
 	// that record. For example, if Limit is 3, each inner map will have at
@@ -120,10 +135,11 @@ type DedupOptions struct {
 }
 
 type SortExpr struct {
-	SortEles []*SortElement
-	Limit    uint64
+	SortEles      []*SortElement
+	SortAscending []int
+	Limit         uint64
 
-	SortAscending         []int
+	// The following will be deprecated when we move to the new query pipeline.
 	SortRecords           map[string]map[string]interface{}
 	NumProcessedSegments  uint64
 	processedSegmentsLock sync.Mutex
@@ -266,6 +282,7 @@ type BinCmdOptions struct {
 	End                  *float64
 	AlignTime            *uint64
 	Field                string
+	NewFieldName         toputils.Option[string]
 	Records              map[string]map[string]interface{}
 	RecordIndex          map[int]map[string]int
 	NumProcessedSegments uint64
@@ -1099,20 +1116,76 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]utils.CValueEnclo
 	}
 }
 
-// This function will first try to evaluate the ValueExpr to a float. If that
+func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	floatValue, err := valueExpr.EvaluateToFloat(fieldToValue)
+	if err != nil {
+		return 0, err
+	}
+
+	if math.Mod(floatValue, 1) == 0 {
+		return int64(floatValue), nil
+	}
+
+	return floatValue, nil
+}
+
+func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	switch valueExpr.ValueExprMode {
+	case VEMConditionExpr:
+		value, err := valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate condition expr, err: %v", err)
+		}
+		return value, nil
+	case VEMStringExpr:
+		value, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate string expr, err: %v", err)
+		}
+		return value, nil
+	case VEMNumericExpr:
+		value, err := valueExpr.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			// It failed to evaluate to a float, it could possibly that the field given is a string
+			valueStr, err := valueExpr.EvaluateToString(fieldToValue)
+			if err != nil {
+				return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate numeric expr to numeric and string expr, err: %v", err)
+			}
+
+			return valueStr, err
+		}
+		return value, nil
+	case VEMBooleanExpr:
+		value, err := valueExpr.EvaluateToString(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate boolean expr, err: %v", err)
+		}
+		return value, nil
+	case VEMMultiValueExpr:
+		mvSlice, err := valueExpr.EvaluateToMultiValue(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate multi value expr, err: %v", err)
+		}
+		return mvSlice, nil
+	default:
+		return nil, fmt.Errorf("EvaluateValueExpr: unknown value expr mode %v", valueExpr.ValueExprMode)
+	}
+}
+
+// This function will first try to evaluate the ValueExpr to a Number (float64 or int64). If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
-func (expr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, string, error) {
-	value, err := expr.EvaluateToFloat(fieldToValue)
+func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	value, err := expr.EvaluateToNumber(fieldToValue)
 	if err == nil {
-		return value, "float", nil
+		return value, nil
 	}
 
 	valueStr, err := expr.EvaluateToString(fieldToValue)
 	if err == nil {
-		return valueStr, "string", nil
+		return valueStr, nil
 	}
-	return nil, "", fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
+	return nil, fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
 }
 
 func (self *ValueExpr) GetFields() []string {
@@ -1543,6 +1616,27 @@ func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, er
 	return result, nil
 }
 
+func ProcessRenameRegexExp(origPattern string, newPattern string, colName string) (string, error) {
+
+	regexPattern := `\b` + strings.ReplaceAll(origPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExp: There are some errors in the pattern: %v, err: %v", regexPattern, err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
 func (self *RenameExpr) RemoveColsByIndex(strs []string, indexToRemove []int) []string {
 	results := make([]string, 0)
 
@@ -1677,7 +1771,7 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
-func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (string, error) {
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (interface{}, error) {
 	switch functionName {
 	case "validate":
 		for _, cvPair := range self.ConditionValuePairs {
@@ -1693,7 +1787,7 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
 			}
 			if !res {
-				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+				val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
 				if err != nil {
 					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
 				}
@@ -2345,7 +2439,7 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 	return str, nil
 }
 
-func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
@@ -2357,7 +2451,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
 		}
 		if res {
-			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+			val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
 			if err != nil {
 				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
 			}
@@ -2368,14 +2462,14 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 	return "", nil
 }
 
-func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 	for _, valueExpr := range self.ValueList {
 		nullFields, err := valueExpr.GetNullFields(fieldToValue)
 		if err != nil || len(nullFields) > 0 {
 			continue
 		}
 
-		val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		val, err := valueExpr.EvaluateValueExprToNumberOrString(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
 		}
@@ -2390,12 +2484,12 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CVa
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
 
-	value1, _, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
+	value1, err := expr.ValueList[0].EvaluateValueExprToNumberOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
 	}
 
-	value2, _, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
+	value2, err := expr.ValueList[1].EvaluateValueExprToNumberOrString(fieldToValue)
 	if err != nil {
 		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
 	}
@@ -2417,17 +2511,22 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
 		}
 
-		trueValue, err := expr.TrueValue.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
-		}
-		falseValue, err := expr.FalseValue.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
-		}
+		var trueValue interface{}
+		var falseValue interface{}
+
 		if predicateFlag {
+			trueValue, err = expr.TrueValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a string or number ValueExpr: %v", err)
+			}
+
 			return trueValue, nil
 		} else {
+			falseValue, err = expr.FalseValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a string or number ValueExpr: %v", err)
+			}
+
 			return falseValue, nil
 		}
 	case "validate":
@@ -2624,4 +2723,30 @@ func CompareSortValueSlices(a []SortValue, b []SortValue, ascending []int) (int,
 	}
 
 	return 0, nil
+}
+
+func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*SpanOptions, error) {
+	if startEpoch == 0 || endEpoch == 0 {
+		err := fmt.Errorf("GetDefaultTimechartSpanOptions: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
+		return nil, err
+	}
+
+	duration := endEpoch - startEpoch
+
+	// 15 minutes
+	if duration <= 15*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: utils.TMSecond}}, nil
+	} else if duration <= 60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 4*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 7*24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMHour}}, nil
+	} else if duration <= 180*24*60*60*1000 {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMDay}}, nil
+	} else {
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: utils.TMMonth}}, nil
+	}
 }

@@ -152,23 +152,10 @@ func (dataGenConfig *GeneratorDataConfig) SendLog() {
 }
 
 func GetVariableColumnNames(maxVariableColumns int) []string {
-	varFakerSeed := 30
-
-	random := rand.New(rand.NewSource(int64(varFakerSeed)))
-
-	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
-
 	variableColNames := make([]string, 0)
-	present := make(map[string]struct{})
-
-	for len(variableColNames) < maxVariableColumns {
-		name := varFaker.LetterN(uint(random.Intn(10) + 1))
-		if _, ok := present[name]; !ok {
-			variableColNames = append(variableColNames, name)
-			present[name] = struct{}{}
-		}
+	for i := 0; i < maxVariableColumns; i++ {
+		variableColNames = append(variableColNames, fmt.Sprintf("variable_col_%d", i))
 	}
-
 	return variableColNames
 }
 

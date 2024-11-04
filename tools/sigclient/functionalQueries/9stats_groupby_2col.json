@@ -1,7 +1,7 @@
 {
     "queryText": "http_method=POST AND (app_name=Bracecould OR app_name=R*) | regex app_name=\".*could\" | stats avg(http_status), max(latency) as max, min(longitude) as min, sum(latitude) as sum, range(latency), count as cnt, values(weekday), dc(weekday) as distinct_count, list(http_method) BY gender, bool_col",
     "expectedResult": {
-         "bucketCount": 6,
+         "bucketCount": 3,
          "qtype": "aggs-query",
          "groupByCols": [
             "bool_col",
@@ -21,7 +21,7 @@
          "measure": [
             {
                 "GroupByValues": [
-                    "0",
+                    "false",
                     "female"
                 ],
                 "MeasureVal": {
@@ -48,7 +48,7 @@
             },
             {
                 "GroupByValues": [
-                    "1",
+                    "true",
                     "male"
                 ],
                 "MeasureVal": {
@@ -77,7 +77,7 @@
             },
             {
                 "GroupByValues": [
-                    "0",
+                    "false",
                     "male"
                 ],
                 "MeasureVal": {

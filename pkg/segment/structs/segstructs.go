@@ -23,6 +23,7 @@ import (
 	"math"
 	"reflect"
 	"sync/atomic"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
@@ -148,6 +149,11 @@ type TransactionGroupState struct {
 	Timestamp uint64
 }
 
+type StatsExpr struct {
+	MeasureOperations []*MeasureAggregator
+	GroupByRequest    *GroupByRequest
+}
+
 // Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
 // This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
@@ -178,13 +184,15 @@ type QueryAggregators struct {
 	FieldsExpr      *ColumnsRequest
 	FillNullExpr    *FillNullExpr
 	GentimesExpr    *GenTimes
+	InputLookupExpr *InputLookup
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
 	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
+	RenameExp       *RenameExp
 	RexExpr         *RexExpr
 	SortExpr        *SortExpr
-	StatsExpr       *StatsOptions
+	StatsExpr       *StatsExpr
 	StreamstatsExpr *StreamStatsOptions
 	TailExpr        *TailExpr
 	TimechartExpr   *TimechartExpr
@@ -210,6 +218,7 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
+	IsFirstCommand       bool
 	Filename             string
 	Append               bool
 	Start                uint64
@@ -294,10 +303,11 @@ type HeadExpr struct {
 }
 
 type GroupByRequest struct {
-	MeasureOperations []*MeasureAggregator
-	GroupByColumns    []string
-	AggName           string // name of aggregation
-	BucketCount       int
+	MeasureOperations           []*MeasureAggregator
+	GroupByColumns              []string
+	AggName                     string // name of aggregation
+	BucketCount                 int
+	IsBucketKeySeparatedByDelim bool // if true, group by values= bucketKey.split(delimiter). This is used when the bucket key is already read in the correct format.
 }
 
 type MeasureAggregator struct {
@@ -370,8 +380,10 @@ type LetColumnsRequest struct {
 }
 
 type FillNullExpr struct {
-	Value          string   // value to fill nulls with. Default 0
-	FieldList      []string // list of fields to fill nulls with
+	Value     string   // value to fill nulls with. Default 0
+	FieldList []string // list of fields to fill nulls with
+
+	// The following fields can be removed once we switch to the new query pipeline
 	Records        map[string]map[string]interface{}
 	FinalCols      map[string]bool
 	ColumnsRequest *ColumnsRequest
@@ -442,15 +454,29 @@ type AggregationResult struct {
 	Results         []*BucketResult // histogram results
 }
 
+// TODO: Retain either IGroupByValues or GroupByValues, as having both is unnecessary.
+// The goal is to preserve the group-by value type as interface{} to avoid issues
+// when processing subsequent commands.
+// Ideally, we should update GroupByValues to have a type of []interface{}
+// and eliminate IGroupByValues.
 type BucketHolder struct {
-	GroupByValues []string
-	MeasureVal    map[string]interface{}
+	IGroupByValues []utils.CValueEnclosure // each group-by value is stored as interface{}
+	GroupByValues  []string
+	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {
 	TotalCount uint64 // total number of
 	Op         utils.FilterOperator
 	EarlyExit  bool // if early exit was requested or not
+}
+
+type Progress struct {
+	RecordsSent     uint64
+	UnitsSearched   uint64
+	TotalUnits      uint64
+	RecordsSearched uint64
+	TotalRecords    uint64
 }
 
 // A helper struct to keep track of errors and results together
@@ -488,6 +514,7 @@ type NodeResult struct {
 	FinalColumns                map[string]bool
 	AllColumnsInAggs            map[string]struct{}
 	RemoteLogs                  []map[string]interface{}
+	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
 
 type SegStats struct {

@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,15 +88,14 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 	return allEmptyPQS, nil
 }
 
-func AddEmptyResults(pqid string, segKey string) {
-
+func BulkAddEmptyResults(pqid string, segKeyMap map[string]bool) {
 	fileName := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
-		log.Errorf("AddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
+		log.Errorf("BulkAddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
 	}
 	if emptyPQS != nil {
-		emptyPQS[segKey] = true
+		utils.MergeMapsRetainingFirst(emptyPQS, segKeyMap)
 		writeEmptyPqsMapToFile(fileName, emptyPQS)
 	}
 }
@@ -156,17 +156,22 @@ func removePqmrFilesAndDirectory(pqid string) error {
 	return nil
 }
 
-func DeleteSegmentFromPqid(pqid string, segKey string) {
+// This function will remove the PQMRFiles and directory if there are no segments left in the PQID
+func BulkDeleteSegKeysFromPqid(pqid string, segKeyMap map[string]bool) {
 	pqFname := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(pqFname)
 	if err != nil {
-		log.Errorf("DeleteSegmentFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
+		log.Errorf("BulkDeleteSegKeysFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
 	}
-	delete(emptyPQS, segKey)
+
+	for segKey := range segKeyMap {
+		delete(emptyPQS, segKey)
+	}
+
 	if len(emptyPQS) == 0 {
 		err := removePqmrFilesAndDirectory(pqid)
 		if err != nil {
-			log.Errorf("DeleteSegmentFromPqid: Error removing segKey %v from %v pqid, Error=%v", segKey, pqid, err)
+			log.Errorf("BulkDeleteSegKeysFromPqid: Error removing segKeyMap %v from %v pqid, Error=%v", segKeyMap, pqid, err)
 		}
 		return
 	}

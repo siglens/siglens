@@ -82,7 +82,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
-					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
+					spanOptions, err := structs.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
 					if err != nil {
 						log.Errorf("qid=%d, ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
 						return nil, nil, []string{}, err
@@ -427,6 +427,9 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCa
 }
 
 func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggregators, error) {
+	if config.IsNewQueryPipelineEnabled() {
+		return node, nil
+	}
 	var err error
 	var pipeCommands *QueryAggregators
 	//todo return array of queryaggs

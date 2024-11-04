@@ -37,9 +37,9 @@ import (
 )
 
 func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-	qid uint64) (map[string][]utils.CValueEnclosure, error) {
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := getColsForSegKey(segKey, vTable)
+	allCols, err := GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -48,6 +48,9 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
+		if _, ignore := ignoredCols[cname]; ignore {
+			continue
+		}
 		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
@@ -61,15 +64,16 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func getColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			return nil, toputils.TeeErrorf("getColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
+	allCols[config.GetTimeStampKey()] = true
 
 	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
 	// of a map[string]bool so we don't have to do the conversion here
@@ -126,16 +130,26 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
 
-	blockMetadata, err := writer.GetBlockSearchInfoForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
-	}
+	var blockMetadata map[uint16]*structs.BlockMetadataHolder
+	var blockSummary []*structs.BlockSummary
+	if writer.IsSegKeyUnrotated(segKey) {
+		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block metadata for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
 
-	blockSummary, err := writer.GetBlockSummaryForKey(segKey)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
-		return nil, err
+		blockSummary, err = writer.GetBlockSummaryForKey(segKey)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
+			return nil, err
+		}
+	} else {
+		blockMetadata, blockSummary, err = segmetadata.GetSearchInfoAndSummary(segKey)
+		if err != nil {
+			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			return nil, err
+		}
 	}
 
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
@@ -146,6 +160,12 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		return nil, err
 	}
 	defer sharedReader.Close()
+
+	colErrorMap := sharedReader.GetColumnsErrorsMap()
+	if len(colErrorMap) > 0 {
+		return nil, colErrorMap[cname]
+	}
+
 	multiReader := sharedReader.MultiColReaders[0]
 
 	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
@@ -155,15 +175,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcsInBatch []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcsInBatch) == 0 {
-			return nil
+			return nil, nil
 		}
 
-		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
+		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid), nil
 	}
 
-	enclosures := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
 	return enclosures, nil
 }
 

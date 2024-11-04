@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -74,6 +75,9 @@ type RunningBucketResultsJSON struct {
 }
 
 func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) (*BlockResults, error) {
+	if count > utils.MAX_RECS_PER_WIP {
+		count = utils.MAX_RECS_PER_WIP
+	}
 
 	blockRes := &BlockResults{aggs: aggs}
 	if aggs != nil && aggs.TimeHistogram != nil {
@@ -563,13 +567,24 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		}
 
 		var bucketKey interface{}
-		bucketKey, err := utils.ConvertGroupByKey([]byte(key))
-		if len(bucketKey.([]string)) == 1 {
-			bucketKey = bucketKey.([]string)[0]
+		var err error
+
+		newQueryPipeline := config.IsNewQueryPipelineEnabled()
+
+		if newQueryPipeline {
+			bucketKey, err = utils.ConvertGroupByKeyFromBytes([]byte(key))
+		} else {
+			bucketKey, err = utils.ConvertGroupByKey([]byte(key))
 		}
+
 		if err != nil {
 			log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
 		}
+
+		if !newQueryPipeline && len(bucketKey.([]string)) == 1 {
+			bucketKey = bucketKey.([]string)[0]
+		}
+
 		results[bucketNum] = &structs.BucketResult{
 			ElemCount:   bucket.count,
 			BucketKey:   bucketKey,

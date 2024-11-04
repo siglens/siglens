@@ -1,7 +1,7 @@
 {
     "queryText": "city=Boston AND (app_name=Cheet* OR app_name=Far*) | stats avg(eval(if(http_status > 300, 100, 10))) as avg, sum(eval(if(http_status > 400, 100, 10))) as sum, min(eval(if(http_status > 400, \"abc\", \"ABC\"))) as min, max(eval(if(http_status > 400, \"Error\", \"Success\"))) as max, range(eval(if(http_status > 400, latitude, longitude))) as range, count(eval(http_status > 300 AND http_method=\"PATCH\")) as count, values(eval(if(http_status > 302, \"Error\", http_status))) as values, dc(eval(if(http_status > 310, \"Error\", http_status))) as dc, list(eval(if(http_status > 400, 1, 1))) as list BY http_method, bool_col",
     "expectedResult": {
-         "bucketCount": 16,
+         "bucketCount": 8,
          "qtype": "aggs-query",
          "groupByCols": [
             "http_method",
@@ -22,7 +22,7 @@
             {
                 "GroupByValues": [
                     "DELETE",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -43,7 +43,7 @@
             {
                 "GroupByValues": [
                     "PATCH",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -64,7 +64,7 @@
             {
                 "GroupByValues": [
                     "HEAD",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 10,
@@ -85,7 +85,7 @@
             {
                 "GroupByValues": [
                     "PUT",
-                    "1"
+                    "true"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -106,7 +106,7 @@
             {
                 "GroupByValues": [
                     "POST",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -127,7 +127,7 @@
             {
                 "GroupByValues": [
                     "PATCH",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 10,
@@ -148,7 +148,7 @@
             {
                 "GroupByValues": [
                     "PUT",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 100,
@@ -169,7 +169,7 @@
             {
                 "GroupByValues": [
                     "HEAD",
-                    "0"
+                    "false"
                 ],
                 "MeasureVal": {
                     "avg": 10,

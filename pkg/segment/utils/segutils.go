@@ -270,60 +270,78 @@ func MaxUint16(a1 uint16, b1 uint16) uint16 {
 // converts the input byte slice to a string representation of all read values
 // returns array of strings with groupBy values
 func ConvertGroupByKey(rec []byte) ([]string, error) {
-	var strArr []string
+	resultArr, err := ConvertGroupByKeyFromBytes(rec)
+	if err != nil {
+		return nil, err
+	}
+
+	strArr := make([]string, len(resultArr))
+
+	for i, v := range resultArr {
+		switch v := v.(type) {
+		case []byte:
+			strArr[i] = string(v)
+		case string:
+			strArr[i] = v
+		default:
+			strArr[i] = fmt.Sprintf("%v", v)
+		}
+	}
+
+	return strArr, nil
+}
+
+func ConvertGroupByKeyFromBytes(rec []byte) ([]interface{}, error) {
+	var resultArr []interface{}
 	idx := 0
 	for idx < len(rec) {
-		var str strings.Builder
 		switch rec[idx] {
 		case VALTYPE_ENC_SMALL_STRING[0]:
 			idx += 1
 			len := int(toputils.BytesToUint16LittleEndian(rec[idx:]))
 			idx += 2
-			str.WriteString(string(rec[idx : idx+len]))
+			resultArr = append(resultArr, string(rec[idx:idx+len]))
 			idx += len
 		case VALTYPE_ENC_BOOL[0]:
-			str.WriteString(fmt.Sprintf("%+v", rec[idx+1]))
+			resultArr = append(resultArr, rec[idx+1] != 0)
 			idx += 2
 		case VALTYPE_ENC_INT8[0]:
-			str.WriteString(fmt.Sprintf("%+v", int8(rec[idx+1:][0])))
+			resultArr = append(resultArr, int8(rec[idx+1]))
 			idx += 2
 		case VALTYPE_ENC_INT16[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt16LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToInt16LittleEndian(rec[idx+1:]))
 			idx += 3
 		case VALTYPE_ENC_INT32[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt32LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToInt32LittleEndian(rec[idx+1:]))
 			idx += 5
 		case VALTYPE_ENC_INT64[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToInt64LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToInt64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_UINT8[0]:
-			str.WriteString(fmt.Sprintf("%+v", uint8((rec[idx+1:])[0])))
+			resultArr = append(resultArr, uint8(rec[idx+1]))
 			idx += 2
 		case VALTYPE_ENC_UINT16[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint16LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToUint16LittleEndian(rec[idx+1:]))
 			idx += 3
 		case VALTYPE_ENC_UINT32[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint32LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToUint32LittleEndian(rec[idx+1:]))
 			idx += 5
 		case VALTYPE_ENC_UINT64[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToUint64LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToUint64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_FLOAT64[0]:
-			str.WriteString(fmt.Sprintf("%+v", toputils.BytesToFloat64LittleEndian(rec[idx+1:])))
+			resultArr = append(resultArr, toputils.BytesToFloat64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_BACKFILL[0]:
-			str.WriteString("")
+			resultArr = append(resultArr, nil)
 			idx += 1
 		default:
-			log.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v", rec[idx], idx)
-			return nil, fmt.Errorf("ConvertRowEncodingToString: dont know how to convert type=%v, idx: %v",
+			log.Errorf("ConvertRowEncodingToInterface: don't know how to convert type=%v, idx: %v", rec[idx], idx)
+			return nil, fmt.Errorf("ConvertRowEncodingToInterface: don't know how to convert type=%v, idx: %v",
 				rec[idx], idx)
 		}
-
-		strArr = append(strArr, str.String())
-
 	}
-	return strArr, nil
+	return resultArr, nil
 }
 
 // IsNumTypeAgg checks if aggregate function requires numeric type data

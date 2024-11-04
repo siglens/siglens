@@ -132,6 +132,8 @@ type Configuration struct {
 	Tracing                     TracingConfig  `yaml:"tracing"` // Tracing related config
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
+	UseNewPipelineConverted     bool
+	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
 }
 
 type RunModConfig struct {

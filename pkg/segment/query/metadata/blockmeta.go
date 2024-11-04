@@ -23,7 +23,6 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -78,7 +77,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	isMatchAll := currQuery.IsMatchAll()
 
-	smi, totalRequestedMemory, err := metadata.GetLoadSsm(segkey, qid)
+	smi, err := metadata.GetLoadSsm(segkey, qid)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -93,7 +92,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	}
 
 	var missingBlockCMI bool
-	if len(timeFilteredBlocks) > 0 && !isMatchAll && !smi.AreMicroIndicesLoaded() && !wildCardValue {
+	if len(timeFilteredBlocks) > 0 && !isMatchAll && !wildCardValue {
 		smi.RUnlockSmi() // release the read lock so that we can load it and it needs write access
 		missingBlockCMI, err = smi.LoadCmiForSearchTime(segkey, timeFilteredBlocks, colsToCheck,
 			wildcardCol, qid)
@@ -101,8 +100,11 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 			return nil, 0, 0, err
 		}
 		smi.RLockSmi() // re-acquire read since it will be needed below
-		totalRequestedMemory += int64(smi.MicroIndexSize)
 	}
+
+	// TODO : we keep the cmis in mem so that the next search could use it, however
+	// if an expensive search comes in, we should check here the "allowed" mem for cmi
+	// and then ask the rebalance loop to release/evict some
 
 	if !isMatchAll && !missingBlockCMI {
 		doCmiChecks(smi, timeFilteredBlocks, qid, rangeFilter, rangeOp, colsToCheck,
@@ -124,14 +126,9 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	smi.RUnlockSmi()
 
-	if totalRequestedMemory > 0 {
-		metadata.ReleaseCmiMemory(totalRequestedMemory)
-	}
-
 	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
 		if isQueryPersistent {
-			go pqsmeta.AddEmptyResults(pqid, segkey)
-			go writer.BackFillPQSSegmetaEntry(segkey, pqid)
+			go writer.AddToBackFillAndEmptyPQSChan(segkey, pqid, true)
 		}
 	}
 

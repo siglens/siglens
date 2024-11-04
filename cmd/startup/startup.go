@@ -361,6 +361,9 @@ func startQueryServer(serverAddr string) {
 		StdOutLogger.Infof(siglensStartupLog)
 		StdOutLogger.Infof(siglensUIStartupLog)
 	}
+	if config.IsNewQueryPipelineEnabled() {
+		StdOutLogger.Infof("----- New Query Pipeline is enabled ----- \n")
+	}
 	log.Infof(siglensStartupLog)
 	log.Infof(siglensUIStartupLog)
 	cfg := config.DefaultQueryServerHttpConfig()
@@ -379,7 +382,7 @@ func startQueryServer(serverAddr string) {
 					return emptyHtmlContent
 				},
 				"CSSVersion": func() string {
-					return "0.2.44d"
+					return "0.2.45d"
 				},
 			})
 			textTemplate := texttemplate.New("other")

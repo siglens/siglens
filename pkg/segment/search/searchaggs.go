@@ -798,7 +798,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 
-	measureColAndTS, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(ops)
+	measureColAndTS, aggColUsage, valuesUsage, listUsage := GetSegStatsMeasureCols(ops)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
 		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
 	if err != nil {
@@ -833,7 +833,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 }
 
 // returns all columns (+timestamp) in the measure operations
-func getSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool, map[string]bool) {
+func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool, map[string]bool) {
 	// Determine if current col used by eval statements
 	aggColUsage := make(map[string]utils.AggColUsageMode)
 	// Determine if current col used by agg values() func
@@ -1082,21 +1082,36 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 			blkResults.AddKeyToTimeBucket(recTs, 1)
 		}
 		numRecsMatched++
-		if blkResults.ShouldAddMore() {
-			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
-			if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-				rrc := &utils.RecordResultContainer{
-					SegKeyInfo: utils.SegKeyInfo{
-						SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
-						IsRemote:  false,
-					},
-					BlockNum:         blockStatus.BlockNum,
-					RecordNum:        recNumUint16,
-					SortColumnValue:  sortVal,
-					VirtualTableName: searchReq.VirtualTableName,
-					TimeStamp:        recTs,
+
+		if config.IsNewQueryPipelineEnabled() {
+			rrc := &utils.RecordResultContainer{
+				SegKeyInfo: utils.SegKeyInfo{
+					SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+					IsRemote:  false,
+				},
+				BlockNum:         blockStatus.BlockNum,
+				RecordNum:        recNumUint16,
+				VirtualTableName: searchReq.VirtualTableName,
+				TimeStamp:        recTs,
+			}
+			blkResults.Add(rrc)
+		} else { // TODO: delete this else block when we migrate to new query pipeline
+			if blkResults.ShouldAddMore() {
+				sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
+				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+					rrc := &utils.RecordResultContainer{
+						SegKeyInfo: utils.SegKeyInfo{
+							SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+							IsRemote:  false,
+						},
+						BlockNum:         blockStatus.BlockNum,
+						RecordNum:        recNumUint16,
+						SortColumnValue:  sortVal,
+						VirtualTableName: searchReq.VirtualTableName,
+						TimeStamp:        recTs,
+					}
+					blkResults.Add(rrc)
 				}
-				blkResults.Add(rrc)
 			}
 		}
 	}

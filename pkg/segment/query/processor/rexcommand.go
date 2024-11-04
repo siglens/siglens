@@ -18,22 +18,96 @@
 package processor
 
 import (
+	"io"
+	"regexp"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type rexProcessor struct {
-	options *structs.RexExpr
+	options       *structs.RexExpr
+	compiledRegex *regexp.Regexp
 }
 
 func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr == nil {
+		return nil, io.EOF
+	}
+
+	if p.compiledRegex == nil {
+		compiledRegex, err := regexp.Compile(p.options.Pattern)
+		if err != nil {
+			log.Errorf("rex.Process: cannot compile regex; pattern=%s; err=%v",
+				p.options.Pattern, err)
+			return nil, err
+		}
+
+		if compiledRegex == nil {
+			return nil, toputils.TeeErrorf("rex.Process: compiled regex is nil for %v",
+				p.options.Pattern)
+		}
+
+		p.compiledRegex = compiledRegex
+	}
+
+	values, err := iqr.ReadColumn(p.options.FieldName)
+	if err != nil {
+		log.Errorf("rex.Process: cannot get field values; field=%s; err=%v",
+			p.options.FieldName, err)
+		return nil, err
+	}
+
+	if len(values) == 0 {
+		return iqr, nil
+	}
+
+	newColValues := make(map[string][]segutils.CValueEnclosure, len(p.options.RexColNames))
+	for _, rexColName := range p.options.RexColNames {
+		newColValues[rexColName] = make([]segutils.CValueEnclosure, len(values))
+	}
+
+	for i, value := range values {
+		valueStr, err := value.GetString()
+		if err != nil {
+			log.Errorf("rex.Process: cannot convert value %v to string; err=%v",
+				value, err)
+			return nil, err
+		}
+
+		rexResultMap, err := structs.MatchAndExtractGroups(valueStr, p.compiledRegex)
+		if err != nil {
+			log.Warnf("rex.Process: cannot match and extract groups for value=%s; err=%v",
+				valueStr, err)
+			continue
+		}
+
+		for rexColName, rexValue := range rexResultMap {
+			newColValues[rexColName][i].Dtype = segutils.SS_DT_STRING
+			newColValues[rexColName][i].CVal = rexValue
+		}
+	}
+
+	err = iqr.AppendKnownValues(newColValues)
+	if err != nil {
+		log.Errorf("rex.Process: cannot add new columns; err=%v", err)
+		return nil, err
+	}
+
+	return iqr, nil
 }
 
 func (p *rexProcessor) Rewind() {
-	panic("not implemented")
+	// Nothing to do.
 }
 
 func (p *rexProcessor) Cleanup() {
-	panic("not implemented")
+	// Nothing to do.
+}
+
+func (p *rexProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
 }
