@@ -20,6 +20,7 @@ package iqr
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -332,6 +333,62 @@ func Test_Append_withRRCs(t *testing.T) {
 	assert.Equal(t, append(rrcs, rrcs2...), iqr.rrcs)
 }
 
+func Test_Append_withRRCs_partialKnownValues(t *testing.T) {
+	allRRCs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: allRRCs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			},
+		},
+	}
+
+	iqr1 := NewIQR(0)
+	iqr1.reader = mockReader
+	err := iqr1.AppendRRCs(allRRCs[:2], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	iqr2 := NewIQR(0)
+	iqr2.reader = mockReader
+	err = iqr2.AppendRRCs(allRRCs[2:], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	// Read from one IQR but not the other.
+	values, err := iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}, values)
+
+	_, ok := iqr1.knownValues["col1"]
+	assert.True(t, ok)
+	_, ok = iqr2.knownValues["col1"]
+	assert.False(t, ok)
+
+	// Even though they have different knownValues, we should be able to append
+	// them and read the correct values.
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+	values, err = iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	}, values)
+}
+
 func Test_Sort(t *testing.T) {
 	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
@@ -584,12 +641,10 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	assert.Equal(t, withRRCs, rrcIqr.mode)
 	assert.Equal(t, 6, rrcIqr.NumberOfRecords())
 
-	nilCValEnc := utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}
-
 	for col, values := range rrcIqr.knownValues {
 		for i, value := range values {
 			if i < numGeneratedCol {
-				assert.Equal(t, nilCValEnc, value)
+				assert.True(t, value.IsNull())
 			} else {
 				assert.Equal(t, knownValues[col][i-numGeneratedCol], value)
 			}

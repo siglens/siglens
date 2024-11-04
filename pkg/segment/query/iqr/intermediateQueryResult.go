@@ -493,7 +493,20 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range iqr.knownValues {
 		if _, ok := other.knownValues[cname]; !ok {
-			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			var readValues []utils.CValueEnclosure
+			if other.mode == withRRCs {
+				readValues, err = other.ReadColumn(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from other; err=%v", cname, err)
+					return err
+				}
+			}
+
+			if readValues == nil {
+				iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			} else {
+				iqr.knownValues[cname] = append(iqr.knownValues[cname], readValues...)
+			}
 		}
 	}
 
