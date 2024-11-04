@@ -20,6 +20,7 @@ stats_group_by_eval.json
 eval_groupby_2col_2stats.json
 eval_fields_timechart.json
 multi_value.json
+stats_eval.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -41,7 +42,6 @@ multi_value.json
 # inputlookup.json
 # inputlookup_2.json
 # inputlookup_3.json
-# stats_eval.json
 # transaction.json
 
 ## Queries that have different Websocket and Http client results
