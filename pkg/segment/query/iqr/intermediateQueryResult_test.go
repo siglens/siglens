@@ -477,6 +477,76 @@ func Test_Sort(t *testing.T) {
 	}
 }
 
+func Test_Sort_multipleColumns(t *testing.T) {
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: rrcs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			},
+			"col2": {
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			},
+		},
+	}
+
+	iqr := NewIQR(0)
+	iqr.reader = mockReader
+	err := iqr.AppendRRCs(rrcs, map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	less := func(a, b *Record) bool {
+		aVal1, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal1, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		if aVal1.CVal.(string) != bVal1.CVal.(string) {
+			return aVal1.CVal.(string) < bVal1.CVal.(string)
+		}
+
+		aVal2, err := a.ReadColumn("col2")
+		assert.NoError(t, err)
+
+		bVal2, err := b.ReadColumn("col2")
+		assert.NoError(t, err)
+
+		return aVal2.CVal.(uint64) < bVal2.CVal.(uint64)
+	}
+
+	err = iqr.Sort(less)
+	assert.NoError(t, err)
+	values, err := iqr.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		},
+	}, values)
+}
+
 func Test_MergeIQRs(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)
