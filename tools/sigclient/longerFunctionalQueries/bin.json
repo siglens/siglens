@@ -6,7 +6,6 @@
             "relation": "gte"
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["ident"],
          "records": [
             {
                 "bin_http": "500-510",
