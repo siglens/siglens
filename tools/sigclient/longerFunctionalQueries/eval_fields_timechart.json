@@ -1,11 +1,76 @@
 {
-    "queryText": "search group=\"group 0\" city=Boston http_method=P* | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, http_method, lat_http, long_http, latency_http | timechart span=10m avg(lat_http) as avg_lat_http by http_method limit=100",
+    "queryText": "search group=\"group 0\" city=Boston http_method=P* | earliest=-12h@h | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, http_method, lat_http, long_http, latency_http | timechart span=30m avg(lat_http) as avg_lat_http by http_method limit=100",
     "expectedResult": {
         "totalMatched": {
-            "value": 25,
+            "value": 8,
             "relation": "eq"
         },
-        "qtype": "logs-query"
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "avg_lat_http: PATCH"
+        ],
+        "records": [
+            {
+                "avg_lat_http: PATCH": -0.9282758620689655,
+                "avg_lat_http: POST": 0.5959677419354841,
+                "avg_lat_http: PUT": -1.2309821428571437,
+                "timestamp": 1730451600000
+            },
+            {
+                "avg_lat_http: PATCH": 0.2354158415841581,
+                "avg_lat_http: POST": -0.29022243713733076,
+                "avg_lat_http: PUT": -0.9776176176176178,
+                "timestamp": 1730453400000
+            },
+            {
+                "avg_lat_http: PATCH": 0.5583870967741936,
+                "avg_lat_http: POST": -0.6171311475409831,
+                "avg_lat_http: PUT": -0.6783838383838381,
+                "timestamp": 1730462400000
+            },
+            {
+                "avg_lat_http: PATCH": 0.1070933589990375,
+                "avg_lat_http: POST": -0.33429308565531496,
+                "avg_lat_http: PUT": -0.2097137216189531,
+                "timestamp": 1730464200000
+            },
+            {
+                "avg_lat_http: PATCH": 1.051478260869565,
+                "avg_lat_http: POST": -0.47470588235294064,
+                "avg_lat_http: PUT": 0.18844660194174745,
+                "timestamp": 1730473200000
+            },
+            {
+                "avg_lat_http: PATCH": -0.227212953876349,
+                "avg_lat_http: POST": -0.45354581673306804,
+                "avg_lat_http: PUT": 0.7135707502374179,
+                "timestamp": 1730475000000
+            },
+            {
+                "avg_lat_http: PATCH": -0.46340000000000003,
+                "avg_lat_http: POST": -1.0675531914893621,
+                "avg_lat_http: PUT": -1.589035087719298,
+                "timestamp": 1730484000000
+            },
+            {
+                "avg_lat_http: PATCH": -0.2566895874263263,
+                "avg_lat_http: POST": 0.15289062499999992,
+                "avg_lat_http: PUT": 0.20465116279069784,
+                "timestamp": 1730485800000
+            }
+        ],
+        "allColumns": [
+            "timestamp",
+            "avg_lat_http: PATCH",
+            "avg_lat_http: PUT",
+            "avg_lat_http: POST"
+        ],
+        "columnsOrder": [
+            "avg_lat_http: PATCH",
+            "avg_lat_http: POST",
+            "avg_lat_http: PUT",
+            "timestamp"
+        ]
     }
 }
   
