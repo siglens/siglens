@@ -480,9 +480,24 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
+			var readValues []utils.CValueEnclosure
+			if iqr.mode == withRRCs {
+				readValues, err = iqr.ReadColumn(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from iqr; err=%v", cname, err)
+					return err
+				}
+			}
+
 			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
-			for i := 0; i < numInitialRecords; i++ {
-				iqr.knownValues[cname][i] = *backfillCVal
+
+			if readValues == nil {
+				// This column is new.
+				for i := 0; i < numInitialRecords; i++ {
+					iqr.knownValues[cname][i] = *backfillCVal
+				}
+			} else {
+				copy(iqr.knownValues[cname], readValues)
 			}
 
 			copy(iqr.knownValues[cname][numInitialRecords:], values)
@@ -517,6 +532,9 @@ func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
 	// segKey -> virtual table name
 	segKeyVTableMap := make(map[string]string)
 	for _, rrc := range iqr.rrcs {
+		if rrc == nil {
+			continue
+		}
 		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
 			// This should never happen.
