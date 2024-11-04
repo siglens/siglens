@@ -10343,7 +10343,7 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, putils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10361,7 +10361,7 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, putils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {

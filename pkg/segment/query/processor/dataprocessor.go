@@ -360,6 +360,17 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	}
 }
 
+func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &mvexpandProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    true,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
 func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
