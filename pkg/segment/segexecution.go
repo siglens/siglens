@@ -497,7 +497,7 @@ func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	}
 	defer querySummary.LogSummaryAndEmitMetrics(queryInfo.GetQid(), pqid, containsKibana, qc.Orgid)
 
-	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom)
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
