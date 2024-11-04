@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"testing"
 
@@ -216,8 +215,6 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
 
-	fmt.Println(actualKnownValues)
-
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
@@ -351,7 +348,6 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	actualKnownValues, err := resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
-	fmt.Println(actualKnownValues)
 
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
