@@ -88,7 +88,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(event, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
@@ -147,6 +147,8 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	qc.RawQuery = searchText
+	qc.IncludeNulls = includeNulls
+
 	if config.IsNewQueryPipelineEnabled() {
 		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)
 		return
@@ -170,7 +172,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.RUNNING:
 				processRunningUpdate(conn, qid)
 			case query.QUERY_UPDATE:
-				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
+				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs, includeNulls)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -324,7 +326,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
-	aggs *structs.QueryAggregators) {
+	aggs *structs.QueryAggregators, includeNulls bool) {
 	searchPercent := qscd.PercentComplete
 
 	totalEventsSearched, totalPossibleEvents, err := query.GetTotalSearchedAndPossibleEventsForQid(qid)
@@ -347,7 +349,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		return
 	}
 
-	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
+	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents, includeNulls)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
@@ -466,7 +468,7 @@ func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*structs.PipeSearchWSUpdateResponse, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &structs.PipeSearchWSUpdateResponse{
@@ -535,7 +537,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			}
 		} else {
 			// handle local
-			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs)
+			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs, includeNulls)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns, err: %+v", qid, err)
 				return nil, err
@@ -559,7 +561,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
-	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
+	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
 	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {
@@ -569,7 +571,7 @@ func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16
 		}
 	}
 	rrcs = rrcs[:found]
-	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs, allColsInAggs)
+	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs, allColsInAggs, includeNulls)
 	if err != nil {
 		log.Errorf("qid=%d, getRawLogsAndColumns: failed to convert rrcs to json, err: %+v", qid, err)
 		return nil, nil, err
