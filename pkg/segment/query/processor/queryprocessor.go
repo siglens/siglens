@@ -176,6 +176,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {
 		return NewMakemvDP(queryAgg.MakeMVExpr)
+	} else if queryAgg.MVExpandExpr != nil {
+		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.RareExpr != nil {
 		return NewRareDP(queryAgg.RareExpr)
 	} else if queryAgg.RegexExpr != nil {
