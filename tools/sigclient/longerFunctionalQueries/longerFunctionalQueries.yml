@@ -1,14 +1,14 @@
 ## Currently implemented in the new pipline
-# simple_where.json
-# simple_sort.json
-# complex_search.json
-# complex_search_2.json
-# search_with_eval.json
-# search_1col_fields.json
-# grpby_1col_4stats.json
-# 3stats.json
-# bin.json
-# 9stats.json
+# simple_where.json // validation is failing
+simple_sort.json
+# complex_search.json // Timing out
+# complex_search_2.json // validation is failing
+# search_with_eval.json // validation is failing
+# search_1col_fields.json // validation is failing
+grpby_1col_4stats.json
+3stats.json
+# bin.json // validation is failing
+9stats.json
 stats_groupby_with_eval.json
 9stats_groupby_2col.json
 inputlookup.json 
@@ -76,3 +76,7 @@ multi_value.json
 
 ## Failing on unrotated data
 # mvexpand.json
+
+
+## Timing out
+# complex_search.json
