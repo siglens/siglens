@@ -65,6 +65,10 @@ func (mocker *MockRRCsReader) GetColsForSegKey(_segKey string, _vTable string) (
 func (mocker *MockRRCsReader) ReadColForRRCs(_segKey string, rrcs []*utils.RecordResultContainer,
 	cname string, _qid uint64) ([]utils.CValueEnclosure, error) {
 
+	if _, ok := mocker.FieldToValues[cname]; !ok {
+		return nil, nil
+	}
+
 	values := make([]utils.CValueEnclosure, 0, len(rrcs))
 Outer:
 	for _, rrc := range rrcs {

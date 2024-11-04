@@ -76,6 +76,11 @@ func Test_ReadOneColumn(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, values)
 
+	// Test reading a non-existent column.
+	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col2", 0)
+	assert.NoError(t, err)
+	assert.Nil(t, values)
+
 	// Test reading RRCs in a different order.
 	rrcs = []*utils.RecordResultContainer{
 		mockRRCs[3],
