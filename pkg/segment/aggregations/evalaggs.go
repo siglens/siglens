@@ -23,6 +23,7 @@ import (
 	"sort"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -731,6 +732,10 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 
 func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		// For list, if there are no fields, we will use the default timestamp field
+		fields = []string{config.GetTimeStampKey()}
+	}
 	var finalList []string
 	_, ok := runningEvalStats[measureAgg.String()]
 	if !ok {
@@ -900,7 +905,8 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 // Determine if cols used by eval statements or not
 func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {
-		for _, field := range measureAgg.ValueColRequest.GetFields() {
+		fields := measureAgg.ValueColRequest.GetFields()
+		for _, field := range fields {
 			aggCols[field] = true
 			colUsage, exists := aggColUsage[field]
 			if exists {
@@ -911,9 +917,17 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 				aggColUsage[field] = utils.WithEvalUsage
 			}
 		}
-		if len(aggColUsage) == 0 {
-			aggCols["*"] = true
-			aggColUsage["*"] = utils.WithEvalUsage
+		if len(fields) == 0 && measureAgg.MeasureFunc == utils.List {
+			// If there are no fields in the value col request, then it is a constant
+			// But even if it is a constant, the evaluation should be done for every record
+			// And the evaluated value should be added to the list.
+			// So, we will use the timestamp Column as the default field.
+			aggCols[config.GetTimeStampKey()] = true
+			aggColUsage[config.GetTimeStampKey()] = utils.WithEvalUsage
+		} else if len(aggColUsage) == 0 {
+			defaultColName := "*"
+			aggCols[defaultColName] = true
+			aggColUsage[defaultColName] = utils.WithEvalUsage
 		}
 		measureAgg.MeasureCol = measureAgg.StrEnc
 	} else {

@@ -36,7 +36,17 @@ import (
 	"github.com/valyala/fastrand"
 )
 
+type ConfigType uint8
+
+const (
+	Default ConfigType = iota
+	FunctionalTest
+	PerformanceTest
+)
+
 var json = jsoniter.ConfigFastest
+
+var allFixedColumns = []string{}
 
 type Generator interface {
 	Init(fName ...string) error
@@ -86,10 +96,12 @@ type DynamicUserGenerator struct {
 }
 
 type GeneratorDataConfig struct {
+	ConfigType      ConfigType
 	MaxColumns      int                   // Mximumn Number of columns per record.
 	VariableColumns bool                  // Flag to indicate variable columns per record
 	MinColumns      int                   // Minimum number of columns per record
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
+	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
 	EndTimestamp    time.Time
 }
 
@@ -104,18 +116,77 @@ type FunctionalTestConfig struct {
 	variableColNames   []string
 }
 
-func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
-	variableColNames := make([]string, 0)
+type PerfTestConfig struct {
+	LogChan        chan Log
+	LogToSend      Log
+	ShouldSendData bool
+}
 
+type Log struct {
+	Data            map[string]interface{}
+	AllFixedColumns []string
+	Timestamp       time.Time
+}
+
+func (dataGenConfig *GeneratorDataConfig) SendLog() {
+	if dataGenConfig.ConfigType != PerformanceTest {
+		return
+	}
+	if dataGenConfig.perfTestConfig == nil {
+		log.Errorf("SendLog: Perf test config is nil")
+		return
+	}
+	if dataGenConfig.perfTestConfig.LogChan == nil {
+		log.Errorf("SendLog: Log channel is nil")
+		return
+	}
+
+	dataGenConfig.perfTestConfig.LogToSend.Timestamp = time.Now()
+
+	select {
+	case dataGenConfig.perfTestConfig.LogChan <- dataGenConfig.perfTestConfig.LogToSend:
+		dataGenConfig.perfTestConfig.ShouldSendData = true
+	default:
+		// skip if the channel is full
+	}
+}
+
+func GetVariableColumnNames(maxVariableColumns int) []string {
+	variableColNames := make([]string, 0)
 	for i := 0; i < maxVariableColumns; i++ {
 		variableColNames = append(variableColNames, fmt.Sprintf("variable_col_%d", i))
 	}
+	return variableColNames
+}
 
+func GetVariablesColsNamesFromConfig(dataGenConfig *GeneratorDataConfig) []string {
+	if dataGenConfig.functionalTest != nil {
+		return dataGenConfig.functionalTest.variableColNames
+	}
+	return []string{}
+}
+
+func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
 	return &GeneratorDataConfig{
+		ConfigType: FunctionalTest,
 		functionalTest: &FunctionalTestConfig{
 			FixedColumns:       fixedColumns,
 			MaxVariableColumns: maxVariableColumns,
-			variableColNames:   variableColNames,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+	}
+}
+
+func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int, logChan chan Log) *GeneratorDataConfig {
+	return &GeneratorDataConfig{
+		ConfigType: PerformanceTest,
+		functionalTest: &FunctionalTestConfig{
+			FixedColumns:       fixedColumns,
+			MaxVariableColumns: maxVariableColumns,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+		perfTestConfig: &PerfTestConfig{
+			LogChan: logChan,
 		},
 	}
 }
@@ -184,9 +255,25 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 		seed:         seed,
 		accFakerSeed: accFakerSeed,
 		DataConfig: &GeneratorDataConfig{
+			ConfigType:     FunctionalTest,
 			functionalTest: functionalTest,
 		},
 	}, nil
+}
+
+func InitPerfTestGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	if dataConfig.perfTestConfig == nil {
+		return nil, fmt.Errorf("Perf test config is nil")
+	}
+	gen, err := InitFunctionalUserGenerator(ts, seed, accFakerSeed, dataConfig, processIndex)
+	if err != nil {
+		return nil, fmt.Errorf("InitPerfTestGenerator: Failed to initialize functional test generator: %v", err)
+	}
+	gen.DataConfig.ConfigType = PerformanceTest
+	gen.DataConfig.perfTestConfig = &PerfTestConfig{
+		LogChan: dataConfig.perfTestConfig.LogChan,
+	}
+	return gen, nil
 }
 
 func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
@@ -463,6 +550,12 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 		fixedCols++
 	}
 
+	if len(allFixedColumns) == 0 {
+		for col := range m {
+			allFixedColumns = append(allFixedColumns, col)
+		}
+	}
+
 	variableP := config.variableFaker.Person()
 	for i, col := range config.variableColNames {
 		if i%lenDynamicUserCols == 0 {
@@ -488,9 +581,41 @@ func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, a
 	}
 }
 
+func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
+	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
+
+	if !config.perfTestConfig.ShouldSendData {
+		return
+	}
+
+	data := make(map[string]interface{})
+
+	for _, col := range config.functionalTest.variableColNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	for _, col := range dynamicUserColumnNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	logToSend := Log{
+		Data:            data,
+		AllFixedColumns: allFixedColumns,
+	}
+
+	config.perfTestConfig.ShouldSendData = false
+	config.perfTestConfig.LogToSend = logToSend
+}
+
 func (r *DynamicUserGenerator) generateRandomBody() {
 	if r.DataConfig != nil {
-		if r.DataConfig.functionalTest != nil {
+		if r.DataConfig.ConfigType == PerformanceTest {
+			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
+		} else if r.DataConfig.ConfigType == FunctionalTest {
 			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
 			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
@@ -547,6 +672,10 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
 	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
+	if r.DataConfig != nil && r.DataConfig.perfTestConfig != nil {
+		r.DataConfig.perfTestConfig.ShouldSendData = true
+	}
+
 	return nil
 }
 

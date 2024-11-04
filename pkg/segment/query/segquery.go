@@ -836,6 +836,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 			sstMap["*"] = &structs.SegStats{
 				Count: uint64(segReq.TotalRecords),
 			}
+			allSegFileResults.AddResultCount(uint64(segReq.TotalRecords))
 		} else {
 			// run through micro index check for block tracker & generate SSR
 			blocksToRawSearch, err := segReq.GetMicroIndexFilter()

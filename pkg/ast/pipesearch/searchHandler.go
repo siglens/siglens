@@ -448,7 +448,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		canScrollMore = true
 	}
 	httpResp.Hits = json
-	httpResp.TotalMatched = convertQueryCountToTotalResponse(nodeResult.TotalResults)
+	httpResp.TotalMatched = query.ConvertQueryCountToTotalResponse(nodeResult.TotalResults)
 	httpRespOuter.Hits = httpResp
 	httpRespOuter.AllPossibleColumns = allCols
 	httpRespOuter.ElapedTimeMS = time.Since(queryStart).Milliseconds()
@@ -545,18 +545,6 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 		resp[aggName] = structs.AggregationResults{Buckets: allBuckets}
 	}
 	return resp
-}
-
-func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
-	if qc == nil {
-		return 0
-	}
-
-	if !qc.EarlyExit {
-		return qc.TotalCount
-	}
-
-	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }
 
 func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
