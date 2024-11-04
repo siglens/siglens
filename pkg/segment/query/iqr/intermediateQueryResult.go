@@ -51,6 +51,7 @@ type IQR struct {
 	mode iqrMode
 
 	// Used if and only if the mode is withRRCs.
+	reader           record.RRCsReaderI
 	rrcs             []*utils.RecordResultContainer
 	encodingToSegKey map[uint16]string
 
@@ -70,6 +71,7 @@ func NewIQR(qid uint64) *IQR {
 	return &IQR{
 		mode:             notSet,
 		qid:              qid,
+		reader:           &record.RRCsReader{},
 		rrcs:             make([]*utils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint16]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
@@ -343,7 +345,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 
 		vTable := rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
+		colToValues, err := iqr.reader.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
 		if err != nil {
 			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
 				iqr.qid, segKey, err)
@@ -405,7 +407,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
-		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
+		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
@@ -528,7 +530,7 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 	allColumns := make(map[string]struct{})
 
 	for segkey, vTable := range segKeyVTableMap {
-		columns, err := record.GetColsForSegKey(segkey, vTable)
+		columns, err := iqr.reader.GetColsForSegKey(segkey, vTable)
 		if err != nil {
 			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
 		}
