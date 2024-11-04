@@ -43,9 +43,10 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain      []*DataProcessor // This shouldn't be modified after initialization.
-	qid        uint64
-	scrollFrom uint64
+	chain        []*DataProcessor // This shouldn't be modified after initialization.
+	qid          uint64
+	scrollFrom   uint64
+	includeNulls bool
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -55,7 +56,7 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	startTime := time.Now()
 	sortMode := recentFirst // TODO: compute this from the query.
@@ -111,11 +112,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom)
+	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64, scrollFrom int) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -146,6 +147,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		chain:         chain,
 		qid:           qid,
 		scrollFrom:    uint64(scrollFrom),
+		includeNulls:  includeNulls,
 	}, nil
 }
 
@@ -244,7 +246,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		}
 	}
 
-	response, err := finalIQR.AsResult(qp.queryType)
+	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls)
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
@@ -301,7 +303,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
-			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
@@ -314,7 +316,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom)
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}

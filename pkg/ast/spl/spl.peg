@@ -2955,7 +2955,7 @@ StrToRemoveExpr <- COMMA strToRemove:String {
 
 // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Eval#Syntax
 // Returns the field as a string with no quotation marks.
-EvalFieldToRead <- [a-zA-Z_]+ !("(") {
+EvalFieldToRead <- [a-zA-Z][_a-zA-Z0-9]* !("(") {
     return string(c.text), nil
 }
 / "'" field:FieldName "'" {

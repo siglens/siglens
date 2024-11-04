@@ -8415,6 +8415,38 @@ func Test_tailWithSortAndNumber(t *testing.T) {
 	assert.Equal(t, aggregator.Next.OutputTransforms.TailRequest.TailRows, uint64(20)) // This is the SPL default when no value is given.
 }
 
+func Test_Head_0(t *testing.T) {
+	query := []byte(`A=1 | head a_1=b`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
+	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
+	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
+
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
+	assert.Equal(t, "a_1", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, "=", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
+}
+
 func Test_Head1(t *testing.T) {
 	query := []byte(`A=1 | head`)
 	res, err := spl.Parse("", query)

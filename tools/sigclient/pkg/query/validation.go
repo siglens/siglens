@@ -649,7 +649,7 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 			}
 
 			if !equal {
-				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: valu=%v, type=%T, got: value=%v, type=%T", key, value, value, actualValue, actualValue)
+				return fmt.Errorf("ValidateStatsQueryResults: MeasureVal mismatch for key: %v, expected: value=%v, type=%T, got: value=%v, type=%T", key, value, value, actualValue, actualValue)
 			}
 		}
 	}

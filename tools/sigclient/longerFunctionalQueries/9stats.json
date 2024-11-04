@@ -19,14 +19,14 @@
                     "*"
                 ],
                 "MeasureVal": {
-                    "avg": "4,978,725.607",
-                    "count(*)": "84,513",
-                    "distinct_count": "3,006",
+                    "avg": 4979671.285214286,
+                    "count(*)": 85143,
+                    "distinct_count": 3006,
                     "list(gender)": "[male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male]",
-                    "max(http_status)": "500",
-                    "min(latitude)": "-89.998",
-                    "range(latitude)": "179.997",
-                    "sum(longitude)": "694.877",
+                    "max(http_status)": 500,
+                    "min(latitude)": -89.998003,
+                    "range(latitude)": 179.997361,
+                    "sum(longitude)": -7068.714601999989,
                     "values(http_method)": "[DELETE GET HEAD PATCH PUT]"
                 }
             }
