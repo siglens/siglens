@@ -314,7 +314,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
