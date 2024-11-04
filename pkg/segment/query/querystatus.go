@@ -245,6 +245,21 @@ func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, ag
 	return nil
 }
 
+func AssociateSearchResult(qid uint64, result *segresults.SearchResults) error {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return putils.TeeErrorf("AssociateSearchResult: qid %+v does not exist!", qid)
+	}
+
+	rQuery.rqsLock.Lock()
+	rQuery.searchRes = result
+	rQuery.rqsLock.Unlock()
+
+	return nil
+}
+
 // increments the finished segments. If incr is 0, then the current query is finished and a histogram will be flushed
 func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 	skEnc uint16, remoteId string, doBuckPull bool, sstMap map[string]*structs.SegStats) {
@@ -1163,4 +1178,16 @@ func InitScrollFrom(qid uint64, scrollFrom uint64) error {
 	rQuery.scrollFrom = scrollFrom
 
 	return nil
+}
+
+func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
+	if qc == nil {
+		return putils.HitsCount{Value: 0, Relation: "eq"}
+	}
+
+	if !qc.EarlyExit {
+		return putils.HitsCount{Value: qc.TotalCount, Relation: "eq"}
+	}
+
+	return putils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }

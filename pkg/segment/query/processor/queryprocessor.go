@@ -324,6 +324,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		completeResp.MeasureFunctions = result.MeasureFunctions
 		completeResp.GroupByCols = result.GroupByCols
 		completeResp.BucketCount = result.BucketCount
+		completeResp.TotalMatched = result.Hits.TotalMatched
 	}
 
 	canScrollMore, relation, progress, err := qp.getStatusParams(uint64(totalRecords))
@@ -331,7 +332,9 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
 	}
 
-	completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
+	if qp.queryType == structs.RRCCmd {
+		completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
+	}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
 	completeResp.TotalRRCCount = progress.RecordsSent

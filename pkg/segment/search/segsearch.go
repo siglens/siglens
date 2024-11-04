@@ -788,6 +788,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	segmentSearchRecords.Close()
 	queryMetrics.SetNumRecordsMatched(finalMatched)
 	queryMetrics.SetNumRecordsUnmatched(finalUnmatched)
+	allSearchResults.AddResultCount(finalMatched)
 
 	timeElapsed := time.Since(sTime)
 	qs.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
