@@ -167,3 +167,35 @@ To convert a TSV to a JSON file that can be ingested via `-f file`:
 ```bash
 $ go run cmd/utils/converter.go --input {input file name} --output {output file name}
 ```
+
+## Functional Test
+To run functional test use the following command
+```
+go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
+```
+
+Options:
+```
+-d, --dest string              Complete destination URL of the ingest server.
+-q, --queryDest string         Query server URL in the form IP:PORT.
+-f, --queriesToRunFile string  Path to the file containing paths of functional query files to be tested.
+-l, --longer bool              Run a longer functional test.
+```
+
+To run longer functional test use the following command
+```
+go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122 -l true
+```
+
+
+## Performance Test
+To run the performance test use the following command
+```
+go run main.go performance -d http://localhost:8081/elastic -q localhost:5122
+```
+
+Options:
+```
+-d, --dest string              Complete destination URL of the ingest server.
+-q, --queryDest string         Query server URL in the form IP:PORT.
+```

@@ -923,8 +923,8 @@ func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryR
 var skipIndexes = map[int]bool{
 
 	// Misc
-	35:  true, // IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
-	161: true, // Older pipeline removes the groupByCol/value if something else is renamed to it, NOT SURE ON THE CORRECT APPROACH!
+	35:  true, // Log QL Query: IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
+	161: true, // Unused Query: Older pipeline removes the groupByCol/value if something else is renamed to it
 
 	// SQL NORESULT
 	22: true, // SQL query order by. NO RESULT
