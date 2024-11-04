@@ -333,7 +333,7 @@ func Test_Append_withRRCs(t *testing.T) {
 	assert.Equal(t, append(rrcs, rrcs2...), iqr.rrcs)
 }
 
-func Test_Append_withRRCs_partialKnownValues1(t *testing.T) {
+func setupTestIQRsWithRRCs(t *testing.T) (*IQR, *IQR) {
 	allRRCs := []*utils.RecordResultContainer{
 		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
@@ -361,6 +361,12 @@ func Test_Append_withRRCs_partialKnownValues1(t *testing.T) {
 	iqr2.reader = mockReader
 	err = iqr2.AppendRRCs(allRRCs[2:], map[uint16]string{1: "segKey1"})
 	assert.NoError(t, err)
+
+	return iqr1, iqr2
+}
+
+func Test_Append_withRRCs_firstHasKnownValues(t *testing.T) {
+	iqr1, iqr2 := setupTestIQRsWithRRCs(t)
 
 	// Read from one IQR but not the other.
 	values, err := iqr1.ReadColumn("col1")
@@ -389,34 +395,10 @@ func Test_Append_withRRCs_partialKnownValues1(t *testing.T) {
 	}, values)
 }
 
-func Test_Append_withRRCs_partialKnownValues2(t *testing.T) {
-	allRRCs := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
-	}
-	mockReader := &record.MockRRCsReader{
-		RRCs: allRRCs,
-		FieldToValues: map[string][]utils.CValueEnclosure{
-			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
-				{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			},
-		},
-	}
-
-	iqr1 := NewIQR(0)
-	iqr1.reader = mockReader
-	err := iqr1.AppendRRCs(allRRCs[:2], map[uint16]string{1: "segKey1"})
-	assert.NoError(t, err)
-
-	iqr2 := NewIQR(0)
-	iqr2.reader = mockReader
-	err = iqr2.AppendRRCs(allRRCs[2:], map[uint16]string{1: "segKey1"})
-	assert.NoError(t, err)
+// Like Test_Append_withRRCs_firstHasKnownValues, but the second IQR has some
+// known values read from the RRCs and the first IQR does not.
+func Test_Append_withRRCs_secondHasKnownValues(t *testing.T) {
+	iqr1, iqr2 := setupTestIQRsWithRRCs(t)
 
 	// Read from one IQR but not the other.
 	values, err := iqr2.ReadColumn("col1")
