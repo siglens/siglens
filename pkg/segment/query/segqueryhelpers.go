@@ -48,6 +48,7 @@ type QueryInformation struct {
 	qType              structs.QueryType
 	orgId              uint64
 	alreadyDistributed bool
+	containsKibana     bool
 }
 
 type QuerySegmentRequest struct {
@@ -126,6 +127,10 @@ func (qi *QueryInformation) SetAlreadyDistributed() {
 	qi.alreadyDistributed = true
 }
 
+func (qi *QueryInformation) ContainsKibana() bool {
+	return qi.containsKibana
+}
+
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
 }
@@ -155,7 +160,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int) (*QueryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int, containsKibana bool) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
@@ -180,6 +185,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		sNodeType:          sNodeType,
 		qType:              qType,
 		orgId:              orgid,
+		containsKibana:     containsKibana,
 	}, nil
 }
 

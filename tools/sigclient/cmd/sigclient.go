@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -142,7 +143,61 @@ var functionalTestCmd = &cobra.Command{
 
 		time.Sleep(sleepDuration)
 
+		err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+		if err != nil {
+			log.Fatalf("Error while migrating lookups: %v", err)
+			return
+		}
+
 		query.FunctionalTest(queryDest, filePath)
+	},
+}
+
+var performanceTestCmd = &cobra.Command{
+	Use:   "performance",
+	Short: "performance testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		totalEvents := 1_000_000_000
+		batchSize := 50
+		numIndices := 10
+		processCount := 10
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+		concurrentQueries := 5
+
+		logChan := make(chan utils.Log, 1000)
+
+		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logChan)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func(cancel context.CancelFunc) {
+			defer cancel()
+			// addTs should be false for performance testing
+			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
+				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+		}(cancel)
+
+		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(1 * time.Second)
+			}
+		}
 	},
 }
 
@@ -429,6 +484,8 @@ func init() {
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
 	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
 
+	performanceTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
+
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
@@ -466,6 +523,7 @@ func init() {
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(functionalTestCmd)
+	rootCmd.AddCommand(performanceTestCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)

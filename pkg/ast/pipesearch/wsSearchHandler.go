@@ -88,7 +88,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(event, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
@@ -147,6 +147,13 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	qc.RawQuery = searchText
+	qc.IncludeNulls = includeNulls
+
+	if config.IsNewQueryPipelineEnabled() {
+		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)
+		return
+	}
+
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query, err: %v", qid, err)
@@ -165,7 +172,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.RUNNING:
 				processRunningUpdate(conn, qid)
 			case query.QUERY_UPDATE:
-				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
+				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs, includeNulls)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -183,6 +190,60 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			}
 		case readMsg := <-websocketR:
 			log.Infof("qid=%d, Got message from websocket: %+v", qid, readMsg)
+			if readMsg["state"] == "cancel" {
+				query.CancelQuery(qid)
+				processCancelQuery(conn, qid)
+				query.DeleteQuery(qid)
+			}
+		}
+	}
+}
+
+func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
+	websocketR := make(chan map[string]interface{})
+	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc, scrollFrom)
+	if err != nil {
+		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
+		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+		if wErr != nil {
+			log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write error response to websocket! err: %+v", qid, wErr)
+		}
+		return
+	}
+
+	go listenToConnection(qid, websocketR, conn)
+	for {
+		select {
+		case queryStateChanData, ok := <-eventC:
+			if !ok {
+				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got non ok, state: %v", qid, queryStateChanData.StateName)
+				query.LogGlobalSearchErrors(qid)
+				return
+			}
+			switch queryStateChanData.StateName {
+			case query.RUNNING:
+				processRunningUpdate(conn, qid)
+			case query.TIMEOUT:
+				processTimeoutUpdate(conn, qid)
+				return
+			case query.QUERY_UPDATE:
+				wErr := conn.WriteJSON(queryStateChanData.UpdateWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write update response to websocket! err: %+v", qid, wErr)
+				}
+			case query.COMPLETE:
+				wErr := conn.WriteJSON(queryStateChanData.CompleteWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write complete response to websocket! err: %+v", qid, wErr)
+				}
+				query.DeleteQuery(qid)
+				return
+			default:
+				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got unknown state: %v", qid, queryStateChanData.StateName)
+			}
+		case readMsg := <-websocketR:
+			log.Infof("qid=%d, RunAsyncQueryForNewPipeline: Got message from websocket: %+v", qid, readMsg)
 			if readMsg["state"] == "cancel" {
 				query.CancelQuery(qid)
 				processCancelQuery(conn, qid)
@@ -265,7 +326,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
-	aggs *structs.QueryAggregators) {
+	aggs *structs.QueryAggregators, includeNulls bool) {
 	searchPercent := qscd.PercentComplete
 
 	totalEventsSearched, totalPossibleEvents, err := query.GetTotalSearchedAndPossibleEventsForQid(qid)
@@ -288,7 +349,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		return
 	}
 
-	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents)
+	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs, totalPossibleEvents, includeNulls)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
@@ -306,7 +367,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
 	queryC := query.GetQueryCountInfoForQid(qid)
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
-	if aggs.HasGeneratedEventsWithoutSearch() {
+	if !config.IsNewQueryPipelineEnabled() && aggs.HasGeneratedEventsWithoutSearch() {
 		queryC.TotalCount = uint64(len(aggs.GenerateEvent.GeneratedRecords))
 	}
 	if err != nil {
@@ -316,8 +377,13 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	if err != nil {
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get number of RRCs for qid! Error: %v", qid, err)
 	}
+	startTime, err := query.GetQueryStartTime(qid)
+	if err != nil {
+		log.Errorf("qid=%d, processCompleteUpdate: failed to get query start time for qid! Error: %v", qid, err)
+	}
 
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
+	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {
@@ -326,7 +392,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &structs.PipeSearchCompleteResponse{
-		TotalMatched:        convertQueryCountToTotalResponse(queryC),
+		TotalMatched:        query.ConvertQueryCountToTotalResponse(queryC),
 		State:               query.COMPLETE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
 		CanScrollMore:       canScrollMore,
@@ -402,7 +468,7 @@ func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64) (*structs.PipeSearchWSUpdateResponse, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &structs.PipeSearchWSUpdateResponse{
@@ -471,7 +537,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			}
 		} else {
 			// handle local
-			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs)
+			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid, allColsInAggs, includeNulls)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns, err: %+v", qid, err)
 				return nil, err
@@ -495,7 +561,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
-	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
+	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
 	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {
@@ -505,7 +571,7 @@ func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16
 		}
 	}
 	rrcs = rrcs[:found]
-	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs, allColsInAggs)
+	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs, allColsInAggs, includeNulls)
 	if err != nil {
 		log.Errorf("qid=%d, getRawLogsAndColumns: failed to convert rrcs to json, err: %+v", qid, err)
 		return nil, nil, err

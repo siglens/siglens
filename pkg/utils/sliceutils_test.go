@@ -276,3 +276,12 @@ func Test_MergeSortedSlices_allEmpty(t *testing.T) {
 	actual := MergeSortedSlices(less, slice1, slice2, slice3)
 	assert.Equal(t, expected, actual)
 }
+
+func Test_SelectFromSlice(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	evens := SelectFromSlice(slice, func(i int) bool {
+		return i%2 == 0
+	})
+
+	assert.Equal(t, []int{2, 4}, evens)
+}

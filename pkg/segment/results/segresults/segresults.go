@@ -27,6 +27,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -217,6 +218,12 @@ func (sr *SearchResults) removeLog(id string) {
 func (sr *SearchResults) AddSSTMap(sstMap map[string]*structs.SegStats, skEnc uint16) {
 	sr.updateLock.Lock()
 	sr.allSSTS[skEnc] = sstMap
+	sr.updateLock.Unlock()
+}
+
+func (sr *SearchResults) AddResultCount(count uint64) {
+	sr.updateLock.Lock()
+	sr.resultCount += count
 	sr.updateLock.Unlock()
 }
 
@@ -856,6 +863,7 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 
 func CreateMeasResultsFromAggResults(limit int,
 	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
+	newQueryPipeline := config.IsNewQueryPipelineEnabled()
 
 	bucketHolderArr := make([]*structs.BucketHolder, 0)
 	added := int(0)
@@ -864,6 +872,7 @@ func CreateMeasResultsFromAggResults(limit int,
 		for _, aggVal := range agg.Results {
 			measureVal := make(map[string]interface{})
 			groupByValues := make([]string, 0)
+			iGroupByValues := make([]utils.CValueEnclosure, 0)
 			for mName, mVal := range aggVal.StatRes {
 				rawVal, err := mVal.GetValue()
 				if err != nil {
@@ -877,6 +886,27 @@ func CreateMeasResultsFromAggResults(limit int,
 			if added >= limit {
 				break
 			}
+
+			if newQueryPipeline {
+				bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
+				if !ok {
+					log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", aggVal.BucketKey)
+					continue
+				}
+				for _, bk := range bucketKeySlice {
+					cValue := utils.CValueEnclosure{}
+					err := cValue.ConvertValue(bk)
+					if err != nil {
+						log.Errorf("CreateMeasResultsFromAggResults: failed to convert bucket key %+v", err)
+						cValue = utils.CValueEnclosure{
+							Dtype: utils.SS_DT_STRING,
+							CVal:  fmt.Sprintf("%+v", bk),
+						}
+					}
+					iGroupByValues = append(iGroupByValues, cValue)
+				}
+			}
+
 			switch bKey := aggVal.BucketKey.(type) {
 			case float64, uint64, int64:
 				bKeyConv := fmt.Sprintf("%+v", bKey)
@@ -897,8 +927,9 @@ func CreateMeasResultsFromAggResults(limit int,
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}
 			bucketHolder := &structs.BucketHolder{
-				GroupByValues: groupByValues,
-				MeasureVal:    measureVal,
+				IGroupByValues: iGroupByValues,
+				GroupByValues:  groupByValues,
+				MeasureVal:     measureVal,
 			}
 			bucketHolderArr = append(bucketHolderArr, bucketHolder)
 		}

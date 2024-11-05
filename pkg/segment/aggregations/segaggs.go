@@ -2073,8 +2073,9 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 			expandedRecs := performMVExpand(fieldValue)
 
 			// Apply limit if mvColReq.Limit is greater than 0
-			if mvColReq.Limit > 0 && len(expandedRecs) > int(mvColReq.Limit) {
-				expandedRecs = expandedRecs[:mvColReq.Limit]
+			limit, hasLimit := mvColReq.Limit.Get()
+			if hasLimit && len(expandedRecs) > int(limit) {
+				expandedRecs = expandedRecs[:limit]
 			}
 			delete(recs, key)
 			for i, expandedValue := range expandedRecs {

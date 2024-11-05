@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const TOLERANCE = 0.000001
+const TOLERANCE = 0.001
 const MIN_IN_SEC = 60
 const HOUR_IN_SEC = 3600
 const DAY_IN_SEC = 86400

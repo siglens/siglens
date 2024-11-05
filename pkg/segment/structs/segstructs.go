@@ -23,12 +23,14 @@ import (
 	"math"
 	"reflect"
 	"sync/atomic"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -186,6 +188,7 @@ type QueryAggregators struct {
 	InputLookupExpr *InputLookup
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
+	MVExpandExpr    *MultiValueColLetRequest
 	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
 	RenameExp       *RenameExp
@@ -217,6 +220,7 @@ type GenTimes struct {
 }
 
 type InputLookup struct {
+	IsFirstCommand       bool
 	Filename             string
 	Append               bool
 	Start                uint64
@@ -437,7 +441,7 @@ type MultiValueColLetRequest struct {
 	IsRegex         bool
 	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
 	Setsv           bool // if true, split values are combined into a single value. default is false
-	Limit           int64
+	Limit           toputils.Option[int64]
 }
 
 type BucketResult struct {
@@ -452,15 +456,29 @@ type AggregationResult struct {
 	Results         []*BucketResult // histogram results
 }
 
+// TODO: Retain either IGroupByValues or GroupByValues, as having both is unnecessary.
+// The goal is to preserve the group-by value type as interface{} to avoid issues
+// when processing subsequent commands.
+// Ideally, we should update GroupByValues to have a type of []interface{}
+// and eliminate IGroupByValues.
 type BucketHolder struct {
-	GroupByValues []string
-	MeasureVal    map[string]interface{}
+	IGroupByValues []utils.CValueEnclosure // each group-by value is stored as interface{}
+	GroupByValues  []string
+	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {
 	TotalCount uint64 // total number of
 	Op         utils.FilterOperator
 	EarlyExit  bool // if early exit was requested or not
+}
+
+type Progress struct {
+	RecordsSent     uint64
+	UnitsSearched   uint64
+	TotalUnits      uint64
+	RecordsSearched uint64
+	TotalRecords    uint64
 }
 
 // A helper struct to keep track of errors and results together
@@ -498,6 +516,7 @@ type NodeResult struct {
 	FinalColumns                map[string]bool
 	AllColumnsInAggs            map[string]struct{}
 	RemoteLogs                  []map[string]interface{}
+	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
 
 type SegStats struct {

@@ -34,7 +34,6 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	qid       uint64
 	streams   []*cachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
@@ -120,8 +119,42 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	switch dp.processor.(type) {
 	case *gentimesProcessor:
 		return true
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
 	default:
 		return false
+	}
+}
+
+func (dp *DataProcessor) SetLimitForDataGenerator(limit uint64) {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).limit = limit
+	case *inputlookupProcessor:
+		dp.processor.(*inputlookupProcessor).limit = limit
+	default:
+		return
+	}
+}
+
+func (dp *DataProcessor) IsEOFForDataGenerator() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		return dp.processor.(*gentimesProcessor).IsEOF()
+	case *inputlookupProcessor:
+		return dp.processor.(*inputlookupProcessor).IsEOF()
+	default:
+		return false
+	}
+}
+
+func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
+	switch dp.processor.(type) {
+	case *gentimesProcessor:
+		dp.processor.(*gentimesProcessor).qid = qid
+	case *inputlookupProcessor:
+		dp.processor.(*inputlookupProcessor).qid = qid
+	default:
 	}
 }
 
@@ -129,7 +162,7 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
 		if dp.IsDataGenerator() {
-			return iqr.NewIQR(dp.qid), nil
+			return nil, io.EOF
 		}
 		return nil, errors.New("no streams")
 	case 1:
@@ -280,6 +313,20 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	}
 }
 
+func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
+	return &DataProcessor{
+		streams: make([]*cachedStream, 0),
+		processor: &inputlookupProcessor{
+			options: options,
+			start:   options.Start,
+		},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
 func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
@@ -308,6 +355,17 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		processor:         &makemvProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &mvexpandProcessor{options: options},
+		inputOrderMatters: false,
+		isPermutingCmd:    true,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
 	}
@@ -357,10 +415,10 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	}
 }
 
-func NewTimechartDP(options *structs.TimechartExpr) *DataProcessor {
+func NewTimechartDP(options *timechartOptions) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &timechartProcessor{options: options},
+		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
@@ -419,6 +477,17 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
+		isTwoPassCmd:      false,
+	}
+}
+
+func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*cachedStream, 0),
+		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
+		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
 	}
 }

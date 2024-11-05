@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -36,10 +37,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
+type RRCsReaderI interface {
+	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
+		qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error)
+	GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
+	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error)
+}
+
+type RRCsReader struct{}
+
+func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := GetColsForSegKey(segKey, vTable)
+	allCols, err := reader.GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -51,7 +61,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 		if _, ignore := ignoredCols[cname]; ignore {
 			continue
 		}
-		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
+		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
 				qid, cname, segKey, err)
@@ -64,7 +74,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
@@ -73,13 +83,14 @@ func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
+	allCols[config.GetTimeStampKey()] = true
 
 	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
 	// of a map[string]bool so we don't have to do the conversion here
 	return toputils.MapToSet(allCols), nil
 }
 
-func ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
+func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
@@ -151,9 +162,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		}
 	}
 
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		// This should not happen, unless qid is deleted.
+		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get or create query search node result; err=%v", qid, err)
+		nodeRes = &structs.NodeResult{}
+	}
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: true},
-		blockMetadata, blockSummary, 1, consistentCValLen, qid)
+		blockMetadata, blockSummary, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
 		return nil, err
@@ -337,7 +354,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	}
 
 	result := make(map[string]map[string]interface{})
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid)
+	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
 		log.Errorf("getRecordsFromSegmentHelper: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err

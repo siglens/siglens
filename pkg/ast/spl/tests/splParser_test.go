@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"regexp"
@@ -8091,7 +8092,7 @@ func Test_ParseRelativeTimeModifier_8(t *testing.T) {
 }
 
 func Test_ParseRelativeTimeModifier_9(t *testing.T) {
-	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s`
+	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s | eval n=1`
 	_, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 
@@ -8414,6 +8415,38 @@ func Test_tailWithSortAndNumber(t *testing.T) {
 	assert.Equal(t, aggregator.Next.OutputTransforms.TailRequest.TailRows, uint64(20)) // This is the SPL default when no value is given.
 }
 
+func Test_Head_0(t *testing.T) {
+	query := []byte(`A=1 | head a_1=b`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
+	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
+	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
+
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
+	assert.Equal(t, "a_1", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
+	assert.Equal(t, "=", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
+	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
+}
+
 func Test_Head1(t *testing.T) {
 	query := []byte(`A=1 | head`)
 	res, err := spl.Parse("", query)
@@ -8473,7 +8506,7 @@ func Test_Head3(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8505,7 +8538,7 @@ func Test_Head4(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8561,7 +8594,7 @@ func Test_Head9(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8593,7 +8626,7 @@ func Test_Head10(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8812,7 +8845,7 @@ func Test_Head16(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
+	assert.Equal(t, uint64(math.MaxUint64), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -10310,7 +10343,7 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, int64(0), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, putils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10328,7 +10361,7 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, int64(5), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, putils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {
@@ -10588,13 +10621,28 @@ func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
 	// Get the current time in the local time zone
 	now := time.Now().In(time.Local)
 
-	// Calculate the expected earliest time: one month ago, snapped to the first of the month at midnight
-	firstOfLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
-	expectedEarliestTime := firstOfLastMonth
+	// Check if it's the last day of the month
+	isLastDay := now.AddDate(0, 0, 1).Month() != now.Month()
 
-	// Calculate the expected latest time: one month from now, snapped to the first of the month at midnight, plus 7 days
-	firstOfNextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local)
-	expectedLatestTime := firstOfNextMonth.AddDate(0, 0, 7)
+	var expectedEarliestTime time.Time
+	var expectedLatestTime time.Time
+
+	if isLastDay {
+		// For last day of month:
+		// earliest time is first day of current month
+		expectedEarliestTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+
+		// latest time is first day of next month + 7 days
+		nextMonth := now.AddDate(0, 1, 0)
+		expectedLatestTime = time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
+	} else {
+		// For any other day of month:
+		// earliest time is first day of previous month
+		expectedEarliestTime = time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
+
+		// latest time is first day of next month + 7 days
+		expectedLatestTime = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
+	}
 
 	// Convert the actual times from Unix milliseconds to local time
 	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
@@ -10615,22 +10663,17 @@ func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
 
-	// Get the current time in the local time zone
-	now := time.Now().In(time.Local)
-
-	// Calculate the expected earliest time: yesterday at noon
-	yesterdayNoon := time.Date(now.Year(), now.Month(), now.Day()-1, 12, 0, 0, 0, time.Local)
-	expectedEarliestTime := yesterdayNoon
-
-	// Calculate the expected latest time: end of yesterday
-	endOfYesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 23, 59, 59, 0, time.Local)
-	expectedLatestTime := endOfYesterday
-
 	// Convert the actual times from Unix milliseconds to local time
 	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
 	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
 
-	// Compare the expected and actual times
+	expectedEarliestTime := time.Date(actualEarliestTime.Year(), actualEarliestTime.Month(),
+		actualEarliestTime.Day(), actualEarliestTime.Hour(), actualEarliestTime.Minute(), 0, 0, time.Local)
+
+	expectedLatestTime := time.Date(actualLatestTime.Year(), actualLatestTime.Month(),
+		actualLatestTime.Day(), actualLatestTime.Hour(), actualLatestTime.Minute(),
+		actualLatestTime.Second(), 0, time.Local)
+
 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
@@ -10756,6 +10799,7 @@ func Test_InputLookup(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10779,6 +10823,7 @@ func Test_InputLookup_2(t *testing.T) {
 	assert.Equal(t, uint64(3), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10802,6 +10847,7 @@ func Test_InputLookup_3(t *testing.T) {
 	assert.Equal(t, uint64(5), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Nil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
@@ -10825,6 +10871,7 @@ func Test_InputLookup_4(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10893,6 +10940,7 @@ func Test_InputLookup_5(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -10985,6 +11033,7 @@ func Test_InputLookup_6(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr.LeftBool)
@@ -11071,6 +11120,7 @@ func Test_InputLookup_10(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 
 	assert.NotNil(t, aggregator.GenerateEvent.InputLookup.WhereExpr)
@@ -11104,7 +11154,41 @@ func Test_InputLookup_11(t *testing.T) {
 	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
 	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+}
+
+func Test_InputLookup_12(t *testing.T) {
+	query := `| inputlookup myfile.csv | inputlookup append=true myfile2.csv`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+	assert.Equal(t, structs.GenerateEventType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GenerateEvent)
+	assert.NotNil(t, aggregator.GenerateEvent.InputLookup)
+
+	assert.Equal(t, "myfile.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.HasPrevResults)
+
+	aggregator = aggregator.Next
+	assert.Equal(t, "myfile2.csv", aggregator.GenerateEvent.InputLookup.Filename)
+	assert.Equal(t, uint64(1000000000), aggregator.GenerateEvent.InputLookup.Max)
+	assert.Equal(t, uint64(0), aggregator.GenerateEvent.InputLookup.Start)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.Strict)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.Append)
+	assert.Equal(t, false, aggregator.GenerateEvent.InputLookup.IsFirstCommand)
+	assert.Equal(t, true, aggregator.GenerateEvent.InputLookup.HasPrevResults)
 }
 
 func Test_RemoveRedundantSearches(t *testing.T) {

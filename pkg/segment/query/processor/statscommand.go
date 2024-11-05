@@ -79,6 +79,8 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	// If inputIQR is nil, we are done with the input
 	if inputIQR == nil {
 		return p.extractFinalStatsResults()
+	} else {
+		p.qid = inputIQR.GetQID()
 	}
 
 	switch p.processorType {
@@ -167,21 +169,14 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		// Bucket Key
 		bucketKeyBufIdx := 0
 
-		for idx, cname := range p.options.GroupByRequest.GroupByColumns {
-			if idx > 0 {
-				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.BYTE_TILDE)
-				bucketKeyBufIdx += utils.BYTE_TILDE_LEN
-			}
-
+		for _, cname := range p.options.GroupByRequest.GroupByColumns {
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
 				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
 				bucketKeyBufIdx += 1
 			} else {
-				bytesVal := cValue.AsBytes()
-				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], bytesVal)
-				bucketKeyBufIdx += len(bytesVal)
+				bucketKeyBufIdx += cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf[bucketKeyBufIdx:])
 			}
 		}
 
@@ -239,7 +234,10 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 	segStatsMap := make(map[string]*structs.SegStats)
 
 	measureColsMap, aggColUsage, valuesUsage, listUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
-	delete(measureColsMap, config.GetTimeStampKey())
+	timestampKey := config.GetTimeStampKey()
+	if _, ok := aggColUsage[timestampKey]; !ok {
+		delete(measureColsMap, timestampKey)
+	}
 
 	for colName := range measureColsMap {
 		if colName == "*" {

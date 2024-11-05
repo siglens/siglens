@@ -66,6 +66,10 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			return nil, nil, []string{}, err
 		}
 		boolNode.TimeRange = tRange
+	} else {
+		// Update the start and end epoch from the parsed Node time range
+		startEpoch = boolNode.TimeRange.StartEpochMs
+		endEpoch = boolNode.TimeRange.EndEpochMs
 	}
 
 	//aggs
@@ -82,7 +86,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
-					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
+					spanOptions, err := structs.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
 					if err != nil {
 						log.Errorf("qid=%d, ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
 						return nil, nil, []string{}, err

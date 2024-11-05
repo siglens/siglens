@@ -18,10 +18,10 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -90,6 +90,9 @@ func getGroupByProcessor() *statsProcessor {
 }
 
 func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().UseNewPipelineConverted = true
+
 	knownValues := getTestData()
 	processor := getGroupByProcessor()
 
@@ -179,6 +182,9 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 }
 
 func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().UseNewPipelineConverted = true
+
 	knownValues := getTestData()
 	processor := getGroupByProcessor()
 
@@ -208,8 +214,6 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	actualKnownValues, err := resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
-
-	fmt.Println(actualKnownValues)
 
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
@@ -265,8 +269,6 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedAvgRes, actualAvgRes)
 
-	nilStr := utils.STR_VALTYPE_ENC_BACKFILL
-
 	expectedGroupByCols := map[string][]utils.CValueEnclosure{
 		"col1": {
 			{Dtype: utils.SS_DT_STRING, CVal: "e"},
@@ -282,14 +284,14 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 		},
 		"col3": {
 			{Dtype: utils.SS_DT_STRING, CVal: "w"},
-			{Dtype: utils.SS_DT_STRING, CVal: nilStr},
-			{Dtype: utils.SS_DT_STRING, CVal: nilStr},
-			{Dtype: utils.SS_DT_STRING, CVal: nilStr},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			{Dtype: utils.SS_DT_STRING, CVal: "z"},
 			{Dtype: utils.SS_DT_STRING, CVal: "x"},
 			{Dtype: utils.SS_DT_STRING, CVal: "v"},
 			{Dtype: utils.SS_DT_STRING, CVal: "u"},
-			{Dtype: utils.SS_DT_STRING, CVal: nilStr},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			{Dtype: utils.SS_DT_STRING, CVal: "y"},
 		},
 	}
@@ -346,7 +348,6 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	actualKnownValues, err := resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
-	fmt.Println(actualKnownValues)
 
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},

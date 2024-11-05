@@ -137,10 +137,10 @@ func Test_EvalCommand(t *testing.T) {
 	}
 
 	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
 		{Dtype: utils.SS_DT_STRING, CVal: "India"},
 		{Dtype: utils.SS_DT_STRING, CVal: "China"},
-		{Dtype: utils.SS_DT_STRING, CVal: "4"},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 	}
 
 	err := inputIqr.AppendKnownValues(knownValues)

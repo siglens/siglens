@@ -20,6 +20,7 @@ package iqr
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -117,7 +118,7 @@ func Test_AsResult(t *testing.T) {
 		CanScrollMore:      false,
 		ColumnsOrder:       []string{"col1"},
 	}
-	result, err := iqr.AsResult(structs.RRCCmd)
+	result, err := iqr.AsResult(structs.RRCCmd, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
 }
@@ -332,6 +333,100 @@ func Test_Append_withRRCs(t *testing.T) {
 	assert.Equal(t, append(rrcs, rrcs2...), iqr.rrcs)
 }
 
+func setupTestIQRsWithRRCs(t *testing.T) (*IQR, *IQR) {
+	allRRCs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: allRRCs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			},
+		},
+	}
+
+	iqr1 := NewIQR(0)
+	iqr1.reader = mockReader
+	err := iqr1.AppendRRCs(allRRCs[:2], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	iqr2 := NewIQR(0)
+	iqr2.reader = mockReader
+	err = iqr2.AppendRRCs(allRRCs[2:], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	return iqr1, iqr2
+}
+
+func Test_Append_withRRCs_firstHasKnownValues(t *testing.T) {
+	iqr1, iqr2 := setupTestIQRsWithRRCs(t)
+
+	// Read from one IQR but not the other.
+	values, err := iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	}, values)
+
+	_, ok := iqr1.knownValues["col1"]
+	assert.True(t, ok)
+	_, ok = iqr2.knownValues["col1"]
+	assert.False(t, ok)
+
+	// Even though they have different knownValues, we should be able to append
+	// them and read the correct values.
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+	values, err = iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	}, values)
+}
+
+// Like Test_Append_withRRCs_firstHasKnownValues, but the second IQR has some
+// known values read from the RRCs and the first IQR does not.
+func Test_Append_withRRCs_secondHasKnownValues(t *testing.T) {
+	iqr1, iqr2 := setupTestIQRsWithRRCs(t)
+
+	// Read from one IQR but not the other.
+	values, err := iqr2.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	}, values)
+
+	_, ok := iqr1.knownValues["col1"]
+	assert.False(t, ok)
+	_, ok = iqr2.knownValues["col1"]
+	assert.True(t, ok)
+
+	// Even though they have different knownValues, we should be able to append
+	// them and read the correct values.
+	err = iqr1.Append(iqr2)
+	assert.NoError(t, err)
+	values, err = iqr1.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	}, values)
+}
+
 func Test_Sort(t *testing.T) {
 	iqr := NewIQR(0)
 	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
@@ -380,6 +475,76 @@ func Test_Sort(t *testing.T) {
 			"actual=%v, expected=%v, cname=%v", iqr.knownValues[cname],
 			expectedValues, cname)
 	}
+}
+
+func Test_Sort_multipleColumns(t *testing.T) {
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: rrcs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			},
+			"col2": {
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			},
+		},
+	}
+
+	iqr := NewIQR(0)
+	iqr.reader = mockReader
+	err := iqr.AppendRRCs(rrcs, map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	less := func(a, b *Record) bool {
+		aVal1, err := a.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		bVal1, err := b.ReadColumn("col1")
+		assert.NoError(t, err)
+
+		if aVal1.CVal.(string) != bVal1.CVal.(string) {
+			return aVal1.CVal.(string) < bVal1.CVal.(string)
+		}
+
+		aVal2, err := a.ReadColumn("col2")
+		assert.NoError(t, err)
+
+		bVal2, err := b.ReadColumn("col2")
+		assert.NoError(t, err)
+
+		return aVal2.CVal.(uint64) < bVal2.CVal.(uint64)
+	}
+
+	err = iqr.Sort(less)
+	assert.NoError(t, err)
+	values, err := iqr.ReadAllColumns()
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		},
+	}, values)
 }
 
 func Test_MergeIQRs(t *testing.T) {
@@ -480,6 +645,43 @@ func Test_Mode_AfterAppendRRC(t *testing.T) {
 	assert.Equal(t, withRRCs, iqr.mode)
 }
 
+func Test_Discard(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		},
+	}
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	err = iqr.Discard(3)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err := iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(0)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, iqr.NumberOfRecords())
+
+	values, err = iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, knownValues["col1"][3:], values)
+
+	err = iqr.Discard(1)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, iqr.NumberOfRecords())
+
+	err = iqr.Discard(1)
+	assert.Error(t, err)
+}
+
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
 	segKeyInfo1 := utils.SegKeyInfo{
@@ -505,10 +707,91 @@ func Test_DiscardAfter(t *testing.T) {
 	assert.Equal(t, 1, iqr.NumberOfRecords())
 }
 
+func getTestKnownValues() map[string][]utils.CValueEnclosure {
+	return map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
+		},
+	}
+}
+
+func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
+	rrcIqr := NewIQR(0)
+	segKeyInfo1 := utils.SegKeyInfo{
+		SegKeyEnc: 1,
+	}
+	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
+	}
+
+	err := rrcIqr.AppendRRCs(rrcs, encodingToSegKey)
+	assert.NoError(t, err)
+
+	withoutRRCIqr := NewIQR(0)
+	knownValues := getTestKnownValues()
+	err = withoutRRCIqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+	numGeneratedCol := withoutRRCIqr.NumberOfRecords()
+	assert.Equal(t, 3, numGeneratedCol)
+
+	err = rrcIqr.Append(withoutRRCIqr)
+	assert.Nil(t, err)
+	assert.Equal(t, withRRCs, rrcIqr.mode)
+	assert.Equal(t, 6, rrcIqr.NumberOfRecords())
+
+	for col, values := range rrcIqr.knownValues {
+		for i, value := range values {
+			if i < numGeneratedCol {
+				assert.True(t, value.IsNull())
+			} else {
+				assert.Equal(t, knownValues[col][i-numGeneratedCol], value)
+			}
+		}
+	}
+
+	withoutRRCIqr.knownValues["col1"] = withoutRRCIqr.knownValues["col1"][1:]
+	err = rrcIqr.Append(withoutRRCIqr)
+	assert.Error(t, err)
+}
+
+func Test_AppendKnownValuesWithIncorrectColValues(t *testing.T) {
+	knownValues := getTestKnownValues()
+
+	knownValues["col1"] = knownValues["col1"][1:]
+	newIQR := NewIQR(0)
+	err := newIQR.AppendKnownValues(knownValues)
+	assert.Error(t, err)
+}
+
+func Test_getRRCIQR(t *testing.T) {
+	knownValues := getTestKnownValues()
+	withoutRRCIqr := NewIQR(0)
+	err := withoutRRCIqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	convertedRRCIQR, err := withoutRRCIqr.getRRCIQR()
+	assert.NoError(t, err)
+	assert.Equal(t, withRRCs, convertedRRCIQR.mode)
+	assert.Equal(t, 3, len(convertedRRCIQR.rrcs))
+	assert.Equal(t, knownValues, convertedRRCIQR.knownValues)
+	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())
+}
+
 func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
 	for _, oldName := range oldNames {
-		_, err := iqr.ReadColumn(oldName)
-		assert.Error(t, err)
+		values, err := iqr.ReadColumn(oldName)
+		assert.NoError(t, err)
+		assert.Nil(t, values)
 	}
 	values, err := iqr.ReadColumn(newName)
 	assert.NoError(t, err)
@@ -660,6 +943,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 	bucketHolderSlice := []*structs.BucketHolder{
 		{
 			GroupByValues: []string{"a", "b"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "b", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),
 				"sum(x)": int64(100),
@@ -668,6 +955,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"a", "c"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "a", Dtype: utils.SS_DT_STRING},
+				{CVal: "c", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(20),
 				"sum(x)": int64(200),
@@ -676,6 +967,10 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"d", "e"},
+			IGroupByValues: []utils.CValueEnclosure{
+				{CVal: "d", Dtype: utils.SS_DT_STRING},
+				{CVal: "e", Dtype: utils.SS_DT_STRING},
+			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(30),
 				"sum(x)": int64(300),
@@ -824,7 +1119,47 @@ func Test_getFinalStatsResults(t *testing.T) {
 		actualBucketHolder := actualBucketHolderSlice[i]
 		if len(expectedBucketHolder.GroupByValues) == 0 {
 			expectedBucketHolder.GroupByValues = []string{"*"}
+			expectedBucketHolder.IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
 		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
+}
+
+func Test_ReadColumnsWithBackfill(t *testing.T) {
+	iqr := NewIQR(0)
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c1"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c2"},
+		},
+		"col3": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c3"},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	columnValues, err := iqr.ReadColumnsWithBackfill([]string{"col1", "col2"})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["col1"], columnValues["col1"])
+	assert.Equal(t, knownValues["col2"], columnValues["col2"])
+
+	columnValues, err = iqr.ReadColumnsWithBackfill([]string{"col3", "col4"})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(columnValues))
+	assert.Equal(t, knownValues["col3"], columnValues["col3"])
+	expectedBackfilledCol := []utils.CValueEnclosure{}
+	for i := 0; i < 3; i++ {
+		expectedBackfilledCol = append(expectedBackfilledCol, *backfillCVal)
+	}
+	assert.Equal(t, expectedBackfilledCol, columnValues["col4"])
 }

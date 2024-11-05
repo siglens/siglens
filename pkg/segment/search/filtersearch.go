@@ -37,15 +37,15 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 	queryType := query.GetQueryType()
 	searchCols := getAllColumnsNeededForSearch(query, searchReq.AllPossibleColumns)
 	sharedMultiReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, searchCols, searchReq.AllBlocksToSearch,
-		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid)
+		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid, nodeRes)
 
 	if err != nil {
 		// if we fail to read needed columns, we can convert it to a match none
 		// TODO: what would this look like in complex relations
 		queryType = structs.EditQueryTypeForInvalidColumn(queryType)
-		log.Warnf("qid=%d, filterBlockRequestFromQuery: Unable to read all columns in query new query type %+v",
+		log.Warnf("qid=%d, RawSearchSingleQuery: Unable to read all columns in query new query type %+v",
 			qid, queryType)
-		log.Warnf("qid=%d, filterBlockRequestFromQuery: Tried to initialized a multi reader for %+v. Error: %v",
+		log.Warnf("qid=%d, RawSearchSingleQuery: Tried to initialized a multi reader for %+v. Error: %v",
 			qid, searchCols, err)
 	}
 

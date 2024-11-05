@@ -63,7 +63,6 @@ let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
 let isQueryBuilderSearch = false;
-let sortByTimestampAtDefault = true;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
 let columnsWithNonNullValues = new Set();
@@ -495,15 +494,15 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(`.panelDisplay .big-number-display-container`).hide();
         }
 
-        let columnOrder = [];
+        let columnsOrder = [];
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
+            columnsOrder = res.columnsOrder;
         } else {
             if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
+                columnsOrder = _.uniq(_.concat(res.groupByCols));
             }
             if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+                columnsOrder = _.uniq(_.concat(columnsOrder, res.measureFunctions));
             }
         }
         if (res.errors) {
@@ -524,8 +523,8 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 panelProcessEmptyQueryResults('', panelId);
             } else {
                 // for number, bar and pie charts
-                if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
-                panelChart = renderBarChart(columnOrder, res, panelId, chartType, dataType, panelIndex);
+                if (panelId === -1) renderPanelAggsGrid(columnsOrder, res, panelId);
+                panelChart = renderBarChart(columnsOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;

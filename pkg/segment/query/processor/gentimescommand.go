@@ -30,7 +30,9 @@ import (
 
 type gentimesProcessor struct {
 	options       *structs.GenTimes
+	qid           uint64
 	currStartTime uint64
+	limit         uint64
 }
 
 func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time, end time.Time) {
@@ -55,7 +57,15 @@ func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time,
 	})
 }
 
-func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+func (p *gentimesProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
+	if inpIqr != nil {
+		// Since, gentimes is the first processor in the chain, iqr should be nil
+		return nil, fmt.Errorf("gentimesProcessor.Process: IQR is non-nil")
+	}
+	if p.currStartTime >= p.options.EndTime {
+		return nil, io.EOF
+	}
+
 	if p.options == nil {
 		return nil, fmt.Errorf("gentimesProcessor.Process: GenTimes is nil")
 	}
@@ -68,7 +78,7 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	knownValues := make(map[string][]utils.CValueEnclosure, 0)
 
 	count := uint64(0)
-	for curr < p.options.EndTime && count < utils.QUERY_EARLY_EXIT_LIMIT {
+	for curr < p.options.EndTime && count < p.limit {
 		endTime, err := utils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
 		if err != nil {
 			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating end time, err: %v", err)
@@ -82,20 +92,18 @@ func (p *gentimesProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 		currTime = endTime
 		curr = uint64(currTime.UnixMilli())
+		count++
 	}
 
 	p.currStartTime = curr
-	err := iqr.AppendKnownValues(knownValues)
+	newIQR := iqr.NewIQR(p.qid)
+	err := newIQR.AppendKnownValues(knownValues)
 
 	if err != nil {
 		return nil, fmt.Errorf("gentimesProcessor.Process: Error while appending known values, err: %v", err)
 	}
 
-	if curr >= p.options.EndTime {
-		err = io.EOF
-	}
-
-	return iqr, err
+	return newIQR, nil
 }
 
 func (p *gentimesProcessor) Rewind() {
@@ -109,4 +117,8 @@ func (p *gentimesProcessor) Cleanup() {
 
 func (p *gentimesProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
+}
+
+func (p *gentimesProcessor) IsEOF() bool {
+	return p.currStartTime >= p.options.EndTime
 }
