@@ -26,6 +26,7 @@ gentimes_2.json
 mvexpand.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json
+eval_stats_sort.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -53,16 +54,15 @@ eval_stats_sort_stats_groupby_where.json
 ## Queries not working in generalized Unique spl queries
 # stats_with_timestamp.json
 # rex_eval_timechart.json
-# stats_where_stats.json
+# stats_where_stats.json // LIKE operator not implemented
 # eval_timechart_sort.json  // issue with sort command
-# eval_stats_sort.json  // issue with multi-index
 # eval_append_timechart_streamstats_sort.json  // not implemented append command
 # bin_rex_eval_timechart.json  // issue with bin command parsing
 # rex_eval_bin_stats_groupby_eval_timechart.json // issue with bin and eval commands parsing
 # eval_where_rex_stats_eval_stats.json // stats latest is not supported
 # gentimes_makemv_eval_rex_stats.json // subsearch not implemented
-# spath_stats_eval_stats_sort.json
-# lookup_stats_sort.json
+# spath_stats_eval_stats_sort.json // spath not implemented
+# lookup_stats_sort.json // lookup not implemented
 # gentimes_makemv_bin_stats_eval_stats_eval_rex.json // subsearch not implemented
 # eval_stats_groupby_with_eval_eval_where.json  // a direct IN operator not implemented
 # search_spath_search_spath_search_timechart.json // search anywhere is not supported
