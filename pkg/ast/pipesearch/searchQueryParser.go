@@ -66,6 +66,10 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			return nil, nil, []string{}, err
 		}
 		boolNode.TimeRange = tRange
+	} else {
+		// Update the start and end epoch from the parsed Node time range
+		startEpoch = boolNode.TimeRange.StartEpochMs
+		endEpoch = boolNode.TimeRange.EndEpochMs
 	}
 
 	//aggs
