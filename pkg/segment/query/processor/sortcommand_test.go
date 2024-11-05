@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -190,6 +191,90 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 	assert.Equal(t, expectedCol1, actualCol1)
 
 	actualCol2, err = finalIQR.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+}
+
+func Test_SortCommand_withRRCs(t *testing.T) {
+	sorter := &sortProcessor{
+		options: &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "col1", SortByAsc: true, Op: ""},
+				{Field: "col2", SortByAsc: true, Op: "num"},
+			},
+			Limit: 100,
+		},
+	}
+
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: rrcs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "e"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+
+				{Dtype: utils.SS_DT_STRING, CVal: "z"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+			"col2": {
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+			},
+		},
+	}
+
+	iqr1 := iqr.NewIQRWithReader(0, mockReader)
+	iqr2 := iqr.NewIQRWithReader(0, mockReader)
+
+	err := iqr1.AppendRRCs(rrcs[:3], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendRRCs(rrcs[3:], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	_, err = sorter.Process(iqr1)
+	assert.NoError(t, err)
+	_, err = sorter.Process(iqr2)
+	assert.NoError(t, err)
+	result, err := sorter.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		{Dtype: utils.SS_DT_STRING, CVal: "z"},
+	}
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+	}
+
+	actualCol1, err := result.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := result.ReadColumn("col2")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol2, actualCol2)
 }
