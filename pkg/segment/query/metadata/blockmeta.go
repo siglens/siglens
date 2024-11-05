@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -86,10 +85,6 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	totalBlockCount := uint64(len(smi.BlockSummaries))
 	timeFilteredBlocks := metautils.FilterBlocksByTime(smi.BlockSummaries, blockTracker, timeRange)
-	droppedBlocksDueToTime := false
-	if len(timeFilteredBlocks) < int(totalBlockCount) {
-		droppedBlocksDueToTime = true
-	}
 
 	var missingBlockCMI bool
 	if len(timeFilteredBlocks) > 0 && !isMatchAll && !wildCardValue {
@@ -125,12 +120,6 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	}
 
 	smi.RUnlockSmi()
-
-	if len(timeFilteredBlocks) == 0 && !droppedBlocksDueToTime {
-		if isQueryPersistent {
-			go writer.AddToBackFillAndEmptyPQSChan(segkey, pqid, true)
-		}
-	}
 
 	return finalReq, totalBlockCount, filteredBlockCount, err
 }

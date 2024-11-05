@@ -234,7 +234,10 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 	segStatsMap := make(map[string]*structs.SegStats)
 
 	measureColsMap, aggColUsage, valuesUsage, listUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
-	delete(measureColsMap, config.GetTimeStampKey())
+	timestampKey := config.GetTimeStampKey()
+	if _, ok := aggColUsage[timestampKey]; !ok {
+		delete(measureColsMap, timestampKey)
+	}
 
 	for colName := range measureColsMap {
 		if colName == "*" {

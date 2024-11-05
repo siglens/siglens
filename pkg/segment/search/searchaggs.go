@@ -809,7 +809,9 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	defer sharedReader.Close()
 
 	statRes := segresults.InitStatsResults()
-	delete(measureColAndTS, config.GetTimeStampKey())
+	if _, ok := aggColUsage[config.GetTimeStampKey()]; !ok {
+		delete(measureColAndTS, config.GetTimeStampKey())
+	}
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
 		go segmentStatsWorker(statRes, measureColAndTS, aggColUsage, valuesUsage, listUsage, sharedReader.MultiColReaders[i], allBlocksChan,
@@ -892,8 +894,16 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
 		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
 
+		timestampKey := config.GetTimeStampKey()
+		timestampColKeyIdx := -1
+		timestampColPresent := false
+
 		nonDeColsKeyIndices := make(map[int]string)
 		for cname := range nonDeCols {
+			if cname == timestampKey {
+				timestampColPresent = true
+				continue
+			}
 			cKeyidx, ok := multiReader.GetColKeyIndex(cname)
 			if ok {
 				nonDeColsKeyIndices[cKeyidx] = cname
@@ -910,10 +920,15 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			continue
 		}
 
+		if timestampColPresent {
+			nonDeColsKeyIndices[timestampColKeyIdx] = timestampKey
+		}
+
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
+				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, false, &cValEnc)
+					recNum, qid, isTsCol, &cValEnc)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
@@ -957,6 +972,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 	for colName := range mCols {
 		if colName == "*" {
 			stats.AddSegStatsCount(lStats, colName, uint64(len(filterdRecNums)))
+			continue
+		}
+		if colName == config.GetTimeStampKey() {
+			retVal[colName] = true
 			continue
 		}
 		isDict, err := mcr.IsBlkDictEncoded(colName, blockNum)
