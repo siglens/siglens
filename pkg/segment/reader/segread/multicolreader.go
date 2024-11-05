@@ -145,7 +145,7 @@ Only columns that exist will be loaded, not guaranteed to load all columnns in c
 It is up to the caller to close the open FDs using .Close()
 */
 func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64) (*SharedMultiColReaders, error) {
+	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64, nodeRes *structs.NodeResult) (*SharedMultiColReaders, error) {
 	allInUseSegSetFiles := make([]string, 0)
 
 	maxOpenFds := int64(0)
@@ -197,12 +197,13 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 			var rotatedErr error
 			currFd, rotatedErr = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
 			if rotatedErr != nil {
-				err := toputils.TeeErrorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
+				err := fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
 					" Error: %v. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
 				if len(sharedReader.columnErrorMap) < utils.MAX_SIMILAR_ERRORS_TO_LOG {
 					sharedReader.columnErrorMap[colName] = err
 				}
+				nodeRes.StoreGlobalSearchError("Error Initializing SharedMultiColumnReaders", log.ErrorLevel, err)
 				continue
 			}
 		}
@@ -247,7 +248,7 @@ func (scr *SharedMultiColReaders) Close() {
 	fileutils.GLOBAL_FD_LIMITER.Release(scr.numOpenFDs)
 }
 
-func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
+func (scr *SharedMultiColReaders) GetReaderColumnsErrorsMap() map[string]error {
 	return scr.columnErrorMap
 }
 

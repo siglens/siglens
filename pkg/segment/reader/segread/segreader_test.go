@@ -49,7 +49,7 @@ func Test_segReader(t *testing.T) {
 	var queryCol string
 
 	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
