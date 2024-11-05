@@ -192,7 +192,12 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 	qid uint64, qc *structs.QueryContext) (*time.Time, *summary.QuerySummary, *QueryInformation,
 	string, *structs.SearchNode, *segresults.SearchResults, int64, bool, []string, error) {
 
-	startTime := time.Now()
+	startTime, err := GetQueryStartTime(qid)
+	if err != nil {
+		// This should never happen
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to get query start time! Error: %+v", qid, err)
+		startTime = time.Now()
+	}
 	searchNode := ConvertASTNodeToSearchNode(node, qid)
 	kibanaIndices := qc.TableInfo.GetKibanaIndices()
 	nonKibanaIndices := qc.TableInfo.GetQueryTables()
@@ -223,7 +228,7 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 	}
 
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
-		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll)
+		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll, containsKibana)
 	if err != nil {
 		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, nil, "", nil, nil, 0, false, nil, err

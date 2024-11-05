@@ -19,6 +19,7 @@ package processor
 
 import (
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -28,9 +29,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func getSampleSearchNode() *structs.SearchNode {
+	astNode := &structs.ASTNode{
+		AndFilterCondition: &structs.Condition{
+			FilterCriteria: []*structs.FilterCriteria{
+				{
+					MatchFilter: &structs.MatchFilter{
+						MatchColumn: "col1",
+						MatchWords:  [][]byte{[]byte("*")},
+						MatchType:   structs.MATCH_WORDS,
+					},
+				},
+			},
+		},
+	}
+	return query.ConvertASTNodeToSearchNode(astNode, 0)
+}
+
 func Test_GetFullResult_notTruncated(t *testing.T) {
 	qid := uint64(0)
-	_, err := query.StartQuery(qid, true, nil)
+	rQuery, err := query.StartQuery(qid, true, nil)
 	assert.NoError(t, err)
 
 	query.InitProgressForRRCCmd(3, qid)
@@ -44,9 +62,17 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 		},
 		qid: qid,
 	}
+	searchNode := getSampleSearchNode()
+
+	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
+	queryInfo, err := query.InitQueryInformation(searchNode, nil, nil, nil, 0, 0, qid, nil, 0, 0, false)
+	assert.NoError(t, err)
 
 	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0, false)
 	assert.NoError(t, err)
+	queryProcessor.queryInfo = queryInfo
+	queryProcessor.querySummary = querySummary
+	queryProcessor.startTime = rQuery.GetStartTime()
 
 	err = query.IncProgressForRRCCmd(0, 3, qid) // Dummy increment for units searched
 	assert.NoError(t, err)
@@ -63,7 +89,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 
 func Test_GetFullResult_truncated(t *testing.T) {
 	qid := uint64(0)
-	_, err := query.StartQuery(qid, true, nil)
+	rQuery, err := query.StartQuery(qid, true, nil)
 	assert.NoError(t, err)
 
 	totalRecords := utils.QUERY_EARLY_EXIT_LIMIT + 10
@@ -79,9 +105,17 @@ func Test_GetFullResult_truncated(t *testing.T) {
 			CVal:  i,
 		})
 	}
+	searchNode := getSampleSearchNode()
+
+	querySummary := summary.InitQuerySummary(summary.LOGS, qid)
+	queryInfo, err := query.InitQueryInformation(searchNode, nil, nil, nil, 0, 0, qid, nil, 0, 0, false)
+	assert.NoError(t, err)
 
 	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0, false)
 	assert.NoError(t, err)
+	queryProcessor.queryInfo = queryInfo
+	queryProcessor.querySummary = querySummary
+	queryProcessor.startTime = rQuery.GetStartTime()
 
 	err = query.IncProgressForRRCCmd(0, totalRecords-1, qid) // Dummy increment for units searched
 	assert.NoError(t, err)
@@ -110,7 +144,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false)
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 
@@ -150,7 +184,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false)
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 
