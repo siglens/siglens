@@ -49,7 +49,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, aggCols, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, aggCols, err)
@@ -800,7 +800,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 
 	measureColAndTS, aggColUsage, valuesUsage, listUsage := GetSegStatsMeasureCols(ops)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, measureColAndTS, err)

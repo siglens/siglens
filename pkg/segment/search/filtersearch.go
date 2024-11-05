@@ -37,7 +37,7 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 	queryType := query.GetQueryType()
 	searchCols := getAllColumnsNeededForSearch(query, searchReq.AllPossibleColumns)
 	sharedMultiReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, searchCols, searchReq.AllBlocksToSearch,
-		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid)
+		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid, nodeRes)
 
 	if err != nil {
 		// if we fail to read needed columns, we can convert it to a match none
