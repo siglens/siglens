@@ -1,5 +1,5 @@
 {
-    "queryText": "| gentimes start=-30 end=-20 increment=7s | stats count",
+    "queryText": "| gentimes start=12/01/2021:16:11:56 end=12/05/2021:12:00:01 increment=3m | stats count",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
@@ -8,7 +8,7 @@
         "qtype": "logs-query",
         "records": [
             {
-                "count(*)": 123429
+                "count(*)": 1837
             }
         ],
         "allColumns": [

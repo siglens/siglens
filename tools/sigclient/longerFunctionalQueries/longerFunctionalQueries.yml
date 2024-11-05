@@ -13,6 +13,7 @@ stats_groupby_with_eval.json
 9stats_groupby_2col.json
 inputlookup.json 
 inputlookup_2.json
+inputlookup_3.json
 head.json
 head2.json
 fillnull_with_eval.json
@@ -21,6 +22,11 @@ eval_groupby_2col_2stats.json
 eval_fields_timechart.json
 multi_value.json
 stats_eval.json
+gentimes.json
+gentimes_2.json
+rex_stats_groupby_eval_stats.json
+# eval_stats_sort_stats_groupby_where.json // timeout
+eval_stats_sort.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
