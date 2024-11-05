@@ -88,7 +88,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 			SearchQueries: []*SearchQuery{baseQuery},
 		},
 	}
-	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0)
+	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0, false)
 	assert.NoError(t, err)
 	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)
@@ -256,7 +256,7 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 			SearchQueries: []*SearchQuery{rangeQuery},
 		},
 	}
-	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0)
+	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0, false)
 	assert.NoError(t, err)
 	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)

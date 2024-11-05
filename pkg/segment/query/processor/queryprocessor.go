@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type QueryType uint8
@@ -47,6 +48,9 @@ type QueryProcessor struct {
 	qid          uint64
 	scrollFrom   uint64
 	includeNulls bool
+	querySummary *summary.QuerySummary
+	queryInfo    *query.QueryInformation
+	startTime    time.Time
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -56,9 +60,8 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
 
-	startTime := time.Now()
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
 	if err != nil {
@@ -112,7 +115,16 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	if err != nil {
+		return nil, err
+	}
+
+	queryProcessor.startTime = startTime
+	queryProcessor.querySummary = querySummary
+	queryProcessor.queryInfo = queryInfo
+
+	return queryProcessor, nil
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
@@ -223,6 +235,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	var err error
 	totalRecords := 0
 
+	defer qp.logQuerySummary()
+
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -250,6 +264,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
+
+	qp.querySummary.UpdateQueryTotalTime(time.Since(qp.startTime), response.BucketCount)
 
 	canScrollMore, relation, _, err := qp.getStatusParams(uint64(totalRecords))
 	if err != nil {
@@ -279,6 +295,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	completeResp := &structs.PipeSearchCompleteResponse{
 		Qtype: qp.queryType.String(),
 	}
+
+	defer qp.logQuerySummary()
 
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
@@ -327,6 +345,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		completeResp.TotalMatched = result.Hits.TotalMatched
 	}
 
+	qp.querySummary.UpdateQueryTotalTime(time.Since(qp.startTime), completeResp.BucketCount)
+
 	canScrollMore, relation, progress, err := qp.getStatusParams(uint64(totalRecords))
 	if err != nil {
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
@@ -374,4 +394,10 @@ func (qp *QueryProcessor) getStatusParams(totalRecords uint64) (bool, string, st
 	}
 
 	return canScrollMore, relation, progress, nil
+}
+
+func (qp *QueryProcessor) logQuerySummary() {
+	qp.querySummary.LogSummaryAndEmitMetrics(qp.qid, qp.queryInfo.GetPqid(), qp.queryInfo.ContainsKibana(), qp.queryInfo.GetOrgId())
+
+	log.Infof("qid=%v, Finished execution in %+v", qp.qid, time.Since(qp.startTime))
 }

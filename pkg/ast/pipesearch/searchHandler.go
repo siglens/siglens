@@ -317,7 +317,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		rQuery, err := query.StartQuery(qid, false, nil)
+		_, err := query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
 				qid, err)
@@ -336,9 +336,6 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		}
 
 		query.SetQidAsFinishedForPipeRespQuery(qid)
-
-		startTime := rQuery.GetStartTime()
-		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(startTime))
 
 		query.DeleteQuery(qid)
 
