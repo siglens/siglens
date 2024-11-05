@@ -1,20 +1,21 @@
 {
-    "queryText": "| gentimes start=08/10/2022 end=08/11/2022 increment=5h",
+    "queryText": "| gentimes start=-30 end=-20 increment=7s | stats count",
     "expectedResult": {
-        "totalMatched": {},
+        "totalMatched": {
+            "value": 1,
+            "relation": "eq"
+        },
         "qtype": "logs-query",
-        "records": [],
+        "records": [
+            {
+                "count(*)": 123429
+            }
+        ],
         "allColumns": [
-            "endhuman",
-            "endtime",
-            "starthuman",
-            "starttime"
+            "count(*)"
         ],
         "columnsOrder": [
-            "endhuman",
-            "endtime",
-            "starthuman",
-            "starttime"
+            "count(*)"
         ]
     }
  }
