@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -934,17 +935,12 @@ func (iqr *IQR) ReverseRecords() error {
 		return nil
 	}
 
-	totalRecords := iqr.NumberOfRecords()
 	if iqr.mode == withRRCs {
-		for i := 0; i < totalRecords/2; i++ {
-			iqr.rrcs[i], iqr.rrcs[totalRecords-i-1] = iqr.rrcs[totalRecords-i-1], iqr.rrcs[i]
-		}
+		slices.Reverse(iqr.rrcs)
 	}
 
 	for _, values := range iqr.knownValues {
-		for i := 0; i < totalRecords/2; i++ {
-			values[i], values[totalRecords-i-1] = values[totalRecords-i-1], values[i]
-		}
+		slices.Reverse(values)
 	}
 
 	return nil

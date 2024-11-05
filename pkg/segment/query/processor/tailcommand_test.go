@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
+	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -135,6 +136,87 @@ func Test_TailCommand_Discard(t *testing.T) {
 	assert.Equal(t, expectedCol1, col1)
 
 	col2, err := iqr1.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, col2)
+}
+
+func Test_TailCommand_WithRRC(t *testing.T) {
+	tail := &tailProcessor{
+		options: &structs.TailExpr{
+			TailRows: 3,
+		},
+	}
+
+	rrcs := []*utils.RecordResultContainer{
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
+		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
+	}
+	mockReader := &record.MockRRCsReader{
+		RRCs: rrcs,
+		FieldToValues: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "d"},
+				{Dtype: utils.SS_DT_STRING, CVal: "e"},
+				{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			},
+			"col2": {
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+			},
+		},
+	}
+
+	iqr1 := iqr.NewIQRWithReader(0, mockReader)
+	iqr2 := iqr.NewIQRWithReader(0, mockReader)
+	iqr3 := iqr.NewIQRWithReader(0, mockReader)
+
+	err := iqr1.AppendRRCs(rrcs[:2], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	err = iqr2.AppendRRCs(rrcs[2:4], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	err = iqr3.AppendRRCs(rrcs[4:], map[uint16]string{1: "segKey1"})
+	assert.NoError(t, err)
+
+	_, err = tail.Process(iqr1)
+	assert.NoError(t, err)
+	_, err = tail.Process(iqr2)
+	assert.NoError(t, err)
+	_, err = tail.Process(iqr3)
+	assert.NoError(t, err)
+
+	result, err := tail.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	}
+
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+	}
+
+	col1, err := result.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, col1)
+
+	col2, err := result.ReadColumn("col2")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol2, col2)
 }
