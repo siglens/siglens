@@ -547,6 +547,37 @@ func Test_Sort_multipleColumns(t *testing.T) {
 	}, values)
 }
 
+func Test_ReverseRecords(t *testing.T) {
+	iqr := NewIQR(0)
+	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		},
+	})
+	assert.NoError(t, err)
+
+	err = iqr.ReverseRecords()
+	assert.NoError(t, err)
+
+	expected := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "f"},
+		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+	}
+
+	col1, err := iqr.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, col1)
+}
+
 func Test_MergeIQRs(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)
