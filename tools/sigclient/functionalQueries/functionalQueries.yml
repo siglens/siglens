@@ -57,8 +57,6 @@ search_timechart_no_groupby.json
 # stats_with_timestamp.json
 # rex_eval_timechart.json  // where "NOT" is not implemented 
 # stats_where_stats.json // LIKE operator not implemented
-# eval_timechart_sort.json  // issue with sort command
-# eval_stats_sort.json  // issue with multi-index
 # eval_append_timechart_streamstats_sort.json  // not implemented append command
 # bin_rex_eval_timechart.json  // issue with bin command parsing
 # rex_eval_bin_stats_groupby_eval_timechart.json // issue with bin and eval commands parsing
@@ -67,7 +65,7 @@ search_timechart_no_groupby.json
 # spath_stats_eval_stats_sort.json // spath not implemented
 # lookup_stats_sort.json // lookup not implemented
 # gentimes_makemv_bin_stats_eval_stats_eval_rex.json // subsearch not implemented
-# eval_stats_groupby_with_eval_eval_where.json  // a direct IN operator not implemented
+# eval_stats_groupby_with_eval_eval_where.json  // IN operator not implemented
 # search_spath_search_spath_search_timechart.json // search anywhere is not supported
 # search_eval_timechart_filldown.json  // filldown command not supported
 
