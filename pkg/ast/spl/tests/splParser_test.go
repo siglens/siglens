@@ -10667,14 +10667,13 @@ func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
 	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
 	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
 
-
 	expectedEarliestTime := time.Date(actualEarliestTime.Year(), actualEarliestTime.Month(),
 		actualEarliestTime.Day(), actualEarliestTime.Hour(), actualEarliestTime.Minute(), 0, 0, time.Local)
 
 	expectedLatestTime := time.Date(actualLatestTime.Year(), actualLatestTime.Month(),
 		actualLatestTime.Day(), actualLatestTime.Hour(), actualLatestTime.Minute(),
 		actualLatestTime.Second(), 0, time.Local)
-		
+
 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
