@@ -18,24 +18,59 @@
 package processor
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 )
 
 type tailProcessor struct {
 	options *structs.TailExpr
+	finalIqr    *iqr.IQR
+	eof bool
 }
 
 func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	if iqr != nil {
+		if p.finalIqr == nil {
+			p.finalIqr = iqr
+		} else {
+			err := p.finalIqr.Append(iqr)
+			if err != nil {
+				return nil, fmt.Errorf("tailProcessor.Process: failed to append iqr: %v", err)
+			}
+			if p.finalIqr.NumberOfRecords() > int(p.options.TailRows) {
+				extraRows := p.finalIqr.NumberOfRecords() - int(p.options.TailRows)
+				err = p.finalIqr.Discard(extraRows)
+				if err != nil {
+					return nil, fmt.Errorf("tailProcessor.Process: failed to discard extra %v rows: %v", extraRows, err)
+				}
+			}
+		}
+		return nil, nil
+	}
+
+	if p.eof {
+		return nil, io.EOF
+	}
+
+	p.eof = true
+
+	if p.finalIqr == nil {	
+		return nil, io.EOF
+	}
+
+	return p.finalIqr, nil
 }
 
 func (p *tailProcessor) Rewind() {
-	panic("not implemented")
+	p.eof = false
+	p.finalIqr = nil
 }
 
 func (p *tailProcessor) Cleanup() {
-	panic("not implemented")
+	// nothing to do
 }
 
 func (p *tailProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
