@@ -21,6 +21,8 @@ eval_groupby_2col_2stats.json
 eval_fields_timechart.json
 multi_value.json
 stats_eval.json
+eval_timechart_sort.json
+search_timechart_no_groupby.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -50,9 +52,8 @@ stats_eval.json
 
 ## Queries not working in generalized Unique spl queries
 # stats_with_timestamp.json
-# rex_eval_timechart.json
+# rex_eval_timechart.json  // where "NOT" is not implemented 
 # stats_where_stats.json
-# eval_timechart_sort.json  // issue with sort command
 # eval_stats_sort.json  // issue with multi-index
 # eval_append_timechart_streamstats_sort.json  // not implemented append command
 # bin_rex_eval_timechart.json  // issue with bin command parsing
@@ -67,16 +68,10 @@ stats_eval.json
 # eval_stats_groupby_with_eval_eval_where.json  // issue with stats command being only boolean
 # search_spath_search_spath_search_timechart.json // search anywhere is not supported
 # search_eval_timechart_filldown.json  // filldown command not supported
-# eval_fields_timechart.json // timechart is not giving the group by values in response.
 
 ## Inconsistent results
 # tail_stats.json
-# search_timechart_no_groupby.json
 # streamstats_without_sort.json
 
 ## Failing on unrotated data
 # mvexpand.json
-
-
-## Timing out
-# complex_search.json
