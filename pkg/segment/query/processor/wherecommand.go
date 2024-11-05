@@ -23,6 +23,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,8 +43,16 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	for _, field := range requiredFields {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
-			log.Errorf("where.Process: cannot get field values; field=%s; err=%v", field, err)
-			return nil, err
+			return nil, utils.TeeErrorf("where.Process: cannot get field values; field: %s; err: %v", field, err)
+		}
+		if values == nil {
+			// The field is not present, discard all the rows
+			// TODO: Fix evaluation for non existing fields
+			err := iqr.Discard(iqr.NumberOfRecords())
+			if err != nil {
+				return nil, utils.TeeErrorf("where.Process: Error while discarding rows due to col %v not found, err: %v", field, err)
+			}
+			return iqr, nil
 		}
 
 		valuesOfRequiredFields = append(valuesOfRequiredFields, values)

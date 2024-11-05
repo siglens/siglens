@@ -837,6 +837,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
+    $('body').css('cursor', 'default');
 }
 
 function processTimeoutUpdate(res) {

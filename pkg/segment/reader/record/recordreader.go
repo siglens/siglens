@@ -36,10 +36,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
+type RRCsReaderI interface {
+	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
+		qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error)
+	GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
+	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error)
+}
+
+type RRCsReader struct{}
+
+func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
 
-	allCols, err := GetColsForSegKey(segKey, vTable)
+	allCols, err := reader.GetColsForSegKey(segKey, vTable)
 	if err != nil {
 		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
 			qid, segKey, err)
@@ -51,7 +60,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 		if _, ignore := ignoredCols[cname]; ignore {
 			continue
 		}
-		columnValues, err := ReadColForRRCs(segKey, rrcs, cname, qid)
+		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
 				qid, cname, segKey, err)
@@ -64,7 +73,7 @@ func ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResult
 	return colToValues, nil
 }
 
-func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
+func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
@@ -80,7 +89,7 @@ func GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	return toputils.MapToSet(allCols), nil
 }
 
-func ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
+func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)

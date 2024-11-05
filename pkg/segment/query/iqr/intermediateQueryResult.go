@@ -51,6 +51,7 @@ type IQR struct {
 	mode iqrMode
 
 	// Used if and only if the mode is withRRCs.
+	reader           record.RRCsReaderI
 	rrcs             []*utils.RecordResultContainer
 	encodingToSegKey map[uint16]string
 
@@ -70,6 +71,7 @@ func NewIQR(qid uint64) *IQR {
 	return &IQR{
 		mode:             notSet,
 		qid:              qid,
+		reader:           &record.RRCsReader{},
 		rrcs:             make([]*utils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint16]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
@@ -79,6 +81,12 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 	}
+}
+
+func NewIQRWithReader(qid uint64, reader record.RRCsReaderI) *IQR {
+	iqr := NewIQR(qid)
+	iqr.reader = reader
+	return iqr
 }
 
 func (iqr *IQR) BlankCopy() *IQR {
@@ -258,12 +266,17 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		return nil, err
 	}
 
+	return iqr.readColumnInternal(cname)
+}
+
+// Since this is an internal function, don't validate() the IQR.
+func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error) {
 	if iqr.mode == notSet {
-		return nil, fmt.Errorf("IQR.ReadColumn: mode not set")
+		return nil, fmt.Errorf("IQR.readColumnInternal: mode not set")
 	}
 
 	if _, ok := iqr.deletedColumns[cname]; ok {
-		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
+		return nil, fmt.Errorf("IQR.readColumnInternal: column %s is deleted", cname)
 	}
 
 	if values, ok := iqr.knownValues[cname]; ok {
@@ -279,7 +292,7 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		// about this column.
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
+		return nil, fmt.Errorf("IQR.readColumnInternal: unexpected mode %v", iqr.mode)
 	}
 }
 
@@ -293,7 +306,7 @@ func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CVa
 		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
 	}
 
-	allColumns, err := iqr.GetColumns()
+	allColumns, err := iqr.getColumnsInternal()
 	if err != nil {
 		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
 	}
@@ -343,7 +356,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 
 		vTable := rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
+		colToValues, err := iqr.reader.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
 		if err != nil {
 			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
 				iqr.qid, segKey, err)
@@ -381,7 +394,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 
 // If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
-	allColumns, err := iqr.GetColumns()
+	allColumns, err := iqr.getColumnsInternal()
 	if err != nil {
 		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
 	}
@@ -405,7 +418,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
-		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
+		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
@@ -478,9 +491,24 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
+			var readValues []utils.CValueEnclosure
+			if iqr.mode == withRRCs {
+				readValues, err = iqr.readColumnInternal(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from iqr; err=%v", cname, err)
+					return err
+				}
+			}
+
 			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
-			for i := 0; i < numInitialRecords; i++ {
-				iqr.knownValues[cname][i] = *backfillCVal
+
+			if readValues == nil {
+				// This column is new.
+				for i := 0; i < numInitialRecords; i++ {
+					iqr.knownValues[cname][i] = *backfillCVal
+				}
+			} else {
+				copy(iqr.knownValues[cname], readValues)
 			}
 
 			copy(iqr.knownValues[cname][numInitialRecords:], values)
@@ -491,7 +519,20 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range iqr.knownValues {
 		if _, ok := other.knownValues[cname]; !ok {
-			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			var readValues []utils.CValueEnclosure
+			if other.mode == withRRCs {
+				readValues, err = other.readColumnInternal(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from other; err=%v", cname, err)
+					return err
+				}
+			}
+
+			if readValues == nil {
+				iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			} else {
+				iqr.knownValues[cname] = append(iqr.knownValues[cname], readValues...)
+			}
 		}
 	}
 
@@ -502,6 +543,9 @@ func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
 	// segKey -> virtual table name
 	segKeyVTableMap := make(map[string]string)
 	for _, rrc := range iqr.rrcs {
+		if rrc == nil {
+			continue
+		}
 		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
 			// This should never happen.
@@ -523,14 +567,20 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
 	}
 
+	return iqr.getColumnsInternal()
+}
+
+// Since this is an internal function, don't validate() the IQR.
+func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
 	allColumns := make(map[string]struct{})
 
 	for segkey, vTable := range segKeyVTableMap {
-		columns, err := record.GetColsForSegKey(segkey, vTable)
+		columns, err := iqr.reader.GetColsForSegKey(segkey, vTable)
 		if err != nil {
-			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
+			log.Errorf("qid=%v, IQR.getColumnsInternal: error getting columns for segKey %v: %v and Virtual Table name: %v",
+				iqr.qid, segkey, vTable, err)
 		}
 
 		for column := range columns {
@@ -618,6 +668,8 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, err
 	}
 
+	originalKnownColumns := toputils.GetKeysOfMap(iqr.knownValues)
+
 	for idx, iqrToCheck := range iqrs {
 		if iqrToCheck.NumberOfRecords() == 0 {
 			return iqr, idx, nil
@@ -640,10 +692,15 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqr.mode == withRRCs {
 			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
 		}
-		for cname, values := range record.iqr.knownValues {
-			// we should not validate cname in the destination iqr because caching
-			// will have populated the knownValue in the source IQR
-			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
+
+		for _, cname := range originalKnownColumns {
+			value, err := record.ReadColumn(cname)
+			if err != nil {
+				value.CVal = nil
+				value.Dtype = utils.SS_DT_BACKFILL
+			}
+
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], *value)
 		}
 
 		// Prepare for the next iteration.
@@ -672,6 +729,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 	result := NewIQR(iqrs[0].qid)
 	result.mode = iqrs[0].mode
+	result.reader = iqrs[0].reader
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
 		result.encodingToSegKey[encoding] = segKey
