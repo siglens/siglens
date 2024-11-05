@@ -421,6 +421,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        includeNulls: false, // Exclude null values
     };
 }
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
@@ -836,6 +837,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
+    $('body').css('cursor', 'default');
 }
 
 function processTimeoutUpdate(res) {

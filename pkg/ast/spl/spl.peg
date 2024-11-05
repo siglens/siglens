@@ -2279,6 +2279,7 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RexExpr: rexExpr,
     }
 
     return root, nil
@@ -2956,7 +2957,7 @@ StrToRemoveExpr <- COMMA strToRemove:String {
 
 // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Eval#Syntax
 // Returns the field as a string with no quotation marks.
-EvalFieldToRead <- [a-zA-Z_]+ !("(") {
+EvalFieldToRead <- [a-zA-Z][_a-zA-Z0-9]* !("(") {
     return string(c.text), nil
 }
 / "'" field:FieldName "'" {
@@ -4045,7 +4046,7 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var endEpoch int64 = 0
     var err error
@@ -4086,7 +4087,7 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var err error
 
@@ -5001,24 +5002,22 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
     return fieldList, nil
 }
 
-MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
-	limitVal := int64(0) // default value indicating no limit
-	var err error
-	if limit != nil {
-		limitVal, err = strconv.ParseInt(limit.(string), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing limit value: %v", err)
-		}
-	}
+MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
+    limit := toputils.NewUnsetOption[int64]()
+    if limitStr != nil {
+        value, err := strconv.ParseInt(limitStr.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Error parsing limit value: %v", err)
+        }
 
-	mvexpandExpr := &structs.MultiValueColLetRequest{
-		Command: "mvexpand",
-		ColName: field.(string),
-	}
+        limit.Set(value)
+    }
 
-	if limitVal != 0 {
-		mvexpandExpr.Limit = limitVal
-	}
+    mvexpandExpr := &structs.MultiValueColLetRequest{
+        Command: "mvexpand",
+        ColName: field.(string),
+        Limit: limit,
+    }
 
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.OutputTransformType,
@@ -5027,6 +5026,7 @@ MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
                 MultiValueColRequest: mvexpandExpr,
             },
         },
+        MVExpandExpr: mvexpandExpr,
     }
     return queryAgg, nil
 }

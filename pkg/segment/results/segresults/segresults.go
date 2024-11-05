@@ -221,6 +221,12 @@ func (sr *SearchResults) AddSSTMap(sstMap map[string]*structs.SegStats, skEnc ui
 	sr.updateLock.Unlock()
 }
 
+func (sr *SearchResults) AddResultCount(count uint64) {
+	sr.updateLock.Lock()
+	sr.resultCount += count
+	sr.updateLock.Unlock()
+}
+
 // deletes segKeyEnc from the map of allSSTS and any errors associated with it
 func (sr *SearchResults) GetEncodedSegStats(segKeyEnc uint16) ([]byte, error) {
 	sr.updateLock.Lock()

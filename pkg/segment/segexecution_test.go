@@ -553,7 +553,7 @@ func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffe
 	result := ExecuteQuery(simpleNode, simpleMeasure, 48, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 1)
@@ -587,7 +587,7 @@ func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffe
 	result = ExecuteQuery(simpleNode, simpleMeasure, 49, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 2)
@@ -872,7 +872,7 @@ func nestedAggsNumericColRequestTest(t *testing.T, numBuffers int, numEntriesFor
 	result := ExecuteQuery(simpleNode, simpleMeasure, 51, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 2)
@@ -1800,7 +1800,7 @@ func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 
 	if measureCol == "*" && measureFunc != Count {
 		assert.Len(t, result.AllRecords, 0)
-		assert.Zero(t, result.TotalResults.TotalCount)
+		assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 		assert.False(t, result.TotalResults.EarlyExit)
 	}
 }
@@ -1853,7 +1853,7 @@ func groupByAggQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	} else if measureCol == "*" && measureFunc != Count {
 		assert.NotZero(t, len(result.ErrList))
 		assert.Len(t, result.AllRecords, 0)
-		assert.Zero(t, result.TotalResults.TotalCount)
+		assert.Equal(t, 0, int(result.TotalResults.TotalCount))
 		assert.False(t, result.TotalResults.EarlyExit)
 	}
 

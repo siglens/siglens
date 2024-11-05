@@ -74,6 +74,7 @@ func Test_ExtractConfigData(t *testing.T) {
  PQSEnabled: bad string
  analyticsEnabled: false
  agileAggsEnabled: false
+ isNewQueryPipelineEnabled: false
  safeMode: true
  tracing:
    endpoint: "http://localhost:4317"
@@ -125,6 +126,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				CompressStatic:              "false",
 				CompressStaticConverted:     false,
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
+				UseNewQueryPipeline:         "false",
+				UseNewPipelineConverted:     false,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -212,6 +215,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				CompressStatic:              "true",
 				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+				UseNewQueryPipeline:         "true",
+				UseNewPipelineConverted:     true,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -255,6 +260,8 @@ invalid input, we should error out
 				DualCaseCheckConverted:     true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
+				UseNewQueryPipeline:        "true",
+				UseNewPipelineConverted:    true,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -301,6 +308,8 @@ a: b
 				CompressStatic:              "true",
 				CompressStaticConverted:     true,
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+				UseNewQueryPipeline:         "true",
+				UseNewPipelineConverted:     true,
 			},
 		},
 	}

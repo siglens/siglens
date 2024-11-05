@@ -247,6 +247,10 @@ func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 		log.Errorf("qid=%v, searcher.fetchGroupByResults: failed to initialize search results: %v", s.qid, err)
 		return nil, err
 	}
+	err = query.AssociateSearchResult(qid, searchResults)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to associate search results: %v", s.qid, err)
+	}
 
 	var nodeResult *structs.NodeResult
 

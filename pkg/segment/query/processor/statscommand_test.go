@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"testing"
 
@@ -92,7 +91,7 @@ func getGroupByProcessor() *statsProcessor {
 
 func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewPipelineConverted = true
 
 	knownValues := getTestData()
 	processor := getGroupByProcessor()
@@ -184,7 +183,7 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 
 func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
-	config.GetRunningConfig().IsNewQueryPipelineEnabled = true
+	config.GetRunningConfig().UseNewPipelineConverted = true
 
 	knownValues := getTestData()
 	processor := getGroupByProcessor()
@@ -215,8 +214,6 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	actualKnownValues, err := resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
-
-	fmt.Println(actualKnownValues)
 
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
@@ -351,7 +348,6 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	actualKnownValues, err := resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
-	fmt.Println(actualKnownValues)
 
 	expectedCountRes := []utils.CValueEnclosure{
 		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},

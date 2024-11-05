@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type QueryType uint8
@@ -43,9 +44,13 @@ const (
 type QueryProcessor struct {
 	queryType structs.QueryType
 	DataProcessor
-	chain      []*DataProcessor // This shouldn't be modified after initialization.
-	qid        uint64
-	scrollFrom uint64
+	chain        []*DataProcessor // This shouldn't be modified after initialization.
+	qid          uint64
+	scrollFrom   uint64
+	includeNulls bool
+	querySummary *summary.QuerySummary
+	queryInfo    *query.QueryInformation
+	startTime    time.Time
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -55,9 +60,8 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
 
-	startTime := time.Now()
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
 	if err != nil {
@@ -111,11 +115,20 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	return newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom)
+	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	if err != nil {
+		return nil, err
+	}
+
+	queryProcessor.startTime = startTime
+	queryProcessor.querySummary = querySummary
+	queryProcessor.queryInfo = queryInfo
+
+	return queryProcessor, nil
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
-	chain []*DataProcessor, qid uint64, scrollFrom int) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -146,6 +159,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		chain:         chain,
 		qid:           qid,
 		scrollFrom:    uint64(scrollFrom),
+		includeNulls:  includeNulls,
 	}, nil
 }
 
@@ -174,6 +188,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewHeadDP(queryAgg.HeadExpr)
 	} else if queryAgg.MakeMVExpr != nil {
 		return NewMakemvDP(queryAgg.MakeMVExpr)
+	} else if queryAgg.MVExpandExpr != nil {
+		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.RareExpr != nil {
 		return NewRareDP(queryAgg.RareExpr)
 	} else if queryAgg.RegexExpr != nil {
@@ -219,6 +235,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	var err error
 	totalRecords := 0
 
+	defer qp.logQuerySummary()
+
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -242,10 +260,12 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		}
 	}
 
-	response, err := finalIQR.AsResult(qp.queryType)
+	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls)
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
+
+	qp.querySummary.UpdateQueryTotalTime(time.Since(qp.startTime), response.BucketCount)
 
 	canScrollMore, relation, _, err := qp.getStatusParams(uint64(totalRecords))
 	if err != nil {
@@ -276,6 +296,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		Qtype: qp.queryType.String(),
 	}
 
+	defer qp.logQuerySummary()
+
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
@@ -299,7 +321,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
-			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
@@ -312,7 +334,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom)
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
@@ -320,14 +342,19 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		completeResp.MeasureFunctions = result.MeasureFunctions
 		completeResp.GroupByCols = result.GroupByCols
 		completeResp.BucketCount = result.BucketCount
+		completeResp.TotalMatched = result.Hits.TotalMatched
 	}
+
+	qp.querySummary.UpdateQueryTotalTime(time.Since(qp.startTime), completeResp.BucketCount)
 
 	canScrollMore, relation, progress, err := qp.getStatusParams(uint64(totalRecords))
 	if err != nil {
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
 	}
 
-	completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
+	if qp.queryType == structs.RRCCmd {
+		completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
+	}
 	completeResp.State = query.COMPLETE.String()
 	completeResp.TotalEventsSearched = humanize.Comma(int64(progress.TotalRecords))
 	completeResp.TotalRRCCount = progress.RecordsSent
@@ -367,4 +394,10 @@ func (qp *QueryProcessor) getStatusParams(totalRecords uint64) (bool, string, st
 	}
 
 	return canScrollMore, relation, progress, nil
+}
+
+func (qp *QueryProcessor) logQuerySummary() {
+	qp.querySummary.LogSummaryAndEmitMetrics(qp.qid, qp.queryInfo.GetPqid(), qp.queryInfo.ContainsKibana(), qp.queryInfo.GetOrgId())
+
+	log.Infof("qid=%v, Finished execution in %+v", qp.qid, time.Since(qp.startTime))
 }

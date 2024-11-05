@@ -51,6 +51,7 @@ type IQR struct {
 	mode iqrMode
 
 	// Used if and only if the mode is withRRCs.
+	reader           record.RRCsReaderI
 	rrcs             []*utils.RecordResultContainer
 	encodingToSegKey map[uint16]string
 
@@ -70,6 +71,7 @@ func NewIQR(qid uint64) *IQR {
 	return &IQR{
 		mode:             notSet,
 		qid:              qid,
+		reader:           &record.RRCsReader{},
 		rrcs:             make([]*utils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint16]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
@@ -79,6 +81,16 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 	}
+}
+
+func NewIQRWithReader(qid uint64, reader record.RRCsReaderI) *IQR {
+	iqr := NewIQR(qid)
+	iqr.reader = reader
+	return iqr
+}
+
+func (iqr *IQR) BlankCopy() *IQR {
+	return NewIQR(iqr.qid)
 }
 
 func (iqr *IQR) GetQID() uint64 {
@@ -247,18 +259,24 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	}
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
 		return nil, err
 	}
 
+	return iqr.readColumnInternal(cname)
+}
+
+// Since this is an internal function, don't validate() the IQR.
+func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error) {
 	if iqr.mode == notSet {
-		return nil, fmt.Errorf("IQR.ReadColumn: mode not set")
+		return nil, fmt.Errorf("IQR.readColumnInternal: mode not set")
 	}
 
 	if _, ok := iqr.deletedColumns[cname]; ok {
-		return nil, fmt.Errorf("IQR.ReadColumn: column %s is deleted", cname)
+		return nil, fmt.Errorf("IQR.readColumnInternal: column %s is deleted", cname)
 	}
 
 	if values, ok := iqr.knownValues[cname]; ok {
@@ -272,9 +290,9 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 		// We don't have RRCs, so we can't read the column. Since we got here
 		// and didn't already return results from knownValues, we don't know
 		// about this column.
-		return nil, toputils.TeeErrorf("IQR.ReadColumn: invalid column %v", cname)
+		return nil, nil
 	default:
-		return nil, fmt.Errorf("IQR.ReadColumn: unexpected mode %v", iqr.mode)
+		return nil, fmt.Errorf("IQR.readColumnInternal: unexpected mode %v", iqr.mode)
 	}
 }
 
@@ -288,7 +306,7 @@ func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CVa
 		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
 	}
 
-	allColumns, err := iqr.GetColumns()
+	allColumns, err := iqr.getColumnsInternal()
 	if err != nil {
 		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
 	}
@@ -338,7 +356,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		}
 
 		vTable := rrcs[0].VirtualTableName
-		colToValues, err := record.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
+		colToValues, err := iqr.reader.ReadAllColsForRRCs(segKey, vTable, rrcs, iqr.qid, iqr.deletedColumns)
 		if err != nil {
 			log.Errorf("qid=%v, IQR.readAllColumnsWithRRCs: error reading all columns for segKey %v; err=%v",
 				iqr.qid, segKey, err)
@@ -374,7 +392,17 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 	return results, nil
 }
 
+// If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
+	allColumns, err := iqr.getColumnsInternal()
+	if err != nil {
+		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
+	}
+
+	if _, ok := allColumns[cname]; !ok {
+		return nil, nil
+	}
+
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.SegKeyInfo.SegKeyEnc
@@ -390,7 +418,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
 		}
 
-		values, err := record.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
+		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
@@ -463,9 +491,24 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
+			var readValues []utils.CValueEnclosure
+			if iqr.mode == withRRCs {
+				readValues, err = iqr.readColumnInternal(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from iqr; err=%v", cname, err)
+					return err
+				}
+			}
+
 			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
-			for i := 0; i < numInitialRecords; i++ {
-				iqr.knownValues[cname][i] = *backfillCVal
+
+			if readValues == nil {
+				// This column is new.
+				for i := 0; i < numInitialRecords; i++ {
+					iqr.knownValues[cname][i] = *backfillCVal
+				}
+			} else {
+				copy(iqr.knownValues[cname], readValues)
 			}
 
 			copy(iqr.knownValues[cname][numInitialRecords:], values)
@@ -476,7 +519,20 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range iqr.knownValues {
 		if _, ok := other.knownValues[cname]; !ok {
-			iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			var readValues []utils.CValueEnclosure
+			if other.mode == withRRCs {
+				readValues, err = other.readColumnInternal(cname)
+				if err != nil {
+					log.Errorf("IQR.Append: error reading column %v from other; err=%v", cname, err)
+					return err
+				}
+			}
+
+			if readValues == nil {
+				iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+			} else {
+				iqr.knownValues[cname] = append(iqr.knownValues[cname], readValues...)
+			}
 		}
 	}
 
@@ -487,6 +543,9 @@ func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
 	// segKey -> virtual table name
 	segKeyVTableMap := make(map[string]string)
 	for _, rrc := range iqr.rrcs {
+		if rrc == nil {
+			continue
+		}
 		segKey, ok := iqr.encodingToSegKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
 			// This should never happen.
@@ -508,14 +567,20 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
 	}
 
+	return iqr.getColumnsInternal()
+}
+
+// Since this is an internal function, don't validate() the IQR.
+func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
 	allColumns := make(map[string]struct{})
 
 	for segkey, vTable := range segKeyVTableMap {
-		columns, err := record.GetColsForSegKey(segkey, vTable)
+		columns, err := iqr.reader.GetColsForSegKey(segkey, vTable)
 		if err != nil {
-			log.Errorf("qid=%v, IQR.GetColumns: error getting columns for segKey %v: %v and Virtual Table name: %v", iqr.qid, segkey, vTable, err)
+			log.Errorf("qid=%v, IQR.getColumnsInternal: error getting columns for segKey %v: %v and Virtual Table name: %v",
+				iqr.qid, segkey, vTable, err)
 		}
 
 		for column := range columns {
@@ -603,6 +668,8 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, err
 	}
 
+	originalKnownColumns := toputils.GetKeysOfMap(iqr.knownValues)
+
 	for idx, iqrToCheck := range iqrs {
 		if iqrToCheck.NumberOfRecords() == 0 {
 			return iqr, idx, nil
@@ -625,10 +692,15 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqr.mode == withRRCs {
 			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
 		}
-		for cname, values := range record.iqr.knownValues {
-			// we should not validate cname in the destination iqr because caching
-			// will have populated the knownValue in the source IQR
-			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
+
+		for _, cname := range originalKnownColumns {
+			value, err := record.ReadColumn(cname)
+			if err != nil {
+				value.CVal = nil
+				value.Dtype = utils.SS_DT_BACKFILL
+			}
+
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], *value)
 		}
 
 		// Prepare for the next iteration.
@@ -657,6 +729,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 	result := NewIQR(iqrs[0].qid)
 	result.mode = iqrs[0].mode
+	result.reader = iqrs[0].reader
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
 		result.encodingToSegKey[encoding] = segKey
@@ -936,7 +1009,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -964,6 +1037,9 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 	for i, record := range cValRecords {
 		recordsAsAny[i] = make(map[string]interface{})
 		for key, value := range record {
+			if !includeNulls && value.IsNull() {
+				continue
+			}
 			recordsAsAny[i][key] = value.CVal
 		}
 	}
@@ -988,6 +1064,8 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 			ColumnsOrder:       iqr.GetColumnsOrder(allCNames),
 		}
 	case structs.GroupByCmd, structs.SegmentStatsCmd:
+		queryCount := query.GetQueryCountInfoForQid(iqr.qid)
+
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalStatsResults()
 		if err != nil {
 			return nil, toputils.TeeErrorf("qid=%v, IQR.AsResult: error getting final result for GroupBy: %v", iqr.qid, err)
@@ -995,7 +1073,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType) (*structs.PipeSearchResponseOu
 
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
-				TotalMatched: 0, // TODO: get the total matched records
+				TotalMatched: query.ConvertQueryCountToTotalResponse(queryCount),
 				Hits:         nil,
 			},
 			AllPossibleColumns: allCNames,
@@ -1085,14 +1163,11 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: knownValues is empty")
 	}
 
-	if len(iqr.measureColumns) == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: measureColumns is empty")
-	}
-
+	bucketCount := 0
 	// The bucket count is the number of rows in the final result. So we can use the length of any column.
-	bucketCount := len(knownValues[iqr.measureColumns[0]])
-	if bucketCount == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: bucketCount is 0")
+	for _, values := range iqr.knownValues {
+		bucketCount = len(values)
+		break
 	}
 
 	bucketHolderArr := make([]*structs.BucketHolder, bucketCount)
@@ -1169,9 +1244,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
-	resp, err := iqr.AsResult(qType)
+	resp, err := iqr.AsResult(qType, includeNulls)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting result: %v", err)
 	}
@@ -1194,6 +1269,7 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64) (*structs
 		wsResponse.MeasureFunctions = resp.MeasureFunctions
 		wsResponse.GroupByCols = resp.GroupByCols
 		wsResponse.BucketCount = resp.BucketCount
+		wsResponse.Hits = resp.Hits
 	default:
 		return nil, fmt.Errorf("IQR.AsWSResult: unexpected query type %v", qType)
 	}

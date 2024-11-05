@@ -298,7 +298,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	defer segread.ReturnTimeBuffers(allTimestamps)
 
 	sharedReader, err := segread.InitSharedMultiColumnReaders(req.SegmentKey, req.AllPossibleColumns, req.AllBlocksToSearch,
-		req.SearchMetadata.BlockSummaries, int(fileParallelism), req.ConsistentCValLenMap, qid)
+		req.SearchMetadata.BlockSummaries, int(fileParallelism), req.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%v, RawSearchPQMResults: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			qid, req.SegmentKey, req.AllPossibleColumns, err)
@@ -788,6 +788,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	segmentSearchRecords.Close()
 	queryMetrics.SetNumRecordsMatched(finalMatched)
 	queryMetrics.SetNumRecordsUnmatched(finalUnmatched)
+	allSearchResults.AddResultCount(finalMatched)
 
 	timeElapsed := time.Since(sTime)
 	qs.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)

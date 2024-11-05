@@ -2,34 +2,34 @@
     "queryText": "city=Boston | eval temp_value = http_status%2 | stats count, sum(latitude) BY gender, temp_value",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
+             "value": 4,
              "relation": "eq"
          },
          "qtype": "logs-query",
          "uniqueKeyCols": ["gender", "temp_value"],
          "records": [
             {
-                "count(*)": 70,
+                "count(*)": 17136,
                 "gender": "female",
-                "sum(latitude)": -369.776968,
+                "sum(latitude)": 3301.980434000057,
                 "temp_value": 1
             },
             {
-                "count(*)": 417,
+                "count(*)": 84948,
+                "gender": "male",
+                "sum(latitude)": -5650.098439000034,
+                "temp_value": 0
+            },
+            {
+                "count(*)": 85404,
                 "gender": "female",
-                "sum(latitude)": 578.5066920000003,
+                "sum(latitude)": -6152.309617000125,
                 "temp_value": 0
             },
             {
-                "count(*)": 407,
+                "count(*)": 17106,
                 "gender": "male",
-                "sum(latitude)": 1747.6275679999999,
-                "temp_value": 0
-            },
-            {
-                "count(*)": 90,
-                "gender": "male",
-                "sum(latitude)": 848.4182549999999,
+                "sum(latitude)": 19979.46791800002,
                 "temp_value": 1
             }
         ],

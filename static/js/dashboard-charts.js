@@ -257,7 +257,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
                 let xAxisValue = hit.GroupByValues[0];
                 let yAxisValue;
                 let measureVal = hit.MeasureVal;
-                yAxisValue = measureVal[columns[1]];
+                yAxisValue = Object.values(measureVal)[0];
 
                 if (xAxisValue === null || xAxisValue === undefined || xAxisValue === '') {
                     xAxisValue = 'NULL'; // or "Unknown", "N/A", etc.
@@ -407,7 +407,7 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
         if (dataType != null && dataType != undefined && dataType != '') {
             var bigNum = [];
             let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
-            let number = parseFloat(value.replace(/,/g, ''));
+            let number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
             let dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
             if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
                 dataTypeAbbrev = dataTypeAbbrev.substring(1);
