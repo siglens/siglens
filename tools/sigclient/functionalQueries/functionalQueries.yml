@@ -27,6 +27,7 @@ mvexpand.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json
 eval_stats_sort.json
+stats_eval.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -44,7 +45,6 @@ eval_stats_sort.json
 
 
 ## Queries not working for multi-index
-# stats_eval.json
 # transaction.json
 
 ## Queries that have different Websocket and Http client results
