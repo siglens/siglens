@@ -126,7 +126,7 @@ var functionalTestCmd = &cobra.Command{
 		indexName := ""
 		numFixedCols := 100
 		maxVariableCols := 20
-		sleepDuration := 1 * time.Second
+		sleepDuration := 15 * time.Second
 
 		if longer {
 			totalEvents = 20_000_000
