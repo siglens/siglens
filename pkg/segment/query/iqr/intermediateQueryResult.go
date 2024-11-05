@@ -657,6 +657,8 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, err
 	}
 
+	originalKnownColumns := toputils.GetKeysOfMap(iqr.knownValues)
+
 	for idx, iqrToCheck := range iqrs {
 		if iqrToCheck.NumberOfRecords() == 0 {
 			return iqr, idx, nil
@@ -679,10 +681,15 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		if iqr.mode == withRRCs {
 			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
 		}
-		for cname, values := range record.iqr.knownValues {
-			// we should not validate cname in the destination iqr because caching
-			// will have populated the knownValue in the source IQR
-			iqr.knownValues[cname] = append(iqr.knownValues[cname], values[record.index])
+
+		for _, cname := range originalKnownColumns {
+			value, err := record.ReadColumn(cname)
+			if err != nil {
+				value.CVal = nil
+				value.Dtype = utils.SS_DT_BACKFILL
+			}
+
+			iqr.knownValues[cname] = append(iqr.knownValues[cname], *value)
 		}
 
 		// Prepare for the next iteration.
