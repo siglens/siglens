@@ -83,6 +83,12 @@ func NewIQR(qid uint64) *IQR {
 	}
 }
 
+func NewIQRWithReader(qid uint64, reader record.RRCsReaderI) *IQR {
+	iqr := NewIQR(qid)
+	iqr.reader = reader
+	return iqr
+}
+
 func (iqr *IQR) BlankCopy() *IQR {
 	return NewIQR(iqr.qid)
 }
@@ -705,6 +711,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 	result := NewIQR(iqrs[0].qid)
 	result.mode = iqrs[0].mode
+	result.reader = iqrs[0].reader
 
 	for encoding, segKey := range iqrs[0].encodingToSegKey {
 		result.encodingToSegKey[encoding] = segKey
