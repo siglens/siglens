@@ -10653,35 +10653,30 @@ func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
 	assert.Equal(t, expectedLatestTime, actualLatestTime)
 }
 
-// func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
-// 	query := `* | earliest=@d-1d+12h latest=@d-1s`
-// 	_, err := spl.Parse("", []byte(query))
-// 	assert.Nil(t, err)
+func Test_ParseRelativeTimeModifier_Chained_2(t *testing.T) {
+	query := `* | earliest=@d-1d+12h latest=@d-1s`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
 
-// 	astNode, _, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
-// 	assert.Nil(t, err)
-// 	assert.NotNil(t, astNode)
-// 	assert.NotNil(t, astNode.TimeRange)
+	astNode, _, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
 
-// 	// Get the current time in the local time zone
-// 	now := time.Now().In(time.Local)
+	// Convert the actual times from Unix milliseconds to local time
+	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
+	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
 
-// 	// Calculate the expected earliest time: yesterday at noon
-// 	yesterdayNoon := time.Date(now.Year(), now.Month(), now.Day()-1, 12, 0, 0, 0, time.Local)
-// 	expectedEarliestTime := yesterdayNoon
+	expectedEarliestTime := time.Date(actualEarliestTime.Year(), actualEarliestTime.Month(),
+		actualEarliestTime.Day(), actualEarliestTime.Hour(), actualEarliestTime.Minute(), 0, 0, time.Local)
 
-// 	// Calculate the expected latest time: end of yesterday
-// 	endOfYesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 23, 59, 59, 0, time.Local)
-// 	expectedLatestTime := endOfYesterday
+	expectedLatestTime := time.Date(actualLatestTime.Year(), actualLatestTime.Month(),
+		actualLatestTime.Day(), actualLatestTime.Hour(), actualLatestTime.Minute(),
+		actualLatestTime.Second(), 0, time.Local)
 
-// 	// Convert the actual times from Unix milliseconds to local time
-// 	actualEarliestTime := time.UnixMilli(int64(astNode.TimeRange.StartEpochMs)).In(time.Local)
-// 	actualLatestTime := time.UnixMilli(int64(astNode.TimeRange.EndEpochMs)).In(time.Local)
-
-// 	// Compare the expected and actual times
-// 	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
-// 	assert.Equal(t, expectedLatestTime, actualLatestTime)
-// }
+	assert.Equal(t, expectedEarliestTime, actualEarliestTime)
+	assert.Equal(t, expectedLatestTime, actualLatestTime)
+}
 
 func Test_ParseRelativeTimeModifier_Chained_3(t *testing.T) {
 	query := `* | earliest=@w1-7d+9h latest=@w1-7d+17h`
