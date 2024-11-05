@@ -494,15 +494,15 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(`.panelDisplay .big-number-display-container`).hide();
         }
 
-        let columnOrder = [];
+        let columnsOrder = [];
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
+            columnsOrder = res.columnsOrder;
         } else {
             if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
+                columnsOrder = _.uniq(_.concat(res.groupByCols));
             }
             if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+                columnsOrder = _.uniq(_.concat(columnsOrder, res.measureFunctions));
             }
         }
         if (res.errors) {
@@ -523,8 +523,8 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 panelProcessEmptyQueryResults('', panelId);
             } else {
                 // for number, bar and pie charts
-                if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
-                panelChart = renderBarChart(columnOrder, res, panelId, chartType, dataType, panelIndex);
+                if (panelId === -1) renderPanelAggsGrid(columnsOrder, res, panelId);
+                panelChart = renderBarChart(columnsOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;
