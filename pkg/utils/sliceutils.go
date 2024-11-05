@@ -105,6 +105,13 @@ func CompareStringSlices(a []string, b []string) bool {
 	return true
 }
 
+func ReverseSlice[V any](slice []V) {
+	for i := 0; i < len(slice)/2; i++ {
+		j := len(slice) - i - 1
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+}
+
 func ConvertSliceToMap[K comparable, V any](slice []V, keyFunc func(V) K) map[K][]V {
 	result := make(map[K][]V)
 	for _, v := range slice {
