@@ -6,9 +6,6 @@
         "relation": "gte"
       },
       "qtype": "logs-query",
-      "uniqueKeyCols": [
-          "ident"
-      ],
       "records": [
         {
             "abs_sum": 16.024489,
