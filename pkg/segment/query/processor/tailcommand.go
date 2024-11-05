@@ -26,9 +26,9 @@ import (
 )
 
 type tailProcessor struct {
-	options *structs.TailExpr
-	finalIqr    *iqr.IQR
-	eof bool
+	options  *structs.TailExpr
+	finalIqr *iqr.IQR
+	eof      bool
 }
 
 func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -40,12 +40,12 @@ func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			if err != nil {
 				return nil, fmt.Errorf("tailProcessor.Process: failed to append iqr: %v", err)
 			}
-			if p.finalIqr.NumberOfRecords() > int(p.options.TailRows) {
-				extraRows := p.finalIqr.NumberOfRecords() - int(p.options.TailRows)
-				err = p.finalIqr.Discard(extraRows)
-				if err != nil {
-					return nil, fmt.Errorf("tailProcessor.Process: failed to discard extra %v rows: %v", extraRows, err)
-				}
+		}
+		if p.finalIqr.NumberOfRecords() > int(p.options.TailRows) {
+			extraRows := p.finalIqr.NumberOfRecords() - int(p.options.TailRows)
+			err := p.finalIqr.Discard(extraRows)
+			if err != nil {
+				return nil, fmt.Errorf("tailProcessor.Process: failed to discard extra %v rows: %v", extraRows, err)
 			}
 		}
 		return nil, nil
@@ -57,16 +57,20 @@ func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	p.eof = true
 
-	if p.finalIqr == nil {	
+	if p.finalIqr == nil {
 		return nil, io.EOF
 	}
 
-	return p.finalIqr, nil
+	err := p.finalIqr.ReverseRecords()
+	if err != nil {
+		return nil, fmt.Errorf("tailProcessor.Process: failed to reverse records: %v", err)
+	}
+
+	return p.finalIqr, io.EOF
 }
 
 func (p *tailProcessor) Rewind() {
-	p.eof = false
-	p.finalIqr = nil
+	// nothing to do
 }
 
 func (p *tailProcessor) Cleanup() {
@@ -74,5 +78,8 @@ func (p *tailProcessor) Cleanup() {
 }
 
 func (p *tailProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.eof {
+		return p.finalIqr, true
+	}
 	return nil, false
 }
