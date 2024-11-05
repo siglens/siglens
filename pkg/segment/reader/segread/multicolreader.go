@@ -248,7 +248,7 @@ func (scr *SharedMultiColReaders) Close() {
 	fileutils.GLOBAL_FD_LIMITER.Release(scr.numOpenFDs)
 }
 
-func (scr *SharedMultiColReaders) GetReaderColumnsErrorsMap() map[string]error {
+func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
 	return scr.columnErrorMap
 }
 

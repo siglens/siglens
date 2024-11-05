@@ -177,9 +177,8 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 	defer sharedReader.Close()
 
-	colErrorMap := sharedReader.GetReaderColumnsErrorsMap()
+	colErrorMap := sharedReader.GetColumnsErrorsMap()
 	if len(colErrorMap) > 0 {
-		// sharedReader.LogReaderErrorsForColumns(qid)
 		return nil, colErrorMap[cname]
 	}
 
