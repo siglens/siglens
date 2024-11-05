@@ -932,12 +932,6 @@ var skipIndexes = map[int]bool{
 	24: true, // SQL query order by. NO RESULT
 
 	// NOT IMPLEMENTED
-	// TAIL
-	// 192: true,
-	// 193: true,
-	// 194: true,
-	// 195: true,
-	// 213: true,
 	// TOP/RARE
 	158: true, // rare
 	159: true, // top
