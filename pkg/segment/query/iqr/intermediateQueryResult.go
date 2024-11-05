@@ -269,6 +269,7 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	return iqr.readColumnInternal(cname)
 }
 
+// Since this is an internal function, don't validate() the IQR.
 func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error) {
 	if iqr.mode == notSet {
 		return nil, fmt.Errorf("IQR.readColumnInternal: mode not set")
@@ -569,6 +570,7 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 	return iqr.getColumnsInternal()
 }
 
+// Since this is an internal function, don't validate() the IQR.
 func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
