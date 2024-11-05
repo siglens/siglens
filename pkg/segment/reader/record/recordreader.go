@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -161,9 +162,15 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		}
 	}
 
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		// This should not happen, unless qid is deleted.
+		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get or create query search node result; err=%v", qid, err)
+		nodeRes = &structs.NodeResult{}
+	}
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: true},
-		blockMetadata, blockSummary, 1, consistentCValLen, qid)
+		blockMetadata, blockSummary, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
 		return nil, err
@@ -347,7 +354,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	}
 
 	result := make(map[string]map[string]interface{})
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid)
+	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
 		log.Errorf("getRecordsFromSegmentHelper: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err
