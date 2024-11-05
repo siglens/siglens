@@ -33,19 +33,27 @@ type tailProcessor struct {
 
 func (p *tailProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr != nil {
-		if p.finalIqr == nil {
+		if p.finalIqr == nil || iqr.NumberOfRecords() >= int(p.options.TailRows) {
 			p.finalIqr = iqr
+			if iqr.NumberOfRecords() > int(p.options.TailRows) {
+				extraRows := iqr.NumberOfRecords() - int(p.options.TailRows)
+				err := iqr.Discard(extraRows)
+				if err != nil {
+					return nil, fmt.Errorf("tailProcessor.limitRows: failed to discard extra %v rows: %v", extraRows, err)
+				}
+			}
 		} else {
+			recordsToKeep := int(p.options.TailRows) - iqr.NumberOfRecords()
+			recordsToDiscard := p.finalIqr.NumberOfRecords() - recordsToKeep
+			if recordsToDiscard > 0 {
+				err := p.finalIqr.Discard(recordsToDiscard)
+				if err != nil {
+					return nil, fmt.Errorf("tailProcessor.Process: failed to discard %v rows: %v", recordsToDiscard, err)
+				}
+			}
 			err := p.finalIqr.Append(iqr)
 			if err != nil {
-				return nil, fmt.Errorf("tailProcessor.Process: failed to append iqr: %v", err)
-			}
-		}
-		if p.finalIqr.NumberOfRecords() > int(p.options.TailRows) {
-			extraRows := p.finalIqr.NumberOfRecords() - int(p.options.TailRows)
-			err := p.finalIqr.Discard(extraRows)
-			if err != nil {
-				return nil, fmt.Errorf("tailProcessor.Process: failed to discard extra %v rows: %v", extraRows, err)
+				return nil, fmt.Errorf("tailProcessor.Process: failed to append records: %v", err)
 			}
 		}
 		return nil, nil
