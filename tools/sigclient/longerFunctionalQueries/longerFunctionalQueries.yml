@@ -25,10 +25,11 @@ stats_eval.json
 gentimes.json
 gentimes_2.json
 rex_stats_groupby_eval_stats.json
-# eval_stats_sort_stats_groupby_where.json // timeout
+# eval_stats_sort_stats_groupby_where.json // Timing out
 eval_stats_sort.json
 eval_timechart_sort.json
 search_timechart_no_groupby.json
+mvexpand.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
@@ -78,6 +79,3 @@ search_timechart_no_groupby.json
 ## Inconsistent results
 # tail_stats.json
 # streamstats_without_sort.json
-
-## Failing on unrotated data
-# mvexpand.json
