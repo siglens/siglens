@@ -254,7 +254,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
 			if err != nil {
-				return nil, utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
+				return nil, utils.TeeErrorf("GetFullResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
 		}
@@ -280,13 +280,12 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 }
 
 // Usage:
-// 1. Make channels for updates and the final result.
+// 1. Make a channel to receive updates.
 // 2. Call GetStreamedResult as a goroutine.
-// 3. Read from the update channel and the final result channel.
+// 3. Poll the channel.
 //
 // Once the final result is sent, no more updates will be sent.
 func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
-
 	var finalIQR *iqr.IQR
 	var err error
 	totalRecords := 0
