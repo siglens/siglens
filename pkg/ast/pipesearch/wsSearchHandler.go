@@ -221,6 +221,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 			if !ok {
 				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got non ok, state: %v", qid, queryStateChanData.StateName)
 				query.LogGlobalSearchErrors(qid)
+				query.DeleteQuery(qid)
 				return
 			}
 			switch queryStateChanData.StateName {
