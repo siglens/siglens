@@ -252,16 +252,28 @@ func GetInMemorySize() uint64 {
 	defer allSegStoresLock.RUnlock()
 
 	totalSize := uint64(0)
+	numOpenCols := 0
 	for _, s := range allSegStores {
 		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
 		totalSize += s.GetSegStorePQMatchSize()
+		numOpenCols += len(s.wipBlock.colWips)
 		s.Lock.Unlock()
+	}
+
+	maxOpenCols := config.GetMaxOpenColumns()
+	if maxOpenCols == 0 {
+		log.Errorf("GetInMemorySize: maxOpenCols is 0")
+	} else if numOpenCols > int(maxOpenCols) {
+		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
+	} else {
+		multiplier := float64(maxOpenCols) / float64(numOpenCols)
+		totalSize = uint64(float64(totalSize) * multiplier)
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
 
-	return uint64(math.Ceil(ConvertFloatBytesToMB(float64(totalSize) * float64(1.10))))
+	return totalSize
 }
 
 func InitWriterNode() {
