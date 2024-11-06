@@ -2,6 +2,8 @@ name: siglens-lint-ut
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'pkg/config/version.go'
 permissions:
   contents: read
 jobs:
