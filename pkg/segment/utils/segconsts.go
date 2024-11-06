@@ -53,6 +53,10 @@ const SSM_MEM_PERCENT = 20
 const RAW_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const METRICS_MEM_PERCENT = 2
 
+// How the SSM memory is split. These should sum to 100.
+const SSM_LOGS_MEM_PERCENT = 70
+const SSM_METRICS_MEM_PERCENT = 30
+
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000
 
