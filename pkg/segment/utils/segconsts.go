@@ -53,13 +53,6 @@ const SSM_MEM_PERCENT = 20
 const RAW_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const METRICS_MEM_PERCENT = 2
 
-// percent allocated for segmentsearchmeta (blocksummaries, blocklen/off)
-
-const BLOCK_MICRO_MULTINODE_MEM_PERCENT = 80
-const BLOCK_MICRO_CHECK_MULTINODE_MEM_PERCENT = 15
-const RAW_SEARCH_MULTINODE_MEM_PERCENT = 95
-const MULTINODE_SSM_MEM_PERCENT = 20
-
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000
 
