@@ -362,8 +362,8 @@ func DeleteVirtualTable(vTable string, orgid uint64) {
 }
 
 func RebalanceInMemorySsm(ssmSizeBytes uint64) {
-	logsSSM := uint64(float64(ssmSizeBytes) * utils.SSM_LOGS_MEM_PERCENT / 100)
-	metricsSSM := uint64(float64(ssmSizeBytes) * utils.SSM_METRICS_MEM_PERCENT / 100)
+	logsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_LOGS_MEM_PERCENT / 100)
+	metricsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_METRICS_MEM_PERCENT / 100)
 	globalMetadata.rebalanceSsm(logsSSM)
 	globalMetricsMetadata.rebalanceMetricsSsm(metricsSSM)
 }

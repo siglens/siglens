@@ -81,6 +81,16 @@ type DatabaseConfig struct {
 	Dbname   string `yaml:"dbname"`
 }
 
+type MemoryConfig struct {
+	MaxUsagePercent uint64 `yaml:"maxUsagePercent"`
+
+	// These should sum to 100.
+	SearchPercent   uint64 `yaml:"searchPercent"`
+	CMIPercent      uint64 `yaml:"microIndexPercent"`
+	MetadataPercent uint64 `yaml:"metadataPercent"`
+	MetricsPercent  uint64 `yaml:"metricsPercent"`
+}
+
 /*  If you add a new config parameters to the Configuration struct below, make sure to add the default value
 assignment in the following functions
 1) ExtractConfigData function
@@ -106,7 +116,6 @@ type Configuration struct {
 	Debug                       bool     `yaml:"debug"`        // debug logging
 	PProfEnabled                string   `yaml:"pprofEnabled"` // enable pprof
 	PProfEnabledConverted       bool     // converted bool value of PprofEnabled yaml
-	MemoryThresholdPercent      uint64   `yaml:"memoryThresholdPercent"` // percent of all available free data allocated for loading micro indices in memory
 	DataDiskThresholdPercent    uint64   `yaml:"dataDiskThresholdPercent"`
 	S3IngestQueueName           string   `yaml:"s3IngestQueueName"`
 	S3IngestQueueRegion         string   `yaml:"s3IngestQueueRegion"`
@@ -132,6 +141,8 @@ type Configuration struct {
 	Tracing                     TracingConfig  `yaml:"tracing"` // Tracing related config
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
+	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
+	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
 }
