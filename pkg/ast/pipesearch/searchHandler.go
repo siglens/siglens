@@ -319,8 +319,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	if config.IsNewQueryPipelineEnabled() {
 		_, err := query.StartQuery(qid, false, nil)
 		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to associate search results with qid! Error: %+v",
-				qid, err)
+			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
 			return nil, false, nil, err
 		}
 
