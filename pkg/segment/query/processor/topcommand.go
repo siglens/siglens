@@ -26,7 +26,20 @@ import (
 )
 
 type topProcessor struct {
-	options *structs.StatisticExpr
+	options        *structs.StatisticExpr
+	statsExpr      *structs.StatsExpr
+	statsProcessor *statsProcessor
+}
+
+func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
+	processor := &topProcessor{
+		options:   options.TopExpr,
+		statsExpr: options.StatsExpr,
+	}
+
+	processor.statsProcessor = NewStatsProcessor(processor.statsExpr)
+
+	return processor
 }
 
 func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -34,12 +47,27 @@ func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("topProcessor.Process: options is nil")
 	}
 
-	// countIsGroupByCol := toputils.SliceContainsString(p.options.GetFields(), p.options.StatisticOptions.CountField)
-	// percentIsGroupByCol := toputils.SliceContainsString(p.options.GetFields(), p.options.StatisticOptions.PercentField)
+	if iqr != nil {
+		return p.statsProcessor.Process(iqr)
+	}
+
+	// if iqr == nil; then all the records have been processed
+	// and we need to process the statisticExpr now.
+
+	if p.statsProcessor.searchResults == nil {
+		return nil, io.EOF
+	}
+
+	aggResults := p.statsProcessor.searchResults.GetBucketResults()
+
+	// statFields := p.options.GetFields()
+
+	// countIsGroupByCol := toputils.SliceContainsString(statFields, p.options.StatisticOptions.CountField)
+	// percentIsGroupByCol := toputils.SliceContainsString(statFields, p.options.StatisticOptions.PercentField)
 
 	// resultCount := iqr.NumberOfRecords()
 
-	// groupByCols := p.options.GetFields()
+	// groupByCols := iqr.GetGroupByColumns()
 
 	return iqr, io.EOF
 }

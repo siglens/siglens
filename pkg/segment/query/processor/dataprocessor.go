@@ -437,10 +437,10 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
+func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &topProcessor{options: options},
+		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,

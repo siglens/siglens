@@ -190,6 +190,9 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewMakemvDP(queryAgg.MakeMVExpr)
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
+	} else if queryAgg.TopExpr != nil {
+		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
+		return NewTopDP(queryAgg)
 	} else if queryAgg.RareExpr != nil {
 		return NewRareDP(queryAgg.RareExpr)
 	} else if queryAgg.RegexExpr != nil {
@@ -217,8 +220,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
-	} else if queryAgg.TopExpr != nil {
-		return NewTopDP(queryAgg.TopExpr)
 	} else if queryAgg.TransactionExpr != nil {
 		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {

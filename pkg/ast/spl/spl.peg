@@ -28,6 +28,7 @@ import (
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
     toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/config"
     log "github.com/sirupsen/logrus"
 )
 
@@ -1854,6 +1855,11 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         MeasureOperations: measureOperations,
         GroupByColumns: groupByColumns,
     }
+
+	if config.IsNewQueryPipelineEnabled() {
+		root.GroupByRequest = aggNode.GroupByRequest
+		return root, nil
+	}
 
     return aggNode, nil
 }
