@@ -43,6 +43,7 @@ import (
 )
 
 const OneHourInMs = 60 * 60 * 1000
+const TRACE_PAGE_LIMIT = 50
 
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
@@ -217,18 +218,17 @@ func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchRespon
 func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
 	if config.IsNewQueryPipelineEnabled() {
 		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
-		if totalTracesIds < (page-1)*50 {
+		if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
 			return []string{}
 		}
 
-		endIndex := page * 50
+		endIndex := page * TRACE_PAGE_LIMIT
 		if endIndex > totalTracesIds {
 			endIndex = totalTracesIds
 		}
 
 		traceIds := make([]string, 0)
-		// Only Process up to 50 traces per page
-		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*50 : endIndex] {
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
 			if len(bucket.GroupByValues) == 1 {
 				traceIds = append(traceIds, bucket.GroupByValues[0])
 			}
@@ -237,18 +237,18 @@ func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOut
 		return traceIds
 	}
 
-	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
+	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*TRACE_PAGE_LIMIT {
 		return []string{}
 	}
 
-	endIndex := page * 50
+	endIndex := page * TRACE_PAGE_LIMIT
 	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
 		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
 	}
 
 	traceIds := make([]string, 0)
 	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*50 : endIndex] {
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
 		traceId, exists := bucket["key"]
 		if !exists {
 			continue
