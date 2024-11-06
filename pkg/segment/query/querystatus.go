@@ -1119,7 +1119,13 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.Progress == nil {
-		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid=%v Progress is not initialized!", qid)
+		return structs.Progress{
+			RecordsSent:     0,
+			TotalUnits:      0,
+			UnitsSearched:   0,
+			TotalRecords:    0,
+			RecordsSearched: 0,
+		}, nil
 	}
 
 	return structs.Progress{
