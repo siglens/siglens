@@ -89,7 +89,11 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
-		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
+		if config.IsNewQueryPipelineEnabled() {
+			traceIds = GetUniqueTraceIdsForNewPipeline(pipeSearchResponseOuter, page)
+		} else {
+			traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
+		}
 	}
 
 	traces := make([]*structs.Trace, 0)
@@ -207,8 +211,12 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 }
 
 func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
+	if config.IsNewQueryPipelineEnabled() {
+		return pipeSearchResponseOuter.BucketCount
+	}
 	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
 }
+
 func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
 	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
 		return []string{}
@@ -228,6 +236,28 @@ func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOut
 		}
 		traceIds = append(traceIds, traceId.(string))
 	}
+	return traceIds
+}
+
+func GetUniqueTraceIdsForNewPipeline(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, page int) []string {
+	totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+	if totalTracesIds < (page-1)*50 {
+		return []string{}
+	}
+
+	endIndex := page * 50
+	if endIndex > totalTracesIds {
+		endIndex = totalTracesIds
+	}
+
+	traceIds := make([]string, 0)
+	// Only Process up to 50 traces per page
+	for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*50 : endIndex] {
+		if len(bucket.GroupByValues) == 1 {
+			traceIds = append(traceIds, bucket.GroupByValues[0])
+		}
+	}
+
 	return traceIds
 }
 
