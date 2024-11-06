@@ -1,5 +1,5 @@
 {
-    "queryText": "app_name=Companyhave AND city=Boston | fields city, bool_col, http_status, app_name, country | dedup bool_col sortby http_status",
+    "queryText": "app_name=Companyhave AND city=Boston | fields city, bool_col, http_status, app_name, country | dedup bool_col sortby http_status, country",
     "expectedResult": {
         "totalMatched": {
             "value": 2,
@@ -9,16 +9,16 @@
         "records": [
             {
                 "app_name": "Companyhave",
-                "bool_col": false,
+                "bool_col": true,
                 "city": "Boston",
-                "country": "Lesotho",
+                "country": "American Samoa",
                 "http_status": 200
             },
             {
                 "app_name": "Companyhave",
-                "bool_col": true,
+                "bool_col": false,
                 "city": "Boston",
-                "country": "American Samoa",
+                "country": "Lesotho",
                 "http_status": 200
             }
         ],
