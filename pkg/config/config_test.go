@@ -62,7 +62,6 @@ func Test_ExtractConfigData(t *testing.T) {
  logFileRotationSizeMB: 100
  compressLogFile: false
  dataDiskThresholdPercent: 85
- memoryThresholdPercent: 80
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
@@ -85,6 +84,12 @@ func Test_ExtractConfigData(t *testing.T) {
    logFileRotationSizeMB: 100
    compressLogFile: false
  compressStatic: false
+ memoryLimits:
+   maxUsagePercent: 80
+   searchPercent: 50
+   microIndexPercent: 20
+   metadataPercent: 20
+   metricsPercent: 10
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -105,7 +110,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
 				DataDiskThresholdPercent:    85,
-				MemoryThresholdPercent:      80,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,
@@ -128,6 +132,13 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
+				MemoryConfig: common.MemoryConfig{
+					MaxUsagePercent: 80,
+					SearchPercent:   50,
+					CMIPercent:      20,
+					MetadataPercent: 20,
+					MetricsPercent:  10,
+				},
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -151,7 +162,6 @@ func Test_ExtractConfigData(t *testing.T) {
  licensekeyPath: "./"
  esVersion: "6.8.20"
  dataDiskThresholdPercent: 85
- memoryThresholdPercent: 80
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
@@ -194,7 +204,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
 				DataDiskThresholdPercent:    85,
-				MemoryThresholdPercent:      80,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,
@@ -217,6 +226,13 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
+				MemoryConfig: common.MemoryConfig{
+					MaxUsagePercent: 80,
+					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+				},
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -243,7 +259,6 @@ invalid input, we should error out
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
 				DataDiskThresholdPercent:    85,
-				MemoryThresholdPercent:      80,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 
@@ -262,6 +277,13 @@ invalid input, we should error out
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
 				UseNewQueryPipeline:        "true",
 				UseNewPipelineConverted:    true,
+				MemoryConfig: common.MemoryConfig{
+					MaxUsagePercent: 80,
+					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+				},
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -287,7 +309,6 @@ a: b
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
 				DataDiskThresholdPercent:    85,
-				MemoryThresholdPercent:      80,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,
@@ -310,6 +331,13 @@ a: b
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
+				MemoryConfig: common.MemoryConfig{
+					MaxUsagePercent: 80,
+					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+				},
 			},
 		},
 	}
@@ -320,10 +348,10 @@ a: b
 			continue
 		}
 		if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
-			assert.Equal(t, uint64(50), actualConfig.MemoryThresholdPercent)
+			assert.Equal(t, uint64(50), actualConfig.MemoryConfig.MaxUsagePercent)
 			// If memory is less than 8GB, config by default returns 50% as the threshold
 			// For testing purpose resetting it to 80%
-			actualConfig.MemoryThresholdPercent = 80
+			actualConfig.MemoryConfig.MaxUsagePercent = 80
 		}
 		assert.NoError(t, err, fmt.Sprintf("Comparison failed, test=%v", i+1))
 		assert.EqualValues(t, test.expected, actualConfig, fmt.Sprintf("Comparison failed, test=%v", i+1))

@@ -50,6 +50,12 @@ const RunModFilePath = "data/common/runmod.cfg"
 
 const SIZE_8GB_IN_MB = uint64(8192)
 
+// How memory is split for rotated info. These should sum to 100.
+const DEFAULT_ROTATED_CMI_MEM_PERCENT = 63
+const DEFAULT_METADATA_MEM_PERCENT = 20
+const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
+const DEFAULT_METRICS_MEM_PERCENT = 2
+
 var configFileLastModified uint64
 
 var runningConfig common.Configuration
@@ -82,10 +88,10 @@ func GetTotalMemoryAvailable() uint64 {
 	} else {
 		gogc = 100
 	}
-	hostMemory := memory.TotalMemory() * runningConfig.MemoryThresholdPercent / 100
+	hostMemory := memory.TotalMemory() * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := hostMemory / (1 + gogc/100)
 	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
-		runningConfig.MemoryThresholdPercent,
+		runningConfig.MemoryConfig.MaxUsagePercent,
 		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
 		segutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
@@ -525,7 +531,6 @@ func GetTestConfig(dataPath string) common.Configuration {
 		Debug:                       false,
 		PProfEnabled:                "true",
 		PProfEnabledConverted:       true,
-		MemoryThresholdPercent:      80,
 		DataDiskThresholdPercent:    85,
 		S3IngestQueueName:           "",
 		S3IngestQueueRegion:         "",
@@ -549,6 +554,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		MemoryConfig:                common.MemoryConfig{MaxUsagePercent: 80},
 	}
 
 	return testConfig
@@ -792,18 +798,45 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DataDiskThresholdPercent = 85
 	}
 
+	memoryLimits := config.MemoryConfig
+
 	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
-		if config.MemoryThresholdPercent > 50 {
-			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
-			config.MemoryThresholdPercent = 50
-		} else if config.MemoryThresholdPercent == 0 {
-			config.MemoryThresholdPercent = 50
+		if memoryLimits.MaxUsagePercent > 50 {
+			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
+			memoryLimits.MaxUsagePercent = 50
+		} else if memoryLimits.MaxUsagePercent == 0 {
+			memoryLimits.MaxUsagePercent = 50
 		}
 	}
 
-	if config.MemoryThresholdPercent == 0 {
-		config.MemoryThresholdPercent = 80
+	if memoryLimits.MaxUsagePercent == 0 {
+		memoryLimits.MaxUsagePercent = 80
 	}
+	if memoryLimits.SearchPercent == 0 {
+		memoryLimits.SearchPercent = DEFAULT_SEG_SEARCH_MEM_PERCENT
+	}
+	if memoryLimits.CMIPercent == 0 {
+		memoryLimits.CMIPercent = DEFAULT_ROTATED_CMI_MEM_PERCENT
+	}
+	if memoryLimits.MetadataPercent == 0 {
+		memoryLimits.MetadataPercent = DEFAULT_METADATA_MEM_PERCENT
+	}
+	total := memoryLimits.SearchPercent + memoryLimits.CMIPercent + memoryLimits.MetadataPercent
+	if memoryLimits.MetricsPercent == 0 && total < 100 {
+		memoryLimits.MetricsPercent = DEFAULT_METRICS_MEM_PERCENT
+	}
+	total += memoryLimits.MetricsPercent
+
+	if total != 100 {
+		err := fmt.Errorf("ExtractConfigData: Memory splits sum to %v!=100%%. Search: %v, CMI: %v, Metadata: %v, Metrics: %v",
+			total, memoryLimits.SearchPercent, memoryLimits.CMIPercent, memoryLimits.MetadataPercent,
+			memoryLimits.MetricsPercent)
+
+		log.Error(err)
+		return config, err
+	}
+
+	config.MemoryConfig = memoryLimits
 
 	if len(config.S3IngestQueueName) <= 0 {
 		config.S3IngestQueueName = ""
