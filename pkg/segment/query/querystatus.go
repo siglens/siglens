@@ -62,6 +62,7 @@ type QueryStateChanData struct {
 	PercentComplete float64
 	UpdateWSResp    *structs.PipeSearchWSUpdateResponse
 	CompleteWSResp  *structs.PipeSearchCompleteResponse
+	Error           error // Only used when the state is ERROR
 }
 
 const (

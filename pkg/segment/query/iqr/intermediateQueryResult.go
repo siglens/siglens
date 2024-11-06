@@ -924,6 +924,27 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	return nil
 }
 
+func (iqr *IQR) ReverseRecords() error {
+	if err := iqr.validate(); err != nil {
+		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
+		return err
+	}
+
+	if iqr.mode == notSet {
+		return nil
+	}
+
+	if iqr.mode == withRRCs {
+		toputils.ReverseSlice(iqr.rrcs)
+	}
+
+	for _, values := range iqr.knownValues {
+		toputils.ReverseSlice(values)
+	}
+
+	return nil
+}
+
 func (iqr *IQR) RenameColumn(oldName, newName string) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.RenameColumn: validation failed: %v", err)

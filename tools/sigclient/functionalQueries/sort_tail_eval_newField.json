@@ -2,13 +2,10 @@
     "queryText": "city = Boston | sort ident | tail 2 | eval newField=12 | fields city, app_name, ident, new*",
     "expectedResult": {
         "totalMatched": {
-            "value": 984,
+            "value": 2,
             "relation": "eq"
         },
         "qtype": "logs-query",
-        "uniqueKeyCols": [
-            "ident"
-        ],
         "records": [
             {
                 "city": "Boston",
