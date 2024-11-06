@@ -1,0 +1,38 @@
+{
+    "queryText": "app_name=Companyhave | fields city, bool_col, http_status, app_name | dedup bool_col sortby http_status",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 2,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Miami",
+                "http_status": 200,
+                "timestamp": 1730926796005
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Stockton",
+                "http_status": 301,
+                "timestamp": 1730926771592
+            }
+        ],
+        "allColumns": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name"
+        ],
+        "columnsOrder": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name"
+        ]
+    }
+}

@@ -33,6 +33,8 @@ search_timechart_no_groupby.json
 tail.json
 sort_tail_eval_newField.json
 tail_stats.json
+dedup_sortby_consecutive.json
+dedup_sortby.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
