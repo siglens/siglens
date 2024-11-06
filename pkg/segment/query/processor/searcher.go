@@ -259,7 +259,11 @@ func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 	} else if qType == structs.GroupByCmd {
 		nodeResult, err = s.fetchGroupByResults(searchResults, aggs)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to get group by results: %v", s.qid, err)
+			if err == io.EOF {
+				nodeResult = &structs.NodeResult{}
+			} else {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to get group by results: %v", s.qid, err)
+			}
 		}
 	} else {
 		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: invalid query type: %v", qid, qType)

@@ -1177,7 +1177,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	knownValues := iqr.knownValues
 
 	if len(knownValues) == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: knownValues is empty")
+		return []*structs.BucketHolder{}, []string{}, []string{}, 0, nil
 	}
 
 	bucketCount := 0
