@@ -456,7 +456,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (chan *query.QueryStateChanData, error) {
 	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQueryForNewPipeline: Error while starting query, err: %v", err)
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
 		return nil, err
 	}
 
