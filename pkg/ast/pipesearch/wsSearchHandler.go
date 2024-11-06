@@ -175,6 +175,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs, includeNulls)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
+				query.DeleteQuery(qid)
 				return
 			case query.COMPLETE:
 				processCompleteUpdate(conn, sizeLimit, qid, aggs)
@@ -186,6 +187,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			if !ok {
 				log.Errorf("qid=%v, ProcessPipeSearchWebsocket: Got non ok, state: %v", qid, qscd.StateName)
 				query.LogGlobalSearchErrors(qid)
+				query.DeleteQuery(qid)
 				return
 			}
 		case readMsg := <-websocketR:
@@ -226,6 +228,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 				processRunningUpdate(conn, qid)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
+				query.DeleteQuery(qid)
 				return
 			case query.QUERY_UPDATE:
 				wErr := conn.WriteJSON(queryStateChanData.UpdateWSResp)
