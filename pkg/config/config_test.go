@@ -90,6 +90,7 @@ func Test_ExtractConfigData(t *testing.T) {
    microIndexPercent: 20
    metadataPercent: 20
    metricsPercent: 10
+ maxOpenColumns: 42
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -139,6 +140,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetadataPercent: 20,
 					MetricsPercent:  10,
 				},
+				MaxOpenColumns: 42,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -233,6 +235,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 				},
+				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -284,6 +287,7 @@ invalid input, we should error out
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 				},
+				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -338,6 +342,7 @@ a: b
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 				},
+				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},
 		},
 	}

@@ -56,6 +56,8 @@ const DEFAULT_METADATA_MEM_PERCENT = 20
 const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const DEFAULT_METRICS_MEM_PERCENT = 2
 
+const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
+
 var configFileLastModified uint64
 
 var runningConfig common.Configuration
@@ -99,6 +101,10 @@ func GetTotalMemoryAvailable() uint64 {
 
 func GetMemoryConfig() common.MemoryConfig {
 	return runningConfig.MemoryConfig
+}
+
+func GetMaxOpenColumns() uint64 {
+	return runningConfig.MaxOpenColumns
 }
 
 /*
@@ -565,6 +571,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 		},
+		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 	}
 
 	return testConfig
@@ -847,6 +854,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	config.MemoryConfig = memoryLimits
+
+	if config.MaxOpenColumns == 0 {
+		config.MaxOpenColumns = DEFAULT_MAX_OPEN_COLUMNS
+	}
 
 	if len(config.S3IngestQueueName) <= 0 {
 		config.S3IngestQueueName = ""

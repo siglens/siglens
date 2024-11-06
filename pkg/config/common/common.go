@@ -142,6 +142,7 @@ type Configuration struct {
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
+	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
 }
