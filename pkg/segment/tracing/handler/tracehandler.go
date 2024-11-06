@@ -89,11 +89,8 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
-		if config.IsNewQueryPipelineEnabled() {
-			traceIds = GetUniqueTraceIdsForNewPipeline(pipeSearchResponseOuter, page)
-		} else {
-			traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
-		}
+
+		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
 	}
 
 	traces := make([]*structs.Trace, 0)
@@ -218,6 +215,28 @@ func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchRespon
 }
 
 func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
+	if config.IsNewQueryPipelineEnabled() {
+		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+		if totalTracesIds < (page-1)*50 {
+			return []string{}
+		}
+
+		endIndex := page * 50
+		if endIndex > totalTracesIds {
+			endIndex = totalTracesIds
+		}
+
+		traceIds := make([]string, 0)
+		// Only Process up to 50 traces per page
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*50 : endIndex] {
+			if len(bucket.GroupByValues) == 1 {
+				traceIds = append(traceIds, bucket.GroupByValues[0])
+			}
+		}
+
+		return traceIds
+	}
+
 	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
 		return []string{}
 	}
@@ -236,28 +255,6 @@ func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOut
 		}
 		traceIds = append(traceIds, traceId.(string))
 	}
-	return traceIds
-}
-
-func GetUniqueTraceIdsForNewPipeline(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, page int) []string {
-	totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
-	if totalTracesIds < (page-1)*50 {
-		return []string{}
-	}
-
-	endIndex := page * 50
-	if endIndex > totalTracesIds {
-		endIndex = totalTracesIds
-	}
-
-	traceIds := make([]string, 0)
-	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*50 : endIndex] {
-		if len(bucket.GroupByValues) == 1 {
-			traceIds = append(traceIds, bucket.GroupByValues[0])
-		}
-	}
-
 	return traceIds
 }
 
@@ -282,27 +279,49 @@ func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, trace
 	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
-		statusCode, exists := bucket["key"].(string)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'key' from bucket Map")
-			return
+	if config.IsNewQueryPipelineEnabled() {
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults {
+			if len(bucket.GroupByValues) == 1 {
+				statusCode := bucket.GroupByValues[0]
+				count, exists := bucket.MeasureVal["count(*)"]
+				if !exists {
+					log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
+					return
+				}
+				countVal, isFloat := count.(float64)
+				if !isFloat {
+					log.Error("AddTrace: count is not a float64")
+					return
+				}
+				spanCnt += int(countVal)
+				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+					errorCnt += int(countVal)
+				}
+			}
 		}
-		countMap, exists := bucket["count(*)"].(map[string]interface{})
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
-			return
-		}
-		countFloat64, exists := countMap["value"].(float64)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'value' from bucket Map")
-			return
-		}
+	} else {
+		for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+			statusCode, exists := bucket["key"].(string)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'key' from bucket Map")
+				return
+			}
+			countMap, exists := bucket["count(*)"].(map[string]interface{})
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
+				return
+			}
+			countFloat64, exists := countMap["value"].(float64)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'value' from bucket Map")
+				return
+			}
 
-		count := int(countFloat64)
-		spanCnt += count
-		if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-			errorCnt += count
+			count := int(countFloat64)
+			spanCnt += count
+			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+				errorCnt += count
+			}
 		}
 	}
 
@@ -317,7 +336,6 @@ func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, trace
 	}
 
 	*traces = append(*traces, trace)
-
 }
 
 // Call /api/search endpoint
