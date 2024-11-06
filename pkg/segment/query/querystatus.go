@@ -42,6 +42,7 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
+const MAX_RUNNING_QUERIES = 100
 
 type QueryUpdateType int
 
@@ -167,6 +168,10 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 	if _, ok := allRunningQueries[qid]; ok {
 		log.Errorf("StartQuery: qid %+v already exists!", qid)
 		return nil, fmt.Errorf("qid has already been started")
+	}
+
+	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
+		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
 	}
 
 	var stateChan chan *QueryStateChanData
