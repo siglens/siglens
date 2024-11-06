@@ -262,11 +262,9 @@ func GetInMemorySize() uint64 {
 	}
 
 	maxOpenCols := config.GetMaxOpenColumns()
-	if maxOpenCols == 0 {
-		log.Errorf("GetInMemorySize: maxOpenCols is 0")
-	} else if numOpenCols > int(maxOpenCols) {
+	if numOpenCols > int(maxOpenCols) {
 		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
-	} else {
+	} else if numOpenCols > 0 {
 		multiplier := float64(maxOpenCols) / float64(numOpenCols)
 		totalSize = uint64(float64(totalSize) * multiplier)
 	}
