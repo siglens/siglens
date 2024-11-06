@@ -59,13 +59,21 @@ type mockStreamer struct {
 }
 
 func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
-	if ms.numSent >= len(ms.allRecords["col1"]) {
+	colName := "col1"
+	for col := range ms.allRecords {
+		colName = col
+		break
+	}
+
+	if ms.numSent >= len(ms.allRecords[colName]) {
 		return nil, io.EOF
 	}
 
 	// Send one at a time.
-	knownValues := map[string][]utils.CValueEnclosure{
-		"col1": {ms.allRecords["col1"][ms.numSent]},
+	knownValues := map[string][]utils.CValueEnclosure{}
+
+	for col, values := range ms.allRecords {
+		knownValues[col] = []utils.CValueEnclosure{values[ms.numSent]}
 	}
 
 	iqr := iqr.NewIQR(ms.qid)
