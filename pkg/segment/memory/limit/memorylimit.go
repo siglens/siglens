@@ -47,7 +47,7 @@ func InitMemoryLimiter() {
 	maxSearchAvailableSize = uint64(float64(totalAvailableSizeBytes) * utils.RAW_SEARCH_MEM_PERCENT / 100)
 	cmiInMemory = uint64(float64(totalAvailableSizeBytes) * utils.MICRO_IDX_MEM_PERCENT / 100)
 	maxSsmInMemory = uint64(float64(totalAvailableSizeBytes) * utils.SSM_MEM_PERCENT / 100)
-	metricsInMemory = uint64(float64(totalAvailableSizeBytes) * utils.METRICS_MEMORY_MEM_PERCENT / 100)
+	metricsInMemory = uint64(float64(totalAvailableSizeBytes) * utils.METRICS_MEM_PERCENT / 100)
 
 	if config.IsDebugMode() {
 		LOG_GLOBAL_MEM_FREQUENCY = 1
