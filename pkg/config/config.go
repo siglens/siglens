@@ -97,6 +97,10 @@ func GetTotalMemoryAvailable() uint64 {
 	return allowedMemory
 }
 
+func GetMemoryConfig() common.MemoryConfig {
+	return runningConfig.MemoryConfig
+}
+
 /*
 Returns GOMAXPROCS
 */
@@ -554,7 +558,13 @@ func GetTestConfig(dataPath string) common.Configuration {
 		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
-		MemoryConfig:                common.MemoryConfig{MaxUsagePercent: 80},
+		MemoryConfig: common.MemoryConfig{
+			MaxUsagePercent: 80,
+			SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+			CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+		},
 	}
 
 	return testConfig

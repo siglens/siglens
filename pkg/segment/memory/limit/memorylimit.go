@@ -39,9 +39,11 @@ func InitMemoryLimiter() {
 	totalAvailableSizeBytes := config.GetTotalMemoryAvailable()
 	log.Infof("InitMemoryLimiter: Total available memory %+v MB", utils.ConvertUintBytesToMB(totalAvailableSizeBytes))
 
-	segSearchBytes := uint64(float64(totalAvailableSizeBytes) * utils.SEG_SEARCH_MEM_PERCENT / 100)
-	rotatedCMIBytes := uint64(float64(totalAvailableSizeBytes) * utils.ROTATED_CMI_MEM_PERCENT / 100)
-	metricsInMemory := uint64(float64(totalAvailableSizeBytes) * utils.METRICS_MEM_PERCENT / 100)
+	memLimits := config.GetMemoryConfig()
+
+	segSearchBytes := uint64(float64(totalAvailableSizeBytes*memLimits.SearchPercent) / 100)
+	rotatedCMIBytes := uint64(float64(totalAvailableSizeBytes*memLimits.CMIPercent) / 100)
+	metricsInMemory := uint64(float64(totalAvailableSizeBytes*memLimits.MetricsPercent) / 100)
 
 	if config.IsDebugMode() {
 		LOG_GLOBAL_MEM_FREQUENCY = 1
@@ -127,7 +129,8 @@ func rebalanceMemoryAllocation() {
 		memoryAvailable = memory.GlobalMemoryTracker.TotalAllocatableBytes - rawWriterSize
 	}
 
-	totalSsmMemory := uint64(float64(memoryAvailable) * utils.METADATA_MEM_PERCENT / 100)
+	memLimits := config.GetMemoryConfig()
+	totalSsmMemory := uint64(float64(memoryAvailable*memLimits.MetadataPercent) / 100)
 	segmetadata.RebalanceInMemorySsm(totalSsmMemory)
 
 	if memory.GlobalMemoryTracker.SegSearchRequestedBytes > memoryAvailable {
@@ -137,7 +140,7 @@ func rebalanceMemoryAllocation() {
 		memoryAvailable = memoryAvailable - memory.GlobalMemoryTracker.SegSearchRequestedBytes
 	}
 
-	totalCmiMemory := uint64(float64(memoryAvailable) * utils.ROTATED_CMI_MEM_PERCENT / 100)
+	totalCmiMemory := uint64(float64(memoryAvailable*memLimits.CMIPercent) / 100)
 	unrotatedCmiMemory := writer.GetSizeOfUnrotatedMetadata()
 	if unrotatedCmiMemory >= totalCmiMemory {
 		unrotatedCmiMemory = writer.RebalanceUnrotatedMetadata(totalCmiMemory)
