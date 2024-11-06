@@ -170,7 +170,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		return nil, fmt.Errorf("qid has already been started")
 	}
 
-	if len(allRunningQueries) == MAX_RUNNING_QUERIES {
+	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
 		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
 	}
 
