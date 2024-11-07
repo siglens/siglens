@@ -170,6 +170,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 
 	if queryAgg.BinExpr != nil {
 		return NewBinDP(queryAgg.BinExpr)
+	} else if queryAgg.StreamstatsExpr != nil {
+		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.DedupExpr != nil {
 		return NewDedupDP(queryAgg.DedupExpr)
 	} else if queryAgg.EvalExpr != nil {
@@ -213,8 +215,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.StatsExpr != nil {
 		return NewStatsDP(queryAgg.StatsExpr)
-	} else if queryAgg.StreamstatsExpr != nil {
-		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
 	} else if queryAgg.TopExpr != nil {

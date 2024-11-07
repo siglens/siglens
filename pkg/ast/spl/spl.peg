@@ -1112,15 +1112,21 @@ StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)*
 StreamStatsBlock <- PIPE CMD_STREAMSTATS ssOptionList:(StreamStatsOptionList) SPACE aggs:(CommonAggregatorBlock) {
     aggNode := aggs.(*structs.QueryAggregators)
 
-    aggNode.StreamStatsOptions = ssOptionList.(*structs.StreamStatsOptions)
-
+    ssOptions := ssOptionList.(*structs.StreamStatsOptions)
+   ssOptions.MeasureOperations = aggNode.MeasureOperations
+    
+    aggNode.StreamStatsOptions = ssOptions
+    aggNode.StreamstatsExpr = aggNode.StreamStatsOptions
     return aggNode, nil
 }
 / PIPE CMD_STREAMSTATS aggs:(CommonAggregatorBlock) {
     aggNode := aggs.(*structs.QueryAggregators)
+    ssOptions := initializeStreamStatsOptions()
 
-    aggNode.StreamStatsOptions = initializeStreamStatsOptions()
-
+   ssOptions.MeasureOperations = aggNode.MeasureOperations
+    
+    aggNode.StreamStatsOptions = ssOptions
+    aggNode.StreamstatsExpr = aggNode.StreamStatsOptions
     return aggNode, nil
 }
 

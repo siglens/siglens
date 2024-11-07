@@ -247,6 +247,9 @@ type StreamStatsOptions struct {
 	// contains segment records recordKey -> record
 	SegmentRecords      map[string]map[string]interface{}
 	NumProcessedRecords uint64
+
+	MeasureOperations []*MeasureAggregator
+	GroupByRequest    *GroupByRequest
 }
 
 type RunningStreamStatsResults struct {
