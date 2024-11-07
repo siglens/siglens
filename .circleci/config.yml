@@ -12,5 +12,5 @@ workflows:
           base-revision: develop
           config-path: .circleci/continue-config.yml
           mapping: |
-            pkg/config/version.go run-tests false
             .* run-tests true
+            pkg/config/version.go run-tests false
