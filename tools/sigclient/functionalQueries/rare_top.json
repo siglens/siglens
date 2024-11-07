@@ -1,77 +1,54 @@
 {
-    "queryText": "city=Boston | rare http_method useother=false percentfield=rare_pc countfield=rare_count showperc=true | top rare_count useother=false countfield=top_count percentfield=top_percent",
+    "queryText": "http_method=P* | rare 5 city useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.city | top 5 city, city_count useother=false countfield=top_count percentfield=top_percent",
     "expectedResult": {
-        "bucketCount": 6,
-        "qtype": "aggs-query",
-        "groupByCols": [
-           "http_method"
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "city": "Aurora",
+                "city_count": "548Aurora",
+                "top_count": 1,
+                "top_percent": 20
+            },
+            {
+                "city": "Atlanta",
+                "city_count": "515Atlanta",
+                "top_count": 1,
+                "top_percent": 20
+            },
+            {
+                "city": "Arlington",
+                "city_count": "499Arlington",
+                "top_count": 1,
+                "top_percent": 20
+            },
+            {
+                "city": "Anaheim",
+                "city_count": "550Anaheim",
+                "top_count": 1,
+                "top_percent": 20
+            },
+            {
+                "city": "Albuquerque",
+                "city_count": "477Albuquerque",
+                "top_count": 1,
+                "top_percent": 20
+            }
         ],
-        "measureFunctions": [
-            "rare_count",
+        "allColumns": [
             "top_count",
+            "city",
+            "city_count",
             "top_percent"
         ],
-        "measure": [
-            {
-                "GroupByValues": [
-                    "DELETE"
-                ],
-                "MeasureVal": {
-                    "rare_count": 187,
-                    "top_count": 187,
-                    "top_percent": "19.004065"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "GET"
-                ],
-                "MeasureVal": {
-                    "rare_count": 174,
-                    "top_count": 174,
-                    "top_percent": "17.682927"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "HEAD"
-                ],
-                "MeasureVal": {
-                    "rare_count": 168,
-                    "top_count": 168,
-                    "top_percent": "17.073171"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PUT"
-                ],
-                "MeasureVal": {
-                    "rare_count": 154,
-                    "top_count": 154,
-                    "top_percent": "15.650407"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PATCH"
-                ],
-                "MeasureVal": {
-                    "rare_count": 153,
-                    "top_count": 153,
-                    "top_percent": "15.548780"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "POST"
-                ],
-                "MeasureVal": {
-                    "rare_count": 148,
-                    "top_count": 148,
-                    "top_percent": "15.040650"
-                }
-            }
+        "columnsOrder": [
+            "city",
+            "city_count",
+            "top_count",
+            "top_percent"
         ]
     }
 }

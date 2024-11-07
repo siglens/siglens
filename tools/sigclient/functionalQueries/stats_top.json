@@ -1,77 +1,128 @@
 {
-    "queryText": "city=Boston | stats count BY http_method | top http_method useother=true countfield=count percentfield=percent",
+    "queryText": "city=Boston | stats count as count BY app_name | top 5 app_name, count useother=true countfield=count percentfield=percent",
     "expectedResult": {
-        "bucketCount": 7,
+        "bucketCount": 6,
         "qtype": "aggs-query",
         "groupByCols": [
-           "http_method"
+            "app_name",
+            "count"
         ],
         "measureFunctions": [
-            "count",
             "percent"
         ],
         "measure": [
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Zebradance"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
                 "GroupByValues": [
-                    "other"
+                    "Zebradance",
+                    "1"
                 ],
                 "MeasureVal": {
-                    "count": 0,
-                    "percent": "0.000000"
+                    "percent": 0.10352
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Zebrabeing"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
                 "GroupByValues": [
-                    "POST"
+                    "Zebrabeing",
+                    "1"
                 ],
                 "MeasureVal": {
-                    "count": 148,
-                    "percent": "15.040650"
+                    "percent": 0.10352
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Yellowjacketcan"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
                 "GroupByValues": [
-                    "PATCH"
+                    "Yellowjacketcan",
+                    "1"
                 ],
                 "MeasureVal": {
-                    "count": 153,
-                    "percent": "15.548780"
+                    "percent": 0.10352
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "YellowGreenteam"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
                 "GroupByValues": [
-                    "PUT"
+                    "YellowGreenteam",
+                    "1"
                 ],
                 "MeasureVal": {
-                    "count": 154,
-                    "percent": "15.650407"
+                    "percent": 0.10352
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "YellowGreenpancake"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
                 "GroupByValues": [
-                    "HEAD"
+                    "YellowGreenpancake",
+                    "1"
                 ],
                 "MeasureVal": {
-                    "count": 168,
-                    "percent": "17.073171"
+                    "percent": 0.10352
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "other"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 961
+                    }
+                ],
                 "GroupByValues": [
-                    "GET"
+                    "other",
+                    "961"
                 ],
                 "MeasureVal": {
-                    "count": 174,
-                    "percent": "17.682927"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "DELETE"
-                ],
-                "MeasureVal": {
-                    "count": 187,
-                    "percent": "19.004065"
+                    "percent": 99.482402
                 }
             }
         ]

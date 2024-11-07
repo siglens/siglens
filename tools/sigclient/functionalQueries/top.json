@@ -1,0 +1,57 @@
+{
+    "queryText": "city=Boston | top http_method useother=true countfield=count percentfield=percent",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 7,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "count": 187,
+                "http_method": "DELETE",
+                "percent": 19.004065
+            },
+            {
+                "count": 174,
+                "http_method": "GET",
+                "percent": 17.682927
+            },
+            {
+                "count": 168,
+                "http_method": "HEAD",
+                "percent": 17.073171
+            },
+            {
+                "count": 154,
+                "http_method": "PUT",
+                "percent": 15.650407
+            },
+            {
+                "count": 153,
+                "http_method": "PATCH",
+                "percent": 15.54878
+            },
+            {
+                "count": 148,
+                "http_method": "POST",
+                "percent": 15.04065
+            },
+            {
+                "count": 0,
+                "http_method": "other",
+                "percent": 0
+            }
+        ],
+        "allColumns": [
+            "count",
+            "http_method",
+            "percent"
+        ],
+        "columnsOrder": [
+            "count",
+            "http_method",
+            "percent"
+        ]
+    }
+}
