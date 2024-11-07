@@ -103,6 +103,12 @@ func queryMetricsLooper() {
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
+	if config.IsNewQueryPipelineEnabled() {
+		if aggs != nil && aggs.TopExpr != nil {
+			return sNode.NodeType, structs.RRCCmd
+		}
+	}
+
 	if aggs != nil && aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
 		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
 			return sNode.NodeType, structs.SegmentStatsCmd

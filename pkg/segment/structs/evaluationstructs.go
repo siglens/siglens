@@ -1310,6 +1310,8 @@ func (self *ConcatExpr) GetFields() []string {
 
 func GetBucketKey(BucketKey interface{}, keyIndex int) string {
 	switch bucketKey := BucketKey.(type) {
+	case []interface{}:
+		return fmt.Sprintf("%v", bucketKey[keyIndex])
 	case []string:
 		return bucketKey[keyIndex]
 	case string:
@@ -1476,7 +1478,28 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 	groupByCols := self.GetFields()
 	groupByKeys := make([]string, 0)
 	bucketKey := make([]string, 0)
+	iBucketKey := make([]interface{}, 0)
+
 	switch bucketResult.BucketKey.(type) {
+	case []interface{}:
+		bucketKeySlice := bucketResult.BucketKey.([]interface{})
+		for _, field := range groupByCols {
+			for rowIndex, groupByCol := range bucketResult.GroupByKeys {
+				if field == groupByCol {
+					groupByKeys = append(groupByKeys, field)
+					iBucketKey = append(iBucketKey, bucketKeySlice[rowIndex])
+					break
+				}
+				//Can not find field in GroupByCol, so it may in the StatRes
+				val, exists := bucketResult.StatRes[field]
+				if exists {
+					groupByKeys = append(groupByKeys, field)
+					iBucketKey = append(iBucketKey, val)
+					delete(bucketResult.StatRes, field)
+				}
+			}
+		}
+		bucketResult.BucketKey = iBucketKey
 	case []string:
 		bucketKeyStrs := bucketResult.BucketKey.([]string)
 
