@@ -83,6 +83,20 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
 		}
 
+		if queryType == structs.GroupByCmd {
+			// If query Type is GroupByCmd and the StatisticExpr is not nil
+			// Then the GroupByRequest will be processed by the searcher and
+			// the StatisticExpr should be processed by the next DataProcessor
+			if firstAgg.StatisticExpr != nil {
+				nextAgg := &structs.QueryAggregators{
+					GroupByRequest: firstAgg.GroupByRequest,
+					StatisticExpr:  firstAgg.StatisticExpr,
+				}
+				nextAgg.Next = firstAgg.Next
+				firstAgg.Next = nextAgg
+			}
+		}
+
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
 	}

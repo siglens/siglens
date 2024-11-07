@@ -53,6 +53,12 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("statisticExprProcessor.Process: options is nil")
 	}
 
+	// if the queryType is GroupByCMD, the AggregationResult is already set by the searcher
+	if p.options.AggregationResult != nil && inputIQR != nil {
+		p.qid = inputIQR.GetQID()
+		return p.processAggregationResult(p.options.AggregationResult)
+	}
+
 	if inputIQR != nil {
 		p.qid = inputIQR.GetQID()
 		return p.statsProcessor.Process(inputIQR)
@@ -66,6 +72,31 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	aggResults := p.statsProcessor.searchResults.GetBucketResults()
 
+	return p.processAggregationResult(aggResults)
+}
+
+func (p *statisticExprProcessor) Rewind() {
+	// Nothing to do
+}
+
+func (p *statisticExprProcessor) Cleanup() {
+	p.statsProcessor.Cleanup()
+}
+
+func (p *statisticExprProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.hasFinalResult {
+		iqr, err := p.getIQRFromAggregationResults()
+		if err != nil && err != io.EOF {
+			return nil, false
+		}
+
+		return iqr, true
+	}
+
+	return nil, false
+}
+
+func (p *statisticExprProcessor) processAggregationResult(aggResults map[string]*structs.AggregationResult) (*iqr.IQR, error) {
 	statsFields := p.options.GetFields()
 
 	countIsGroupByCol := toputils.SliceContainsString(statsFields, p.options.StatisticOptions.CountField)
@@ -178,27 +209,6 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	p.finalAggregationResults = aggResults
 
 	return p.getIQRFromAggregationResults()
-}
-
-func (p *statisticExprProcessor) Rewind() {
-	// Nothing to do
-}
-
-func (p *statisticExprProcessor) Cleanup() {
-	p.statsProcessor.Cleanup()
-}
-
-func (p *statisticExprProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	if p.hasFinalResult {
-		iqr, err := p.getIQRFromAggregationResults()
-		if err != nil && err != io.EOF {
-			return nil, false
-		}
-
-		return iqr, true
-	}
-
-	return nil, false
 }
 
 func (p *statisticExprProcessor) getIQRFromAggregationResults() (*iqr.IQR, error) {

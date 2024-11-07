@@ -95,6 +95,7 @@ type StatisticExpr struct {
 	StatisticOptions      *StatisticOptions
 	FieldList             []string //Must have FieldList
 	ByClause              []string
+	AggregationResult     map[string]*AggregationResult
 }
 
 type StatisticOptions struct {
