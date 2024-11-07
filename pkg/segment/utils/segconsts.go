@@ -1033,8 +1033,59 @@ func (e *CValueEnclosure) GetIntValue() (int64, error) {
 	}
 }
 
-func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
-	bufIdx := 0
+func (e *CValueEnclosure) getWriteTotalBytesSize() int {
+	size := 0
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		size += 1 // for the type
+		size += 1 // for the value
+	case SS_DT_UNSIGNED_NUM:
+		size += 1 // for the type
+		size += 8 // for the value
+	case SS_DT_SIGNED_NUM:
+		size += 1 // for the type
+		size += 8 // for the value
+	case SS_DT_FLOAT:
+		size += 1 // for the type
+		size += 8 // for the value
+	case SS_DT_STRING:
+		size += 1 // for the type
+		strLen := len(e.CVal.(string))
+		sizeOfStrLen := 2    // 2 bytes
+		size += sizeOfStrLen // for the length of the string
+		size += strLen       // for the string
+	case SS_DT_BACKFILL:
+		size += 1 // for the type
+	default:
+		str := fmt.Sprintf("%v", e.CVal)
+		strBytes := []byte(str)
+		strLen := len(strBytes)
+		if strLen <= math.MaxUint16 {
+			size += 1 // for the type
+			sizeOfStrLen := 2
+			size += sizeOfStrLen // for the length of the string
+		} else {
+			size += 1 // for the type
+			sizeOfStrLen := 4
+			size += sizeOfStrLen // for the length of the string
+		}
+		size += strLen // for the string
+	}
+
+	return size
+}
+
+// WriteToBytesWithType writes the CValueEnclosure to a byte slice with the type
+// The byte slice is resized if required
+func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, int) {
+	requiredSize := e.getWriteTotalBytesSize()
+	availableSize := len(buf) - bufIdx
+
+	// Resize the buffer if required
+	if requiredSize > availableSize {
+		buf = toputils.ResizeSlice(buf, len(buf)+requiredSize+MAX_RECORD_SIZE)
+	}
+
 	switch e.Dtype {
 	case SS_DT_BOOL:
 		copy(buf[bufIdx:], VALTYPE_ENC_BOOL)
@@ -1045,28 +1096,24 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
 			buf[bufIdx] = 0
 		}
 		bufIdx += 1
-		return bufIdx
 	case SS_DT_UNSIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
 		bufIdx += 1
 		bytesVal := toputils.Uint64ToBytesLittleEndian(e.CVal.(uint64))
 		copy(buf[bufIdx:], bytesVal)
 		bufIdx += 8
-		return bufIdx
 	case SS_DT_SIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
 		bufIdx += 1
 		bytesVal := toputils.Int64ToBytesLittleEndian(e.CVal.(int64))
 		copy(buf[bufIdx:], bytesVal)
 		bufIdx += 8
-		return bufIdx
 	case SS_DT_FLOAT:
 		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
 		bufIdx += 1
 		bytesVal := toputils.Float64ToBytesLittleEndian(e.CVal.(float64))
 		copy(buf[bufIdx:], bytesVal)
 		bufIdx += 8
-		return bufIdx
 	case SS_DT_STRING:
 		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
 		bufIdx += 1
@@ -1076,11 +1123,9 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
 		bufIdx += 2
 		copy(buf[bufIdx:], strBytes)
 		bufIdx += strLen
-		return bufIdx
 	case SS_DT_BACKFILL:
 		copy(buf[bufIdx:], VALTYPE_ENC_BACKFILL)
 		bufIdx += 1
-		return bufIdx
 	default:
 		str := fmt.Sprintf("%v", e.CVal)
 		strBytes := []byte(str)
@@ -1098,8 +1143,9 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte) int {
 		}
 		copy(buf[bufIdx:], strBytes)
 		bufIdx += strLen
-		return bufIdx
 	}
+
+	return buf, bufIdx
 }
 
 func (e *CValueEnclosure) IsNull() bool {
