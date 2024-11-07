@@ -160,6 +160,12 @@ func GetQueryStartTime(qid uint64) (time.Time, error) {
 	return rQuery.GetStartTime(), nil
 }
 
+func GetActiveQueryCount() int {
+	arqMapLock.Lock()
+	defer arqMapLock.Unlock()
+	return len(allRunningQueries)
+}
+
 // Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
 // If async, updates will be sent for any update to RunningQueryState. Caller is responsible to call DeleteQuery
 func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQueryState, error) {
