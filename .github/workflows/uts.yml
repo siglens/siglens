@@ -23,7 +23,7 @@ jobs:
           echo "all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}"
           echo "any_changed: ${{ steps.changed-files.outputs.any_changed }}"
           echo "skip_tests: ${{ steps.changed-files.outputs.only_changed == 'true' }}"
- test-output:
+  test-output:
     needs: check-files
     runs-on: ubuntu-latest
     steps:
