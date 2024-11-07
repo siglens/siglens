@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/segment/aggregations"	
 )
 
 type streamstatsProcessor struct {
@@ -369,7 +370,7 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		if ssResults.RangeStat == nil {
 			ssResults.RangeStat = InitRangeStat()
 		}
-		UpdateRangeStat(colValue.CVal.(float64), ssResults.RangeStat)
+		aggregations.UpdateRangeStat(colValue.CVal.(float64), ssResults.RangeStat)
 		ssResults.CurrResult.CVal = ssResults.RangeStat.Max - ssResults.RangeStat.Min
 	case utils.Cardinality:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
@@ -847,15 +848,6 @@ func PerformWindowStreamStatsOnSingleFunc(currIndex int, ssOption *structs.Strea
 	}
 
 	return latestResult, true, nil
-}
-
-func UpdateRangeStat(floatValue float64, rangeStat *structs.RangeStat) {
-	if floatValue < rangeStat.Min {
-		rangeStat.Min = floatValue
-	}
-	if floatValue > rangeStat.Max {
-		rangeStat.Max = floatValue
-	}
 }
 
 func CreateCValueFromColValue(colValue interface{}) utils.CValueEnclosure {
