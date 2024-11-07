@@ -408,7 +408,7 @@ func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	_, err = processor.Process(iqr1)
 	assert.NoError(t, err)
 
-	// value of col1 at eaach record is utils.MAX_RECORD_SIZE bytes
+	// value of col1 at each record is utils.MAX_RECORD_SIZE * factor bytes
 	// +
 	// value of col3 at each record is 1 byte
 	estimatedSizeOfBuffer := (utils.MAX_RECORD_SIZE * factorSize) + 1
