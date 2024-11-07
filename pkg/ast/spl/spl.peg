@@ -1834,14 +1834,14 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
-        TopExpr: letColReq.StatisticColRequest,
+        StatisticExpr: letColReq.StatisticColRequest,
     }
 
     measureAgg := &structs.MeasureAggregator {
         MeasureCol: "*",
         MeasureFunc: utils.Count,
     }
-    root.TopExpr.MeasureAggregator = measureAgg
+    root.StatisticExpr.MeasureAggregator = measureAgg
 
     measureOperations := make([]*structs.MeasureAggregator, 1)
     measureOperations[0] = measureAgg

@@ -189,7 +189,6 @@ type QueryAggregators struct {
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
 	MVExpandExpr    *MultiValueColLetRequest
-	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
 	RenameExp       *RenameExp
 	RexExpr         *RexExpr
@@ -198,7 +197,7 @@ type QueryAggregators struct {
 	StreamstatsExpr *StreamStatsOptions
 	TailExpr        *TailExpr
 	TimechartExpr   *TimechartExpr
-	TopExpr         *StatisticExpr
+	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
 }

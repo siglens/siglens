@@ -28,16 +28,18 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
-type topProcessor struct {
-	options        *structs.StatisticExpr
-	statsExpr      *structs.StatsExpr
-	statsProcessor *statsProcessor
-	qid            uint64
+type statisticExprProcessor struct {
+	options                 *structs.StatisticExpr
+	statsExpr               *structs.StatsExpr
+	statsProcessor          *statsProcessor
+	qid                     uint64
+	finalAggregationResults map[string]*structs.AggregationResult
+	hasFinalResult          bool
 }
 
-func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
-	processor := &topProcessor{
-		options:   options.TopExpr,
+func NewStatisticExprProcessor(options *structs.QueryAggregators) *statisticExprProcessor {
+	processor := &statisticExprProcessor{
+		options:   options.StatisticExpr,
 		statsExpr: options.StatsExpr,
 	}
 
@@ -46,9 +48,9 @@ func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
 	return processor
 }
 
-func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if p.options == nil {
-		return nil, toputils.TeeErrorf("topProcessor.Process: options is nil")
+		return nil, toputils.TeeErrorf("statisticExprProcessor.Process: options is nil")
 	}
 
 	if inputIQR != nil {
@@ -81,7 +83,7 @@ func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		//Sort results according to requirements
 		err := p.options.SortBucketResult(&aggregationResult.Results)
 		if err != nil {
-			return nil, fmt.Errorf("topProcessor.Process: %v", err)
+			return nil, fmt.Errorf("statisticExprProcessor.Process: %v", err)
 		}
 		//Process bucket result
 		otherCnt := resTotal
@@ -98,7 +100,7 @@ func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 			//Delete fields not in statistic expr
 			err := p.options.RemoveFieldsNotInExprForBucketRes(bucketResult)
 			if err != nil {
-				return nil, fmt.Errorf("topProcessor.Process: %v", err)
+				return nil, fmt.Errorf("statisticExprProcessor.Process: %v", err)
 			}
 
 			otherCnt -= (bucketResult.ElemCount)
@@ -107,7 +109,7 @@ func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 			if countIsGroupByCol || percentIsGroupByCol {
 				err := p.options.OverrideGroupByCol(bucketResult, resTotal)
 				if err != nil {
-					return nil, fmt.Errorf("topProcessor.Process: %v", err)
+					return nil, fmt.Errorf("statisticExprProcessor.Process: %v", err)
 				}
 			}
 
@@ -155,7 +157,7 @@ func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 			if countIsGroupByCol || percentIsGroupByCol {
 				err := p.options.OverrideGroupByCol(otherBucketRes, resTotal)
 				if err != nil {
-					return nil, fmt.Errorf("topProcessor.Process: %v", err)
+					return nil, fmt.Errorf("statisticExprProcessor.Process: %v", err)
 				}
 			}
 
@@ -173,27 +175,47 @@ func (p *topProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		aggResults[key] = aggregationResult
 	}
 
-	inputIQR = iqr.NewIQR(p.qid)
+	p.finalAggregationResults = aggResults
 
-	// bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.statsProcessor.searchResults.GetGroupyByBuckets(int(segutils.QUERY_MAX_BUCKETS))
-	bucketHolderArr, measureFuncs, bucketCount := segresults.CreateMeasResultsFromAggResults(int(segutils.QUERY_MAX_BUCKETS), aggResults)
+	return p.getIQRFromAggregationResults()
+}
+
+func (p *statisticExprProcessor) Rewind() {
+	// Nothing to do
+}
+
+func (p *statisticExprProcessor) Cleanup() {
+	p.statsProcessor.Cleanup()
+}
+
+func (p *statisticExprProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	if p.hasFinalResult {
+		iqr, err := p.getIQRFromAggregationResults()
+		if err != nil && err != io.EOF {
+			return nil, false
+		}
+
+		return iqr, true
+	}
+
+	return nil, false
+}
+
+func (p *statisticExprProcessor) getIQRFromAggregationResults() (*iqr.IQR, error) {
+	if p.finalAggregationResults == nil {
+		return nil, io.EOF
+	}
+
+	inputIQR := iqr.NewIQR(p.qid)
+
+	bucketHolderArr, measureFuncs, bucketCount := segresults.CreateMeasResultsFromAggResults(int(segutils.QUERY_MAX_BUCKETS), p.finalAggregationResults)
 
 	err := inputIQR.CreateStatsResults(bucketHolderArr, measureFuncs, p.statsExpr.GroupByRequest.GroupByColumns, bucketCount)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, topProcessor.Process: cannot create stats results; err=%v", inputIQR.GetQID(), err)
+		return nil, toputils.TeeErrorf("qid=%v, statisticExprProcessor.Process: cannot create stats results; err=%v", inputIQR.GetQID(), err)
 	}
 
+	p.hasFinalResult = true
+
 	return inputIQR, io.EOF
-}
-
-func (p *topProcessor) Rewind() {
-	// Nothing to do
-}
-
-func (p *topProcessor) Cleanup() {
-	// Nothing to do
-}
-
-func (p *topProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	return nil, false
 }

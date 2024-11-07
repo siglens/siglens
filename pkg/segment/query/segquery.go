@@ -104,7 +104,7 @@ func queryMetricsLooper() {
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
 	if config.IsNewQueryPipelineEnabled() {
-		if aggs != nil && aggs.TopExpr != nil {
+		if aggs != nil && aggs.StatisticExpr != nil {
 			return sNode.NodeType, structs.RRCCmd
 		}
 	}
