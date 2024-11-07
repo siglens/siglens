@@ -42,7 +42,7 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 100
+const MAX_RUNNING_QUERIES = 32
 
 type QueryUpdateType int
 
