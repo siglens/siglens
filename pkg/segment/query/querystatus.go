@@ -161,8 +161,8 @@ func GetQueryStartTime(qid uint64) (time.Time, error) {
 }
 
 func GetActiveQueryCount() int {
-	arqMapLock.Lock()
-	defer arqMapLock.Unlock()
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
 	return len(allRunningQueries)
 }
 
