@@ -46,19 +46,9 @@ import (
 // 0000 1010 ==> int64
 // 0000 1011 ==> Float64
 
-// GLOBAL Defs
-// proportion of available to allocate for specific uses
-const MICRO_IDX_MEM_PERCENT = 63 // percent allocated for both rotated & unrotated metadata (cmi/searchmetadata)
-const SSM_MEM_PERCENT = 20
-const RAW_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
-const METRICS_MEMORY_MEM_PERCENT = 2
-
-// percent allocated for segmentsearchmeta (blocksummaries, blocklen/off)
-
-const BLOCK_MICRO_MULTINODE_MEM_PERCENT = 80
-const BLOCK_MICRO_CHECK_MULTINODE_MEM_PERCENT = 15
-const RAW_SEARCH_MULTINODE_MEM_PERCENT = 95
-const MULTINODE_SSM_MEM_PERCENT = 20
+// How the metadata memory is split. These should sum to 100.
+const METADATA_LOGS_MEM_PERCENT = 70
+const METADATA_METRICS_MEM_PERCENT = 30
 
 // if you change this size, adjust the block bloom size
 const WIP_SIZE = 2_000_000

@@ -259,6 +259,10 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		}
 	}
 
+	if finalIQR == nil {
+		return createEmptyResponse(qp.queryType), nil
+	}
+
 	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls)
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
@@ -398,4 +402,31 @@ func (qp *QueryProcessor) logQuerySummary() {
 	qp.querySummary.LogSummaryAndEmitMetrics(qp.qid, qp.queryInfo.GetPqid(), qp.queryInfo.ContainsKibana(), qp.queryInfo.GetOrgId())
 
 	log.Infof("qid=%v, Finished execution in %+v", qp.qid, time.Since(qp.startTime))
+}
+
+func createEmptyResponse(queryType structs.QueryType) *structs.PipeSearchResponseOuter {
+	response := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
+			TotalMatched: utils.HitsCount{
+				Value:    0,
+				Relation: "eq",
+			},
+			Hits: make([]map[string]interface{}, 0),
+		},
+		AllPossibleColumns: make([]string, 0),
+		Errors:             nil,
+		Qtype:              queryType.String(),
+		CanScrollMore:      false,
+		ColumnsOrder:       make([]string, 0),
+	}
+
+	// Add stats-specific fields for GroupBy and SegmentStats queries
+	if queryType == structs.GroupByCmd || queryType == structs.SegmentStatsCmd {
+		response.MeasureResults = make([]*structs.BucketHolder, 0)
+		response.MeasureFunctions = make([]string, 0)
+		response.GroupByCols = make([]string, 0)
+		response.BucketCount = 0
+	}
+
+	return response
 }
