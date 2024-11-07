@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -42,7 +43,7 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 100
+var MAX_RUNNING_QUERIES = runtime.GOMAXPROCS(0) * 2
 
 type QueryUpdateType int
 
