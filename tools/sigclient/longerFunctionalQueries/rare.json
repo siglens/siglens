@@ -1,70 +1,52 @@
 {
     "queryText": "city=Boston | rare http_method useother=false percentfield=rare_pc countfield=rare_count showperc=true",
     "expectedResult": {
-        "bucketCount": 6,
-        "qtype": "aggs-query",
-        "groupByCols": [
-           "http_method"
-        ],
-        "measureFunctions": [
-            "rare_pc",
-            "rare_count"
-        ],
-        "measure": [
+        "totalMatched": {
+            "value": 6,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records":  [
             {
-                "GroupByValues": [
-                    "POST"
-                ],
-                "MeasureVal": {
-                    "rare_count": 148,
-                    "rare_pc": "15.040650"
-                }
+                "http_method": "PATCH",
+                "rare_count": 33833,
+                "rare_pc": 16.536653
             },
             {
-                "GroupByValues": [
-                    "PATCH"
-                ],
-                "MeasureVal": {
-                    "rare_count": 153,
-                    "rare_pc": "15.548780"
-                }
+                "http_method": "PUT",
+                "rare_count": 33905,
+                "rare_pc": 16.571845
             },
             {
-                "GroupByValues": [
-                    "PUT"
-                ],
-                "MeasureVal": {
-                    "rare_count": 154,
-                    "rare_pc": "15.650407"
-                }
+                "http_method": "POST",
+                "rare_count": 33982,
+                "rare_pc": 16.60948
             },
             {
-                "GroupByValues": [
-                    "HEAD"
-                ],
-                "MeasureVal": {
-                    "rare_count": 168,
-                    "rare_pc": "17.073171"
-                }
+                "http_method": "GET",
+                "rare_count": 34008,
+                "rare_pc": 16.622188
             },
             {
-                "GroupByValues": [
-                    "GET"
-                ],
-                "MeasureVal": {
-                    "rare_count": 174,
-                    "rare_pc": "17.682927"
-                }
+                "http_method": "DELETE",
+                "rare_count": 34281,
+                "rare_pc": 16.755623
             },
             {
-                "GroupByValues": [
-                    "DELETE"
-                ],
-                "MeasureVal": {
-                    "rare_count": 187,
-                    "rare_pc": "19.004065"
-                }
+                "http_method": "HEAD",
+                "rare_count": 34585,
+                "rare_pc": 16.90421
             }
+        ],
+        "allColumns": [
+            "http_method",
+            "rare_count",
+            "rare_pc"
+        ],
+        "columnsOrder": [
+            "http_method",
+            "rare_count",
+            "rare_pc"
         ]
     }
 }

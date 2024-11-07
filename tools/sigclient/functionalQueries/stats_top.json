@@ -1,10 +1,10 @@
 {
-    "queryText": "city=Boston | stats count as count BY app_name | top 5 app_name, count useother=true countfield=count percentfield=percent",
+    "queryText": "city=Boston | stats count as count BY http_method | top 5 http_method, count useother=true countfield=count percentfield=percent",
     "expectedResult": {
         "bucketCount": 6,
         "qtype": "aggs-query",
         "groupByCols": [
-            "app_name",
+            "http_method",
             "count"
         ],
         "measureFunctions": [
@@ -15,7 +15,7 @@
                 "IGroupByValues": [
                     {
                         "Dtype": 5,
-                        "CVal": "Zebradance"
+                        "CVal": "PUT"
                     },
                     {
                         "Dtype": 3,
@@ -23,18 +23,18 @@
                     }
                 ],
                 "GroupByValues": [
-                    "Zebradance",
+                    "PUT",
                     "1"
                 ],
                 "MeasureVal": {
-                    "percent": 0.10352
+                    "percent": 16.666667
                 }
             },
             {
                 "IGroupByValues": [
                     {
                         "Dtype": 5,
-                        "CVal": "Zebrabeing"
+                        "CVal": "POST"
                     },
                     {
                         "Dtype": 3,
@@ -42,18 +42,18 @@
                     }
                 ],
                 "GroupByValues": [
-                    "Zebrabeing",
+                    "POST",
                     "1"
                 ],
                 "MeasureVal": {
-                    "percent": 0.10352
+                    "percent": 16.666667
                 }
             },
             {
                 "IGroupByValues": [
                     {
                         "Dtype": 5,
-                        "CVal": "Yellowjacketcan"
+                        "CVal": "PATCH"
                     },
                     {
                         "Dtype": 3,
@@ -61,18 +61,18 @@
                     }
                 ],
                 "GroupByValues": [
-                    "Yellowjacketcan",
+                    "PATCH",
                     "1"
                 ],
                 "MeasureVal": {
-                    "percent": 0.10352
+                    "percent": 16.666667
                 }
             },
             {
                 "IGroupByValues": [
                     {
                         "Dtype": 5,
-                        "CVal": "YellowGreenteam"
+                        "CVal": "HEAD"
                     },
                     {
                         "Dtype": 3,
@@ -80,18 +80,18 @@
                     }
                 ],
                 "GroupByValues": [
-                    "YellowGreenteam",
+                    "HEAD",
                     "1"
                 ],
                 "MeasureVal": {
-                    "percent": 0.10352
+                    "percent": 16.666667
                 }
             },
             {
                 "IGroupByValues": [
                     {
                         "Dtype": 5,
-                        "CVal": "YellowGreenpancake"
+                        "CVal": "GET"
                     },
                     {
                         "Dtype": 3,
@@ -99,11 +99,11 @@
                     }
                 ],
                 "GroupByValues": [
-                    "YellowGreenpancake",
+                    "GET",
                     "1"
                 ],
                 "MeasureVal": {
-                    "percent": 0.10352
+                    "percent": 16.666667
                 }
             },
             {
@@ -114,15 +114,15 @@
                     },
                     {
                         "Dtype": 3,
-                        "CVal": 961
+                        "CVal": 1
                     }
                 ],
                 "GroupByValues": [
                     "other",
-                    "961"
+                    "1"
                 ],
                 "MeasureVal": {
-                    "percent": 99.482402
+                    "percent": 16.666667
                 }
             }
         ]

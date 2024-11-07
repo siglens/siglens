@@ -33,6 +33,10 @@ mvexpand.json
 tail.json
 sort_tail_eval_newField.json
 tail_stats.json
+top.json
+rare.json
+rare_top.json
+stats_top.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
