@@ -3,13 +3,13 @@ name: Format the JS code
 on: [push]
 
 jobs:
-  check-changes:
-    uses: ./.github/workflows/check-files.yml
+  check-changed-files:
+    uses: ./.github/workflows/check-changed-files.yml
   format:
     runs-on: ubuntu-latest
     name: Prettier Format JS code Files
-    needs: check-changes
-    if: ${{ needs.check-files.outputs.skip_tests != 'true' }}
+    needs: check-changed-files
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3

@@ -5,12 +5,12 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  check-changes:
-    uses: ./.github/workflows/check-files.yml
+  check-changed-files:
+    uses: ./.github/workflows/check-changed-files.yml
   playwright-tests:
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.skip_tests != 'true' }}
+    needs: check-changed-files
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
     steps:
       - uses: actions/checkout@v3
 
