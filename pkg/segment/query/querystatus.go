@@ -41,8 +41,9 @@ type QueryState int
 var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
-const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 32
+const CANCEL_QUERY_AFTER_SECONDS = 30 // If 0, the query will never timeout
+const MAX_RUNNING_QUERIES = 2
+const MAX_WAITING_QUERIES = 2
 
 type QueryUpdateType int
 
@@ -64,6 +65,11 @@ type QueryStateChanData struct {
 	UpdateWSResp    *structs.PipeSearchWSUpdateResponse
 	CompleteWSResp  *structs.PipeSearchCompleteResponse
 	Error           error // Only used when the state is ERROR
+}
+
+type WaitStateData struct {
+	qid    uint64
+	rQuery *RunningQueryState
 }
 
 const (
@@ -126,6 +132,7 @@ type RunningQueryState struct {
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
+var waitingQueries = make(chan WaitStateData, MAX_WAITING_QUERIES)
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
 func (rQuery *RunningQueryState) IsAsync() bool {
@@ -176,35 +183,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		return nil, fmt.Errorf("qid has already been started")
 	}
 
-	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
-		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
-	}
-
-	var stateChan chan *QueryStateChanData
-	if async {
-		stateChan = make(chan *QueryStateChanData, numStates)
-		stateChan <- &QueryStateChanData{StateName: RUNNING}
-	}
-
-	var timeoutCancelFunc context.CancelFunc
-	// If the query runs too long, cancel it.
-	if CANCEL_QUERY_AFTER_SECONDS != 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
-		timeoutCancelFunc = cancel
-
-		go func() {
-			<-ctx.Done()
-			arqMapLock.RLock()
-			rQuery, ok := allRunningQueries[qid]
-			arqMapLock.RUnlock()
-
-			if ok && ctx.Err() == context.DeadlineExceeded {
-				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
-				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
-				CancelQuery(qid)
-			}
-		}()
-	}
+	stateChan := make(chan *QueryStateChanData, numStates)
 
 	runningState := &RunningQueryState{
 		startTime:         time.Now(),
@@ -212,9 +191,23 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		cleanupCallback:   cleanupCallback,
 		rqsLock:           &sync.Mutex{},
 		isAsync:           async,
-		timeoutCancelFunc: timeoutCancelFunc,
+		timeoutCancelFunc: nil,
 	}
+
+	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
+		select {
+		case waitingQueries <- WaitStateData{qid, runningState}:
+		default:
+			return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
+		}
+
+		return runningState, nil
+	}
+
+	stateChan <- &QueryStateChanData{StateName: RUNNING}
+	runningState.timeoutCancelFunc = setupTimeoutCancelFunc(qid)
 	allRunningQueries[qid] = runningState
+
 	return runningState, nil
 }
 
@@ -235,6 +228,47 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+	select {
+	case wsData := <-waitingQueries:
+		runQuery(wsData)
+		return
+	default:
+		return
+	}
+}
+
+func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
+	var timeoutCancelFunc context.CancelFunc
+	if CANCEL_QUERY_AFTER_SECONDS != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
+		timeoutCancelFunc = cancel
+
+		go func() {
+			<-ctx.Done()
+			arqMapLock.RLock()
+			rQuery, ok := allRunningQueries[qid]
+			arqMapLock.RUnlock()
+
+			if ok && ctx.Err() == context.DeadlineExceeded {
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
+				CancelQuery(qid)
+			}
+		}()
+	}
+
+	return timeoutCancelFunc
+}
+
+func runQuery(wsData WaitStateData) {
+	arqMapLock.Lock()
+	defer arqMapLock.Unlock()
+
+	allRunningQueries[wsData.qid] = wsData.rQuery
+
+	wsData.rQuery.timeoutCancelFunc = setupTimeoutCancelFunc(wsData.qid)
+
+	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING}
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,

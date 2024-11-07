@@ -460,6 +460,12 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 		return nil, err
 	}
 
+	signal := <-rQuery.StateChan
+	if signal.StateName != query.RUNNING {
+		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
+	}
+	fmt.Println("Running: ", qc.RawQuery)
+
 	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
