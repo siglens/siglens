@@ -30,10 +30,12 @@ eval_stats_sort.json
 eval_timechart_sort.json
 search_timechart_no_groupby.json
 mvexpand.json
+tail.json
+sort_tail_eval_newField.json
+tail_stats.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
-# sort_tail_eval_newField.json
 # streamstats_win3.json
 # streamstats_win4_currF.json
 # streamstats_win4_grpby.json
@@ -70,5 +72,4 @@ mvexpand.json
 # search_eval_timechart_filldown.json  // filldown command not supported
 
 ## Inconsistent results
-# tail_stats.json
 # streamstats_without_sort.json

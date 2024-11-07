@@ -3746,6 +3746,7 @@ TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
         OutputTransforms: &structs.OutputTransforms {
             TailRequest: tExpr,
         },
+        TailExpr: tExpr,
     }
 
     return queryAgg, nil
@@ -3762,6 +3763,7 @@ TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
         OutputTransforms: &structs.OutputTransforms {
             TailRequest: tExpr,
         },
+        TailExpr: tExpr,
     }
 
     return queryAgg, nil

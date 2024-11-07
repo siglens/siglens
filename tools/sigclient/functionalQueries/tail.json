@@ -1,0 +1,82 @@
+{
+    "queryText": "city=Boston | fields app_name, ident, country | tail",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 10,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Cheetahski",
+                "country": "Virgin Islands (British)",
+                "ident": "89ba7844-8c63-4b55-99c7-98dbba2d9644",
+                "timestamp": 1730825900294
+            },
+            {
+                "app_name": "Farmis",
+                "country": "Christmas Island",
+                "ident": "23dd7b94-0c5d-45b5-955c-d8e3befc18d4",
+                "timestamp": 1730825900366
+            },
+            {
+                "app_name": "Whitehand",
+                "country": "Iraq",
+                "ident": "6aedbfe7-00bf-4a23-b53d-0dbb123c9fac",
+                "timestamp": 1730825900388
+            },
+            {
+                "app_name": "Neckcan",
+                "country": "Russian Federation",
+                "ident": "ca1e6675-a978-4021-8bc8-2ab8271144f2",
+                "timestamp": 1730825900438
+            },
+            {
+                "app_name": "Orangeclub",
+                "country": "Nepal",
+                "ident": "65844983-9d14-4311-b5d5-f00ceca65474",
+                "timestamp": 1730825900540
+            },
+            {
+                "app_name": "Muskratwere",
+                "country": "Australia",
+                "ident": "ea8f2184-2bc7-48a9-8a98-de81c9a5954f",
+                "timestamp": 1730825900565
+            },
+            {
+                "app_name": "Thrillsleep",
+                "country": "Slovakia",
+                "ident": "b76c94ff-6bda-4cd4-bf47-653a6c3c7b19",
+                "timestamp": 1730825900671
+            },
+            {
+                "app_name": "Clumpclose",
+                "country": "Czechia",
+                "ident": "f695d322-f8e8-4ff0-b6ed-588e2b8f689e",
+                "timestamp": 1730825900720
+            },
+            {
+                "app_name": "DimGrayboat",
+                "country": "Armenia",
+                "ident": "c336a648-9591-4878-bf79-ccdc1c5b55d9",
+                "timestamp": 1730825900858
+            },
+            {
+                "app_name": "Otterdig",
+                "country": "Somalia",
+                "ident": "89b60060-5e67-424e-bf67-299cd37453c6",
+                "timestamp": 1730825901034
+            }
+        ],
+        "allColumns": [
+            "app_name",
+            "ident",
+            "country"
+        ],
+        "columnsOrder": [
+            "app_name",
+            "ident",
+            "country"
+        ]
+    }
+}

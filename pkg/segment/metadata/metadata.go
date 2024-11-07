@@ -361,12 +361,9 @@ func DeleteVirtualTable(vTable string, orgid uint64) {
 	globalMetadata.deleteTable(vTable, orgid)
 }
 
-/*
-Internally, this will allocate 30% of the SSM size to metrics and the remaining to logs
-*/
 func RebalanceInMemorySsm(ssmSizeBytes uint64) {
-	logsSSM := uint64(float64(ssmSizeBytes) * 0.30)
-	metricsSSM := uint64(float64(ssmSizeBytes) * 0.70)
+	logsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_LOGS_MEM_PERCENT / 100)
+	metricsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_METRICS_MEM_PERCENT / 100)
 	globalMetadata.rebalanceSsm(logsSSM)
 	globalMetricsMetadata.rebalanceMetricsSsm(metricsSSM)
 }

@@ -285,3 +285,13 @@ func Test_SelectFromSlice(t *testing.T) {
 
 	assert.Equal(t, []int{2, 4}, evens)
 }
+
+func Test_ReverseSlice(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	ReverseSlice(slice)
+	assert.Equal(t, []int{5, 4, 3, 2, 1}, slice)
+
+	slice2 := []string{"a", "b", "c", "d"}
+	ReverseSlice(slice2)
+	assert.Equal(t, []string{"d", "c", "b", "a"}, slice2)
+}

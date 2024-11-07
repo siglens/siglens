@@ -42,7 +42,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
 	_, err := query.StartQuery(qid, false, nil)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
+		log.Errorf("ExecuteMetricsQuery: Error initializing query status! %+v", err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
@@ -67,7 +67,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
 		_, err := query.StartQuery(qid, false, nil)
 		if err != nil {
-			log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
+			log.Errorf("ExecuteMultipleMetricsQuery: Error initializing query status! %+v", err)
 			return &mresults.MetricsResult{
 				ErrList: []error{err},
 			}
@@ -456,7 +456,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (chan *query.QueryStateChanData, error) {
 	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQueryForNewPipeline: Error initializing query status! %+v", err)
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
 		return nil, err
 	}
 
@@ -471,6 +471,12 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 		if err != nil {
 			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
 		}
+
+		errorState := query.QueryStateChanData{
+			StateName: query.ERROR,
+			Error:     err,
+		}
+		rQuery.StateChan <- &errorState
 	}()
 	return rQuery.StateChan, nil
 }

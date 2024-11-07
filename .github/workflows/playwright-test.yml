@@ -3,6 +3,8 @@ name: Playwright UI Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'pkg/config/version.go'
 
 jobs:
   playwright-tests:

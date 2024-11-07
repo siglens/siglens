@@ -254,10 +254,14 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
 			if err != nil {
-				return nil, utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
+				return nil, utils.TeeErrorf("GetFullResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
 		}
+	}
+
+	if finalIQR == nil {
+		return createEmptyResponse(qp.queryType), nil
 	}
 
 	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls)
@@ -280,13 +284,12 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 }
 
 // Usage:
-// 1. Make channels for updates and the final result.
+// 1. Make a channel to receive updates.
 // 2. Call GetStreamedResult as a goroutine.
-// 3. Read from the update channel and the final result channel.
+// 3. Poll the channel.
 //
 // Once the final result is sent, no more updates will be sent.
 func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
-
 	var finalIQR *iqr.IQR
 	var err error
 	totalRecords := 0
@@ -400,4 +403,31 @@ func (qp *QueryProcessor) logQuerySummary() {
 	qp.querySummary.LogSummaryAndEmitMetrics(qp.qid, qp.queryInfo.GetPqid(), qp.queryInfo.ContainsKibana(), qp.queryInfo.GetOrgId())
 
 	log.Infof("qid=%v, Finished execution in %+v", qp.qid, time.Since(qp.startTime))
+}
+
+func createEmptyResponse(queryType structs.QueryType) *structs.PipeSearchResponseOuter {
+	response := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
+			TotalMatched: utils.HitsCount{
+				Value:    0,
+				Relation: "eq",
+			},
+			Hits: make([]map[string]interface{}, 0),
+		},
+		AllPossibleColumns: make([]string, 0),
+		Errors:             nil,
+		Qtype:              queryType.String(),
+		CanScrollMore:      false,
+		ColumnsOrder:       make([]string, 0),
+	}
+
+	// Add stats-specific fields for GroupBy and SegmentStats queries
+	if queryType == structs.GroupByCmd || queryType == structs.SegmentStatsCmd {
+		response.MeasureResults = make([]*structs.BucketHolder, 0)
+		response.MeasureFunctions = make([]string, 0)
+		response.GroupByCols = make([]string, 0)
+		response.BucketCount = 0
+	}
+
+	return response
 }
