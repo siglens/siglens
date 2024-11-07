@@ -95,7 +95,6 @@ type StatisticExpr struct {
 	StatisticOptions      *StatisticOptions
 	FieldList             []string //Must have FieldList
 	ByClause              []string
-	MeasureAggregator     *MeasureAggregator
 }
 
 type StatisticOptions struct {
@@ -1365,8 +1364,8 @@ func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEncl
 func (self *StatisticExpr) SetPercToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64, resTotal uint64) {
 	percent := float64(elemCount) / float64(resTotal) * 100
 	statRes[self.StatisticOptions.PercentField] = utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  fmt.Sprintf("%.6f", percent),
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(math.Round(percent*1e6) / 1e6),
 	}
 }
 

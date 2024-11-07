@@ -1841,7 +1841,6 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         MeasureCol: "*",
         MeasureFunc: utils.Count,
     }
-    root.StatisticExpr.MeasureAggregator = measureAgg
 
     measureOperations := make([]*structs.MeasureAggregator, 1)
     measureOperations[0] = measureAgg
