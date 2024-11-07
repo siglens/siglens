@@ -324,8 +324,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		}
 
 		signal := <-rQuery.StateChan
-		if signal.StateName != query.RUNNING {
-			return nil, false, nil, utils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
+		if signal.StateName != query.READY {
+			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: query state is not ready, state: %v", qid, signal.StateName)
 		}
 
 		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc, scrollFrom)

@@ -40,13 +40,21 @@ import (
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-	_, err := query.StartQuery(qid, false, nil)
+	rQuery, err := query.StartQuery(qid, false, nil)
+
 	if err != nil {
-		log.Errorf("ExecuteMetricsQuery: Error initializing query status! %+v", err)
 		return &mresults.MetricsResult{
-			ErrList: []error{err},
+			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
+	
+	signal := <-rQuery.StateChan
+	if signal.StateName != query.READY {
+		return &mresults.MetricsResult{
+			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
+		}
+	}
+
 	res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 	query.DeleteQuery(qid)
 	querySummary.IncrementNumResultSeries(res.GetNumSeries())
@@ -65,13 +73,21 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-		_, err := query.StartQuery(qid, false, nil)
+		rQuery, err := query.StartQuery(qid, false, nil)
 		if err != nil {
-			log.Errorf("ExecuteMultipleMetricsQuery: Error initializing query status! %+v", err)
 			return &mresults.MetricsResult{
-				ErrList: []error{err},
+				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
 			}
 		}
+
+		signal := <-rQuery.StateChan
+		if signal.StateName != query.READY {
+			return &mresults.MetricsResult{
+				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: query state is not running, state: %v", qid, signal.StateName)},
+			}
+		}
+		
+
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 		query.DeleteQuery(qid)
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
@@ -426,11 +442,17 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 	rQuery, err := query.StartQuery(qid, false, nil)
 	if err != nil {
-		log.Errorf("ExecuteQuery: Error initializing query status! %+v", err)
 		return &structs.NodeResult{
-			ErrList: []error{err},
+			ErrList: []error{toputils.TeeErrorf("ExecuteQuery: Error initializing query status! %v", err)},
 		}
 	}
+	signal := <-rQuery.StateChan
+	if signal.StateName != query.READY {
+		return &structs.NodeResult{
+			ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteQuery: query state is not running, state: %v", qid, signal.StateName)},
+		}
+	}
+
 	res := executeQueryInternal(root, aggs, qid, qc, rQuery)
 	res.ApplyScroll(qc.Scroll)
 	res.TotalRRCCount, err = query.GetNumMatchedRRCs(qid)
@@ -461,7 +483,7 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 	}
 
 	signal := <-rQuery.StateChan
-	if signal.StateName != query.RUNNING {
+	if signal.StateName != query.READY {
 		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
 	}
 	fmt.Println("Running: ", qc.RawQuery)
@@ -494,6 +516,10 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 		return nil, err
+	}
+	signal := <-rQuery.StateChan
+	if signal.StateName != query.READY {
+		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
 	}
 
 	go func() {

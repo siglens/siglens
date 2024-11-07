@@ -22,10 +22,12 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/pbnjay/memory"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -42,8 +44,9 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 30 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 2
-const MAX_WAITING_QUERIES = 2
+var MAX_RUNNING_QUERIES = runtime.GOMAXPROCS(0)
+const MAX_WAITING_QUERIES = 100
+const QUERY_MEM = 200 * 1024 * 1024 // 200MB
 
 type QueryUpdateType int
 
@@ -73,7 +76,8 @@ type WaitStateData struct {
 }
 
 const (
-	RUNNING      QueryState = iota + 1
+	READY QueryState = iota + 1
+	RUNNING      
 	QUERY_UPDATE            // flush segment counts & aggs & records (if matched)
 	COMPLETE
 	CANCELLED
@@ -204,7 +208,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		return runningState, nil
 	}
 
-	stateChan <- &QueryStateChanData{StateName: RUNNING}
+	stateChan <- &QueryStateChanData{StateName: READY}
 	runningState.timeoutCancelFunc = setupTimeoutCancelFunc(qid)
 	allRunningQueries[qid] = runningState
 
@@ -228,12 +232,23 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
-	select {
-	case wsData := <-waitingQueries:
-		runQuery(wsData)
-		return
-	default:
-		return
+}
+
+func canRunQuery() bool {
+	activeQueries := GetActiveQueryCount()
+	return (activeQueries < MAX_RUNNING_QUERIES && memory.FreeMemory() + QUERY_MEM <= config.GetTotalMemoryAvailable())
+}
+
+func PullQueriesToRun() {
+	for { 
+		if canRunQuery() {
+			select {
+			case wsData := <-waitingQueries:
+				runQuery(wsData)
+			default:
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
@@ -268,6 +283,7 @@ func runQuery(wsData WaitStateData) {
 
 	wsData.rQuery.timeoutCancelFunc = setupTimeoutCancelFunc(wsData.qid)
 
+	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: READY}
 	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING}
 }
 
