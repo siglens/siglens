@@ -389,10 +389,10 @@ func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	assert.Equal(t, 0, len(processor.bucketKeyWorkingBuf))
 
 	col1Values := knownValues["col1"]
-	factorSize := 5
+	factorSize := 5 // should be greater than len(groupByCols)
 
 	for i := 0; i < len(col1Values); i++ {
-		byteVal := make([]byte, utils.MAX_RECORD_SIZE*3)
+		byteVal := make([]byte, utils.MAX_RECORD_SIZE*factorSize)
 
 		for j := 0; j < utils.MAX_RECORD_SIZE; j++ {
 			byteVal[j] = byte(col1Values[i].CVal.(string)[0])
