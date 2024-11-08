@@ -47,7 +47,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
-	
+
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
 		return &mresults.MetricsResult{
@@ -86,7 +86,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: query state is not running, state: %v", qid, signal.StateName)},
 			}
 		}
-		
+
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 		query.DeleteQuery(qid)
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
