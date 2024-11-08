@@ -83,7 +83,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		signal := <-rQuery.StateChan
 		if signal.StateName != query.READY {
 			return &mresults.MetricsResult{
-				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: query state is not running, state: %v", qid, signal.StateName)},
+				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 			}
 		}
 
@@ -448,7 +448,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
 		return &structs.NodeResult{
-			ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteQuery: query state is not running, state: %v", qid, signal.StateName)},
+			ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 		}
 	}
 
@@ -483,9 +483,8 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
-		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
+		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: Did not receive ready state, received: %v", qid, signal.StateName)
 	}
-	fmt.Println("Running: ", qc.RawQuery)
 
 	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
 	if err != nil {
@@ -518,7 +517,7 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	}
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
-		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: query state is not running, state: %v", qid, signal.StateName)
+		return nil, toputils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: Did not receive ready state, received: %v", qid, signal.StateName)
 	}
 
 	go func() {

@@ -43,7 +43,7 @@ type QueryState int
 var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
-const CANCEL_QUERY_AFTER_SECONDS = 30 // If 0, the query will never timeout
+const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
 var MAX_RUNNING_QUERIES = runtime.GOMAXPROCS(0)
 
 const MAX_WAITING_QUERIES = 100
@@ -88,6 +88,8 @@ const (
 
 func (qs QueryState) String() string {
 	switch qs {
+	case READY:
+		return "READY"
 	case RUNNING:
 		return "RUNNING"
 	case QUERY_UPDATE:
@@ -275,6 +277,7 @@ func runQuery(wsData WaitStateData) {
 	allRunningQueries[wsData.qid] = wsData.rQuery
 
 	wsData.rQuery.timeoutCancelFunc = setupTimeoutCancelFunc(wsData.qid)
+	wsData.rQuery.startTime = time.Now()
 
 	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: READY}
 	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING}
