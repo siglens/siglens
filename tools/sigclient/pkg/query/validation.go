@@ -954,3 +954,141 @@ func PerfValidateGroupByQueryResult(queryRes *Result, groupByCols []string, buck
 
 	return nil
 }
+
+func BuildQueryReq(query string) map[string]interface{} {
+	return map[string]interface{}{
+		"state":         "query",
+		"searchText":    query,
+		"startEpoch":    "now-90d",
+		"endEpoch":      "now",
+		"indexName":     "*",
+		"queryLanguage": "Splunk QL",
+	}
+}
+
+func GetFields(dest string) []string {
+	queryReq := BuildQueryReq("*")
+
+	result, _, err := GetQueryResultForAPI(dest, queryReq, 0)
+	if err != nil {
+		log.Fatalf("Error getting fields: %v", err)
+	}
+
+	allCols := result.AllColumns
+	return utils.RemoveValues(allCols, colsToIgnore)
+}
+
+func GetUniqueValuesForCol(col string, dest string) ([]string, bool) {
+	query := fmt.Sprintf("* | stats count as cnt by %v", col)
+	queryReq := BuildQueryReq(query)
+
+	result, _, err := GetQueryResultForAPI(dest, queryReq, 0)
+	if err != nil {
+		log.Fatalf("Error getting fields: %v", err)
+	}
+
+	uniqueValues := make([]string, 0)
+	for _, bucket := range result.MeasureResults {
+		if patternRegex.MatchString(bucket.GroupByValues[0]) {
+			continue
+		}
+		uniqueValues = append(uniqueValues, bucket.GroupByValues[0])
+	}
+
+	if len(uniqueValues) > 300 {
+		return uniqueValues, false
+	}
+
+	return uniqueValues, true
+}
+
+func GetStatsValue(col string, value string, equals bool, dest string) (float64, error) {
+	operator := "="
+	if !equals {
+		operator = "!="
+	}
+	query := fmt.Sprintf("%v%v%v | stats count as cnt", col, operator, value)
+	queryReq := BuildQueryReq(query)
+
+	result, _, err := GetQueryResultForAPI(dest, queryReq, 0)
+	if err != nil {
+		log.Fatalf("Error getting fields: %v", err)
+	}
+
+	for _, bucket := range result.MeasureResults {
+		return bucket.MeasureVal["cnt"].(float64), nil
+	}
+
+	return 0, fmt.Errorf("No result found for %v=%v", col, value)
+}
+
+func GetTotalCount(dest string) (float64, error) {
+	queryReq := BuildQueryReq("* | stats count as cnt")
+
+	result, _, err := GetQueryResultForAPI(dest, queryReq, 0)
+	if err != nil {
+		log.Fatalf("Error getting fields: %v", err)
+	}
+
+	for _, bucket := range result.MeasureResults {
+		return bucket.MeasureVal["cnt"].(float64), nil
+	}
+
+	return 0, fmt.Errorf("No result found for total count")
+}
+
+func Test_EqualsNotEquals(dest string) {
+
+	fields := GetFields(dest)
+	if len(fields) == 0 {
+		log.Fatalf("No fields found")
+	}
+
+	skippedFields := []string{}
+	successFields := []string{}
+
+	totalCount, err := GetTotalCount(dest)
+	if err != nil {
+		log.Fatalf("Error getting total count: %v", err)
+	}
+
+	errCols := make(map[string]string, 0)
+
+	for _, field := range fields {
+		uniqueValues, lowCard := GetUniqueValuesForCol(field, dest)
+		if !lowCard || len(uniqueValues) == 0 {
+			skippedFields = append(skippedFields, field)
+			continue
+		}
+
+		log.Infof("Validating field: %v, total unique values: %v", field, len(uniqueValues))
+		valid := true
+
+		for _, value := range uniqueValues {
+			equalsCount, err := GetStatsValue(field, value, true, dest)
+			if err != nil {
+				log.Fatalf("Error getting stats value: %v", err)
+			}
+
+			notEqualsCount, err := GetStatsValue(field, value, false, dest)
+			if err != nil {
+				log.Fatalf("Error getting stats value: %v", err)
+			}
+
+			if equalsCount+notEqualsCount != totalCount {
+				log.Warnf("Equals count: %v, Not equals count: %v, Total count: %v col: %v, value: %v", equalsCount, notEqualsCount, totalCount, field, value)
+				errCols[field] = value
+				valid = false
+				break
+			}
+		}
+
+		if valid {
+			successFields = append(successFields, field)
+		}
+	}
+
+	log.Infof("Skipped fields: %v", skippedFields)
+	log.Infof("Success fields: %v", successFields)
+	log.Infof("Error fields: %v", utils.GetKeysOfMap(errCols))
+}

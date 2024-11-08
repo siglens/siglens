@@ -153,6 +153,20 @@ var functionalTestCmd = &cobra.Command{
 	},
 }
 
+var equalityTestCmd = &cobra.Command{
+	Use:   "equalityTest",
+	Short: "equality testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		query.Test_EqualsNotEquals(dest)
+	},
+}
+
 var performanceTestCmd = &cobra.Command{
 	Use:   "performance",
 	Short: "performance testing of SigLens",
@@ -527,4 +541,5 @@ func init() {
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)
+	rootCmd.AddCommand(equalityTestCmd)
 }
