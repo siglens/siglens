@@ -37,6 +37,7 @@ import (
 )
 
 func Test_MetricsQuery(t *testing.T) {
+	query.PullQueriesToRun()
 	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()

@@ -431,6 +431,7 @@ func Test_RotatedMetricNames(t *testing.T) {
 
 func Test_GetAllTagsForAMetric(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, mNames, tagKeys, tagKeyValues := GetTestMetricsData(startTimestamp)
@@ -476,6 +477,7 @@ func Test_GetAllTagsForAMetric(t *testing.T) {
 
 func Test_SimpleMetricQuery_v1(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, metricNames, _, _ := GetTestMetricsData(startTimestamp)
@@ -531,6 +533,7 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -599,6 +602,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -669,6 +673,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -740,6 +745,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -813,6 +819,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -882,6 +889,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -955,6 +963,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1022,6 +1031,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1112,6 +1122,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
+	go query.PullQueriesToRun()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)

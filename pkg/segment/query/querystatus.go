@@ -77,8 +77,8 @@ type WaitStateData struct {
 
 const (
 	READY QueryState = iota + 1
-	RUNNING      
-	QUERY_UPDATE            // flush segment counts & aggs & records (if matched)
+	RUNNING
+	QUERY_UPDATE // flush segment counts & aggs & records (if matched)
 	COMPLETE
 	CANCELLED
 	TIMEOUT
@@ -198,19 +198,11 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		timeoutCancelFunc: nil,
 	}
 
-	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
-		select {
-		case waitingQueries <- WaitStateData{qid, runningState}:
-		default:
-			return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
-		}
-
-		return runningState, nil
+	select {
+	case waitingQueries <- WaitStateData{qid, runningState}:
+	default:
+		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
 	}
-
-	stateChan <- &QueryStateChanData{StateName: READY}
-	runningState.timeoutCancelFunc = setupTimeoutCancelFunc(qid)
-	allRunningQueries[qid] = runningState
 
 	return runningState, nil
 }
@@ -236,11 +228,11 @@ func DeleteQuery(qid uint64) {
 
 func canRunQuery() bool {
 	activeQueries := GetActiveQueryCount()
-	return (activeQueries < MAX_RUNNING_QUERIES && memory.FreeMemory() + QUERY_MEM <= config.GetTotalMemoryAvailable())
+	return (activeQueries < MAX_RUNNING_QUERIES && memory.FreeMemory()+QUERY_MEM <= config.GetTotalMemoryAvailable())
 }
 
 func PullQueriesToRun() {
-	for { 
+	for {
 		if canRunQuery() {
 			select {
 			case wsData := <-waitingQueries:
@@ -248,7 +240,7 @@ func PullQueriesToRun() {
 			default:
 			}
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

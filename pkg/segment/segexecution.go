@@ -87,7 +87,6 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 			}
 		}
 		
-
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 		query.DeleteQuery(qid)
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
