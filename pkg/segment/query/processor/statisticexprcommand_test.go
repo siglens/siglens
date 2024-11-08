@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"testing"
@@ -59,13 +60,21 @@ func getMockRRCsReader() *record.MockRRCsReader {
 				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
 				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
 			},
+			"col3": {
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "e"},
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "e"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
 		},
 	}
 
 	return mockReader
 }
 
-func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode) *statisticExprProcessor {
+func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode, withGroupBy bool) *statisticExprProcessor {
 	statisExpr := &structs.StatisticExpr{
 		StatisticFunctionMode: sfMode,
 		StatisticOptions: &structs.StatisticOptions{
@@ -76,6 +85,7 @@ func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode) *statis
 			ShowPerc:     true,
 		},
 		FieldList: []string{"col1"},
+		ByClause:  []string{},
 	}
 
 	groupByRequest := &structs.GroupByRequest{
@@ -86,6 +96,11 @@ func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode) *statis
 			},
 		},
 		GroupByColumns: []string{"col1"},
+	}
+
+	if withGroupBy {
+		statisExpr.ByClause = []string{"col3"}
+		groupByRequest.GroupByColumns = []string{"col1", "col3"}
 	}
 
 	queryAggregators := &structs.QueryAggregators{
@@ -102,7 +117,7 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	config.GetRunningConfig().UseNewPipelineConverted = true
 
-	processor := getTestStatisticExprProcessor(structs.SFMTop)
+	processor := getTestStatisticExprProcessor(structs.SFMTop, false)
 	assert.NotNil(t, processor)
 
 	mockReader := getMockRRCsReader()
@@ -173,7 +188,7 @@ func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	config.GetRunningConfig().UseNewPipelineConverted = true
 
-	processor := getTestStatisticExprProcessor(structs.SFMRare)
+	processor := getTestStatisticExprProcessor(structs.SFMRare, false)
 	assert.NotNil(t, processor)
 
 	mockReader := getMockRRCsReader()
@@ -237,5 +252,83 @@ func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 		assert.Equal(t, expectedResults["col1"][i], col1Values[i])
 		assert.Equal(t, expectedResults["count"][i], countValues[i])
 		assert.LessOrEqual(t, math.Abs(expectedResults["percent"][i].CVal.(float64)-percentValues[i].CVal.(float64)), 0.001)
+	}
+}
+
+func Test_StatisticExpr_withRRCs_GroupBy(t *testing.T) {
+	config.InitializeDefaultConfig(t.TempDir())
+	config.GetRunningConfig().UseNewPipelineConverted = true
+
+	processor := getTestStatisticExprProcessor(structs.SFMTop, true)
+	assert.NotNil(t, processor)
+
+	mockReader := getMockRRCsReader()
+
+	iqr1 := iqr.NewIQRWithReader(0, mockReader)
+	assert.NotNil(t, iqr1)
+
+	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint16]string{1: "seg1"})
+	assert.Nil(t, err)
+
+	_, err = processor.Process(iqr1)
+	assert.Nil(t, err)
+
+	iqr2 := iqr.NewIQRWithReader(0, mockReader)
+	assert.NotNil(t, iqr2)
+
+	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint16]string{1: "seg2"})
+	assert.Nil(t, err)
+
+	_, err = processor.Process(iqr2)
+	assert.Nil(t, err)
+
+	finalIqr, err := processor.Process(nil)
+	assert.Equal(t, io.EOF, err)
+	assert.NotNil(t, finalIqr)
+	assert.True(t, processor.hasFinalResult)
+
+	actualKnownValues, err := finalIqr.ReadAllColumns()
+	assert.Nil(t, err)
+
+	expectedValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+		},
+		"col3": {
+			{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		},
+		"count": {
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		},
+		"percent": {
+			{Dtype: utils.SS_DT_FLOAT, CVal: float64(33.333)},
+			{Dtype: utils.SS_DT_FLOAT, CVal: float64(33.333)},
+			{Dtype: utils.SS_DT_FLOAT, CVal: float64(16.666)},
+			{Dtype: utils.SS_DT_FLOAT, CVal: float64(16.666)},
+		},
+	}
+
+	fmt.Println(actualKnownValues)
+
+	col1Values := actualKnownValues["col1"]
+	col3Values := actualKnownValues["col3"]
+	countValues := actualKnownValues["count"]
+	percentValues := actualKnownValues["percent"]
+
+	assert.ElementsMatch(t, expectedValues["col1"], col1Values)
+	assert.ElementsMatch(t, expectedValues["col3"], col3Values)
+
+	for i := 0; i < len(countValues); i++ {
+		assert.Equal(t, expectedValues["count"][i], countValues[i])
+		assert.LessOrEqual(t, math.Abs(expectedValues["percent"][i].CVal.(float64)-percentValues[i].CVal.(float64)), 0.001)
 	}
 }
