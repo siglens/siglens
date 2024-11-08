@@ -39,7 +39,6 @@ rare_top.json
 stats_top.json
 
 ## Uncomment when implemented for new pipline
-# rare.json
 # streamstats_win3.json
 # streamstats_win4_currF.json
 # streamstats_win4_grpby.json
@@ -54,10 +53,6 @@ stats_top.json
 
 ## Queries not working for multi-index
 # transaction.json
-
-## Queries that have different Websocket and Http client results
-# stats_top.json
-# rare_top.json
 
 ## Queries not working in generalized Unique spl queries
 # stats_with_timestamp.json

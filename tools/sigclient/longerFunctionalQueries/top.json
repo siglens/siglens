@@ -1,57 +1,121 @@
 {
     "queryText": "city=Boston | top http_method useother=true countfield=count percentfield=percent",
     "expectedResult": {
-        "totalMatched": {
-            "value": 7,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+        "bucketCount": 7,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "http_method"
+        ],
+        "measureFunctions": [
+            "percent",
+            "count"
+        ],
+        "measure": [
             {
-                "count": 34585,
-                "http_method": "HEAD",
-                "percent": 16.90421
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "count": 34486,
+                    "percent": 16.909295
+                }
             },
             {
-                "count": 34281,
-                "http_method": "DELETE",
-                "percent": 16.755623
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE"
+                ],
+                "MeasureVal": {
+                    "count": 34154,
+                    "percent": 16.746508
+                }
             },
             {
-                "count": 34008,
-                "http_method": "GET",
-                "percent": 16.622188
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    }
+                ],
+                "GroupByValues": [
+                    "GET"
+                ],
+                "MeasureVal": {
+                    "count": 33894,
+                    "percent": 16.619024
+                }
             },
             {
-                "count": 33982,
-                "http_method": "POST",
-                "percent": 16.60948
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    }
+                ],
+                "GroupByValues": [
+                    "POST"
+                ],
+                "MeasureVal": {
+                    "count": 33867,
+                    "percent": 16.605785
+                }
             },
             {
-                "count": 33905,
-                "http_method": "PUT",
-                "percent": 16.571845
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT"
+                ],
+                "MeasureVal": {
+                    "count": 33814,
+                    "percent": 16.579798
+                }
             },
             {
-                "count": 33833,
-                "http_method": "PATCH",
-                "percent": 16.536653
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH"
+                ],
+                "MeasureVal": {
+                    "count": 33732,
+                    "percent": 16.539591
+                }
             },
             {
-                "count": 0,
-                "http_method": "other",
-                "percent": 0
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "other"
+                    }
+                ],
+                "GroupByValues": [
+                    "other"
+                ],
+                "MeasureVal": {
+                    "count": 0,
+                    "percent": 0
+                }
             }
-        ],
-        "allColumns": [
-            "http_method",
-            "count",
-            "percent"
-        ],
-        "columnsOrder": [
-            "count",
-            "http_method",
-            "percent"
         ]
     }
 }

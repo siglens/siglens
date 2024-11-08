@@ -1,54 +1,117 @@
 {
-    "queryText": "http_method=POST | rare 5 city useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.city | top 5 city, city_count useother=false countfield=top_count percentfield=top_percent",
+    "queryText": "http_method=P* | rare 5 city useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.city | top 5 city, city_count useother=false countfield=top_count percentfield=top_percent",
     "expectedResult": {
-        "totalMatched": {
-            "value": 5,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
-            {
-                "city": "Aurora",
-                "city_count": "33979Aurora",
-                "top_count": 1,
-                "top_percent": 20
-            },
-            {
-                "city": "Atlanta",
-                "city_count": "34148Atlanta",
-                "top_count": 1,
-                "top_percent": 20
-            },
-            {
-                "city": "Arlington",
-                "city_count": "34015Arlington",
-                "top_count": 1,
-                "top_percent": 20
-            },
-            {
-                "city": "Anaheim",
-                "city_count": "33981Anaheim",
-                "top_count": 1,
-                "top_percent": 20
-            },
-            {
-                "city": "Albuquerque",
-                "city_count": "34211Albuquerque",
-                "top_count": 1,
-                "top_percent": 20
-            }
-        ],
-        "allColumns": [
-            "top_percent",
+        "bucketCount": 5,
+        "qtype": "aggs-query",
+        "groupByCols": [
             "city",
-            "city_count",
+            "city_count"
+        ],
+        "measureFunctions": [
+            "top_percent",
             "top_count"
         ],
-        "columnsOrder": [
-            "city",
-            "city_count",
-            "top_count",
-            "top_percent"
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Aurora"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102075Aurora"
+                    }
+                ],
+                "GroupByValues": [
+                    "Aurora",
+                    "102075Aurora"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Atlanta"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102463Atlanta"
+                    }
+                ],
+                "GroupByValues": [
+                    "Atlanta",
+                    "102463Atlanta"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Arlington"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102075Arlington"
+                    }
+                ],
+                "GroupByValues": [
+                    "Arlington",
+                    "102075Arlington"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Anaheim"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102015Anaheim"
+                    }
+                ],
+                "GroupByValues": [
+                    "Anaheim",
+                    "102015Anaheim"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Albuquerque"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102495Albuquerque"
+                    }
+                ],
+                "GroupByValues": [
+                    "Albuquerque",
+                    "102495Albuquerque"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            }
         ]
     }
 }
