@@ -29,12 +29,12 @@ import (
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
-	"github.com/siglens/siglens/pkg/segment/aggregations"	
 )
 
 type streamstatsProcessor struct {
@@ -84,8 +84,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	bucketKey := ""
 	currentBucketKey := bucketKey
-
-	numPrevSegmentProcessedRecords := p.options.NumProcessedRecords
 	currIndex := 0
 
 	for i := 0; i < iqr.NumberOfRecords(); i++ {
@@ -109,7 +107,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		if p.options.ResetOnChange && currentBucketKey != bucketKey {
 			resetAccumulatedStreamStats(p.options)
 			currIndex = 0
-			numPrevSegmentProcessedRecords = 0
 		}
 
 		shouldResetBefore, err := evaluateResetCondition(p.options.ResetBefore, record)
@@ -119,7 +116,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		if shouldResetBefore {
 			resetAccumulatedStreamStats(p.options)
 			currIndex = 0
-			numPrevSegmentProcessedRecords = 0
 		}
 
 		var timeInMilli uint64
@@ -168,7 +164,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				)
 			} else {
 				result, exists, err = PerformWindowStreamStatsOnSingleFunc(
-					int(numPrevSegmentProcessedRecords)+currIndex,
+					currIndex,
 					p.options,
 					p.options.RunningStreamStats[measIdx][bucketKey],
 					int(p.options.Window),
@@ -209,7 +205,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		if shouldResetAfter {
 			resetAccumulatedStreamStats(p.options)
 			currIndex = 0
-			numPrevSegmentProcessedRecords = 0
 		}
 
 		p.options.NumProcessedRecords++
