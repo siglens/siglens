@@ -75,10 +75,6 @@ type RunningBucketResultsJSON struct {
 }
 
 func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) (*BlockResults, error) {
-	if count > utils.MAX_RECS_PER_WIP {
-		count = utils.MAX_RECS_PER_WIP
-	}
-
 	blockRes := &BlockResults{aggs: aggs}
 	if aggs != nil && aggs.TimeHistogram != nil {
 		blockRes.TimeAggregation = &TimeBuckets{
@@ -112,8 +108,9 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 		blockRes.sortResults = true
 		blockRes.SortedResults = sortedRes
 	} else {
+		initialSize := utils.MinUint64(count, utils.MAX_RECS_PER_WIP)
 		blockRes.sortResults = false
-		blockRes.UnsortedResults = make([]*utils.RecordResultContainer, count)
+		blockRes.UnsortedResults = make([]*utils.RecordResultContainer, initialSize)
 		blockRes.nextUnsortedIdx = 0
 	}
 	blockRes.sizeLimit = count
@@ -240,6 +237,12 @@ func (b *BlockResults) Add(rrc *utils.RecordResultContainer) (bool, string) {
 	}
 
 	if b.nextUnsortedIdx < b.sizeLimit {
+		var err error
+		b.UnsortedResults, err = toputils.GrowSliceInChunks(b.UnsortedResults, int(b.nextUnsortedIdx+1), utils.MAX_RECS_PER_WIP)
+		if err != nil {
+			log.Errorf("BlockResults.Add: Error while growing slice, err: %v", err)
+			return false, ""
+		}
 		b.UnsortedResults[b.nextUnsortedIdx] = rrc
 		b.nextUnsortedIdx++
 		if rrc.SegKeyInfo.IsRemote {

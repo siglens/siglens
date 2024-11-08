@@ -81,6 +81,22 @@ func ResizeSliceWithDefault[T any](slice []T, newLength int, defaultValue T) []T
 	return newSlice
 }
 
+func GrowSliceInChunks[T any](slice []T, minSize int, chunkSize int) ([]T, error) {
+	if minSize < 0 {
+		return nil, TeeErrorf("GrowSliceInChunks: minSize must be non-negative; found %v", minSize)
+	}
+	if chunkSize <= 0 {
+		return nil, TeeErrorf("GrowSliceInChunks: chunkSize must be positive; found %v", chunkSize)
+	}
+
+	numChunksToAdd := (minSize - len(slice) + chunkSize - 1) / chunkSize
+	if numChunksToAdd <= 0 {
+		return slice, nil
+	}
+
+	return append(slice, make([]T, numChunksToAdd*chunkSize)...), nil
+}
+
 func IsArrayOrSlice(val interface{}) (bool, reflect.Value, string) {
 	v := reflect.ValueOf(val)
 	switch v.Kind() {
