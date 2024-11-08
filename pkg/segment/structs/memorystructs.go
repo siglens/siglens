@@ -32,14 +32,12 @@ type AllSegStoreSummary struct {
 }
 
 type MemoryTracker struct {
-	TotalAllocatableBytes     uint64 // total bytes that can be allocated. This should not include CmiRuntimeAllocatedBytes
-	CmiInMemoryAllocatedBytes uint64
-	CmiRuntimeAllocatedBytes  uint64
-	SegSearchRequestedBytes   uint64
-	SegWriterUsageBytes       uint64
-	SegStoreSummary           *AllSegStoreSummary
-	SsmInMemoryAllocatedBytes uint64
-	MetricsSegmentMaxSize     uint64
+	TotalAllocatableBytes   uint64 // total bytes that can be allocated. This should not include CmiRuntimeAllocatedBytes
+	RotatedCMIBytesInMemory uint64
+	SegSearchRequestedBytes uint64
+	SegWriterUsageBytes     uint64
+	SegStoreSummary         *AllSegStoreSummary
+	MetricsSegmentMaxSize   uint64
 }
 
 func (sum *AllSegStoreSummary) IncrementTotalSegmentCount() {

@@ -42,7 +42,7 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 100
+const MAX_RUNNING_QUERIES = 32
 
 type QueryUpdateType int
 
@@ -158,6 +158,12 @@ func GetQueryStartTime(qid uint64) (time.Time, error) {
 	}
 
 	return rQuery.GetStartTime(), nil
+}
+
+func GetActiveQueryCount() int {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+	return len(allRunningQueries)
 }
 
 // Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates

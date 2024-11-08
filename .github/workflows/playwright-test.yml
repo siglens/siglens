@@ -3,12 +3,14 @@ name: Playwright UI Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - 'pkg/config/version.go'
 
 jobs:
+  check-changed-files:
+    uses: ./.github/workflows/check-changed-files.yml
   playwright-tests:
     runs-on: ubuntu-latest
+    needs: check-changed-files
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
     steps:
       - uses: actions/checkout@v3
 

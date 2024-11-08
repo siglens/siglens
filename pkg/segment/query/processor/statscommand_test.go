@@ -379,3 +379,40 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	assert.Equal(t, 1, len(actualAvgRes))
 	assert.Equal(t, expectedAvgRes, actualAvgRes)
 }
+
+func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().UseNewPipelineConverted = true
+
+	knownValues := getTestData()
+	processor := getGroupByProcessor()
+	assert.Equal(t, 0, len(processor.bucketKeyWorkingBuf))
+
+	col1Values := knownValues["col1"]
+	factorSize := 5 // should be greater than len(groupByCols)
+
+	for i := 0; i < len(col1Values); i++ {
+		byteVal := make([]byte, utils.MAX_RECORD_SIZE*factorSize)
+
+		for j := 0; j < utils.MAX_RECORD_SIZE; j++ {
+			byteVal[j] = byte(col1Values[i].CVal.(string)[0])
+		}
+
+		knownValues["col1"][i].CVal = string(byteVal)
+	}
+
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	_, err = processor.Process(iqr1)
+	assert.NoError(t, err)
+
+	// value of col1 at each record is utils.MAX_RECORD_SIZE * factor bytes
+	// +
+	// value of col3 at each record is 1 byte
+	estimatedSizeOfBuffer := (utils.MAX_RECORD_SIZE * factorSize) + 1
+
+	// the p.bucketKeyWorkingBuf should be at least the size of the estimated buffer
+	assert.GreaterOrEqual(t, len(processor.bucketKeyWorkingBuf), estimatedSizeOfBuffer, "bucketKeyWorkingBuf size is less than estimated buffer size")
+}
