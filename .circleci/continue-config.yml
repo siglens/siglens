@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Check if tests should be run
           command: |
-            if [ "${{ parameters.run-tests }}" = false ]; then
+            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
               echo "Skipping tests"
               circleci-agent step halt
             else
@@ -81,7 +81,7 @@ jobs:
       - run:
           name: Check if tests should be run
           command: |
-            if [ "${{ parameters.run-tests }}" = false ]; then
+            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
               echo "Skipping tests"
               circleci-agent step halt
             else
