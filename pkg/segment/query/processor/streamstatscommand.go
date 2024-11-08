@@ -95,6 +95,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
+		// Get bucket key first
 		if p.options.GroupByRequest != nil {
 			bucketKey = ""
 			for _, colName := range p.options.GroupByRequest.GroupByColumns {
@@ -104,11 +105,13 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
+		// Check reset on change before processing
 		if p.options.ResetOnChange && currentBucketKey != bucketKey {
 			resetAccumulatedStreamStats(p.options)
 			currIndex = 0
 		}
 
+		// Check reset before condition
 		shouldResetBefore, err := evaluateResetCondition(p.options.ResetBefore, record)
 		if err != nil {
 			return nil, err
@@ -118,19 +121,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			currIndex = 0
 		}
 
-		var timeInMilli uint64
-		if p.options.TimeWindow != nil {
-			tsVal, exists := record["timestamp"]
-			if !exists {
-				return nil, fmt.Errorf("timestamp required for time window but not found")
-			}
-			timeInMilli, err = dtypeutils.ConvertToUInt(tsVal, 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid timestamp value: %v", tsVal)
-			}
-		}
-
-		// Process each measure operation
+		// Process all measure operations
 		for measIdx, measureAgg := range measureAggs {
 			if _, ok := p.options.RunningStreamStats[measIdx]; !ok {
 				p.options.RunningStreamStats[measIdx] = make(map[string]*structs.RunningStreamStatsResults)
@@ -139,6 +130,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				p.options.RunningStreamStats[measIdx][bucketKey] = InitRunningStreamStatsResults(measureAgg.MeasureFunc)
 			}
 
+			// Get values and prepare for processing
 			colValue := CreateCValueFromColValue(record[measureAgg.MeasureCol])
 			fieldToValue := make(map[string]segutils.CValueEnclosure)
 			if measureAgg.ValueColRequest != nil {
@@ -163,6 +155,18 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 					include,
 				)
 			} else {
+				var timeInMilli uint64
+				if p.options.TimeWindow != nil {
+					tsVal, exists := record["timestamp"]
+					if !exists {
+						return nil, fmt.Errorf("timestamp required for time window but not found")
+					}
+					timeInMilli, err = dtypeutils.ConvertToUInt(tsVal, 64)
+					if err != nil {
+						return nil, fmt.Errorf("invalid timestamp value: %v", tsVal)
+					}
+				}
+
 				result, exists, err = PerformWindowStreamStatsOnSingleFunc(
 					currIndex,
 					p.options,
@@ -171,7 +175,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 					measureAgg,
 					finalColValue,
 					timeInMilli,
-					true, // timeSortAsc
+					true,
 					include,
 				)
 			}
@@ -198,6 +202,11 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
+		// Update counters after all processing is done
+		p.options.NumProcessedRecords++
+		currIndex++
+
+		// Check reset after condition
 		shouldResetAfter, err := evaluateResetCondition(p.options.ResetAfter, record)
 		if err != nil {
 			return nil, err
@@ -207,8 +216,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			currIndex = 0
 		}
 
-		p.options.NumProcessedRecords++
-		currIndex++
+		currentBucketKey = bucketKey
 	}
 
 	// Add results to output IQR
