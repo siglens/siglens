@@ -1977,8 +1977,10 @@ ByClause <- BY fieldList:FieldNameList {
 
 DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
 
+    dedupExp := dedupExpr.(*structs.DedupExpr)
+
     letColReq := &structs.LetColumnsRequest {
-        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+        DedupColRequest: dedupExp,
     }
 
     root := &structs.QueryAggregators {
@@ -1986,7 +1988,30 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
-        DedupExpr: dedupExpr.(*structs.DedupExpr),
+        DedupExpr: dedupExp,
+    }
+
+    if len(dedupExp.DedupSortEles) > 0 {
+        sortExpr := &structs.SortExpr {
+            SortEles: dedupExp.DedupSortEles,
+            SortAscending: dedupExp.DedupSortAscending,
+            Limit: 1000000,
+        }
+        dedupExp.DedupSortEles = nil
+        dedupExp.DedupSortAscending = nil
+
+        sortAgg := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                LetColumns: &structs.LetColumnsRequest{
+                    SortColRequest: sortExpr,
+                },
+            },
+            SortExpr: sortExpr,
+        }
+
+        sortAgg.Next = root
+        return sortAgg, nil
     }
 
     return root, nil

@@ -1,0 +1,96 @@
+{
+    "queryText": "app_name=Companyhave AND city=Boston | fields city, bool_col, http_status, app_name, country | dedup consecutive=true bool_col sortby http_status, country",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 13,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "American Samoa",
+                "http_status": 200
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Lesotho",
+                "http_status": 200
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "Costa Rica",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Syrian Arab Republic",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "Trinidad and Tobago",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Bahamas",
+                "http_status": 302
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "Burundi",
+                "http_status": 302
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Tokelau",
+                "http_status": 302
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "Belize",
+                "http_status": 400
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Tokelau",
+                "http_status": 400
+            }
+        ],
+        "allColumns": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ],
+        "columnsOrder": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ]
+    }
+}
