@@ -6122,31 +6122,42 @@ func Test_dedupWithSortBy(t *testing.T) {
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
+	aggs := res.(ast.QueryStruct).PipeCommands
 
 	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, aggregator)
-	assert.Nil(t, aggregator.Next)
+	assert.NotNil(t, aggs)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggs.Next)
+	assert.Nil(t, aggregator.Next.Next)
+	assert.Nil(t, aggs.Next.Next)
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.SortColRequest)
+	sortExpr := aggregator.OutputTransforms.LetColumns.SortColRequest
+	assert.Len(t, sortExpr.SortEles, 2)
+	assert.Equal(t, []int{1, -1}, sortExpr.SortAscending)
+	assert.Equal(t, "weekday", sortExpr.SortEles[0].Field)
+	assert.Equal(t, "", sortExpr.SortEles[0].Op)
+	assert.Equal(t, true, sortExpr.SortEles[0].SortByAsc)
+	assert.Equal(t, "state", sortExpr.SortEles[1].Field)
+	assert.Equal(t, "", sortExpr.SortEles[1].Op)
+	assert.Equal(t, false, sortExpr.SortEles[1].SortByAsc)
+	assert.Equal(t, sortExpr, aggs.SortExpr)
 
-	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.DedupColRequest)
+	dedupExpr := aggregator.Next.OutputTransforms.LetColumns.DedupColRequest
 	assert.Equal(t, dedupExpr.Limit, uint64(1))
 	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
 	assert.NotNil(t, dedupExpr.DedupOptions)
 	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
 	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
 	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, false)
-	assert.Len(t, dedupExpr.DedupSortEles, 2)
-	assert.Equal(t, dedupExpr.DedupSortEles[0].SortByAsc, true)
-	assert.Equal(t, dedupExpr.DedupSortEles[0].Op, "")
-	assert.Equal(t, dedupExpr.DedupSortEles[0].Field, "weekday")
-	assert.Equal(t, dedupExpr.DedupSortEles[1].SortByAsc, false)
-	assert.Equal(t, dedupExpr.DedupSortEles[1].Op, "")
-	assert.Equal(t, dedupExpr.DedupSortEles[1].Field, "state")
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+	assert.Equal(t, dedupExpr, aggs.Next.DedupExpr)
 }
 
 func Test_sortWithOneField(t *testing.T) {

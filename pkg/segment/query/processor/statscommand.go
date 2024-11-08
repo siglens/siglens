@@ -143,7 +143,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	numOfRecords := inputIQR.NumberOfRecords()
 	qid := inputIQR.GetQID()
 
-	if p.bucketKeyWorkingBuf == nil {
+	if len(p.bucketKeyWorkingBuf) == 0 {
 		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*utils.MAX_RECORD_SIZE)
 	}
 
@@ -166,18 +166,16 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
 
-		// Bucket Key
+		// Bucket Key index
 		bucketKeyBufIdx := 0
 
 		for _, cname := range p.options.GroupByRequest.GroupByColumns {
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
-				bucketKeyBufIdx += 1
-			} else {
-				bucketKeyBufIdx += cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf[bucketKeyBufIdx:])
+				cValue = &utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_DT_BACKFILL}
 			}
+			p.bucketKeyWorkingBuf, bucketKeyBufIdx = cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf, bucketKeyBufIdx)
 		}
 
 		for cname, indices := range measureInfo {
