@@ -1178,6 +1178,14 @@ func (qtype QueryType) String() string {
 	}
 }
 
+func (qa *QueryAggregators) HasTopExpr() bool {
+	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMTop
+}
+
+func (qa *QueryAggregators) HasRareExpr() bool {
+	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMRare
+}
+
 func (qa *QueryAggregators) HasStatsBlock() bool {
 	return qa != nil && !qa.HasStreamStats() && qa.HasGroupByOrMeasureAggsInBlock()
 }

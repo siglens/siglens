@@ -22,30 +22,30 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 )
 
-type rareProcessor struct {
+type topProcessor struct {
 	options                *structs.StatisticExpr
 	statisticExprProcessor *statisticExprProcessor
 }
 
-func NewRareProcessor(options *structs.QueryAggregators) *rareProcessor {
-	return &rareProcessor{
+func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
+	return &topProcessor{
 		options:                options.StatisticExpr,
 		statisticExprProcessor: NewStatisticExprProcessor(options),
 	}
 }
 
-func (p *rareProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return p.statisticExprProcessor.Process(iqr)
 }
 
-func (p *rareProcessor) Rewind() {
+func (p *topProcessor) Rewind() {
 	p.statisticExprProcessor.Rewind()
 }
 
-func (p *rareProcessor) Cleanup() {
+func (p *topProcessor) Cleanup() {
 	p.statisticExprProcessor.Cleanup()
 }
 
-func (p *rareProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+func (p *topProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return p.statisticExprProcessor.GetFinalResultIfExists()
 }

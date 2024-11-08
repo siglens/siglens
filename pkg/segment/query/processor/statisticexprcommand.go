@@ -32,6 +32,7 @@ type statisticExprProcessor struct {
 	options                 *structs.StatisticExpr
 	statsExpr               *structs.StatsExpr
 	statsProcessor          *statsProcessor
+	groupByColumns          []string
 	qid                     uint64
 	finalAggregationResults map[string]*structs.AggregationResult
 	hasFinalResult          bool
@@ -76,7 +77,7 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 }
 
 func (p *statisticExprProcessor) Rewind() {
-	// Nothing to do
+	p.statsProcessor.Rewind()
 }
 
 func (p *statisticExprProcessor) Cleanup() {
@@ -102,7 +103,7 @@ func (p *statisticExprProcessor) processAggregationResult(aggResults map[string]
 	countIsGroupByCol := toputils.SliceContainsString(statsFields, p.options.StatisticOptions.CountField)
 	percentIsGroupByCol := toputils.SliceContainsString(statsFields, p.options.StatisticOptions.PercentField)
 
-	for key, aggregationResult := range aggResults {
+	for _, aggregationResult := range aggResults {
 
 		if len(aggregationResult.Results) == 0 {
 			continue
@@ -153,6 +154,8 @@ func (p *statisticExprProcessor) processAggregationResult(aggResults map[string]
 				//Set Percent to StatResult
 				p.options.SetPercToStatRes(bucketResult.StatRes, bucketResult.ElemCount, resTotal)
 			}
+
+			p.groupByColumns = bucketResult.GroupByKeys
 		}
 
 		//If useother=true, a row representing all other values is added to the results.
@@ -202,8 +205,6 @@ func (p *statisticExprProcessor) processAggregationResult(aggResults map[string]
 
 			aggregationResult.Results = append(aggregationResult.Results, otherBucketRes)
 		}
-
-		aggResults[key] = aggregationResult
 	}
 
 	p.finalAggregationResults = aggResults
@@ -220,7 +221,7 @@ func (p *statisticExprProcessor) getIQRFromAggregationResults() (*iqr.IQR, error
 
 	bucketHolderArr, measureFuncs, bucketCount := segresults.CreateMeasResultsFromAggResults(int(segutils.QUERY_MAX_BUCKETS), p.finalAggregationResults)
 
-	err := inputIQR.CreateStatsResults(bucketHolderArr, measureFuncs, p.statsExpr.GroupByRequest.GroupByColumns, bucketCount)
+	err := inputIQR.CreateStatsResults(bucketHolderArr, measureFuncs, p.groupByColumns, bucketCount)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, statisticExprProcessor.Process: cannot create stats results; err=%v", inputIQR.GetQID(), err)
 	}

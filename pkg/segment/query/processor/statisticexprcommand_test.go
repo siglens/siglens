@@ -65,7 +65,7 @@ func getMockRRCsReader() *record.MockRRCsReader {
 	return mockReader
 }
 
-func getStatisticExprProcessor(sfMode structs.StatisticFunctionMode) *statisticExprProcessor {
+func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode) *statisticExprProcessor {
 	statisExpr := &structs.StatisticExpr{
 		StatisticFunctionMode: sfMode,
 		StatisticOptions: &structs.StatisticOptions{
@@ -102,7 +102,7 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	config.GetRunningConfig().UseNewPipelineConverted = true
 
-	processor := getStatisticExprProcessor(structs.SFMTop)
+	processor := getTestStatisticExprProcessor(structs.SFMTop)
 	assert.NotNil(t, processor)
 
 	mockReader := getMockRRCsReader()
@@ -169,11 +169,11 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	}
 }
 
-func Test_StatisticRareExpr_withRRCs_noGroupBy(t *testing.T) {
+func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 	config.InitializeDefaultConfig(t.TempDir())
 	config.GetRunningConfig().UseNewPipelineConverted = true
 
-	processor := getStatisticExprProcessor(structs.SFMRare)
+	processor := getTestStatisticExprProcessor(structs.SFMRare)
 	assert.NotNil(t, processor)
 
 	mockReader := getMockRRCsReader()

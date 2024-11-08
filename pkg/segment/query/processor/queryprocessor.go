@@ -87,6 +87,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			// If query Type is GroupByCmd and the StatisticExpr is not nil
 			// Then the GroupByRequest will be processed by the searcher and
 			// the StatisticExpr should be processed by the next DataProcessor
+			// Note: The StatisticExpr will create a GroupByRequest
 			if firstAgg.StatisticExpr != nil {
 				nextAgg := &structs.QueryAggregators{
 					GroupByRequest: firstAgg.GroupByRequest,
