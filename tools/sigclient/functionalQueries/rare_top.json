@@ -1,54 +1,117 @@
 {
     "queryText": "http_method=P* | rare 5 city useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.city | top 5 city, city_count useother=false countfield=top_count percentfield=top_percent",
     "expectedResult": {
-        "totalMatched": {
-            "value": 5,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+        "bucketCount": 5,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "city",
+            "city_count"
+        ],
+        "measureFunctions": [
+            "top_percent",
+            "top_count"
+        ],
+        "measure": [
             {
-                "city": "Aurora",
-                "city_count": "548Aurora",
-                "top_count": 1,
-                "top_percent": 20
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Aurora"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "548Aurora"
+                    }
+                ],
+                "GroupByValues": [
+                    "Aurora",
+                    "548Aurora"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
             },
             {
-                "city": "Atlanta",
-                "city_count": "515Atlanta",
-                "top_count": 1,
-                "top_percent": 20
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Atlanta"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "515Atlanta"
+                    }
+                ],
+                "GroupByValues": [
+                    "Atlanta",
+                    "515Atlanta"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
             },
             {
-                "city": "Arlington",
-                "city_count": "499Arlington",
-                "top_count": 1,
-                "top_percent": 20
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Arlington"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "499Arlington"
+                    }
+                ],
+                "GroupByValues": [
+                    "Arlington",
+                    "499Arlington"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
             },
             {
-                "city": "Anaheim",
-                "city_count": "550Anaheim",
-                "top_count": 1,
-                "top_percent": 20
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Anaheim"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "550Anaheim"
+                    }
+                ],
+                "GroupByValues": [
+                    "Anaheim",
+                    "550Anaheim"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
             },
             {
-                "city": "Albuquerque",
-                "city_count": "477Albuquerque",
-                "top_count": 1,
-                "top_percent": 20
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Albuquerque"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "477Albuquerque"
+                    }
+                ],
+                "GroupByValues": [
+                    "Albuquerque",
+                    "477Albuquerque"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
             }
-        ],
-        "allColumns": [
-            "top_count",
-            "city",
-            "city_count",
-            "top_percent"
-        ],
-        "columnsOrder": [
-            "city",
-            "city_count",
-            "top_count",
-            "top_percent"
         ]
     }
 }
