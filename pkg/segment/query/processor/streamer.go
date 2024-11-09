@@ -23,24 +23,24 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 )
 
-type streamer interface {
+type Streamer interface {
 	Fetch() (*iqr.IQR, error)
 	Rewind()
 }
 
-type cachedStream struct {
-	stream                  streamer
+type CachedStream struct {
+	stream                  Streamer
 	unusedDataFromLastFetch *iqr.IQR
 	isExhausted             bool
 }
 
-func NewCachedStream(stream streamer) *cachedStream {
-	return &cachedStream{
+func NewCachedStream(stream Streamer) *CachedStream {
+	return &CachedStream{
 		stream: stream,
 	}
 }
 
-func (cs *cachedStream) Fetch() (*iqr.IQR, error) {
+func (cs *CachedStream) Fetch() (*iqr.IQR, error) {
 	if cs.isExhausted {
 		return nil, io.EOF
 	}
@@ -58,13 +58,13 @@ func (cs *cachedStream) Fetch() (*iqr.IQR, error) {
 	return iqr, err
 }
 
-func (cs *cachedStream) Rewind() {
+func (cs *CachedStream) Rewind() {
 	cs.stream.Rewind()
 	cs.unusedDataFromLastFetch = nil
 	cs.isExhausted = false
 }
 
-func (cs *cachedStream) SetUnusedDataFromLastFetch(iqr *iqr.IQR) {
+func (cs *CachedStream) SetUnusedDataFromLastFetch(iqr *iqr.IQR) {
 	cs.unusedDataFromLastFetch = iqr
 
 	if iqr != nil {
@@ -72,6 +72,6 @@ func (cs *cachedStream) SetUnusedDataFromLastFetch(iqr *iqr.IQR) {
 	}
 }
 
-func (cs *cachedStream) IsExhausted() bool {
+func (cs *CachedStream) IsExhausted() bool {
 	return cs.isExhausted
 }

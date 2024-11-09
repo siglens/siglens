@@ -74,6 +74,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	firstProcessorAgg := firstAgg
+	bottleNeckDpIndex := -1
 
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
@@ -100,6 +101,9 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
+
+		// Stats Block is a bottleneck command and hence searcher becomes the bottleneck
+		bottleNeckDpIndex = 0
 	}
 
 	dataProcessors := make([]*DataProcessor, 0)
@@ -123,14 +127,47 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 	for i := 1; i < len(dataProcessors); i++ {
 		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
+		if bottleNeckDpIndex < 0 && dataProcessors[i].isBottleneckCmd {
+			bottleNeckDpIndex = i
+		}
 	}
 
-	var lastStreamer streamer = searcher
+	/*
+		1. If the query is a bottleneck and is Distributed, then the query will be distributed until the bottleneck.
+		2. Once bottleneck index is identified, split the data processors into two parts:
+			- The first part which contains the data processors until the bottleneck, will be distributed.
+				-  Call dqs.GetStreams by passing the first part of the data processors.
+				-  Hook up the streams to the first data processor in the second part.
+				-  this will make : ([dataProcessorWorker1.streams(dataProcessorFirstPart), dataProcessorWorker2.streams(dataProcessorFirstPart), ...],
+					dataProcessorSecondPart[0], ... dataProcessorSecondPart[n-1])
+			- The second part which contains the data processors after the bottleneck, will be executed locally.
+	*/
+	if bottleNeckDpIndex >= 0 && queryInfo.IsDistributed() {
+		chainedDp1 := dataProcessors[:bottleNeckDpIndex+1] // data processors until and including the bottleneck; first part
+		chainedDp2 := dataProcessors[bottleNeckDpIndex+1:] // data processors after the bottleneck; second part
+		streamsAsAny := queryInfo.GetDQS().GetDistributedStreams(chainedDp1, queryInfo, includeNulls)
+		if streamsAsAny != nil {
+			streams, ok := streamsAsAny.([]*CachedStream)
+			if ok {
+				if len(chainedDp2) == 0 {
+					chainedDp2 = []*DataProcessor{NewEofDP()}
+				}
+				// Hook up the streams to the first data processor in the second part.
+				chainedDp2[0].streams = streams
+
+				// Now this will fetch data from all the worked node streams and
+				// then will proceed further processing with the second part of the data processors.
+				dataProcessors = chainedDp2
+			}
+		}
+	}
+
+	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	queryProcessor, err := NewQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +179,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	return queryProcessor, nil
 }
 
-func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
+func NewQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64
@@ -160,13 +197,13 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 	}
 
-	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
+	headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
 
 	scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
 	if scrollerDP == nil {
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
 	}
-	scrollerDP.streams = append(scrollerDP.streams, &cachedStream{headDP, nil, false})
+	scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
 
 	return &QueryProcessor{
 		queryType:     queryType,
