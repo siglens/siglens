@@ -241,6 +241,7 @@ type StreamStatsOptions struct {
 	ResetBefore   *BoolExpr
 	ResetAfter    *BoolExpr
 	TimeWindow    *BinSpanLength
+	TimeSortAsc   bool
 	// expensive for large data and window size
 	// maps index of measureAgg -> bucket key -> RunningStreamStatsResults
 	RunningStreamStats map[int]map[string]*RunningStreamStatsResults

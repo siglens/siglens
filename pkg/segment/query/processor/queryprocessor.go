@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -61,6 +62,10 @@ func (qp *QueryProcessor) Cleanup() {
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
 	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
+
+	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
+	}
 
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
@@ -430,4 +435,35 @@ func createEmptyResponse(queryType structs.QueryType) *structs.PipeSearchRespons
 	}
 
 	return response
+}
+
+func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
+
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.StreamstatsExpr != nil && curAgg.StreamstatsExpr.TimeWindow != nil {
+			// Check all previous commands up to this point
+			hasSort := false
+			timeSort := false
+			timeSortAsc := true
+
+			// Check commands that come before streamstats
+			for prevAgg := firstAgg; prevAgg != curAgg; prevAgg = prevAgg.Next {
+				if prevAgg.HasSortBlock() {
+					hasSort = true
+					timeSort, timeSortAsc = aggregations.CheckIfTimeSort(prevAgg)
+				}
+				if prevAgg.HasTail() {
+					timeSortAsc = !timeSortAsc
+				}
+			}
+
+			// If there's a non-timestamp sort before streamstats, return error
+			if hasSort && !timeSort {
+				return utils.TeeErrorf("streamstats with time_window requires records to maintain timestamp order")
+			}
+
+			curAgg.StreamstatsExpr.TimeSortAsc = timeSortAsc
+		}
+	}
+	return nil
 }

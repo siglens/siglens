@@ -50,6 +50,30 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	log.Infof("streamstats: starting processing for %d records with window=%d",
 		iqr.NumberOfRecords(), p.options.Window)
+		
+	// Check if time window is used and validate timestamp order
+	if p.options.TimeWindow != nil {
+		timeValues, err := iqr.ReadColumn("timestamp")
+		if err != nil {
+			return nil, fmt.Errorf("streamstats: failed to read timestamp: %v", err)
+		}
+
+		// Verify timestamps are in the expected order
+		for i := 1; i < len(timeValues); i++ {
+			curr := timeValues[i].CVal.(uint64)
+			prev := timeValues[i-1].CVal.(uint64)
+
+			if p.options.TimeSortAsc { // Use the stored value
+				if curr < prev {
+					return nil, fmt.Errorf("streamstats: records must be sorted by time in ascending order for time_window")
+				}
+			} else {
+				if curr > prev {
+					return nil, fmt.Errorf("streamstats: records must be sorted by time in descending order for time_window")
+				}
+			}
+		}
+	}
 
 	outIQR := iqr.BlankCopy()
 
@@ -157,14 +181,11 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			} else {
 				var timeInMilli uint64
 				if p.options.TimeWindow != nil {
-					tsVal, exists := record["timestamp"]
-					if !exists {
-						return nil, fmt.Errorf("timestamp required for time window but not found")
-					}
-					timeInMilli, err = dtypeutils.ConvertToUInt(tsVal, 64)
+					timeValues, err := iqr.ReadColumn("timestamp")
 					if err != nil {
-						return nil, fmt.Errorf("invalid timestamp value: %v", tsVal)
+						return nil, err
 					}
+					timeInMilli = timeValues[i].CVal.(uint64)
 				}
 
 				result, exists, err = PerformWindowStreamStatsOnSingleFunc(
@@ -175,7 +196,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 					measureAgg,
 					finalColValue,
 					timeInMilli,
-					true,
+					p.options.TimeSortAsc,
 					include,
 				)
 			}
