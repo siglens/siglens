@@ -110,11 +110,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 	}
 
-	availableCols, err := iqr.GetColumns()
-	if err != nil {
-		return nil, fmt.Errorf("streamstats.Process: failed to get columns: %v", err)
-	}
-
 	requiredValues := make(map[string][]segutils.CValueEnclosure)
 	for colName := range requiredColumns {
 		colValues, err := iqr.ReadColumn(colName)
@@ -125,14 +120,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	knownValues := make(map[string][]segutils.CValueEnclosure)
-
-	for colName := range availableCols {
-		colValues, err := iqr.ReadColumn(colName)
-		if err != nil {
-			return nil, fmt.Errorf("streamstats.Process: failed to read column %s: %v", colName, err)
-		}
-		knownValues[colName] = colValues
-	}
 
 	for _, measureAgg := range measureAggs {
 		resultCol := measureAgg.String()
@@ -265,11 +252,9 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		p.currentBucketKey = bucketKey
 	}
 
-	if len(knownValues) > 0 {
-		err := iqr.AppendKnownValues(knownValues)
-		if err != nil {
-			return nil, fmt.Errorf("streamstats.Process: failed to append results: %v", err)
-		}
+	err := iqr.AppendKnownValues(knownValues)
+	if err != nil {
+		return nil, fmt.Errorf("streamstats.Process: failed to append results: %v", err)
 	}
 
 	return iqr, nil
