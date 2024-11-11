@@ -51,7 +51,7 @@ import (
 
 // Throttle the number of indexes to help prevent excessive memory usage.
 const maxAllowedSegStores = 1000
-const MAX_ACTIVE_COL_WIPS = 1000 // TODO: make this variable based on available memory
+const MAX_ACTIVE_COL_WIPS = 1500 // TODO: make this variable based on available memory
 
 // global map
 var allSegStores = map[string]*SegStore{}
