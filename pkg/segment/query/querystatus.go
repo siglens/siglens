@@ -45,7 +45,7 @@ const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
 var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
-const PULL_QUERY_FROM_QUEUE_INTERVAL = 10 * time.Millisecond
+const PULL_QUERY_INTERVAL = 10 * time.Millisecond
 const MAX_WAITING_QUERIES = 100
 
 type QueryUpdateType int
@@ -261,10 +261,10 @@ func PullQueriesToRun() {
 			}
 			wsData := waitingQueries[0]
 			waitingQueries = waitingQueries[1:]
-			runQuery(*wsData)
 			waitingQueriesLock.Unlock()
+			runQuery(*wsData)
 		}
-		time.Sleep(PULL_QUERY_FROM_QUEUE_INTERVAL)
+		time.Sleep(PULL_QUERY_INTERVAL)
 	}
 }
 
