@@ -55,7 +55,7 @@ const DEFAULT_ROTATED_CMI_MEM_PERCENT = 63
 const DEFAULT_METADATA_MEM_PERCENT = 20
 const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const DEFAULT_METRICS_MEM_PERCENT = 2
-const DEFAULT_MEM_PER_QUERY = 100 * 1024 * 1024 // 100MB
+const DEFAULT_MEM_PER_QUERY_BYTES = 100 * 1024 * 1024 // 100MB
 
 const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
 
@@ -566,12 +566,12 @@ func GetTestConfig(dataPath string) common.Configuration {
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 		MemoryConfig: common.MemoryConfig{
-			MaxUsagePercent: 80,
-			SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
-			CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
-			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
-			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
-			MemoryPerQuery:  DEFAULT_MEM_PER_QUERY,
+			MaxUsagePercent:       80,
+			SearchPercent:         DEFAULT_SEG_SEARCH_MEM_PERCENT,
+			CMIPercent:            DEFAULT_ROTATED_CMI_MEM_PERCENT,
+			MetadataPercent:       DEFAULT_METADATA_MEM_PERCENT,
+			MetricsPercent:        DEFAULT_METRICS_MEM_PERCENT,
+			MemoryPerQueryInBytes: DEFAULT_MEM_PER_QUERY_BYTES,
 		},
 		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 	}
@@ -840,8 +840,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if memoryLimits.MetadataPercent == 0 {
 		memoryLimits.MetadataPercent = DEFAULT_METADATA_MEM_PERCENT
 	}
-	if memoryLimits.MemoryPerQuery == 0 {
-		memoryLimits.MemoryPerQuery = DEFAULT_MEM_PER_QUERY
+	if memoryLimits.MemoryPerQueryInBytes == 0 {
+		memoryLimits.MemoryPerQueryInBytes = DEFAULT_MEM_PER_QUERY_BYTES
 	}
 	total := memoryLimits.SearchPercent + memoryLimits.CMIPercent + memoryLimits.MetadataPercent
 	if memoryLimits.MetricsPercent == 0 && total < 100 {

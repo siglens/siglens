@@ -87,12 +87,12 @@ const (
 
 func InitMaxRunningQueries() {
 	memConfig := config.GetMemoryConfig()
-	totalMemory := config.GetTotalMemoryAvailable()
-	searchMemory := (totalMemory * memConfig.SearchPercent) / 100
-	maxConcurrentQueries := searchMemory / memConfig.MemoryPerQuery
+	totalMemoryInBytes := config.GetTotalMemoryAvailable()
+	searchMemoryInBytes := (totalMemoryInBytes * memConfig.SearchPercent) / 100
+	maxConcurrentQueries := searchMemoryInBytes / memConfig.MemoryPerQueryInBytes
 	if maxConcurrentQueries < 1 {
-		log.Warnf("System does not have sufficient memory for query. Setting maxConcurrentQueries to 1, searchMemory: %v, MemoryPerQuery: %v",
-			searchMemory, memConfig.MemoryPerQuery)
+		log.Warnf("System does not have sufficient memory for query. Setting maxConcurrentQueries to 1, searchMemoryInBytes: %v, MemoryPerQueryInBytes: %v",
+			searchMemoryInBytes, memConfig.MemoryPerQueryInBytes)
 		maxConcurrentQueries = 1
 	}
 	if maxConcurrentQueries < MAX_RUNNING_QUERIES {
