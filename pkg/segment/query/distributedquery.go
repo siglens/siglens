@@ -26,8 +26,6 @@ type DistributedQueryServiceInterface interface {
 	Wait(qid uint64, querySummary *summary.QuerySummary) error
 	DistributeQuery(qI *QueryInformation) (uint64, error)
 	IsDistributed() bool
-	// chainedDp is []*processor.DataProcessor, searcher is of type Streamer and returns []*processor.CachedStream
-	GetDistributedStreams(chainedDp interface{}, searcher interface{}, queryInfo *QueryInformation) interface{}
 }
 
 type DistributedQueryService struct {

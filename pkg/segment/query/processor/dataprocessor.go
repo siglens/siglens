@@ -529,6 +529,17 @@ func NewSearcherDP(searcher Streamer) *DataProcessor {
 	}
 }
 
+func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
+	return &DataProcessor{
+		streams:           cachedStreams,
+		processor:         &passThroughProcessor{},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
 func NewEofDP() *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*CachedStream, 0),

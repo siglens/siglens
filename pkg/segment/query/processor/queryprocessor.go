@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -125,44 +126,9 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
 	}
 
-	/*
-		1. If the query is a bottleneck and is Distributed, then the query will be distributed until the bottleneck.
-		2. Once bottleneck index is identified, split the data processors into two parts:
-			- The first part which contains the data processors until the bottleneck, will be distributed.
-				-  Call dqs.GetStreams by passing the first part of the data processors.
-				-  Hook up the streams to the first data processor in the second part.
-				-  this will make : ([dataProcessorWorker1.streams(dataProcessorFirstPart), dataProcessorWorker2.streams(dataProcessorFirstPart), ...],
-					dataProcessorSecondPart[0], ... dataProcessorSecondPart[n-1])
-			- The second part which contains the data processors after the bottleneck, will be executed locally.
-	*/
-	if queryInfo.IsDistributed() {
-		splitIndex, shouldSplit := getSplitIndex(dataProcessors, queryType)
-		var chainedDp1, chainedDp2 []*DataProcessor
-		if shouldSplit {
-			chainedDp1 = dataProcessors[:splitIndex+1] // +1 to include the splitIndex data processor.
-			chainedDp2 = dataProcessors[splitIndex+1:] // +1 to exclude the splitIndex data processor.
-		} else {
-			chainedDp1 = dataProcessors
-		}
-
-		streamsAsAny := queryInfo.GetDQS().GetDistributedStreams(chainedDp1, searcher, queryInfo)
-		if streamsAsAny != nil {
-			streams, ok := streamsAsAny.([]*CachedStream)
-			if ok {
-				if len(chainedDp2) == 0 {
-					// Since there are no data processors after the bottleneck,
-					// we will hook up an EOF data processor as the bottleneck command
-					// fetches all the data from all the worked node streams.
-					chainedDp2 = []*DataProcessor{NewEofDP()}
-				}
-				// Hook up the streams to the first data processor in the second part.
-				chainedDp2[0].streams = streams
-
-				// Now this will fetch data from all the worked node streams and
-				// then will proceed further processing with the second part of the data processors.
-				dataProcessors = chainedDp2
-			}
-		}
+	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+		result := hook(dataProcessors, searcher, queryInfo)
+		dataProcessors = result.([]*DataProcessor)
 	}
 
 	var lastStreamer Streamer = searcher
@@ -216,37 +182,6 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 		scrollFrom:    uint64(scrollFrom),
 		includeNulls:  includeNulls,
 	}, nil
-}
-
-// returns the index of the data processor where the split should happen and
-// whether the data processor should be split.
-func getSplitIndex(dataProcessors []*DataProcessor, queryType structs.QueryType) (int, bool) {
-	index := -1
-
-	if queryType == structs.GroupByCmd || queryType == structs.SegmentStatsCmd {
-		// Searcher becomes the bottleneck.
-		return index, true
-	}
-
-	splitIndexFound := false
-
-	for i, dp := range dataProcessors {
-		// if for a data processor, the input order matters or it is a two-pass command,
-		// then split the chain before this data processor.
-		if dp.isTwoPassCmd || dp.inputOrderMatters {
-			index = i - 1
-			splitIndexFound = true
-			break
-		}
-
-		if dp.isBottleneckCmd {
-			index = i
-			splitIndexFound = true
-			break
-		}
-	}
-
-	return index, splitIndexFound
 }
 
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
