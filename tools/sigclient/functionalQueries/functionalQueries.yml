@@ -44,10 +44,10 @@ streamstats_win2_gloF_grpby.json
 streamstats_multi_resets_grpby.json
 streamstats_eval.json
 streamstats_after_stats.json
+streamstats_after_grpby.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
-# streamstats_after_grpby.json
 
 
 ## Queries not working for multi-index
