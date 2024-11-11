@@ -106,9 +106,6 @@ func doesUintPassRangeFilter(op utils.FilterOperator, lookupValue uint64, minVal
 	case utils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
 	case utils.NotEquals:
-		if lookupValue == minVal || lookupValue == maxVal {
-			return false
-		}
 		return true
 	case utils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
@@ -128,9 +125,6 @@ func doesIntPassRangeFilter(op utils.FilterOperator, lookupValue int64, minVal i
 	case utils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
 	case utils.NotEquals:
-		if lookupValue == minVal || lookupValue == maxVal {
-			return false
-		}
 		return true
 	case utils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
@@ -150,9 +144,6 @@ func doesFloatPassRangeFilter(op utils.FilterOperator, lookupValue float64, minV
 	case utils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
 	case utils.NotEquals:
-		if lookupValue == minVal || lookupValue == maxVal {
-			return false
-		}
 		return true
 	case utils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
