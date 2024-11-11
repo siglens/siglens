@@ -51,11 +51,13 @@ import (
 
 // Throttle the number of indexes to help prevent excessive memory usage.
 const maxAllowedSegStores = 1000
-const MAX_ACTIVE_COL_WIPS = 10000 // TODO: make this variable based on available memory
+const MAX_ACTIVE_COL_WIPS = 1000 // TODO: make this variable based on available memory
 
 // global map
 var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
+var activeColWips int64 // use it atomically to store the count of active colWips
+var activeColWipLock sync.Mutex
 
 var KibanaInternalBaseDir string
 
@@ -96,6 +98,9 @@ func getActiveColWipIfAvailable(count int64) bool {
 }
 
 func releaseActiveColWips(count int64) {
+	if count == 0 {
+		return // nothing to release
+	}
 	activeColWipLock.Lock()
 	defer activeColWipLock.Unlock()
 
@@ -105,6 +110,7 @@ func releaseActiveColWips(count int64) {
 	} else {
 		activeColWips -= count
 	}
+	activeColWips = MaxInt64(0, activeColWips) // Safety check
 }
 
 func InitKibanaInternalData() {
@@ -391,10 +397,22 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 	colBlooms := ss.wipBlock.columnBlooms
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
+
+	newCols := 0
+	for _, cname := range ple.allCnames {
+		if _, ok := ss.wipBlock.colWips[cname]; !ok {
+			newCols++
+		}
+	}
+
+	if !getActiveColWipIfAvailable(int64(newCols)) {
+		return false, fmt.Errorf("doLogEventFilling: Exceeded colWip limit activeColWips: %v newCols: %v", activeColWips, newCols)
+	}
+
 	for i := uint16(0); i < ple.numCols; i++ {
 		cname := ple.allCnames[i]
 		ctype := ple.allCvalsTypeLen[i][0]
-		colWip, _, matchedCol, err = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+		colWip, _, matchedCol, err = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol, true)
 		if err != nil {
 			return false, fmt.Errorf("doLogEventFilling: failed to initAndBackFillColumn: %v", err)
 		}
@@ -533,6 +551,7 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 	defer segstore.Lock.Unlock()
 
 	start := 0
+
 	for idx, ple := range pleArray {
 
 		if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
@@ -551,11 +570,10 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 
 		matchedPCols, err := segstore.doLogEventFilling(ple, &tsKey)
 		if err != nil {
-			log.Errorf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
-			for j := start; j < len(pleArray); j++ {
-				pleArray[j].SetResponse("Failed to add entry")
-			}
-			return nil // Response would be present in PLE to prevent log flood, callers should ensure this
+			errStr := fmt.Sprintf("AddEntry: log event filling failed; segkey: %v, err: %v", segstore.SegmentKey, err)
+			log.Errorf(errStr)
+			pleArray[idx].SetResponse(errStr)
+			continue
 		}
 
 		if matchedPCols {

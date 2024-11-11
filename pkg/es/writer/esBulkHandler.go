@@ -20,7 +20,6 @@ package writer
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"

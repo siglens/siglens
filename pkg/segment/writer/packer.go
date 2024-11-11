@@ -298,7 +298,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	}
 	var finalErr error
 	var colWip *ColWip
-	colWip, _, matchedCol, finalErr = ss.initAndBackFillColumn(arraykey, SS_DT_ARRAY_DICT, matchedCol)
+	colWip, _, matchedCol, finalErr = ss.initAndBackFillColumn(arraykey, SS_DT_ARRAY_DICT, matchedCol, false)
 	if finalErr != nil {
 		return false, finalErr
 	}
@@ -431,7 +431,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 	}
 	var colWip *ColWip
 	var err error
-	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol, false)
 	if err != nil {
 		return false, err
 	}
@@ -468,7 +468,7 @@ func (ss *SegStore) encodeSingleString(key string,
 	}
 	var colWip *ColWip
 	var recNum uint16
-	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol)
+	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_STRING, matchedCol, false)
 	if err != nil {
 		return false, err
 	}
@@ -503,7 +503,7 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 	var colWip *ColWip
 	var err error
 	colBlooms := ss.wipBlock.columnBlooms
-	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol)
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BOOL, matchedCol, false)
 	if err != nil {
 		return false, err
 	}
@@ -532,7 +532,7 @@ func (ss *SegStore) encodeSingleNull(key string,
 	}
 	var colWip *ColWip
 	var err error
-	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol)
+	colWip, _, matchedCol, err = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol, false)
 	if err != nil {
 		return false, err
 	}
@@ -563,7 +563,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 		numType = SS_DT_BACKFILL
 	}
 
-	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, numType, matchedCol)
+	colWip, recNum, matchedCol, err = ss.initAndBackFillColumn(key, numType, matchedCol, false)
 	if err != nil {
 		return false, err
 	}
@@ -578,7 +578,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 }
 
 func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
-	matchedCol bool) (*ColWip, uint16, bool, error) {
+	matchedCol bool, allocatedColWips bool) (*ColWip, uint16, bool, error) {
 	allColWip := ss.wipBlock.colWips
 	colBlooms := ss.wipBlock.columnBlooms
 	colRis := ss.wipBlock.columnRangeIndexes
@@ -587,8 +587,10 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 
 	colWip, ok := allColWip[key]
 	if !ok {
-		if getActiveColWipIfAvailable(1) {
-			return nil, 0, false, fmt.Errorf("initAndBackFillColumn: Exceeded colWip limit activeColWips: %v, cannot create col %v", activeColWips, key)
+		if !allocatedColWips {
+			if !getActiveColWipIfAvailable(1) {
+				return nil, 0, false, fmt.Errorf("initAndBackFillColumn: Exceeded colWip limit activeColWips: %v, cannot create col %v", activeColWips, key)
+			}
 		}
 		colWip = InitColWip(ss.SegmentKey, key)
 		allColWip[key] = colWip
@@ -1059,6 +1061,7 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 			allBlockOffsets[currBlockUint].ColumnBlockLen[cname] = blkLen
 			allBlockOffsets[currBlockUint].ColumnBlockOffset[cname] = blkOffset
 		}
+		releaseActiveColWips(int64(len(segStore.wipBlock.colWips)))
 	}
 
 	allColsSizes := make(map[string]*ColSizeInfo)
@@ -1308,7 +1311,7 @@ func (ss *SegStore) encodeTime(recordTimeMS uint64, tsKey *string) error {
 	allColsInBlock := ss.wipBlock.columnsInBlock
 	tsWip, ok := allColWip[*tsKey]
 	if !ok {
-		if getActiveColWipIfAvailable(1) {
+		if !getActiveColWipIfAvailable(1) {
 			return fmt.Errorf("encodeTime: Exceeded colWip limit activeColWips")
 		}
 		tsWip = InitColWip(ss.SegmentKey, *tsKey)
