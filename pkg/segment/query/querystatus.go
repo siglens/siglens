@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/pbnjay/memory"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -44,10 +43,10 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-var MAX_RUNNING_QUERIES = runtime.GOMAXPROCS(0)
+var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
+const PULL_QUERY_FROM_QUEUE_INTERVAL = 10 * time.Millisecond
 const MAX_WAITING_QUERIES = 100
-const QUERY_MEM = 200 * 1024 * 1024 // 200MB
 
 type QueryUpdateType int
 
@@ -85,6 +84,20 @@ const (
 	TIMEOUT
 	ERROR
 )
+
+func InitMaxRunningQueries() {
+	memConfig := config.GetMemoryConfig()
+	totalMemory := config.GetTotalMemoryAvailable()
+	searchMemory := (totalMemory * memConfig.SearchPercent) / 100
+	maxConcurrentQueries := searchMemory / memConfig.MemoryPerQuery
+	if maxConcurrentQueries < 1 {
+		log.Warnf("MemoryPerQuery is too high. Setting maxConcurrentQueries to 1")
+		maxConcurrentQueries = 1
+	}
+	if maxConcurrentQueries < MAX_RUNNING_QUERIES {
+		MAX_RUNNING_QUERIES = maxConcurrentQueries
+	}
+}
 
 func (qs QueryState) String() string {
 	switch qs {
@@ -139,7 +152,9 @@ type RunningQueryState struct {
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
-var waitingQueries = make(chan WaitStateData, MAX_WAITING_QUERIES)
+var waitingQueries = []*WaitStateData{}
+var waitingQueriesLock = &sync.Mutex{}
+
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
 func (rQuery *RunningQueryState) IsAsync() bool {
@@ -201,11 +216,12 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		timeoutCancelFunc: nil,
 	}
 
-	select {
-	case waitingQueries <- WaitStateData{qid, runningState}:
-	default:
-		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	if len(waitingQueries) >= MAX_WAITING_QUERIES {
+		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of waiting queries reached", qid)
 	}
+	waitingQueries = append(waitingQueries, &WaitStateData{qid, runningState})
 
 	return runningState, nil
 }
@@ -230,20 +246,24 @@ func DeleteQuery(qid uint64) {
 }
 
 func canRunQuery() bool {
-	activeQueries := GetActiveQueryCount()
-	return (activeQueries < MAX_RUNNING_QUERIES && memory.FreeMemory()+QUERY_MEM <= config.GetTotalMemoryAvailable())
+	activeQueries := uint64(GetActiveQueryCount())
+	return activeQueries < MAX_RUNNING_QUERIES
 }
 
 func PullQueriesToRun() {
 	for {
 		if canRunQuery() {
-			select {
-			case wsData := <-waitingQueries:
-				runQuery(wsData)
-			default:
+			waitingQueriesLock.Lock()
+			if len(waitingQueries) == 0 {
+				waitingQueriesLock.Unlock()
+				continue
 			}
+			wsData := waitingQueries[0]
+			waitingQueries = waitingQueries[1:]
+			runQuery(*wsData)
+			waitingQueriesLock.Unlock()
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(PULL_QUERY_FROM_QUEUE_INTERVAL)
 	}
 }
 
@@ -273,6 +293,9 @@ func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 func runQuery(wsData WaitStateData) {
 	arqMapLock.Lock()
 	defer arqMapLock.Unlock()
+	if wsData.rQuery.isCancelled {
+		return
+	}
 
 	allRunningQueries[wsData.qid] = wsData.rQuery
 
@@ -588,6 +611,15 @@ func CancelQuery(qid uint64) {
 		rQuery.cleanupCallback()
 	}
 	rQuery.rqsLock.Unlock()
+
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	for i, wsData := range waitingQueries {
+		if wsData.qid == qid {
+			waitingQueries = append(waitingQueries[:i], waitingQueries[i+1:]...)
+			break
+		}
+	}
 }
 
 func GetBucketsForQid(qid uint64) (map[string]*structs.AggregationResult, error) {

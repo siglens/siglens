@@ -89,6 +89,7 @@ type MemoryConfig struct {
 	CMIPercent      uint64 `yaml:"microIndexPercent"`
 	MetadataPercent uint64 `yaml:"metadataPercent"`
 	MetricsPercent  uint64 `yaml:"metricsPercent"`
+	MemoryPerQuery  uint64 `yaml:"memPerQuery"`
 }
 
 /*  If you add a new config parameters to the Configuration struct below, make sure to add the default value

@@ -407,5 +407,6 @@ func startQueryServer(serverAddr string) {
 		}
 	}()
 
+	query.InitMaxRunningQueries()
 	go query.PullQueriesToRun()
 }
