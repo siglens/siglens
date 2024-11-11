@@ -145,7 +145,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			chainedDp1 = dataProcessors
 		}
 
-		streamsAsAny := queryInfo.GetDQS().GetDistributedStreams(chainedDp1, queryInfo, includeNulls)
+		streamsAsAny := queryInfo.GetDQS().GetDistributedStreams(chainedDp1, searcher, queryInfo)
 		if streamsAsAny != nil {
 			streams, ok := streamsAsAny.([]*CachedStream)
 			if ok {
@@ -170,7 +170,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryProcessor, err := NewQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	return queryProcessor, nil
 }
 
-func NewQueryProcessorHelper(queryType structs.QueryType, input Streamer,
+func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64

@@ -61,6 +61,10 @@ func (dp *DataProcessor) IsTwoPassCmd() bool {
 	return dp.isTwoPassCmd
 }
 
+func (dp *DataProcessor) Cleanup() {
+	dp.processor.Cleanup()
+}
+
 // Rewind sets up this DataProcessor to read the input streams from the
 // beginning; however, it doesn't fully reset it to its initial state. For
 // example, a two-pass command that finishes its first pass should remember
@@ -228,17 +232,6 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 	}
 
 	return iqrs, streamIndices, nil
-}
-
-func NewEofDP() *DataProcessor {
-	return &DataProcessor{
-		streams:           make([]*CachedStream, 0),
-		processor:         &eofProcessor{},
-		inputOrderMatters: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   true,
-		isTwoPassCmd:      false,
-	}
 }
 
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
@@ -509,6 +502,40 @@ func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+type passThroughProcessor struct{}
+
+func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	if input == nil {
+		return nil, io.EOF
+	}
+
+	return input, nil
+}
+
+func (ptp *passThroughProcessor) Rewind()  {}
+func (ptp *passThroughProcessor) Cleanup() {}
+func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
+
+func NewSearcherDP(searcher Streamer) *DataProcessor {
+	return &DataProcessor{
+		streams:   []*CachedStream{NewCachedStream(searcher)},
+		processor: &passThroughProcessor{},
+	}
+}
+
+func NewEofDP() *DataProcessor {
+	return &DataProcessor{
+		streams:           make([]*CachedStream, 0),
+		processor:         &eofProcessor{},
+		inputOrderMatters: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
 	}
 }

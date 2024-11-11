@@ -90,22 +90,6 @@ func (ms *mockStreamer) Rewind() {
 	ms.numSent = 0
 }
 
-type passThroughProcessor struct{}
-
-func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
-	if input == nil {
-		return nil, io.EOF
-	}
-
-	return input, nil
-}
-
-func (ptp *passThroughProcessor) Rewind()  {}
-func (ptp *passThroughProcessor) Cleanup() {}
-func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	return nil, false
-}
-
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
