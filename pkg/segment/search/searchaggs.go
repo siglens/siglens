@@ -49,7 +49,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, aggCols, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, aggCols, err)
@@ -798,9 +798,9 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 
-	measureColAndTS, aggColUsage, valuesUsage, listUsage := getSegStatsMeasureCols(ops)
+	measureColAndTS, aggColUsage, valuesUsage, listUsage := GetSegStatsMeasureCols(ops)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
-		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid)
+		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, measureColAndTS, err)
@@ -809,7 +809,9 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	defer sharedReader.Close()
 
 	statRes := segresults.InitStatsResults()
-	delete(measureColAndTS, config.GetTimeStampKey())
+	if _, ok := aggColUsage[config.GetTimeStampKey()]; !ok {
+		delete(measureColAndTS, config.GetTimeStampKey())
+	}
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
 		go segmentStatsWorker(statRes, measureColAndTS, aggColUsage, valuesUsage, listUsage, sharedReader.MultiColReaders[i], allBlocksChan,
@@ -833,7 +835,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 }
 
 // returns all columns (+timestamp) in the measure operations
-func getSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool, map[string]bool) {
+func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool, map[string]bool) {
 	// Determine if current col used by eval statements
 	aggColUsage := make(map[string]utils.AggColUsageMode)
 	// Determine if current col used by agg values() func
@@ -892,8 +894,16 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
 		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
 
+		timestampKey := config.GetTimeStampKey()
+		timestampColKeyIdx := -1
+		timestampColPresent := false
+
 		nonDeColsKeyIndices := make(map[int]string)
 		for cname := range nonDeCols {
+			if cname == timestampKey {
+				timestampColPresent = true
+				continue
+			}
 			cKeyidx, ok := multiReader.GetColKeyIndex(cname)
 			if ok {
 				nonDeColsKeyIndices[cKeyidx] = cname
@@ -910,10 +920,15 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			continue
 		}
 
+		if timestampColPresent {
+			nonDeColsKeyIndices[timestampColKeyIdx] = timestampKey
+		}
+
 		for _, recNum := range sortedMatchedRecs {
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
+				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, false, &cValEnc)
+					recNum, qid, isTsCol, &cValEnc)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
@@ -957,6 +972,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 	for colName := range mCols {
 		if colName == "*" {
 			stats.AddSegStatsCount(lStats, colName, uint64(len(filterdRecNums)))
+			continue
+		}
+		if colName == config.GetTimeStampKey() {
+			retVal[colName] = true
 			continue
 		}
 		isDict, err := mcr.IsBlkDictEncoded(colName, blockNum)
@@ -1082,21 +1101,36 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 			blkResults.AddKeyToTimeBucket(recTs, 1)
 		}
 		numRecsMatched++
-		if blkResults.ShouldAddMore() {
-			sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
-			if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-				rrc := &utils.RecordResultContainer{
-					SegKeyInfo: utils.SegKeyInfo{
-						SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
-						IsRemote:  false,
-					},
-					BlockNum:         blockStatus.BlockNum,
-					RecordNum:        recNumUint16,
-					SortColumnValue:  sortVal,
-					VirtualTableName: searchReq.VirtualTableName,
-					TimeStamp:        recTs,
+
+		if config.IsNewQueryPipelineEnabled() {
+			rrc := &utils.RecordResultContainer{
+				SegKeyInfo: utils.SegKeyInfo{
+					SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+					IsRemote:  false,
+				},
+				BlockNum:         blockStatus.BlockNum,
+				RecordNum:        recNumUint16,
+				VirtualTableName: searchReq.VirtualTableName,
+				TimeStamp:        recTs,
+			}
+			blkResults.Add(rrc)
+		} else { // TODO: delete this else block when we migrate to new query pipeline
+			if blkResults.ShouldAddMore() {
+				sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
+				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+					rrc := &utils.RecordResultContainer{
+						SegKeyInfo: utils.SegKeyInfo{
+							SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+							IsRemote:  false,
+						},
+						BlockNum:         blockStatus.BlockNum,
+						RecordNum:        recNumUint16,
+						SortColumnValue:  sortVal,
+						VirtualTableName: searchReq.VirtualTableName,
+						TimeStamp:        recTs,
+					}
+					blkResults.Add(rrc)
 				}
-				blkResults.Add(rrc)
 			}
 		}
 	}

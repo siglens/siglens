@@ -946,7 +946,18 @@ func GetNumValFromRec(rec []byte, qid uint64, retVal *Number) (uint16, error) {
 	return endIdx, nil
 }
 
-func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
+func GetMockSegBaseDirAndKeyForTest(dataDir string, indexName string) (string, string, error) {
+	// segBaseDir format: data Dir / host / final / indexName / stream-id / suffix
+	segBaseDir := fmt.Sprintf("%smock-host.test/final/%s/stream-1/0/", dataDir, indexName)
+	err := os.MkdirAll(segBaseDir, 0755)
+	if err != nil {
+		return "", "", err
+	}
+	segKey := segBaseDir + "0"
+	return segBaseDir, segKey, nil
+}
+
+func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
 	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
 	map[string]*ColSizeInfo) {
 
@@ -1059,7 +1070,7 @@ func WriteMockColSegFile(segkey string, numBlocks int, entryCount int) ([]map[st
 		allColsSizes[cname] = &ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
 	}
 
-	err := utils.WriteValidityFile(segkey)
+	err := utils.WriteValidityFile(segBaseDir)
 	if err != nil {
 		panic(fmt.Sprintf("WriteMockColSegFile: failed to write segment validity file; err=%v", err))
 	}
@@ -1565,6 +1576,24 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 		segstats[cname] = stats
 	}
 
+	stats.Count++
+	stats.InsertIntoHll(valBytes)
+}
+
+func addSegStatsBool(segstats map[string]*SegStats, cname string, valBytes []byte) {
+
+	var stats *SegStats
+	var ok bool
+	stats, ok = segstats[cname]
+	if !ok {
+		stats = &SegStats{
+			IsNumeric: false,
+			Count:     0,
+		}
+		stats.CreateNewHll()
+
+		segstats[cname] = stats
+	}
 	stats.Count++
 	stats.InsertIntoHll(valBytes)
 }

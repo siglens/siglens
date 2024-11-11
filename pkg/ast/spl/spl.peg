@@ -555,6 +555,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
         GenerateEvent: &structs.GenerateEvent{
             GenTimes: genTimesOption.(*structs.GenTimes),
         },
+        GentimesExpr: genTimesOption.(*structs.GenTimes),
     }
 
     if queryAggBlocks != nil {
@@ -568,7 +569,9 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
 }
 / SPACE? inputLookup:InputLookupBlock queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
-    q.PipeCommands = inputLookup.(*structs.QueryAggregators)
+    inpLookup := inputLookup.(*structs.QueryAggregators)
+    inpLookup.GenerateEvent.InputLookup.IsFirstCommand = true
+    q.PipeCommands = inpLookup
 
     if queryAggBlocks != nil {
         queryAggSlice := queryAggBlocks.([]any)
@@ -759,6 +762,11 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
         return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
     }
 
+    if genTimeOption.Interval.Num < 0 {
+        genTimeOption.StartTime, genTimeOption.EndTime = genTimeOption.EndTime, genTimeOption.StartTime
+		genTimeOption.Interval.Num = -genTimeOption.Interval.Num
+    }
+
     return genTimeOption, nil
 }
 
@@ -775,7 +783,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -793,6 +801,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
         OutputTransforms: &structs.OutputTransforms {
             OutputColumns: columnsRequest,
         },
+        FieldsExpr: columnsRequest,
     }
 
     return queryAggregator, nil
@@ -807,12 +816,17 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
     measureAggs := make([]*structs.MeasureAggregator, len(aggsSlice))
     columnsRequest := &structs.ColumnsRequest{}
     columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+    renameExp := &structs.RenameExp{
+        RenameExprMode: structs.REMOverride,
+        RenameColumns: make(map[string]string, 0),
+    }
 
     for i, agg := range aggsSlice {
         measureAggs[i] = agg.measureAgg
 
         if agg.renameOutputField {
             columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
+            renameExp.RenameColumns[measureAggs[i].String()] = agg.outputFieldNewName
         }
     }
 
@@ -823,6 +837,7 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
             OutputTransforms: &structs.OutputTransforms {
                 OutputColumns: columnsRequest,
             },
+            RenameExp: renameExp,
         }
 
         aggNode.Next = renameNode
@@ -1135,6 +1150,34 @@ RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString 
     }
 
     return node, nil
+}
+
+RegexAggBlock <- PIPE node:RegexBlock {
+
+	astNode, ok := node.(*ast.Node)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: Node is not ast.Node. node type is %T", node)
+	}
+
+	rawRegex, ok := astNode.Comparison.Values.(string)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: regex given is not string. regex=%v, type=%T", astNode.Comparison.Values, astNode.Comparison.Values)
+	}
+
+    gobRegex := toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(rawRegex)
+    if err != nil {
+        return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
+    }
+
+	return &structs.QueryAggregators{
+		RegexExpr: &structs.RegexExpr{
+			Op:        astNode.Comparison.Op,
+			Field:     astNode.Comparison.Field,
+			RawRegex:  rawRegex,
+			GobRegexp: &gobRegex,
+		},
+	}, nil
 }
 
 ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
@@ -1671,7 +1714,10 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         NewColName: field.(string),
     }
     if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binOptions := binCmdOption.(*structs.BinCmdOptions)
+        binOptions.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1685,6 +1731,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        BinExpr: binCmdOption.(*structs.BinCmdOptions),
     }
 
     return queryAgg, nil
@@ -1693,12 +1740,15 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     letColReq := &structs.LetColumnsRequest {
         NewColName: field.(string),
     }
-    if newFieldName != nil {
-        letColReq.NewColName = newFieldName.(string)
-    }
-
+    
     binCmdOption := &structs.BinCmdOptions{
         MaxBins: 100,
+    }
+
+    if newFieldName != nil {
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binCmdOption.NewFieldName = toputils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -1709,6 +1759,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        BinExpr: binCmdOption,
     }
 
     return queryAgg, nil
@@ -1926,8 +1977,10 @@ ByClause <- BY fieldList:FieldNameList {
 
 DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
 
+    dedupExp := dedupExpr.(*structs.DedupExpr)
+
     letColReq := &structs.LetColumnsRequest {
-        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+        DedupColRequest: dedupExp,
     }
 
     root := &structs.QueryAggregators {
@@ -1935,6 +1988,30 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        DedupExpr: dedupExp,
+    }
+
+    if len(dedupExp.DedupSortEles) > 0 {
+        sortExpr := &structs.SortExpr {
+            SortEles: dedupExp.DedupSortEles,
+            SortAscending: dedupExp.DedupSortAscending,
+            Limit: 1000000,
+        }
+        dedupExp.DedupSortEles = nil
+        dedupExp.DedupSortAscending = nil
+
+        sortAgg := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                LetColumns: &structs.LetColumnsRequest{
+                    SortColRequest: sortExpr,
+                },
+            },
+            SortExpr: sortExpr,
+        }
+
+        sortAgg.Next = root
+        return sortAgg, nil
     }
 
     return root, nil
@@ -2152,12 +2229,19 @@ RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
     letColReq := &structs.LetColumnsRequest {
         RenameColRequest: renameExpr.(*structs.RenameExpr),
     }
+    renameExp := &structs.RenameExp {
+        RenameExprMode: letColReq.RenameColRequest.RenameExprMode,
+        RenameColumns: map[string]string{
+            letColReq.RenameColRequest.OriginalPattern: letColReq.RenameColRequest.NewPattern,
+        },
+    }
 
     root := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RenameExp: renameExp,
     }
 
     return root, nil
@@ -2218,6 +2302,7 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RexExpr: rexExpr,
     }
 
     return root, nil
@@ -2257,6 +2342,7 @@ SortBlock <- PIPE CMD_SORT limit:(SortLimit)? sortByEles:SortElements {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        SortExpr: sortExpr,
     }
 
     return root, nil
@@ -2282,6 +2368,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: first.(*structs.LetColumnsRequest),
         },
+        EvalExpr: &structs.EvalExpr{
+            ValueExpr: first.(*structs.LetColumnsRequest).ValueColRequest,
+            FieldName: first.(*structs.LetColumnsRequest).NewColName,
+        },
     }
 
     leafQueryAgg := root
@@ -2292,6 +2382,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms {
                 LetColumns: CommaSpaceAndEval[1].(*structs.LetColumnsRequest),
+            },
+            EvalExpr: &structs.EvalExpr{
+                ValueExpr: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).ValueColRequest,
+                FieldName: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).NewColName,
             },
         }
 
@@ -2886,7 +2980,7 @@ StrToRemoveExpr <- COMMA strToRemove:String {
 
 // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Eval#Syntax
 // Returns the field as a string with no quotation marks.
-EvalFieldToRead <- [a-zA-Z_]+ !("(") {
+EvalFieldToRead <- [a-zA-Z][_a-zA-Z0-9]* !("(") {
     return string(c.text), nil
 }
 / "'" field:FieldName "'" {
@@ -2900,6 +2994,7 @@ WhereBlock <- PIPE CMD_WHERE condition:BoolExpr {
         OutputTransforms: &structs.OutputTransforms {
             FilterRows: condition.(*structs.BoolExpr),
         },
+        WhereExpr: condition.(*structs.BoolExpr),
     }
 
     return queryAgg, nil
@@ -3556,11 +3651,7 @@ HeadOption <- option:(HeadOptionKeeplast / HeadOptionNull / HeadOptionLimit / He
 
 HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
     restSlice := rest.([]any)
-    optionWasSpecified := make(map[string]bool)
-    optionWasSpecified["null"] = false
-    optionWasSpecified["keeplast"] = false
-    optionWasSpecified["boolexpr"] = false
-    optionWasSpecified["limit"] = false
+    optionWasSpecified := make(map[string]struct{})
 
     numOptions := 1 + len(restSlice)
 
@@ -3576,14 +3667,11 @@ HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
         }
 
         argOption := headOptArg.argOption
-        val, exist := optionWasSpecified[argOption]
-        if !exist {
-            return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
-        }
-        if val {
+        _, exist := optionWasSpecified[argOption]
+        if exist {
             return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
         }
-        optionWasSpecified[argOption] = true
+        optionWasSpecified[argOption] = struct{}{}
 
         switch argOption {
             case "null":
@@ -3599,15 +3687,17 @@ HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
         }
     }
 
-    isBoolExpr, _ := optionWasSpecified["boolexpr"]
-    if !isBoolExpr {
-        isNull, _ := optionWasSpecified["null"]
-        if isNull {
+    if headExpr.BoolExpr == nil {
+        if headExpr.Null {
             return nil, fmt.Errorf("Invalid Syntax, null option can only be present with condition boolean expression")
         }
-        isKeeplast, _ := optionWasSpecified["keeplast"]
-        if isKeeplast {
+        if headExpr.Keeplast {
             return nil, fmt.Errorf("Invalid Syntax, keeplast option can only be present with condition boolean expression")
+        }
+    } else {
+        _, hasLimit := optionWasSpecified["limit"]
+        if !hasLimit {
+            headExpr.MaxRows = math.MaxUint64
         }
     }
 
@@ -3622,6 +3712,7 @@ HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
         OutputTransforms: &structs.OutputTransforms {
             HeadRequest: headExpr.(*structs.HeadExpr),
         },
+        HeadExpr: headExpr.(*structs.HeadExpr),
     }
 
     return queryAgg, nil
@@ -3632,25 +3723,32 @@ HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
     }
 
+    headExpr := &structs.HeadExpr{
+        MaxRows: limit,
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            HeadRequest: &structs.HeadExpr{
-                MaxRows: limit,
-            },
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
 }
 / PIPE CMD_HEAD_NO_SPACE {
+
+    headExpr := &structs.HeadExpr{
+        MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            HeadRequest: &structs.HeadExpr{
-                MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
-            },
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
@@ -3673,6 +3771,7 @@ TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
         OutputTransforms: &structs.OutputTransforms {
             TailRequest: tExpr,
         },
+        TailExpr: tExpr,
     }
 
     return queryAgg, nil
@@ -3689,6 +3788,7 @@ TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
         OutputTransforms: &structs.OutputTransforms {
             TailRequest: tExpr,
         },
+        TailExpr: tExpr,
     }
 
     return queryAgg, nil
@@ -3971,7 +4071,7 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var endEpoch int64 = 0
     var err error
@@ -4012,7 +4112,7 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) {
     var startEpoch int64 = 0
     var err error
 
@@ -4530,6 +4630,7 @@ MakeMVBlock <- CMD_MAKEMV SPACE mvColOptionExpr: MVBlockOptionsList? EMPTY_OR_SP
                 MultiValueColRequest: mvColExpr,
             },
         },
+        MakeMVExpr: mvColExpr,
     }
 
     return queryAgg, nil
@@ -4914,6 +5015,7 @@ FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:Fill
                 FillNullRequest: fillNullExpr,
             },
         },
+        FillNullExpr: fillNullExpr,
     }, nil
 }
 
@@ -4925,24 +5027,22 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
     return fieldList, nil
 }
 
-MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
-	limitVal := int64(0) // default value indicating no limit
-	var err error
-	if limit != nil {
-		limitVal, err = strconv.ParseInt(limit.(string), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing limit value: %v", err)
-		}
-	}
+MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
+    limit := toputils.NewUnsetOption[int64]()
+    if limitStr != nil {
+        value, err := strconv.ParseInt(limitStr.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Error parsing limit value: %v", err)
+        }
 
-	mvexpandExpr := &structs.MultiValueColLetRequest{
-		Command: "mvexpand",
-		ColName: field.(string),
-	}
+        limit.Set(value)
+    }
 
-	if limitVal != 0 {
-		mvexpandExpr.Limit = limitVal
-	}
+    mvexpandExpr := &structs.MultiValueColLetRequest{
+        Command: "mvexpand",
+        ColName: field.(string),
+        Limit: limit,
+    }
 
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.OutputTransformType,
@@ -4951,6 +5051,7 @@ MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limit:MvexpandLimit? {
                 MultiValueColRequest: mvexpandExpr,
             },
         },
+        MVExpandExpr: mvexpandExpr,
     }
     return queryAgg, nil
 }
@@ -5068,6 +5169,7 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
         GenerateEvent: &structs.GenerateEvent{
             InputLookup: inputLookup,
         },
+        InputLookupExpr: inputLookup,
     }, nil
 }
 
@@ -5225,7 +5327,7 @@ CMD_EVENTCOUNT <- "eventcount"
 CMD_FILLNULL <- "fillnull"
 CMD_GENTIMES <- "gentimes"
 CMD_INPUTLOOKUP <- "inputlookup" SPACE
-EVAL_CONCAT <- SPACE? "." SPACE?
+EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
 

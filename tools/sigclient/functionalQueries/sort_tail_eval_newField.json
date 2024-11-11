@@ -1,0 +1,36 @@
+{
+    "queryText": "city = Boston | sort ident | tail 2 | eval newField=12 | fields city, app_name, ident, new*",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 2,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "city": "Boston",
+                "app_name": "SeaGreencatalog",
+                "ident": "ff8da4bd-8a88-4e31-b0d1-6d01ba7ee10d",
+                "newField": 12
+            },
+            {
+            "city": "Boston",
+            "app_name": "Tigerwould",
+            "ident": "feec2b21-63ff-4bee-b340-72b00979fd7c",
+            "newField": 12
+            }
+        ],
+        "allColumns": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ],
+        "columnsOrder": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ]
+    }
+}

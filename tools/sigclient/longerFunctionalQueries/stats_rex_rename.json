@@ -1,0 +1,104 @@
+{
+    "queryText": "city=Boston | stats count AS Count, avg(latency) AS avg, max(latency) AS weekday_max BY weekday | rex field=weekday \"(?<first>.{3})(?<second>.*)\" | rename first AS weekday_short | rename second AS weekday_end | rename weekday AS day | rename weekday* AS w*_value",
+    "expectedResult": {
+         "bucketCount": 7,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "day"
+        ],
+         "measureFunctions": [
+            "w_short_value",
+            "Count",
+            "w_max_value",
+            "avg",
+            "w_end_value"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "Friday"
+                ],
+                "MeasureVal": {
+                    "Count": 132,
+                    "avg": 4820060.848484849,
+                    "w_end_value": "day",
+                    "w_max_value": 9985176,
+                    "w_short_value": "Fri"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Tuesday"
+                ],
+                "MeasureVal": {
+                    "Count": 153,
+                    "avg": 4903041.6339869285,
+                    "w_end_value": "sday",
+                    "w_max_value": 9852721,
+                    "w_short_value": "Tue"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Thursday"
+                ],
+                "MeasureVal": {
+                    "Count": 138,
+                    "avg": 4503433.985507246,
+                    "w_end_value": "rsday",
+                    "w_max_value": 9991262,
+                    "w_short_value": "Thu"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Sunday"
+                ],
+                "MeasureVal": {
+                    "Count": 133,
+                    "avg": 5106639.338345865,
+                    "w_end_value": "day",
+                    "w_max_value": 9983420,
+                    "w_short_value": "Sun"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Monday"
+                ],
+                "MeasureVal": {
+                    "Count": 140,
+                    "avg": 4856646.757142857,
+                    "w_end_value": "day",
+                    "w_max_value": 9963764,
+                    "w_short_value": "Mon"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Saturday"
+                ],
+                "MeasureVal": {
+                    "Count": 131,
+                    "avg": 4959377.564885496,
+                    "w_end_value": "urday",
+                    "w_max_value": 9989029,
+                    "w_short_value": "Sat"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "Wednesday"
+                ],
+                "MeasureVal": {
+                    "Count": 157,
+                    "avg": 5122355.700636943,
+                    "w_end_value": "nesday",
+                    "w_max_value": 9994114,
+                    "w_short_value": "Wed"
+                }
+            }
+        ]
+     }
+ }
+ 

@@ -45,10 +45,18 @@ type ValuesRangeConfig struct {
 	Default int
 }
 
-const MINUTES_REREAD_CONFIG = 15
+const MINUTES_REREAD_CONFIG = 2
 const RunModFilePath = "data/common/runmod.cfg"
 
 const SIZE_8GB_IN_MB = uint64(8192)
+
+// How memory is split for rotated info. These should sum to 100.
+const DEFAULT_ROTATED_CMI_MEM_PERCENT = 63
+const DEFAULT_METADATA_MEM_PERCENT = 20
+const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
+const DEFAULT_METRICS_MEM_PERCENT = 2
+
+const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
@@ -82,13 +90,21 @@ func GetTotalMemoryAvailable() uint64 {
 	} else {
 		gogc = 100
 	}
-	hostMemory := memory.TotalMemory() * runningConfig.MemoryThresholdPercent / 100
+	hostMemory := memory.TotalMemory() * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := hostMemory / (1 + gogc/100)
 	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
-		runningConfig.MemoryThresholdPercent,
+		runningConfig.MemoryConfig.MaxUsagePercent,
 		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
 		segutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
+}
+
+func GetMemoryConfig() common.MemoryConfig {
+	return runningConfig.MemoryConfig
+}
+
+func GetMaxOpenColumns() uint64 {
+	return runningConfig.MaxOpenColumns
 }
 
 /*
@@ -146,8 +162,8 @@ func GetS3BucketPrefix() string {
 	return runningConfig.S3.BucketPrefix
 }
 
-func GetMaxSegFileSize() *uint64 {
-	return &runningConfig.MaxSegFileSize
+func GetMaxSegFileSize() uint64 {
+	return runningConfig.MaxSegFileSize
 }
 
 func GetESVersion() *string {
@@ -250,7 +266,7 @@ func GetUIDomain() string {
 		host, _, err := net.SplitHostPort(hostname)
 		if err != nil {
 			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
-			return "localhost"
+			return hostname
 		}
 		return host
 	}
@@ -266,6 +282,10 @@ func GetLogPrefix() string {
 
 func IsDebugMode() bool {
 	return runningConfig.Debug
+}
+
+func IsPProfEnabled() bool {
+	return runningConfig.PProfEnabledConverted
 }
 
 func IsPQSEnabled() bool {
@@ -325,6 +345,11 @@ func GetS3IngestBufferSize() uint64 {
 }
 func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
+}
+
+func IsNewQueryPipelineEnabled() bool {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	return runningConfig.UseNewPipelineConverted
 }
 
 // returns a map of s3 config
@@ -514,7 +539,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 		LicenseKeyPath:              "./",
 		ESVersion:                   "",
 		Debug:                       false,
-		MemoryThresholdPercent:      80,
+		PProfEnabled:                "true",
+		PProfEnabledConverted:       true,
 		DataDiskThresholdPercent:    85,
 		S3IngestQueueName:           "",
 		S3IngestQueueRegion:         "",
@@ -538,6 +564,14 @@ func GetTestConfig(dataPath string) common.Configuration {
 		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		MemoryConfig: common.MemoryConfig{
+			MaxUsagePercent: 80,
+			SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+			CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+		},
+		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 	}
 
 	return testConfig
@@ -658,6 +692,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.IngestNode = "true"
 	}
 
+	if len(config.PProfEnabled) <= 0 {
+		config.PProfEnabled = "true"
+	}
+	pprofEnabled, err := strconv.ParseBool(config.PProfEnabled)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse pprof enabled flag. Defaulting to true. Error: %v", err)
+		pprofEnabled = true
+		config.PProfEnabled = "true"
+	}
+	config.PProfEnabledConverted = pprofEnabled
+
 	if len(config.PQSEnabled) <= 0 {
 		config.PQSEnabled = "true"
 	}
@@ -701,6 +746,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DualCaseCheck = "true"
 	}
 	config.DualCaseCheckConverted = dualCaseCheck
+
+	if len(config.UseNewQueryPipeline) <= 0 {
+		config.UseNewQueryPipeline = "true"
+	}
+	useNewPipeline, err := strconv.ParseBool(config.UseNewQueryPipeline)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse UseNewQueryPipeline flag. Defaulting to true. Error: %v", err)
+		useNewPipeline = true
+		config.UseNewQueryPipeline = "true"
+	}
+	config.UseNewPipelineConverted = useNewPipeline
 
 	if len(config.DataPath) <= 0 {
 		config.DataPath = "data/"
@@ -759,17 +815,48 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DataDiskThresholdPercent = 85
 	}
 
+	memoryLimits := config.MemoryConfig
+
 	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
-		if config.MemoryThresholdPercent > 50 {
-			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
-			config.MemoryThresholdPercent = 50
-		} else if config.MemoryThresholdPercent == 0 {
-			config.MemoryThresholdPercent = 50
+		if memoryLimits.MaxUsagePercent > 50 {
+			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
+			memoryLimits.MaxUsagePercent = 50
+		} else if memoryLimits.MaxUsagePercent == 0 {
+			memoryLimits.MaxUsagePercent = 50
 		}
 	}
 
-	if config.MemoryThresholdPercent == 0 {
-		config.MemoryThresholdPercent = 80
+	if memoryLimits.MaxUsagePercent == 0 {
+		memoryLimits.MaxUsagePercent = 80
+	}
+	if memoryLimits.SearchPercent == 0 {
+		memoryLimits.SearchPercent = DEFAULT_SEG_SEARCH_MEM_PERCENT
+	}
+	if memoryLimits.CMIPercent == 0 {
+		memoryLimits.CMIPercent = DEFAULT_ROTATED_CMI_MEM_PERCENT
+	}
+	if memoryLimits.MetadataPercent == 0 {
+		memoryLimits.MetadataPercent = DEFAULT_METADATA_MEM_PERCENT
+	}
+	total := memoryLimits.SearchPercent + memoryLimits.CMIPercent + memoryLimits.MetadataPercent
+	if memoryLimits.MetricsPercent == 0 && total < 100 {
+		memoryLimits.MetricsPercent = DEFAULT_METRICS_MEM_PERCENT
+	}
+	total += memoryLimits.MetricsPercent
+
+	if total != 100 {
+		err := fmt.Errorf("ExtractConfigData: Memory splits sum to %v!=100%%. Search: %v, CMI: %v, Metadata: %v, Metrics: %v",
+			total, memoryLimits.SearchPercent, memoryLimits.CMIPercent, memoryLimits.MetadataPercent,
+			memoryLimits.MetricsPercent)
+
+		log.Error(err)
+		return config, err
+	}
+
+	config.MemoryConfig = memoryLimits
+
+	if config.MaxOpenColumns == 0 {
+		config.MaxOpenColumns = DEFAULT_MAX_OPEN_COLUMNS
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {
@@ -1112,6 +1199,14 @@ func refreshConfig() {
 			return
 		}
 		SetConfig(newConfig)
+
+		log.Infof("refreshConfig: cfg  updated, modifiedTimeSec: %v, lastModified: %v",
+			modifiedTimeSec, configFileLastModified)
+		configJSON, err := json.MarshalIndent(newConfig, "", "  ")
+		if err != nil {
+			log.Errorf("refreshConfig : Error marshalling config struct %v", err.Error())
+		}
+		log.Infof("refreshConfig: newConfig: %v", string(configJSON))
 		configFileLastModified = modifiedTimeSec
 	}
 }

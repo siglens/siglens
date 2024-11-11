@@ -1,0 +1,33 @@
+{
+    "queryText": "city=Boston | rex field=url \"(?:https?://)(?<uri_segment>[^/]+)\" | fields uri_segment, app_name, url, latency | stats count, avg(latency) as avg_response, max(latency) as max_response by uri_segment | eval response_category = case( avg_response < 500000, \"Fast\", avg_response < 1000000, \"Medium\", avg_response >= 1000000, \"Slow\") | stats count, avg(avg_response) as avg_response by response_category | sort response_category",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 2,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "avg_response": 736751.1666666666,
+                "count(*)": 3,
+                "response_category": "Medium"
+            },
+            {
+                "avg_response": 4989040.482775226,
+                "count(*)": 9997,
+                "response_category": "Slow"
+            }
+        ],
+         "allColumns": [
+            "avg_response",
+            "count(*)",
+            "response_category"
+        ],
+         "columnsOrder": [
+            "avg_response",
+            "count(*)",
+            "response_category"
+        ]
+     }
+}
+  

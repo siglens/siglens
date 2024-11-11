@@ -22,26 +22,27 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/processor"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-	_, err := query.StartQuery(qid, false)
+	_, err := query.StartQuery(qid, false, nil)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
+		log.Errorf("ExecuteMetricsQuery: Error initializing query status! %+v", err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
@@ -64,9 +65,9 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-		_, err := query.StartQuery(qid, false)
+		_, err := query.StartQuery(qid, false, nil)
 		if err != nil {
-			log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
+			log.Errorf("ExecuteMultipleMetricsQuery: Error initializing query status! %+v", err)
 			return &mresults.MetricsResult{
 				ErrList: []error{err},
 			}
@@ -423,8 +424,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-
-	rQuery, err := query.StartQuery(qid, false)
+	rQuery, err := query.StartQuery(qid, false, nil)
 	if err != nil {
 		log.Errorf("ExecuteQuery: Error initializing query status! %+v", err)
 		return &structs.NodeResult{
@@ -445,15 +445,46 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 		log.Errorf("qid=%d, ExecuteQuery: failed to get remote logs for qid! Error: %v", qid, err)
 	}
 
+	startTime := rQuery.GetStartTime()
+	res.QueryStartTime = startTime
+
 	query.DeleteQuery(qid)
 
 	return res
 }
 
+func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (chan *query.QueryStateChanData, error) {
+	rQuery, err := query.StartQuery(qid, true, nil)
+	if err != nil {
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
+		return nil, err
+	}
+
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
+	if err != nil {
+		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
+		return nil, err
+	}
+
+	go func() {
+		err = queryProcessor.GetStreamedResult(rQuery.StateChan)
+		if err != nil {
+			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
+		}
+
+		errorState := query.QueryStateChanData{
+			StateName: query.ERROR,
+			Error:     err,
+		}
+		rQuery.StateChan <- &errorState
+	}()
+	return rQuery.StateChan, nil
+}
+
 // The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.
 // Returns a channel that will have events for query status or any error. An error means the query was not successfully started
 func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQuery(qid, true)
+	rQuery, err := query.StartQuery(qid, true, nil)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 		return nil, err
@@ -465,10 +496,27 @@ func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 	return rQuery.StateChan, nil
 }
 
+func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (*processor.QueryProcessor, error) {
+	startTime, querySummary, queryInfo, _, _, _, _, _, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
+	}
+
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
+	}
+
+	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
+	}
+
+	return queryProcessor, nil
+}
+
 func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64,
 	qc *structs.QueryContext, rQuery *query.RunningQueryState) *structs.NodeResult {
-
-	startTime := time.Now()
 
 	if qc.GetNumTables() == 0 {
 		log.Infof("qid=%d, ExecuteQuery: empty array of Index Names provided", qid)
@@ -503,7 +551,6 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	if uint64(len(nodeRes.AllRecords)) > qc.SizeLimit {
 		nodeRes.AllRecords = nodeRes.AllRecords[0:qc.SizeLimit]
 	}
-	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	if rQuery.IsAsync() && aggs != nil && (aggs.Next != nil || aggs.HasGeneratedEventsWithoutSearch()) {
 		err := query.SetFinalStatsForQid(qid, nodeRes)

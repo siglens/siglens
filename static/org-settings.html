@@ -88,10 +88,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     {{ end }}
                                 </tr>
                                 <tr>
-                                    <th>Retention</th>
                                     {{ if .OrgSettingsRetentionPeriod }}
                                         {{ .OrgSettingsRetentionPeriod | safeHTML }}
                                     {{ else }}
+                                        <th>Retention</th>
                                         <td id="retention-days-value">4 days</td>
                                     {{ end }}
                                 </tr>

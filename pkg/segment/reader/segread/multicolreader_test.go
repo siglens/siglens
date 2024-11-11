@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
@@ -29,23 +30,24 @@ import (
 )
 
 func Test_multiSegReader(t *testing.T) {
+	var err error
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "timereader")
+	assert.Nil(t, err)
 
-	config.InitializeTestingConfig(t.TempDir())
-	segDir := "data/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test"
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 
 	multiReader := sharedReader.MultiColReaders[0]
-	var err error
+
 	var cKeyidx int
 
 	colsToReadIndices := make(map[int]struct{})
@@ -60,7 +62,7 @@ func Test_multiSegReader(t *testing.T) {
 	}
 
 	// invalid block
-	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 12345)
 	assert.NotNil(t, err)
 
 	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
@@ -97,27 +99,28 @@ func Test_multiSegReader(t *testing.T) {
 
 	sharedReader.Close()
 	assert.Nil(t, err)
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }
 
 func Test_InitSharedMultiColumnReaders(t *testing.T) {
 
-	config.InitializeTestingConfig(t.TempDir())
-	segDir := "data/test_cols_with_asterisk/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test"
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "timereader")
+	assert.Nil(t, err)
+
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 
 	cols["*"] = true
-	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9)
+	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedAsteriskReader.MultiColReaders, sharedAsteriskReader.numReaders)
 	assert.Equal(t, 3, sharedAsteriskReader.numReaders)
@@ -167,5 +170,5 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 	sharedReader.Close()
 	sharedAsteriskReader.Close()
 
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }

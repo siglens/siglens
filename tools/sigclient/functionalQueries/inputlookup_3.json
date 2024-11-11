@@ -1,0 +1,22 @@
+{
+    "queryText": "app_name=Bracecould | inputlookup start=5 append=true test_lookup.csv where Test = \"def\" | inputlookup append=true test_lookup.csv.gz where Test = \"a*\" | stats count as cnt",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 1,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "cnt": 9
+            }
+        ],
+        "allColumns": [
+            "cnt"
+        ],
+        "columnsOrder": [
+            "cnt"
+        ]
+    }
+ }
+ 

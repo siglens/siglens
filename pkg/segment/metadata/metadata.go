@@ -25,11 +25,11 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,6 +58,12 @@ var globalMetadata *allSegmentMetadata = &allSegmentMetadata{
 	updateLock:                  &sync.RWMutex{},
 }
 
+var GlobalBlockMicroIndexCheckLimiter *semaphore.WeightedSemaphore
+
+func InitBlockMetaCheckLimiter(unloadedBlockLimit int64) {
+	GlobalBlockMicroIndexCheckLimiter = semaphore.NewDefaultWeightedSemaphore(unloadedBlockLimit, "GlobalBlockMicroIndexCheckLimiter")
+}
+
 func ResetGlobalMetadataForTest() {
 	globalMetadata = &allSegmentMetadata{
 		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
@@ -80,11 +86,8 @@ func GetTableSortedMetadataForTest() map[string][]*SegmentMicroIndex {
 }
 
 func ProcessSegmetaInfo(segMetaInfo *structs.SegMeta) *SegmentMicroIndex {
-	for pqid := range segMetaInfo.AllPQIDs {
-		pqs.AddPersistentQueryResult(segMetaInfo.SegmentKey, segMetaInfo.VirtualTableName, pqid)
-	}
-
-	return InitSegmentMicroIndex(segMetaInfo)
+	pqs.AddAllPqidResults(segMetaInfo.SegmentKey, segMetaInfo.AllPQIDs)
+	return InitSegmentMicroIndex(segMetaInfo, false)
 }
 
 func AddSegMetaToMetadata(segMeta *structs.SegMeta) {
@@ -155,8 +158,8 @@ func mergeSegmentMicroIndex(left *SegmentMicroIndex, right *SegmentMicroIndex) (
 		left.NumBlocks = right.NumBlocks
 	}
 
-	if right.MicroIndexSize != 0 && left.MicroIndexSize == 0 {
-		left.MicroIndexSize = right.MicroIndexSize
+	if right.loadedCmiSize != 0 && left.loadedCmiSize == 0 {
+		left.loadedCmiSize = right.loadedCmiSize
 	}
 
 	if right.SearchMetadataSize != 0 && left.SearchMetadataSize == 0 {
@@ -170,105 +173,67 @@ func mergeSegmentMicroIndex(left *SegmentMicroIndex, right *SegmentMicroIndex) (
 	return left, nil
 }
 
-func RebalanceInMemoryCmi(metadataSizeBytes uint64) {
-	globalMetadata.rebalanceCmi(metadataSizeBytes)
+func RebalanceInMemoryCmi(cmiSizeBytes uint64) {
+	globalMetadata.rebalanceCmi(cmiSizeBytes)
 }
 
 // Entry point to rebalance what is loaded in memory depending on BLOCK_MICRO_MEM_SIZE
-func (hm *allSegmentMetadata) rebalanceCmi(metadataSizeBytes uint64) {
-
-	sTime := time.Now()
+func (hm *allSegmentMetadata) rebalanceCmi(cmiSizeBytes uint64) {
 
 	hm.updateLock.RLock()
-	cmiIndex := hm.getCmiMaxIndicesToLoad(metadataSizeBytes)
+	cmiIndex, inMemSize := hm.getCmiMaxIndicesToEvict(cmiSizeBytes)
 	evicted := hm.evictCmiPastIndices(cmiIndex)
-	inMemSize, inMemCMI, newloaded := hm.loadCmiUntilIndex(cmiIndex)
 
-	log.Infof("rebalanceCmi: CMI, inMem: %+v, allocated: %+v MB, evicted: %v, newloaded: %v, took: %vms",
-		inMemCMI, utils.ConvertUintBytesToMB(inMemSize),
-		evicted, newloaded, int(time.Since(sTime).Milliseconds()))
-	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexCount(uint64(inMemCMI))
+	log.Infof("rebalanceCmi: evcitCmiIndex: %v, totalSMI: %v, allocated: %+v MB, evicted: %v, allowedMB: %v",
+		cmiIndex, len(hm.allSegmentMicroIndex), utils.ConvertUintBytesToMB(inMemSize),
+		evicted, utils.ConvertUintBytesToMB(cmiSizeBytes))
+
+	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexCount(uint64(cmiIndex))
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexSizeMB(utils.ConvertUintBytesToMB(inMemSize))
 	hm.updateLock.RUnlock()
 }
 
-/*
-Returns the max indices that should have metadata loaded
+func (hm *allSegmentMetadata) getCmiMaxIndicesToEvict(totalMem uint64) (int, uint64) {
 
-First value is the max index where CMIs should be loaded
-*/
-func (hm *allSegmentMetadata) getCmiMaxIndicesToLoad(totalMem uint64) int {
-	// 1. get max index to load assuming both CMI & search metadata will be loaded
-	// 2. with remaining size, load whatever search metadata that fits in memory
-
-	numBlocks := len(hm.allSegmentMicroIndex)
+	numCmis := len(hm.allSegmentMicroIndex)
 	totalMBAllocated := uint64(0)
 	maxCmiIndex := 0
-	for ; maxCmiIndex < numBlocks; maxCmiIndex++ {
-		cmiSize := hm.allSegmentMicroIndex[maxCmiIndex].MicroIndexSize + hm.allSegmentMicroIndex[maxCmiIndex].SearchMetadataSize
-		if cmiSize+totalMBAllocated > totalMem {
+
+	for ; maxCmiIndex < numCmis; maxCmiIndex++ {
+		smi := hm.allSegmentMicroIndex[maxCmiIndex]
+
+		if totalMBAllocated+smi.loadedCmiSize > totalMem {
 			break
 		}
-		totalMBAllocated += cmiSize
+		totalMBAllocated += smi.loadedCmiSize
 	}
-
-	return maxCmiIndex
+	return maxCmiIndex, totalMBAllocated
 }
 
 func (hm *allSegmentMetadata) evictCmiPastIndices(cmiIndex int) int {
-	idxToClear := make([]int, 0)
+	var evictedCount int
 	for i := cmiIndex; i < len(hm.allSegmentMicroIndex); i++ {
-		if hm.allSegmentMicroIndex[i].loadedMicroIndices {
-			idxToClear = append(idxToClear, i)
+		smi := hm.allSegmentMicroIndex[i]
+		if smi.loadedCmiSize > 0 {
+			smi.clearMicroIndices()
+			evictedCount++
 		}
 	}
 
-	if len(idxToClear) > 0 {
-		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearMicroIndices()
-		}
-	}
-	return len(idxToClear)
-}
-
-// Returns total in memory size in bytes, total cmis in memory, total search metadata in memory
-func (hm *allSegmentMetadata) loadCmiUntilIndex(cmiIdx int) (uint64, int, int) {
-
-	totalSize := uint64(0)
-	totalCMICount := int(0)
-
-	idxToLoad := make([]int, 0)
-
-	for i := 0; i < cmiIdx; i++ {
-		if !hm.allSegmentMicroIndex[i].loadedMicroIndices {
-			idxToLoad = append(idxToLoad, i)
-		} else {
-			totalSize += hm.allSegmentMicroIndex[i].MicroIndexSize
-			totalCMICount += 1
-		}
-	}
-
-	if len(idxToLoad) > 0 {
-		a, b := hm.loadParallel(idxToLoad, true)
-		totalSize += a
-		totalCMICount += b
-	}
-
-	return totalSize, totalCMICount, len(idxToLoad)
+	return evictedCount
 }
 
 /*
 Parameters:
 
 	idxToLoad: indices in the allSegmentMicroIndex to be loaded
-	cmi: whether to load cmi (true) or ssm (false)
 
 Returns:
 
 	totalSize:
 	totalEntities:
 */
-func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, int) {
+func (hm *allSegmentMetadata) loadParallelSsm(idxToLoad []int) (uint64, int) {
 
 	totalSize := uint64(0)
 	totalEntities := int(0)
@@ -277,32 +242,18 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 	var err error
 	var ssmBufs [][]byte
 	parallelism := int(config.GetParallelism())
-	if !cmi {
-		ssmBufs = make([][]byte, parallelism)
-		for i := 0; i < parallelism; i++ {
-			ssmBufs[i] = make([]byte, 0)
-		}
+
+	ssmBufs = make([][]byte, parallelism)
+	for i := 0; i < parallelism; i++ {
+		ssmBufs[i] = make([]byte, 0)
 	}
 
 	for i, idx := range idxToLoad {
 		wg.Add(1)
 		go func(myIdx int, rbufIdx int) {
-			if cmi {
-				pqsCols, err := querytracker.GetPersistentColumns(hm.allSegmentMicroIndex[myIdx].VirtualTableName, hm.allSegmentMicroIndex[idx].OrgId)
-				if err != nil {
-					log.Errorf("loadParallel: error getting persistent columns: %v", err)
-				} else {
-					err = hm.allSegmentMicroIndex[myIdx].LoadMicroIndices(map[uint16]map[string]bool{}, true, pqsCols, true)
-					if err != nil {
-						log.Errorf("loadParallel: failed to load SSM at index %d. Error %v",
-							myIdx, err)
-					}
-				}
-			} else {
-				ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].LoadSearchMetadata(ssmBufs[rbufIdx])
-				if err != nil {
-					log.Errorf("loadParallel: failed to load SSM at index %d. Error: %v", myIdx, err)
-				}
+			ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].loadSearchMetadata(ssmBufs[rbufIdx])
+			if err != nil {
+				log.Errorf("loadParallelSsm: failed to load SSM at index %d. Error: %v", myIdx, err)
 			}
 			wg.Done()
 		}(idx, i%parallelism)
@@ -313,16 +264,9 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 	wg.Wait()
 
 	for _, idx := range idxToLoad {
-		if cmi {
-			if hm.allSegmentMicroIndex[idx].loadedMicroIndices {
-				totalSize += hm.allSegmentMicroIndex[idx].MicroIndexSize
-				totalEntities += 1
-			}
-		} else {
-			if hm.allSegmentMicroIndex[idx].loadedSearchMetadata {
-				totalSize += hm.allSegmentMicroIndex[idx].SearchMetadataSize
-				totalEntities += 1
-			}
+		if hm.allSegmentMicroIndex[idx].loadedSearchMetadata {
+			totalSize += hm.allSegmentMicroIndex[idx].SearchMetadataSize
+			totalEntities += 1
 		}
 	}
 	return totalSize, totalEntities
@@ -331,7 +275,7 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 func (hm *allSegmentMetadata) deleteSegmentKey(key string) {
 	hm.updateLock.Lock()
 	defer hm.updateLock.Unlock()
-	hm.deleteSegmentKeyInternal(key)
+	hm.deleteSegmentKeyWithLock(key)
 }
 
 func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
@@ -350,7 +294,7 @@ func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
 		}
 	}
 	for segKey := range allSegKeysInTable {
-		hm.deleteSegmentKeyInternal(segKey)
+		hm.deleteSegmentKeyWithLock(segKey)
 	}
 	delete(hm.tableSortedMetadata, table)
 	GlobalSegStoreSummary.DecrementTotalTableCount()
@@ -358,7 +302,7 @@ func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
 
 // internal function to delete segment key from all SiglensMetadata structs
 // caller is responsible for acquiring locks
-func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
+func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 	var tName string
 	for i, sMetadata := range hm.allSegmentMicroIndex {
 		if sMetadata.SegmentKey == key {
@@ -369,7 +313,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 	}
 	delete(hm.segmentMetadataReverseIndex, key)
 	if tName == "" {
-		log.Debugf("DeleteSegmentKey key %+v was not found in metadata", key)
+		log.Errorf("deleteSegmentKeyWithLock: key %+v was not found in allSegmentMicroIndex", key)
 		return
 	}
 	sortedTableSlice, ok := hm.tableSortedMetadata[tName]
@@ -388,16 +332,25 @@ func (hm *allSegmentMetadata) deleteSegmentKeyInternal(key string) {
 
 }
 
-func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
-	return globalMetadata.getMicroIndex(segKey)
+	mi, ok := globalMetadata.segmentMetadataReverseIndex[segKey]
+	return mi, ok
+
 }
 
-func (hm *allSegmentMetadata) getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
-	blockMicroIndex, ok := hm.segmentMetadataReverseIndex[segKey]
-	return blockMicroIndex, ok
+func getAllColumnsRecSizeWithLock(segKey string) (map[string]uint32, bool) {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
+	mi, ok := globalMetadata.segmentMetadataReverseIndex[segKey]
+	if ok {
+		return mi.getAllColumnsRecSize(), true
+	}
+	return nil, ok
+
 }
 
 func DeleteSegmentKey(segKey string) {
@@ -408,12 +361,9 @@ func DeleteVirtualTable(vTable string, orgid uint64) {
 	globalMetadata.deleteTable(vTable, orgid)
 }
 
-/*
-Internally, this will allocate 30% of the SSM size to metrics and the remaining to logs
-*/
 func RebalanceInMemorySsm(ssmSizeBytes uint64) {
-	logsSSM := uint64(float64(ssmSizeBytes) * 0.30)
-	metricsSSM := uint64(float64(ssmSizeBytes) * 0.70)
+	logsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_LOGS_MEM_PERCENT / 100)
+	metricsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_METRICS_MEM_PERCENT / 100)
 	globalMetadata.rebalanceSsm(logsSSM)
 	globalMetricsMetadata.rebalanceMetricsSsm(metricsSSM)
 }
@@ -428,9 +378,11 @@ func (hm *allSegmentMetadata) rebalanceSsm(ssmSizeBytes uint64) {
 
 	inMemSize, inMemSearchMetaCount, newloaded := hm.loadSsmUntilIndex(searchIndex)
 
-	log.Infof("rebalanceSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, took: %vms",
+	log.Infof("rebalanceSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, totalSsmCount: %v, allowedMB: %v, took: %vms",
 		inMemSearchMetaCount, utils.ConvertUintBytesToMB(inMemSize),
-		evicted, newloaded, int(time.Since(sTime).Milliseconds()))
+		evicted, newloaded, len(hm.allSegmentMicroIndex),
+		utils.ConvertUintBytesToMB(ssmSizeBytes),
+		int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemorySearchmetadataCount(uint64(inMemSearchMetaCount))
 	GlobalSegStoreSummary.SetInMemorySsmSizeMB(utils.ConvertUintBytesToMB(inMemSize))
@@ -467,7 +419,7 @@ func (hm *allSegmentMetadata) evictSsmPastIndices(searchIndex int) int {
 
 	if len(idxToClear) > 0 {
 		for _, idx := range idxToClear {
-			hm.allSegmentMicroIndex[idx].ClearSearchMetadata()
+			hm.allSegmentMicroIndex[idx].clearSearchMetadata()
 		}
 	}
 	return len(idxToClear)
@@ -489,7 +441,7 @@ func (hm *allSegmentMetadata) loadSsmUntilIndex(searchMetaIdx int) (uint64, int,
 	}
 
 	if len(idxToLoad) > 0 {
-		a, b := hm.loadParallel(idxToLoad, false)
+		a, b := hm.loadParallelSsm(idxToLoad)
 		totalSize += a
 		totalSearchMetaCount += b
 	}
@@ -523,12 +475,12 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 	}
 
 	if !sMicroIdx.loadedSearchMetadata {
-		_, err := sMicroIdx.LoadSearchMetadata([]byte{})
+		_, err := sMicroIdx.loadSearchMetadata([]byte{})
 		if err != nil {
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil
 		}
-		defer sMicroIdx.ClearSearchMetadata()
+		defer sMicroIdx.clearSearchMetadata()
 	}
 
 	var fRange *dtu.TimeRange
@@ -598,8 +550,8 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 						StartEpochMs: smi.EarliestEpochMS,
 						EndEpochMs:   smi.LatestEpochMS,
 					},
-					ConsistentCValLenMap: smi.GetAllColumnsRecSize(),
-					TotalRecords:         smi.GetRecordCount(),
+					ConsistentCValLenMap: smi.getAllColumnsRecSize(),
+					TotalRecords:         smi.getRecordCount(),
 				}
 				timePassed++
 			}
@@ -686,13 +638,11 @@ func GetAllColNames(indices []string) []string {
 }
 
 func GetSMIConsistentColValueLen[T any](segmap map[string]T) map[string]map[string]uint32 {
-	globalMetadata.updateLock.RLock()
-	defer globalMetadata.updateLock.RUnlock()
 	ConsistentCValLenPerSeg := make(map[string]map[string]uint32, len(segmap))
 	for segKey := range segmap {
-		smi, ok := globalMetadata.getMicroIndex(segKey)
+		retval, ok := getAllColumnsRecSizeWithLock(segKey)
 		if ok {
-			ConsistentCValLenPerSeg[segKey] = smi.GetAllColumnsRecSize()
+			ConsistentCValLenPerSeg[segKey] = retval
 		}
 	}
 	return ConsistentCValLenPerSeg

@@ -541,6 +541,7 @@
   font-weight: 700;
   color: var(--empty-response-text-color);
   z-index: 1;
+  transform: none;
 }
 
 /* EMPTY-RESPONSE CSS FIX */

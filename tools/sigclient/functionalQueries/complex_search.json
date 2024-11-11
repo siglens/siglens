@@ -1,0 +1,150 @@
+{
+    "queryText": "(((app_name=company* AND city = \"New york City\") AND invalidCol != XYZ) OR (app_name = Braceco* AND NOT gender = MALE) OR (Snowcook OR app_name=\"Omenwi*\")) | fields address, app_name, city, invalidCol, gender, http_status, country, batch, bool_col, ident",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 10,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["ident"],
+         "records": [
+            {
+                "address": "76685 Lake Mountain shire, New York City, Delaware 53814",
+                "app_name": "Companyshould",
+                "batch": "batch-625",
+                "bool_col": true,
+                "city": "New York City",
+                "country": "Puerto Rico",
+                "gender": "female",
+                "http_status": 200,
+                "ident": "6adf92c7-723b-4863-a8b2-99b52df92e78"
+            },
+            {
+                "address": "999 Common view, Denver, Alabama 70052",
+                "app_name": "Bracecould",
+                "batch": "batch-979",
+                "bool_col": false,
+                "city": "Denver",
+                "country": "Jersey",
+                "gender": "female",
+                "http_status": 200,
+                "ident": "8372750c-cfc7-47e2-bcc4-26233e0607a2"
+            },
+            {
+                "address": "34559 Lake Row haven, New York City, Illinois 53435",
+                "app_name": "Companyis",
+                "batch": "batch-469",
+                "bool_col": true,
+                "city": "New York City",
+                "country": "Comoros",
+                "gender": "female",
+                "http_status": 302,
+                "ident": "2f7997cd-05e6-4dfc-9591-94a14a41d82a"
+            },
+            {
+                "address": "49517 Greens ton, New York City, Vermont 66022",
+                "app_name": "Companymust",
+                "batch": "batch-701",
+                "bool_col": true,
+                "city": "New York City",
+                "country": "Mali",
+                "gender": "male",
+                "http_status": 404,
+                "ident": "42bf5d81-9b95-400e-9e0b-c8bd6cd5e9a9"
+            },
+            {
+                "address": "88483 New Lakes haven, Nashville-Davidson, Montana 33613",
+                "app_name": "Snowcook",
+                "batch": "batch-365",
+                "bool_col": false,
+                "city": "Nashville-Davidson",
+                "country": "Dominica",
+                "gender": "male",
+                "http_status": 301,
+                "ident": "447ebbe3-d934-4019-8b4f-380de9091566"
+            },
+            {
+                "address": "2227 Lake Mountain stad, New York City, Massachusetts 53691",
+                "app_name": "Companythrow",
+                "batch": "batch-711",
+                "bool_col": true,
+                "city": "New York City",
+                "country": "Ecuador",
+                "gender": "male",
+                "http_status": 200,
+                "ident": "418febb8-09a7-4232-bdf9-7c4dcd4e0610"
+            },
+            {
+                "address": "19748 New Village shire, New York City, Delaware 32212",
+                "app_name": "Companydance",
+                "batch": "batch-10",
+                "bool_col": false,
+                "city": "New York City",
+                "country": "Heard Island and McDonald Islands",
+                "gender": "male",
+                "http_status": 301,
+                "ident": "cae018bd-e491-4478-8107-21cd432752fa"
+            },
+            {
+                "address": "256 New Branch ville, Albuquerque, Idaho 47146",
+                "app_name": "Bracecould",
+                "batch": "batch-779",
+                "bool_col": true,
+                "city": "Albuquerque",
+                "country": "Dominican Republic",
+                "gender": "female",
+                "http_status": 302,
+                "ident": "46ea99d9-f3ff-4d1b-b6c1-85016484f1d9"
+            },
+            {
+                "address": "1708 Road mouth, New York City, Idaho 13431",
+                "app_name": "Companydo",
+                "batch": "batch-211",
+                "bool_col": true,
+                "city": "New York City",
+                "country": "Anguilla",
+                "gender": "male",
+                "http_status": 302,
+                "ident": "93caefe1-4424-4cd8-b962-b7766a636641"
+            },
+            {
+                "address": "99664 Stravenue land, Houston, New Hampshire 27872",
+                "app_name": "Omenwin",
+                "batch": "batch-957",
+                "bool_col": false,
+                "city": "Houston",
+                "country": "Bouvet Island",
+                "gender": "female",
+                "http_status": 404,
+                "ident": "8901b469-39a8-4cbb-bdf2-df56c5ad74c0"
+            }
+        ],
+         "allColumns": [
+            "address",
+            "app_name",
+            "city",
+            "gender",
+            "http_status",
+            "country",
+            "batch",
+            "bool_col",
+            "ident",
+            "_index",
+            "timestamp"
+        ],
+         "columnsOrder": [
+            "address",
+            "app_name",
+            "city",
+            "gender",
+            "http_status",
+            "country",
+            "batch",
+            "bool_col",
+            "ident",
+            "_index",
+            "timestamp"
+        ]
+     }
+ }
+ 

@@ -33,7 +33,6 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
-	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -68,16 +67,6 @@ var respItemsPool = sync.Pool{
 		// value without an allocation:
 		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
 		return &slice
-	},
-}
-
-var plePool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		ple := writer.NewPLE()
-		return ple
 	},
 }
 
@@ -159,9 +148,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 	allPLEs := make([]*writer.ParsedLogEvent, 0)
 	defer func() {
-		for _, ple := range allPLEs {
-			plePool.Put(ple)
-		}
+		writer.ReleasePLEs(allPLEs)
 	}()
 
 	var err error
@@ -220,17 +207,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						}
 					}
 				} else {
-					ple := plePool.Get().(*writer.ParsedLogEvent)
-					allPLEs = append(allPLEs, ple)
-
-					ple.SetIndexName(indexName)
-					ple.SetRawJson(line)
-					ple.SetResponseIdx(uint64(inCount - 1))
-
-					err := writer.ParseRawJsonObject("", line, &tsKey, jsParsingStackbuf[:], ple)
+					ple, err := writer.GetNewPLE(line, tsNow, indexName, &tsKey, jsParsingStackbuf[:])
 					if err != nil {
-						log.Errorf("ParseRawJsonObject: failed to do parsing, err: %v", err)
+						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", line, err)
 						success = false
+					} else {
+						ple.SetResponseIdx(uint64(inCount - 1))
+						allPLEs = append(allPLEs, ple)
 					}
 				}
 			} else {
@@ -387,48 +370,12 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 	return indexNameConverted
 }
 
-func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64,
-	rid uint64, idxToStreamIdCache map[string]string,
-	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) error {
-	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
-	cfgkey := config.GetTimeStampKey()
-
-	var docType segment.SIGNAL_TYPE
-	if strings.HasPrefix(indexNameConverted, "jaeger-") {
-		docType = segment.SIGNAL_JAEGER_TRACES
-		cfgkey = "startTimeMillis"
-	} else {
-		docType = segment.SIGNAL_EVENTS
+func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
+	var totalBytes uint64
+	for _, ple := range pleArray {
+		totalBytes += uint64(len(ple.GetRawJson()))
 	}
-
-	tsMillis := utils.ExtractTimeStamp(rawJson, &cfgkey)
-	if tsMillis == 0 {
-		tsMillis = tsNow
-	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
-
-	ple := segwriter.NewPLE()
-	ple.SetRawJson(rawJson)
-	ple.SetTimestamp(tsMillis)
-	ple.SetIndexName(indexNameConverted)
-
-	err := segwriter.ParseRawJsonObject("", rawJson, &cfgkey, jsParsingStackbuf[:], ple)
-	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to ParseRawJsonObject,rawJson=%v, err=%v", rawJson, err)
-		return err
-	}
-	err = segwriter.AddEntryToInMemBuf(streamid, indexNameConverted, false, docType, 0, 0,
-		cnameCacheByteHashToStr, jsParsingStackbuf[:], []*writer.ParsedLogEvent{ple})
-	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
-		return err
-	}
-	pleResponse := ple.GetResponse()
-	if pleResponse != "" {
-		return fmt.Errorf("PLE Reponse: %v", pleResponse)
-	}
-	return nil
+	return totalBytes
 }
 
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
@@ -518,6 +465,12 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 // Accepts wildcard index names e.g. "ind-*"
 func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
+	if hook := hooks.GlobalHooks.OverrideDeleteIndexRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, inIndexName)
+		if alreadyHandled {
+			return
+		}
+	}
 	responseBody := make(map[string]interface{})
 	if inIndexName == "traces" {
 		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
@@ -562,8 +515,7 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 			log.Errorf("deleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
 		}
 
-		currSegmeta := writer.GetLocalSegmetaFName()
-		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
+		writer.DeleteSegmentsForIndex(indexName)
 		writer.DeleteVirtualTableSegStore(indexName)
 		metadata.DeleteVirtualTable(indexName, myid)
 	}

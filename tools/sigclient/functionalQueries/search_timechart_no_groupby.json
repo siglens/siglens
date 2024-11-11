@@ -1,0 +1,69 @@
+{
+    "queryText": "search city=\"boston\" http_method=POST hobby!=\"Acting\" AND hobby!=\"Karate\" user_agent=*Windows* | earliest=-12h@h | timechart span=30s sum(latency)",
+    "expectedResult": {
+        "bucketCount": 4,
+        "qtype": "aggs-query",
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": ["sum(latency)"],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": 1730761080000
+                    }
+                ],
+                "GroupByValues": [
+                    "1730761080000"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 10651004
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": 1730761110000
+                    }
+                ],
+                "GroupByValues": [
+                    "1730761110000"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 105872956
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": 1730761140000
+                    }
+                ],
+                "GroupByValues": [
+                    "1730761140000"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 43985727
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": 1730761170000
+                    }
+                ],
+                "GroupByValues": [
+                    "1730761170000"
+                ],
+                "MeasureVal": {
+                    "sum(latency)": 60359060
+                }
+            }
+        ]
+    }
+}
+  

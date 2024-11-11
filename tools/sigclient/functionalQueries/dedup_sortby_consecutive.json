@@ -1,0 +1,96 @@
+{
+    "queryText": "app_name=Companyhave | fields city, bool_col, http_status, app_name, country | dedup consecutive=true bool_col sortby http_status, country",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 13,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Miami",
+                "country": "India",
+                "http_status": 200
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Irving",
+                "country": "Marshall Islands",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Chula Vista",
+                "country": "Nicaragua",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Stockton",
+                "country": "Wallis and Futuna",
+                "http_status": 301
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Cleveland",
+                "country": "Kyrgyzstan",
+                "http_status": 302
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Cincinnati",
+                "country": "Tuvalu",
+                "http_status": 302
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Indianapolis",
+                "country": "Sint Maarten (Dutch part)",
+                "http_status": 400
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Chandler",
+                "country": "Korea, Republic of",
+                "http_status": 404
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Plano",
+                "country": "United Kingdom of Great Britain and Northern Ireland",
+                "http_status": 404
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "San Bernardino",
+                "country": "Brunei Darussalam",
+                "http_status": 500
+            }
+        ],
+        "allColumns": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ],
+        "columnsOrder": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ]
+    }
+}

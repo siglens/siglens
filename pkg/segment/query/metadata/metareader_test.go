@@ -36,7 +36,7 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	segKey := segDir + "test"
 	blockSummariesFile := structs.GetBsuFnameFromSegKey(segKey)
 	numBlocks := 10
-	_, blockSummaries, _, _, allBmh, allColsSizes := writer.WriteMockColSegFile(segKey, numBlocks, 30)
+	_, blockSummaries, _, _, allBmh, allColsSizes := writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
 	writer.WriteMockBlockSummary(blockSummariesFile, blockSummaries, allBmh)
 
 	bMicro := &segmetadata.SegmentMicroIndex{
@@ -56,25 +56,4 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	assert.Len(t, blockSum, numBlocks)
 	os.RemoveAll(blockSummariesFile)
 	os.RemoveAll(segDir)
-}
-
-func Test_readEmptyColumnMicroIndices(t *testing.T) {
-	segmetadata.ResetGlobalMetadataForTest()
-	_ = localstorage.InitLocalStorage()
-
-	cnames := make(map[string]*structs.ColSizeInfo)
-	cnames["clickid"] = &structs.ColSizeInfo{CmiSize: 0, CsgSize: 0}
-	bMicro := &segmetadata.SegmentMicroIndex{
-		SegMeta: structs.SegMeta{
-			SegmentKey:       "test-key",
-			ColumnNames:      cnames,
-			VirtualTableName: "test",
-		},
-	}
-
-	err := bMicro.LoadMicroIndices(map[uint16]map[string]bool{}, true, map[string]bool{}, false)
-	if err != nil {
-		log.Errorf("failed to read cmi, err=%v", err)
-	}
-	assert.Nil(t, err)
 }

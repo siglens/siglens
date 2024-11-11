@@ -48,6 +48,7 @@ type QueryInformation struct {
 	qType              structs.QueryType
 	orgId              uint64
 	alreadyDistributed bool
+	containsKibana     bool
 }
 
 type QuerySegmentRequest struct {
@@ -70,6 +71,10 @@ func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
 	return qi.aggs
 }
 
+func (qi *QueryInformation) GetQueryRange() *dtu.TimeRange {
+	return qi.queryRange
+}
+
 func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
 	return qi.queryRange.StartEpochMs
 }
@@ -86,12 +91,20 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) SetSizeLimit(sizeLimit uint64) {
+	qi.sizeLimit = sizeLimit
+}
+
 func (qi *QueryInformation) GetScrollFrom() int {
 	return qi.scrollFrom
 }
 
 func (qi *QueryInformation) GetPqid() string {
 	return qi.pqid
+}
+
+func (qi *QueryInformation) GetParallelismPerFile() int64 {
+	return qi.parallelismPerFile
 }
 
 func (qi *QueryInformation) GetQueryType() structs.QueryType {
@@ -114,12 +127,28 @@ func (qi *QueryInformation) SetAlreadyDistributed() {
 	qi.alreadyDistributed = true
 }
 
+func (qi *QueryInformation) ContainsKibana() bool {
+	return qi.containsKibana
+}
+
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
 }
 
 func (qsr *QuerySegmentRequest) GetTableName() string {
 	return qsr.tableName
+}
+
+func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
+	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
+	qsr.sType = sType
+}
+
+func (qsr *QuerySegmentRequest) SetBlockTracker(blkTracker *structs.BlockTracker) {
+	qsr.blkTracker = blkTracker
 }
 
 /*
@@ -131,7 +160,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int) (*QueryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int, containsKibana bool) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
@@ -156,6 +185,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		sNodeType:          sNodeType,
 		qType:              qType,
 		orgId:              orgid,
+		containsKibana:     containsKibana,
 	}, nil
 }
 

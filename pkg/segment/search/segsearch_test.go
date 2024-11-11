@@ -43,21 +43,19 @@ import (
 )
 
 func Test_simpleRawSearch(t *testing.T) {
-	config.InitializeTestingConfig(t.TempDir())
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "timereader")
+	assert.Nil(t, err)
+
 	config.SetSSInstanceName("mock-host")
-	err := config.InitDerivedConfig("test")
+	err = config.InitDerivedConfig("test")
 	assert.NoError(t, err)
 	_ = localstorage.InitLocalStorage()
 
-	dataDir := "data/"
-	err = os.MkdirAll(dataDir+"mock-host.test/", 0755)
-	if err != nil {
-		assert.FailNow(t, "failed to create dir %+v", err)
-	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
-	segKey := dataDir + "mock-host.test/raw_search_test"
-	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segKey, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
 
 	searchReq := &SegmentSearchRequest{
 		SegmentKey:        segKey,

@@ -25,9 +25,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -85,6 +87,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
+	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
@@ -93,6 +96,9 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	// Go through the request data and ingest each of the spans.
 	numSpans := 0       // The total number of spans sent in this request.
 	numFailedSpans := 0 // The number of spans that we could not ingest.
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+
 	for _, resourceSpans := range request.ResourceSpans {
 		// Find the service name.
 		var service string
@@ -115,15 +121,21 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 					continue
 				}
 
-				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+				ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to process ingest request with err: %v. JSON Data: %s", err, string(jsonData))
+					log.Errorf("ProcessTraceIngest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
 					numFailedSpans++
 					continue
 				}
+				pleArray = append(pleArray, ple)
 			}
 		}
+	}
+
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
+		numFailedSpans += len(pleArray)
 	}
 
 	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)

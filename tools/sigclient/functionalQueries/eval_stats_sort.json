@@ -1,0 +1,33 @@
+{
+    "queryText": "_index=ind-0 | search  city=boston group=\"group 0\" user_agent=Mozilla*Windows* http_status=200 latency!=0 hobby!=\"Acting\" AND hobby!=\"Walking\" AND hobby!=\"*k.ing*\" AND hobby!=\"*gg*\"| eval hobby_http = hobby+\"@\"+http_method | stats count as cnt by hobby_http | sort -cnt | where cnt>=1 | sort hobby_http",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 3,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "cnt": 1,
+                "hobby_http": "Bus spotting@GET"
+            },
+            {
+                "cnt": 1,
+                "hobby_http": "Flower arranging@PUT"
+            },
+            {
+                "cnt": 1,
+                "hobby_http": "Knitting@POST"
+            }
+        ],
+        "allColumns": [
+            "hobby_http",
+            "cnt"
+        ],
+        "columnsOrder": [
+            "cnt",
+            "hobby_http"
+        ]
+    }
+}
+  

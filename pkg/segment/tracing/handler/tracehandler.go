@@ -28,11 +28,14 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -40,6 +43,7 @@ import (
 )
 
 const OneHourInMs = 60 * 60 * 1000
+const TRACE_PAGE_LIMIT = 50
 
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
@@ -49,7 +53,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -86,6 +90,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
+
 		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
 	}
 
@@ -203,22 +208,47 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	return searchRequestBody, readJSON, nil
 }
 
-func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
+func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
+	if config.IsNewQueryPipelineEnabled() {
+		return pipeSearchResponseOuter.BucketCount
+	}
 	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
 }
-func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
-	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
+
+func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
+	if config.IsNewQueryPipelineEnabled() {
+		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+		if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
+			return []string{}
+		}
+
+		endIndex := page * TRACE_PAGE_LIMIT
+		if endIndex > totalTracesIds {
+			endIndex = totalTracesIds
+		}
+
+		traceIds := make([]string, 0)
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
+			if len(bucket.GroupByValues) == 1 {
+				traceIds = append(traceIds, bucket.GroupByValues[0])
+			}
+		}
+
+		return traceIds
+	}
+
+	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*TRACE_PAGE_LIMIT {
 		return []string{}
 	}
 
-	endIndex := page * 50
+	endIndex := page * TRACE_PAGE_LIMIT
 	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
 		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
 	}
 
 	traceIds := make([]string, 0)
 	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*50 : endIndex] {
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
 		traceId, exists := bucket["key"]
 		if !exists {
 			continue
@@ -245,31 +275,53 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
+func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
 	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
-		statusCode, exists := bucket["key"].(string)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'key' from bucket Map")
-			return
+	if config.IsNewQueryPipelineEnabled() {
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults {
+			if len(bucket.GroupByValues) == 1 {
+				statusCode := bucket.GroupByValues[0]
+				count, exists := bucket.MeasureVal["count(*)"]
+				if !exists {
+					log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
+					return
+				}
+				countVal, isFloat := count.(float64)
+				if !isFloat {
+					log.Error("AddTrace: count is not a float64")
+					return
+				}
+				spanCnt += int(countVal)
+				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+					errorCnt += int(countVal)
+				}
+			}
 		}
-		countMap, exists := bucket["count(*)"].(map[string]interface{})
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
-			return
-		}
-		countFloat64, exists := countMap["value"].(float64)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'value' from bucket Map")
-			return
-		}
+	} else {
+		for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+			statusCode, exists := bucket["key"].(string)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'key' from bucket Map")
+				return
+			}
+			countMap, exists := bucket["count(*)"].(map[string]interface{})
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
+				return
+			}
+			countFloat64, exists := countMap["value"].(float64)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'value' from bucket Map")
+				return
+			}
 
-		count := int(countFloat64)
-		spanCnt += count
-		if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-			errorCnt += count
+			count := int(countFloat64)
+			spanCnt += count
+			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+				errorCnt += count
+			}
 		}
 	}
 
@@ -284,11 +336,10 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 	}
 
 	*traces = append(*traces, trace)
-
 }
 
 // Call /api/search endpoint
-func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*pipesearch.PipeSearchResponseOuter, error) {
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*segstructs.PipeSearchResponseOuter, error) {
 
 	modifiedData, err := json.Marshal(searchRequestBody)
 	if err != nil {
@@ -300,7 +351,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 	rawTraceCtx.Request.Header.SetMethod("POST")
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
+	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
 
 	// Parse initial data
 	if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
@@ -402,6 +453,10 @@ func ProcessRedTracesIngest() {
 		entrySpans = append(entrySpans, span)
 	}
 
+	indexName := "red-traces"
+	shouldFlush := false
+	tsKey := config.GetTimeStampKey()
+
 	// Map the service name to: the number of entry spans, erroring entry spans, duration list of span
 	for _, entrySpan := range entrySpans {
 		spanCnt, exists := serviceToSpanCnt[entrySpan.Service]
@@ -431,6 +486,9 @@ func ProcessRedTracesIngest() {
 	}
 
 	idxToStreamIdCache := make(map[string]string)
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+	numBytes := 0
 
 	// Map from the service name to the RED metrics
 	for service, spanCnt := range serviceToSpanCnt {
@@ -467,20 +525,29 @@ func ProcessRedTracesIngest() {
 
 		// Setup ingestion parameters
 		now := putils.GetCurrentTimeInMs()
-		indexName := "red-traces"
-		shouldFlush := false
-		lenJsonData := uint64(len(jsonData))
-		localIndexMap := make(map[string]string)
-		orgId := uint64(0)
 
-		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:])
+		ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+			log.Errorf("ProcessRedTracesIngest: failed to get new PLE: %v", err)
 			continue
 		}
-		usageStats.UpdateTracesStats(uint64(len(jsonData)), uint64(spanCnt), 0)
+		pleArray = append(pleArray, ple)
+		numBytes += len(jsonData)
 	}
+
+	localIndexMap := make(map[string]string)
+	orgId := uint64(0)
+	tsNow := putils.GetCurrentTimeInMs()
+
+	err := writer.ProcessIndexRequestPle(tsNow, indexName, shouldFlush, localIndexMap,
+		orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+		return
+	}
+
+	usageStats.UpdateTracesStats(uint64(numBytes), uint64(len(pleArray)), 0)
 }
 
 func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, error) {
@@ -578,20 +645,28 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	now := putils.GetCurrentTimeInMs()
 	indexName := "service-dependency"
 	shouldFlush := false
-	lenJsonData := uint64(len((dependencyMatrixJSON)))
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
+	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
 
-	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */, idxToStreamIdCache, cnameCacheByteHashToStr,
-		jsParsingStackbuf[:])
+	ple, err := segwriter.GetNewPLE(dependencyMatrixJSON, now, indexName, &tsKey, jsParsingStackbuf[:])
+	if err != nil {
+		log.Errorf("MakeTracesDependancyGraph: failed to get new PLE: %v", err)
+		return
+	}
+	pleArray = append(pleArray, ple)
+
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
-
+		return
 	}
 }
 
@@ -684,7 +759,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)

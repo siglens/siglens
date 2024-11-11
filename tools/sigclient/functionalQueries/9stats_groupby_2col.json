@@ -1,0 +1,106 @@
+{
+    "queryText": "http_method=POST AND (app_name=Bracecould OR app_name=R*) | regex app_name=\".*could\" | stats avg(http_status), max(latency) as max, min(longitude) as min, sum(latitude) as sum, range(latency), count as cnt, values(weekday), dc(weekday) as distinct_count, list(http_method) BY gender, bool_col",
+    "expectedResult": {
+         "bucketCount": 3,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "bool_col",
+            "gender"
+        ],
+         "measureFunctions": [
+            "cnt",
+            "min",
+            "distinct_count",
+            "sum",
+            "list(http_method)",
+            "max",
+            "range(latency)",
+            "values(weekday)",
+            "avg(http_status)"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "false",
+                    "female"
+                ],
+                "MeasureVal": {
+                    "avg(http_status)": 325.5,
+                    "cnt": 4,
+                    "distinct_count": 4,
+                    "list(http_method)": [
+                        "POST",
+                        "POST",
+                        "POST",
+                        "POST"
+                    ],
+                    "max": 9233903,
+                    "min": -58.049558,
+                    "range(latency)": 2209856,
+                    "sum": -63.210914,
+                    "values(weekday)": [
+                        "Monday",
+                        "Sunday",
+                        "Tuesday",
+                        "Wednesday"
+                    ]
+                }
+            },
+            {
+                "GroupByValues": [
+                    "true",
+                    "male"
+                ],
+                "MeasureVal": {
+                    "avg(http_status)": 334,
+                    "cnt": 6,
+                    "distinct_count": 4,
+                    "list(http_method)": [
+                        "POST",
+                        "POST",
+                        "POST",
+                        "POST",
+                        "POST",
+                        "POST"
+                    ],
+                    "max": 8816538,
+                    "min": -52.032193,
+                    "range(latency)": 7237018,
+                    "sum": -123.552611,
+                    "values(weekday)": [
+                        "Friday",
+                        "Monday",
+                        "Thursday",
+                        "Tuesday"
+                    ]
+                }
+            },
+            {
+                "GroupByValues": [
+                    "false",
+                    "male"
+                ],
+                "MeasureVal": {
+                    "avg(http_status)": 368.6666666666667,
+                    "cnt": 3,
+                    "distinct_count": 3,
+                    "list(http_method)": [
+                        "POST",
+                        "POST",
+                        "POST"
+                    ],
+                    "max": 9283660,
+                    "min": -56.442744,
+                    "range(latency)": 7140963,
+                    "sum": 139.509587,
+                    "values(weekday)": [
+                        "Sunday",
+                        "Tuesday",
+                        "Wednesday"
+                    ]
+                }
+            }
+        ]
+     }
+ }
+ 

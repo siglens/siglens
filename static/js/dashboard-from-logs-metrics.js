@@ -351,6 +351,7 @@ function createPanel(panelIndex, startEpoch) {
             },
         };
     } else {
+        const queryMode = new URLSearchParams(window.location.search).get('filterTab') === '0' ? 'Builder' : 'Code';
         panel = {
             chartType: 'Data Table',
             dataType: '',
@@ -373,6 +374,7 @@ function createPanel(panelIndex, startEpoch) {
                 searchText: data.searchText,
                 startEpoch: startEpoch ? startEpoch : data.startEpoch,
                 state: data.state,
+                queryMode,
             },
             queryType: 'logs',
             unit: '',

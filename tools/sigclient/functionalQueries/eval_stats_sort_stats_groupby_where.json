@@ -1,0 +1,167 @@
+{
+    "queryText": "search gender=*male* | earliest=-20m@m latest=now | search \"South*\" | eval host=mvindex(split(user_agent, \"/\"), -1) | eval podname=mvindex(split(user_agent,\";\"), 0) | eval env=mvindex(split(podname,\"(\"), 0) | eval env = trim(env, \"[] \") | eval podMachine=mvindex(split(podname,\"(\"),-1) | eval podMachine = trim(podMachine, \"[]\") | where podMachine in(\"X11\", \"iPhone\", \"Macintosh\", \"Windows NT 5.0\") | stats count as cnt by podname, env | sort podname, cnt | stats list(podname) as podNames, list(cnt) as RestartCount by env | eval count = mvcount(podNames) | where count > 2 | sort env",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 94,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "RestartCount": [
+                    "4993",
+                    "97",
+                    "3745",
+                    "587"
+                ],
+                "count": "4",
+                "env": "Mozilla/5.0",
+                "podNames": [
+                    "[Mozilla/5.0 (Macintosh]",
+                    "[Mozilla/5.0 (Windows NT 5.0]",
+                    "[Mozilla/5.0 (X11]",
+                    "[Mozilla/5.0 (iPhone]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "4",
+                    "1",
+                    "2"
+                ],
+                "count": "3",
+                "env": "Opera/10.14",
+                "podNames": [
+                    "[Opera/10.14 (Macintosh]",
+                    "[Opera/10.14 (Windows NT 5.0]",
+                    "[Opera/10.14 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "5",
+                    "1",
+                    "7"
+                ],
+                "count": "3",
+                "env": "Opera/10.16",
+                "podNames": [
+                    "[Opera/10.16 (Macintosh]",
+                    "[Opera/10.16 (Windows NT 5.0]",
+                    "[Opera/10.16 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "8",
+                    "1",
+                    "6"
+                ],
+                "count": "3",
+                "env": "Opera/10.18",
+                "podNames": [
+                    "[Opera/10.18 (Macintosh]",
+                    "[Opera/10.18 (Windows NT 5.0]",
+                    "[Opera/10.18 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "5",
+                    "1",
+                    "2"
+                ],
+                "count": "3",
+                "env": "Opera/10.19",
+                "podNames": [
+                    "[Opera/10.19 (Macintosh]",
+                    "[Opera/10.19 (Windows NT 5.0]",
+                    "[Opera/10.19 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "3",
+                    "1",
+                    "5"
+                ],
+                "count": "3",
+                "env": "Opera/10.24",
+                "podNames": [
+                    "[Opera/10.24 (Macintosh]",
+                    "[Opera/10.24 (Windows NT 5.0]",
+                    "[Opera/10.24 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "2",
+                    "2",
+                    "4"
+                ],
+                "count": "3",
+                "env": "Opera/10.25",
+                "podNames": [
+                    "[Opera/10.25 (Macintosh]",
+                    "[Opera/10.25 (Windows NT 5.0]",
+                    "[Opera/10.25 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "3",
+                    "1",
+                    "4"
+                ],
+                "count": "3",
+                "env": "Opera/10.29",
+                "podNames": [
+                    "[Opera/10.29 (Macintosh]",
+                    "[Opera/10.29 (Windows NT 5.0]",
+                    "[Opera/10.29 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "2",
+                    "1",
+                    "7"
+                ],
+                "count": "3",
+                "env": "Opera/10.35",
+                "podNames": [
+                    "[Opera/10.35 (Macintosh]",
+                    "[Opera/10.35 (Windows NT 5.0]",
+                    "[Opera/10.35 (X11]"
+                ]
+            },
+            {
+                "RestartCount": [
+                    "7",
+                    "2",
+                    "4"
+                ],
+                "count": "3",
+                "env": "Opera/10.38",
+                "podNames": [
+                    "[Opera/10.38 (Macintosh]",
+                    "[Opera/10.38 (Windows NT 5.0]",
+                    "[Opera/10.38 (X11]"
+                ]
+            }
+        ],
+        "allColumns": [
+            "podNames",
+            "env",
+            "count",
+            "RestartCount"
+        ],
+        "columnsOrder": [
+            "RestartCount",
+            "count",
+            "env",
+            "podNames"
+        ]
+    }
+}
+  

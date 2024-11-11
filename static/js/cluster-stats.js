@@ -341,20 +341,24 @@ function drawTotalStatsChart(res) {
     var totalStorageUsed;
     var logStorageSaved, metricsStorageSaved, traceStorageSaved;
     var totalStorageUsedMetrics, totalStorageUsedTrace;
+
+    // Convert bytes to GB
+    const bytesToGB = (bytes) => bytes / (1024 * 1024 * 1024);
+
     _.forEach(res, (mvalue, key) => {
         if (key === 'ingestionStats') {
             _.forEach(mvalue, (v, k) => {
-                if (k === 'Log Incoming Volume') {
-                    totalIncomingVolume = v;
-                } else if (k === 'Metrics Incoming Volume') {
-                    totalIncomingVolumeMetrics = v;
-                } else if (k === 'Log Storage Used') {
+                if (k === 'Log Incoming Volume') { // bytes
+                    totalIncomingVolume = bytesToGB(v);
+                } else if (k === 'Metrics Incoming Volume') { // bytes
+                    totalIncomingVolumeMetrics = bytesToGB(v);
+                } else if (k === 'Log Storage Used') { // GB
                     totalStorageUsed = v;
-                } else if (k === 'Logs Storage Saved') {
+                } else if (k === 'Logs Storage Saved') { // percentage
                     logStorageSaved = v;
-                } else if (k === 'Metrics Storage Saved') {
+                } else if (k === 'Metrics Storage Saved') { //percentage
                     metricsStorageSaved = v;
-                } else if (k === 'Metrics Storage Used') {
+                } else if (k === 'Metrics Storage Used') { //GB
                     totalStorageUsedMetrics = v;
                 }
             });
@@ -369,11 +373,11 @@ function drawTotalStatsChart(res) {
             TotalVolumeChartMetrics = renderTotalCharts('Metrics', totalIncomingVolumeMetrics, totalStorageUsedMetrics);
         } else if (key === 'traceStats') {
             _.forEach(mvalue, (v, k) => {
-                if (k === 'Trace Storage Saved') {
+                if (k === 'Trace Storage Saved') { //percentage
                     traceStorageSaved = v;
-                } else if (k === 'Total Trace Volume') {
-                    totalIncomingVolumeTrace = v;
-                } else if (k === 'Trace Storage Used') {
+                } else if (k === 'Total Trace Volume') { //bytes
+                    totalIncomingVolumeTrace = bytesToGB(v);
+                } else if (k === 'Trace Storage Used') { //GB
                     totalStorageUsedTrace = v;
                 }
             });
@@ -534,7 +538,7 @@ function processClusterStats(res) {
         colReorder: false,
         scrollX: false,
         deferRender: true,
-        scrollY: 500,
+        scrollY: 480,
         scrollCollapse: true,
         scroller: true,
         lengthChange: false,
@@ -542,6 +546,38 @@ function processClusterStats(res) {
         order: [],
         columnDefs: [],
         data: [],
+        infoCallback: function (settings, start, end, max, total, pre) {
+            let api = this.api();
+            let pageInfo = api.page.info();
+            let totalRows = pageInfo.recordsDisplay;
+            // Check if there's only one row (the Total row)
+            if (totalRows === 1) {
+                return '';
+            }
+            let adjustedTotal = totalRows - 1;
+            // Adjust start and end for display
+            let adjustedStart = start;
+            let adjustedEnd = end;
+
+            if (start === 0) {
+                adjustedStart = 1; // Skip the Total row
+            } else {
+                adjustedStart = start - 1;
+            }
+            adjustedEnd = Math.min(end - 1, adjustedTotal);
+
+            return 'Showing ' + (adjustedStart + 1) + ' to ' + adjustedEnd + ' of ' + adjustedTotal + ' entries' + (pageInfo.recordsTotal !== totalRows ? ' (filtered from ' + (hasTotalRow ? pageInfo.recordsTotal - 1 : pageInfo.recordsTotal) + ' total entries)' : '');
+        },
+        drawCallback: function (settings) {
+            let api = this.api();
+            let totalRow = api.row(function (idx, data, node) {
+                return data[0] === 'Total';
+            });
+
+            if (totalRow.any()) {
+                $(totalRow.node()).detach().prependTo(api.table().body());
+            }
+        },
     };
 
     let indexDataTable = $('#index-data-table').DataTable({
@@ -573,26 +609,21 @@ function processClusterStats(res) {
         ],
     });
 
-    function formatIngestVolume(volume) {
-        let volumeGB;
-    
-        if (typeof volume === 'string') {
-            // Remove " GB" if it's in the string
-            volumeGB = parseFloat(volume.replace(" GB", ""));
-        } else if (typeof volume === 'number') {
-            volumeGB = volume;
-        } else {
-            // Handle unexpected input types
-            console.error("Unexpected volume type:", typeof volume);
-            return "N/A";
+    function formatIngestVolume(volumeBytes) {
+        if (typeof volumeBytes !== 'number') {
+            console.error('Unexpected volume type:', typeof volumeBytes);
+            return 'N/A';
         }
-    
-        if (isNaN(volumeGB)) {
-            console.error("Invalid volume value:", volume);
-            return "N/A";
+
+        if (isNaN(volumeBytes)) {
+            console.error('Invalid volume value:', volumeBytes);
+            return 'N/A';
         }
-        
-        if (volumeGB === 0) {
+
+        const bytesInGB = 1024 * 1024 * 1024;
+        const volumeGB = volumeBytes / bytesInGB;
+
+        if (volumeBytes === 0) {
             return '0 GB';
         } else if (volumeGB < 1) {
             return '< 1 GB';
@@ -600,9 +631,8 @@ function processClusterStats(res) {
             return `${Math.round(volumeGB).toLocaleString('en-US')} GB`;
         }
     }
-    
+
     function displayIndexDataRows(res) {
-        let totalIngestVolume = 0;
         let totalEventCount = 0;
         let totalLogSegmentCount = 0;
         let totalTraceSegmentCount = 0;
@@ -612,7 +642,7 @@ function processClusterStats(res) {
             res.indexStats.forEach((item) => {
                 _.forEach(item, (v, k) => {
                     let currRow = [];
-                    currRow[0] = k;
+                    currRow[0] = `<a href="#" class="index-name" data-index="${k}">${k}</a>`;
                     currRow[1] = formatIngestVolume(v.ingestVolume);
                     currRow[2] = v.eventCount;
                     currRow[3] = v.segmentCount;
@@ -654,8 +684,7 @@ function processClusterStats(res) {
             });
         }
         totalValRowTrace[3] = totalTraceSegmentCount.toLocaleString();
-        
-        totalIngestVolume = res.ingestionStats['Log Incoming Volume'];
+
         totalValRow[1] = formatIngestVolume(res.ingestionStats['Log Incoming Volume']);
         totalValRow[2] = totalEventCount.toLocaleString();
         totalValRow[3] = totalLogSegmentCount.toLocaleString();
@@ -676,6 +705,14 @@ function processClusterStats(res) {
             let indexName = $(btn).attr('id').split('index-del-btn-')[1];
             $(btn).on('click', () => showDelIndexPopup(indexName, currRowIndex));
         });
+
+        $('#index-data-table tbody').on('click', 'a.index-name', function(e) {
+            e.preventDefault();
+            const indexName = $(this).data('index');
+            const indexData = res.indexStats.find(item => item[indexName])[indexName];
+
+            showIndexDetailsPopup(indexName, indexData);
+        });
     }, 0);
 
     function showDelIndexPopup(indexName) {
@@ -683,8 +720,7 @@ function processClusterStats(res) {
         $('#del-index-name-input').keyup((e) => confirmIndexDeletion(e, indexName, allowDelete));
         $('#del-index-btn').attr('disabled', true);
         $('#del-index-name-input').val('');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#confirm-del-index-prompt').show();
+        $('.popupOverlay, #confirm-del-index-prompt').addClass('active');
         $('.del-org-prompt-text-container span').html(indexName);
     }
 
@@ -710,6 +746,9 @@ function processClusterStats(res) {
 
     function deleteIndex(e, indexName) {
         if (e) e.stopPropagation();
+        // Disable the delete button and show loading spinner
+        $('#del-index-btn').attr('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+        
         $.ajax({
             method: 'post',
             url: 'api/deleteIndex/' + indexName,
@@ -723,18 +762,45 @@ function processClusterStats(res) {
             .then(function (_res) {
                 hidePopUpsOnUsageStats();
                 indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
-                showDeleteIndexToast('Index Deleted Successfully');
+                showToast('Index Deleted Successfully', 'success');
             })
             .catch((_err) => {
                 hidePopUpsOnUsageStats();
-                showDeleteIndexToast('Error Deleting Index');
+                showToast('Error Deleting Index', 'error');
+            })
+            .always(() => {
+                // Reset the delete button
+                $('#del-index-btn').attr('disabled', false).html('Delete');
             });
+    }
+
+    function bytesToMBFormatted(bytes) {
+        const mb = Math.round(bytes / (1024 * 1024));
+        return mb.toLocaleString() + ' MB';
+    }
+
+    function showIndexDetailsPopup(indexName, indexData) {
+        $('#index-name').text(indexName);
+        $('#incoming-volume').text(formatIngestVolume(indexData["ingestVolume"]));
+        $('#total-bytes-received').text(bytesToMBFormatted(indexData["bytesReceivedCount"]));
+        $('#storage-used').text(bytesToMBFormatted(indexData["onDiskBytes"]));
+        $('#event-count').text(indexData["eventCount"]);
+        $('#record-count').text(indexData["recordCount"]);
+        $('#segment-count').text(indexData["segmentCount"]);
+        $('#column-count').text(indexData["columnCount"]);
+        $('#earliest-record').text(indexData["earliestEpoch"]);
+        $('#latest-record').text(indexData["latestEpoch"]);
+    
+        $('.popupOverlay, #index-summary-prompt').addClass('active');
+    
+        $('#index-summary-prompt .close-btn, #close-popup').off('click').on('click', function() {
+            $('.popupOverlay, #index-summary-prompt').removeClass('active');
+        });
     }
 }
 
 function hidePopUpsOnUsageStats() {
-    $('.popupOverlay, .popupContent').removeClass('active');
-    $('#confirm-del-index-prompt').hide();
+    $('.popupOverlay, #confirm-del-index-prompt').removeClass('active');
     $('#del-index-name-input').val('');
     $('#del-index-btn').attr('disabled', true);
     $('#del-index-btn').off('click');

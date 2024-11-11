@@ -191,8 +191,10 @@ lint, UTs, gofmt :
 - **BSU**: Block Summary.
 - **CMI**: Columnar Micro Index. This stores data for a single column for a single segment.
 - **CSG**: Columnar Segment file. This stores data for a single segment.
+- **IQR**: Intermediate Query Result. This generally contains multiple rows. Depending on the query, there may be more transformations perfomed on it before it yields the final result.
 - **PQMR**: Persistent Query Matched Results.
 - **PQS**: Persistent Query Service. This is used to cache results for frequent queries.
+- **QID**: Query ID. This is a unique identifier for a query, but gets reset to 0 after a restart.
 - **QSR**: Query Segment Request. Sometimes you'll see the plural: QSRs.
 - **TSG**: Time Series Gorilla-encoded. This file stores Gorilla-encoded time series data.
 - **TSO**: Time Series Offset. This file stores the offsets for time series data.

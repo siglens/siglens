@@ -1,0 +1,40 @@
+{
+    "queryText": "app_name=Companyhave AND city=Boston | fields city, bool_col, http_status, app_name, country | dedup bool_col sortby http_status, country",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 2,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Companyhave",
+                "bool_col": true,
+                "city": "Boston",
+                "country": "American Samoa",
+                "http_status": 200
+            },
+            {
+                "app_name": "Companyhave",
+                "bool_col": false,
+                "city": "Boston",
+                "country": "Lesotho",
+                "http_status": 200
+            }
+        ],
+        "allColumns": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ],
+        "columnsOrder": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ]
+    }
+}

@@ -63,7 +63,6 @@ let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
 let isQueryBuilderSearch = false;
-let sortByTimestampAtDefault = true;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
 let columnsWithNonNullValues = new Set();
@@ -226,7 +225,7 @@ function resetQueryResAttr(res, panelId) {
 function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
     if (!res.qtype) {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
         return;
     }
     if (res.hits) {
@@ -258,6 +257,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                     columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
+            $('#avail-field-container ').css('display', 'none');
             renderPanelAggsGrid(columnOrder, res, panelId);
         } //for logs-query
         else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
@@ -272,6 +272,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             } else {
                 selectedFieldsList = columnOrder;
             }
+            $('#avail-field-container ').css('display', 'inline-flex');
             renderAvailableFields(columnOrder);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
@@ -466,10 +467,10 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
     resetQueryResAttr(res, panelId);
     //if data source is metrics
     if (!res.qtype && chartType != 'number') {
-        panelProcessEmptyQueryResults('Unsupported chart type. Please select a different chart type.', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
     if (res.qtype === 'logs-query') {
-        panelProcessEmptyQueryResults('', panelId);
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
 
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
@@ -493,15 +494,15 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(`.panelDisplay .big-number-display-container`).hide();
         }
 
-        let columnOrder = [];
+        let columnsOrder = [];
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
+            columnsOrder = res.columnsOrder;
         } else {
             if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
+                columnsOrder = _.uniq(_.concat(res.groupByCols));
             }
             if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+                columnsOrder = _.uniq(_.concat(columnsOrder, res.measureFunctions));
             }
         }
         if (res.errors) {
@@ -513,13 +514,17 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             }
 
             if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
-                panelProcessEmptyQueryResults('', panelId);
+                if (res.qtype === 'segstats-query') {
+                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);  
+                } else {
+                    panelProcessEmptyQueryResults('', panelId);
+                }
             } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
                 panelProcessEmptyQueryResults('', panelId);
             } else {
                 // for number, bar and pie charts
-                if (panelId === -1) renderPanelAggsGrid(columnOrder, res, panelId);
-                panelChart = renderBarChart(columnOrder, res, panelId, chartType, dataType, panelIndex);
+                if (panelId === -1) renderPanelAggsGrid(columnsOrder, res, panelId);
+                panelChart = renderBarChart(columnsOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;
@@ -601,7 +606,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             }
             $(`#panel${panelId} .panel-body #panel-loading`).hide();
         }
-    } else {
+    } else if (chartType === 'Line Chart') {
         chartDataCollection = {};
         if (panelId === -1) {
             formulas = {};
@@ -624,7 +629,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
                         if (errorCanvas.length > 0) {
                             errorCanvas.remove();
@@ -635,23 +640,23 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     }
                 }
             }
-            
+
             for (const formulaData of data.formulasData) {
                 try {
                     const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
                     const chartData = await convertDataForChart(rawTimeSeriesData);
                     let formulaString = formulaData.formulas[0].formula;
-            
+
                     // Replace a, b, etc., with actual query values
                     formulaData.queries.forEach((query) => {
                         const regex = new RegExp(`\\b${query.name}\\b`, 'g');
                         formulaString = formulaString.replace(regex, query.query);
                     });
-            
+
                     addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
                 } catch (error) {
                     const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
-                    const errorCanvas=$(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
                     if (isDashboardScreen) {
                         if (errorCanvas.length > 0) {
                             errorCanvas.remove();
@@ -662,28 +667,31 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                     }
                 }
             }
-            
         }
         if (currentPanel && currentPanel.style) {
             toggleLineOptions(currentPanel.style.display);
-            chartType=currentPanel.style.display;
+            chartType = currentPanel.style.display;
             toggleChartType(chartType);
             updateChartTheme(currentPanel.style.color);
-            updateLineCharts(
-                currentPanel.style.lineStyle,
-                currentPanel.style.lineStroke
-            );
-        } 
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+        }
         $(`#panel${panelId} .panel-body #panel-loading`).hide();
         allResultsDisplayed--;
         if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
         $('body').css('cursor', 'default');
+    } else {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
+        return;
     }
 }
 
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, dataType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
+    if (queryType === 'logs') {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
+        return;
+    }
     resetQueryResAttr(res, panelId);
     let bigNumVal = null;
     if (panelId == -1) {
@@ -772,29 +780,31 @@ function createMetricsColorsArray() {
 }
 //eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
-    let dateVal = new Date(startEpoch);
-    $('#date-start').val(dateVal.toISOString().substring(0, 10));
-    $('#date-start').addClass('active');
-    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0, 10));
-    $('.panelEditor-container #date-start').addClass('active');
-    let hours = addZero(dateVal.getUTCHours());
-    let mins = addZero(dateVal.getUTCMinutes());
-    $('#time-start').val(hours + ':' + mins);
-    $('#time-start').addClass('active');
-    $('.panelEditor-container #time-start').val(hours + ':' + mins);
-    $('.panelEditor-container #time-start').addClass('active');
+    function setDateTimeInputs(epochTime, dateId, timeId) {
+        let dateVal = new Date(epochTime);
+        let dateString = dateVal.toISOString().split('T')[0];
+        let timeString = dateVal.toTimeString().substring(0, 5);
 
-    dateVal = new Date(endEpoch);
-    $('#date-end').val(dateVal.toISOString().substring(0, 10));
-    $('#date-end').addClass('active');
-    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0, 10));
-    $('.panelEditor-container #date-end').addClass('active');
-    hours = addZero(dateVal.getUTCHours());
-    mins = addZero(dateVal.getUTCMinutes());
-    $('#time-end').val(hours + ':' + mins);
-    $('#time-end').addClass('active');
-    $('.panelEditor-container #time-end').val(hours + ':' + mins);
-    $('.panelEditor-container #time-end').addClass('active');
+        $(`#${dateId}, .panelEditor-container #${dateId}`).val(dateString).addClass('active');
+        $(`#${timeId}, .panelEditor-container #${timeId}`).val(timeString).addClass('active');
+
+        return { date: dateString, time: timeString };
+    }
+
+    let startValues = setDateTimeInputs(startEpoch, 'date-start', 'time-start');
+    let endValues = setDateTimeInputs(endEpoch, 'date-end', 'time-end');
+
+    appliedStartDate = tempStartDate = startValues.date;
+    appliedStartTime = tempStartTime = startValues.time;
+    appliedEndDate = tempEndDate = endValues.date;
+    appliedEndTime = tempEndTime = endValues.time;
+
+    Cookies.set('customStartDate', appliedStartDate);
+    Cookies.set('customStartTime', appliedStartTime);
+    Cookies.set('customEndDate', appliedEndDate);
+    Cookies.set('customEndTime', appliedEndTime);
+
+    $('.range-item, .db-range-item').removeClass('active');
 }
 
 function addZero(i) {
@@ -815,32 +825,10 @@ function showToastMyOrgPage(msg) {
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
-//eslint-disable-next-line no-unused-vars
-function showSendTestDataUpdateToast(msg) {
-    let toast = `<div class="test-data-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
 
 function removeToast() {
     $('.div-toast').remove();
-    $('.test-data-toast').remove();
     $('.ret-days-toast').remove();
-    $('.usage-stats-toast').remove();
-}
-//eslint-disable-next-line no-unused-vars
-function showDeleteIndexToast(msg) {
-    let toast = `<div class="usage-stats-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('#logs-stats-header').append(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
 }
 //eslint-disable-next-line no-unused-vars
 function showRetDaysUpdateToast(msg) {
@@ -914,7 +902,7 @@ function renderChartByChartType(data, queryRes, panelId, currentPanel) {
             break;
         case 'Line Chart': {
             let startTime = new Date().getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, '');
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.queryType);
             break;
         }
         case 'number':
@@ -994,7 +982,7 @@ function initializeFilterInputEvents() {
         const formatButton = $('#formatInput');
         if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
             formatButton.show();
-        }else {
+        } else {
             formatButton.hide();
         }
     }
@@ -1013,7 +1001,7 @@ function initializeFilterInputEvents() {
     $('.tab-list .tab-li').click(handleTabClick);
 
     // Event listeners for query language changes
-    $('#query-language-options').on('click', '.query-language-option', function() {
+    $('#query-language-options').on('click', '.query-language-option', function () {
         setTimeout(checkFormatButtonVisibility, 10);
     });
 
@@ -1109,8 +1097,8 @@ function initializeFilterInputEvents() {
     });
 
     // Format button click event
-    $('#formatInput').click(function() {
-        let input = $("#filter-input");
+    $('#formatInput').click(function () {
+        let input = $('#filter-input');
         let value = input.val();
 
         // Format the input value by ensuring each '|' is preceded by a newline
@@ -1131,8 +1119,6 @@ function initializeFilterInputEvents() {
         toggleClearButtonVisibility();
     });
 }
-
-
 
 //eslint-disable-next-line no-unused-vars
 function getMetricsQData() {
@@ -1190,7 +1176,7 @@ function getMetricsQData() {
             let functionsArray = formulaDetailsMap[key].functions || [];
             // Update the formula by wrapping it with each function in the functionsArray
             let formula = formulas[key].formula;
-            
+
             for (let func of functionsArray) {
                 // Create a regex to match the function being applied
                 const funcRegex = new RegExp(`\\b${func}\\(`);

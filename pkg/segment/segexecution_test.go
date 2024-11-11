@@ -72,7 +72,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 	ti := structs.InitTableInfo("evts", 0, false)
 	sizeLimit := uint64(10000)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 35, qc)
 	log.Info(result)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, numBuffers*numEntriesForBuffer*fileCount, "all logs in all files should have matched")
@@ -88,7 +88,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 	}
 
 	simpleNode.AndFilterCondition.FilterCriteria = append(simpleNode.AndFilterCondition.FilterCriteria, &rangeFilter)
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 36, qc)
 	log.Info(result)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, numBuffers*fileCount, "each buffer in each file will only have one match")
@@ -103,7 +103,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 	}
 	simpleNode.ExclusionFilterCondition = &Condition{FilterCriteria: []*FilterCriteria{&filterCondition}}
 	log.Infof("%v", simpleNode)
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 37, qc)
 	log.Info(result)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, 0, "exclusion filter criteria should make query return nothing")
@@ -118,7 +118,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 		},
 	}
 	simpleNode.OrFilterCondition = &Condition{FilterCriteria: []*FilterCriteria{&orCondition}}
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 38, qc)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, 0, "or filter shouldhave no effect")
 	assert.Len(t, result.ErrList, 0, "no errors should have occurred")
@@ -156,7 +156,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 		},
 	}
 	columnNode.AndFilterCondition = &Condition{FilterCriteria: []*FilterCriteria{&invalidColumnCondition}}
-	result = ExecuteQuery(columnNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(columnNode, &QueryAggregators{}, 39, qc)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, 0, "no column abc exists")
 	assert.NotEqual(t, 0, result.ErrList, "column not found errors MUST happened")
@@ -181,7 +181,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		},
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 40, qc)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, numEntriesForBuffer*numBuffers*fileCount, "all log lines match")
 	assert.Len(t, result.ErrList, 0, "no errors should have occurred")
@@ -201,7 +201,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 			EndEpochMs:   uint64(numEntriesForBuffer),
 		},
 	}
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 41, qc)
 	nodeRes := &structs.NodeResult{}
 	for _, rrc := range result.AllRecords {
 
@@ -247,7 +247,7 @@ func timeHistogramQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer in
 		},
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleTimeHistogram, 101, qc)
+	result := ExecuteQuery(simpleNode, simpleTimeHistogram, 42, qc)
 	seenKeys := make(map[uint64]bool)
 	lenHist := len(result.Histogram["testTime"].Results)
 	for i := 0; i < lenHist; i++ {
@@ -302,7 +302,7 @@ func groupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fil
 		mnames[i] = mOp.String()
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 102, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 43, qc)
 	lenHist := len(result.Histogram["test"].Results)
 	assert.False(t, result.Histogram["test"].IsDateHistogram)
 	assert.Equal(t, lenHist, 2, "only record-batch-1 and record-batch-0 exist")
@@ -388,7 +388,7 @@ func timechartGroupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer
 		mnames[i] = mOp.String()
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 102, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 44, qc)
 	lenHist := len(result.Histogram["test"].Results)
 	assert.False(t, result.Histogram["test"].IsDateHistogram)
 	assert.Equal(t, 3, lenHist, "it should have 3 time range buckets: [1, 5), [5, 9), [9, 11]")
@@ -474,7 +474,7 @@ func nestedQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 		},
 	}
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(nestedNode, nil, 0, qc)
+	result := ExecuteQuery(nestedNode, nil, 45, qc)
 	assert.Len(t, result.ErrList, 0)
 	assert.Len(t, result.AllRecords, 0, "conditions are exclusive, no responses should match")
 
@@ -488,7 +488,7 @@ func nestedQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 			EndEpochMs:   uint64(numEntriesForBuffer) + 1,
 		},
 	}
-	result = ExecuteQuery(nestedNode, nil, 0, qc)
+	result = ExecuteQuery(nestedNode, nil, 46, qc)
 	assert.Len(t, result.ErrList, 0)
 	assert.Len(t, result.AllRecords, numBuffers*fileCount*2, "should match when key2=0 and 1")
 
@@ -501,7 +501,7 @@ func nestedQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 			EndEpochMs:   uint64(numEntriesForBuffer) + 1,
 		},
 	}
-	result = ExecuteQuery(multiNestedNode, nil, 0, qc)
+	result = ExecuteQuery(multiNestedNode, nil, 47, qc)
 	assert.Len(t, result.ErrList, 0)
 	assert.Len(t, result.AllRecords, numBuffers*fileCount*2, "nesting node another level should have no affect")
 }
@@ -550,10 +550,10 @@ func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffe
 	simpleMeasure.Next = simpleRename
 
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleMeasure, 0, qc)
+	result := ExecuteQuery(simpleNode, simpleMeasure, 48, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 1)
@@ -584,10 +584,10 @@ func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffe
 
 	simpleRename.Next = simpleLetColumns
 
-	result = ExecuteQuery(simpleNode, simpleMeasure, 0, qc)
+	result = ExecuteQuery(simpleNode, simpleMeasure, 49, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 2)
@@ -688,7 +688,7 @@ func nestedAggregationQueryWithGroupByTest(t *testing.T, numBuffers int, numEntr
 
 	sizeLimit := uint64(0)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 50, qc)
 
 	assert.False(t, result.TotalResults.EarlyExit)
 
@@ -869,10 +869,10 @@ func nestedAggsNumericColRequestTest(t *testing.T, numBuffers int, numEntriesFor
 	simpleRename.Next = simpleLetColumns
 
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleMeasure, 0, qc)
+	result := ExecuteQuery(simpleNode, simpleMeasure, 51, qc)
 
 	assert.Len(t, result.AllRecords, 0)
-	assert.Zero(t, result.TotalResults.TotalCount)
+	assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 	assert.False(t, result.TotalResults.EarlyExit)
 
 	assert.Len(t, result.MeasureFunctions, 2)
@@ -962,7 +962,7 @@ func nestedAggsNumericColRequestWithGroupByTest(t *testing.T, numBuffers int, nu
 
 	sizeLimit := uint64(0)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 52, qc)
 
 	assert.False(t, result.TotalResults.EarlyExit)
 
@@ -1085,7 +1085,7 @@ func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntrie
 
 	sizeLimit := uint64(0)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 53, qc)
 	assert.Len(t, result.MeasureResults, 1)
 	assert.True(t, len(result.Histogram) > 0)
 	for _, aggResult := range result.Histogram {
@@ -1125,7 +1125,7 @@ func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntrie
 		},
 	}
 
-	result = ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result = ExecuteQuery(simpleNode, simpleGroupBy, 54, qc)
 	assert.Len(t, result.MeasureResults, 0)
 	assert.True(t, len(result.Histogram) > 0)
 	for _, aggResult := range result.Histogram {
@@ -1135,7 +1135,7 @@ func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntrie
 	// Change it so both rows pass.
 	whereBlock.OutputTransforms.FilterRows.ValueOp = ">="
 
-	result = ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result = ExecuteQuery(simpleNode, simpleGroupBy, 55, qc)
 	assert.Len(t, result.MeasureResults, 2)
 	assert.True(t, len(result.Histogram) > 0)
 	for _, aggResult := range result.Histogram {
@@ -1192,7 +1192,7 @@ func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntrie
 		},
 	}
 
-	result = ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result = ExecuteQuery(simpleNode, simpleGroupBy, 56, qc)
 	expectedLen := 3
 	if numEntriesForBuffer < 3 {
 		expectedLen = numEntriesForBuffer
@@ -1258,7 +1258,7 @@ func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntrie
 		},
 	}
 
-	result = ExecuteQuery(simpleNode, simpleGroupBy, 0, qc)
+	result = ExecuteQuery(simpleNode, simpleGroupBy, 57, qc)
 	assert.Len(t, result.MeasureResults, 2)
 	assert.True(t, len(result.Histogram) > 0)
 	for _, aggResult := range result.Histogram {
@@ -1371,7 +1371,7 @@ func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCou
 	ti := structs.InitTableInfo("evts", 0, false)
 	sizeLimit := uint64(10000)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 58, qc)
 	t.Logf("Execute Query Results :%v", result)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Equal(t, len(result.AllRecords), numBuffers*numEntriesForBuffer*fileCount, "all logs in all files should have matched")
@@ -1427,21 +1427,21 @@ func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int,
 		TimeRange:          queryRange,
 	}
 	qc := structs.InitQueryContext("evts", uint64(10), 9, 0, false)
-	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 59, qc)
 	assert.Len(t, result.AllRecords, 1)
 
 	qc.Scroll = 10
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 60, qc)
 	assert.Len(t, result.AllRecords, 0)
 
 	maxPossible := uint64(numBuffers * numEntriesForBuffer * fileCount)
 	qc.SizeLimit = maxPossible
 	qc.Scroll = int(maxPossible)
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 61, qc)
 	assert.Len(t, result.AllRecords, 0)
 
 	qc.Scroll = int(maxPossible - 5)
-	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 0, qc)
+	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 62, qc)
 	assert.Len(t, result.AllRecords, 5)
 
 }
@@ -1473,21 +1473,25 @@ func getMyIds() []uint64 {
 }
 
 func Test_Query(t *testing.T) {
-	t.Cleanup(func() { os.RemoveAll("data/") })
+	dir := t.TempDir()
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	config.InitializeDefaultConfig(t.TempDir())
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
+	assert.Nil(t, err)
+
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
 
-	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
 
 	simpleQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 	wildcardQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
@@ -1506,20 +1510,24 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Scroll(t *testing.T) {
-	t.Cleanup(func() { os.RemoveAll("data/") })
+	dir := t.TempDir()
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	config.InitializeDefaultConfig(t.TempDir())
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
+	assert.Nil(t, err)
+
 	limit.InitMemoryLimiter()
 	_ = localstorage.InitLocalStorage()
 
-	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
 	testESScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 	testPipesearchScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 }
@@ -1604,7 +1612,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	sizeLimit := uint64(10000)
 	scroll := 0
 	qc := structs.InitQueryContext("test", sizeLimit, scroll, 0, false)
-	result := ExecuteQuery(simpleNode, aggs, uint64(numBatch*numRec*2), qc)
+	result := ExecuteQuery(simpleNode, aggs, 63, qc)
 	assert.Equal(t, uint64(numRec), result.TotalResults.TotalCount)
 	assert.Equal(t, Equals, result.TotalResults.Op)
 
@@ -1623,7 +1631,7 @@ func Test_unrotatedQuery(t *testing.T) {
 			EndEpochMs:   uint64(numRec) + 1,
 		},
 	}
-	result = ExecuteQuery(simpleNode, aggs, uint64(numBatch*numRec*2), qc)
+	result = ExecuteQuery(simpleNode, aggs, 64, qc)
 	query.DeleteQuery(uint64(numBatch * numRec * 2))
 	assert.Equal(t, uint64(numRec), result.TotalResults.TotalCount)
 	assert.Equal(t, Equals, result.TotalResults.Op)
@@ -1644,7 +1652,7 @@ func Test_unrotatedQuery(t *testing.T) {
 			EndEpochMs:   uint64(numRec) + 1,
 		},
 	}
-	result = ExecuteQuery(simpleNode, aggs, uint64(numBatch*numRec*2), qc)
+	result = ExecuteQuery(simpleNode, aggs, 65, qc)
 	backfillExpectecd := uint64(numRec*numBatch) / 2 // since we added new column halfway through the block
 	assert.Equal(t, backfillExpectecd, result.TotalResults.TotalCount,
 		"backfillExpectecd: %v, actual: %v", backfillExpectecd, result.TotalResults.TotalCount)
@@ -1665,7 +1673,7 @@ func Test_unrotatedQuery(t *testing.T) {
 			EndEpochMs:   uint64(numRec) + 1,
 		},
 	}
-	result = ExecuteQuery(simpleNode, aggs, uint64(numBatch*numRec*2), qc)
+	result = ExecuteQuery(simpleNode, aggs, 66, qc)
 	assert.Equal(t, backfillExpectecd, result.TotalResults.TotalCount)
 	assert.Equal(t, Equals, result.TotalResults.Op)
 }
@@ -1683,7 +1691,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 		log.Fatal(err)
 	}
 	currFile := dir + "query_test.seg"
-	_, blockSummaries, _, _, allBmhInMem, _ := writer.WriteMockColSegFile(currFile, batchSize, entryCount)
+	_, blockSummaries, _, _, allBmhInMem, _ := writer.WriteMockColSegFile(currFile, currFile, batchSize, entryCount)
 	blockSumFile := dir + "query_test.bsu"
 
 	writer.WriteMockBlockSummary(blockSumFile, blockSummaries, allBmhInMem)
@@ -1788,11 +1796,11 @@ func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 		MeasureOperations: []*MeasureAggregator{
 			{MeasureCol: measureCol, MeasureFunc: measureFunc},
 		},
-	}, 0, qc)
+	}, 67, qc)
 
 	if measureCol == "*" && measureFunc != Count {
 		assert.Len(t, result.AllRecords, 0)
-		assert.Zero(t, result.TotalResults.TotalCount)
+		assert.Equal(t, 100, int(result.TotalResults.TotalCount))
 		assert.False(t, result.TotalResults.EarlyExit)
 	}
 }
@@ -1827,7 +1835,7 @@ func groupByAggQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, 10000, 0, 0, false)
-	result := ExecuteQuery(simpleNode, simpleGroupBy, 102, qc)
+	result := ExecuteQuery(simpleNode, simpleGroupBy, 68, qc)
 	lenHist := len(result.Histogram["test"].Results)
 	assert.False(t, result.Histogram["test"].IsDateHistogram)
 	if measureFunc == Count {
@@ -1845,7 +1853,7 @@ func groupByAggQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	} else if measureCol == "*" && measureFunc != Count {
 		assert.NotZero(t, len(result.ErrList))
 		assert.Len(t, result.AllRecords, 0)
-		assert.Zero(t, result.TotalResults.TotalCount)
+		assert.Equal(t, 0, int(result.TotalResults.TotalCount))
 		assert.False(t, result.TotalResults.EarlyExit)
 	}
 

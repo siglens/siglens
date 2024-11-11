@@ -18,7 +18,7 @@
  */
 
 let selectedLogSource = "";
-
+let iToken = "";
 $(document).ready(function () {
     $('#data-ingestion,#test-data-btn').hide();
     $('.theme-btn').on('click', themePickerHandler);
@@ -32,11 +32,10 @@ $(document).ready(function () {
         credentials: 'include'
     })
         .then((_res) => {
-            let token;
             {{ if .TestDataSendData }}
                 {{ .TestDataSendData }}
             {{ else }}
-                myOrgSendTestData(token);
+                myOrgSendTestData(iToken);
             {{ end }}
         })
         .catch((err) => {
@@ -51,8 +50,14 @@ $(document).ready(function () {
         $('.tab-li').removeClass("active");
         $(this).addClass("active");
 
+        var ingestCmd = ""
+        {{ if .IngestDataCmd }}
+            {{ .IngestDataCmd }}
+        {{ end }}
+
         var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
             '-H \'Content-Type: application/json\' \\\n' +
+            ingestCmd +
             '-d \'{ "index" : { "_index" : "test" } }\n' +
             '{ "name" : "john", "age":"23" }\'';
         $('#verify-command').text(curlCommand);
@@ -73,10 +78,10 @@ $(document).ready(function () {
             case 'Splunk HEC':
                 $('#platform-input').val(selectedLogSource);
                 $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
-                curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
+                curlCommand = 'curl -X POST "' + baseUrl + ':8081/services/collector/event" \\\n' +
                     '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
-                    '-d \'{ "index" : { "_index" : "test" } }\n' +
-                    '{ "name" : "john", "age":"23" }\'';
+                    ingestCmd +
+                    '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
                 $('#verify-command').text(curlCommand);
                 break;
             case 'Send Test Data':
@@ -117,84 +122,45 @@ $(document).ready(function () {
 })
 
 
-function sendTestData(e, token) {
-
-    if (token) {
-        sendTestDataWithBearerToken(token).then((res) => {
-            showSendTestDataUpdateToast('Sent Test Data Successfully');
+function sendTestData() {
+    sendTestDataWithoutBearerToken().then((_res) => {
+        showToast('Sent Test Data Successfully', 'success');
+        let testDataBtn = document.getElementById("test-data-btn");
+        testDataBtn.disabled = false;
+    })
+        .catch((err) => {
+            console.log(err)
+            showToast('Error Sending Test Data', 'error');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
-        })
-            .catch((err) => {
-                console.log(err)
-                showSendTestDataUpdateToast('Error Sending Test Data');
-                let testDataBtn = document.getElementById("test-data-btn");
-                testDataBtn.disabled = false;
-            });
-    } else {
-        sendTestDataWithoutBearerToken().then((_res) => {
-            showSendTestDataUpdateToast('Sent Test Data Successfully');
-            let testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = false;
-        })
-            .catch((err) => {
-                console.log(err)
-                showSendTestDataUpdateToast('Error Sending Test Data');
-                let testDataBtn = document.getElementById("test-data-btn");
-                testDataBtn.disabled = false;
-            });
-    }
-
-    function sendTestDataWithBearerToken(token) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'post',
-                url: '/api/sampledataset_bulk',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-                crossDomain: true,
-                dataType: 'json',
-                credentials: 'include'
-            }).then((res) => {
-                resolve(res);
-            })
-                .catch((err) => {
-                    console.log(err);
-                    reject(err);
-                });
         });
-    }
-
-    function sendTestDataWithoutBearerToken() {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'post',
-                url: '/api/sampledataset_bulk',
-                crossDomain: true,
-                dataType: 'json',
-                credentials: 'include'
-            }).then((res) => {
-                resolve(res);
-            })
-                .catch((err) => {
-                    console.log(err);
-                    reject(err);
-                });
-        });
-    }
 }
 
-function myOrgSendTestData(token) {
-    $('#test-data-btn').on('click', (e) => {
+function sendTestDataWithoutBearerToken() {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            method: 'post',
+            url: '/api/sampledataset_bulk',
+            crossDomain: true,
+            dataType: 'json',
+            credentials: 'include'
+        }).then((res) => {
+            resolve(res);
+        })
+            .catch((err) => {
+                console.log(err);
+                reject(err);
+            });
+    });
+}
+
+
+function myOrgSendTestData(_token) {
+    $('#test-data-btn').on('click', (_e) => {
         if (selectedLogSource === 'Send Test Data') {
             var testDataBtn = document.getElementById("test-data-btn");
-            // Disable testDataBtn
             testDataBtn.disabled = true;
-            sendTestData(e, token);
-        }
-        else {
-            showSendTestDataUpdateToast('Select Test Data');
+            sendTestData();
         }
     })
 }

@@ -26,7 +26,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var defaultWait = 30 * time.Second
+var defaultWait = 2 * time.Second
 
 type WeightedSemaphore struct {
 	MaxSize int64  // max size of the semaphore

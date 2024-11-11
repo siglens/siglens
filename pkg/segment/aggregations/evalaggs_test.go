@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -135,12 +136,14 @@ func TestComputeAggEvalForList_InvalidRunningEvalStatsConversion(t *testing.T) {
 }
 
 func TestComputeAggEvalForList_EmptyFields(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
 	dummyMeasureAggr := getDummyMeasureAggregator()
 	runningEvalStats := map[string]interface{}{
 		"vals": []string{},
 	}
+	timestampKey := config.GetTimeStampKey()
 	dummyMeasureAggr.ValueColRequest = getDummyNumericValueExprWithoutField()
-	sstMap := map[string]*structs.SegStats{dummyMeasureAggr.MeasureCol: getDummySegStats()}
+	sstMap := map[string]*structs.SegStats{dummyMeasureAggr.MeasureCol: getDummySegStats(), timestampKey: getDummySegStats()}
 	measureResults := make(map[string]utils.CValueEnclosure)
 
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
@@ -162,18 +165,22 @@ func TestComputeAggEvalForList_MissingSSTMapKey(t *testing.T) {
 }
 
 func TestComputeAggEvalForList_CorrectInputsWithoutField(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	timestampKey := config.GetTimeStampKey()
+
 	dummyMeasureAggr := getDummyMeasureAggregator()
 	runningEvalStats := map[string]interface{}{
 		"vals": []string{},
 	}
+
 	dummyMeasureAggr.ValueColRequest = getDummyNumericValueExprWithoutField()
-	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
+	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats(), timestampKey: getDummySegStats()}
 	measureResults := make(map[string]utils.CValueEnclosure)
-	expected := []string{"100"}
+	expected := []string{"100", "100", "100"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 1")
-	assert.Equal(t, 1, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 1")
+	assert.Equal(t, 3, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 1")
+	assert.Equal(t, 3, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 1")
 	assert.Equal(t, expected, measureResults["vals"].CVal.([]string), "The measureResults slice should be equal to the expected slice")
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 }

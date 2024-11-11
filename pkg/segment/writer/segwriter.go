@@ -18,10 +18,8 @@
 package writer
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -38,7 +36,6 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -59,14 +56,18 @@ const MAX_ACTIVE_COL_WIPS = 10000 // TODO: make this variable based on available
 // global map
 var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
-var maxSegFileSize uint64
-var activeColWips int64 // use it atomically to store the count of active colWips
-var activeColWipLock sync.Mutex
 
 var KibanaInternalBaseDir string
 
-var smrLock sync.RWMutex = sync.RWMutex{}
-var localSegmetaFname string
+var plePool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		ple := NewPLE()
+		return ple
+	},
+}
 
 // Create a writer that caches compressors.
 // For this operation type we supply a nil Reader.
@@ -186,6 +187,29 @@ func NewPLE() *ParsedLogEvent {
 	}
 }
 
+func GetNewPLE(rawJson []byte, tsNow uint64, indexName string, tsKey *string, jsParsingStackbuf []byte) (*ParsedLogEvent, error) {
+	tsMillis := utils.ExtractTimeStamp(rawJson, tsKey)
+	if tsMillis == 0 {
+		tsMillis = tsNow
+	}
+	ple := plePool.Get().(*ParsedLogEvent)
+	ple.Reset()
+	ple.SetRawJson(rawJson)
+	ple.SetTimestamp(tsMillis)
+	ple.SetIndexName(indexName)
+	err := ParseRawJsonObject("", rawJson, tsKey, jsParsingStackbuf[:], ple)
+	if err != nil {
+		return nil, fmt.Errorf("GetNewPLE: Error while parsing raw json object, err: %v", err)
+	}
+	return ple, nil
+}
+
+func ReleasePLEs(pleArray []*ParsedLogEvent) {
+	for _, ple := range pleArray {
+		plePool.Put(ple)
+	}
+}
+
 func (ple *ParsedLogEvent) Reset() {
 	ple.allCnames = ple.allCnames[:0]
 	ple.allCvals = ple.allCvals[:0]
@@ -271,16 +295,26 @@ func GetInMemorySize() uint64 {
 	defer allSegStoresLock.RUnlock()
 
 	totalSize := uint64(0)
+	numOpenCols := 0
 	for _, s := range allSegStores {
 		s.Lock.Lock()
 		totalSize += s.wipBlock.getSize()
 		totalSize += s.GetSegStorePQMatchSize()
+		numOpenCols += len(s.wipBlock.colWips)
 		s.Lock.Unlock()
+	}
+
+	maxOpenCols := config.GetMaxOpenColumns()
+	if numOpenCols > int(maxOpenCols) {
+		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
+	} else if numOpenCols > 0 {
+		multiplier := float64(maxOpenCols) / float64(numOpenCols)
+		totalSize = uint64(float64(totalSize) * multiplier)
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
 
-	return uint64(math.Ceil(ConvertFloatBytesToMB(float64(totalSize) * float64(1.10))))
+	return totalSize
 }
 
 func InitWriterNode() {
@@ -300,25 +334,6 @@ func InitWriterNode() {
 	go timeBasedUploadIngestNodeDir()
 	HostnameDir()
 	InitKibanaInternalData()
-}
-
-func initSmr() {
-
-	localSegmetaFname = GetLocalSegmetaFName()
-
-	fd, err := os.OpenFile(localSegmetaFname, os.O_RDONLY, 0666)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// for first time during bootup this will occur
-			_, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
-				return
-			}
-		}
-		return
-	}
-	fd.Close()
 }
 
 // TODO: this should be pushed based & we should have checks in uploadingestnode function to prevent uploading unupdated files.
@@ -407,6 +422,23 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
+		case VALTYPE_ENC_BOOL[0]:
+			startIdx := colWip.cbufidx
+			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][0:1])
+			colWip.cbufidx += 1
+			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][0:1])
+			colWip.cbufidx += 1
+			boolVal := utils.BytesToBoolLittleEndian(ple.allCvals[i][0:1])
+			var asciiBytesBuf bytes.Buffer
+			_, err := fmt.Fprintf(&asciiBytesBuf, "%v", boolVal)
+			if err != nil {
+				return false, err
+			}
+			addSegStatsBool(segstats, cname, asciiBytesBuf.Bytes())
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+			}
+			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
 			ri, ok := colRis[cname]
 			if !ok {
@@ -457,6 +489,14 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
+		case VALTYPE_ENC_BACKFILL[0]:
+			copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+			colWip.cbufidx += 1
+			if !ss.skipDe {
+				ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
+					colWip.cbufidx-1, true)
+			}
+			ss.updateColValueSizeInAllSeenColumns(cname, 1)
 		default:
 			return false, utils.TeeErrorf("doLogEventFilling: unknown ctype: %v", ctype)
 		}
@@ -600,10 +640,6 @@ func ForcedFlushToSegfile() {
 	allSegStoresLock.Unlock()
 }
 
-func updateValuesFromConfig() {
-	maxSegFileSize = *config.GetMaxSegFileSize()
-}
-
 func idleWipFlushToFile() {
 	for {
 		idleWipFlushDuration := time.Duration(config.GetIdleWipFlushIntervalSecs()) * time.Second
@@ -653,7 +689,8 @@ func rotateSegmentOnTime() {
 			segstore.firstTime = false
 			err := segstore.AppendWipToSegfile(streamid, false, false, true)
 			if err != nil {
-				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
+				log.Errorf("rotateSegmentOnTime: failed to append, segkey: %v err: %v",
+					segstore.SegmentKey, err)
 			} else {
 				// remove unused segstores if its has been twice
 				// the segrotation time since we last updated it
@@ -762,7 +799,6 @@ func InitColWip(segKey string, colName string) *ColWip {
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
 func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
-	updateValuesFromConfig()
 
 	segstore := getSegStore(streamid)
 	if segstore == nil {
@@ -1070,6 +1106,66 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
+func GetUnrotatedVTableTimestamps(orgid uint64) map[string]struct{ Earliest, Latest uint64 } {
+	result := make(map[string]struct{ Earliest, Latest uint64 })
+
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+
+	for _, segstore := range allSegStores {
+		if segstore.OrgId == orgid {
+			indexName := segstore.VirtualTableName
+			timestamps, exists := result[indexName]
+			if !exists {
+				timestamps = struct{ Earliest, Latest uint64 }{math.MaxUint64, 0}
+			}
+
+			if segstore.earliest_millis < timestamps.Earliest {
+				timestamps.Earliest = segstore.earliest_millis
+			}
+			if segstore.latest_millis > timestamps.Latest {
+				timestamps.Latest = segstore.latest_millis
+			}
+
+			result[indexName] = timestamps
+		}
+	}
+
+	// If no data was found, return 0 for both
+	for indexName, timestamps := range result {
+		if timestamps.Earliest == math.MaxUint64 {
+			timestamps.Earliest = 0
+			result[indexName] = timestamps
+		}
+	}
+
+	return result
+}
+
+func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {
+
+	var ok bool
+	var cnts *structs.VtableCounts
+
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+	for _, segstore := range allSegStores {
+		if segstore.OrgId != orgid {
+			continue
+		}
+
+		cnts, ok = allvtables[segstore.VirtualTableName]
+		if !ok {
+			cnts = &structs.VtableCounts{}
+			allvtables[segstore.VirtualTableName] = cnts
+		}
+
+		cnts.BytesCount += segstore.BytesReceivedCount
+		cnts.RecordCount += uint64(segstore.RecordCount)
+		cnts.OnDiskBytesCount += segstore.OnDiskBytes
+	}
+}
+
 func getActiveBaseDirVTable(virtualTableName string) string {
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
@@ -1078,38 +1174,6 @@ func getActiveBaseDirVTable(virtualTableName string) string {
 	sb.WriteString(virtualTableName + "/")
 	basedir := sb.String()
 	return basedir
-}
-
-func GetSegMetas(segmentKeys []string) (map[string]*structs.SegMeta, error) {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	segKeySet := make(map[string]struct{})
-	for _, segKey := range segmentKeys {
-		segKeySet[segKey] = struct{}{}
-	}
-
-	segMetas := make(map[string]*structs.SegMeta)
-	err := fileutils.ReadLineByLine(localSegmetaFname, func(line []byte) error {
-		segMeta := structs.SegMeta{}
-		err := json.Unmarshal(line, &segMeta)
-		if err != nil {
-			log.Errorf("GetSegMetas: failed to unmarshal %s: err=%v", line, err)
-			return err
-		}
-
-		if _, ok := segKeySet[segMeta.SegmentKey]; ok {
-			segMetas[segMeta.SegmentKey] = &segMeta
-		}
-
-		return nil
-	})
-	if err != nil {
-		log.Errorf("GetSegMetas: failed to read segmeta file %v: err=%v", localSegmetaFname, err)
-		return nil, err
-	}
-
-	return segMetas, nil
 }
 
 func DeleteVirtualTableSegStore(virtualTableName string) {
@@ -1124,111 +1188,38 @@ func DeleteVirtualTableSegStore(virtualTableName string) {
 	allSegStoresLock.Unlock()
 }
 
-func DeleteSegmentsForIndex(segmetaFName, indexName string) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	removeSegmentsByIndexOrList(segmetaFName, indexName, nil)
+func DeleteSegmentsForIndex(indexName string) {
+	removeSegmentsByIndexOrSegkeys(nil, indexName)
 }
 
-func RemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
+func RemoveSegMetas(segmentsToDelete map[string]*structs.SegMeta) map[string]struct{} {
 
-	withLockRemoveSegments(segmetaFName, segmentsToDelete)
+	segKeysToDelete := make(map[string]struct{})
+	for segkey := range segmentsToDelete {
+		segKeysToDelete[segkey] = struct{}{}
+	}
+
+	return removeSegmetas(segKeysToDelete, "")
 }
 
-func withLockRemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
-	removeSegmentsByIndexOrList(segmetaFName, "", segmentsToDelete)
+func RemoveSegBasedirs(segbaseDirs map[string]struct{}) {
+	for segdir := range segbaseDirs {
+		if err := os.RemoveAll(segdir); err != nil {
+			log.Errorf("RemoveSegBasedirs: Failed to remove directory name=%v, err:%v",
+				segdir, err)
+		}
+		fileutils.RecursivelyDeleteEmptyParentDirectories(segdir)
+	}
 }
 
-func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]struct{}) {
-
-	if indexName == "" && segmentsToDelete == nil {
-		return // nothing to remove
-	}
-
-	preservedSmEntries := make([]*structs.SegMeta, 0)
-
-	entriesRead := 0
-	entriesRemoved := 0
-
-	fr, err := os.OpenFile(segMetaFile, os.O_RDONLY, 0644)
-	if err != nil {
-		log.Errorf("removeSegmentsByIndexOrList: Failed to open SegMetaFile name=%v, err:%v", segMetaFile, err)
-		return
-	}
-	defer fr.Close()
-
-	reader := bufio.NewScanner(fr)
-	for reader.Scan() {
-		segMetaData := structs.SegMeta{}
-		err = json.Unmarshal(reader.Bytes(), &segMetaData)
-		if err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to unmarshal fileName=%v, err:%v", segMetaFile, err)
-			continue
+func removeSegmentsByIndexOrSegkeys(segmentsToDelete map[string]struct{}, indexName string) {
+	segbaseDirs := removeSegmetas(segmentsToDelete, indexName)
+	for segdir := range segbaseDirs {
+		if err := os.RemoveAll(segdir); err != nil {
+			log.Errorf("RemoveSegments: Failed to remove directory name=%v, err:%v",
+				segdir, err)
 		}
-		entriesRead++
-
-		// only append the ones that we want to preserve
-		// check if it was based on indexName
-		if indexName != "" {
-			if segMetaData.VirtualTableName != indexName {
-				preservedSmEntries = append(preservedSmEntries, &segMetaData)
-				continue
-			}
-		} else {
-			// check if based on segmetas
-			_, ok := segmentsToDelete[segMetaData.SegmentKey]
-			if !ok {
-				preservedSmEntries = append(preservedSmEntries, &segMetaData)
-				continue
-			}
-		}
-
-		entriesRemoved++
-		if err := os.RemoveAll(segMetaData.SegbaseDir); err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to remove directory name=%v, err:%v",
-				segMetaData.SegbaseDir, err)
-		}
-		fileutils.RecursivelyDeleteEmptyParentDirectories(segMetaData.SegbaseDir)
-	}
-
-	if entriesRemoved > 0 {
-
-		// if we removed entries and there was nothing preserveed then we must delete this segmetafile
-		if len(preservedSmEntries) == 0 {
-			if err := os.RemoveAll(segMetaFile); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: Failed to remove smfile name=%v, err:%v", segMetaFile, err)
-			}
-			return
-		}
-
-		wfd, err := os.OpenFile(segMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			log.Errorf("removeSegmentsByIndexOrList: Failed to open temp SegMetaFile name=%v, err:%v", segMetaFile, err)
-			return
-		}
-		defer wfd.Close()
-
-		for _, smentry := range preservedSmEntries {
-
-			segmetajson, err := json.Marshal(*smentry)
-			if err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to Marshal: err=%v", err)
-				return
-			}
-
-			if _, err := wfd.Write(segmetajson); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to write segmeta filename=%v: err=%v", segMetaFile, err)
-				return
-			}
-
-			if _, err := wfd.WriteString("\n"); err != nil {
-				log.Errorf("removeSegmentsByIndexOrList: failed to write newline filename=%v: err=%v", segMetaFile, err)
-				return
-			}
-		}
+		fileutils.RecursivelyDeleteEmptyParentDirectories(segdir)
 	}
 }
 
@@ -1270,175 +1261,8 @@ func (cw *ColWip) WriteSingleStringBytes(value []byte) {
 	cw.cbufidx += uint32(n)
 }
 
-func AddOrReplaceRotatedSegment(segmeta structs.SegMeta) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	withLockRemoveSegments(GetLocalSegmetaFName(), map[string]struct{}{segmeta.SegmentKey: struct{}{}})
-	withLockAddRotatedSegment(segmeta)
-}
-
-func AddNewRotatedSegment(segmeta structs.SegMeta) {
-	if hook := hooks.GlobalHooks.AddSegMeta; hook != nil {
-		alreadyHandled, err := hook(&segmeta)
-		if err != nil {
-			log.Errorf("AddNewRotatedSegment: hook failed, err=%v", err)
-			return
-		}
-
-		if alreadyHandled {
-			return
-		}
-	}
-
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	withLockAddRotatedSegment(segmeta)
-}
-
-func withLockAddRotatedSegment(segmeta structs.SegMeta) {
-	fileName := GetLocalSegmetaFName()
-
-	segmetajson, err := json.Marshal(segmeta)
-	if err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to Marshal: err=%v", err)
-		return
-	}
-
-	fd, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			fd, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				log.Errorf("withLockAddRotatedSegment: failed to open a new filename=%v: err=%v", fileName, err)
-				return
-			}
-
-		} else {
-			log.Errorf("withLockAddRotatedSegment: failed to open filename=%v: err=%v", fileName, err)
-			return
-		}
-	}
-
-	defer fd.Close()
-
-	if _, err := fd.Write(segmetajson); err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to write segmeta filename=%v: err=%v", fileName, err)
-		return
-	}
-
-	if _, err := fd.WriteString("\n"); err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to write newline filename=%v: err=%v", fileName, err)
-		return
-	}
-	err = fd.Sync()
-	if err != nil {
-		log.Errorf("withLockAddRotatedSegment: failed to sync filename=%v: err=%v", fileName, err)
-		return
-	}
-}
-
-func BackFillPQSSegmetaEntry(segsetkey string, newpqid string) {
-	smrLock.Lock()
-	defer smrLock.Unlock()
-
-	preservedSmEntries := make([]*structs.SegMeta, 0)
-	allPqids := make(map[string]bool)
-
-	// Read segmeta files
-	allSegMetas, err := getAllSegmetaToMap(localSegmetaFname)
-	if err != nil {
-		log.Errorf("BackFillPQSSegmetaEntry: failed to get Segmeta: err=%v", err)
-		return
-	}
-	for segkey, segMetaEntry := range allSegMetas {
-		if segkey != segsetkey {
-			preservedSmEntries = append(preservedSmEntries, segMetaEntry)
-			continue
-		} else {
-			for pqid := range segMetaEntry.AllPQIDs {
-				allPqids[pqid] = true
-			}
-			allPqids[newpqid] = true
-			segMetaEntry.AllPQIDs = allPqids
-			preservedSmEntries = append(preservedSmEntries, segMetaEntry)
-			continue
-		}
-	}
-	err = WriteOverSegMeta(localSegmetaFname, preservedSmEntries)
-	if err != nil {
-		log.Errorf("BackFillPQSSegmetaEntry: failed to write Segmeta: err=%v", err)
-		return
-	}
-}
-
-func WriteOverSegMeta(segmetaFname string, segMetaEntries []*structs.SegMeta) error {
-	wfd, err := os.OpenFile(segmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("WriteSegMeta: Failed to open SegMetaFile name=%v, err:%v", segmetaFname, err)
-	}
-	defer wfd.Close()
-
-	for _, smentry := range segMetaEntries {
-
-		segmetajson, err := json.Marshal(*smentry)
-		if err != nil {
-			return utils.TeeErrorf("WriteSegMeta: failed to Marshal: segmeta filename=%v: err=%v smentry: %v", segmetaFname, err, *smentry)
-		}
-
-		if _, err := wfd.Write(segmetajson); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write segmeta filename=%v: err=%v", segmetaFname, err)
-		}
-
-		if _, err := wfd.WriteString("\n"); err != nil {
-			return fmt.Errorf("WriteSegMeta: failed to write newline filename=%v: err=%v", segmetaFname, err)
-		}
-	}
-
-	return nil
-}
-
 func GetPQMRDirFromSegKey(segKey string) string {
 	return filepath.Join(segKey, "pqmr")
-}
-
-func DeletePQSData() error {
-	smrLock.RLock()
-	defer smrLock.RUnlock()
-
-	// Get segmeta entries
-	segMetaFilename := GetLocalSegmetaFName()
-	segmetaEntries, err := getAllSegmetas(segMetaFilename)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQS data
-	for _, smEntry := range segmetaEntries {
-		smEntry.AllPQIDs = nil
-	}
-
-	// Write back the segmeta data
-	err = WriteOverSegMeta(segMetaFilename, segmetaEntries)
-	if err != nil {
-		log.Errorf("DeletePQSData: failed to write segmeta data to %v, err: %v", segMetaFilename, err)
-		return err
-	}
-
-	// Remove all PQMR directories from segments
-	for _, smEntry := range segmetaEntries {
-		pqmrDir := GetPQMRDirFromSegKey(smEntry.SegmentKey)
-		err := os.RemoveAll(pqmrDir)
-		if err != nil {
-			log.Errorf("DeletePQSData: failed to remove pqmr dir %v, err: %v", pqmrDir, err)
-			return err
-		}
-	}
-
-	// Delete PQS meta directory
-	return pqsmeta.DeletePQMetaDir()
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
@@ -1503,15 +1327,42 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 	cname string) error {
 
-	// todo a better way to size the bloom might be to count the num of space and
-	// then add to the numRecs, that should be the optimal size
-	// we add twice to avoid undersizing for above reason.
-	bi.Bf = bloom.NewWithEstimates(uint(numRecs)*2, BLOOM_COLL_PROBABILITY)
+	bloomEstimate := uint(numRecs) * 2
+	bi.Bf = bloom.NewWithEstimates(bloomEstimate, BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+	err := cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error computing bloom size needed for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	bloomSize := bi.uniqueWordCount
+	bi.Bf = bloom.NewWithEstimates(uint(bloomSize), BLOOM_COLL_PROBABILITY)
+	bi.uniqueWordCount = 0
+
+	err = cw.writeToBloom(buf, bi, numRecs, cname)
+	if err != nil {
+		log.Errorf("writeNonDeBloom: error writing to bloom for col: %v, err: %v",
+			cname, err)
+		return err
+	}
+
+	return nil
+}
+
+func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
+	cname string) error {
+
+	if bi == nil {
+		return utils.TeeErrorf("writeToBloom: bloom index is nil for cname: %v", cname)
+	}
+
 	idx := uint32(0)
 	for recNum := uint16(0); recNum < numRecs; recNum++ {
 		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
 		if err != nil {
-			log.Errorf("writeNonDeBloom: Could not extract val for cname: %v, idx: %v",
+			log.Errorf("writeToBloom: Could not extract val for cname: %v, idx: %v",
 				cname, idx)
 			return err
 		}
@@ -1560,7 +1411,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 	hasUpper := utils.HasUpper(copy)
 
 	// add the original full
-	_ = blockBloom.Add(copy)
+	if !blockBloom.TestAndAdd(copy) {
+		blockWordCount++
+	}
 
 	var hasSubWords bool
 	for {
@@ -1570,7 +1423,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		}
 		hasSubWords = true
 		// add original sub word
-		_ = blockBloom.Add(copy[:i])
+		if !blockBloom.TestAndAdd(copy[:i]) {
+			blockWordCount++
+		}
 
 		// add sub word lowercase
 		if hasUpper {
@@ -1578,19 +1433,25 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 			if err != nil {
 				return 0, err
 			}
-			_ = blockBloom.Add(word)
+			if !blockBloom.TestAndAdd(word) {
+				blockWordCount++
+			}
 		}
 		copy = copy[i+BYTE_SPACE_LEN:]
 	}
 
 	// handle last word. If no word was found, then we have already added the full word
 	if hasSubWords && len(copy) > 0 {
-		_ = blockBloom.Add(copy)
+		if !blockBloom.TestAndAdd(copy) {
+			blockWordCount++
+		}
 		word, err := utils.BytesToLower(copy, workBuf)
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if !blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 
 	if hasUpper {
@@ -1598,7 +1459,9 @@ func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []b
 		if err != nil {
 			return 0, err
 		}
-		_ = blockBloom.Add(word)
+		if !blockBloom.TestAndAdd(word) {
+			blockWordCount++
+		}
 	}
 	return blockWordCount, nil
 }

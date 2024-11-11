@@ -1,0 +1,4 @@
+{
+    "queryText": "search _index=*ind* group=\"group 0\" user_agent=Mozilla* | eval lat_long=latitude+longitude | timechart span=2m avg(lat_long) as Total by user_agent | filldown"
+}
+  

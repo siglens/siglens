@@ -1,0 +1,303 @@
+{
+    "queryText": "http_method=POST AND (app_name=Bracecould OR app_name=R*) | regex app_name=\".*could\" | stats avg(latency) as avg_latency, max(latency) as max, min(longitude) as min, sum(latitude) as sum, range(latency), count as cnt, values(weekday), dc(weekday) as distinct_count, list(http_method) BY gender, http_status | eval abs_sum=abs(sum) | eval concated=abs_sum.sum.\"_\".ltrim(gender, \"fem\") | eval round_sum=round(sum, 2) | eval avg_sum_min_max= (sum + max + min)/3 | eval len_gender=len(gender) | eval request_status=if(http_status >= 400, \"Error\", \"Success\") | eval bool_success=if(in(http_status, 400, 404, 500), \"0\", 1) | eval is_string=if(isstr(bool_success), bool_success, 0) | eval decoded_url=urldecode(\"http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader\") | where request_status in(\"Success\") | eval splitVal=split(concated, \".\") | eval max_cnt=max(162, cnt) | eval exact_per=exact(cnt/max_cnt) | eval gender_short=if(match(gender, \"^m\"), \"A\", \"F\") | eval toNumber=tonumber(bool_success) | eval status_hex=tostring(http_status, \"hex\") | eval substr_res=substr(\"splendid\", 1, 3) . substr(\"chunk\", -3) | eval logValue=log(http_status, 2) | eval formatted_time=strftime(1719415380000, \"%Y\") | eval timeType=typeof(formatted_time) | eval short_gen=if(searchmatch(\"gender=m*e\"), \"M\", \"F\") | eval x=\"hi\" | eval y=\"a\" | eval z=\"great\" | eval match=if(searchmatch(\"x=hi y=a? z=*\"), \"yes\", \"no\") | eval nowResult=relative_time(now(), \"-1h\") | eval timeResult=relative_time(time()/1000, \"-1h\") | eval finalResult=if(nowResult=timeResult, \"Pass\", \"Fail\") | fields -nowResult, timeResult", 
+    "expectedResult": {
+         "bucketCount": 5,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "gender",
+            "http_status"
+        ],
+        "measureFunctions": [
+            "concated",
+            "max_cnt",
+            "gender_short",
+            "is_string",
+            "formatted_time",
+            "request_status",
+            "list(http_method)",
+            "avg_latency",
+            "cnt",
+            "distinct_count",
+            "max",
+            "timeType",
+            "decoded_url",
+            "splitVal",
+            "exact_per",
+            "substr_res",
+            "round_sum",
+            "toNumber",
+            "x",
+            "finalResult",
+            "logValue",
+            "abs_sum",
+            "z",
+            "avg_sum_min_max",
+            "min",
+            "range(latency)",
+            "short_gen",
+            "y",
+            "match",
+            "sum",
+            "status_hex",
+            "values(weekday)",
+            "bool_success",
+            "len_gender"
+        ],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "female",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "abs_sum": 61.451397,
+                    "avg_latency": 7024047,
+                    "avg_sum_min_max": 2341388.3016316667,
+                    "bool_success": 1,
+                    "cnt": 1,
+                    "concated": "61.451397-61.451397_ale",
+                    "decoded_url": "http://www.splunk.com/download?r=header",
+                    "distinct_count": 1,
+                    "exact_per": 0.006172839506172839,
+                    "finalResult": "Pass",
+                    "formatted_time": "2024",
+                    "gender_short": "F",
+                    "is_string": 0,
+                    "len_gender": 6,
+                    "list(http_method)": [
+                        "POST"
+                    ],
+                    "logValue": 7.643856189774724,
+                    "match": "no",
+                    "max": 7024047,
+                    "max_cnt": "162",
+                    "min": 179.356292,
+                    "range(latency)": 0,
+                    "request_status": "Success",
+                    "round_sum": -61.45,
+                    "short_gen": "F",
+                    "splitVal": [
+                        "61",
+                        "451397-61",
+                        "451397_ale"
+                    ],
+                    "status_hex": "0xc8",
+                    "substr_res": "splunk",
+                    "sum": -61.451397,
+                    "timeType": "String",
+                    "toNumber": 1,
+                    "values(weekday)": [
+                        "Wednesday"
+                    ],
+                    "x": "hi",
+                    "y": "a",
+                    "z": "great"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "male",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "abs_sum": 113.240357,
+                    "avg_latency": 8829612,
+                    "avg_sum_min_max": 3094609.9803250004,
+                    "bool_success": 1,
+                    "cnt": 2,
+                    "concated": "113.240357113.240357_ale",
+                    "decoded_url": "http://www.splunk.com/download?r=header",
+                    "distinct_count": 2,
+                    "exact_per": 1,
+                    "finalResult": "Pass",
+                    "formatted_time": "2024",
+                    "gender_short": "A",
+                    "is_string": 0,
+                    "len_gender": 4,
+                    "list(http_method)": [
+                        "POST",
+                        "POST"
+                    ],
+                    "logValue": 8.238404739325079,
+                    "match": "no",
+                    "max": 9283660,
+                    "max_cnt": "2",
+                    "min": 56.700618,
+                    "range(latency)": 908096,
+                    "request_status": "Success",
+                    "round_sum": 113.24,
+                    "short_gen": "M",
+                    "splitVal": [
+                        "113",
+                        "240357113",
+                        "240357_ale"
+                    ],
+                    "status_hex": "0x12e",
+                    "substr_res": "splunk",
+                    "sum": 113.240357,
+                    "timeType": "String",
+                    "toNumber": 1,
+                    "values(weekday)": [
+                        "Friday",
+                        "Wednesday"
+                    ],
+                    "x": "hi",
+                    "y": "a",
+                    "z": "great"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "female",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "abs_sum": 16.024489,
+                    "avg_latency": 9233903,
+                    "avg_sum_min_max": 3077959.8297806666,
+                    "bool_success": 1,
+                    "cnt": 1,
+                    "concated": "16.02448916.024489_ale",
+                    "decoded_url": "http://www.splunk.com/download?r=header",
+                    "distinct_count": 1,
+                    "exact_per": 0.006172839506172839,
+                    "finalResult": "Pass",
+                    "formatted_time": "2024",
+                    "gender_short": "F",
+                    "is_string": 0,
+                    "len_gender": 6,
+                    "list(http_method)": [
+                        "POST"
+                    ],
+                    "logValue": 8.238404739325079,
+                    "match": "no",
+                    "max": 9233903,
+                    "max_cnt": "162",
+                    "min": -39.535147,
+                    "range(latency)": 0,
+                    "request_status": "Success",
+                    "round_sum": 16.02,
+                    "short_gen": "F",
+                    "splitVal": [
+                        "16",
+                        "02448916",
+                        "024489_ale"
+                    ],
+                    "status_hex": "0x12e",
+                    "substr_res": "splunk",
+                    "sum": 16.024489,
+                    "timeType": "String",
+                    "toNumber": 1,
+                    "values(weekday)": [
+                        "Sunday"
+                    ],
+                    "x": "hi",
+                    "y": "a",
+                    "z": "great"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "male",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "abs_sum": 51.49732900000001,
+                    "avg_latency": 4692136.5,
+                    "avg_sum_min_max": 2601563.373499667,
+                    "bool_success": 1,
+                    "cnt": 2,
+                    "concated": "51.497329-51.497329_ale",
+                    "decoded_url": "http://www.splunk.com/download?r=header",
+                    "distinct_count": 2,
+                    "exact_per": 1,
+                    "finalResult": "Pass",
+                    "formatted_time": "2024",
+                    "gender_short": "A",
+                    "is_string": 0,
+                    "len_gender": 4,
+                    "list(http_method)": [
+                        "POST",
+                        "POST"
+                    ],
+                    "logValue": 8.233619676759702,
+                    "match": "no",
+                    "max": 7804753,
+                    "max_cnt": "2",
+                    "min": -11.382172,
+                    "range(latency)": 6225233,
+                    "request_status": "Success",
+                    "round_sum": -51.5,
+                    "short_gen": "M",
+                    "splitVal": [
+                        "51",
+                        "497329-51",
+                        "497329_ale"
+                    ],
+                    "status_hex": "0x12d",
+                    "substr_res": "splunk",
+                    "sum": -51.49732900000001,
+                    "timeType": "String",
+                    "toNumber": 1,
+                    "values(weekday)": [
+                        "Monday",
+                        "Tuesday"
+                    ],
+                    "x": "hi",
+                    "y": "a",
+                    "z": "great"
+                }
+            },
+            {
+                "GroupByValues": [
+                    "male",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "abs_sum": 36.876998,
+                    "avg_latency": 7341637,
+                    "avg_sum_min_max": 2447202.189019333,
+                    "bool_success": 1,
+                    "cnt": 1,
+                    "concated": "36.876998-36.876998_ale",
+                    "decoded_url": "http://www.splunk.com/download?r=header",
+                    "distinct_count": 1,
+                    "exact_per": 0.006172839506172839,
+                    "finalResult": "Pass",
+                    "formatted_time": "2024",
+                    "gender_short": "A",
+                    "is_string": 0,
+                    "len_gender": 4,
+                    "list(http_method)": [
+                        "POST"
+                    ],
+                    "logValue": 7.643856189774724,
+                    "match": "no",
+                    "max": 7341637,
+                    "max_cnt": "162",
+                    "min": 6.444056,
+                    "range(latency)": 0,
+                    "request_status": "Success",
+                    "round_sum": -36.88,
+                    "short_gen": "M",
+                    "splitVal": [
+                        "36",
+                        "876998-36",
+                        "876998_ale"
+                    ],
+                    "status_hex": "0xc8",
+                    "substr_res": "splunk",
+                    "sum": -36.876998,
+                    "timeType": "String",
+                    "toNumber": 1,
+                    "values(weekday)": [
+                        "Friday"
+                    ],
+                    "x": "hi",
+                    "y": "a",
+                    "z": "great"
+                }
+            }
+        ]
+    }
+}

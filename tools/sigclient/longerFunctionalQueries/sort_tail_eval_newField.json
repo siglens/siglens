@@ -1,0 +1,38 @@
+{
+    "queryText": "city = Boston | sort ident | tail 2 | eval newField=12 | fields city, app_name, ident, new*",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 2,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Salmonsky",
+                "city": "Boston",
+                "ident": "0c5939d2-9f74-452f-a680-0c82df409f02",
+                "newField": 12,
+                "timestamp": 1730421870369
+            },
+            {
+                "app_name": "Chinchillacould",
+                "city": "Boston",
+                "ident": "0c58b60f-a11e-4d76-8447-d64a6728de94",
+                "newField": 12,
+                "timestamp": 1730442413770
+            }
+        ],
+        "allColumns": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ],
+        "columnsOrder": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ]
+    }
+}

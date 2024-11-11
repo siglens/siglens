@@ -73,6 +73,7 @@ var msgPrinter *message.Printer
 type QueryStats struct {
 	QueryCount                uint64
 	QueriesSinceInstall       uint64
+	ActiveQueryCount          int
 	TotalRespTimeSinceRestart float64
 	TotalRespTimeSinceInstall float64
 	mu                        sync.Mutex
@@ -107,6 +108,7 @@ func GetQueryCount() {
 	QueryStatsMap[0] = &QueryStats{
 		QueryCount:                0,
 		QueriesSinceInstall:       0,
+		ActiveQueryCount:          0,
 		TotalRespTimeSinceRestart: 0,
 		TotalRespTimeSinceInstall: 0,
 	}
@@ -192,7 +194,7 @@ func getBaseStatsDirs(startTime, endTime time.Time, orgid uint64) []string {
 
 	files, err := os.ReadDir(ingestDir)
 	if err != nil {
-		log.Errorf("ReadAllSegmetas: read dir err=%v ", err)
+		log.Errorf("getBaseStatsDirs: read dir err=%v ", err)
 		return make([]string, 0)
 	}
 
@@ -449,6 +451,7 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
 			QueryCount:                0,
 			TotalRespTimeSinceRestart: 0,
 			TotalRespTimeSinceInstall: 0,
+			ActiveQueryCount:          0,
 		}
 	}
 	mu.Unlock()

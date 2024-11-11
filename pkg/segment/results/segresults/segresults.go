@@ -27,6 +27,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -91,7 +92,7 @@ type SearchResults struct {
 	AllErrors              []error
 	SegKeyToEnc            map[string]uint16
 	SegEncToKey            map[uint16]string
-	MaxSegKeyEnc           uint16
+	NextSegKeyEnc          uint16
 	ColumnsOrder           map[string]int
 	ProcessedRemoteRecords map[string]map[string]struct{}
 
@@ -153,7 +154,7 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 		AllErrors:              allErrors,
 		SegKeyToEnc:            make(map[string]uint16),
 		SegEncToKey:            make(map[uint16]string),
-		MaxSegKeyEnc:           1,
+		NextSegKeyEnc:          1,
 		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
 }
@@ -217,6 +218,12 @@ func (sr *SearchResults) removeLog(id string) {
 func (sr *SearchResults) AddSSTMap(sstMap map[string]*structs.SegStats, skEnc uint16) {
 	sr.updateLock.Lock()
 	sr.allSSTS[skEnc] = sstMap
+	sr.updateLock.Unlock()
+}
+
+func (sr *SearchResults) AddResultCount(count uint64) {
+	sr.updateLock.Lock()
+	sr.resultCount += count
 	sr.updateLock.Unlock()
 }
 
@@ -487,7 +494,7 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
-func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
+func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
@@ -498,12 +505,20 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 	bucketHolder := &structs.BucketHolder{}
 	bucketHolder.MeasureVal = make(map[string]interface{})
 	bucketHolder.GroupByValues = []string{EMPTY_GROUPBY_KEY}
+	var measureVal interface{}
 	for mfName, aggVal := range sr.segStatsResults.measureResults {
+		measureVal = aggVal.CVal
 		switch aggVal.Dtype {
 		case utils.SS_DT_FLOAT:
-			bucketHolder.MeasureVal[mfName] = humanize.CommafWithDigits(aggVal.CVal.(float64), 3)
+			if humanizeValues {
+				measureVal = humanize.CommafWithDigits(measureVal.(float64), 3)
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
 		case utils.SS_DT_SIGNED_NUM:
-			bucketHolder.MeasureVal[mfName] = humanize.Comma(aggVal.CVal.(int64))
+			if humanizeValues {
+				measureVal = humanize.Comma(aggVal.CVal.(int64))
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
 		case utils.SS_DT_STRING:
 			bucketHolder.MeasureVal[mfName] = aggVal.CVal
 		case utils.SS_DT_STRING_SLICE:
@@ -517,7 +532,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
-	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, len(sr.segStatsResults.measureResults)
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, 1
 }
 
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
@@ -813,10 +828,10 @@ func (sr *SearchResults) GetAddSegEnc(sk string) uint16 {
 		return retval
 	}
 
-	retval = sr.MaxSegKeyEnc
-	sr.SegEncToKey[sr.MaxSegKeyEnc] = sk
-	sr.SegKeyToEnc[sk] = sr.MaxSegKeyEnc
-	sr.MaxSegKeyEnc++
+	retval = sr.NextSegKeyEnc
+	sr.SegEncToKey[sr.NextSegKeyEnc] = sk
+	sr.SegKeyToEnc[sk] = sr.NextSegKeyEnc
+	sr.NextSegKeyEnc++
 	return retval
 }
 
@@ -848,6 +863,7 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 
 func CreateMeasResultsFromAggResults(limit int,
 	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
+	newQueryPipeline := config.IsNewQueryPipelineEnabled()
 
 	bucketHolderArr := make([]*structs.BucketHolder, 0)
 	added := int(0)
@@ -856,6 +872,7 @@ func CreateMeasResultsFromAggResults(limit int,
 		for _, aggVal := range agg.Results {
 			measureVal := make(map[string]interface{})
 			groupByValues := make([]string, 0)
+			iGroupByValues := make([]utils.CValueEnclosure, 0)
 			for mName, mVal := range aggVal.StatRes {
 				rawVal, err := mVal.GetValue()
 				if err != nil {
@@ -869,31 +886,50 @@ func CreateMeasResultsFromAggResults(limit int,
 			if added >= limit {
 				break
 			}
+
+			if newQueryPipeline {
+				bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
+				if !ok {
+					log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", aggVal.BucketKey)
+					continue
+				}
+				for _, bk := range bucketKeySlice {
+					cValue := utils.CValueEnclosure{}
+					err := cValue.ConvertValue(bk)
+					if err != nil {
+						log.Errorf("CreateMeasResultsFromAggResults: failed to convert bucket key %+v", err)
+						cValue = utils.CValueEnclosure{
+							Dtype: utils.SS_DT_STRING,
+							CVal:  fmt.Sprintf("%+v", bk),
+						}
+					}
+					iGroupByValues = append(iGroupByValues, cValue)
+				}
+			}
+
 			switch bKey := aggVal.BucketKey.(type) {
 			case float64, uint64, int64:
 				bKeyConv := fmt.Sprintf("%+v", bKey)
 				groupByValues = append(groupByValues, bKeyConv)
 				added++
 			case []string:
-
-				for _, bk := range aggVal.BucketKey.([]string) {
-					groupByValues = append(groupByValues, bk)
-					added++
-				}
+				groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
+				added++
 			case string:
 				groupByValues = append(groupByValues, bKey)
 				added++
 			case []interface{}:
 				for _, bk := range aggVal.BucketKey.([]interface{}) {
 					groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
-					added++
 				}
+				added++
 			default:
 				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}
 			bucketHolder := &structs.BucketHolder{
-				GroupByValues: groupByValues,
-				MeasureVal:    measureVal,
+				IGroupByValues: iGroupByValues,
+				GroupByValues:  groupByValues,
+				MeasureVal:     measureVal,
 			}
 			bucketHolderArr = append(bucketHolderArr, bucketHolder)
 		}
