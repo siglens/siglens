@@ -74,7 +74,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	firstProcessorAgg := firstAgg
-	bottleNeckDpIndex := -1
 
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
@@ -101,9 +100,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
-
-		// Stats Block is a bottleneck command and hence searcher becomes the bottleneck
-		bottleNeckDpIndex = 0
 	}
 
 	dataProcessors := make([]*DataProcessor, 0)
@@ -127,9 +123,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 	for i := 1; i < len(dataProcessors); i++ {
 		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
-		if bottleNeckDpIndex < 0 && dataProcessors[i].isBottleneckCmd {
-			bottleNeckDpIndex = i
-		}
 	}
 
 	/*
@@ -142,9 +135,16 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 					dataProcessorSecondPart[0], ... dataProcessorSecondPart[n-1])
 			- The second part which contains the data processors after the bottleneck, will be executed locally.
 	*/
-	if bottleNeckDpIndex >= 0 && queryInfo.IsDistributed() {
-		chainedDp1 := dataProcessors[:bottleNeckDpIndex+1] // data processors until and including the bottleneck; first part
-		chainedDp2 := dataProcessors[bottleNeckDpIndex+1:] // data processors after the bottleneck; second part
+	if queryInfo.IsDistributed() {
+		splitIndex, shouldSplit := getSplitIndex(dataProcessors, queryType)
+		var chainedDp1, chainedDp2 []*DataProcessor
+		if shouldSplit {
+			chainedDp1 = dataProcessors[:splitIndex+1] // +1 to include the splitIndex data processor.
+			chainedDp2 = dataProcessors[splitIndex+1:] // +1 to exclude the splitIndex data processor.
+		} else {
+			chainedDp1 = dataProcessors
+		}
+
 		streamsAsAny := queryInfo.GetDQS().GetDistributedStreams(chainedDp1, queryInfo, includeNulls)
 		if streamsAsAny != nil {
 			streams, ok := streamsAsAny.([]*CachedStream)
@@ -216,6 +216,37 @@ func NewQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 		scrollFrom:    uint64(scrollFrom),
 		includeNulls:  includeNulls,
 	}, nil
+}
+
+// returns the index of the data processor where the split should happen and
+// whether the data processor should be split.
+func getSplitIndex(dataProcessors []*DataProcessor, queryType structs.QueryType) (int, bool) {
+	index := -1
+
+	if queryType == structs.GroupByCmd || queryType == structs.SegmentStatsCmd {
+		// Searcher becomes the bottleneck.
+		return index, true
+	}
+
+	splitIndexFound := false
+
+	for i, dp := range dataProcessors {
+		// if for a data processor, the input order matters or it is a two-pass command,
+		// then split the chain before this data processor.
+		if dp.isTwoPassCmd || dp.inputOrderMatters {
+			index = i - 1
+			splitIndexFound = true
+			break
+		}
+
+		if dp.isBottleneckCmd {
+			index = i
+			splitIndexFound = true
+			break
+		}
+	}
+
+	return index, splitIndexFound
 }
 
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
