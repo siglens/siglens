@@ -33,18 +33,18 @@ search_timechart_no_groupby.json
 tail.json
 sort_tail_eval_newField.json
 tail_stats.json
+streamstats_win3.json
+streamstats_win4_currF.json
+streamstats_win4_grpby.json
+streamstats_win4_reset_before_after.json
+streamstats_win2_gloF_currF_grpby.json
+streamstats_win2_gloF_grpby.json
+streamstats_multi_resets_grpby.json
+streamstats_eval.json
+streamstats_after_stats.json
 
 ## Uncomment when implemented for new pipline
 # rare.json
-# streamstats_win3.json
-# streamstats_win4_currF.json
-# streamstats_win4_grpby.json
-# streamstats_win4_reset_before_after.json
-# streamstats_win2_gloF_currF_grpby.json
-# streamstats_win2_gloF_grpby.json
-# streamstats_multi_resets_grpby.json
-# streamstats_eval.json
-# streamstats_after_stats.json
 # streamstats_after_grpby.json
 
 
