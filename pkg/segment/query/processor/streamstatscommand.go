@@ -48,13 +48,11 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	log.Infof("streamstats: starting processing for %d records with window=%d",
-		iqr.NumberOfRecords(), p.options.Window)
-
+	var timeValues []segutils.CValueEnclosure
 	if p.options.TimeWindow != nil {
 		timeValues, err := iqr.ReadColumn("timestamp")
 		if err != nil {
-			return nil, fmt.Errorf("streamstats: failed to read timestamp: %v", err)
+			return nil, fmt.Errorf("streamstats.Process: failed to read timestamp: %v", err)
 		}
 
 		for i := 1; i < len(timeValues); i++ {
@@ -63,16 +61,15 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 			if p.options.TimeSortAsc {
 				if curr < prev {
-					return nil, fmt.Errorf("streamstats: records must be sorted by time in ascending order for time_window")
+					return nil, fmt.Errorf("streamstats.Process: records must be sorted by time in ascending order for time_window")
 				}
 			} else {
 				if curr > prev {
-					return nil, fmt.Errorf("streamstats: records must be sorted by time in descending order for time_window")
+					return nil, fmt.Errorf("streamstats.Process: records must be sorted by time in descending order for time_window")
 				}
 			}
 		}
 	}
-
 
 	measureAggs := p.options.MeasureOperations
 	if p.options.GroupByRequest != nil {
@@ -115,14 +112,14 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	availableCols, err := iqr.GetColumns()
 	if err != nil {
-		return nil, fmt.Errorf("streamstats: failed to get columns: %v", err)
+		return nil, fmt.Errorf("streamstats.Process: failed to get columns: %v", err)
 	}
 
 	requiredValues := make(map[string][]segutils.CValueEnclosure)
 	for colName := range requiredColumns {
 		colValues, err := iqr.ReadColumn(colName)
 		if err != nil {
-			return nil, fmt.Errorf("streamstats: failed to read column %s: %v", colName, err)
+			return nil, fmt.Errorf("streamstats.Process: failed to read column %s: %v", colName, err)
 		}
 		requiredValues[colName] = colValues
 	}
@@ -130,13 +127,11 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	knownValues := make(map[string][]segutils.CValueEnclosure)
 
 	for colName := range availableCols {
-		if colName != "timestamp" { // Skip timestamp column
-			colValues, err := iqr.ReadColumn(colName)
-			if err != nil {
-				return nil, fmt.Errorf("streamstats: failed to read column %s: %v", colName, err)
-			}
-			knownValues[colName] = colValues
+		colValues, err := iqr.ReadColumn(colName)
+		if err != nil {
+			return nil, fmt.Errorf("streamstats.Process: failed to read column %s: %v", colName, err)
 		}
+		knownValues[colName] = colValues
 	}
 
 	for _, measureAgg := range measureAggs {
@@ -145,8 +140,8 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	bucketKey := ""
-	currentBucketKey := bucketKey
-	currIndex := 0
+	p.currentBucketKey = bucketKey
+	p.currentIndex = 0
 
 	for i := 0; i < iqr.NumberOfRecords(); i++ {
 		record := make(map[string]interface{})
@@ -166,9 +161,9 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
-		if p.options.ResetOnChange && currentBucketKey != bucketKey {
+		if p.options.ResetOnChange && p.currentBucketKey != bucketKey {
 			resetAccumulatedStreamStats(p.options)
-			currIndex = 0
+			p.currentIndex = 0
 		}
 
 		shouldResetBefore, err := evaluateResetCondition(p.options.ResetBefore, record)
@@ -177,7 +172,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 		if shouldResetBefore {
 			resetAccumulatedStreamStats(p.options)
-			currIndex = 0
+			p.currentIndex = 0
 		}
 
 		for measIdx, measureAgg := range measureAggs {
@@ -214,7 +209,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			} else {
 				var timeInMilli uint64
 				if p.options.TimeWindow != nil {
-					timeValues, err := iqr.ReadColumn("timestamp")
 					if err != nil {
 						return nil, err
 					}
@@ -222,7 +216,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				}
 
 				result, exists, err = PerformWindowStreamStatsOnSingleFunc(
-					currIndex,
+					p.currentIndex,
 					p.options,
 					p.options.RunningStreamStats[measIdx][bucketKey],
 					int(p.options.Window),
@@ -235,7 +229,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 
 			if err != nil {
-				return nil, fmt.Errorf("streamstats: error processing measure %v: %v", measureAgg.String(), err)
+				return nil, fmt.Errorf("streamstats.Process: error processing measure %v: %v", measureAgg.String(), err)
 			}
 
 			resultCol := measureAgg.String()
@@ -257,7 +251,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 
 		p.options.NumProcessedRecords++
-		currIndex++
+		p.currentIndex++
 
 		shouldResetAfter, err := evaluateResetCondition(p.options.ResetAfter, record)
 		if err != nil {
@@ -265,16 +259,16 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 		if shouldResetAfter {
 			resetAccumulatedStreamStats(p.options)
-			currIndex = 0
+			p.currentIndex = 0
 		}
 
-		currentBucketKey = bucketKey
+		p.currentBucketKey = bucketKey
 	}
 
 	if len(knownValues) > 0 {
 		err := iqr.AppendKnownValues(knownValues)
 		if err != nil {
-			return nil, fmt.Errorf("streamstats: failed to append results: %v", err)
+			return nil, fmt.Errorf("streamstats.Process: failed to append results: %v", err)
 		}
 	}
 
@@ -284,6 +278,10 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 func (p *streamstatsProcessor) Rewind() {
 	p.currentIndex = 0
 	p.currentBucketKey = ""
+
+	if p.options != nil {
+		resetAccumulatedStreamStats(p.options)
+	}
 }
 
 func (p *streamstatsProcessor) Cleanup() {
