@@ -55,7 +55,7 @@ const DEFAULT_ROTATED_CMI_MEM_PERCENT = 63
 const DEFAULT_METADATA_MEM_PERCENT = 20
 const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const DEFAULT_METRICS_MEM_PERCENT = 2
-const DEFAULT_MEM_PER_QUERY = 100 * 1024 * 1024 // 200MB
+const DEFAULT_MEM_PER_QUERY = 100 * 1024 * 1024 // 100MB
 
 const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
 
