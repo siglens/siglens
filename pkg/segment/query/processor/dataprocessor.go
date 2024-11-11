@@ -539,14 +539,3 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		isTwoPassCmd:      false,
 	}
 }
-
-func NewEofDP() *DataProcessor {
-	return &DataProcessor{
-		streams:           make([]*CachedStream, 0),
-		processor:         &eofProcessor{},
-		inputOrderMatters: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   true,
-		isTwoPassCmd:      false,
-	}
-}

@@ -62,7 +62,3 @@ func (d *DistributedQueryService) IsDistributed() bool {
 	}
 	return d.isDistributed
 }
-
-func (d *DistributedQueryService) GetDistributedStreams(chainedDp interface{}, searcher interface{}, queryInfo *QueryInformation) interface{} {
-	return nil
-}
