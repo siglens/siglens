@@ -150,6 +150,9 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			streams, ok := streamsAsAny.([]*CachedStream)
 			if ok {
 				if len(chainedDp2) == 0 {
+					// Since there are no data processors after the bottleneck,
+					// we will hook up an EOF data processor as the bottleneck command
+					// fetches all the data from all the worked node streams.
 					chainedDp2 = []*DataProcessor{NewEofDP()}
 				}
 				// Hook up the streams to the first data processor in the second part.
