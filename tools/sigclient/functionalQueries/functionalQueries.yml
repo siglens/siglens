@@ -33,6 +33,8 @@ search_timechart_no_groupby.json
 tail.json
 sort_tail_eval_newField.json
 tail_stats.json
+dedup_sortby_consecutive.json
+dedup_sortby.json
 streamstats_win3.json
 streamstats_win4_currF.json
 streamstats_win4_grpby.json

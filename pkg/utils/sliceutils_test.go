@@ -48,6 +48,26 @@ func Test_ResizeSliceWithDefault(t *testing.T) {
 	assert.Equal(t, newSlice[5:], []int{42, 42, 42, 42, 42})
 }
 
+func Test_GrowSliceInChunks(t *testing.T) {
+	slice, err := GrowSliceInChunks(make([]int, 10), 5, 5)
+	assert.NoError(t, err)
+	assert.Len(t, slice, 10)
+
+	slice, err = GrowSliceInChunks(make([]int, 10), 15, 5)
+	assert.NoError(t, err)
+	assert.Len(t, slice, 15)
+
+	slice, err = GrowSliceInChunks(make([]int, 10), 15, 3)
+	assert.NoError(t, err)
+	assert.Len(t, slice, 16)
+
+	_, err = GrowSliceInChunks(make([]int, 10), 15, -1)
+	assert.Error(t, err)
+
+	_, err = GrowSliceInChunks(make([]int, 10), -1, 3)
+	assert.Error(t, err)
+}
+
 func Test_ConvertSliceToMap_EmptySlice(t *testing.T) {
 	emptySlice := []string{}
 	result := ConvertSliceToMap(emptySlice, func(s string) string {
