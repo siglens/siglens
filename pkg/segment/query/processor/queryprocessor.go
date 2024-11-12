@@ -438,30 +438,24 @@ func createEmptyResponse(queryType structs.QueryType) *structs.PipeSearchRespons
 }
 
 func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
+	hasSort := false
+	timeSort := false
+	timeSortAsc := true
 
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.HasSortBlock() {
+			hasSort = true
+			timeSort, timeSortAsc = aggregations.CheckIfTimeSort(curAgg)
+		}
+		if curAgg.HasTail() {
+			timeSortAsc = !timeSortAsc
+		}
+
 		if curAgg.StreamstatsExpr != nil && curAgg.StreamstatsExpr.TimeWindow != nil {
-			// Check all previous commands up to this point
-			hasSort := false
-			timeSort := false
-			timeSortAsc := true
-
-			// Check commands that come before streamstats
-			for prevAgg := firstAgg; prevAgg != curAgg; prevAgg = prevAgg.Next {
-				if prevAgg.HasSortBlock() {
-					hasSort = true
-					timeSort, timeSortAsc = aggregations.CheckIfTimeSort(prevAgg)
-				}
-				if prevAgg.HasTail() {
-					timeSortAsc = !timeSortAsc
-				}
-			}
-
 			// If there's a non-timestamp sort before streamstats, return error
 			if hasSort && !timeSort {
 				return utils.TeeErrorf("streamstats with time_window requires records to maintain timestamp order")
 			}
-
 			curAgg.StreamstatsExpr.TimeSortAsc = timeSortAsc
 		}
 	}
