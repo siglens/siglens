@@ -63,6 +63,7 @@ var esBulkCmd = &cobra.Command{
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
 		maxColumns, _ := cmd.Flags().GetUint32("maxColumns")
 		minColumns, _ := cmd.Flags().GetUint32("minColumns")
+		uniqColumns, _ := cmd.Flags().GetUint32("uniqColumns")
 		enableVariableNumColumns, _ := cmd.Flags().GetBool("enableVariableNumColumns")
 
 		if eventsPerDay > 0 {
@@ -79,7 +80,11 @@ var esBulkCmd = &cobra.Command{
 				log.Fatalf("maxColumns must be greater than 0")
 				return
 			}
-			dataGeneratorConfig = ingest.GetGeneratorDataConfig(int(maxColumns), enableVariableNumColumns, int(minColumns))
+			if uniqColumns != 0 && uniqColumns < maxColumns {
+				log.Fatalf("uniqColumns must be greater than or equal to maxColumns")
+				return
+			}
+			dataGeneratorConfig = ingest.GetGeneratorDataConfig(int(maxColumns), enableVariableNumColumns, int(minColumns), int(uniqColumns))
 		}
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -478,6 +483,7 @@ func init() {
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate. Default is 100")
 	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
+	esBulkCmd.PersistentFlags().Uint32P("uniqColumns", "", 0, "unique column names to generate")
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
