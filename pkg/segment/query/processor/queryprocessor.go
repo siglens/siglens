@@ -128,7 +128,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
 		result := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
-		dataProcessors = result.([]*DataProcessor)
+		chainedDp, ok := result.([]*DataProcessor)
+		if !ok {
+			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", result)
+		} else {
+			dataProcessors = chainedDp
+		}
 	}
 
 	var lastStreamer Streamer = searcher
