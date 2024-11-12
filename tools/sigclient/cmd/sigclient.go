@@ -80,7 +80,7 @@ var esBulkCmd = &cobra.Command{
 				log.Fatalf("maxColumns must be greater than 0")
 				return
 			}
-			if uniqColumns < maxColumns {
+			if uniqColumns != 0 && uniqColumns < maxColumns {
 				log.Fatalf("uniqColumns must be greater than or equal to maxColumns")
 				return
 			}
