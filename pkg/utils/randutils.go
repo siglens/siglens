@@ -17,34 +17,16 @@
 
 package utils
 
-import (
-	"testing"
+import "math/rand"
 
-	"github.com/stretchr/testify/assert"
-)
+func RandomBuffer(size int, seed int) []byte {
+	source := rand.NewSource(int64(seed))
+	rand := rand.New(source)
+	buf := make([]byte, size)
 
-func Test_Append_toEmpty(t *testing.T) {
-	data := []byte("hello")
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
-}
+	for i := 0; i < size; i++ {
+		buf[i] = byte(rand.Intn(256))
+	}
 
-func Test_Append_spanningChunk(t *testing.T) {
-	seed := 42
-	data := RandomBuffer(chunkSize+10, seed)
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
-}
-
-func Test_Append_spanningMultipleChunks(t *testing.T) {
-	seed := 42
-	data := RandomBuffer(chunkSize*3+10, seed)
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
+	return buf
 }

@@ -33,24 +33,27 @@ func (b *Buffer) Append(data []byte) {
 		return
 	}
 
-	if len(data) == 0 {
-		return
-	}
+	for {
+		if len(data) == 0 {
+			return
+		}
 
-	var availableBytes int
-	if b.offset > 0 {
-		availableBytes = chunkSize - b.offset
-	} else {
-		b.chunks = append(b.chunks, make([]byte, chunkSize))
-		availableBytes = chunkSize
-	}
+		var availableBytes int
+		if b.offset > 0 {
+			availableBytes = chunkSize - b.offset
+		} else {
+			b.chunks = append(b.chunks, make([]byte, chunkSize))
+			availableBytes = chunkSize
+		}
 
-	if len(data) <= availableBytes {
-		copy(b.chunks[len(b.chunks)-1][b.offset:], data)
-		b.offset += len(data)
-	} else {
-		// TODO
-		panic("not implemented")
+		if len(data) <= availableBytes {
+			copy(b.chunks[len(b.chunks)-1][b.offset:], data)
+			b.offset += len(data)
+			return
+		}
+
+		copy(b.chunks[len(b.chunks)-1][b.offset:], data[:availableBytes])
+		data = data[availableBytes:]
 	}
 }
 
