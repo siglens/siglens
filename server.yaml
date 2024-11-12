@@ -13,7 +13,7 @@ dataPath : data/
 ## field name to use as a timestamp key
 timestampKey : timestamp
 
-pqsEnabled: true
+pqsEnabled: false
 
 ## Elasticsearch Version for kibana integration
 esVersion: "7.9.3"
