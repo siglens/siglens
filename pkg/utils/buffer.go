@@ -88,8 +88,9 @@ func (b *Buffer) Append(data []byte) {
 	}
 }
 
-// Returns a slice like [start:end] of the buffer's contents.
-func (b *Buffer) Read(start int, end int) []byte {
+// If Buffer was a normal contiguous slice, Slice(start, end) would be
+// equivalent to Buffer[start:end].
+func (b *Buffer) Slice(start int, end int) []byte {
 	if b == nil || b.chunks == nil {
 		return nil
 	}
@@ -112,16 +113,14 @@ func (b *Buffer) Read(start int, end int) []byte {
 	buf := make([]byte, end-start)
 	numSkippedChunks := start / chunkSize
 	copy(buf, b.chunks[numSkippedChunks][start%chunkSize:])
-	tmp := buf[chunkSize-(start%chunkSize):]
-	i := 0
-	for i = numSkippedChunks + 1; i < end/chunkSize; i++ {
-		copy(tmp, b.chunks[i])
-		tmp = tmp[chunkSize:]
+	offset := chunkSize - (start % chunkSize)
+	for i := numSkippedChunks + 1; i <= end/chunkSize; i++ {
+		// Note: on the last iteration, we generally don't wnat to copy the
+		// whole chunk, but since copy() copies the minimum of the two slice
+		// lengths, we don't need to do anything special.
+		copy(buf[offset:], b.chunks[i])
+		offset += chunkSize
 	}
-
-	// Since copy() copies the minimum of the two slice lengths, we don't need
-	// to slice chunks[i] here.
-	copy(tmp, b.chunks[i])
 
 	return buf
 }

@@ -103,15 +103,15 @@ func Test_Reset(t *testing.T) {
 	testAppendAndRead(t, buffer, data3)
 }
 
-func Test_Read(t *testing.T) {
+func Test_Slice(t *testing.T) {
 	seed := 42
 	data := RandomBuffer(chunkSize*3+10, seed)
 	buffer := &Buffer{}
 	buffer.Append(data)
 
-	assert.Equal(t, data[:10], buffer.Read(0, 10))
-	assert.Equal(t, data[chunkSize*3:], buffer.Read(chunkSize*3, buffer.Len()))
-	assert.Equal(t, data[chunkSize-5:chunkSize], buffer.Read(chunkSize-5, chunkSize))
-	assert.Equal(t, data[chunkSize-5:chunkSize+5], buffer.Read(chunkSize-5, chunkSize+5))
-	assert.Equal(t, data, buffer.Read(0, buffer.Len()))
+	assert.Equal(t, data[:10], buffer.Slice(0, 10))
+	assert.Equal(t, data[chunkSize*3:], buffer.Slice(chunkSize*3, buffer.Len()))
+	assert.Equal(t, data[chunkSize-5:chunkSize], buffer.Slice(chunkSize-5, chunkSize))
+	assert.Equal(t, data[chunkSize-5:chunkSize+5], buffer.Slice(chunkSize-5, chunkSize+5))
+	assert.Equal(t, data, buffer.Slice(0, buffer.Len()))
 }
