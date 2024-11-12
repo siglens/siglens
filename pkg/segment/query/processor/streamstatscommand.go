@@ -49,9 +49,9 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	timeValues, err := p.validateTimeWindow(iqr)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	measureAggs := p.options.MeasureOperations
 	if p.options.GroupByRequest != nil {
@@ -970,30 +970,30 @@ func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fiel
 }
 
 func (p *streamstatsProcessor) validateTimeWindow(iqr *iqr.IQR) ([]segutils.CValueEnclosure, error) {
-    if p.options.TimeWindow == nil {
-        return nil, nil
-    }
+	if p.options.TimeWindow == nil {
+		return nil, nil
+	}
 
-    timeValues, err := iqr.ReadColumn("timestamp")
-    if err != nil {
-        return nil, fmt.Errorf("streamstats.validateTimeWindow: failed to read timestamp: %v", err)
-    }
+	timeValues, err := iqr.ReadColumn("timestamp")
+	if err != nil {
+		return nil, fmt.Errorf("streamstats.validateTimeWindow: failed to read timestamp: %v", err)
+	}
 
-    // Validate timestamp order
-    for i := 1; i < len(timeValues); i++ {
-        curr := timeValues[i].CVal.(uint64)
-        prev := timeValues[i-1].CVal.(uint64)
+	// Validate timestamp order
+	for i := 1; i < len(timeValues); i++ {
+		curr := timeValues[i].CVal.(uint64)
+		prev := timeValues[i-1].CVal.(uint64)
 
-        if p.options.TimeSortAsc {
-            if curr < prev {
-                return nil, fmt.Errorf("streamstats.validateTimeWindow: records must be sorted by time in ascending order for time_window")
-            }
-        } else {
-            if curr > prev {
-                return nil, fmt.Errorf("streamstats.validateTimeWindow: records must be sorted by time in descending order for time_window")
-            }
-        }
-    }
+		if p.options.TimeSortAsc {
+			if curr < prev {
+				return nil, fmt.Errorf("streamstats.validateTimeWindow: records must be sorted by time in ascending order for time_window")
+			}
+		} else {
+			if curr > prev {
+				return nil, fmt.Errorf("streamstats.validateTimeWindow: records must be sorted by time in descending order for time_window")
+			}
+		}
+	}
 
-    return timeValues, nil
+	return timeValues, nil
 }
