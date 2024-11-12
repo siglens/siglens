@@ -23,41 +23,37 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func testAppendAndRead(t *testing.T, buffer *Buffer, data ...[]byte) {
+	joinedData := []byte{}
+	for _, d := range data {
+		buffer.Append(d)
+		joinedData = append(joinedData, d...)
+		assert.Equal(t, len(joinedData), buffer.Len())
+
+		readData := buffer.ReadAll()
+		assert.Equal(t, joinedData, readData)
+	}
+}
+
 func Test_Append_toEmpty(t *testing.T) {
-	data := []byte("hello")
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
+	testAppendAndRead(t, &Buffer{}, []byte("hello"))
 }
 
 func Test_Append_spanningChunk(t *testing.T) {
 	seed := 42
 	data := RandomBuffer(chunkSize+10, seed)
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
+	testAppendAndRead(t, &Buffer{}, data)
 }
 
 func Test_Append_spanningMultipleChunks(t *testing.T) {
 	seed := 42
 	data := RandomBuffer(chunkSize*3+10, seed)
-	buffer := Buffer{}
-	buffer.Append(data)
-	readData := buffer.ReadAll()
-	assert.Equal(t, data, readData)
+	testAppendAndRead(t, &Buffer{}, data)
 }
 
 func Test_Append_multiple(t *testing.T) {
 	seed := 42
 	data1 := RandomBuffer(chunkSize*1+50, seed)
 	data2 := RandomBuffer(chunkSize*2+10, seed+1)
-	buffer := Buffer{}
-	buffer.Append(data1)
-	buffer.Append(data2)
-
-	assert.Equal(t, len(data1)+len(data2), buffer.Len())
-	readData := buffer.ReadAll()
-	assert.Equal(t, append(data1, data2...), readData)
+	testAppendAndRead(t, &Buffer{}, data1, data2)
 }
