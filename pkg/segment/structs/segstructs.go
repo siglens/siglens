@@ -189,7 +189,6 @@ type QueryAggregators struct {
 	HeadExpr        *HeadExpr
 	MakeMVExpr      *MultiValueColLetRequest
 	MVExpandExpr    *MultiValueColLetRequest
-	RareExpr        *StatisticExpr
 	RegexExpr       *RegexExpr
 	RenameExp       *RenameExp
 	RexExpr         *RexExpr
@@ -198,7 +197,7 @@ type QueryAggregators struct {
 	StreamstatsExpr *StreamStatsOptions
 	TailExpr        *TailExpr
 	TimechartExpr   *TimechartExpr
-	TopExpr         *StatisticExpr
+	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
 }
@@ -1181,6 +1180,14 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+func (qa *QueryAggregators) HasTopExpr() bool {
+	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMTop
+}
+
+func (qa *QueryAggregators) HasRareExpr() bool {
+	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMRare
 }
 
 func (qa *QueryAggregators) HasStatsBlock() bool {

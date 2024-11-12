@@ -4,65 +4,101 @@
         "bucketCount": 6,
         "qtype": "aggs-query",
         "groupByCols": [
-           "http_method"
+            "http_method"
         ],
         "measureFunctions": [
-            "rare_pc",
-            "rare_count"
+            "rare_count",
+            "rare_pc"
         ],
         "measure": [
             {
-                "GroupByValues": [
-                    "POST"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    }
                 ],
-                "MeasureVal": {
-                    "rare_count": 148,
-                    "rare_pc": "15.040650"
-                }
-            },
-            {
                 "GroupByValues": [
                     "PATCH"
                 ],
                 "MeasureVal": {
-                    "rare_count": 153,
-                    "rare_pc": "15.548780"
+                    "rare_count": 33732,
+                    "rare_pc": 16.539591
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    }
+                ],
                 "GroupByValues": [
                     "PUT"
                 ],
                 "MeasureVal": {
-                    "rare_count": 154,
-                    "rare_pc": "15.650407"
+                    "rare_count": 33814,
+                    "rare_pc": 16.579798
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    }
+                ],
                 "GroupByValues": [
-                    "HEAD"
+                    "POST"
                 ],
                 "MeasureVal": {
-                    "rare_count": 168,
-                    "rare_pc": "17.073171"
+                    "rare_count": 33867,
+                    "rare_pc": 16.605785
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    }
+                ],
                 "GroupByValues": [
                     "GET"
                 ],
                 "MeasureVal": {
-                    "rare_count": 174,
-                    "rare_pc": "17.682927"
+                    "rare_count": 33894,
+                    "rare_pc": 16.619024
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    }
+                ],
                 "GroupByValues": [
                     "DELETE"
                 ],
                 "MeasureVal": {
-                    "rare_count": 187,
-                    "rare_pc": "19.004065"
+                    "rare_count": 34154,
+                    "rare_pc": 16.746508
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "rare_count": 34486,
+                    "rare_pc": 16.909295
                 }
             }
         ]

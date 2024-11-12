@@ -437,10 +437,20 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
+func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
+	if options.HasTopExpr() {
+		return NewTopDP(options)
+	} else if options.HasRareExpr() {
+		return NewRareDP(options)
+	} else {
+		return nil
+	}
+}
+
+func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &topProcessor{options: options},
+		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
@@ -448,10 +458,10 @@ func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
 	}
 }
 
-func NewRareDP(options *structs.StatisticExpr) *DataProcessor {
+func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
 		streams:           make([]*cachedStream, 0),
-		processor:         &rareProcessor{options: options},
+		processor:         NewRareProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,

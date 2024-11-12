@@ -302,6 +302,10 @@ func (s *searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 
 	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary)
 
+	if aggs.StatisticExpr != nil {
+		aggs.StatisticExpr.AggregationResult = nodeResult.Histogram
+	}
+
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 	nodeResult.MeasureResults = bucketHolderArr
 	nodeResult.MeasureFunctions = measureFuncs

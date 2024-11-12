@@ -165,7 +165,6 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{InputLookupExpr: &structs.InputLookup{}},
 		{HeadExpr: &structs.HeadExpr{}},
 		{MakeMVExpr: &structs.MultiValueColLetRequest{}},
-		{RareExpr: &structs.StatisticExpr{}},
 		{RegexExpr: &structs.RegexExpr{}},
 		{RexExpr: &structs.RexExpr{}},
 		{SortExpr: &structs.SortExpr{}},
@@ -173,7 +172,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{StreamstatsExpr: &structs.StreamStatsOptions{}},
 		{TailExpr: &structs.TailExpr{}},
 		{TimechartExpr: &structs.TimechartExpr{}},
-		{TopExpr: &structs.StatisticExpr{}},
+		{StatisticExpr: &structs.StatisticExpr{}},
 		{TransactionExpr: &structs.TransactionArguments{}},
 		{WhereExpr: &structs.BoolExpr{}},
 	}

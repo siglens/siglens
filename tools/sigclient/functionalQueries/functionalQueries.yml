@@ -35,6 +35,10 @@ sort_tail_eval_newField.json
 tail_stats.json
 dedup_sortby_consecutive.json
 dedup_sortby.json
+top.json
+rare.json
+rare_top.json
+stats_top.json
 streamstats_win3.json
 streamstats_win4_currF.json
 streamstats_win4_grpby.json
@@ -47,16 +51,10 @@ streamstats_after_stats.json
 streamstats_after_grpby.json
 streamstats_without_sort.json
 
-## Uncomment when implemented for new pipline
-# rare.json
-
-
 ## Queries not working for multi-index
 # transaction.json
 
 ## Queries that have different Websocket and Http client results
-# stats_top.json
-# rare_top.json
 
 ## Queries not working in generalized Unique spl queries
 # stats_with_timestamp.json

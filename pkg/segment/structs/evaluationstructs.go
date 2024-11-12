@@ -95,6 +95,7 @@ type StatisticExpr struct {
 	StatisticOptions      *StatisticOptions
 	FieldList             []string //Must have FieldList
 	ByClause              []string
+	AggregationResult     map[string]*AggregationResult
 }
 
 type StatisticOptions struct {
@@ -1309,6 +1310,8 @@ func (self *ConcatExpr) GetFields() []string {
 
 func GetBucketKey(BucketKey interface{}, keyIndex int) string {
 	switch bucketKey := BucketKey.(type) {
+	case []interface{}:
+		return fmt.Sprintf("%v", bucketKey[keyIndex])
 	case []string:
 		return bucketKey[keyIndex]
 	case string:
@@ -1320,6 +1323,7 @@ func GetBucketKey(BucketKey interface{}, keyIndex int) string {
 
 func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTotal uint64) error {
 
+	var cellValue interface{}
 	cellValueStr := ""
 	for keyIndex, groupByCol := range bucketResult.GroupByKeys {
 		if !self.StatisticOptions.ShowCount || !self.StatisticOptions.ShowPerc || (self.StatisticOptions.CountField != groupByCol && self.StatisticOptions.PercentField != groupByCol) {
@@ -1327,16 +1331,21 @@ func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTot
 		}
 
 		if self.StatisticOptions.ShowCount && self.StatisticOptions.CountField == groupByCol {
+			cellValue = bucketResult.ElemCount
 			cellValueStr = strconv.FormatUint(bucketResult.ElemCount, 10)
 		}
 
 		if self.StatisticOptions.ShowPerc && self.StatisticOptions.PercentField == groupByCol {
 			percent := float64(bucketResult.ElemCount) / float64(resTotal) * 100
+			cellValue = float64(math.Round(percent*1e6) / 1e6)
 			cellValueStr = fmt.Sprintf("%.6f", percent)
 		}
 
 		// Set the appropriate element of BucketKey to cellValueStr.
 		switch bucketKey := bucketResult.BucketKey.(type) {
+		case []interface{}:
+			bucketKey[keyIndex] = cellValue
+			bucketResult.BucketKey = bucketKey
 		case []string:
 			bucketKey[keyIndex] = cellValueStr
 			bucketResult.BucketKey = bucketKey
@@ -1362,8 +1371,8 @@ func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEncl
 func (self *StatisticExpr) SetPercToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64, resTotal uint64) {
 	percent := float64(elemCount) / float64(resTotal) * 100
 	statRes[self.StatisticOptions.PercentField] = utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  fmt.Sprintf("%.6f", percent),
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(math.Round(percent*1e6) / 1e6),
 	}
 }
 
@@ -1475,7 +1484,28 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 	groupByCols := self.GetFields()
 	groupByKeys := make([]string, 0)
 	bucketKey := make([]string, 0)
+	iBucketKey := make([]interface{}, 0)
+
 	switch bucketResult.BucketKey.(type) {
+	case []interface{}:
+		bucketKeySlice := bucketResult.BucketKey.([]interface{})
+		for _, field := range groupByCols {
+			for rowIndex, groupByCol := range bucketResult.GroupByKeys {
+				if field == groupByCol {
+					groupByKeys = append(groupByKeys, field)
+					iBucketKey = append(iBucketKey, bucketKeySlice[rowIndex])
+					break
+				}
+				//Can not find field in GroupByCol, so it may in the StatRes
+				val, exists := bucketResult.StatRes[field]
+				if exists {
+					groupByKeys = append(groupByKeys, field)
+					iBucketKey = append(iBucketKey, val)
+					delete(bucketResult.StatRes, field)
+				}
+			}
+		}
+		bucketResult.BucketKey = iBucketKey
 	case []string:
 		bucketKeyStrs := bucketResult.BucketKey.([]string)
 
