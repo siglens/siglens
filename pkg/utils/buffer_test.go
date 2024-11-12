@@ -32,6 +32,7 @@ func testAppendAndRead(t *testing.T, buffer *Buffer, data ...[]byte) {
 
 		readData, err := buffer.ReadAll()
 		assert.NoError(t, err)
+		assert.Equal(t, len(readData), buffer.Len())
 		assert.Equal(t, joinedData, readData)
 	}
 }
@@ -75,4 +76,29 @@ func Test_CopyTo(t *testing.T) {
 	err = buffer.CopyTo(bytes)
 	assert.NoError(t, err)
 	assert.Equal(t, data, bytes)
+}
+
+func Test_Len(t *testing.T) {
+	buffer := &Buffer{}
+	assert.Equal(t, 0, buffer.Len())
+
+	seed := 42
+	data1 := RandomBuffer(chunkSize*0+10, seed)
+	data2 := RandomBuffer(chunkSize*1+10, seed+1)
+	testAppendAndRead(t, buffer, data1, data2)
+
+	assert.Equal(t, len(data1)+len(data2), buffer.Len())
+}
+
+func Test_Reset(t *testing.T) {
+	seed := 42
+	data1 := RandomBuffer(chunkSize*3+10, seed)
+	data2 := RandomBuffer(chunkSize*2+10, seed+1)
+	buffer := &Buffer{}
+	testAppendAndRead(t, buffer, data1, data2)
+
+	buffer.Reset()
+	assert.Equal(t, 0, buffer.Len())
+	data3 := RandomBuffer(chunkSize*1+10, seed+2)
+	testAppendAndRead(t, buffer, data3)
 }

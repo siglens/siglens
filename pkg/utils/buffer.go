@@ -17,9 +17,23 @@
 
 package utils
 
-import log "github.com/sirupsen/logrus"
+import (
+	"sync"
+
+	log "github.com/sirupsen/logrus"
+)
 
 const chunkSize = 1024
+
+var chunkPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]byte, chunkSize)
+		return &slice
+	},
+}
 
 type Buffer struct {
 	chunks [][]byte
@@ -52,7 +66,13 @@ func (b *Buffer) Append(data []byte) {
 		if b.offset > 0 {
 			availableBytes = chunkSize - b.offset
 		} else {
-			b.chunks = append(b.chunks, make([]byte, chunkSize))
+			nextChunk, ok := chunkPool.Get().(*[]byte)
+			if ok {
+				b.chunks = append(b.chunks, *nextChunk)
+			} else {
+				log.Warnf("Buffer.Append: failed to get chunk from pool")
+				b.chunks = append(b.chunks, make([]byte, chunkSize))
+			}
 			availableBytes = chunkSize
 		}
 
@@ -110,4 +130,13 @@ func (b *Buffer) CopyTo(dst []byte) error {
 	copy(dst[offset:], b.chunks[len(b.chunks)-1][:b.offset])
 
 	return nil
+}
+
+func (b *Buffer) Reset() {
+	for i := range b.chunks {
+		chunkPool.Put(&b.chunks[i])
+	}
+
+	b.chunks = nil
+	b.offset = 0
 }
