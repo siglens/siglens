@@ -19,12 +19,18 @@ package utils
 
 const chunkSize = 1024
 
-type Buffer struct{}
+type Buffer struct {
+	chunks [][]byte
+}
+
+func (b *Buffer) Append(data []byte) error {
+	return nil
+}
 
 func (b *Buffer) Read(start int, end int) ([]byte, error) {
 	return nil, nil
 }
 
-func (b *Buffer) Append(data []byte) error {
+func (b *Buffer) ReadAll() []byte {
 	return nil
 }

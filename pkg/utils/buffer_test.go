@@ -16,3 +16,17 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package utils
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_Append_toEmpty(t *testing.T) {
+	data := []byte("hello")
+	buffer := Buffer{}
+	buffer.Append(data)
+	readData := buffer.ReadAll()
+	assert.Equal(t, data, readData)
+}
