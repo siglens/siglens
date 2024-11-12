@@ -217,8 +217,9 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 		each := uniqColumns / maxColumns
 		for i := 0; i < maxColumns; i++ {
 			MaxColSuffix[i] = each
-			if i < extra {
+			if extra > 0 {
 				MaxColSuffix[i]++
+				extra--
 			}
 		}
 		genConfig.MaxColSuffix = MaxColSuffix
@@ -378,6 +379,10 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, acco
 }
 
 func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
+	for col := range m {
+		delete(m, col)
+	}
+
 	dynamicUserColumnsLen := len(dynamicUserColumnNames)
 	dynamicUserColIndex := 0
 
@@ -423,10 +428,6 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 			p = f.Person()
 		}
 
-		if len(config.MaxColSuffix) > 0 {
-			colSuffix = rand.Intn(config.MaxColSuffix[dynamicUserColIndex])
-		}
-
 		cname := dynamicUserColumnNames[dynamicUserColIndex]
 		insertColName := getColumnName(cname, colSuffix)
 
@@ -437,6 +438,10 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 				delete(m, insertColName)
 				continue
 			}
+		}
+
+		if len(config.MaxColSuffix) > 0 {
+			insertColName = fmt.Sprintf("%v_%v", insertColName, rand.Intn(config.MaxColSuffix[colCount]))
 		}
 
 		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
