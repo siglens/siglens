@@ -103,6 +103,7 @@ type GeneratorDataConfig struct {
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
 	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
 	EndTimestamp    time.Time
+	MaxColSuffix    []int
 }
 
 type FunctionalTestConfig struct {
@@ -191,7 +192,7 @@ func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int
 	}
 }
 
-func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
+func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int, uniqColumns int) *GeneratorDataConfig {
 	if minColumns > maxColumns {
 		minColumns = maxColumns
 	}
@@ -203,11 +204,27 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 	if minColumns == maxColumns {
 		variableColumns = false
 	}
-	return &GeneratorDataConfig{
+
+	genConfig := &GeneratorDataConfig{
 		MaxColumns:      maxColumns,
 		VariableColumns: variableColumns,
 		MinColumns:      minColumns,
 	}
+
+	if uniqColumns > 0 {
+		MaxColSuffix := make([]int, maxColumns)
+		extra := uniqColumns % maxColumns
+		each := uniqColumns / maxColumns
+		for i := 0; i < maxColumns; i++ {
+			MaxColSuffix[i] = each
+			if i < extra {
+				MaxColSuffix[i]++
+			}
+		}
+		genConfig.MaxColSuffix = MaxColSuffix
+	}
+
+	return genConfig
 }
 
 func InitDynamicUserGenerator(ts bool, seed int64, accfakerSeed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
@@ -404,6 +421,10 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 			dynamicUserColIndex = 0
 			colSuffix++
 			p = f.Person()
+		}
+
+		if len(config.MaxColSuffix) > 0 {
+			colSuffix = rand.Intn(config.MaxColSuffix[dynamicUserColIndex])
 		}
 
 		cname := dynamicUserColumnNames[dynamicUserColIndex]
