@@ -21,10 +21,37 @@ const chunkSize = 1024
 
 type Buffer struct {
 	chunks [][]byte
+	offset int // Index of first unused byte in the last chunk
 }
 
-func (b *Buffer) Append(data []byte) error {
-	return nil
+func (b *Buffer) Len() int {
+	return b.offset + (len(b.chunks)-1)*chunkSize
+}
+
+func (b *Buffer) Append(data []byte) {
+	if b == nil {
+		return
+	}
+
+	if len(data) == 0 {
+		return
+	}
+
+	var availableBytes int
+	if b.offset > 0 {
+		availableBytes = chunkSize - b.offset
+	} else {
+		b.chunks = append(b.chunks, make([]byte, chunkSize))
+		availableBytes = chunkSize
+	}
+
+	if len(data) <= availableBytes {
+		copy(b.chunks[len(b.chunks)-1][b.offset:], data)
+		b.offset += len(data)
+	} else {
+		// TODO
+		panic("not implemented")
+	}
 }
 
 func (b *Buffer) Read(start int, end int) ([]byte, error) {
@@ -32,5 +59,18 @@ func (b *Buffer) Read(start int, end int) ([]byte, error) {
 }
 
 func (b *Buffer) ReadAll() []byte {
-	return nil
+	if len(b.chunks) == 0 {
+		return nil
+	}
+
+	buf := make([]byte, b.Len())
+	offset := 0
+	for i := 0; i < len(b.chunks)-1; i++ {
+		copy(buf[offset:], b.chunks[i])
+		offset += chunkSize
+	}
+
+	copy(buf[offset:], b.chunks[len(b.chunks)-1][:b.offset])
+
+	return buf
 }
