@@ -21,7 +21,6 @@
                 "min": 301,
                 "range": 0,
                 "sum": 301,
-                "timestamp": 1731416399998,
                 "values": [
                     "301"
                 ]
@@ -39,7 +38,6 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
-                "timestamp": 1731416399901,
                 "values": [
                     "301"
                 ]
@@ -57,7 +55,6 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
-                "timestamp": 1731416399827,
                 "values": [
                     "500"
                 ]
@@ -75,7 +72,6 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
-                "timestamp": 1731416399783,
                 "values": [
                     "500"
                 ]
@@ -93,7 +89,6 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
-                "timestamp": 1731416399759,
                 "values": [
                     "301"
                 ]
@@ -111,7 +106,6 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
-                "timestamp": 1731416399746,
                 "values": [
                     "500"
                 ]
@@ -129,7 +123,6 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
-                "timestamp": 1731416399691,
                 "values": [
                     "500"
                 ]
@@ -147,7 +140,6 @@
                 "min": 404,
                 "range": 96,
                 "sum": 1404,
-                "timestamp": 1731416399625,
                 "values": [
                     "404",
                     "500"
@@ -166,7 +158,6 @@
                 "min": 200,
                 "range": 0,
                 "sum": 200,
-                "timestamp": 1731416399436,
                 "values": [
                     "200"
                 ]
@@ -184,7 +175,6 @@
                 "min": 301,
                 "range": 1,
                 "sum": 904,
-                "timestamp": 1731416398992,
                 "values": [
                     "301",
                     "302"
@@ -192,7 +182,6 @@
             }
         ],
         "allColumns": [
-            "timestamp",
             "group",
             "cnt",
             "avg",
@@ -208,7 +197,6 @@
             "sum"
         ],
         "columnsOrder": [
-            "timestamp",
             "city",
             "first_name",
             "last_name",
