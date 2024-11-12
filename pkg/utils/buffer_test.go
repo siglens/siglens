@@ -48,3 +48,16 @@ func Test_Append_spanningMultipleChunks(t *testing.T) {
 	readData := buffer.ReadAll()
 	assert.Equal(t, data, readData)
 }
+
+func Test_Append_multiple(t *testing.T) {
+	seed := 42
+	data1 := RandomBuffer(chunkSize*1+50, seed)
+	data2 := RandomBuffer(chunkSize*2+10, seed+1)
+	buffer := Buffer{}
+	buffer.Append(data1)
+	buffer.Append(data2)
+
+	assert.Equal(t, len(data1)+len(data2), buffer.Len())
+	readData := buffer.ReadAll()
+	assert.Equal(t, append(data1, data2...), readData)
+}

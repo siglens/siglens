@@ -25,6 +25,14 @@ type Buffer struct {
 }
 
 func (b *Buffer) Len() int {
+	if b == nil {
+		return 0
+	}
+
+	if len(b.chunks) == 0 {
+		return b.offset
+	}
+
 	return b.offset + (len(b.chunks)-1)*chunkSize
 }
 
@@ -54,6 +62,7 @@ func (b *Buffer) Append(data []byte) {
 
 		copy(b.chunks[len(b.chunks)-1][b.offset:], data[:availableBytes])
 		data = data[availableBytes:]
+		b.offset = 0
 	}
 }
 
