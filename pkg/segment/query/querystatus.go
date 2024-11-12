@@ -46,7 +46,7 @@ const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
 var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
 const PULL_QUERY_INTERVAL = 10 * time.Millisecond
-const MAX_WAITING_QUERIES = 100
+const MAX_WAITING_QUERIES = 500
 
 type QueryUpdateType int
 
@@ -90,10 +90,8 @@ func InitMaxRunningQueries() {
 	totalMemoryInBytes := config.GetTotalMemoryAvailable()
 	searchMemoryInBytes := (totalMemoryInBytes * memConfig.SearchPercent) / 100
 	maxConcurrentQueries := searchMemoryInBytes / memConfig.MemoryPerQueryInBytes
-	if maxConcurrentQueries < 1 {
-		log.Warnf("System does not have sufficient memory for query. Setting maxConcurrentQueries to 1, searchMemoryInBytes: %v, MemoryPerQueryInBytes: %v",
-			searchMemoryInBytes, memConfig.MemoryPerQueryInBytes)
-		maxConcurrentQueries = 1
+	if maxConcurrentQueries < 2 {
+		maxConcurrentQueries = 2
 	}
 	if maxConcurrentQueries < MAX_RUNNING_QUERIES {
 		MAX_RUNNING_QUERIES = maxConcurrentQueries
@@ -257,6 +255,7 @@ func PullQueriesToRun() {
 			waitingQueriesLock.Lock()
 			if len(waitingQueries) == 0 {
 				waitingQueriesLock.Unlock()
+				time.Sleep(PULL_QUERY_INTERVAL)
 				continue
 			}
 			wsData := waitingQueries[0]
