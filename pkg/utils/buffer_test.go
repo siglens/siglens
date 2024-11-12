@@ -30,7 +30,8 @@ func testAppendAndRead(t *testing.T, buffer *Buffer, data ...[]byte) {
 		joinedData = append(joinedData, d...)
 		assert.Equal(t, len(joinedData), buffer.Len())
 
-		readData := buffer.ReadAll()
+		readData, err := buffer.ReadAll()
+		assert.NoError(t, err)
 		assert.Equal(t, joinedData, readData)
 	}
 }
@@ -56,4 +57,22 @@ func Test_Append_multiple(t *testing.T) {
 	data1 := RandomBuffer(chunkSize*1+50, seed)
 	data2 := RandomBuffer(chunkSize*2+10, seed+1)
 	testAppendAndRead(t, &Buffer{}, data1, data2)
+}
+
+func Test_CopyTo(t *testing.T) {
+	seed := 42
+	data := RandomBuffer(chunkSize*3+10, seed)
+	buffer := &Buffer{}
+	buffer.Append(data)
+
+	// Insufficient space
+	bytes := make([]byte, 10)
+	err := buffer.CopyTo(bytes)
+	assert.Error(t, err)
+
+	// Sufficient space
+	bytes = make([]byte, buffer.Len())
+	err = buffer.CopyTo(bytes)
+	assert.NoError(t, err)
+	assert.Equal(t, data, bytes)
 }

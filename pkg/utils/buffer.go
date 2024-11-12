@@ -17,6 +17,8 @@
 
 package utils
 
+import log "github.com/sirupsen/logrus"
+
 const chunkSize = 1024
 
 type Buffer struct {
@@ -70,19 +72,42 @@ func (b *Buffer) Read(start int, end int) ([]byte, error) {
 	return nil, nil
 }
 
-func (b *Buffer) ReadAll() []byte {
+func (b *Buffer) ReadAll() ([]byte, error) {
+	if b == nil {
+		return nil, TeeErrorf("Buffer.ReadAll: nil buffer")
+	}
+
 	if len(b.chunks) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	buf := make([]byte, b.Len())
+	err := b.CopyTo(buf)
+	if err != nil {
+		log.Errorf("Buffer.ReadAll: failed to copy; err=%v", err)
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func (b *Buffer) CopyTo(dst []byte) error {
+	if b == nil {
+		return TeeErrorf("Buffer.CopyTo: nil buffer")
+	}
+
+	if len(dst) < b.Len() {
+		return TeeErrorf("Buffer.CopyTo: destination has %v but needs %v bytes",
+			len(dst), b.Len())
+	}
+
 	offset := 0
 	for i := 0; i < len(b.chunks)-1; i++ {
-		copy(buf[offset:], b.chunks[i])
+		copy(dst[offset:], b.chunks[i])
 		offset += chunkSize
 	}
 
-	copy(buf[offset:], b.chunks[len(b.chunks)-1][:b.offset])
+	copy(dst[offset:], b.chunks[len(b.chunks)-1][:b.offset])
 
-	return buf
+	return nil
 }
