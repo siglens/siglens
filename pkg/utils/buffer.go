@@ -88,8 +88,42 @@ func (b *Buffer) Append(data []byte) {
 	}
 }
 
-func (b *Buffer) Read(start int, end int) ([]byte, error) {
-	return nil, nil
+// Returns a slice like [start:end] of the buffer's contents.
+func (b *Buffer) Read(start int, end int) []byte {
+	if b == nil || b.chunks == nil {
+		return nil
+	}
+
+	if start < 0 || end < start || end > b.Len() {
+		return nil
+	}
+
+	if start/chunkSize == (end-1)/chunkSize {
+		// This range is entirely within a single chunk.
+		chunkStart := start % chunkSize
+		chunkEnd := end % chunkSize
+		if chunkEnd == 0 {
+			chunkEnd = chunkSize
+		}
+
+		return b.chunks[start/chunkSize][chunkStart:chunkEnd]
+	}
+
+	buf := make([]byte, end-start)
+	numSkippedChunks := start / chunkSize
+	copy(buf, b.chunks[numSkippedChunks][start%chunkSize:])
+	tmp := buf[chunkSize-(start%chunkSize):]
+	i := 0
+	for i = numSkippedChunks + 1; i < end/chunkSize; i++ {
+		copy(tmp, b.chunks[i])
+		tmp = tmp[chunkSize:]
+	}
+
+	// Since copy() copies the minimum of the two slice lengths, we don't need
+	// to slice chunks[i] here.
+	copy(tmp, b.chunks[i])
+
+	return buf
 }
 
 func (b *Buffer) ReadAll() ([]byte, error) {
