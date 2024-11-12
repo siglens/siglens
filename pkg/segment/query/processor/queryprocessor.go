@@ -83,6 +83,21 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
 		}
 
+		if queryType == structs.GroupByCmd {
+			// If query Type is GroupByCmd and the StatisticExpr is not nil
+			// Then the GroupByRequest will be processed by the searcher and
+			// the StatisticExpr should be processed by the next DataProcessor
+			// Note: The StatisticExpr will create a GroupByRequest
+			if firstAgg.StatisticExpr != nil {
+				nextAgg := &structs.QueryAggregators{
+					GroupByRequest: firstAgg.GroupByRequest,
+					StatisticExpr:  firstAgg.StatisticExpr,
+				}
+				nextAgg.Next = firstAgg.Next
+				firstAgg.Next = nextAgg
+			}
+		}
+
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
@@ -190,8 +205,9 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewMakemvDP(queryAgg.MakeMVExpr)
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
-	} else if queryAgg.RareExpr != nil {
-		return NewRareDP(queryAgg.RareExpr)
+	} else if queryAgg.StatisticExpr != nil {
+		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
+		return NewStatisticExprDP(queryAgg)
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {
@@ -217,8 +233,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
-	} else if queryAgg.TopExpr != nil {
-		return NewTopDP(queryAgg.TopExpr)
 	} else if queryAgg.TransactionExpr != nil {
 		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {

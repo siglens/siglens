@@ -23,21 +23,29 @@ import (
 )
 
 type rareProcessor struct {
-	options *structs.StatisticExpr
+	options                *structs.StatisticExpr
+	statisticExprProcessor *statisticExprProcessor
+}
+
+func NewRareProcessor(options *structs.QueryAggregators) *rareProcessor {
+	return &rareProcessor{
+		options:                options.StatisticExpr,
+		statisticExprProcessor: NewStatisticExprProcessor(options),
+	}
 }
 
 func (p *rareProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	return p.statisticExprProcessor.Process(iqr)
 }
 
 func (p *rareProcessor) Rewind() {
-	panic("not implemented")
+	p.statisticExprProcessor.Rewind()
 }
 
 func (p *rareProcessor) Cleanup() {
-	panic("not implemented")
+	p.statisticExprProcessor.Cleanup()
 }
 
 func (p *rareProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	return nil, false
+	return p.statisticExprProcessor.GetFinalResultIfExists()
 }

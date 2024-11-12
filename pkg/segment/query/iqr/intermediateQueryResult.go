@@ -1115,6 +1115,10 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.P
 	return response, nil
 }
 
+func (iqr *IQR) GetGroupByColumns() []string {
+	return iqr.groupbyColumns
+}
+
 func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendStatsResults: validation failed: %v", err)

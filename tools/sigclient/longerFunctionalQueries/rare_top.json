@@ -1,75 +1,115 @@
 {
-    "queryText": "city=Boston | rare http_method useother=false percentfield=rare_pc countfield=rare_count showperc=true | top rare_count useother=false countfield=top_count percentfield=top_percent",
+    "queryText": "http_method=P* | rare 5 city useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.city | top 5 city, city_count useother=false countfield=top_count percentfield=top_percent",
     "expectedResult": {
-        "bucketCount": 6,
+        "bucketCount": 5,
         "qtype": "aggs-query",
         "groupByCols": [
-           "http_method"
+            "city",
+            "city_count"
         ],
         "measureFunctions": [
-            "rare_count",
-            "top_count",
-            "top_percent"
+            "top_percent",
+            "top_count"
         ],
         "measure": [
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Aurora"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102075Aurora"
+                    }
+                ],
                 "GroupByValues": [
-                    "DELETE"
+                    "Aurora",
+                    "102075Aurora"
                 ],
                 "MeasureVal": {
-                    "rare_count": 187,
-                    "top_count": 187,
-                    "top_percent": "19.004065"
+                    "top_count": 1,
+                    "top_percent": 20
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Atlanta"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102463Atlanta"
+                    }
+                ],
                 "GroupByValues": [
-                    "GET"
+                    "Atlanta",
+                    "102463Atlanta"
                 ],
                 "MeasureVal": {
-                    "rare_count": 174,
-                    "top_count": 174,
-                    "top_percent": "17.682927"
+                    "top_count": 1,
+                    "top_percent": 20
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Arlington"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102075Arlington"
+                    }
+                ],
                 "GroupByValues": [
-                    "HEAD"
+                    "Arlington",
+                    "102075Arlington"
                 ],
                 "MeasureVal": {
-                    "rare_count": 168,
-                    "top_count": 168,
-                    "top_percent": "17.073171"
+                    "top_count": 1,
+                    "top_percent": 20
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Anaheim"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102015Anaheim"
+                    }
+                ],
                 "GroupByValues": [
-                    "PUT"
+                    "Anaheim",
+                    "102015Anaheim"
                 ],
                 "MeasureVal": {
-                    "rare_count": 154,
-                    "top_count": 154,
-                    "top_percent": "15.650407"
+                    "top_count": 1,
+                    "top_percent": 20
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Albuquerque"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "102495Albuquerque"
+                    }
+                ],
                 "GroupByValues": [
-                    "PATCH"
+                    "Albuquerque",
+                    "102495Albuquerque"
                 ],
                 "MeasureVal": {
-                    "rare_count": 153,
-                    "top_count": 153,
-                    "top_percent": "15.548780"
-                }
-            },
-            {
-                "GroupByValues": [
-                    "POST"
-                ],
-                "MeasureVal": {
-                    "rare_count": 148,
-                    "top_count": 148,
-                    "top_percent": "15.040650"
+                    "top_count": 1,
+                    "top_percent": 20
                 }
             }
         ]
