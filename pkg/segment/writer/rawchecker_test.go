@@ -197,8 +197,8 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		t.Logf("doing equals search for haystack in cstr")
 		qValDte, _ = CreateDtypeEnclosure("haystack", 0)
 		qValDte.AddStringAsByteSlice()
-		var eOff uint16 = 3 + utils.BytesToUint16LittleEndian(colWips["cstr"].cbuf[1:3]) // 2 bytes stored for string type
-		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf[:eOff], false, holderDte, false)
+		var eOff uint16 = 3 + utils.BytesToUint16LittleEndian(colWips["cstr"].cbuf.Slice(1, 3)) // 2 bytes stored for string type
+		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf.Slice(0, int(eOff)), false, holderDte, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		qValDte.Reset()

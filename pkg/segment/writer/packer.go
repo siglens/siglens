@@ -97,7 +97,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 			continue
 		}
 		colWip.cstartidx = colWip.cbufidx
-		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+		colWip.cbuf.Append(VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
@@ -296,7 +296,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 		colBlooms[arraykey] = bi
 	}
 	s := colWip.cbufidx
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_DICT_ARRAY[:])
+	colWip.cbuf.Append(VALTYPE_DICT_ARRAY[:])
 	colWip.cbufidx += 1
 	utils.Uint16ToBytesLittleEndianInplace(0, colWip.cbuf[colWip.cbufidx:]) //placeholder for encoding length of array
 	colWip.cbufidx += 2
@@ -317,7 +317,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			n := uint16(len(keyName))
 			utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
 			colWip.cbufidx += 2
-			copy(colWip.cbuf[colWip.cbufidx:], keyName)
+			colWip.cbuf.Append(keyName)
 			colWip.cbufidx += uint32(n)
 
 			keyValLen := uint16(len(keyVal))
@@ -327,32 +327,32 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			//based on that encode key value
 			switch keyType {
 			case "string":
-				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
+				colWip.cbuf.Append(VALTYPE_ENC_SMALL_STRING[:])
 				colWip.cbufidx += 1
-				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
+				colWip.cbuf.Append(keyValLenBytes)
 				colWip.cbufidx += 2
-				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
+				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			case "bool":
-				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
+				colWip.cbuf.Append(VALTYPE_ENC_BOOL[:])
 				colWip.cbufidx += 1
-				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
+				colWip.cbuf.Append(keyValLenBytes)
 				colWip.cbufidx += 2
-				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
+				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			case "int64":
-				copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_INT64[:])
+				colWip.cbuf.Append(VALTYPE_ENC_INT64[:])
 				colWip.cbufidx += 1
-				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
+				colWip.cbuf.Append(keyValLenBytes)
 				colWip.cbufidx += 2
-				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
+				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			case "float64":
-				copy(colWip.cbuf[colWip.cbufidx:], segutils.VALTYPE_ENC_FLOAT64[:])
+				colWip.cbuf.Append(segutils.VALTYPE_ENC_FLOAT64[:])
 				colWip.cbufidx += 1
-				copy(colWip.cbuf[colWip.cbufidx:], keyValLenBytes)
+				colWip.cbuf.Append(keyValLenBytes)
 				colWip.cbufidx += 2
-				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
+				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			default:
 				finalErr = fmt.Errorf("encodeSingleDictArray : received unknown key  %+s", keyType)
@@ -426,12 +426,12 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 		}
 	}
 	//[utils.VALTYPE_RAW_JSON][raw-byte-len][raw-byte]
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_RAW_JSON[:])
+	colWip.cbuf.Append(VALTYPE_RAW_JSON[:])
 	colWip.cbufidx += 1
 	n := uint16(len(value))
 	utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
 	colWip.cbufidx += 2
-	copy(colWip.cbuf[colWip.cbufidx:], value)
+	colWip.cbuf.Append(value)
 	colWip.cbufidx += uint32(n)
 	ss.updateColValueSizeInAllSeenColumns(key, uint32(3+n))
 
@@ -486,9 +486,9 @@ func (ss *SegStore) encodeSingleBool(key string, val bool,
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	}
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
+	colWip.cbuf.Append(VALTYPE_ENC_BOOL[:])
 	colWip.cbufidx += 1
-	copy(colWip.cbuf[colWip.cbufidx:], utils.BoolToBytesLittleEndian(val))
+	colWip.cbuf.Append(utils.BoolToBytesLittleEndian(val))
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 2)
 
@@ -502,7 +502,7 @@ func (ss *SegStore) encodeSingleNull(key string,
 	}
 	var colWip *ColWip
 	colWip, _, matchedCol = ss.initAndBackFillColumn(key, SS_DT_BACKFILL, matchedCol)
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+	colWip.cbuf.Append(VALTYPE_ENC_BACKFILL[:])
 	colWip.cbufidx += 1
 	ss.updateColValueSizeInAllSeenColumns(key, 1)
 	return matchedCol
@@ -597,7 +597,7 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 
 	for i := uint16(0); i < recNum; i++ {
 		// only the type will be saved when we are backfilling
-		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+		colWip.cbuf.Append(VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		recArr[i] = i
 	}
@@ -849,57 +849,72 @@ func GetCvalFromRec(rec []byte, qid uint64, retVal *CValueEnclosure) (uint16, er
 	return endIdx, nil
 }
 
-func GetNumValFromRec(rec []byte, qid uint64, retVal *Number) (uint16, error) {
+func GetNumValFromRec(rec *utils.Buffer, offset int, qid uint64, retVal *Number) (uint16, error) {
 
 	retVal.SetInvalidType()
 
-	if len(rec) == 0 {
+	if rec == nil {
 		return 0, errors.New("column value is empty")
 	}
 
 	var endIdx uint16
+	typeByte, err := rec.At(offset)
+	if err != nil {
+		log.Errorf("GetNumValFromRec: Error reading type byte; err=%v", err)
+		return 0, err
+	}
 
-	switch rec[0] {
+	switch typeByte {
 	case VALTYPE_ENC_SMALL_STRING[0]:
-		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
+		strlen := utils.BytesToUint16LittleEndian(rec.Slice(offset+1, offset+3))
 		endIdx = strlen + 3
 	case VALTYPE_ENC_BOOL[0]:
 		endIdx = 2
 	case VALTYPE_ENC_INT8[0]:
-		retVal.SetInt64(int64(int8(rec[1:][0])))
+		value, err := rec.At(offset + 1)
+		if err != nil {
+			log.Errorf("GetNumValFromRec: Error reading int8 value; err=%v", err)
+			return 0, err
+		}
+		retVal.SetInt64(int64(int8(value)))
 		endIdx = 2
 	case VALTYPE_ENC_INT16[0]:
-		retVal.SetInt64(int64(utils.BytesToInt16LittleEndian(rec[1:])))
+		retVal.SetInt64(int64(utils.BytesToInt16LittleEndian(rec.Slice(offset+1, offset+3))))
 		endIdx = 3
 	case VALTYPE_ENC_INT32[0]:
-		retVal.SetInt64(int64(utils.BytesToInt32LittleEndian(rec[1:])))
+		retVal.SetInt64(int64(utils.BytesToInt32LittleEndian(rec.Slice(offset+1, offset+5))))
 		endIdx = 5
 	case VALTYPE_ENC_INT64[0]:
-		retVal.SetInt64(utils.BytesToInt64LittleEndian(rec[1:]))
+		retVal.SetInt64(utils.BytesToInt64LittleEndian(rec.Slice(offset+1, offset+9)))
 		endIdx = 9
 	case VALTYPE_ENC_UINT8[0]:
-		retVal.SetInt64(int64((rec[1:])[0]))
+		value, err := rec.At(offset + 1)
+		if err != nil {
+			log.Errorf("GetNumValFromRec: Error reading uint8 value; err=%v", err)
+			return 0, err
+		}
+		retVal.SetInt64(int64(value))
 		endIdx = 2
 	case VALTYPE_ENC_UINT16[0]:
-		retVal.SetInt64(int64(utils.BytesToUint16LittleEndian(rec[1:])))
+		retVal.SetInt64(int64(utils.BytesToUint16LittleEndian(rec.Slice(offset+1, offset+3))))
 		endIdx = 3
 	case VALTYPE_ENC_UINT32[0]:
-		retVal.SetInt64(int64(utils.BytesToUint32LittleEndian(rec[1:])))
+		retVal.SetInt64(int64(utils.BytesToUint32LittleEndian(rec.Slice(offset+1, offset+5))))
 		endIdx = 5
 	case VALTYPE_ENC_UINT64[0]:
-		retVal.SetInt64(int64(utils.BytesToUint64LittleEndian(rec[1:])))
+		retVal.SetInt64(int64(utils.BytesToUint64LittleEndian(rec.Slice(offset+1, offset+9))))
 		endIdx = 9
 	case VALTYPE_ENC_FLOAT64[0]:
-		retVal.SetFloat64(utils.BytesToFloat64LittleEndian(rec[1:]))
+		retVal.SetFloat64(utils.BytesToFloat64LittleEndian(rec.Slice(offset+1, offset+9)))
 		endIdx = 9
 	case VALTYPE_ENC_BACKFILL[0]:
 		retVal.SetBackfillType()
 		endIdx = 1
 	case VALTYPE_RAW_JSON[0]:
-		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
+		strlen := utils.BytesToUint16LittleEndian(rec.Slice(offset+1, offset+3))
 		endIdx = strlen + 3
 	default:
-		log.Errorf("qid=%d, GetNumValFromRec: dont know how to convert type=%v\n", qid, rec[0])
+		log.Errorf("qid=%d, GetNumValFromRec: dont know how to convert type=%v\n", qid, typeByte)
 		return endIdx, errors.New("invalid rec type")
 	}
 	return endIdx, nil
@@ -1512,7 +1527,8 @@ func PackDictEnc(colWip *ColWip) {
 			localIdx += 2
 		}
 	}
-	copy(colWip.cbuf[:localIdx], colWip.dePackingBuf[:localIdx])
+	colWip.cbuf.Reset()
+	colWip.cbuf.Append(colWip.dePackingBuf[:localIdx])
 	colWip.cbufidx = uint32(localIdx)
 }
 
@@ -1656,17 +1672,22 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 
 }
 
-func getColByteSlice(rec []byte, qid uint64) ([]byte, uint16, error) {
+func getColByteSlice(rec *utils.Buffer, offset int, qid uint64) ([]byte, uint16, error) {
 
-	if len(rec) == 0 {
+	if rec == nil {
 		return []byte{}, 0, errors.New("column value is empty")
 	}
 
 	var endIdx uint16
-	switch rec[0] {
+	typeByte, err := rec.At(offset)
+	if err != nil {
+		log.Errorf("qid=%d, getColByteSlice: failed to get type byte: %s", qid, err)
+		return []byte{}, 0, err
+	}
 
+	switch typeByte {
 	case VALTYPE_ENC_SMALL_STRING[0]:
-		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
+		strlen := utils.BytesToUint16LittleEndian(rec.Slice(1, 3))
 		endIdx = strlen + 3
 	case VALTYPE_ENC_BOOL[0], VALTYPE_ENC_INT8[0], VALTYPE_ENC_UINT8[0]:
 		endIdx = 2
@@ -1679,14 +1700,15 @@ func getColByteSlice(rec []byte, qid uint64) ([]byte, uint16, error) {
 	case VALTYPE_ENC_BACKFILL[0]:
 		endIdx = 1
 	default:
-		log.Errorf("qid=%d, getColByteSlice: dont know how to convert type=%v\n", qid, rec[0])
+		log.Errorf("qid=%d, getColByteSlice: dont know how to convert type=%v\n", qid, typeByte)
 		return []byte{}, endIdx, errors.New("invalid rec type")
 	}
 
-	return rec[0:endIdx], endIdx, nil
+	return rec.Slice(offset, offset+int(endIdx)), endIdx, nil
 }
 
 func (colWip *ColWip) CopyWipForTestOnly(cbuf []byte, cbufIdx uint32) {
-	copy(colWip.cbuf[:cbufIdx], cbuf[:cbufIdx])
-	colWip.cbufidx += cbufIdx
+	colWip.cbuf.Reset()
+	colWip.cbuf.Append(cbuf)
+	colWip.cbufidx = cbufIdx
 }

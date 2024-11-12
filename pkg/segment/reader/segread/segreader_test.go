@@ -226,7 +226,8 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		}
 		recNum += recCounts / deCount
 	}
-	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
+	err := colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
+	assert.NoError(t, err)
 	colWip.SetDeDataForTest(deCount, deMap)
 
 	writer.PackDictEnc(colWip)

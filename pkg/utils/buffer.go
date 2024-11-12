@@ -125,6 +125,15 @@ func (b *Buffer) Slice(start int, end int) []byte {
 	return buf
 }
 
+func (b *Buffer) At(pos int) (byte, error) {
+	slice := b.Slice(pos, pos+1)
+	if slice == nil {
+		return 0, TeeErrorf("Buffer.At: invalid position %v; len=%v", pos, b.Len())
+	}
+
+	return slice[0], nil
+}
+
 func (b *Buffer) ReadAll() ([]byte, error) {
 	if b == nil {
 		return nil, TeeErrorf("Buffer.ReadAll: nil buffer")

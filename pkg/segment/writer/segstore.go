@@ -203,7 +203,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
 
 		for _, cwip := range segstore.wipBlock.colWips {
-			wipCbufPool.Put(&cwip.cbuf)
+			cwip.cbuf.Reset()
 			wipCbufPool.Put(&cwip.dePackingBuf)
 		}
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
@@ -304,7 +304,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	segstore.pqTracker = initPQTracker()
 
 	for _, cwip := range segstore.wipBlock.colWips {
-		wipCbufPool.Put(&cwip.cbuf)
+		cwip.cbuf.Reset()
 		wipCbufPool.Put(&cwip.dePackingBuf)
 	}
 
@@ -378,23 +378,23 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 	newColWip := InitColWip(segmentKey, colName)
 	rangeIndex := wipBlock.columnRangeIndexes[colName].Ranges
 
-	for i := uint32(0); i < oldColWip.cbufidx; {
+	for i := int(0); i < int(oldColWip.cbufidx); {
 		valType := oldColWip.cbuf[i]
 		i++
 
 		switch valType {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Parse the string.
-			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
+			numBytes := int(toputils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
 			i += 2
-			numberAsString := string(oldColWip.cbuf[i : i+numBytes])
+			numberAsString := string(oldColWip.cbuf.Slice(i, i+numBytes))
 			i += numBytes
 
 			// Try converting to an integer.
 			intVal, err := strconv.ParseInt(numberAsString, 10, 64)
 			if err == nil {
 				// Conversion succeeded.
-				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
+				newColWip.cbuf.Append(utils.VALTYPE_ENC_INT64[:])
 				toputils.Int64ToBytesLittleEndianInplace(intVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
@@ -405,7 +405,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			floatVal, err := strconv.ParseFloat(numberAsString, 64)
 			if err == nil {
 				// Conversion succeeded.
-				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
+				newColWip.cbuf.Append(utils.VALTYPE_ENC_FLOAT64[:])
 				toputils.Float64ToBytesLittleEndianInplace(floatVal, newColWip.cbuf[newColWip.cbufidx+1:])
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
@@ -418,13 +418,13 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
 			// It's alrady in the range index, so we don't need to add it again.
-			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-1:i+8])
+			newColWip.cbuf.Append(oldColWip.cbuf.Slice(i-1, i+8))
 			newColWip.cbufidx += 9
 			i += 8
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(utils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
 		case utils.VALTYPE_ENC_BOOL[0]:
@@ -440,7 +440,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
-	wipCbufPool.Put(&oldColWip.cbuf)
+	oldColWip.cbuf.Reset()
 	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnBlooms, colName)
 	return true
@@ -451,7 +451,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	newColWip := InitColWip(segmentKey, colName)
 	bloom := wipBlock.columnBlooms[colName]
 
-	for i := uint32(0); i < oldColWip.cbufidx; {
+	for i := 0; i < int(oldColWip.cbufidx); {
 		valType := oldColWip.cbuf[i]
 		i++
 
@@ -459,15 +459,15 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Already a string, so just copy it.
 			// This is already in the bloom, so we don't need to add it again.
-			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
+			numBytes := int(toputils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
 			i += 2
-			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-3:i+numBytes])
-			newColWip.cbufidx += 3 + numBytes
+			newColWip.cbuf.Append(oldColWip.cbuf.Slice(i-3, i+numBytes))
+			newColWip.cbufidx += uint32(3 + numBytes)
 			i += numBytes
 
 		case utils.VALTYPE_ENC_INT64[0]:
 			// Parse the integer.
-			intVal := toputils.BytesToInt64LittleEndian(oldColWip.cbuf[i : i+8])
+			intVal := toputils.BytesToInt64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
 
 			stringVal := strconv.FormatInt(intVal, 10)
@@ -476,7 +476,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
-			floatVal := toputils.BytesToFloat64LittleEndian(oldColWip.cbuf[i : i+8])
+			floatVal := toputils.BytesToFloat64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
@@ -485,7 +485,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(utils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
 		case utils.VALTYPE_ENC_BOOL[0]:
@@ -511,7 +511,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
-	wipCbufPool.Put(&oldColWip.cbuf)
+	oldColWip.cbuf.Reset()
 	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnRangeIndexes, colName)
 }
@@ -1274,7 +1274,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	lowTs := wipBlock.blockSummary.LowTs
 
 	// store TS_TYPE and lowTs for reconstruction needs
-	copy(tsWip.cbuf[tsWip.cbufidx:], []byte{uint8(tsType)})
+	tsWip.cbuf.Append([]byte{uint8(tsType)})
 	tsWip.cbufidx += 1
 	toputils.Uint64ToBytesLittleEndianInplace(lowTs, tsWip.cbuf[tsWip.cbufidx:])
 	tsWip.cbufidx += 8
@@ -1284,7 +1284,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint8
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint8(wipBlock.blockTs[i] - lowTs)
-			copy(tsWip.cbuf[tsWip.cbufidx:], []byte{tsVal})
+			tsWip.cbuf.Append([]byte{tsVal})
 			tsWip.cbufidx += 1
 		}
 	case structs.TS_Type16:
