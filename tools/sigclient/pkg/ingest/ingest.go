@@ -389,8 +389,8 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
-func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int) *utils.GeneratorDataConfig {
-	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns)
+func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int, uniqColumns int) *utils.GeneratorDataConfig {
+	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns, uniqColumns)
 }
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,

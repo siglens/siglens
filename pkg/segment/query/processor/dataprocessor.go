@@ -34,7 +34,7 @@ type processor interface {
 }
 
 type DataProcessor struct {
-	streams   []*cachedStream
+	streams   []*CachedStream
 	less      func(*iqr.Record, *iqr.Record) bool
 	processor processor
 
@@ -59,6 +59,10 @@ func (dp *DataProcessor) IsBottleneckCmd() bool {
 
 func (dp *DataProcessor) IsTwoPassCmd() bool {
 	return dp.isTwoPassCmd
+}
+
+func (dp *DataProcessor) Cleanup() {
+	dp.processor.Cleanup()
 }
 
 // Rewind sets up this DataProcessor to read the input streams from the
@@ -233,7 +237,7 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 	hasSpan := options.BinSpanOptions != nil
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -245,7 +249,7 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 	hasSort := len(options.DedupSortEles) > 0
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
@@ -256,7 +260,7 @@ func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 
 func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &evalProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -267,7 +271,7 @@ func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 
 func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &fieldsProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -278,7 +282,7 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 
 func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &renameProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -290,7 +294,7 @@ func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -301,7 +305,7 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	return &DataProcessor{
-		streams: make([]*cachedStream, 0),
+		streams: make([]*CachedStream, 0),
 		processor: &gentimesProcessor{
 			options:       options,
 			currStartTime: options.StartTime,
@@ -315,7 +319,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 
 func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 	return &DataProcessor{
-		streams: make([]*cachedStream, 0),
+		streams: make([]*CachedStream, 0),
 		processor: &inputlookupProcessor{
 			options: options,
 			start:   options.Start,
@@ -329,7 +333,7 @@ func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 
 func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &headProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
@@ -340,7 +344,7 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 
 func NewTailDP(options *structs.TailExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &tailProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    true,
@@ -351,7 +355,7 @@ func NewTailDP(options *structs.TailExpr) *DataProcessor {
 
 func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &makemvProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -362,7 +366,7 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 
 func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &mvexpandProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
@@ -373,7 +377,7 @@ func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 
 func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &regexProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -384,7 +388,7 @@ func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 
 func NewRexDP(options *structs.RexExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &rexProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -395,7 +399,7 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 
 func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &whereProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -406,7 +410,7 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 
 func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &streamstatsProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
@@ -417,7 +421,7 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 
 func NewTimechartDP(options *timechartOptions) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -428,7 +432,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 
 func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         NewStatsProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
@@ -437,10 +441,20 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
+func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
+	if options.HasTopExpr() {
+		return NewTopDP(options)
+	} else if options.HasRareExpr() {
+		return NewRareDP(options)
+	} else {
+		return nil
+	}
+}
+
+func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &topProcessor{options: options},
+		streams:           make([]*CachedStream, 0),
+		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
@@ -448,10 +462,10 @@ func NewTopDP(options *structs.StatisticExpr) *DataProcessor {
 	}
 }
 
-func NewRareDP(options *structs.StatisticExpr) *DataProcessor {
+func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
-		processor:         &rareProcessor{options: options},
+		streams:           make([]*CachedStream, 0),
+		processor:         NewRareProcessor(options),
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
@@ -461,7 +475,7 @@ func NewRareDP(options *structs.StatisticExpr) *DataProcessor {
 
 func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &transactionProcessor{options: options},
 		inputOrderMatters: true,
 		isPermutingCmd:    false,
@@ -472,7 +486,7 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 
 func NewSortDP(options *structs.SortExpr) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &sortProcessor{options: options},
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
@@ -483,9 +497,43 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 
 func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 	return &DataProcessor{
-		streams:           make([]*cachedStream, 0),
+		streams:           make([]*CachedStream, 0),
 		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
 		inputOrderMatters: true,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+	}
+}
+
+type passThroughProcessor struct{}
+
+func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
+	if input == nil {
+		return nil, io.EOF
+	}
+
+	return input, nil
+}
+
+func (ptp *passThroughProcessor) Rewind()  {}
+func (ptp *passThroughProcessor) Cleanup() {}
+func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
+	return nil, false
+}
+
+func NewSearcherDP(searcher Streamer) *DataProcessor {
+	return &DataProcessor{
+		streams:   []*CachedStream{NewCachedStream(searcher)},
+		processor: &passThroughProcessor{},
+	}
+}
+
+func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
+	return &DataProcessor{
+		streams:           cachedStreams,
+		processor:         &passThroughProcessor{},
+		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,

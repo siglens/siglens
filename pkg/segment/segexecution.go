@@ -502,7 +502,7 @@ func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
 	}
 
-	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime)
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}

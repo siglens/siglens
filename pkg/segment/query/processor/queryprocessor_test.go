@@ -144,7 +144,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now())
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 
@@ -165,7 +165,6 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{InputLookupExpr: &structs.InputLookup{}},
 		{HeadExpr: &structs.HeadExpr{}},
 		{MakeMVExpr: &structs.MultiValueColLetRequest{}},
-		{RareExpr: &structs.StatisticExpr{}},
 		{RegexExpr: &structs.RegexExpr{}},
 		{RexExpr: &structs.RexExpr{}},
 		{SortExpr: &structs.SortExpr{}},
@@ -173,7 +172,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 		{StreamstatsExpr: &structs.StreamStatsOptions{}},
 		{TailExpr: &structs.TailExpr{}},
 		{TimechartExpr: &structs.TimechartExpr{}},
-		{TopExpr: &structs.StatisticExpr{}},
+		{StatisticExpr: &structs.StatisticExpr{}},
 		{TransactionExpr: &structs.TransactionArguments{}},
 		{WhereExpr: &structs.BoolExpr{}},
 	}
@@ -184,7 +183,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now())
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 
