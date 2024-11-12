@@ -61,7 +61,7 @@ func (qp *QueryProcessor) Cleanup() {
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
 
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
@@ -127,7 +127,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		result := hook(dataProcessors, searcher, queryInfo)
+		result := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
 		dataProcessors = result.([]*DataProcessor)
 	}
 

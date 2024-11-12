@@ -18,6 +18,8 @@
 package iqr
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"math"
 	"reflect"
@@ -47,6 +49,7 @@ const (
 
 const NIL_RRC_SEGKEY = math.MaxUint16
 
+// When a new field is added to IQR, it should be added to SerializableIQR.
 type IQR struct {
 	mode iqrMode
 
@@ -65,6 +68,21 @@ type IQR struct {
 	// Used only if the mode is withoutRRCs. Sometimes not used in that mode.
 	groupbyColumns []string
 	measureColumns []string
+}
+
+// When a new field is added to IQR, it should be added to SerializableIQR.
+// Update the iqr.GobEncode() and iqr.GobDecode() functions if you add new fields.
+type SerializableIQR struct {
+	Mode             iqrMode
+	RRCs             []*utils.RecordResultContainer
+	EncodingToSegKey map[uint16]string
+	Qid              uint64
+	KnownValues      map[string][]utils.CValueEnclosure
+	DeletedColumns   map[string]struct{}
+	RenamedColumns   map[string]string
+	ColumnIndex      map[string]int
+	GroupbyColumns   []string
+	MeasureColumns   []string
 }
 
 func NewIQR(qid uint64) *IQR {
@@ -1296,4 +1314,69 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNu
 	}
 
 	return wsResponse, nil
+}
+
+func (iqr *IQR) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+
+	// Register complex types with gob
+	gob.Register(map[string][]utils.CValueEnclosure{})
+	gob.Register(map[string]struct{}{})
+	gob.Register(map[string]string{})
+	gob.Register([]*utils.RecordResultContainer{})
+	gob.Register(utils.CValueEnclosure{})
+	gob.Register(utils.SegKeyInfo{})
+
+	serializableIQR := &SerializableIQR{
+		Mode:             iqr.mode,
+		RRCs:             iqr.rrcs,
+		EncodingToSegKey: iqr.encodingToSegKey,
+		Qid:              iqr.qid,
+		KnownValues:      iqr.knownValues,
+		DeletedColumns:   iqr.deletedColumns,
+		RenamedColumns:   iqr.renamedColumns,
+		ColumnIndex:      iqr.columnIndex,
+		GroupbyColumns:   iqr.groupbyColumns,
+		MeasureColumns:   iqr.measureColumns,
+	}
+
+	// Encode the struct
+	if err := enc.Encode(serializableIQR); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GobDecode deserializes bytes back to IQR struct
+func (iqr *IQR) GobDecode(data []byte) error {
+	// Register types with gob
+	gob.Register(map[string][]utils.CValueEnclosure{})
+	gob.Register(map[string]struct{}{})
+	gob.Register(map[string]string{})
+	gob.Register([]*utils.RecordResultContainer{})
+	gob.Register(utils.CValueEnclosure{})
+	gob.Register(utils.SegKeyInfo{})
+
+	var serializableIQR SerializableIQR
+
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	if err := dec.Decode(&serializableIQR); err != nil {
+		return err
+	}
+
+	iqr.mode = serializableIQR.Mode
+	iqr.rrcs = serializableIQR.RRCs
+	iqr.encodingToSegKey = serializableIQR.EncodingToSegKey
+	iqr.qid = serializableIQR.Qid
+	iqr.knownValues = serializableIQR.KnownValues
+	iqr.deletedColumns = serializableIQR.DeletedColumns
+	iqr.renamedColumns = serializableIQR.RenamedColumns
+	iqr.columnIndex = serializableIQR.ColumnIndex
+	iqr.groupbyColumns = serializableIQR.GroupbyColumns
+	iqr.measureColumns = serializableIQR.MeasureColumns
+
+	return nil
 }

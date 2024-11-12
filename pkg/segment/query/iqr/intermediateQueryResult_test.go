@@ -1194,3 +1194,56 @@ func Test_ReadColumnsWithBackfill(t *testing.T) {
 	}
 	assert.Equal(t, expectedBackfilledCol, columnValues["col4"])
 }
+
+func Test_IQRBytesEncodeDecode(t *testing.T) {
+	iqr := NewIQR(1)
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+		},
+		"col2": {
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		},
+	}
+
+	rrcs := []*utils.RecordResultContainer{
+		{
+			SegKeyInfo:       utils.SegKeyInfo{SegKeyEnc: 1, RecordId: "record1"},
+			BlockNum:         1,
+			RecordNum:        1,
+			SortColumnValue:  float64(1),
+			TimeStamp:        uint64(1),
+			VirtualTableName: "vt1",
+		},
+		{
+			SegKeyInfo:       utils.SegKeyInfo{SegKeyEnc: 2, RecordId: "record2"},
+			BlockNum:         2,
+			RecordNum:        2,
+			SortColumnValue:  float64(2),
+			TimeStamp:        uint64(2),
+			VirtualTableName: "vt2",
+		},
+	}
+
+	iqr.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
+	iqr.rrcs = rrcs
+	iqr.knownValues = knownValues
+	iqr.mode = withRRCs
+	iqr.measureColumns = []string{"col2"}
+	iqr.groupbyColumns = []string{"col1"}
+	iqr.deletedColumns = map[string]struct{}{"col2": {}}
+	iqr.renamedColumns = map[string]string{"col1": "newCol1"}
+	iqr.columnIndex = map[string]int{"col1": 0, "col2": 1}
+
+	bytes, err := iqr.GobEncode()
+	assert.NoError(t, err)
+
+	decodedIQR := NewIQRWithReader(1, &record.RRCsReader{})
+
+	err = decodedIQR.GobDecode(bytes)
+	assert.NoError(t, err)
+
+	assert.Equal(t, iqr, decodedIQR)
+}
