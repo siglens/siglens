@@ -66,11 +66,6 @@ var esBulkCmd = &cobra.Command{
 		uniqColumns, _ := cmd.Flags().GetUint32("uniqColumns")
 		enableVariableNumColumns, _ := cmd.Flags().GetBool("enableVariableNumColumns")
 
-		if uniqColumns < maxColumns {
-			log.Fatalf("uniqColumns must be greater than or equal to maxColumns")
-			return
-		}
-
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
 				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
@@ -83,6 +78,10 @@ var esBulkCmd = &cobra.Command{
 		if enableVariableNumColumns {
 			if maxColumns == 0 {
 				log.Fatalf("maxColumns must be greater than 0")
+				return
+			}
+			if uniqColumns < maxColumns {
+				log.Fatalf("uniqColumns must be greater than or equal to maxColumns")
 				return
 			}
 			dataGeneratorConfig = ingest.GetGeneratorDataConfig(int(maxColumns), enableVariableNumColumns, int(minColumns), int(uniqColumns))
