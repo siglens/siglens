@@ -101,6 +101,8 @@ func FilterBlocksByTime(bSum []*structs.BlockSummary, blkTracker *structs.BlockT
 	return timeFilteredBlocks
 }
 
+// This function checks if an actualValue exists in the range for actualValue op lookupValue
+// minval and maxVal are included in the range
 func doesUintPassRangeFilter(op utils.FilterOperator, lookupValue uint64, minVal uint64, maxVal uint64) bool {
 	switch op {
 	case utils.Equals:
@@ -123,6 +125,8 @@ func doesUintPassRangeFilter(op utils.FilterOperator, lookupValue uint64, minVal
 	}
 }
 
+// This function checks if an actualValue exists in the range for actualValue op lookupValue
+// minval and maxVal are included in the range
 func doesIntPassRangeFilter(op utils.FilterOperator, lookupValue int64, minVal int64, maxVal int64) bool {
 	switch op {
 	case utils.Equals:
@@ -145,6 +149,8 @@ func doesIntPassRangeFilter(op utils.FilterOperator, lookupValue int64, minVal i
 	}
 }
 
+// This function checks if an actualValue exists in the range for actualValue op lookupValue
+// minval and maxVal are included in the range
 func doesFloatPassRangeFilter(op utils.FilterOperator, lookupValue float64, minVal float64, maxVal float64) bool {
 	switch op {
 	case utils.Equals:
