@@ -1694,7 +1694,7 @@ func getColByteSlice(rec *utils.Buffer, offset int, qid uint64) ([]byte, uint16,
 
 	switch typeByte {
 	case VALTYPE_ENC_SMALL_STRING[0]:
-		strlen := utils.BytesToUint16LittleEndian(rec.Slice(1, 3))
+		strlen := utils.BytesToUint16LittleEndian(rec.Slice(offset+1, offset+3))
 		endIdx = strlen + 3
 	case VALTYPE_ENC_BOOL[0], VALTYPE_ENC_INT8[0], VALTYPE_ENC_UINT8[0]:
 		endIdx = 2
@@ -1716,6 +1716,6 @@ func getColByteSlice(rec *utils.Buffer, offset int, qid uint64) ([]byte, uint16,
 
 func (colWip *ColWip) CopyWipForTestOnly(cbuf []byte, cbufIdx uint32) {
 	colWip.cbuf.Reset()
-	colWip.cbuf.Append(cbuf)
+	colWip.cbuf.Append(cbuf[:cbufIdx])
 	colWip.cbufidx = cbufIdx
 }

@@ -123,7 +123,7 @@ func (b *Buffer) AppendAsFloat64(val float64) {
 // If Buffer was a normal contiguous slice, Slice(start, end) would be
 // equivalent to Buffer[start:end].
 func (b *Buffer) Slice(start int, end int) []byte {
-	if b == nil || b.chunks == nil {
+	if b == nil {
 		return nil
 	}
 

@@ -132,6 +132,7 @@ func Test_Slice(t *testing.T) {
 	seed := 42
 	data := RandomBuffer(chunkSize*3+10, seed)
 	buffer := &Buffer{}
+	assert.Equal(t, []byte{}, buffer.Slice(0, 0))
 	buffer.Append(data)
 
 	assert.Equal(t, data[:10], buffer.Slice(0, 10))
