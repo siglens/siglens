@@ -113,7 +113,6 @@ func parseNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
 				return
 			}
 		case jp.String:
-
 			valUnescaped, encErr := jp.Unescape(value, jsParsingStackbuf[:])
 			if err != nil {
 				finalErr = encErr
@@ -167,7 +166,8 @@ func parseSingleString(key string, tsKey *string, valBytes []byte, ple *ParsedLo
 	cbufidx += 1
 	n := uint16(len(valBytes))
 	utils.Uint16ToBytesLittleEndianInplace(n, ple.allCvalsTypeLen[ple.numCols][cbufidx:])
-	ple.allCvals[ple.numCols] = valBytes
+	ple.allCvals[ple.numCols] = make([]byte, n)
+	copy(ple.allCvals[ple.numCols], valBytes)
 
 	ple.numCols++
 }
