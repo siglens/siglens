@@ -60,6 +60,12 @@ func (qp *QueryProcessor) Cleanup() {
 	}
 }
 
+func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
+	chainedDP := make([]*DataProcessor, len(qp.chain))
+	_ = copy(chainedDP, qp.chain)
+	return chainedDP
+}
+
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
 	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
 

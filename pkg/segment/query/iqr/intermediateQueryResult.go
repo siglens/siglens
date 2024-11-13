@@ -1316,6 +1316,24 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNu
 	return wsResponse, nil
 }
 
+func (iqr *IQR) GetBucketCount(qType structs.QueryType) int {
+	if iqr.mode == notSet || iqr.mode == withRRCs {
+		return 0
+	}
+
+	switch qType {
+	case structs.GroupByCmd, structs.SegmentStatsCmd:
+		bucketCount := 0
+		for _, values := range iqr.knownValues {
+			bucketCount = len(values)
+			break
+		}
+		return bucketCount
+	default:
+		return 0
+	}
+}
+
 func (iqr *IQR) GobEncode() ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
