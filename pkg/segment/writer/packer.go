@@ -298,7 +298,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	s := colWip.cbufidx
 	colWip.cbuf.Append(VALTYPE_DICT_ARRAY[:])
 	colWip.cbufidx += 1
-	colWip.cbuf.AppendAsUint16(0) // Placeholder for encoding length of array
+	colWip.cbuf.AppendUint16LittleEndian(0) // Placeholder for encoding length of array
 	colWip.cbufidx += 2
 	_, aErr := jp.ArrayEach(data, func(value []byte, valueType jp.ValueType, offset int, err error) {
 		switch valueType {
@@ -315,7 +315,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			//encode and copy keyName
 			n := uint16(len(keyName))
-			colWip.cbuf.AppendAsUint16(n)
+			colWip.cbuf.AppendUint16LittleEndian(n)
 			colWip.cbufidx += 2
 			colWip.cbuf.Append(keyName)
 			colWip.cbufidx += uint32(n)
@@ -436,7 +436,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 	colWip.cbuf.Append(VALTYPE_RAW_JSON[:])
 	colWip.cbufidx += 1
 	n := uint16(len(value))
-	colWip.cbuf.AppendAsUint16(n)
+	colWip.cbuf.AppendUint16LittleEndian(n)
 	colWip.cbufidx += 2
 	colWip.cbuf.Append(value)
 	colWip.cbufidx += uint32(n)
@@ -662,15 +662,15 @@ func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintV
 	switch numType {
 	case SS_INT64:
 		wipbuf.Append(VALTYPE_ENC_INT64[:])
-		wipbuf.AppendAsInt64(intVal)
+		wipbuf.AppendInt64LittleEndian(intVal)
 		valSize = 1 + 8
 	case SS_UINT64:
 		wipbuf.Append(VALTYPE_ENC_UINT64[:])
-		wipbuf.AppendAsUint64(uintVal)
+		wipbuf.AppendUint64LittleEndian(uintVal)
 		valSize = 1 + 8
 	case SS_FLOAT64:
 		wipbuf.Append(VALTYPE_ENC_FLOAT64[:])
-		wipbuf.AppendAsFloat64(fltVal)
+		wipbuf.AppendFloat64LittleEndian(fltVal)
 		valSize = 1 + 8
 	default:
 		log.Errorf("encJsonNumber: unknown numType: %v", numType)

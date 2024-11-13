@@ -90,31 +90,31 @@ func (b *Buffer) Append(data []byte) {
 
 // TODO: check if optimizing this (and similar) functions by avoiding the
 // temporary buffer is worthwhile.
-func (b *Buffer) AppendAsUint16(val uint16) {
+func (b *Buffer) AppendUint16LittleEndian(val uint16) {
 	buf := [2]byte{}
 	Uint16ToBytesLittleEndianInplace(val, buf[:])
 	b.Append(buf[:])
 }
 
-func (b *Buffer) AppendAsUint32(val uint32) {
+func (b *Buffer) AppendUint32LittleEndian(val uint32) {
 	buf := [4]byte{}
 	Uint32ToBytesLittleEndianInplace(val, buf[:])
 	b.Append(buf[:])
 }
 
-func (b *Buffer) AppendAsUint64(val uint64) {
+func (b *Buffer) AppendUint64LittleEndian(val uint64) {
 	buf := [8]byte{}
 	Uint64ToBytesLittleEndianInplace(val, buf[:])
 	b.Append(buf[:])
 }
 
-func (b *Buffer) AppendAsInt64(val int64) {
+func (b *Buffer) AppendInt64LittleEndian(val int64) {
 	buf := [8]byte{}
 	Int64ToBytesLittleEndianInplace(val, buf[:])
 	b.Append(buf[:])
 }
 
-func (b *Buffer) AppendAsFloat64(val float64) {
+func (b *Buffer) AppendFloat64LittleEndian(val float64) {
 	buf := [8]byte{}
 	Float64ToBytesLittleEndianInplace(val, buf[:])
 	b.Append(buf[:])
