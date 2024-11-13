@@ -544,7 +544,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 	// If there's columns that had both strings and numbers in them, we need to
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
-	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
+	err := consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
+	if err != nil {
+		log.Errorf("AppendWipToSegfile: error consolidating column types; err=%v", err)
+		return err
+	}
+
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
 		var totalMetadata uint64 = 0

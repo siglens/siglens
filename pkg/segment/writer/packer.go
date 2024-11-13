@@ -373,7 +373,12 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	})
 	bytes := [2]byte{}
 	utils.Uint16ToBytesLittleEndianInplace(uint16(colWip.cbufidx-s-3), bytes[:])
-	colWip.cbuf.CopyFrom(bytes[:], int(s+1))
+	err := colWip.cbuf.CopyFrom(bytes[:], int(s+1))
+	if err != nil {
+		log.Errorf("encodeSingleDictArray: failed to copy length of array to buffer; err=%v", err)
+		return matchedCol, err
+	}
+
 	if aErr != nil {
 		finalErr = aErr
 	}

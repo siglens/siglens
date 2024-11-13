@@ -160,7 +160,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
 			var val CValueEnclosure
-			_, _ = GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29, &val)
+			_, _ = GetCvalFromRec(colwip.cbuf.Slice(int(colwip.cstartidx), int(colwip.cbufidx)), 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}
@@ -272,7 +272,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
 			var val CValueEnclosure
-			_, _ = GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29, &val)
+			_, _ = GetCvalFromRec(colwip.cbuf.Slice(int(colwip.cstartidx), int(colwip.cbufidx)), 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}
