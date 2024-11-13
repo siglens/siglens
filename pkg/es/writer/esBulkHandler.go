@@ -211,6 +211,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", line, err)
 						success = false
 					} else {
+						ple.SetResponseIdx(uint64(inCount - 1))
 						allPLEs = append(allPLEs, ple)
 					}
 				}
@@ -263,11 +264,28 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			jsParsingStackbuf[:], plesInBatch)
 		if err != nil {
 			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
-			// TODO: update `atleastOneSuccess`
+		}
+		for _, ple := range plesInBatch {
+			resp := ple.GetResponse()
+			if resp != "" {
+				responsebody := make(map[string]interface{})
+				error_response := utils.BulkErrorResponse{
+					ErrorResponse: *utils.NewBulkErrorResponseInfo(resp, "ingest_exception"),
+				}
+				responsebody["index"] = error_response
+				responsebody["status"] = 400
+				items[ple.GetResponseIdx()] = responsebody
+				processedCount--
+			}
 		}
 	}
 
-	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
+	if processedCount == 0 {
+		atleastOneSuccess = false
+		overallError = true
+	}
+
+	usageStats.UpdateStats(uint64(bytesReceived), uint64(processedCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
 	response["errors"] = overallError
