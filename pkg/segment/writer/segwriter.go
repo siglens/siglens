@@ -73,16 +73,6 @@ var plePool = sync.Pool{
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
-var wipCbufPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		slice := make([]byte, WIP_SIZE)
-		return &slice
-	},
-}
-
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -108,7 +98,7 @@ type ColWip struct {
 	cbuf         *utils.Buffer
 	csgFname     string // file name of csg file
 	deData       *DeData
-	dePackingBuf []byte
+	dePackingBuf *utils.Buffer
 }
 
 type RangeIndex struct {
@@ -720,13 +710,11 @@ func InitColWip(segKey string, colName string) *ColWip {
 		deCount: 0,
 	}
 
-	dePack := *wipCbufPool.Get().(*[]byte)
-
 	return &ColWip{
 		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:       &deData,
 		cbuf:         &utils.Buffer{},
-		dePackingBuf: dePack,
+		dePackingBuf: &utils.Buffer{},
 	}
 }
 

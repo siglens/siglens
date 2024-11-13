@@ -294,7 +294,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 
 	for _, cwip := range segstore.wipBlock.colWips {
 		cwip.cbuf.Reset()
-		wipCbufPool.Put(&cwip.dePackingBuf)
+		cwip.dePackingBuf.Reset()
 	}
 
 	segstore.wipBlock.colWips = make(map[string]*ColWip)
@@ -444,7 +444,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 	// Conversion succeeded, so replace the column with the new one.
 	wipBlock.colWips[colName] = newColWip
 	oldColWip.cbuf.Reset()
-	wipCbufPool.Put(&oldColWip.dePackingBuf)
+	oldColWip.dePackingBuf.Reset()
 	delete(wipBlock.columnBlooms, colName)
 	return true, nil
 }
@@ -523,7 +523,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	// Replace the old column.
 	wipBlock.colWips[colName] = newColWip
 	oldColWip.cbuf.Reset()
-	wipCbufPool.Put(&oldColWip.dePackingBuf)
+	oldColWip.dePackingBuf.Reset()
 	delete(wipBlock.columnRangeIndexes, colName)
 
 	return nil

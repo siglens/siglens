@@ -1512,30 +1512,32 @@ func SetCardinalityLimit(val uint16) {
 func PackDictEnc(colWip *ColWip) {
 
 	localIdx := 0
+	colWip.dePackingBuf.Reset()
 
 	// copy num of dict words
-	utils.Uint16ToBytesLittleEndianInplace(colWip.deData.deCount, colWip.dePackingBuf[localIdx:])
+	colWip.dePackingBuf.AppendUint16LittleEndian(colWip.deData.deCount)
 	localIdx += 2
 
 	for dword, recNumsArr := range colWip.deData.deMap {
 
 		// copy the actual dict word , the TLV is packed inside the dword
-		copy(colWip.dePackingBuf[localIdx:], []byte(dword))
+		colWip.dePackingBuf.Append([]byte(dword))
+
 		localIdx += len(dword)
 
 		// copy num of records, by finding how many bits are set
 		numRecs := uint16(len(recNumsArr))
-		utils.Uint16ToBytesLittleEndianInplace(numRecs, colWip.dePackingBuf[localIdx:])
+		colWip.dePackingBuf.AppendUint16LittleEndian(numRecs)
 		localIdx += 2
 
 		for i := uint16(0); i < numRecs; i++ {
 			// copy the recNum
-			utils.Uint16ToBytesLittleEndianInplace(recNumsArr[i], colWip.dePackingBuf[localIdx:])
+			colWip.dePackingBuf.AppendUint16LittleEndian(recNumsArr[i])
 			localIdx += 2
 		}
 	}
 	colWip.cbuf.Reset()
-	colWip.cbuf.Append(colWip.dePackingBuf[:localIdx])
+	colWip.cbuf.Append(colWip.dePackingBuf.Slice(0, localIdx))
 	colWip.cbufidx = uint32(localIdx)
 }
 
