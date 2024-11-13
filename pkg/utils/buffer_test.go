@@ -146,6 +146,15 @@ func Test_Slice(t *testing.T) {
 	assert.Equal(t, []byte{}, buffer.Slice(buffer.Len(), buffer.Len()))
 }
 
+func Test_Slice_fullLastChunk(t *testing.T) {
+	seed := 42
+	data := RandomBuffer(chunkSize*3, seed)
+	buffer := &Buffer{}
+	buffer.Append(data)
+
+	assert.Equal(t, data, buffer.Slice(0, buffer.Len()))
+}
+
 func Test_AppendLittleEndian(t *testing.T) {
 	buffer := &Buffer{}
 	buffer.AppendUint16LittleEndian(1)
