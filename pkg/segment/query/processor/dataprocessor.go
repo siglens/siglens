@@ -62,6 +62,9 @@ func (dp *DataProcessor) IsTwoPassCmd() bool {
 }
 
 func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
+	if streams == nil {
+		streams = make([]*CachedStream, 0)
+	}
 	dp.streams = streams
 }
 
