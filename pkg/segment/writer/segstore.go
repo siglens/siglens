@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -558,8 +559,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 
 		//readjust workBufComp size based on num of columns in this wip
+		flushParallelism := runtime.GOMAXPROCS(0)
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
-			len(segstore.wipBlock.colWips))
+			flushParallelism)
 		// now make each of these bufs of atleast WIP_SIZE
 		for i := 0; i < len(segstore.workBufForCompression); i++ {
 			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
@@ -571,9 +573,11 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 
 		compBufIdx := 0
+		currentParallelism := 0
 		for colName, colInfo := range segstore.wipBlock.colWips {
 			if colInfo.cbufidx > 0 {
 				allColsToFlush.Add(1)
+				currentParallelism++
 				go func(cname string, colWip *ColWip, compBuf []byte) {
 					defer allColsToFlush.Done()
 					var encType []byte
@@ -626,8 +630,13 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 							atomic.AddUint64(&totalMetadata, writtenBytes)
 						}
 					}
-				}(colName, colInfo, segstore.workBufForCompression[compBufIdx])
+				}(colName, colInfo, segstore.workBufForCompression[currentParallelism-1])
 				compBufIdx++
+			}
+
+			if currentParallelism >= flushParallelism {
+				allColsToFlush.Wait()
+				currentParallelism = 0
 			}
 		}
 
