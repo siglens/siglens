@@ -145,3 +145,28 @@ func Test_Slice(t *testing.T) {
 	assert.Equal(t, data[0:0], buffer.Slice(0, 0))
 	assert.Equal(t, []byte{}, buffer.Slice(buffer.Len(), buffer.Len()))
 }
+
+func Test_AppendLittleEndian(t *testing.T) {
+	buffer := &Buffer{}
+	buffer.AppendUint16LittleEndian(1)
+	assert.Equal(t, 2, buffer.Len())
+
+	buffer.AppendUint32LittleEndian(2)
+	assert.Equal(t, 6, buffer.Len())
+
+	buffer.AppendUint64LittleEndian(3)
+	assert.Equal(t, 14, buffer.Len())
+
+	buffer.AppendInt64LittleEndian(-4)
+	assert.Equal(t, 22, buffer.Len())
+
+	buffer.AppendFloat64LittleEndian(5.5)
+	assert.Equal(t, 30, buffer.Len())
+
+	bytes := buffer.ReadAll()
+	assert.Equal(t, uint16(1), BytesToUint16LittleEndian(bytes[0:2]))
+	assert.Equal(t, uint32(2), BytesToUint32LittleEndian(bytes[2:6]))
+	assert.Equal(t, uint64(3), BytesToUint64LittleEndian(bytes[6:14]))
+	assert.Equal(t, int64(-4), BytesToInt64LittleEndian(bytes[14:22]))
+	assert.Equal(t, float64(5.5), BytesToFloat64LittleEndian(bytes[22:30]))
+}
