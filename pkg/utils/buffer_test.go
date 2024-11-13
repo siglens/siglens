@@ -83,23 +83,23 @@ func Test_CopyFrom(t *testing.T) {
 	buffer.Append(data)
 
 	newData := []byte("hello")
-	err := buffer.CopyFrom(newData, 0)
+	err := buffer.WriteAt(newData, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, newData, buffer.Slice(0, len(newData)))
 
-	err = buffer.CopyFrom(newData, chunkSize-len(newData))
+	err = buffer.WriteAt(newData, chunkSize-len(newData))
 	assert.NoError(t, err)
 	assert.Equal(t, newData, buffer.Slice(chunkSize-len(newData), chunkSize))
 
-	err = buffer.CopyFrom(newData, chunkSize-1)
+	err = buffer.WriteAt(newData, chunkSize-1)
 	assert.NoError(t, err)
 	assert.Equal(t, newData, buffer.Slice(chunkSize-1, chunkSize+len(newData)-1))
 
 	// Invalid start
-	err = buffer.CopyFrom(newData, chunkSize*2-1)
+	err = buffer.WriteAt(newData, chunkSize*2-1)
 	assert.Error(t, err)
 
-	err = buffer.CopyFrom(newData, -1)
+	err = buffer.WriteAt(newData, -1)
 	assert.Error(t, err)
 }
 

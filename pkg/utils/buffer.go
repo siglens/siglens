@@ -195,17 +195,17 @@ func (b *Buffer) CopyTo(dst []byte) error {
 	return nil
 }
 
-func (b *Buffer) CopyFrom(src []byte, start int) error {
+func (b *Buffer) WriteAt(src []byte, start int) error {
 	if b == nil {
-		return TeeErrorf("Buffer.CopyFrom: nil buffer")
+		return TeeErrorf("Buffer.WriteAt: nil buffer")
 	}
 
 	if start < 0 || start > b.Len() {
-		return TeeErrorf("Buffer.CopyFrom: invalid start position %v; len=%v", start, b.Len())
+		return TeeErrorf("Buffer.WriteAt: invalid start position %v; len=%v", start, b.Len())
 	}
 
 	if start+len(src) > b.Len() {
-		return TeeErrorf("Buffer.CopyFrom: src has %v bytes but needs %v bytes",
+		return TeeErrorf("Buffer.WriteAt: src has %v bytes but needs %v bytes",
 			len(src), b.Len()-start)
 	}
 
