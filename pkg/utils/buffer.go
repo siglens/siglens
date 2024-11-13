@@ -150,7 +150,7 @@ func (b *Buffer) Slice(start int, end int) []byte {
 	numSkippedChunks := start / chunkSize
 	copy(buf, b.chunks[numSkippedChunks][start%chunkSize:])
 	offset := chunkSize - (start % chunkSize)
-	for i := numSkippedChunks + 1; i <= end/chunkSize; i++ {
+	for i := numSkippedChunks + 1; i <= end/chunkSize && i < len(b.chunks); i++ {
 		// Note: on the last iteration, we generally don't wnat to copy the
 		// whole chunk, but since copy() copies the minimum of the two slice
 		// lengths, we don't need to do anything special.
