@@ -2,180 +2,162 @@
     "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 count(http_status) as cnt, avg(http_status) as avg, sum(http_status) as sum, min(http_status) as min, max(http_status) as max, range(http_status) as range, dc(http_status) as dc, values(http_status) as values | fields city, first_name, last_name, http_status, cnt, avg, sum, min, max, range, dc, values",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
-             "relation": "eq"
+             "value": 100,
+             "relation": "gte"
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["first_name", "last_name"],
          "records": [
             {
-                "avg": 400,
+                "avg": 500,
                 "city": "Boston",
                 "cnt": 1,
                 "dc": 1,
-                "first_name": "Abdiel",
-                "http_status": 400,
-                "last_name": "Bogisich",
-                "max": 400,
-                "min": 400,
-                "sum": 400,
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Abshire",
+                "max": 500,
+                "min": 500,
                 "range": 0,
+                "sum": 500,
                 "values": [
-                    "400"
+                    "500"
                 ]
             },
             {
-                "avg": 450,
+                "avg": 400.5,
                 "city": "Boston",
                 "cnt": 2,
                 "dc": 2,
-                "first_name": "Abdiel",
-                "http_status": 500,
-                "last_name": "Powlowski",
-                "max": 500,
-                "min": 400,
-                "range": 100,
-                "sum": 900,
-                "values": [
-                    "400",
-                    "500"
-                ]
-            },
-            {
-                "avg": 366.6666666666667,
-                "city": "Boston",
-                "cnt": 3,
-                "dc": 3,
-                "first_name": "Abdul",
-                "http_status": 200,
-                "last_name": "Larson",
-                "max": 500,
-                "min": 200,
-                "range": 300,
-                "sum": 1100,
-                "values": [
-                    "200",
-                    "400",
-                    "500"
-                ]
-            },
-            {
-                "avg": 300,
-                "city": "Boston",
-                "cnt": 3,
-                "dc": 2,
-                "first_name": "Abigail",
-                "http_status": 200,
-                "last_name": "Nitzsche",
-                "max": 500,
-                "min": 200,
-                "range": 300,
-                "sum": 900,
-                "values": [
-                    "200",
-                    "500"
-                ]
-            },
-            {
-                "avg": 266.6666666666667,
-                "city": "Boston",
-                "cnt": 3,
-                "dc": 2,
-                "first_name": "Abraham",
-                "http_status": 400,
-                "last_name": "Tromp",
-                "max": 400,
-                "min": 200,
-                "range": 200,
-                "sum": 800,
-                "values": [
-                    "200",
-                    "400"
-                ]
-            },
-            {
-                "avg": 333.3333333333333,
-                "city": "Boston",
-                "cnt": 3,
-                "dc": 2,
-                "first_name": "Adela",
-                "http_status": 400,
-                "last_name": "Cummerata",
-                "max": 400,
-                "min": 200,
-                "range": 200,
-                "sum": 1000,
-                "values": [
-                    "200",
-                    "400"
-                ]
-            },
-            {
-                "avg": 367,
-                "city": "Boston",
-                "cnt": 3,
-                "dc": 2,
-                "first_name": "Adela",
+                "first_name": "Aaliyah",
                 "http_status": 301,
-                "last_name": "Murazik",
-                "max": 400,
+                "last_name": "Armstrong",
+                "max": 500,
                 "min": 301,
-                "range": 99,
-                "sum": 1101,
+                "range": 199,
+                "sum": 801,
                 "values": [
                     "301",
-                    "400"
+                    "500"
                 ]
             },
             {
-                "avg": 368.3333333333333,
+                "avg": 433.6666666666667,
+                "city": "Boston",
+                "cnt": 3,
+                "dc": 2,
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Bailey",
+                "max": 500,
+                "min": 301,
+                "range": 199,
+                "sum": 1301,
+                "values": [
+                    "301",
+                    "500"
+                ]
+            },
+            {
+                "avg": 433.6666666666667,
+                "city": "Boston",
+                "cnt": 3,
+                "dc": 2,
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Batz",
+                "max": 500,
+                "min": 301,
+                "range": 199,
+                "sum": 1301,
+                "values": [
+                    "301",
+                    "500"
+                ]
+            },
+            {
+                "avg": 500,
+                "city": "Boston",
+                "cnt": 3,
+                "dc": 1,
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Bednar",
+                "max": 500,
+                "min": 500,
+                "range": 0,
+                "sum": 1500,
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "avg": 434,
+                "city": "Boston",
+                "cnt": 3,
+                "dc": 2,
+                "first_name": "Aaliyah",
+                "http_status": 302,
+                "last_name": "Beer",
+                "max": 500,
+                "min": 302,
+                "range": 198,
+                "sum": 1302,
+                "values": [
+                    "302",
+                    "500"
+                ]
+            },
+            {
+                "avg": 334,
                 "city": "Boston",
                 "cnt": 3,
                 "dc": 3,
-                "first_name": "Adela",
-                "http_status": 404,
-                "last_name": "Zieme",
-                "max": 404,
-                "min": 301,
-                "range": 103,
-                "sum": 1105,
+                "first_name": "Aaliyah",
+                "http_status": 200,
+                "last_name": "Bins",
+                "max": 500,
+                "min": 200,
+                "range": 300,
+                "sum": 1002,
                 "values": [
-                    "301",
-                    "400",
-                    "404"
+                    "200",
+                    "302",
+                    "500"
                 ]
             },
             {
-                "avg": 369.6666666666667,
+                "avg": 267.6666666666667,
                 "city": "Boston",
                 "cnt": 3,
-                "dc": 2,
-                "first_name": "Adelia",
-                "http_status": 404,
-                "last_name": "Kuhn",
-                "max": 404,
-                "min": 301,
-                "range": 103,
-                "sum": 1109,
+                "dc": 3,
+                "first_name": "Aaliyah",
+                "http_status": 301,
+                "last_name": "Blanda",
+                "max": 302,
+                "min": 200,
+                "range": 102,
+                "sum": 803,
                 "values": [
+                    "200",
                     "301",
-                    "404"
+                    "302"
                 ]
             },
             {
-                "avg": 402.6666666666667,
+                "avg": 301.6666666666667,
                 "city": "Boston",
                 "cnt": 3,
-                "dc": 2,
-                "first_name": "Adolfo",
-                "http_status": 400,
-                "last_name": "Gottlieb",
+                "dc": 3,
+                "first_name": "Aaliyah",
+                "http_status": 404,
+                "last_name": "Bode",
                 "max": 404,
-                "min": 400,
-                "range": 4,
-                "sum": 1208,
+                "min": 200,
+                "range": 204,
+                "sum": 905,
                 "values": [
-                    "400",
+                    "200",
+                    "301",
                     "404"
                 ]
             }

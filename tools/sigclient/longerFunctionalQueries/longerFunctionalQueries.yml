@@ -39,18 +39,17 @@ top.json
 rare.json
 rare_top.json
 stats_top.json
+streamstats_win3.json
+streamstats_win4_currF.json
+streamstats_win4_grpby.json
+streamstats_win4_reset_before_after.json
+streamstats_win2_gloF_currF_grpby.json
+streamstats_win2_gloF_grpby.json
+streamstats_multi_resets_grpby.json
+streamstats_eval.json
+streamstats_after_stats.json
+streamstats_after_grpby.json
 
-## Uncomment when implemented for new pipline
-# streamstats_win3.json
-# streamstats_win4_currF.json
-# streamstats_win4_grpby.json
-# streamstats_win4_reset_before_after.json
-# streamstats_win2_gloF_currF_grpby.json
-# streamstats_win2_gloF_grpby.json
-# streamstats_multi_resets_grpby.json
-# streamstats_eval.json
-# streamstats_after_stats.json
-# streamstats_after_grpby.json
 
 
 ## Queries not working for multi-index
