@@ -464,10 +464,10 @@ func (ss *SegStore) encodeSingleString(key string,
 	ss.updateColValueSizeInAllSeenColumns(key, recLen)
 
 	if !ss.skipDe {
-		ss.checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum, s, false)
+		ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(s), int(colWip.cbufidx)), recNum, s, false)
 	}
 	valueLen := uint32(len(valBytes))
-	addSegStatsStrIngestion(ss.AllSst, key, colWip.cbuf[colWip.cbufidx-valueLen:colWip.cbufidx])
+	addSegStatsStrIngestion(ss.AllSst, key, colWip.cbuf.Slice(int(colWip.cbufidx-valueLen), int(colWip.cbufidx)))
 	return matchedCol
 }
 
@@ -533,7 +533,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, numType, matchedCol)
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
-	retLen := ss.encSingleNumber(key, value, colWip.cbuf[:], colWip.cbufidx, colRis, recNum, segstats,
+	retLen := ss.encSingleNumber(key, value, colWip.cbuf.ReadAll(), colWip.cbufidx, colRis, recNum, segstats,
 		ss.wipBlock.bb, colWip, valBytes)
 	colWip.cbufidx += retLen
 	ss.updateColValueSizeInAllSeenColumns(key, retLen)

@@ -30,8 +30,7 @@ func testAppendAndRead(t *testing.T, buffer *Buffer, data ...[]byte) {
 		joinedData = append(joinedData, d...)
 		assert.Equal(t, len(joinedData), buffer.Len())
 
-		readData, err := buffer.ReadAll()
-		assert.NoError(t, err)
+		readData := buffer.ReadAll()
 		assert.Equal(t, len(readData), buffer.Len())
 		assert.Equal(t, joinedData, readData)
 	}

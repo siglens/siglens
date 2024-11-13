@@ -353,7 +353,7 @@ func (segstore *SegStore) GetBaseDir() string {
 
 // For some types we use a bloom index and for others we use range indices. If
 // a column has both, we should convert all the values to one type.
-func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {
+func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) error {
 	for colName := range wipBlock.columnsInBlock {
 		// Check if this column has both a bloom and a range index.
 		_, ok1 := wipBlock.columnBlooms[colName]
@@ -364,22 +364,36 @@ func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {
 
 		// Try converting this column to numbers, but if that fails convert it to
 		// strings.
-		ok := convertColumnToNumbers(wipBlock, colName, segmentKey)
+		ok, err := convertColumnToNumbers(wipBlock, colName, segmentKey)
+		if err != nil {
+			log.Errorf("consolidateColumnTypes: error converting column %v to numbers; err=%v", colName, err)
+			return err
+		}
 		if !ok {
-			convertColumnToStrings(wipBlock, colName, segmentKey)
+			err = convertColumnToStrings(wipBlock, colName, segmentKey)
+			if err != nil {
+				log.Errorf("consolidateColumnTypes: error converting column %v to strings; err=%v", colName, err)
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 // Returns true if the conversion succeeds.
-func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey string) bool {
+func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey string) (bool, error) {
 	// Try converting all values to numbers.
 	oldColWip := wipBlock.colWips[colName]
 	newColWip := InitColWip(segmentKey, colName)
 	rangeIndex := wipBlock.columnRangeIndexes[colName].Ranges
 
 	for i := int(0); i < int(oldColWip.cbufidx); {
-		valType := oldColWip.cbuf[i]
+		valType, err := oldColWip.cbuf.At(i)
+		if err != nil {
+			log.Errorf("convertColumnToNumbers: cannot read valType at index %v; err=%v", i, err)
+			return false, err
+		}
 		i++
 
 		switch valType {
@@ -413,7 +427,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			}
 
 			// Conversion failed.
-			return false
+			return false, nil
 
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
@@ -429,12 +443,12 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Cannot convert bool to number.
-			return false
+			return false, nil
 
 		default:
 			// Unknown type.
 			log.Errorf("convertColumnToNumbers: unknown type %v", valType)
-			return false
+			return false, nil
 		}
 	}
 
@@ -443,16 +457,20 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 	oldColWip.cbuf.Reset()
 	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnBlooms, colName)
-	return true
+	return true, nil
 }
 
-func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey string) {
+func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey string) error {
 	oldColWip := wipBlock.colWips[colName]
 	newColWip := InitColWip(segmentKey, colName)
 	bloom := wipBlock.columnBlooms[colName]
 
 	for i := 0; i < int(oldColWip.cbufidx); {
-		valType := oldColWip.cbuf[i]
+		valType, err := oldColWip.cbuf.At(i)
+		if err != nil {
+			log.Errorf("convertColumnsToStrings: cannot read valType at index %v; err=%v", i, err)
+			return err
+		}
 		i++
 
 		switch valType {
@@ -490,7 +508,11 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
-			boolVal := oldColWip.cbuf[i]
+			boolVal, err := oldColWip.cbuf.At(i)
+			if err != nil {
+				log.Errorf("convertColumnsToStrings: cannot read bool at index %v; err=%v", i, err)
+				return err
+			}
 			i++
 
 			var stringVal string
@@ -514,6 +536,8 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	oldColWip.cbuf.Reset()
 	wipCbufPool.Put(&oldColWip.dePackingBuf)
 	delete(wipBlock.columnRangeIndexes, colName)
+
+	return nil
 }
 
 func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, isKibana bool, onTimeRotate bool) error {

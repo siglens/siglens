@@ -166,23 +166,8 @@ func (b *Buffer) At(pos int) (byte, error) {
 	return slice[0], nil
 }
 
-func (b *Buffer) ReadAll() ([]byte, error) {
-	if b == nil {
-		return nil, TeeErrorf("Buffer.ReadAll: nil buffer")
-	}
-
-	if len(b.chunks) == 0 {
-		return nil, nil
-	}
-
-	buf := make([]byte, b.Len())
-	err := b.CopyTo(buf)
-	if err != nil {
-		log.Errorf("Buffer.ReadAll: failed to copy; err=%v", err)
-		return nil, err
-	}
-
-	return buf, nil
+func (b *Buffer) ReadAll() []byte {
+	return b.Slice(0, b.Len())
 }
 
 func (b *Buffer) CopyTo(dst []byte) error {
