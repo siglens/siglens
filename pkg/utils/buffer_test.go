@@ -78,6 +78,32 @@ func Test_CopyTo(t *testing.T) {
 	assert.Equal(t, data, bytes)
 }
 
+func Test_CopyFrom(t *testing.T) {
+	data := make([]byte, chunkSize*2)
+	buffer := &Buffer{}
+	buffer.Append(data)
+
+	newData := []byte("hello")
+	err := buffer.CopyFrom(newData, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, newData, buffer.Slice(0, len(newData)))
+
+	err = buffer.CopyFrom(newData, chunkSize-len(newData))
+	assert.NoError(t, err)
+	assert.Equal(t, newData, buffer.Slice(chunkSize-len(newData), chunkSize))
+
+	err = buffer.CopyFrom(newData, chunkSize-1)
+	assert.NoError(t, err)
+	assert.Equal(t, newData, buffer.Slice(chunkSize-1, chunkSize+len(newData)-1))
+
+	// Invalid start
+	err = buffer.CopyFrom(newData, chunkSize*2-1)
+	assert.Error(t, err)
+
+	err = buffer.CopyFrom(newData, -1)
+	assert.Error(t, err)
+}
+
 func Test_Len(t *testing.T) {
 	buffer := &Buffer{}
 	assert.Equal(t, 0, buffer.Len())

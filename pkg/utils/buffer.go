@@ -206,6 +206,32 @@ func (b *Buffer) CopyTo(dst []byte) error {
 	return nil
 }
 
+func (b *Buffer) CopyFrom(src []byte, start int) error {
+	if b == nil {
+		return TeeErrorf("Buffer.CopyFrom: nil buffer")
+	}
+
+	if start < 0 || start > b.Len() {
+		return TeeErrorf("Buffer.CopyFrom: invalid start position %v; len=%v", start, b.Len())
+	}
+
+	if start+len(src) > b.Len() {
+		return TeeErrorf("Buffer.CopyFrom: src has %v bytes but needs %v bytes",
+			len(src), b.Len()-start)
+	}
+
+	numSkippedChunks := start / chunkSize
+	offset := start % chunkSize
+	for i := numSkippedChunks; i < len(b.chunks) && len(src) > 0; i++ {
+		numBytesToCopy := Min(len(src), chunkSize-offset)
+		copy(b.chunks[i][offset:], src[:numBytesToCopy])
+		src = src[numBytesToCopy:]
+		offset = 0
+	}
+
+	return nil
+}
+
 func (b *Buffer) Reset() {
 	for i := range b.chunks {
 		chunkPool.Put(&b.chunks[i])
