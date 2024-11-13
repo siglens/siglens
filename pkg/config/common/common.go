@@ -83,13 +83,13 @@ type DatabaseConfig struct {
 
 type MemoryConfig struct {
 	MaxUsagePercent uint64 `yaml:"maxUsagePercent"`
+	BytesPerQuery   uint64 `yaml:"bytesPerQuery"`
 
 	// These should sum to 100.
-	SearchPercent         uint64 `yaml:"searchPercent"`
-	CMIPercent            uint64 `yaml:"microIndexPercent"`
-	MetadataPercent       uint64 `yaml:"metadataPercent"`
-	MetricsPercent        uint64 `yaml:"metricsPercent"`
-	MemoryPerQueryInBytes uint64 `yaml:"memPerQueryInBytes"`
+	SearchPercent   uint64 `yaml:"searchPercent"`
+	CMIPercent      uint64 `yaml:"microIndexPercent"`
+	MetadataPercent uint64 `yaml:"metadataPercent"`
+	MetricsPercent  uint64 `yaml:"metricsPercent"`
 }
 
 /*  If you add a new config parameters to the Configuration struct below, make sure to add the default value

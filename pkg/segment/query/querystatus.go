@@ -89,7 +89,7 @@ func InitMaxRunningQueries() {
 	memConfig := config.GetMemoryConfig()
 	totalMemoryInBytes := config.GetTotalMemoryAvailable()
 	searchMemoryInBytes := (totalMemoryInBytes * memConfig.SearchPercent) / 100
-	maxConcurrentQueries := searchMemoryInBytes / memConfig.MemoryPerQueryInBytes
+	maxConcurrentQueries := searchMemoryInBytes / memConfig.BytesPerQuery
 	if maxConcurrentQueries < 2 {
 		maxConcurrentQueries = 2
 	}
