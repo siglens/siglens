@@ -538,7 +538,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, numType, matchedCol)
 	colRis := ss.wipBlock.columnRangeIndexes
 	segstats := ss.AllSst
-	retLen := ss.encSingleNumber(key, value, colWip.cbuf.ReadAll(), colWip.cbufidx, colRis, recNum, segstats,
+	retLen := ss.encSingleNumber(key, value, colWip.cbuf, colWip.cbufidx, colRis, recNum, segstats,
 		ss.wipBlock.bb, colWip, valBytes)
 	colWip.cbufidx += retLen
 	ss.updateColValueSizeInAllSeenColumns(key, retLen)
@@ -619,7 +619,7 @@ func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uin
 	return packedLen
 }
 
-func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
+func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf *utils.Buffer, idx uint32,
 	colRis map[string]*RangeIndex, wRecNum uint16,
 	segstats map[string]*SegStats, bb *bbp.ByteBuffer, colWip *ColWip,
 	valBytes []byte) uint32 {
@@ -635,17 +635,17 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 	case float64:
 		addSegStatsNums(segstats, key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval,
 			valBytes)
-		valSize := encJsonNumber(key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, wipbuf[:],
+		valSize := encJsonNumber(key, SS_FLOAT64, FPARM_INT64, FPARM_UINT64, cval, wipbuf,
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx, false)
+		ss.checkAddDictEnc(colWip, wipbuf.Slice(int(idx), int(idx+valSize)), wRecNum, idx, false)
 		return valSize
 	case int64:
 		addSegStatsNums(segstats, key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64,
 			valBytes)
 
-		valSize := encJsonNumber(key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, wipbuf[:],
+		valSize := encJsonNumber(key, SS_INT64, cval, FPARM_UINT64, FPARM_FLOAT64, wipbuf,
 			idx, ri.Ranges)
-		ss.checkAddDictEnc(colWip, wipbuf[idx:idx+valSize], wRecNum, idx, false)
+		ss.checkAddDictEnc(colWip, wipbuf.Slice(int(idx), int(idx+valSize)), wRecNum, idx, false)
 		return valSize
 
 	default:
@@ -655,22 +655,22 @@ func (ss *SegStore) encSingleNumber(key string, val interface{}, wipbuf []byte, 
 }
 
 func encJsonNumber(key string, numType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, wipbuf []byte, idx uint32, blockRangeIndex map[string]*Numbers) uint32 {
+	fltVal float64, wipbuf *utils.Buffer, idx uint32, blockRangeIndex map[string]*Numbers) uint32 {
 
 	var valSize uint32
 
 	switch numType {
 	case SS_INT64:
-		copy(wipbuf[idx:], VALTYPE_ENC_INT64[:])
-		utils.Int64ToBytesLittleEndianInplace(int64(intVal), wipbuf[idx+1:])
+		wipbuf.Append(VALTYPE_ENC_INT64[:])
+		wipbuf.AppendAsInt64(intVal)
 		valSize = 1 + 8
 	case SS_UINT64:
-		copy(wipbuf[idx:], VALTYPE_ENC_UINT64[:])
-		utils.Uint64ToBytesLittleEndianInplace(uintVal, wipbuf[idx+1:])
+		wipbuf.Append(VALTYPE_ENC_UINT64[:])
+		wipbuf.AppendAsUint64(uintVal)
 		valSize = 1 + 8
 	case SS_FLOAT64:
-		copy(wipbuf[idx:], VALTYPE_ENC_FLOAT64[:])
-		utils.Float64ToBytesLittleEndianInplace(fltVal, wipbuf[idx+1:])
+		wipbuf.Append(VALTYPE_ENC_FLOAT64[:])
+		wipbuf.AppendAsFloat64(fltVal)
 		valSize = 1 + 8
 	default:
 		log.Errorf("encJsonNumber: unknown numType: %v", numType)
