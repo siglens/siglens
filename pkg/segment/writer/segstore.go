@@ -395,7 +395,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				newColWip.cbuf.Append(utils.VALTYPE_ENC_INT64[:])
-				toputils.Int64ToBytesLittleEndianInplace(intVal, newColWip.cbuf[newColWip.cbufidx+1:])
+				newColWip.cbuf.AppendAsInt64(intVal)
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
 				continue
@@ -406,7 +406,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			if err == nil {
 				// Conversion succeeded.
 				newColWip.cbuf.Append(utils.VALTYPE_ENC_FLOAT64[:])
-				toputils.Float64ToBytesLittleEndianInplace(floatVal, newColWip.cbuf[newColWip.cbufidx+1:])
+				newColWip.cbuf.AppendAsFloat64(floatVal)
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
 				continue
@@ -1276,7 +1276,7 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	// store TS_TYPE and lowTs for reconstruction needs
 	tsWip.cbuf.Append([]byte{uint8(tsType)})
 	tsWip.cbufidx += 1
-	toputils.Uint64ToBytesLittleEndianInplace(lowTs, tsWip.cbuf[tsWip.cbufidx:])
+	tsWip.cbuf.AppendAsUint64(lowTs)
 	tsWip.cbufidx += 8
 
 	switch tsType {
@@ -1291,21 +1291,21 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 		var tsVal uint16
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint16(wipBlock.blockTs[i] - lowTs)
-			toputils.Uint16ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
+			tsWip.cbuf.AppendAsUint16(tsVal)
 			tsWip.cbufidx += 2
 		}
 	case structs.TS_Type32:
 		var tsVal uint32
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = uint32(wipBlock.blockTs[i] - lowTs)
-			toputils.Uint32ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
+			tsWip.cbuf.AppendAsUint32(tsVal)
 			tsWip.cbufidx += 4
 		}
 	case structs.TS_Type64:
 		var tsVal uint64
 		for i := uint16(0); i < wipBlock.blockSummary.RecCount; i++ {
 			tsVal = wipBlock.blockTs[i] - lowTs
-			toputils.Uint64ToBytesLittleEndianInplace(tsVal, tsWip.cbuf[tsWip.cbufidx:])
+			tsWip.cbuf.AppendAsUint64(tsVal)
 			tsWip.cbufidx += 8
 		}
 	}

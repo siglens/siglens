@@ -298,7 +298,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 	s := colWip.cbufidx
 	colWip.cbuf.Append(VALTYPE_DICT_ARRAY[:])
 	colWip.cbufidx += 1
-	utils.Uint16ToBytesLittleEndianInplace(0, colWip.cbuf[colWip.cbufidx:]) //placeholder for encoding length of array
+	colWip.cbuf.AppendAsUint16(0) // Placeholder for encoding length of array
 	colWip.cbufidx += 2
 	_, aErr := jp.ArrayEach(data, func(value []byte, valueType jp.ValueType, offset int, err error) {
 		switch valueType {
@@ -315,7 +315,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			//encode and copy keyName
 			n := uint16(len(keyName))
-			utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
+			colWip.cbuf.AppendAsUint16(n)
 			colWip.cbufidx += 2
 			colWip.cbuf.Append(keyName)
 			colWip.cbufidx += uint32(n)
@@ -364,7 +364,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			}
 			// get the copied key value bytes from the ColWip buffer,
 			// As the keyVal bytes are converted to lower case while adding to Bloom above.
-			keyValBytes := colWip.cbuf[colWip.cbufidx-uint32(keyValLen):]
+			keyValBytes := colWip.cbuf.Slice(int(colWip.cbufidx-uint32(keyValLen)), colWip.cbuf.Len())
 			addSegStatsStrIngestion(ss.AllSst, keyNameStr, keyValBytes)
 		default:
 			finalErr = fmt.Errorf("encodeSingleDictArray : received unknown type of %+s", valueType)
@@ -429,7 +429,7 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
 	colWip.cbuf.Append(VALTYPE_RAW_JSON[:])
 	colWip.cbufidx += 1
 	n := uint16(len(value))
-	utils.Uint16ToBytesLittleEndianInplace(n, colWip.cbuf[colWip.cbufidx:])
+	colWip.cbuf.AppendAsUint16(n)
 	colWip.cbufidx += 2
 	colWip.cbuf.Append(value)
 	colWip.cbufidx += uint32(n)
