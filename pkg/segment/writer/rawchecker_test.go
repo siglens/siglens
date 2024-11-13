@@ -81,7 +81,10 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 		}
 
 		var found bool
-		for _, colWip := range colWips {
+		for cname, colWip := range colWips {
+			if cname == tsKey {
+				continue
+			}
 			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf.ReadAll(), nil, false)
 			assert.Nil(t, err)
 			found = result
