@@ -371,7 +371,9 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			return
 		}
 	})
-	utils.Uint16ToBytesLittleEndianInplace(uint16(colWip.cbufidx-s-3), colWip.cbuf[s+1:])
+	bytes := [2]byte{}
+	utils.Uint16ToBytesLittleEndianInplace(uint16(colWip.cbufidx-s-3), bytes[:])
+	colWip.cbuf.CopyFrom(bytes[:], int(s+1))
 	if aErr != nil {
 		finalErr = aErr
 	}
