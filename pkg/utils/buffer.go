@@ -23,7 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const chunkSize = 1024
+const chunkSize = 16 * 1024
 
 var chunkPool = sync.Pool{
 	New: func() interface{} {
