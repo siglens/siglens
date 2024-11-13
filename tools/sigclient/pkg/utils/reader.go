@@ -103,6 +103,7 @@ type GeneratorDataConfig struct {
 	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
 	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
 	EndTimestamp    time.Time
+	MaxColSuffix    []int
 }
 
 type FunctionalTestConfig struct {
@@ -191,7 +192,7 @@ func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int
 	}
 }
 
-func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int) *GeneratorDataConfig {
+func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int, uniqColumns int) *GeneratorDataConfig {
 	if minColumns > maxColumns {
 		minColumns = maxColumns
 	}
@@ -203,11 +204,28 @@ func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns in
 	if minColumns == maxColumns {
 		variableColumns = false
 	}
-	return &GeneratorDataConfig{
+
+	genConfig := &GeneratorDataConfig{
 		MaxColumns:      maxColumns,
 		VariableColumns: variableColumns,
 		MinColumns:      minColumns,
 	}
+
+	if uniqColumns > 0 {
+		MaxColSuffix := make([]int, maxColumns)
+		extra := uniqColumns % maxColumns
+		each := uniqColumns / maxColumns
+		for i := 0; i < maxColumns; i++ {
+			MaxColSuffix[i] = each
+			if extra > 0 {
+				MaxColSuffix[i]++
+				extra--
+			}
+		}
+		genConfig.MaxColSuffix = MaxColSuffix
+	}
+
+	return genConfig
 }
 
 func InitDynamicUserGenerator(ts bool, seed int64, accfakerSeed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
@@ -361,6 +379,10 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, acco
 }
 
 func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
+	for col := range m {
+		delete(m, col)
+	}
+
 	dynamicUserColumnsLen := len(dynamicUserColumnNames)
 	dynamicUserColIndex := 0
 
@@ -416,6 +438,10 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 				delete(m, insertColName)
 				continue
 			}
+		}
+
+		if len(config.MaxColSuffix) > 0 {
+			insertColName = fmt.Sprintf("%v_%v", insertColName, rand.Intn(config.MaxColSuffix[colCount]))
 		}
 
 		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
