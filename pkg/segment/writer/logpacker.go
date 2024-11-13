@@ -128,6 +128,7 @@ func parseNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
 				valUnescaped, encErr := jp.Unescape(value, nil)
 				if err != nil {
 					finalErr = encErr
+					return
 				}
 				parseSingleString(finalKey, tsKey, valUnescaped, ple)
 			} else {
