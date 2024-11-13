@@ -860,7 +860,7 @@ func GetNumValFromRec(rec *utils.Buffer, offset int, qid uint64, retVal *Number)
 
 	retVal.SetInvalidType()
 
-	if rec == nil {
+	if rec.Len() == 0 {
 		return 0, errors.New("column value is empty")
 	}
 
@@ -1681,7 +1681,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 
 func getColByteSlice(rec *utils.Buffer, offset int, qid uint64) ([]byte, uint16, error) {
 
-	if rec == nil {
+	if rec.Len() == 0 {
 		return []byte{}, 0, errors.New("column value is empty")
 	}
 

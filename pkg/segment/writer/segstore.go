@@ -211,6 +211,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		for _, cwip := range segstore.wipBlock.colWips {
 			cwip.cbufidx = 0
 			cwip.cstartidx = 0
+			cwip.cbuf.Reset()
 
 			for dword := range cwip.deData.deMap {
 				delete(cwip.deData.deMap, dword)
