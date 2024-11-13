@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"fmt"
 
 	jp "github.com/buger/jsonparser"
@@ -51,12 +52,17 @@ func ParseRawJsonObject(currKey string, data []byte, tsKey *string,
 				return fmt.Errorf("parseRawJsonObject: arr currKey: %v, err: %v", currKey, err)
 			}
 		case jp.String:
-			valUnescaped, err := jp.Unescape(value, jsParsingStackbuf[:])
-			if err != nil {
-				return fmt.Errorf("parseRawJsonObject: failed to unescape currKey: %v, err: %v",
-					currKey, err)
+			firstBackslash := bytes.IndexByte(value, '\\')
+			if firstBackslash != -1 {
+				valUnescaped, err := jp.Unescape(value, nil)
+				if err != nil {
+					return fmt.Errorf("parseRawJsonObject: failed to unescape currKey: %v, err: %v",
+						currKey, err)
+				}
+				parseSingleString(finalKey, tsKey, valUnescaped, ple)
+			} else {
+				parseSingleString(finalKey, tsKey, value, ple)
 			}
-			parseSingleString(finalKey, tsKey, valUnescaped, ple)
 		case jp.Number:
 			numVal, err := jp.ParseInt(value)
 			if err != nil {
@@ -166,8 +172,7 @@ func parseSingleString(key string, tsKey *string, valBytes []byte, ple *ParsedLo
 	cbufidx += 1
 	n := uint16(len(valBytes))
 	utils.Uint16ToBytesLittleEndianInplace(n, ple.allCvalsTypeLen[ple.numCols][cbufidx:])
-	ple.allCvals[ple.numCols] = make([]byte, n)
-	copy(ple.allCvals[ple.numCols], valBytes)
+	ple.allCvals[ple.numCols] = valBytes
 
 	ple.numCols++
 }
