@@ -137,6 +137,10 @@ func Test_Slice(t *testing.T) {
 	assert.Equal(t, data[:10], buffer.Slice(0, 10))
 	assert.Equal(t, data[chunkSize*3:], buffer.Slice(chunkSize*3, buffer.Len()))
 	assert.Equal(t, data[chunkSize-5:chunkSize], buffer.Slice(chunkSize-5, chunkSize))
+	assert.Equal(t, data[chunkSize-5:chunkSize+1], buffer.Slice(chunkSize-5, chunkSize+1))
+	assert.Equal(t, data[chunkSize-1:chunkSize+1], buffer.Slice(chunkSize-1, chunkSize+1))
 	assert.Equal(t, data[chunkSize-5:chunkSize+5], buffer.Slice(chunkSize-5, chunkSize+5))
 	assert.Equal(t, data, buffer.Slice(0, buffer.Len()))
+	assert.Equal(t, data[0:0], buffer.Slice(0, 0))
+	assert.Equal(t, []byte{}, buffer.Slice(buffer.Len(), buffer.Len()))
 }

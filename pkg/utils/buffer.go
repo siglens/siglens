@@ -131,6 +131,10 @@ func (b *Buffer) Slice(start int, end int) []byte {
 		return nil
 	}
 
+	if start == end {
+		return []byte{}
+	}
+
 	if start/chunkSize == (end-1)/chunkSize {
 		// This range is entirely within a single chunk.
 		chunkStart := start % chunkSize
