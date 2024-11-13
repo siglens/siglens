@@ -58,7 +58,6 @@ import (
 // leave a room for one wip's worth of recs.
 const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
-const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 const BS_INITIAL_SIZE = uint32(1000)
 
@@ -198,26 +197,15 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.wipBlock.maxIdx = 0
 	segstore.bsPoolCurrIdx = 0
 
-	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
-		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
-			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
+	for _, cwip := range segstore.wipBlock.colWips {
+		cwip.cbufidx = 0
+		cwip.cstartidx = 0
+		cwip.cbuf.Reset()
 
-		for _, cwip := range segstore.wipBlock.colWips {
-			cwip.cbuf.Reset()
-			wipCbufPool.Put(&cwip.dePackingBuf)
+		for dword := range cwip.deData.deMap {
+			delete(cwip.deData.deMap, dword)
 		}
-		segstore.wipBlock.colWips = make(map[string]*ColWip)
-	} else {
-		for _, cwip := range segstore.wipBlock.colWips {
-			cwip.cbufidx = 0
-			cwip.cstartidx = 0
-			cwip.cbuf.Reset()
-
-			for dword := range cwip.deData.deMap {
-				delete(cwip.deData.deMap, dword)
-			}
-			cwip.deData.deCount = 0
-		}
+		cwip.deData.deCount = 0
 	}
 
 	for _, bi := range segstore.wipBlock.columnBlooms {
