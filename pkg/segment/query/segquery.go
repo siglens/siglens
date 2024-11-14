@@ -831,8 +831,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
 		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
 		aggHasListFunc := segReq.aggs.HasListFunc()
+		aggHasMinMaxFunc := segReq.aggs.HasMinMaxFunc()
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc {
+		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

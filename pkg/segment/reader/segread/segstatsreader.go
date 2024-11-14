@@ -199,7 +199,6 @@ func GetSegMin(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-
 		if !currSegStat.IsNumeric && currSegStat.StringStats.MinSet {
 			return &utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
@@ -269,11 +268,6 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	if currSegStat == nil {
 		log.Errorf("GetSegMax: currSegStat is nil")
 		return &result, errors.New("GetSegMax: currSegStat is nil")
-	}
-
-	if !currSegStat.IsNumeric {
-		log.Errorf("GetSegMax: current segStats is non-numeric")
-		return &result, errors.New("GetSegMax: current segStat is non-numeric")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats

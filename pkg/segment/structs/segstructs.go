@@ -1166,6 +1166,15 @@ func (qa *QueryAggregators) HasListFunc() bool {
 	return false
 }
 
+func (qa *QueryAggregators) HasMinMaxFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == utils.Max || agg.MeasureFunc == utils.Min {
+			return true
+		}
+	}
+	return false
+}
+
 func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
