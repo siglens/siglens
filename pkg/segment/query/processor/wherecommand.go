@@ -28,7 +28,8 @@ import (
 )
 
 type whereProcessor struct {
-	options *structs.BoolExpr
+	options         *structs.BoolExpr
+	loggedEvalError bool
 }
 
 func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
@@ -67,7 +68,10 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 		shouldKeep, err := p.options.Evaluate(singleRow)
 		if err != nil {
-			log.Errorf("where.Process: cannot evaluate expression; err=%v", err)
+			if !p.loggedEvalError {
+				log.Errorf("where.Process: cannot evaluate expression; err=%v", err)
+				p.loggedEvalError = true
+			}
 			continue
 		}
 
