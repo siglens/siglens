@@ -317,10 +317,15 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		_, err := query.StartQuery(qid, false, nil)
+		rQuery, err := query.StartQuery(qid, false, nil)
 		if err != nil {
 			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
 			return nil, false, nil, err
+		}
+
+		signal := <-rQuery.StateChan
+		if signal.StateName != query.READY {
+			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: Did not receive ready state, received: %v", qid, signal.StateName)
 		}
 
 		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc, scrollFrom)
