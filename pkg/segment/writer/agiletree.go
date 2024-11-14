@@ -595,7 +595,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		// read the non-dict way
 		idx := uint32(0)
 		for recNum := uint16(0); recNum < numRecs; recNum++ {
-			cValBytes, endIdx, err := getColByteSlice(cwip.cbuf[idx:], 0) // todo pass qid here
+			cValBytes, endIdx, err := getColByteSlice(cwip.cbuf, int(idx), 0) // todo pass qid here
 			if err != nil {
 				log.Errorf("populateLeafsWithMeasVals: Could not extract val for cname: %v, idx: %v",
 					colName, idx)
@@ -760,7 +760,9 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 		for dword, recNumsArr := range deData.deMap {
 
 			if toputils.BinarySearchUint16(recNum, recNumsArr) {
-				_, err := GetNumValFromRec([]byte(dword)[0:], 0, num)
+				buffer := &toputils.Buffer{}
+				buffer.Append([]byte(dword))
+				_, err := GetNumValFromRec(buffer, 0, 0, num)
 				if err != nil {
 					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
@@ -772,7 +774,7 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 		return fmt.Errorf("could not find recNum: %v", recNum)
 	}
 
-	endIdx, err := GetNumValFromRec(cwip.cbuf[cIdx[colNum]:], 0, num) // todo pass qid
+	endIdx, err := GetNumValFromRec(cwip.cbuf, int(cIdx[colNum]), 0, num) // todo pass qid
 	if err != nil {
 		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
