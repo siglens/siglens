@@ -115,11 +115,10 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 			}
 
+			dp.processorLock.Lock()
 			if dp.isCleanupCalled {
 				return nil, io.EOF
 			}
-
-			dp.processorLock.Lock()
 			output, err = dp.processor.Process(input)
 			dp.processorLock.Unlock()
 
