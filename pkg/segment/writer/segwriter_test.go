@@ -253,6 +253,31 @@ func Test_addToBlockBloom(t *testing.T) {
 	}
 }
 
+func Test_ParseRawJson(t *testing.T) {
+	tsKey := config.GetTimeStampKey()
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+	rawJson := []byte(`{"field1": "http:\/\/abcdef", "field2": "x\/f"}`)
+	ple := &ParsedLogEvent{}
+	ple.SetRawJson(rawJson)
+	err := ParseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf[:], ple)
+	assert.Nil(t, err)
+	assert.Len(t, ple.allCnames, 2)
+	assert.Len(t, ple.allCvals, 2)
+	assert.Equal(t, "http://abcdef", string(ple.allCvals[0]))
+	assert.Equal(t, "x/f", string(ple.allCvals[1]))
+
+	var jsParsingStackbuf2 [utils.UnescapeStackBufSize]byte
+	ple2 := &ParsedLogEvent{}
+	rawJson2 := []byte(`{"field1": ["http:\/\/abcdef", "x\/f"]}`)
+	ple2.SetRawJson(rawJson2)
+	err = ParseRawJsonObject("", rawJson2, &tsKey, jsParsingStackbuf2[:], ple2)
+	assert.Nil(t, err)
+	assert.Len(t, ple2.allCnames, 2)
+	assert.Len(t, ple2.allCvals, 2)
+	assert.Equal(t, "http://abcdef", string(ple2.allCvals[0]))
+	assert.Equal(t, "x/f", string(ple2.allCvals[1]))
+}
+
 func Benchmark_wrapperForUpdateRange(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()

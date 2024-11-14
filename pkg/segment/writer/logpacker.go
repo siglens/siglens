@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bytes"
 	"fmt"
 
 	jp "github.com/buger/jsonparser"
@@ -51,12 +52,19 @@ func ParseRawJsonObject(currKey string, data []byte, tsKey *string,
 				return fmt.Errorf("parseRawJsonObject: arr currKey: %v, err: %v", currKey, err)
 			}
 		case jp.String:
-			valUnescaped, err := jp.Unescape(value, jsParsingStackbuf[:])
-			if err != nil {
-				return fmt.Errorf("parseRawJsonObject: failed to unescape currKey: %v, err: %v",
-					currKey, err)
+			// We are performing a shallow copy on this unescaped value in ple, which can result in values being overwritten later as the buffer is reused.
+			// Pass nil instead of the buffer so that jp.Unescape allocates a new buffer for each value.
+			firstBackslash := bytes.IndexByte(value, '\\')
+			if firstBackslash != -1 {
+				valUnescaped, err := jp.Unescape(value, nil)
+				if err != nil {
+					return fmt.Errorf("parseRawJsonObject: failed to unescape currKey: %v, err: %v",
+						currKey, err)
+				}
+				parseSingleString(finalKey, tsKey, valUnescaped, ple)
+			} else {
+				parseSingleString(finalKey, tsKey, value, ple)
 			}
-			parseSingleString(finalKey, tsKey, valUnescaped, ple)
 		case jp.Number:
 			numVal, err := jp.ParseInt(value)
 			if err != nil {
@@ -113,13 +121,19 @@ func parseNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
 				return
 			}
 		case jp.String:
-
-			valUnescaped, encErr := jp.Unescape(value, jsParsingStackbuf[:])
-			if err != nil {
-				finalErr = encErr
-				return
+			// We are performing a shallow copy on this unescaped value in ple, which can result in values being overwritten later as the buffer is reused.
+			// Pass nil instead of the buffer so that jp.Unescape allocates a new buffer for each value.
+			firstBackslash := bytes.IndexByte(value, '\\')
+			if firstBackslash != -1 {
+				valUnescaped, encErr := jp.Unescape(value, nil)
+				if err != nil {
+					finalErr = encErr
+					return
+				}
+				parseSingleString(finalKey, tsKey, valUnescaped, ple)
+			} else {
+				parseSingleString(finalKey, tsKey, value, ple)
 			}
-			parseSingleString(finalKey, tsKey, valUnescaped, ple)
 		case jp.Number:
 			numVal, encErr := jp.ParseInt(value)
 			if encErr != nil {

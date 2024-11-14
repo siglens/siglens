@@ -25,6 +25,7 @@ import (
 type DistributedQueryServiceInterface interface {
 	Wait(qid uint64, querySummary *summary.QuerySummary) error
 	DistributeQuery(qI *QueryInformation) (uint64, error)
+	IsDistributed() bool
 }
 
 type DistributedQueryService struct {
@@ -53,4 +54,11 @@ func (d *DistributedQueryService) DistributeQuery(qI *QueryInformation) (uint64,
 		return 0, nil
 	}
 	return 0, nil
+}
+
+func (d *DistributedQueryService) IsDistributed() bool {
+	if d == nil {
+		return false
+	}
+	return d.isDistributed
 }

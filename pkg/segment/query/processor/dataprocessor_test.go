@@ -19,6 +19,7 @@ package processor
 
 import (
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -32,6 +33,7 @@ func Test_Getters(t *testing.T) {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      true,
+		processorLock:     &sync.Mutex{},
 	}
 
 	assert.True(t, dp.DoesInputOrderMatter())
@@ -44,6 +46,7 @@ func Test_Getters(t *testing.T) {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 
 	assert.False(t, dp.DoesInputOrderMatter())
@@ -90,22 +93,6 @@ func (ms *mockStreamer) Rewind() {
 	ms.numSent = 0
 }
 
-type passThroughProcessor struct{}
-
-func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
-	if input == nil {
-		return nil, io.EOF
-	}
-
-	return input, nil
-}
-
-func (ptp *passThroughProcessor) Rewind()  {}
-func (ptp *passThroughProcessor) Cleanup() {}
-func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	return nil, false
-}
-
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
@@ -119,9 +106,10 @@ func Test_Fetch_nonBottleneck(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []*cachedStream{{stream, nil, false}},
+		streams:         []*CachedStream{{stream, nil, false}},
 		processor:       &passThroughProcessor{},
 		isBottleneckCmd: false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	for i := 0; i < 3; i++ {
@@ -180,10 +168,11 @@ func Test_Fetch_bottleneck(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []*cachedStream{{stream, nil, false}},
+		streams:         []*CachedStream{{stream, nil, false}},
 		processor:       &mockBottleneckProcessor{},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp.Fetch()
@@ -235,11 +224,12 @@ func Test_Fetch_twoPass(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:           []*cachedStream{{stream, nil, false}},
+		streams:           []*CachedStream{{stream, nil, false}},
 		processor:         &mockTwoPassProcessor{},
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      true,
 		finishedFirstPass: false,
+		processorLock:     &sync.Mutex{},
 	}
 
 	for i := 0; i < 3; i++ {
@@ -288,10 +278,11 @@ func Test_Fetch_multipleStreams(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []*cachedStream{{stream1, nil, false}, {stream2, nil, false}},
+		streams:         []*CachedStream{{stream1, nil, false}, {stream2, nil, false}},
 		less:            less,
 		processor:       &passThroughProcessor{},
 		isBottleneckCmd: false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	for i := 0; i < 6; i++ {
@@ -324,22 +315,25 @@ func Test_Fetch_multipleBottleneck(t *testing.T) {
 	}
 
 	dp0 := &DataProcessor{
-		streams:   []*cachedStream{{stream, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp1 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp0)},
+		streams:         []*CachedStream{NewCachedStream(dp0)},
 		processor:       &mockBottleneckProcessor{name: "dp1"},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockBottleneckProcessor{name: "dp2"},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp2.Fetch()
@@ -355,22 +349,25 @@ func Test_Fetch_multipleBottleneck_inputNil(t *testing.T) {
 	}
 
 	dp1 := &DataProcessor{
-		streams:   []*cachedStream{{stream, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockBottleneckProcessor{name: "dp2"},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp3 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp2)},
+		streams:         []*CachedStream{NewCachedStream(dp2)},
 		processor:       &mockBottleneckProcessor{name: "dp3"},
 		isBottleneckCmd: true,
 		isTwoPassCmd:    false,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp3.Fetch()
@@ -391,27 +388,31 @@ func Test_Fetch_multipleBottleneck_twoPass(t *testing.T) {
 	}
 
 	dp0 := &DataProcessor{
-		streams:   []*cachedStream{{stream, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp1 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp0)},
+		streams:         []*CachedStream{NewCachedStream(dp0)},
 		processor:       &mockBottleneckProcessor{name: "dp1"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockBottleneckProcessor{name: "dp2"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp3 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp2)},
+		streams:         []*CachedStream{NewCachedStream(dp2)},
 		processor:       &mockTwoPassProcessor{name: "dp3"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	var output *iqr.IQR
@@ -431,22 +432,25 @@ func Test_Fetch_multipleBottleneck_twoPass_inputNil(t *testing.T) {
 	}
 
 	dp1 := &DataProcessor{
-		streams:         []*cachedStream{{stream, nil, false}},
+		streams:         []*CachedStream{{stream, nil, false}},
 		processor:       &passThroughProcessor{},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockBottleneckProcessor{name: "dp2"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp3 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp2)},
+		streams:         []*CachedStream{NewCachedStream(dp2)},
 		processor:       &mockTwoPassProcessor{name: "dp3"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp3.Fetch()
@@ -468,27 +472,31 @@ func Test_Fetch_twoPass_Multiplebottleneck(t *testing.T) {
 	}
 
 	dp0 := &DataProcessor{
-		streams:   []*cachedStream{{stream, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp1 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp0)},
+		streams:         []*CachedStream{NewCachedStream(dp0)},
 		processor:       &mockTwoPassProcessor{name: "dp1"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockBottleneckProcessor{name: "dp2"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp3 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp2)},
+		streams:         []*CachedStream{NewCachedStream(dp2)},
 		processor:       &mockBottleneckProcessor{name: "dp3"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp3.Fetch()
@@ -504,21 +512,24 @@ func Test_Fetch_twoPass_Multiplebottleneck_inputNil(t *testing.T) {
 	}
 
 	dp1 := &DataProcessor{
-		streams:   []*cachedStream{{stream, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockTwoPassProcessor{name: "dp2"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp3 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp2)},
+		streams:         []*CachedStream{NewCachedStream(dp2)},
 		processor:       &mockBottleneckProcessor{name: "dp3"},
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp3.Fetch()
@@ -540,22 +551,25 @@ func Test_Fetch_Multiple_TwoPass(t *testing.T) {
 	}
 
 	dp0 := &DataProcessor{
-		streams:   []*cachedStream{{stream1, nil, false}},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{{stream1, nil, false}},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 
 	dp1 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp0)},
+		streams:         []*CachedStream{NewCachedStream(dp0)},
 		processor:       &mockTwoPassProcessor{name: "dp1"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	dp2 := &DataProcessor{
-		streams:         []*cachedStream{NewCachedStream(dp1)},
+		streams:         []*CachedStream{NewCachedStream(dp1)},
 		processor:       &mockTwoPassProcessor{name: "dp2"},
 		isTwoPassCmd:    true,
 		isBottleneckCmd: true,
+		processorLock:   &sync.Mutex{},
 	}
 
 	output, err := dp2.Fetch()

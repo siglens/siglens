@@ -73,16 +73,6 @@ var plePool = sync.Pool{
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
 
-var wipCbufPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		slice := make([]byte, WIP_SIZE)
-		return &slice
-	},
-}
-
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
 	err := os.MkdirAll(KibanaInternalBaseDir, 0764)
@@ -105,10 +95,10 @@ type DeData struct {
 type ColWip struct {
 	cbufidx      uint32 // end index of buffer, only cbuf[:cbufidx] exists
 	cstartidx    uint32 // start index of last record, so cbuf[cstartidx:cbufidx] is the encoded last record
-	cbuf         []byte // in progress bytes
+	cbuf         *utils.Buffer
 	csgFname     string // file name of csg file
 	deData       *DeData
-	dePackingBuf []byte
+	dePackingBuf *utils.Buffer
 }
 
 type RangeIndex struct {
@@ -229,7 +219,10 @@ func (wp *WipBlock) getSize() uint64 {
 	}
 	size += wp.blockSummary.GetSize()
 	size += uint64(24 * len(wp.columnRangeIndexes))
-	size += uint64(WIP_SIZE * len(wp.colWips))
+
+	for _, cwip := range wp.colWips {
+		size += uint64(cwip.cbuf.Cap())
+	}
 
 	return size
 }
@@ -265,8 +258,7 @@ func GetInMemorySize() uint64 {
 	if numOpenCols > int(maxOpenCols) {
 		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
 	} else if numOpenCols > 0 {
-		multiplier := float64(maxOpenCols) / float64(numOpenCols)
-		totalSize = uint64(float64(totalSize) * multiplier)
+		totalSize = uint64(float64(totalSize) * 1.1)
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()
@@ -363,21 +355,21 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			}
 			startIdx := colWip.cbufidx
 			recLen := uint32(utils.BytesToUint16LittleEndian(ple.allCvalsTypeLen[i][1:3]))
-			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][:3])
+			colWip.cbuf.Append(ple.allCvalsTypeLen[i][:3])
 			colWip.cbufidx += 3
-			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][:recLen])
+			colWip.cbuf.Append(ple.allCvals[i][:recLen])
 			colWip.cbufidx += recLen
 
-			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf[colWip.cbufidx-recLen:colWip.cbufidx])
+			addSegStatsStrIngestion(ss.AllSst, cname, colWip.cbuf.Slice(int(colWip.cbufidx-recLen), int(colWip.cbufidx)))
 			if !ss.skipDe {
-				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+				ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(startIdx), int(colWip.cbufidx)), ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_BOOL[0]:
 			startIdx := colWip.cbufidx
-			copy(colWip.cbuf[startIdx:], ple.allCvalsTypeLen[i][0:1])
+			colWip.cbuf.Append(ple.allCvalsTypeLen[i][0:1])
 			colWip.cbufidx += 1
-			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvals[i][0:1])
+			colWip.cbuf.Append(ple.allCvals[i][0:1])
 			colWip.cbufidx += 1
 			boolVal := utils.BytesToBoolLittleEndian(ple.allCvals[i][0:1])
 			var asciiBytesBuf bytes.Buffer
@@ -387,7 +379,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			}
 			addSegStatsBool(segstats, cname, asciiBytesBuf.Bytes())
 			if !ss.skipDe {
-				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+				ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(startIdx), int(colWip.cbufidx)), ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 			ss.updateColValueSizeInAllSeenColumns(cname, colWip.cbufidx-startIdx)
 		case VALTYPE_ENC_INT64[0], VALTYPE_ENC_UINT64[0], VALTYPE_ENC_FLOAT64[0]:
@@ -399,7 +391,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			}
 
 			startIdx := colWip.cbufidx
-			copy(colWip.cbuf[colWip.cbufidx:], ple.allCvalsTypeLen[i][0:9])
+			colWip.cbuf.Append(ple.allCvalsTypeLen[i][0:9])
 			colWip.cbufidx += 9
 
 			var numType SS_IntUintFloatTypes
@@ -438,10 +430,10 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
 			ss.updateColValueSizeInAllSeenColumns(cname, 9)
 			if !ss.skipDe {
-				ss.checkAddDictEnc(colWip, colWip.cbuf[startIdx:colWip.cbufidx], ss.wipBlock.blockSummary.RecCount, startIdx, false)
+				ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(startIdx), int(colWip.cbufidx)), ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
 		case VALTYPE_ENC_BACKFILL[0]:
-			copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+			colWip.cbuf.Append(VALTYPE_ENC_BACKFILL[:])
 			colWip.cbufidx += 1
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, VALTYPE_ENC_BACKFILL[:], ss.wipBlock.blockSummary.RecCount,
@@ -464,7 +456,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			return false, fmt.Errorf("tried to backfill a column with no colWip")
 		}
 		colWip.cstartidx = colWip.cbufidx
-		copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BACKFILL[:])
+		colWip.cbuf.Append(VALTYPE_ENC_BACKFILL[:])
 		colWip.cbufidx += 1
 		ss.updateColValueSizeInAllSeenColumns(colName, 1)
 		// also do backfill dictEnc for this recnum
@@ -720,14 +712,11 @@ func InitColWip(segKey string, colName string) *ColWip {
 		deCount: 0,
 	}
 
-	cbuf := *wipCbufPool.Get().(*[]byte)
-	dePack := *wipCbufPool.Get().(*[]byte)
-
 	return &ColWip{
 		csgFname:     fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(colName)),
 		deData:       &deData,
-		cbuf:         cbuf,
-		dePackingBuf: dePack,
+		cbuf:         &utils.Buffer{},
+		dePackingBuf: &utils.Buffer{},
 	}
 }
 
@@ -987,13 +976,13 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
 
 		// reduce the len to 0, but keep the cap of the underlying buffer
-		compressed = encoder.EncodeAll(colWip.cbuf[0:colWip.cbufidx],
+		compressed = encoder.EncodeAll(colWip.cbuf.Slice(0, int(colWip.cbufidx)),
 			compBuf[:0])
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
-		compressed = colWip.cbuf[0:colWip.cbufidx]
+		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
 		PackDictEnc(colWip)
-		compressed = colWip.cbuf[0:colWip.cbufidx]
+		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else {
 		log.Errorf("compressWip got an unknown encoding type: %+v", encType)
 		return nil, 0, fmt.Errorf("got an unknown encoding type: %+v", encType)
@@ -1174,7 +1163,7 @@ func DeleteOldKibanaDoc(indexNameConverted string, idVal string) {
 }
 
 func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
-	return cw.cbuf[0:cw.cbufidx], cw.cbufidx
+	return cw.cbuf.Slice(0, int(cw.cbufidx)), cw.cbufidx
 }
 
 func (cw *ColWip) SetDeDataForTest(deCount uint16, deMap map[string][]uint16) {
@@ -1190,12 +1179,12 @@ func (cw *ColWip) WriteSingleString(value string) {
 }
 
 func (cw *ColWip) WriteSingleStringBytes(value []byte) {
-	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
+	cw.cbuf.Append(VALTYPE_ENC_SMALL_STRING[:])
 	cw.cbufidx += 1
 	n := uint16(len(value))
-	utils.Uint16ToBytesLittleEndianInplace(n, cw.cbuf[cw.cbufidx:])
+	cw.cbuf.AppendUint16LittleEndian(n)
 	cw.cbufidx += 2
-	copy(cw.cbuf[cw.cbufidx:], value)
+	cw.cbuf.Append(value)
 	cw.cbufidx += uint32(n)
 }
 
@@ -1298,7 +1287,7 @@ func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 
 	idx := uint32(0)
 	for recNum := uint16(0); recNum < numRecs; recNum++ {
-		cValBytes, endIdx, err := getColByteSlice(cw.cbuf[idx:], 0) // todo pass qid here
+		cValBytes, endIdx, err := getColByteSlice(cw.cbuf, int(idx), 0) // todo pass qid here
 		if err != nil {
 			log.Errorf("writeToBloom: Could not extract val for cname: %v, idx: %v",
 				cname, idx)

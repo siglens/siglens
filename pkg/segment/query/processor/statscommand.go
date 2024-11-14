@@ -98,6 +98,8 @@ func (p *statsProcessor) Rewind() {
 }
 
 func (p *statsProcessor) Cleanup() {
+	p.logErrorsAndWarnings(p.qid)
+
 	p.bucketKeyWorkingBuf = nil
 	if p.byteBuffer != nil {
 		bbp.Put(p.byteBuffer)
@@ -191,8 +193,6 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 		}
 		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, qid)
 	}
-
-	p.logErrorsAndWarnings(qid)
 
 	return nil, nil
 }
@@ -303,6 +303,10 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 }
 
 func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
+	if p.errorData == nil {
+		return
+	}
+
 	if len(p.errorData.readColumns) > 0 {
 		log.Warnf("qid=%v, statsProcessor.logErrorsAndWarnings: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
