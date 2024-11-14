@@ -300,7 +300,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 
 		if runningSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
 			result.Dtype = utils.SS_DT_STRING
-			result.CVal = runningSegStat.StringStats.Max
+			result.CVal = runningSegStat.StringStats.Max.CVal
 		}
 
 		return &result, nil
