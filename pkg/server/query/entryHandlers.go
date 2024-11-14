@@ -717,3 +717,15 @@ func deleteLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
 		lookups.DeleteLookupFile(ctx)
 	}
 }
+
+func GetQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetQueryTimeout(ctx)
+	}
+}
+
+func UpdateQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.UpdateQueryTimeout(ctx)
+	}
+}

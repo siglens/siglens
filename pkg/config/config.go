@@ -70,6 +70,12 @@ var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
+const (
+	MIN_QUERY_TIMEOUT = 60   // 1 minute
+	MAX_QUERY_TIMEOUT = 1800 // 30 minutes
+	DEFAULT_TIMEOUT   = 300  // 5 minutes
+)
+
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
 	if parallelism <= 1 {
@@ -450,6 +456,14 @@ func SetQueryPort(value uint64) {
 	runningConfig.QueryPort = value
 }
 
+func GetQueryTimeoutSecs() int {
+	return runningConfig.QueryTimeoutSecs
+}
+
+func SetQueryTimeoutSecs(timeout int) {
+	runningConfig.QueryTimeoutSecs = timeout
+}
+
 func ValidateDeployment() (common.DeploymentType, error) {
 	if IsQueryNode() && IsIngestNode() {
 		if runningConfig.S3.Enabled {
@@ -612,6 +626,9 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	}
 
 	SetPQSEnabled(runModConfig.PQSEnabled)
+	if runModConfig.QueryTimeoutSecs > 0 {
+		SetQueryTimeoutSecs(runModConfig.QueryTimeoutSecs)
+	}
 	return runModConfig, nil
 }
 
@@ -935,7 +952,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	} else if config.Tracing.SamplingPercentage > 100 {
 		config.Tracing.SamplingPercentage = 100
 	}
-
+	if config.QueryTimeoutSecs <= 0 {
+		config.QueryTimeoutSecs = DEFAULT_TIMEOUT
+	}
+	if config.QueryTimeoutSecs < MIN_QUERY_TIMEOUT {
+		log.Errorf("ExtractConfigData: Query timeout cannot be less than 1 minute.")
+		log.Info("ExtractConfigData: Setting Query timeout to 1 minute")
+		config.QueryTimeoutSecs = MIN_QUERY_TIMEOUT
+	} else if config.QueryTimeoutSecs > MAX_QUERY_TIMEOUT {
+		log.Errorf("ExtractConfigData: Query timeout cannot exceed 30 minutes.")
+		log.Info("ExtractConfigData: Setting Query timeout to 30 minutes")
+		config.QueryTimeoutSecs = MAX_QUERY_TIMEOUT
+	}
 	return config, nil
 }
 

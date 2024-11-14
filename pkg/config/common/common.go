@@ -145,8 +145,10 @@ type Configuration struct {
 	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
+	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"` // query timeout in seconds
 }
 
 type RunModConfig struct {
-	PQSEnabled bool `json:"pqsEnabled"`
+	PQSEnabled       bool `json:"pqsEnabled"`
+	QueryTimeoutSecs int  `json:"queryTimeoutSecs"`
 }

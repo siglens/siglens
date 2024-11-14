@@ -84,7 +84,18 @@ func SavePQSConfigToRunMod(filepath string, pqsEnabled bool) error {
 		return err
 	}
 	defer file.Close()
-	configData := map[string]bool{"PQSEnabled": pqsEnabled}
+
+	var configData struct {
+		PQSEnabled       bool `json:"pqsEnabled"`
+		QueryTimeoutSecs int  `json:"queryTimeoutSecs"`
+	}
+
+	existingConfig, err := config.ReadRunModConfig(filepath)
+	if err == nil {
+		configData.QueryTimeoutSecs = existingConfig.QueryTimeoutSecs
+	}
+
+	configData.PQSEnabled = pqsEnabled
 	encoder := json.NewEncoder(file)
 
 	err = encoder.Encode(configData)
