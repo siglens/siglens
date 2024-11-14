@@ -20,7 +20,6 @@ package processor
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -41,27 +40,19 @@ type ErrorData struct {
 }
 
 type statsProcessor struct {
-	options                  *structs.StatsExpr
-	bucketKeyWorkingBuf      []byte
-	byteBuffer               *bbp.ByteBuffer
-	searchResults            *segresults.SearchResults
-	qid                      uint64
-	processorType            structs.QueryType
-	errorData                *ErrorData
-	hasFinalResult           bool
-	shouldContinueProcessing bool
-	inExecution              bool
+	options             *structs.StatsExpr
+	bucketKeyWorkingBuf []byte
+	byteBuffer          *bbp.ByteBuffer
+	searchResults       *segresults.SearchResults
+	qid                 uint64
+	processorType       structs.QueryType
+	errorData           *ErrorData
+	hasFinalResult      bool
 }
 
 func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
 	processor := &statsProcessor{
-		options:                  options,
-		shouldContinueProcessing: true,
-		errorData: &ErrorData{
-			readColumns:           make(map[string]error),
-			cValueGetStringErr:    make(map[string]error),
-			notSupportedStatsType: make(map[string]struct{}),
-		},
+		options: options,
 	}
 
 	if options != nil {
@@ -76,9 +67,6 @@ func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	p.inExecution = true
-	defer func() { p.inExecution = false }()
-
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
@@ -110,22 +98,6 @@ func (p *statsProcessor) Rewind() {
 }
 
 func (p *statsProcessor) Cleanup() {
-	p.shouldContinueProcessing = false
-
-	if p.inExecution {
-		go func() {
-			for p.inExecution {
-				// wait for the current execution to finish
-				time.Sleep(10 * time.Millisecond)
-			}
-			p.cleanupResources()
-		}()
-	} else {
-		p.cleanupResources()
-	}
-}
-
-func (p *statsProcessor) cleanupResources() {
 	p.bucketKeyWorkingBuf = nil
 	if p.byteBuffer != nil {
 		bbp.Put(p.byteBuffer)
@@ -192,10 +164,6 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
 
 	for i := 0; i < numOfRecords; i++ {
-		if !p.shouldContinueProcessing {
-			return nil, nil
-		}
-
 		record := inputIQR.GetRecord(i)
 
 		// Bucket Key index
@@ -282,10 +250,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 		}
 
 		for i := range values {
-			if !p.shouldContinueProcessing {
-				return nil, nil
-			}
-
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]
 
@@ -339,10 +303,6 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 }
 
 func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
-	if p.errorData == nil {
-		return
-	}
-
 	if len(p.errorData.readColumns) > 0 {
 		log.Warnf("qid=%v, statsProcessor.logErrorsAndWarnings: failed to read columns: %v", qid, p.errorData.readColumns)
 	}
