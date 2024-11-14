@@ -537,10 +537,8 @@ type NumericStats struct {
 type StringStats struct {
 	StrSet  map[string]struct{}
 	StrList []string
-	Min     string
-	Max     string
-	MinSet  bool
-	MaxSet  bool
+	Min     utils.CValueEnclosure
+	Max     utils.CValueEnclosure
 }
 
 type SearchErrorInfo struct {
@@ -726,24 +724,30 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 }
 
 func (ss *StringStats) MergeMinStrStats(other *StringStats) {
-	if !ss.MinSet {
+	if ss.Min.Dtype == utils.SS_INVALID {
 		ss.Min = other.Min
-		ss.MinSet = other.MinSet
-	} else {
-		if other.MinSet && ss.Min > other.Min {
-			ss.Min = other.Min
+	}
+	if other.Min.Dtype != utils.SS_INVALID {
+		res, err := utils.ReduceMinMax(ss.Min, other.Min, true)
+		if err != nil {
+			log.Errorf("StringStats.MergeMinStrStats: Failed to merge min string stats. error: %v", err)
+			return
 		}
+		ss.Min = res
 	}
 }
 
 func (ss *StringStats) MergeMaxStrStats(other *StringStats) {
-	if !ss.MaxSet {
+	if ss.Max.Dtype == utils.SS_INVALID {
 		ss.Max = other.Max
-		ss.MaxSet = other.MaxSet
-	} else {
-		if other.MaxSet && ss.Max < other.Max {
-			ss.Max = other.Max
+	}
+	if other.Min.Dtype != utils.SS_INVALID {
+		res, err := utils.ReduceMinMax(ss.Max, other.Max, false)
+		if err != nil {
+			log.Errorf("StringStats.MergeMinStrStats: Failed to merge max string stats. error: %v", err)
+			return
 		}
+		ss.Max = res
 	}
 }
 

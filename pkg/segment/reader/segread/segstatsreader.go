@@ -199,10 +199,10 @@ func GetSegMin(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		if !currSegStat.IsNumeric && currSegStat.StringStats.MinSet {
+		if !currSegStat.IsNumeric && currSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
 			return &utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
-				CVal:  currSegStat.StringStats.Min,
+				CVal:  currSegStat.StringStats.Min.CVal,
 			}, nil
 		}
 
@@ -215,20 +215,16 @@ func GetSegMin(runningSegStat *structs.SegStats,
 			result.CVal = currSegStat.NumStats.Min.IntgrVal
 		}
 
-		fmt.Printf("Merging %v into %v\n", currSegStat.StringStats.Min, nil)
-
 		return &result, nil
 	}
 
 	if !currSegStat.IsNumeric {
 		runningSegStat.StringStats.MergeMinStrStats(currSegStat.StringStats)
 
-		if runningSegStat.StringStats.MinSet {
+		if runningSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
 			result.Dtype = utils.SS_DT_STRING
-			result.CVal = runningSegStat.StringStats.Min
+			result.CVal = runningSegStat.StringStats.Min.CVal
 		}
-
-		fmt.Printf("Merging %v into %v\n", currSegStat.StringStats.Min, runningSegStat.StringStats.Min)
 
 		return &result, nil
 	}
@@ -273,10 +269,10 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
 
-		if !currSegStat.IsNumeric && currSegStat.StringStats.MaxSet {
+		if !currSegStat.IsNumeric && currSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
 			return &utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
-				CVal:  currSegStat.StringStats.Max,
+				CVal:  currSegStat.StringStats.Max.CVal,
 			}, nil
 		}
 
@@ -294,7 +290,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	if !currSegStat.IsNumeric {
 		runningSegStat.StringStats.MergeMaxStrStats(currSegStat.StringStats)
 
-		if runningSegStat.StringStats.MaxSet {
+		if runningSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
 			result.Dtype = utils.SS_DT_STRING
 			result.CVal = runningSegStat.StringStats.Max
 		}
