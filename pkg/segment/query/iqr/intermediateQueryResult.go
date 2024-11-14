@@ -301,6 +301,14 @@ func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error
 
 	switch iqr.mode {
 	case withRRCs:
+		// Check if the column was renamed and use the old name
+		// for reading it from the RRCs.
+		for oldName, newName := range iqr.renamedColumns {
+			if newName == cname {
+				cname = oldName
+				break
+			}
+		}
 		return iqr.readColumnWithRRCs(cname)
 	case withoutRRCs:
 		// We don't have RRCs, so we can't read the column. Since we got here
@@ -453,8 +461,14 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 			len(iqr.rrcs), len(results))
 	}
 
+	finalCname := cname
+	// Check if the column was renamed and use the new Cname for the results.
+	if newColName, ok := iqr.renamedColumns[cname]; ok {
+		finalCname = newColName
+	}
+
 	// TODO: should we have an option to disable this caching?
-	iqr.knownValues[cname] = results
+	iqr.knownValues[finalCname] = results
 
 	return results, nil
 }
