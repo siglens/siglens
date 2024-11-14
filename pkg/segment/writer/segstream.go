@@ -216,5 +216,5 @@ func (segStore *SegStore) addRecordToMatchedResults(recNum uint16, pqid string) 
 }
 
 func (colWip *ColWip) getLastRecord() []byte {
-	return colWip.cbuf[colWip.cstartidx:colWip.cbufidx]
+	return colWip.cbuf.Slice(int(colWip.cstartidx), int(colWip.cbufidx))
 }
