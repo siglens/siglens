@@ -831,7 +831,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
 		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
 		aggHasListFunc := segReq.aggs.HasListFunc()
-		aggHasMinMaxFunc := segReq.aggs.HasMinMaxFunc()
+		aggHasMinMaxFunc := segReq.aggs.HasMinMaxFunc() // TODO: Add support for min/max strings in sst
 		var sstMap map[string]*structs.SegStats
 		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
