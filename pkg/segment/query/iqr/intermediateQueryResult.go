@@ -260,8 +260,7 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 	}
 
 	switch iqr.mode {
@@ -280,8 +279,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 // If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("IQR.ReadColumn: validation failed: %v", err)
 	}
 
 	return iqr.readColumnInternal(cname)
