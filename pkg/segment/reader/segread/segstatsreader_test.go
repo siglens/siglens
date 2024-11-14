@@ -444,3 +444,101 @@ func TestGetAverage_InvalidType(t *testing.T) {
 	_, err := getAverage(sum, count)
 	assert.Error(t, err)
 }
+
+func Test_GetSegMin(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     3,
+		NumStats: &structs.NumericStats{
+			Min: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 30,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Min: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20,
+			},
+		},
+	}
+
+	expected := &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  20.0,
+	}
+	result, err := GetSegMin(runningSegStat, currSegStat)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+
+	runningSegStat2 := &structs.SegStats{
+		IsNumeric: false,
+		StringStats: &structs.StringStats{
+			Min: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING,
+				CVal:  "abc",
+			},
+		},
+	}
+
+	result, err = GetSegMin(runningSegStat2, runningSegStat)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	assert.True(t, runningSegStat2.IsNumeric)
+	assert.Equal(t, runningSegStat.NumStats, runningSegStat2.NumStats)
+}
+
+func Test_GetSegMax(t *testing.T) {
+	runningSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     3,
+		NumStats: &structs.NumericStats{
+			Max: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: 30,
+			},
+		},
+	}
+
+	currSegStat := &structs.SegStats{
+		IsNumeric: true,
+		Count:     2,
+		NumStats: &structs.NumericStats{
+			Max: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_FLOAT,
+				FloatVal: 20,
+			},
+		},
+	}
+
+	expected := &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  30.0,
+	}
+	result, err := GetSegMax(runningSegStat, currSegStat)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+
+	runningSegStat2 := &structs.SegStats{
+		IsNumeric: false,
+		StringStats: &structs.StringStats{
+			Max: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING,
+				CVal:  "abc",
+			},
+		},
+	}
+
+	result, err = GetSegMax(runningSegStat2, runningSegStat)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	assert.True(t, runningSegStat2.IsNumeric)
+	assert.Equal(t, runningSegStat.NumStats, runningSegStat2.NumStats)
+}

@@ -108,7 +108,7 @@ func Test_addSegStatsStrForValuesFunc(t *testing.T) {
 	assert.Equal(t, map[string]struct{}{"a": {}, "c": {}}, sst[cname].StringStats.StrSet)
 }
 
-func Test_addSegStatsStrForMinMax(t *testing.T) {
+func Test_addSegStatsStrForMinMaxStrings(t *testing.T) {
 
 	cname := "mycol1"
 	sst := make(map[string]*structs.SegStats)

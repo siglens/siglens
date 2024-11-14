@@ -199,26 +199,27 @@ func GetSegMin(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		if !currSegStat.IsNumeric && currSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
-			return &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  currSegStat.StringStats.Min.CVal,
-			}, nil
-		}
 
-		switch currSegStat.NumStats.Min.Ntype {
-		case utils.SS_DT_FLOAT:
-			result.Dtype = utils.SS_DT_FLOAT
-			result.CVal = currSegStat.NumStats.Min.FloatVal
-		default:
-			result.Dtype = utils.SS_DT_SIGNED_NUM
-			result.CVal = currSegStat.NumStats.Min.IntgrVal
+		if currSegStat.IsNumeric {
+			return currSegStat.NumStats.Min.ToCValueEnclosure()
+		} else {
+			if currSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
+				return &utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  currSegStat.StringStats.Min.CVal,
+				}, nil
+			}
 		}
 
 		return &result, nil
 	}
 
+	// Prioritize numeric stats over strings
 	if !currSegStat.IsNumeric {
+		if runningSegStat.IsNumeric {
+			return runningSegStat.NumStats.Min.ToCValueEnclosure()
+		}
+
 		runningSegStat.StringStats.MergeMinStrStats(currSegStat.StringStats)
 
 		if runningSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
@@ -227,6 +228,12 @@ func GetSegMin(runningSegStat *structs.SegStats,
 		}
 
 		return &result, nil
+	}
+
+	if !runningSegStat.IsNumeric {
+		runningSegStat.NumStats = currSegStat.NumStats
+		runningSegStat.IsNumeric = true
+		return runningSegStat.NumStats.Min.ToCValueEnclosure()
 	}
 
 	switch currSegStat.NumStats.Min.Ntype {
@@ -248,6 +255,7 @@ func GetSegMin(runningSegStat *structs.SegStats,
 			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Min.IntgrVal = toputils.MinInt64(runningSegStat.NumStats.Min.IntgrVal, currSegStat.NumStats.Min.IntgrVal)
+			runningSegStat.NumStats.Min.Ntype = utils.SS_DT_SIGNED_NUM
 			result.CVal = runningSegStat.NumStats.Min.IntgrVal
 			result.Dtype = utils.SS_DT_SIGNED_NUM
 		}
@@ -268,26 +276,26 @@ func GetSegMax(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-
-		if !currSegStat.IsNumeric && currSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
-			return &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  currSegStat.StringStats.Max.CVal,
-			}, nil
+		if currSegStat.IsNumeric {
+			return currSegStat.NumStats.Max.ToCValueEnclosure()
+		} else {
+			if currSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
+				return &utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  currSegStat.StringStats.Max.CVal,
+				}, nil
+			}
 		}
 
-		switch currSegStat.NumStats.Max.Ntype {
-		case utils.SS_DT_FLOAT:
-			result.CVal = currSegStat.NumStats.Max.FloatVal
-			result.Dtype = utils.SS_DT_FLOAT
-		default:
-			result.CVal = currSegStat.NumStats.Max.IntgrVal
-			result.Dtype = utils.SS_DT_SIGNED_NUM
-		}
 		return &result, nil
 	}
 
+	// Prioritize numeric stats over strings
 	if !currSegStat.IsNumeric {
+		if runningSegStat.IsNumeric {
+			return runningSegStat.NumStats.Max.ToCValueEnclosure()
+		}
+
 		runningSegStat.StringStats.MergeMaxStrStats(currSegStat.StringStats)
 
 		if runningSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
@@ -298,6 +306,12 @@ func GetSegMax(runningSegStat *structs.SegStats,
 		return &result, nil
 	}
 
+	if !runningSegStat.IsNumeric {
+		runningSegStat.NumStats = currSegStat.NumStats
+		runningSegStat.IsNumeric = true
+		return runningSegStat.NumStats.Max.ToCValueEnclosure()
+	}
+
 	switch currSegStat.NumStats.Max.Ntype {
 	case utils.SS_DT_FLOAT:
 		if runningSegStat.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
@@ -306,6 +320,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Max.FloatVal = math.Max(float64(runningSegStat.NumStats.Max.IntgrVal), currSegStat.NumStats.Max.FloatVal)
+			runningSegStat.NumStats.Max.Ntype = utils.SS_DT_FLOAT
 			result.CVal = runningSegStat.NumStats.Max.FloatVal
 			result.Dtype = utils.SS_DT_FLOAT
 		}
@@ -316,6 +331,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Max.IntgrVal = toputils.MaxInt64(runningSegStat.NumStats.Max.IntgrVal, currSegStat.NumStats.Max.IntgrVal)
+			runningSegStat.NumStats.Max.Ntype = utils.SS_DT_SIGNED_NUM
 			result.CVal = runningSegStat.NumStats.Max.IntgrVal
 			result.Dtype = utils.SS_DT_SIGNED_NUM
 		}
