@@ -559,7 +559,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 
 		//readjust workBufComp size based on num of columns in this wip
-		flushParallelism := runtime.GOMAXPROCS(0)
+		flushParallelism := runtime.GOMAXPROCS(0) * 2
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
 			flushParallelism)
 		// now make each of these bufs of atleast WIP_SIZE
