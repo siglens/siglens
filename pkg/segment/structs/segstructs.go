@@ -537,6 +537,10 @@ type NumericStats struct {
 type StringStats struct {
 	StrSet  map[string]struct{}
 	StrList []string
+	Min string
+	Max string
+	MinSet bool
+	MaxSet bool
 }
 
 type SearchErrorInfo struct {
@@ -721,6 +725,28 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 	return columns
 }
 
+func (ss *StringStats) MergeMinStrStats(other *StringStats) {
+	if !ss.MinSet {
+		ss.Min = other.Min
+		ss.MinSet = other.MinSet
+	} else {
+		if other.MinSet && ss.Min > other.Min {
+			ss.Min = other.Min
+		}
+	}
+}
+
+func (ss *StringStats) MergeMaxStrStats(other *StringStats) {
+	if !ss.MaxSet {
+		ss.Max = other.Max
+		ss.MaxSet = other.MaxSet
+	} else {
+		if other.MaxSet && ss.Max < other.Max {
+			ss.Max = other.Max
+		}
+	}
+}
+
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
 	ss.Records = append(ss.Records, other.Records...)
@@ -754,6 +780,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 			ss.StrSet[key] = value
 		}
 	}
+
+	ss.MergeMinStrStats(other)
+	ss.MergeMaxStrStats(other)
 
 	if ss.StrList != nil {
 		ss.StrList = append(ss.StrList, other.StrList...)

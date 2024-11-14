@@ -124,6 +124,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			}
 		}
 	}
+
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
@@ -255,12 +256,16 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		})
 	}
 
+	if stats.StringStats == nil {
+		stats.StringStats = &StringStats{}
+	}
+
 	if hasValuesFunc || hasListFunc {
-		if stats.StringStats == nil {
-			stats.StringStats = &StringStats{
-				StrSet:  make(map[string]struct{}, 0),
-				StrList: make([]string, 0),
-			}
+		if stats.StringStats.StrSet == nil {
+			stats.StringStats.StrSet = make(map[string]struct{}, 0)
+		}
+		if stats.StringStats.StrList == nil {
+			stats.StringStats.StrList = make([]string, 0)
 		}
 
 		if hasValuesFunc {
@@ -269,6 +274,24 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 		if hasListFunc {
 			stats.StringStats.StrList = append(stats.StringStats.StrList, strVal)
+		}
+	}
+
+	if stats.StringStats.Min == "" {
+		stats.StringStats.Min = strVal
+		stats.StringStats.MinSet = true
+	} else {
+		if stats.StringStats.Min > strVal {
+			stats.StringStats.Min = strVal
+		}
+	}
+
+	if stats.StringStats.Max == "" {
+		stats.StringStats.Max = strVal
+		stats.StringStats.MaxSet = true
+	} else {
+		if stats.StringStats.Max < strVal {
+			stats.StringStats.Max = strVal
 		}
 	}
 
