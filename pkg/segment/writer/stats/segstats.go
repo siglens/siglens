@@ -25,6 +25,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
+	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
 )
 
@@ -124,6 +125,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			}
 		}
 	}
+
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
@@ -255,12 +257,16 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		})
 	}
 
+	if stats.StringStats == nil {
+		stats.StringStats = &StringStats{}
+	}
+
 	if hasValuesFunc || hasListFunc {
-		if stats.StringStats == nil {
-			stats.StringStats = &StringStats{
-				StrSet:  make(map[string]struct{}, 0),
-				StrList: make([]string, 0),
-			}
+		if stats.StringStats.StrSet == nil {
+			stats.StringStats.StrSet = make(map[string]struct{}, 0)
+		}
+		if stats.StringStats.StrList == nil {
+			stats.StringStats.StrList = make([]string, 0)
 		}
 
 		if hasValuesFunc {
@@ -270,6 +276,29 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		if hasListFunc {
 			stats.StringStats.StrList = append(stats.StringStats.StrList, strVal)
 		}
+	}
+
+	CVal := CValueEnclosure{Dtype: SS_DT_STRING, CVal: strVal}
+	if stats.StringStats.Min.Dtype == SS_DT_STRING {
+		res, err := ReduceMinMax(stats.StringStats.Min, CVal, true)
+		if err != nil {
+			log.Errorf("AddSegStatsStr: Error while reducing min: %v", err)
+		} else {
+			stats.StringStats.Min = res
+		}
+	} else {
+		stats.StringStats.Min = CVal
+	}
+
+	if stats.StringStats.Max.Dtype == SS_DT_STRING {
+		res, err := ReduceMinMax(stats.StringStats.Max, CVal, false)
+		if err != nil {
+			log.Errorf("AddSegStatsStr: Error while reducing max: %v", err)
+		} else {
+			stats.StringStats.Max = res
+		}
+	} else {
+		stats.StringStats.Max = CVal
 	}
 
 	bb.Reset()

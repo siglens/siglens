@@ -56,7 +56,7 @@ const DEFAULT_METADATA_MEM_PERCENT = 20
 const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
 const DEFAULT_METRICS_MEM_PERCENT = 2
 
-const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
+const DEFAULT_MAX_OPEN_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
