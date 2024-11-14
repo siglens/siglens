@@ -357,7 +357,7 @@ func Test_Dedup_WithSort(t *testing.T) {
 		},
 		Limit: 1000,
 	})
-	sortProcessor.streams = []*cachedStream{{stream, nil, false}}
+	sortProcessor.streams = []*CachedStream{{stream, nil, false}}
 
 	dedupProcessor := NewDedupDP(&structs.DedupExpr{
 		DedupOptions: &structs.DedupOptions{
@@ -366,7 +366,7 @@ func Test_Dedup_WithSort(t *testing.T) {
 		FieldList: []string{"col1"},
 	})
 
-	dedupProcessor.streams = []*cachedStream{{sortProcessor, nil, false}}
+	dedupProcessor.streams = []*CachedStream{{sortProcessor, nil, false}}
 
 	result, err := dedupProcessor.Fetch()
 	assert.NoError(t, err)

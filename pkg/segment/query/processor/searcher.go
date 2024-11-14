@@ -52,7 +52,7 @@ type block struct {
 	segkeyFname string
 }
 
-type searcher struct {
+type Searcher struct {
 	qid          uint64
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
@@ -68,7 +68,7 @@ type searcher struct {
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
-	sortMode sortMode, startTime time.Time) (*searcher, error) {
+	sortMode sortMode, startTime time.Time) (*Searcher, error) {
 
 	if queryInfo == nil {
 		return nil, toputils.TeeErrorf("searcher.NewSearcher: queryInfo is nil")
@@ -79,7 +79,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 
 	qid := queryInfo.GetQid()
 
-	return &searcher{
+	return &Searcher{
 		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
@@ -91,7 +91,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 	}, nil
 }
 
-func (s *searcher) Rewind() {
+func (s *Searcher) Rewind() {
 	s.gotBlocks = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
@@ -106,7 +106,7 @@ func getNumRecords(blocks []*block) uint64 {
 	return totalRecords
 }
 
-func (s *searcher) Fetch() (*iqr.IQR, error) {
+func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
@@ -136,7 +136,7 @@ func (s *searcher) Fetch() (*iqr.IQR, error) {
 	}
 }
 
-func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
+func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
 		err := query.SetRawSearchFinished(s.qid)
 		if err != nil {
@@ -234,7 +234,7 @@ func (s *searcher) fetchRRCs() (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
+func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	sizeLimit := uint64(0)
 	aggs := s.queryInfo.GetAggregators()
 	qid := s.queryInfo.GetQid()
@@ -282,7 +282,7 @@ func (s *searcher) fetchStatsResults() (*iqr.IQR, error) {
 	return iqr, io.EOF
 }
 
-func (s *searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) (*structs.NodeResult, error) {
+func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) (*structs.NodeResult, error) {
 	if s.qsrs == nil {
 		err := s.initializeQSRs()
 		if err != nil {
@@ -334,7 +334,7 @@ func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContaine
 	}
 }
 
-func (s *searcher) initializeQSRs() error {
+func (s *Searcher) initializeQSRs() error {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.initializeQSRs: failed to get sorted QSRs: %v", s.qid, err)
@@ -345,7 +345,7 @@ func (s *searcher) initializeQSRs() error {
 	return nil
 }
 
-func (s *searcher) getBlocks() ([]*block, error) {
+func (s *Searcher) getBlocks() ([]*block, error) {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
@@ -574,7 +574,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 }
 
 // All of the blocks must be for the same segment.
-func (s *searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
+func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
 	if len(blocks) == 0 {
 		return nil, nil, nil
 	}
@@ -647,7 +647,7 @@ func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
 	return nil
 }
 
-func (s *searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, blocks []*block) error {
+func (s *Searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, blocks []*block) error {
 	if len(blocks) == 0 {
 		return nil
 	}
@@ -683,7 +683,7 @@ func (s *searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, bloc
 	return nil
 }
 
-func (s *searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults, blocks []*block) error {
+func (s *Searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults, blocks []*block) error {
 	if len(blocks) == 0 {
 		return nil
 	}
