@@ -45,7 +45,8 @@ type DataProcessor struct {
 	isTwoPassCmd      bool // A subset of bottleneck commands.
 	finishedFirstPass bool // Only used for two-pass commands.
 
-	processorLock *sync.Mutex
+	processorLock   *sync.Mutex
+	isCleanupCalled bool
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
@@ -72,6 +73,8 @@ func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 }
 
 func (dp *DataProcessor) Cleanup() {
+	dp.isCleanupCalled = true
+
 	dp.processorLock.Lock()
 	dp.processor.Cleanup()
 	dp.processorLock.Unlock()
@@ -94,6 +97,11 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 	var resultExists bool
 
 	for {
+
+		if dp.isCleanupCalled {
+			return nil, io.EOF
+		}
+
 		gotEOF := false
 
 		// Check if the processor has a final result.
@@ -105,6 +113,10 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			input, err := dp.getStreamInput()
 			if err != nil && err != io.EOF {
 				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
+			}
+
+			if dp.isCleanupCalled {
+				return nil, io.EOF
 			}
 
 			dp.processorLock.Lock()
