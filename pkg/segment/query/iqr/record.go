@@ -18,9 +18,9 @@
 package iqr
 
 import (
+	"fmt"
+
 	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 type Record struct {
@@ -31,14 +31,12 @@ type Record struct {
 func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 	values, err := record.iqr.ReadColumn(cname)
 	if err != nil {
-		log.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
-		return nil, err
+		return nil, fmt.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
 	}
 
 	if record.index >= len(values) {
-		err := toputils.TeeErrorf("Record.ReadColumn: index %v out of range (len is %v) for column %v; iqr has %v records",
+		return nil, fmt.Errorf("Record.ReadColumn: index %v out of range (len is %v) for column %v; iqr has %v records",
 			record.index, len(values), cname, record.iqr.NumberOfRecords())
-		return nil, err
 	}
 
 	return &values[record.index], nil
