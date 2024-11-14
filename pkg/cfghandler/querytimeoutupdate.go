@@ -31,11 +31,6 @@ type QueryTimeoutConfig struct {
 	TimeoutSecs int `json:"timeoutSecs"`
 }
 
-type TimeoutResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
 func GetQueryTimeout(ctx *fasthttp.RequestCtx) {
 	// Read the value from the runmod config file, but if that doesn't exist,
 	// read the value from the config file.
