@@ -537,10 +537,10 @@ type NumericStats struct {
 type StringStats struct {
 	StrSet  map[string]struct{}
 	StrList []string
-	Min string
-	Max string
-	MinSet bool
-	MaxSet bool
+	Min     string
+	Max     string
+	MinSet  bool
+	MaxSet  bool
 }
 
 type SearchErrorInfo struct {

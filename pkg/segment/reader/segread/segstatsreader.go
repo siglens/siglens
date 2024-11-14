@@ -199,7 +199,7 @@ func GetSegMin(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		
+
 		if !currSegStat.IsNumeric && currSegStat.StringStats.MinSet {
 			return &utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
@@ -215,7 +215,7 @@ func GetSegMin(runningSegStat *structs.SegStats,
 			result.Dtype = utils.SS_DT_SIGNED_NUM
 			result.CVal = currSegStat.NumStats.Min.IntgrVal
 		}
-		
+
 		fmt.Printf("Merging %v into %v\n", currSegStat.StringStats.Min, nil)
 
 		return &result, nil
@@ -265,7 +265,6 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 
 	result := utils.CValueEnclosure{}
-
 
 	if currSegStat == nil {
 		log.Errorf("GetSegMax: currSegStat is nil")

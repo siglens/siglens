@@ -97,7 +97,8 @@ func Test_addSegStatsStrForValuesFunc(t *testing.T) {
 	AddSegStatsStr(sst, cname, "b", bb, nil, false, false)
 	AddSegStatsStr(sst, cname, "d", bb, nil, false, false)
 
-	assert.Nil(t, sst[cname].StringStats)
+	assert.Nil(t, sst[cname].StringStats.StrSet)
+	assert.Nil(t, sst[cname].StringStats.StrList)
 
 	AddSegStatsStr(sst, cname, "a", bb, nil, true, false)
 	AddSegStatsStr(sst, cname, "c", bb, nil, true, false)

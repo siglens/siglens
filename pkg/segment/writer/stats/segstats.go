@@ -277,7 +277,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		}
 	}
 
-	if stats.StringStats.Min == "" {
+	if !stats.StringStats.MinSet {
 		stats.StringStats.Min = strVal
 		stats.StringStats.MinSet = true
 	} else {
@@ -286,7 +286,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		}
 	}
 
-	if stats.StringStats.Max == "" {
+	if !stats.StringStats.MaxSet {
 		stats.StringStats.Max = strVal
 		stats.StringStats.MaxSet = true
 	} else {
