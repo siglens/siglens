@@ -23,21 +23,29 @@ import (
 )
 
 type topProcessor struct {
-	options *structs.StatisticExpr
+	options                *structs.StatisticExpr
+	statisticExprProcessor *statisticExprProcessor
+}
+
+func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
+	return &topProcessor{
+		options:                options.StatisticExpr,
+		statisticExprProcessor: NewStatisticExprProcessor(options),
+	}
 }
 
 func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
-	panic("not implemented")
+	return p.statisticExprProcessor.Process(iqr)
 }
 
 func (p *topProcessor) Rewind() {
-	panic("not implemented")
+	p.statisticExprProcessor.Rewind()
 }
 
 func (p *topProcessor) Cleanup() {
-	panic("not implemented")
+	p.statisticExprProcessor.Cleanup()
 }
 
 func (p *topProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
-	return nil, false
+	return p.statisticExprProcessor.GetFinalResultIfExists()
 }

@@ -119,6 +119,10 @@ func (qi *QueryInformation) GetOrgId() uint64 {
 	return qi.orgId
 }
 
+func (qi *QueryInformation) IsDistributed() bool {
+	return qi.dqs.IsDistributed()
+}
+
 func (qi *QueryInformation) IsAlreadyDistributed() bool {
 	return qi.alreadyDistributed
 }
@@ -192,6 +196,10 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 // waits and closes the distributed query service
 func (qi *QueryInformation) Wait(querySummary *summary.QuerySummary) error {
 	return qi.dqs.Wait(qi.qid, querySummary)
+}
+
+func (qi *QueryInformation) GetDQS() DistributedQueryServiceInterface {
+	return qi.dqs
 }
 
 // returns map[table] -> map[segKey] -> blkTracker to pass into MicroIndexCheck and ExtractSSRFromSearchNode

@@ -15,10 +15,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import "math/rand"
 
-const SigLensVersion = "1.0.2"
+func RandomBuffer(size int, seed int) []byte {
+	source := rand.NewSource(int64(seed))
+	rand := rand.New(source)
+	buf := make([]byte, size)
+
+	for i := 0; i < size; i++ {
+		buf[i] = byte(rand.Intn(256))
+	}
+
+	return buf
+}

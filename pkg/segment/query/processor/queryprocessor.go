@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -59,8 +60,14 @@ func (qp *QueryProcessor) Cleanup() {
 	}
 }
 
+func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
+	chainedDP := make([]*DataProcessor, len(qp.chain))
+	_ = copy(chainedDP, qp.chain)
+	return chainedDP
+}
+
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
 
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
@@ -81,6 +88,21 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
 		if !firstAgg.HasStatsBlock() {
 			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+		}
+
+		if queryType == structs.GroupByCmd {
+			// If query Type is GroupByCmd and the StatisticExpr is not nil
+			// Then the GroupByRequest will be processed by the searcher and
+			// the StatisticExpr should be processed by the next DataProcessor
+			// Note: The StatisticExpr will create a GroupByRequest
+			if firstAgg.StatisticExpr != nil {
+				nextAgg := &structs.QueryAggregators{
+					GroupByRequest: firstAgg.GroupByRequest,
+					StatisticExpr:  firstAgg.StatisticExpr,
+				}
+				nextAgg.Next = firstAgg.Next
+				firstAgg.Next = nextAgg
+			}
 		}
 
 		// skip the first agg
@@ -110,7 +132,17 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
 	}
 
-	var lastStreamer streamer = searcher
+	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+		chainedDPAsAny := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
+		if !ok {
+			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
+		} else {
+			dataProcessors = chainedDp
+		}
+	}
+
+	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
@@ -127,7 +159,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	return queryProcessor, nil
 }
 
-func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
+func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64
@@ -145,13 +177,13 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 	}
 
-	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
+	headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
 
 	scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
 	if scrollerDP == nil {
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
 	}
-	scrollerDP.streams = append(scrollerDP.streams, &cachedStream{headDP, nil, false})
+	scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
 
 	return &QueryProcessor{
 		queryType:     queryType,
@@ -190,8 +222,9 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewMakemvDP(queryAgg.MakeMVExpr)
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
-	} else if queryAgg.RareExpr != nil {
-		return NewRareDP(queryAgg.RareExpr)
+	} else if queryAgg.StatisticExpr != nil {
+		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
+		return NewStatisticExprDP(queryAgg)
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {
@@ -217,8 +250,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
-	} else if queryAgg.TopExpr != nil {
-		return NewTopDP(queryAgg.TopExpr)
 	} else if queryAgg.TransactionExpr != nil {
 		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {

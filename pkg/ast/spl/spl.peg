@@ -28,6 +28,7 @@ import (
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
     toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/config"
     log "github.com/sirupsen/logrus"
 )
 
@@ -1833,6 +1834,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        StatisticExpr: letColReq.StatisticColRequest,
     }
 
     measureAgg := &structs.MeasureAggregator {
@@ -1852,6 +1854,11 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         MeasureOperations: measureOperations,
         GroupByColumns: groupByColumns,
     }
+
+	if config.IsNewQueryPipelineEnabled() {
+		root.GroupByRequest = aggNode.GroupByRequest
+		return root, nil
+	}
 
     return aggNode, nil
 }
@@ -1977,8 +1984,10 @@ ByClause <- BY fieldList:FieldNameList {
 
 DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
 
+    dedupExp := dedupExpr.(*structs.DedupExpr)
+
     letColReq := &structs.LetColumnsRequest {
-        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+        DedupColRequest: dedupExp,
     }
 
     root := &structs.QueryAggregators {
@@ -1986,7 +1995,30 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
-        DedupExpr: dedupExpr.(*structs.DedupExpr),
+        DedupExpr: dedupExp,
+    }
+
+    if len(dedupExp.DedupSortEles) > 0 {
+        sortExpr := &structs.SortExpr {
+            SortEles: dedupExp.DedupSortEles,
+            SortAscending: dedupExp.DedupSortAscending,
+            Limit: 1000000,
+        }
+        dedupExp.DedupSortEles = nil
+        dedupExp.DedupSortAscending = nil
+
+        sortAgg := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                LetColumns: &structs.LetColumnsRequest{
+                    SortColRequest: sortExpr,
+                },
+            },
+            SortExpr: sortExpr,
+        }
+
+        sortAgg.Next = root
+        return sortAgg, nil
     }
 
     return root, nil

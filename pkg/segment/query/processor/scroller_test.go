@@ -50,7 +50,7 @@ func Test_Scroll(t *testing.T) {
 		qid: 0,
 	}
 
-	dp.streams = append(dp.streams, &cachedStream{stream, nil, false})
+	dp.streams = append(dp.streams, &CachedStream{stream, nil, false})
 
 	var finalIQR *iqr.IQR
 

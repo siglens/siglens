@@ -323,3 +323,76 @@ func Test_Dedup_multipleCols(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol2, actualCol2)
 }
+
+func Test_Dedup_WithSort(t *testing.T) {
+	stream := &mockStreamer{
+		allRecords: map[string][]utils.CValueEnclosure{
+			"col1": {
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "b"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			},
+			"col2": {
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+				{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(7)},
+			},
+		},
+		qid: 0,
+	}
+
+	sortProcessor := NewSortDP(&structs.SortExpr{
+		SortEles: []*structs.SortElement{
+			{Field: "col2", SortByAsc: true, Op: "num"},
+		},
+		Limit: 1000,
+	})
+	sortProcessor.streams = []*CachedStream{{stream, nil, false}}
+
+	dedupProcessor := NewDedupDP(&structs.DedupExpr{
+		DedupOptions: &structs.DedupOptions{
+			Consecutive: true,
+		},
+		FieldList: []string{"col1"},
+	})
+
+	dedupProcessor.streams = []*CachedStream{{sortProcessor, nil, false}}
+
+	result, err := dedupProcessor.Fetch()
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	expectedCol1 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+	}
+
+	expectedCol2 := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+	}
+
+	actualCol1, err := result.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol1, actualCol1)
+
+	actualCol2, err := result.ReadColumn("col2")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedCol2, actualCol2)
+}
