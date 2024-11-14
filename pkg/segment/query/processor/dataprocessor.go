@@ -20,6 +20,7 @@ package processor
 import (
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -43,6 +44,8 @@ type DataProcessor struct {
 	isBottleneckCmd   bool // This command must see all input before yielding any output.
 	isTwoPassCmd      bool // A subset of bottleneck commands.
 	finishedFirstPass bool // Only used for two-pass commands.
+
+	processorLock *sync.Mutex
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
@@ -69,7 +72,9 @@ func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 }
 
 func (dp *DataProcessor) Cleanup() {
+	dp.processorLock.Lock()
 	dp.processor.Cleanup()
+	dp.processorLock.Unlock()
 }
 
 // Rewind sets up this DataProcessor to read the input streams from the
@@ -102,7 +107,10 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
 			}
 
+			dp.processorLock.Lock()
 			output, err = dp.processor.Process(input)
+			dp.processorLock.Unlock()
+
 			if err == io.EOF {
 				gotEOF = true
 			} else if err != nil {
@@ -250,6 +258,7 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !hasSpan,
 		isTwoPassCmd:      !hasSpan,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -262,6 +271,7 @@ func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   hasSort,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -273,6 +283,7 @@ func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -284,6 +295,7 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -295,6 +307,7 @@ func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -307,6 +320,7 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !isFieldListSet,
 		isTwoPassCmd:      !isFieldListSet,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -321,6 +335,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -335,6 +350,7 @@ func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -346,6 +362,7 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -357,6 +374,7 @@ func NewTailDP(options *structs.TailExpr) *DataProcessor {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true, // TODO: depends on the previous DPs in the chain.
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -368,6 +386,7 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -379,6 +398,7 @@ func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -390,6 +410,7 @@ func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -401,6 +422,7 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -412,6 +434,7 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -423,6 +446,7 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -434,6 +458,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -445,6 +470,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -466,6 +492,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -477,6 +504,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -488,6 +516,7 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -499,6 +528,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -510,6 +540,7 @@ func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }
 
@@ -531,8 +562,9 @@ func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 
 func NewSearcherDP(searcher Streamer) *DataProcessor {
 	return &DataProcessor{
-		streams:   []*CachedStream{NewCachedStream(searcher)},
-		processor: &passThroughProcessor{},
+		streams:       []*CachedStream{NewCachedStream(searcher)},
+		processor:     &passThroughProcessor{},
+		processorLock: &sync.Mutex{},
 	}
 }
 
@@ -544,5 +576,6 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
 	}
 }

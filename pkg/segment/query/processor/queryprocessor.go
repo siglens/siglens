@@ -56,7 +56,7 @@ type QueryProcessor struct {
 
 func (qp *QueryProcessor) Cleanup() {
 	for _, dp := range qp.chain {
-		dp.processor.Cleanup()
+		dp.Cleanup()
 	}
 }
 
