@@ -22,6 +22,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -70,6 +71,32 @@ func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 		streams = make([]*CachedStream, 0)
 	}
 	dp.streams = streams
+}
+
+// SetLessFunc sets the less function to be used for sorting the input records.
+// The default less function sorts by timestamp.
+func (dp *DataProcessor) SetDefaultLessFunc() {
+	dp.less = sortByTimestampLess
+}
+
+func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
+	if stream == nil {
+		dp.SetDefaultLessFunc()
+		return
+	}
+
+	if streamDP, ok := stream.(*DataProcessor); ok {
+		switch streamDP.processor.(type) {
+		case *sortProcessor:
+			dp.less = streamDP.processor.(*sortProcessor).less
+		default:
+			dp.SetDefaultLessFunc()
+		}
+
+		return
+	}
+
+	dp.SetDefaultLessFunc()
 }
 
 func (dp *DataProcessor) Cleanup() {
@@ -258,6 +285,38 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 	}
 
 	return iqrs, streamIndices, nil
+}
+
+func sortByTimestampLess(r1, r2 *iqr.Record) bool {
+	if r1 == nil {
+		return false
+	} else if r2 == nil {
+		return true
+	}
+
+	timestampKey := config.GetTimeStampKey()
+
+	r1TimestampCVal, err := r1.ReadColumn(timestampKey)
+	if err != nil {
+		return false
+	}
+
+	r2TimestampCVal, err := r2.ReadColumn(timestampKey)
+	if err != nil {
+		return true
+	}
+
+	r1Timestamp, err := r1TimestampCVal.GetUIntValue()
+	if err != nil {
+		return false
+	}
+
+	r2Timestamp, err := r2TimestampCVal.GetUIntValue()
+	if err != nil {
+		return true
+	}
+
+	return r1Timestamp < r2Timestamp
 }
 
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
