@@ -81,8 +81,11 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 		}
 
 		var found bool
-		for _, colWip := range colWips {
-			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf[:], nil, false)
+		for cname, colWip := range colWips {
+			if cname == tsKey {
+				continue
+			}
+			result, err := ApplySearchToMatchFilterRawCsg(&mf, colWip.cbuf.ReadAll(), nil, false)
 			assert.Nil(t, err)
 			found = result
 			if found {
@@ -99,7 +102,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
+		result, err := ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf.ReadAll(), nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for val2 in column-a worked")
@@ -110,7 +113,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: Or,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf.ReadAll(), nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for val2 in column-d worked (should not be found)")
@@ -121,7 +124,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf.ReadAll(), nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, false, result)
 		t.Logf("searching for two values in column-a worked (should not be found)")
@@ -132,7 +135,7 @@ func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
 			MatchOperator: And,
 		}
 
-		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf[:], nil, false)
+		result, err = ApplySearchToMatchFilterRawCsg(&mf, colWips[mf.MatchColumn].cbuf.ReadAll(), nil, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		t.Logf("searching for multiple values in column-a worked (all should be found)")
@@ -197,8 +200,8 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		t.Logf("doing equals search for haystack in cstr")
 		qValDte, _ = CreateDtypeEnclosure("haystack", 0)
 		qValDte.AddStringAsByteSlice()
-		var eOff uint16 = 3 + utils.BytesToUint16LittleEndian(colWips["cstr"].cbuf[1:3]) // 2 bytes stored for string type
-		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf[:eOff], false, holderDte, false)
+		var eOff uint16 = 3 + utils.BytesToUint16LittleEndian(colWips["cstr"].cbuf.Slice(1, 3)) // 2 bytes stored for string type
+		result, err := ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cstr"].cbuf.Slice(0, int(eOff)), false, holderDte, false)
 		assert.Nil(t, err)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
@@ -206,21 +209,21 @@ func Test_applySearchToExpressionFilterSimpleHelper(t *testing.T) {
 		t.Logf("doing equals search for haystack for col that is not string")
 		qValDte, _ = CreateDtypeEnclosure("haystack", 0)
 		qValDte.AddStringAsByteSlice()
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte, false)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf.ReadAll(), false, holderDte, false)
 		assert.Equal(t, false, result)
 		qValDte.Reset()
 
 		//TODO: uncomment when ApplySearchToExpressionFilterSimpleCsg for numbers is implemented
 		t.Logf("doing equals search for float ")
-		t.Logf("cbuf:%s", string(colWips["cfloat"].cbuf[:]))
+		t.Logf("cbuf:%s", string(colWips["cfloat"].cbuf.ReadAll()))
 		qValDte, _ = CreateDtypeEnclosure(-2345.35, 0)
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf[:], false, holderDte, false)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cfloat"].cbuf.ReadAll(), false, holderDte, false)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
 
 		t.Logf("doing equals search for unsigned ")
 		qValDte, _ = CreateDtypeEnclosure(2345, 0)
-		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cunsigned"].cbuf[:], false, holderDte, false)
+		result, _ = ApplySearchToExpressionFilterSimpleCsg(qValDte, Equals, colWips["cunsigned"].cbuf.ReadAll(), false, holderDte, false)
 		assert.Equal(t, true, result)
 		qValDte.Reset()
 	}

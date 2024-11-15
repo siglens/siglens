@@ -187,19 +187,9 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 	return nodeRes
 }
 
-// TODO: after we move to the new query pipeline, some of these return values
-// will not be needed, so they can be removed.
-func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
-	qid uint64, qc *structs.QueryContext) (*time.Time, *summary.QuerySummary, *QueryInformation,
-	string, *structs.SearchNode, *segresults.SearchResults, int64, bool, []string, error) {
+func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+	qid uint64, qc *structs.QueryContext) (*QueryInformation, *summary.QuerySummary, string, bool, []string, *segresults.SearchResults, int64, error) {
 
-	startTime, err := GetQueryStartTime(qid)
-	if err != nil {
-		// This should never happen
-		log.Errorf("qid=%d, PrepareToRunQuery: Failed to get query start time! Error: %+v", qid, err)
-		startTime = time.Now()
-	}
-	searchNode := ConvertASTNodeToSearchNode(node, qid)
 	kibanaIndices := qc.TableInfo.GetKibanaIndices()
 	nonKibanaIndices := qc.TableInfo.GetQueryTables()
 	containsKibana := false
@@ -216,8 +206,8 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 	pqid := querytracker.GetHashForQuery(searchNode)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
 	if err != nil {
-		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitSearchResults! error %+v", qid, err)
-		return nil, nil, nil, "", nil, nil, 0, false, nil, err
+		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitSearchResults! error %+v", qid, err)
+		return nil, nil, "", false, nil, nil, 0, err
 	}
 
 	var dqs DistributedQueryServiceInterface
@@ -231,17 +221,41 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
 		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll, containsKibana)
 	if err != nil {
-		log.Errorf("qid=%d, PrepareToRunQuery: Failed to InitQueryInformation! error %+v", qid, err)
-		return nil, nil, nil, "", nil, nil, 0, false, nil, err
+		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitQueryInformation! error %+v", qid, err)
+		return nil, nil, "", false, nil, nil, 0, err
 	}
 	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
 	if err != nil {
-		log.Errorf("qid=%d, PrepareToRunQuery: Failed to associate search results with qid! Error: %+v", qid, err)
-		return nil, nil, nil, "", nil, nil, 0, false, nil, err
+		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to associate search results with qid! Error: %+v", qid, err)
+		return nil, nil, "", false, nil, nil, 0, err
 	}
 
 	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
 		qid, searchNode.NodeType, parallelismPerFile)
+
+	return queryInfo, querySummary, pqid, containsKibana, kibanaIndices, allSegFileResults, parallelismPerFile, nil
+}
+
+// TODO: after we move to the new query pipeline, some of these return values
+// will not be needed, so they can be removed.
+func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+	qid uint64, qc *structs.QueryContext) (*time.Time, *summary.QuerySummary, *QueryInformation,
+	string, *structs.SearchNode, *segresults.SearchResults, int64, bool, []string, error) {
+
+	startTime, err := GetQueryStartTime(qid)
+	if err != nil {
+		// This should never happen
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to get query start time! Error: %+v", qid, err)
+		startTime = time.Now()
+	}
+	searchNode := ConvertASTNodeToSearchNode(node, qid)
+
+	queryInfo, querySummary, pqid, containsKibana, kibanaIndices,
+		allSegFileResults, parallelismPerFile, err := InitQueryInfoAndSummary(searchNode, timeRange, aggs, qid, qc)
+	if err != nil {
+		log.Errorf("qid=%d, PrepareToRunQuery: Failed to init query info and summary! Error: %+v", qid, err)
+		return nil, nil, nil, "", nil, nil, 0, false, nil, err
+	}
 
 	return &startTime, querySummary, queryInfo, pqid, searchNode,
 		allSegFileResults, parallelismPerFile, containsKibana, kibanaIndices, nil
@@ -797,6 +811,16 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 	return qsrs, totalQsr, nil
 }
 
+func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed bool, aggs *structs.QueryAggregators) bool {
+	aggHasEvalFunc := aggs.HasValueColRequest()
+	aggHasValuesFunc := aggs.HasValuesFunc()
+	aggHasListFunc := aggs.HasListFunc()
+	aggHasMinMaxFunc := aggs.HasMinMaxFunc() // TODO: Add support for min/max strings in sst
+	return searchType == structs.MatchAllQuery && segmentFullyEnclosed &&
+		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc
+
+}
+
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 
@@ -828,11 +852,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
-		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
-		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
-		aggHasListFunc := segReq.aggs.HasListFunc()
+
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc {
+		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

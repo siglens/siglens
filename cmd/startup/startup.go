@@ -43,6 +43,7 @@ import (
 	"github.com/siglens/siglens/pkg/retention"
 	"github.com/siglens/siglens/pkg/scroll"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	"github.com/siglens/siglens/pkg/segment/query"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
@@ -405,4 +406,7 @@ func startQueryServer(serverAddr string) {
 			}
 		}
 	}()
+
+	query.InitMaxRunningQueries()
+	go query.PullQueriesToRun()
 }

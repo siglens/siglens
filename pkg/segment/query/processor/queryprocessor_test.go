@@ -47,9 +47,14 @@ func getSampleSearchNode() *structs.SearchNode {
 }
 
 func Test_GetFullResult_notTruncated(t *testing.T) {
+	err := initTestConfig(t)
+	assert.NoError(t, err)
+
+	go query.PullQueriesToRun()
 	qid := uint64(0)
 	rQuery, err := query.StartQuery(qid, true, nil)
 	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 
 	query.InitProgressForRRCCmd(3, qid)
 	stream := &mockStreamer{
@@ -88,9 +93,14 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 }
 
 func Test_GetFullResult_truncated(t *testing.T) {
+	err := initTestConfig(t)
+	assert.NoError(t, err)
+
+	go query.PullQueriesToRun()
 	qid := uint64(0)
 	rQuery, err := query.StartQuery(qid, true, nil)
 	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 
 	totalRecords := utils.QUERY_EARLY_EXIT_LIMIT + 10
 	query.InitProgressForRRCCmd(totalRecords, qid)
@@ -131,8 +141,13 @@ func Test_GetFullResult_truncated(t *testing.T) {
 }
 
 func Test_NewQueryProcessor_simple(t *testing.T) {
-	_, err := query.StartQuery(0, true, nil)
+	err := initTestConfig(t)
 	assert.NoError(t, err)
+
+	go query.PullQueriesToRun()
+	_, err = query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 
 	agg1 := structs.QueryAggregators{
 		WhereExpr: &structs.BoolExpr{},
@@ -144,7 +159,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now())
+	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 
@@ -152,8 +167,13 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 }
 
 func Test_NewQueryProcessor_allCommands(t *testing.T) {
-	_, err := query.StartQuery(0, true, nil)
+	err := initTestConfig(t)
 	assert.NoError(t, err)
+
+	go query.PullQueriesToRun()
+	_, err = query.StartQuery(0, true, nil)
+	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 
 	aggs := []structs.QueryAggregators{
 		{BinExpr: &structs.BinCmdOptions{}},
@@ -183,7 +203,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	queryInfo := &query.QueryInformation{}
 	querySummary := &summary.QuerySummary{}
-	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now())
+	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
 

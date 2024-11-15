@@ -20,6 +20,7 @@ package processor
 import (
 	"io"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -28,9 +29,15 @@ import (
 )
 
 func Test_Scroll(t *testing.T) {
-	qid := uint64(0)
-	_, err := query.StartQuery(qid, true, nil)
+	err := initTestConfig(t)
 	assert.NoError(t, err)
+
+	go query.PullQueriesToRun()
+
+	qid := uint64(0)
+	_, err = query.StartQuery(qid, true, nil)
+	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 
 	query.InitProgressForRRCCmd(6, qid)
 
@@ -50,7 +57,7 @@ func Test_Scroll(t *testing.T) {
 		qid: 0,
 	}
 
-	dp.streams = append(dp.streams, &cachedStream{stream, nil, false})
+	dp.streams = append(dp.streams, &CachedStream{stream, nil, false})
 
 	var finalIQR *iqr.IQR
 

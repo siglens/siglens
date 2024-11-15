@@ -35,6 +35,8 @@ import (
 )
 
 func Test_SortResultsArossMultipleFiles(t *testing.T) {
+	go query.PullQueriesToRun()
+
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
 	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecutionsort")

@@ -90,6 +90,7 @@ func Test_ExtractConfigData(t *testing.T) {
    microIndexPercent: 20
    metadataPercent: 20
    metricsPercent: 10
+   bytesPerQuery: 100
  maxOpenColumns: 42
  `),
 			common.Configuration{
@@ -139,6 +140,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					CMIPercent:      20,
 					MetadataPercent: 20,
 					MetricsPercent:  10,
+					BytesPerQuery:   100,
 				},
 				MaxOpenColumns: 42,
 			},
@@ -234,6 +236,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},
@@ -286,6 +289,7 @@ invalid input, we should error out
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},
@@ -341,6 +345,7 @@ a: b
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 			},

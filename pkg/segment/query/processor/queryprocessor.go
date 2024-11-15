@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -56,12 +57,18 @@ type QueryProcessor struct {
 
 func (qp *QueryProcessor) Cleanup() {
 	for _, dp := range qp.chain {
-		dp.processor.Cleanup()
+		go dp.Cleanup()
 	}
 }
 
+func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
+	chainedDP := make([]*DataProcessor, len(qp.chain))
+	_ = copy(chainedDP, qp.chain)
+	return chainedDP
+}
+
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
 
 	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
@@ -130,7 +137,17 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
 	}
 
-	var lastStreamer streamer = searcher
+	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+		chainedDPAsAny := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
+		if !ok {
+			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
+		} else {
+			dataProcessors = chainedDp
+		}
+	}
+
+	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
@@ -147,7 +164,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	return queryProcessor, nil
 }
 
-func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
+func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
 
 	var limit uint64
@@ -165,13 +182,13 @@ func newQueryProcessorHelper(queryType structs.QueryType, input streamer,
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 	}
 
-	headDP.streams = append(headDP.streams, &cachedStream{input, nil, false})
+	headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
 
 	scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
 	if scrollerDP == nil {
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
 	}
-	scrollerDP.streams = append(scrollerDP.streams, &cachedStream{headDP, nil, false})
+	scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
 
 	return &QueryProcessor{
 		queryType:     queryType,

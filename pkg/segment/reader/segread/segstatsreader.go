@@ -188,113 +188,155 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 }
 
 func GetSegMin(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 
-	rSst := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
-		IntgrVal: math.MaxInt64,
-	}
+	result := utils.CValueEnclosure{}
 
 	if currSegStat == nil {
 		log.Errorf("GetSegMin: currSegStat is nil")
-		return &rSst, errors.New("GetSegMin: currSegStat is nil")
-	}
-
-	if !currSegStat.IsNumeric {
-		log.Errorf("GetSegMin: current segStats is non-numeric")
-		return &rSst, errors.New("GetSegMin: current segStat is non-numeric")
+		return &result, errors.New("GetSegMin: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		switch currSegStat.NumStats.Min.Ntype {
-		case utils.SS_DT_FLOAT:
-			rSst.FloatVal = currSegStat.NumStats.Min.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
-		default:
-			rSst.IntgrVal = currSegStat.NumStats.Min.IntgrVal
+
+		if currSegStat.IsNumeric {
+			return currSegStat.NumStats.Min.ToCValueEnclosure()
+		} else {
+			if currSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
+				return &utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  currSegStat.StringStats.Min.CVal,
+				}, nil
+			}
 		}
-		return &rSst, nil
+
+		return &result, nil
+	}
+
+	// Prioritize numeric stats over strings
+	if !currSegStat.IsNumeric {
+		if runningSegStat.IsNumeric {
+			return runningSegStat.NumStats.Min.ToCValueEnclosure()
+		}
+
+		runningSegStat.StringStats.MergeMinStrStats(currSegStat.StringStats)
+
+		if runningSegStat.StringStats.Min.Dtype == utils.SS_DT_STRING {
+			result.Dtype = utils.SS_DT_STRING
+			result.CVal = runningSegStat.StringStats.Min.CVal
+		}
+
+		return &result, nil
+	}
+
+	if !runningSegStat.IsNumeric {
+		runningSegStat.NumStats = currSegStat.NumStats
+		runningSegStat.IsNumeric = true
+		return runningSegStat.NumStats.Min.ToCValueEnclosure()
 	}
 
 	switch currSegStat.NumStats.Min.Ntype {
 	case utils.SS_DT_FLOAT:
 		if runningSegStat.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Min.FloatVal = math.Min(runningSegStat.NumStats.Min.FloatVal, currSegStat.NumStats.Min.FloatVal)
-			rSst.FloatVal = runningSegStat.NumStats.Min.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Min.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Min.FloatVal = math.Min(float64(runningSegStat.NumStats.Min.IntgrVal), currSegStat.NumStats.Min.FloatVal)
 			runningSegStat.NumStats.Min.Ntype = utils.SS_DT_FLOAT
-			rSst.FloatVal = runningSegStat.NumStats.Min.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Min.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		}
 	default:
 		if runningSegStat.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Min.FloatVal = math.Min(runningSegStat.NumStats.Min.FloatVal, float64(currSegStat.NumStats.Min.IntgrVal))
-			rSst.FloatVal = runningSegStat.NumStats.Min.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Min.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Min.IntgrVal = toputils.MinInt64(runningSegStat.NumStats.Min.IntgrVal, currSegStat.NumStats.Min.IntgrVal)
-			rSst.IntgrVal = runningSegStat.NumStats.Min.IntgrVal
+			runningSegStat.NumStats.Min.Ntype = utils.SS_DT_SIGNED_NUM
+			result.CVal = runningSegStat.NumStats.Min.IntgrVal
+			result.Dtype = utils.SS_DT_SIGNED_NUM
 		}
 	}
-	return &rSst, nil
+
+	return &result, nil
 }
 
 func GetSegMax(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 
-	// start with lower resolution and upgrade as necessary
-	rSst := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
-		IntgrVal: math.MinInt64,
-	}
+	result := utils.CValueEnclosure{}
 
 	if currSegStat == nil {
 		log.Errorf("GetSegMax: currSegStat is nil")
-		return &rSst, errors.New("GetSegMax: currSegStat is nil")
-	}
-
-	if !currSegStat.IsNumeric {
-		log.Errorf("GetSegMax: current segStats is non-numeric")
-		return &rSst, errors.New("GetSegMax: current segStat is non-numeric")
+		return &result, errors.New("GetSegMax: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		switch currSegStat.NumStats.Max.Ntype {
-		case utils.SS_DT_FLOAT:
-			rSst.FloatVal = currSegStat.NumStats.Max.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
-		default:
-			rSst.IntgrVal = currSegStat.NumStats.Max.IntgrVal
+		if currSegStat.IsNumeric {
+			return currSegStat.NumStats.Max.ToCValueEnclosure()
+		} else {
+			if currSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
+				return &utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  currSegStat.StringStats.Max.CVal,
+				}, nil
+			}
 		}
-		return &rSst, nil
+
+		return &result, nil
+	}
+
+	// Prioritize numeric stats over strings
+	if !currSegStat.IsNumeric {
+		if runningSegStat.IsNumeric {
+			return runningSegStat.NumStats.Max.ToCValueEnclosure()
+		}
+
+		runningSegStat.StringStats.MergeMaxStrStats(currSegStat.StringStats)
+
+		if runningSegStat.StringStats.Max.Dtype == utils.SS_DT_STRING {
+			result.Dtype = utils.SS_DT_STRING
+			result.CVal = runningSegStat.StringStats.Max.CVal
+		}
+
+		return &result, nil
+	}
+
+	if !runningSegStat.IsNumeric {
+		runningSegStat.NumStats = currSegStat.NumStats
+		runningSegStat.IsNumeric = true
+		return runningSegStat.NumStats.Max.ToCValueEnclosure()
 	}
 
 	switch currSegStat.NumStats.Max.Ntype {
 	case utils.SS_DT_FLOAT:
 		if runningSegStat.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Max.FloatVal = math.Max(runningSegStat.NumStats.Max.FloatVal, currSegStat.NumStats.Max.FloatVal)
-			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Max.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Max.FloatVal = math.Max(float64(runningSegStat.NumStats.Max.IntgrVal), currSegStat.NumStats.Max.FloatVal)
-			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			runningSegStat.NumStats.Max.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Max.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		}
 	default:
 		if runningSegStat.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Max.FloatVal = math.Max(runningSegStat.NumStats.Max.FloatVal, float64(currSegStat.NumStats.Max.IntgrVal))
-			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal
-			rSst.Ntype = utils.SS_DT_FLOAT
+			result.CVal = runningSegStat.NumStats.Max.FloatVal
+			result.Dtype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Max.IntgrVal = toputils.MaxInt64(runningSegStat.NumStats.Max.IntgrVal, currSegStat.NumStats.Max.IntgrVal)
-			rSst.IntgrVal = runningSegStat.NumStats.Max.IntgrVal
+			runningSegStat.NumStats.Max.Ntype = utils.SS_DT_SIGNED_NUM
+			result.CVal = runningSegStat.NumStats.Max.IntgrVal
+			result.Dtype = utils.SS_DT_SIGNED_NUM
 		}
 	}
-	return &rSst, nil
+	return &result, nil
 }
 
 func GetSegRange(runningSegStat *structs.SegStats,
