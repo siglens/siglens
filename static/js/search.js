@@ -900,17 +900,18 @@ function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, to
     if (eventType === 'QUERY_UPDATE') {
         if (totalHits > 0) {
             $('#hits-summary').html(`
-            <div><span class="total-hits">${totalHitsFormatted} </span><span>of ${totalEventsSearched} Records Matched</span> </div>
-
-            <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-            <div class="text-end">Response: ${timeToFirstByte} ms</div>
+            <div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>
+            <div>First Byte Response Time: <b>${timeToFirstByte} ms</b></div>
+            <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
+            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
             $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched (out of <b>${totalPossibleEvents}</b> Possible Records)</span> </div>`);
         } else {
-            $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
+            $('#hits-summary').html(`<div><span> <b>${totalEventsSearched} </b>Records Searched</span> </div>
 
-            <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-            <div class="text-end">Response: ${timeToFirstByte} ms</div>
+            <div>First Byte Response Time:<b> ${timeToFirstByte} ms</b></div>
+            <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
+            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
         `);
             $('#record-searched').html(`<div><span><b>${totalEventsSearched}</b></span> of <span><b>${totalPossibleEvents}</b> Records Searched</span> </div>`);
         }
