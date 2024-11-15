@@ -51,12 +51,13 @@ const RunModFilePath = "data/common/runmod.cfg"
 const SIZE_8GB_IN_MB = uint64(8192)
 
 // How memory is split for rotated info. These should sum to 100.
-const DEFAULT_ROTATED_CMI_MEM_PERCENT = 63
+const DEFAULT_ROTATED_CMI_MEM_PERCENT = 48
 const DEFAULT_METADATA_MEM_PERCENT = 20
-const DEFAULT_SEG_SEARCH_MEM_PERCENT = 15 // minimum percent allocated for segsearch
+const DEFAULT_SEG_SEARCH_MEM_PERCENT = 30 // minimum percent allocated for segsearch
 const DEFAULT_METRICS_MEM_PERCENT = 2
+const DEFAULT_BYTES_PER_QUERY = 200 * 1024 * 1024 // 200MB
 
-const DEFAULT_MAX_OPEN_COLUMNS = 1000 // Max concurrent unrotated columns across all indexes
+const DEFAULT_MAX_OPEN_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
@@ -570,6 +571,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 			CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
 			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 		},
 		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 	}
@@ -837,6 +839,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 	if memoryLimits.MetadataPercent == 0 {
 		memoryLimits.MetadataPercent = DEFAULT_METADATA_MEM_PERCENT
+	}
+	if memoryLimits.BytesPerQuery == 0 {
+		memoryLimits.BytesPerQuery = DEFAULT_BYTES_PER_QUERY
 	}
 	total := memoryLimits.SearchPercent + memoryLimits.CMIPercent + memoryLimits.MetadataPercent
 	if memoryLimits.MetricsPercent == 0 && total < 100 {

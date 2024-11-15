@@ -36,6 +36,9 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 
 	// cannot reduce with incoming as string
 	if e2.Dtype == SS_DT_STRING {
+		if fun == Min || fun == Max {
+			return ReduceMinMax(e1, e2, fun == Min)
+		}
 		return e1, nil
 	}
 

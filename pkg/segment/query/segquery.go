@@ -811,6 +811,16 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 	return qsrs, totalQsr, nil
 }
 
+func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed bool, aggs *structs.QueryAggregators) bool {
+	aggHasEvalFunc := aggs.HasValueColRequest()
+	aggHasValuesFunc := aggs.HasValuesFunc()
+	aggHasListFunc := aggs.HasListFunc()
+	aggHasMinMaxFunc := aggs.HasMinMaxFunc() // TODO: Add support for min/max strings in sst
+	return searchType == structs.MatchAllQuery && segmentFullyEnclosed &&
+		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc
+
+}
+
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 
@@ -842,11 +852,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
-		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
-		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
-		aggHasListFunc := segReq.aggs.HasListFunc()
+
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc {
+		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

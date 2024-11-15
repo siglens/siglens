@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -42,7 +43,10 @@ var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
 const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
-const MAX_RUNNING_QUERIES = 32
+var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
+
+const PULL_QUERY_INTERVAL = 10 * time.Millisecond
+const MAX_WAITING_QUERIES = 500
 
 type QueryUpdateType int
 
@@ -66,17 +70,38 @@ type QueryStateChanData struct {
 	Error           error // Only used when the state is ERROR
 }
 
+type WaitStateData struct {
+	qid    uint64
+	rQuery *RunningQueryState
+}
+
 const (
-	RUNNING      QueryState = iota + 1
-	QUERY_UPDATE            // flush segment counts & aggs & records (if matched)
+	READY QueryState = iota + 1
+	RUNNING
+	QUERY_UPDATE // flush segment counts & aggs & records (if matched)
 	COMPLETE
 	CANCELLED
 	TIMEOUT
 	ERROR
 )
 
+func InitMaxRunningQueries() {
+	memConfig := config.GetMemoryConfig()
+	totalMemoryInBytes := config.GetTotalMemoryAvailable()
+	searchMemoryInBytes := (totalMemoryInBytes * memConfig.SearchPercent) / 100
+	maxConcurrentQueries := searchMemoryInBytes / memConfig.BytesPerQuery
+	if maxConcurrentQueries < 2 {
+		maxConcurrentQueries = 2
+	}
+	if maxConcurrentQueries < MAX_RUNNING_QUERIES {
+		MAX_RUNNING_QUERIES = maxConcurrentQueries
+	}
+}
+
 func (qs QueryState) String() string {
 	switch qs {
+	case READY:
+		return "READY"
 	case RUNNING:
 		return "RUNNING"
 	case QUERY_UPDATE:
@@ -126,6 +151,9 @@ type RunningQueryState struct {
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
+var waitingQueries = []*WaitStateData{}
+var waitingQueriesLock = &sync.Mutex{}
+
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
 func (rQuery *RunningQueryState) IsAsync() bool {
@@ -176,35 +204,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		return nil, fmt.Errorf("qid has already been started")
 	}
 
-	if len(allRunningQueries) >= MAX_RUNNING_QUERIES {
-		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of running queries reached", qid)
-	}
-
-	var stateChan chan *QueryStateChanData
-	if async {
-		stateChan = make(chan *QueryStateChanData, numStates)
-		stateChan <- &QueryStateChanData{StateName: RUNNING}
-	}
-
-	var timeoutCancelFunc context.CancelFunc
-	// If the query runs too long, cancel it.
-	if CANCEL_QUERY_AFTER_SECONDS != 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
-		timeoutCancelFunc = cancel
-
-		go func() {
-			<-ctx.Done()
-			arqMapLock.RLock()
-			rQuery, ok := allRunningQueries[qid]
-			arqMapLock.RUnlock()
-
-			if ok && ctx.Err() == context.DeadlineExceeded {
-				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
-				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
-				CancelQuery(qid)
-			}
-		}()
-	}
+	stateChan := make(chan *QueryStateChanData, numStates)
 
 	runningState := &RunningQueryState{
 		startTime:         time.Now(),
@@ -212,9 +212,16 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		cleanupCallback:   cleanupCallback,
 		rqsLock:           &sync.Mutex{},
 		isAsync:           async,
-		timeoutCancelFunc: timeoutCancelFunc,
+		timeoutCancelFunc: nil,
 	}
-	allRunningQueries[qid] = runningState
+
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	if len(waitingQueries) >= MAX_WAITING_QUERIES {
+		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of waiting queries reached", qid)
+	}
+	waitingQueries = append(waitingQueries, &WaitStateData{qid, runningState})
+
 	return runningState, nil
 }
 
@@ -235,6 +242,68 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+}
+
+func canRunQuery() bool {
+	activeQueries := uint64(GetActiveQueryCount())
+	return activeQueries < MAX_RUNNING_QUERIES
+}
+
+func PullQueriesToRun() {
+	for {
+		if canRunQuery() {
+			waitingQueriesLock.Lock()
+			if len(waitingQueries) == 0 {
+				waitingQueriesLock.Unlock()
+				time.Sleep(PULL_QUERY_INTERVAL)
+				continue
+			}
+			wsData := waitingQueries[0]
+			waitingQueries = waitingQueries[1:]
+			waitingQueriesLock.Unlock()
+			runQuery(*wsData)
+		}
+		time.Sleep(PULL_QUERY_INTERVAL)
+	}
+}
+
+func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
+	var timeoutCancelFunc context.CancelFunc
+	if CANCEL_QUERY_AFTER_SECONDS != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
+		timeoutCancelFunc = cancel
+
+		go func() {
+			<-ctx.Done()
+			arqMapLock.RLock()
+			rQuery, ok := allRunningQueries[qid]
+			arqMapLock.RUnlock()
+
+			if ok && ctx.Err() == context.DeadlineExceeded {
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
+				CancelQuery(qid)
+			}
+		}()
+	}
+
+	return timeoutCancelFunc
+}
+
+func runQuery(wsData WaitStateData) {
+	arqMapLock.Lock()
+	defer arqMapLock.Unlock()
+	if wsData.rQuery.isCancelled {
+		return
+	}
+
+	allRunningQueries[wsData.qid] = wsData.rQuery
+
+	wsData.rQuery.timeoutCancelFunc = setupTimeoutCancelFunc(wsData.qid)
+	wsData.rQuery.startTime = time.Now()
+
+	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: READY}
+	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING}
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
@@ -542,6 +611,15 @@ func CancelQuery(qid uint64) {
 		rQuery.cleanupCallback()
 	}
 	rQuery.rqsLock.Unlock()
+
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	for i, wsData := range waitingQueries {
+		if wsData.qid == qid {
+			waitingQueries = append(waitingQueries[:i], waitingQueries[i+1:]...)
+			break
+		}
+	}
 }
 
 func GetBucketsForQid(qid uint64) (map[string]*structs.AggregationResult, error) {

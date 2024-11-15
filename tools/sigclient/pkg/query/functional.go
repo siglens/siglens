@@ -101,7 +101,7 @@ func RunQuery(filePath string, qid int, dest string) {
 		log.Fatalf("RunQuery: Error reading and validating query file: %v, err: %v", filePath, err)
 	}
 
-	log.Infof("RunQuery: qid=%v, Running query=%v", qid, query)
+	log.Infof("RunQuery: qid=%v, Running file: %v, query: %v", qid, filePath, query)
 	queryReq["searchText"] = query
 
 	err = EvaluateQueryForWebSocket(dest, queryReq, qid, expRes)
