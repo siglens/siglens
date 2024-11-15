@@ -54,7 +54,20 @@ type QueryProcessor struct {
 	startTime    time.Time
 }
 
+func (qp *QueryProcessor) cleanupInputStreamForFirstDP() {
+	if len(qp.chain) == 0 {
+		return
+	}
+
+	streams := qp.chain[0].streams
+	for _, CachedStream := range streams {
+		go CachedStream.Cleanup()
+	}
+}
+
 func (qp *QueryProcessor) Cleanup() {
+	go qp.cleanupInputStreamForFirstDP()
+
 	for _, dp := range qp.chain {
 		go dp.Cleanup()
 	}
