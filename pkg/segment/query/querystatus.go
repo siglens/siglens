@@ -42,6 +42,7 @@ type QueryState int
 var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
+
 var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
 const PULL_QUERY_INTERVAL = 10 * time.Millisecond
