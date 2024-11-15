@@ -651,7 +651,7 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
         segStatsRowData = [];
         renderMeasuresGrid(columnOrder, res);
     }
-    let totalTime = new Date().getTime() - startQueryTime;
+    let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
@@ -714,7 +714,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         renderMeasuresGrid(columnOrder, res);
     }
     timeChart(res.qtype);
-    let totalTime = new Date().getTime() - startQueryTime;
+    let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
@@ -763,7 +763,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
     }
 
-    let totalTime = new Date().getTime() - startQueryTime;
+    let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
@@ -820,7 +820,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     isTimechart = res.isTimechart;
     lastQType = res.qtype;
     timeChart(res.qtype);
-    let totalTime = new Date().getTime() - startQueryTime;
+    let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
