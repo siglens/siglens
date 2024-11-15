@@ -69,7 +69,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	for _, rexColName := range p.options.RexColNames {
 		newColValues[rexColName] = toputils.ResizeSliceWithDefault(newColValues[rexColName], len(values), segutils.CValueEnclosure{
 			Dtype: segutils.SS_DT_BACKFILL,
-			CVal: nil,
+			CVal:  nil,
 		})
 	}
 
