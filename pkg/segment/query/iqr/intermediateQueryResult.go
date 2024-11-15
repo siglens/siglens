@@ -1276,7 +1276,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 			colValue := knownValues[aggGroupByCol][i]
 			bucketHolderArr[i].IGroupByValues[idx] = colValue
 
-			convertedValue, err := colValue.GetString()
+			convertedValue, err := colValue.GetStringForGroupByCol()
 			if err != nil {
 				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
 			}
