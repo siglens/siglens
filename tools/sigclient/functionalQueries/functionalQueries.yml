@@ -49,7 +49,6 @@ streamstats_multi_resets_grpby.json
 streamstats_eval.json
 streamstats_after_stats.json
 streamstats_after_grpby.json
-streamstats_without_sort.json
 
 ## Queries not working for multi-index
 # transaction.json
@@ -72,3 +71,5 @@ streamstats_without_sort.json
 # search_spath_search_spath_search_timechart.json // search anywhere is not supported
 # search_eval_timechart_filldown.json  // filldown command not supported
 
+## Inconsistent results
+# streamstats_without_sort.json
