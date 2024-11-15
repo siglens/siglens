@@ -68,6 +68,8 @@ func SaveQueryTimeoutToRunMod(filepath string, timeoutSecs int) error {
 
 	if err == nil {
 		configData.PQSEnabled = existingConfig.PQSEnabled
+	} else {
+		configData.PQSEnabled = true
 	}
 	configData.QueryTimeoutSecs = timeoutSecs
 

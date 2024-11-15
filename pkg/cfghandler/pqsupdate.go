@@ -81,7 +81,8 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 func SavePQSConfigToRunMod(filepath string, pqsEnabled bool) error {
 	existingConfig, err := config.ReadRunModConfig(filepath)
 	if err != nil {
-		log.Errorf("SavePQSConfigToRunMod: Could not read existing config from %s: %v", filepath, err)
+		log.Errorf("SavePQSConfigToRunMod: Unable to read existing config from %s, using defaults", filepath)
+		existingConfig.QueryTimeoutSecs = config.DEFAULT_TIMEOUT
 	}
 
 	var configData struct {
