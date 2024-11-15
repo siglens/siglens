@@ -75,13 +75,13 @@ func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 
 // SetLessFunc sets the less function to be used for sorting the input records.
 // The default less function sorts by timestamp.
-func (dp *DataProcessor) SetDefaultLessFunc() {
+func (dp *DataProcessor) setDefaultLessFunc() {
 	dp.less = sortByTimestampLess
 }
 
 func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
 	if stream == nil {
-		dp.SetDefaultLessFunc()
+		dp.setDefaultLessFunc()
 		return
 	}
 
@@ -90,13 +90,13 @@ func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
 		case *sortProcessor:
 			dp.less = streamDP.processor.(*sortProcessor).less
 		default:
-			dp.SetDefaultLessFunc()
+			dp.setDefaultLessFunc()
 		}
 
 		return
 	}
 
-	dp.SetDefaultLessFunc()
+	dp.setDefaultLessFunc()
 }
 
 func (dp *DataProcessor) Cleanup() {
