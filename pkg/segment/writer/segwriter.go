@@ -219,7 +219,10 @@ func (wp *WipBlock) getSize() uint64 {
 	}
 	size += wp.blockSummary.GetSize()
 	size += uint64(24 * len(wp.columnRangeIndexes))
-	size += uint64(WIP_SIZE * len(wp.colWips))
+
+	for _, cwip := range wp.colWips {
+		size += uint64(cwip.cbuf.Cap())
+	}
 
 	return size
 }
@@ -255,8 +258,7 @@ func GetInMemorySize() uint64 {
 	if numOpenCols > int(maxOpenCols) {
 		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
 	} else if numOpenCols > 0 {
-		multiplier := float64(maxOpenCols) / float64(numOpenCols)
-		totalSize = uint64(float64(totalSize) * multiplier)
+		totalSize = uint64(float64(totalSize) * 1.1)
 	}
 
 	totalSize += metrics.GetTotalEncodedSize()

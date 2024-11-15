@@ -268,9 +268,25 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 	var err error
 	switch measureAgg.MeasureFunc {
 	case utils.Min:
-		sstResult, err = segread.GetSegMin(runningSegStat, incomingSegStat)
+		res, err := segread.GetSegMin(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case utils.Max:
-		sstResult, err = segread.GetSegMax(runningSegStat, incomingSegStat)
+		res, err := segread.GetSegMax(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case utils.Range:
 		sstResult, err = segread.GetSegRange(runningSegStat, incomingSegStat)
 	case utils.Cardinality:
@@ -285,7 +301,7 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
 		if err != nil {
-			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
 		}
 
 		sr.segStatsResults.measureResults[measureAgg.String()] = *res
@@ -297,7 +313,7 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 	case utils.List:
 		res, err := segread.GetSegList(runningSegStat, incomingSegStat)
 		if err != nil {
-			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
 		}
 		sr.segStatsResults.measureResults[measureAgg.String()] = *res
 		if runningSegStat == nil {
@@ -305,16 +321,16 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		}
 		return runningSegStat, nil
 	default:
-		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.MeasureFunc, sr.qid)
+		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.String(), sr.qid)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid=%v", err, sr.qid)
+		return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
 	}
 
 	enclosure, err := sstResult.ToCValueEnclosure()
 	if err != nil {
-		return nil, fmt.Errorf("UpdateSegmentStats: cannot convert sstResult: %v, qid=%v", err, sr.qid)
+		return nil, fmt.Errorf("UpdateSegmentStats: cannot convert sstResult for %v, err: %v , qid=%v", measureAgg.String(), err, sr.qid)
 	}
 	sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
 

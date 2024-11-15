@@ -1473,6 +1473,8 @@ func getMyIds() []uint64 {
 }
 
 func Test_Query(t *testing.T) {
+	go query.PullQueriesToRun()
+
 	dir := t.TempDir()
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
@@ -1510,6 +1512,8 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Scroll(t *testing.T) {
+	go query.PullQueriesToRun()
+
 	dir := t.TempDir()
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
@@ -1533,6 +1537,8 @@ func Test_Scroll(t *testing.T) {
 }
 
 func Test_unrotatedQuery(t *testing.T) {
+	go query.PullQueriesToRun()
+
 	t.Cleanup(func() { os.RemoveAll(config.GetDataPath()) })
 
 	config.InitializeTestingConfig(t.TempDir())

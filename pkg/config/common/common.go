@@ -83,6 +83,7 @@ type DatabaseConfig struct {
 
 type MemoryConfig struct {
 	MaxUsagePercent uint64 `yaml:"maxUsagePercent"`
+	BytesPerQuery   uint64 `yaml:"bytesPerQuery"`
 
 	// These should sum to 100.
 	SearchPercent   uint64 `yaml:"searchPercent"`

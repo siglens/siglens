@@ -260,8 +260,7 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
 
 func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 	}
 
 	switch iqr.mode {
@@ -280,8 +279,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 // If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		log.Errorf("IQR.ReadColumn: validation failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("IQR.ReadColumn: validation failed: %v", err)
 	}
 
 	return iqr.readColumnInternal(cname)
@@ -303,6 +301,14 @@ func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error
 
 	switch iqr.mode {
 	case withRRCs:
+		// Check if the column was renamed and use the old name
+		// for reading it from the RRCs.
+		for oldName, newName := range iqr.renamedColumns {
+			if newName == cname {
+				cname = oldName
+				break
+			}
+		}
 		return iqr.readColumnWithRRCs(cname)
 	case withoutRRCs:
 		// We don't have RRCs, so we can't read the column. Since we got here
@@ -455,8 +461,14 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 			len(iqr.rrcs), len(results))
 	}
 
+	finalCname := cname
+	// Check if the column was renamed and use the new Cname for the results.
+	if newColName, ok := iqr.renamedColumns[cname]; ok {
+		finalCname = newColName
+	}
+
 	// TODO: should we have an option to disable this caching?
-	iqr.knownValues[cname] = results
+	iqr.knownValues[finalCname] = results
 
 	return results, nil
 }

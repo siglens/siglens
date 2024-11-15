@@ -52,6 +52,14 @@ func (b *Buffer) Len() int {
 	return b.offset + (len(b.chunks)-1)*chunkSize
 }
 
+func (b *Buffer) Cap() int {
+	if b == nil {
+		return 0
+	}
+
+	return len(b.chunks) * chunkSize
+}
+
 func (b *Buffer) Append(data []byte) {
 	if b == nil {
 		return
