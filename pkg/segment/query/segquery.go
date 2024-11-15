@@ -224,7 +224,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
-	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
+	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType, qc.RawQuery)
 	if err != nil {
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to associate search results with qid! Error: %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
