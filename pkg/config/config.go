@@ -621,8 +621,10 @@ func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
 	if len(strings.TrimSpace(string(jsonData))) == 0 {
-		log.Error("ExtractReadRunModConfig: Could not parse runmod config as it is empty")
-		return runModConfig, fmt.Errorf("ExtractReadRunModConfig: No data to parse")
+		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using defaults from server.yaml")
+		runModConfig.PQSEnabled = IsPQSEnabled()
+		runModConfig.QueryTimeoutSecs = GetQueryTimeoutSecs()
+		return runModConfig, nil
 	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
@@ -631,9 +633,7 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	}
 
 	SetPQSEnabled(runModConfig.PQSEnabled)
-	if runModConfig.QueryTimeoutSecs > 0 {
-		SetQueryTimeoutSecs(runModConfig.QueryTimeoutSecs)
-	}
+	SetQueryTimeoutSecs(runModConfig.QueryTimeoutSecs)
 	return runModConfig, nil
 }
 

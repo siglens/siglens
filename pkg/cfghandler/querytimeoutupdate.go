@@ -56,6 +56,21 @@ func GetQueryTimeout(ctx *fasthttp.RequestCtx) {
 }
 
 func SaveQueryTimeoutToRunMod(filepath string, timeoutSecs int) error {
+	existingConfig, err := config.ReadRunModConfig(filepath)
+	if err != nil {
+		log.Errorf("SaveQueryTimeoutToRunMod: Could not read existing config from %s: %v", filepath, err)
+	}
+
+	var configData struct {
+		PQSEnabled       bool `json:"pqsEnabled"`
+		QueryTimeoutSecs int  `json:"queryTimeoutSecs"`
+	}
+
+	if err == nil {
+		configData.PQSEnabled = existingConfig.PQSEnabled
+	}
+	configData.QueryTimeoutSecs = timeoutSecs
+
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Errorf("SaveQueryTimeoutToRunMod: Failed to open file %s: %v", filepath, err)
@@ -63,24 +78,13 @@ func SaveQueryTimeoutToRunMod(filepath string, timeoutSecs int) error {
 	}
 	defer file.Close()
 
-	var configData struct {
-		PQSEnabled       bool `json:"pqsEnabled"`
-		QueryTimeoutSecs int  `json:"queryTimeoutSecs"`
-	}
-
-	existingConfig, err := config.ReadRunModConfig(filepath)
-	if err == nil {
-		configData.PQSEnabled = existingConfig.PQSEnabled
-	}
-
-	configData.QueryTimeoutSecs = timeoutSecs
-
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(configData); err != nil {
 		log.Errorf("SaveQueryTimeoutToRunMod: Failed to encode JSON data to file %s: %v", filepath, err)
 		return err
 	}
 
+	config.SetQueryTimeoutSecs(timeoutSecs)
 	return nil
 }
 
