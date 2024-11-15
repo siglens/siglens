@@ -574,16 +574,57 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg utils.A
 		ssResults.CurrResult = firstElementVal
 		return ssResults.CurrResult, true, nil
 	case utils.Range:
-		maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
-		if err != nil {
-			return utils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
+		if ssResults.Window.Len() == 0 {
+			return utils.CValueEnclosure{}, false, nil
 		}
-		minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
-		if err != nil {
-			return utils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
+
+		// If both windows have data
+		if ssResults.SecondaryWindow.Len() > 0 {
+			maxFloatVal, err := getListElementAsFloatFromWindow(ssResults.Window.Front())
+			if err != nil {
+				return utils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error getting max value, err: %v", err)
+			}
+
+			minFloatval, err := getListElementAsFloatFromWindow(ssResults.SecondaryWindow.Front())
+			if err != nil {
+				return utils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error getting min value, err: %v", err)
+			}
+
+			return utils.CValueEnclosure{
+				Dtype: utils.SS_DT_FLOAT,
+				CVal:  maxFloatVal - minFloatval,
+			}, true, nil
 		}
-		ssResults.CurrResult.CVal = maxFloatVal - minFloatval
-		return ssResults.CurrResult, true, nil
+
+		var maxVal, minVal float64
+		first := true
+
+		for e := ssResults.Window.Front(); e != nil; e = e.Next() {
+			val, err := getListElementAsFloatFromWindow(e)
+			if err != nil {
+				continue
+			}
+			if first {
+				maxVal, minVal = val, val
+				first = false
+				continue
+			}
+			if val > maxVal {
+				maxVal = val
+			}
+			if val < minVal {
+				minVal = val
+			}
+		}
+
+		if first {
+			return utils.CValueEnclosure{}, false, nil
+		}
+
+		return utils.CValueEnclosure{
+			Dtype: utils.SS_DT_FLOAT,
+			CVal:  maxVal - minVal,
+		}, true, nil
 	case utils.Cardinality:
 		return ssResults.CurrResult, true, nil
 	case utils.Values:
