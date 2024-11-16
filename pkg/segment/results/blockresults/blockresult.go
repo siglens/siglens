@@ -625,206 +625,258 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 		var hllToMerge *toputils.GobbableHll
 		var strSetToMerge map[string]struct{}
 		var eVal utils.CValueEnclosure
-		switch mInfo.MeasureFunc {
-		case utils.Count:
-			if mInfo.ValueColRequest != nil || usedByTimechart {
-				if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for count: %v", mInfoStr)
-					continue
-				}
 
-				countIdx := gb.reverseMeasureIndex[idx]
-				countVal, err := runningStats[countIdx].rawVal.GetUIntValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-				eVal = utils.CValueEnclosure{CVal: countVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
-			} else {
-				eVal = utils.CValueEnclosure{CVal: bucket.count, Dtype: utils.SS_DT_UNSIGNED_NUM}
-			}
-			idx++
-		case utils.Avg:
-			var avg float64
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Avg: %v", mInfoStr)
-					continue
-				}
-				valIdx := gb.reverseMeasureIndex[idx]
-				if runningStats[valIdx].avgStat != nil {
-					sumVal := runningStats[valIdx].avgStat.Sum
-					countVal := runningStats[valIdx].avgStat.Count
-					if countVal == 0 {
-						avg = 0
-					} else {
-						avg = sumVal / float64(countVal)
-					}
-				} else {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-				eVal = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
-				idx++
-			} else {
-				sumIdx := gb.reverseMeasureIndex[idx]
-				sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
+		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge)
 
-				if usedByTimechart {
-					sumIdx := gb.reverseMeasureIndex[idx]
-					sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
-					if err != nil {
-						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-						continue
-					}
-
-					countIdx := gb.reverseMeasureIndex[idx+1]
-					countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
-					if err != nil {
-						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-						continue
-					}
-					eVal = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
-					idx += 2
-				} else {
-					if bucket.count == 0 {
-						avg = 0
-					} else {
-						avg = sumRawVal / float64(bucket.count)
-					}
-					eVal = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
-					idx++
-				}
-			}
-		case utils.Range:
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
-					continue
-				}
-				valIdx := gb.reverseMeasureIndex[idx]
-				rangeVal := 0.0
-				if runningStats[valIdx].rangeStat != nil {
-					minVal := runningStats[valIdx].rangeStat.Min
-					maxVal := runningStats[valIdx].rangeStat.Max
-					rangeVal = maxVal - minVal
-				} else {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-				eVal = utils.CValueEnclosure{CVal: rangeVal, Dtype: utils.SS_DT_FLOAT}
-				idx++
-			} else {
-				minIdx := gb.reverseMeasureIndex[idx]
-				minRawVal, err := runningStats[minIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				maxIdx := gb.reverseMeasureIndex[idx+1]
-				maxRawVal, err := runningStats[maxIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				eVal = utils.CValueEnclosure{CVal: maxRawVal - minRawVal, Dtype: utils.SS_DT_FLOAT}
-				idx += 2
-			}
-		case utils.Cardinality:
-			valIdx := gb.reverseMeasureIndex[idx]
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for cardinality: %v", mInfoStr)
-					continue
-				}
-				strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
-				if !ok {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-				eVal = utils.CValueEnclosure{CVal: uint64(len(strSet)), Dtype: utils.SS_DT_UNSIGNED_NUM}
-			} else {
-				finalVal := runningStats[valIdx].hll.Cardinality()
-				eVal = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
-				hllToMerge = runningStats[valIdx].hll
-			}
-
-			idx++
-		case utils.Values:
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
-					continue
-				}
-			}
-
-			valIdx := gb.reverseMeasureIndex[idx]
-			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
-			if !ok {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-				continue
-			}
-			strSetToMerge = strSet
-
-			uniqueStrings := make([]string, 0)
-			for str := range strSet {
-				uniqueStrings = append(uniqueStrings, str)
-			}
-
-			sort.Strings(uniqueStrings)
-
-			eVal = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  uniqueStrings,
-			}
-
-			idx++
-		case utils.List:
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
-					continue
-				}
-			}
-			valIdx := gb.reverseMeasureIndex[idx]
-			strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
-			if !ok {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-				continue
-			}
-			if len(strList) > utils.MAX_SPL_LIST_SIZE {
-				strList = strList[:utils.MAX_SPL_LIST_SIZE]
-			}
-			eVal = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  strList,
-			}
-			idx++
-		case utils.Sum, utils.Max, utils.Min:
-			if mInfo.ValueColRequest != nil {
-				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
-					continue
-				}
-			}
-			valIdx := gb.reverseMeasureIndex[idx]
-			eVal = runningStats[valIdx].rawVal
-			idx++
-		default:
-			valIdx := gb.reverseMeasureIndex[idx]
-			eVal = runningStats[valIdx].rawVal
-			idx++
-		}
 		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol)
 		if shouldAddRes {
 			currRes[mInfoStr] = eVal
 		}
+	}
+}
+
+func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAggregator, runningStats []runningStats, usedByTimechart bool, mInfoStr string,
+	currRes map[string]utils.CValueEnclosure, bucket *RunningBucketResults, idxPtr *int, eVal *utils.CValueEnclosure, hllToMerge **toputils.GobbableHll,
+	strSetToMerge *map[string]struct{}) {
+	if hllToMerge == nil || strSetToMerge == nil {
+		// This should never happen
+		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil. hllToMerge: %v, strSetToMerge: %v", hllToMerge, strSetToMerge)
+		return
+	}
+
+	incrementIdxBy := 1
+
+	defer func() {
+		*idxPtr += incrementIdxBy
+	}()
+
+	idx := *idxPtr
+
+	switch mInfo.MeasureFunc {
+	case utils.Count:
+		incrementIdxBy = 1
+		if mInfo.ValueColRequest != nil || usedByTimechart {
+			if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for count: %v", mInfoStr)
+				return
+			}
+
+			countIdx := gb.reverseMeasureIndex[idx]
+			countVal, err := runningStats[countIdx].rawVal.GetUIntValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			eVal.CVal = countVal
+			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		} else {
+
+			eVal.CVal = bucket.count
+			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		}
+	case utils.Avg:
+		var avg float64
+		if mInfo.ValueColRequest != nil {
+			incrementIdxBy = 1
+
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Avg: %v", mInfoStr)
+				return
+			}
+			valIdx := gb.reverseMeasureIndex[idx]
+			if runningStats[valIdx].avgStat != nil {
+				sumVal := runningStats[valIdx].avgStat.Sum
+				countVal := runningStats[valIdx].avgStat.Count
+				if countVal == 0 {
+					avg = 0
+				} else {
+					avg = sumVal / float64(countVal)
+				}
+			} else {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			eVal.CVal = avg
+			eVal.Dtype = utils.SS_DT_FLOAT
+		} else {
+			if usedByTimechart {
+				// If used by timechart, we need to calculate the average by dividing the sum of the values by the count of the values
+				// so we will be using two indices one for sum and one for count
+				// so incrementIdxBy will be 2
+				incrementIdxBy = 2
+			} else {
+				incrementIdxBy = 1
+			}
+
+			sumIdx := gb.reverseMeasureIndex[idx]
+			sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			if usedByTimechart {
+				sumIdx := gb.reverseMeasureIndex[idx]
+				sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					return
+				}
+
+				countIdx := gb.reverseMeasureIndex[idx+1]
+				countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					return
+				}
+
+				eVal.CVal = sumRawVal / countRawVal
+				eVal.Dtype = utils.SS_DT_FLOAT
+			} else {
+				if bucket.count == 0 {
+					avg = 0
+				} else {
+					avg = sumRawVal / float64(bucket.count)
+				}
+
+				eVal.CVal = avg
+				eVal.Dtype = utils.SS_DT_FLOAT
+			}
+		}
+	case utils.Range:
+		if mInfo.ValueColRequest != nil {
+			incrementIdxBy = 1
+
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
+				return
+			}
+			valIdx := gb.reverseMeasureIndex[idx]
+			rangeVal := 0.0
+			if runningStats[valIdx].rangeStat != nil {
+				minVal := runningStats[valIdx].rangeStat.Min
+				maxVal := runningStats[valIdx].rangeStat.Max
+				rangeVal = maxVal - minVal
+			} else {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			eVal.CVal = rangeVal
+			eVal.Dtype = utils.SS_DT_FLOAT
+		} else {
+			incrementIdxBy = 2
+
+			minIdx := gb.reverseMeasureIndex[idx]
+			minRawVal, err := runningStats[minIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			maxIdx := gb.reverseMeasureIndex[idx+1]
+			maxRawVal, err := runningStats[maxIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+
+			eVal.CVal = maxRawVal - minRawVal
+			eVal.Dtype = utils.SS_DT_FLOAT
+		}
+	case utils.Cardinality:
+		incrementIdxBy = 1
+
+		valIdx := gb.reverseMeasureIndex[idx]
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for cardinality: %v", mInfoStr)
+				return
+			}
+			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+			if !ok {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				return
+			}
+			eVal.CVal = uint64(len(strSet))
+			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		} else {
+			finalVal := runningStats[valIdx].hll.Cardinality()
+			eVal.CVal = finalVal
+			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+
+			*hllToMerge = runningStats[valIdx].hll
+		}
+	case utils.Values:
+		incrementIdxBy = 1
+
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+				return
+			}
+		}
+
+		valIdx := gb.reverseMeasureIndex[idx]
+		strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+		if !ok {
+			currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+			return
+		}
+		*strSetToMerge = strSet
+
+		uniqueStrings := make([]string, 0)
+		for str := range strSet {
+			uniqueStrings = append(uniqueStrings, str)
+		}
+
+		sort.Strings(uniqueStrings)
+
+		eVal.Dtype = utils.SS_DT_STRING_SLICE
+		eVal.CVal = uniqueStrings
+	case utils.List:
+		incrementIdxBy = 1
+
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+				return
+			}
+		}
+		valIdx := gb.reverseMeasureIndex[idx]
+		strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
+		if !ok {
+			currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+			return
+		}
+		if len(strList) > utils.MAX_SPL_LIST_SIZE {
+			strList = strList[:utils.MAX_SPL_LIST_SIZE]
+		}
+
+		eVal.Dtype = utils.SS_DT_STRING_SLICE
+		eVal.CVal = strList
+	case utils.Sum, utils.Max, utils.Min:
+		incrementIdxBy = 1
+
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
+				return
+			}
+		}
+		valIdx := gb.reverseMeasureIndex[idx]
+		cTypeVal := runningStats[valIdx].rawVal
+		eVal.CVal = cTypeVal.CVal
+		eVal.Dtype = cTypeVal.Dtype
+	default:
+		incrementIdxBy = 1
+
+		valIdx := gb.reverseMeasureIndex[idx]
+		cTypeVal := runningStats[valIdx].rawVal
+		eVal.CVal = cTypeVal.CVal
+		eVal.Dtype = cTypeVal.Dtype
 	}
 }
 
