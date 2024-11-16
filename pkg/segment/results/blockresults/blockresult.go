@@ -389,7 +389,7 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 		if nBuckets >= b.GroupByAggregation.maxBuckets {
 			return
 		}
-		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns)
+		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns, qid)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
 		// only make a copy if this is the first time we are inserting it
 		// so that the caller may free up the backing space for this currKey/bKey
@@ -428,7 +428,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 		if nBuckets >= b.GroupByAggregation.maxBuckets {
 			return
 		}
-		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns)
+		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns, qid)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
 		b.GroupByAggregation.StringBucketIdx[bKey] = nBuckets
 	} else {
