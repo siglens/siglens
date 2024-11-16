@@ -994,6 +994,25 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 	}
 }
 
+func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		floatVal, err := strconv.ParseFloat(e.CVal.(string), 64)
+		if err != nil {
+			return 0, false
+		}
+		return floatVal, true
+	case SS_DT_UNSIGNED_NUM:
+		return float64(e.CVal.(uint64)), true
+	case SS_DT_SIGNED_NUM:
+		return float64(e.CVal.(int64)), true
+	case SS_DT_FLOAT:
+		return e.CVal.(float64), true
+	default:
+		return 0, false
+	}
+}
+
 /*
 Returns a uint64 representation of the value
 

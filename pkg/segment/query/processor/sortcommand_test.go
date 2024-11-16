@@ -278,3 +278,101 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCol2, actualCol2)
 }
+
+func TestSortMultipleDataTypes(t *testing.T) {
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
+			{Dtype: utils.SS_DT_STRING, CVal: "2"},
+			{Dtype: utils.SS_DT_STRING, CVal: "1"},
+			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			{Dtype: utils.SS_DT_BOOL, CVal: true},
+			{Dtype: utils.SS_DT_BOOL, CVal: false},
+			{Dtype: utils.SS_DT_BOOL, CVal: false},
+			{Dtype: utils.SS_DT_BOOL, CVal: true},
+		},
+	}
+	iqr1 := iqr.NewIQR(0)
+	err := iqr1.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	// Test with ascending order.
+	sorter := &sortProcessor{
+		options: &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "col1", SortByAsc: true, Op: ""},
+			},
+			Limit: 100,
+		},
+	}
+
+	expected := []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "1"},
+		{Dtype: utils.SS_DT_STRING, CVal: "2"},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	}
+
+	_, err = sorter.Process(iqr1)
+	assert.NoError(t, err)
+	result, err := sorter.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	actualCol1, err := result.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actualCol1)
+
+	// Test with descending order.
+	sorter = &sortProcessor{
+		options: &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "col1", SortByAsc: false, Op: ""},
+			},
+			Limit: 100,
+		},
+	}
+
+	iqr2 := iqr.NewIQR(0)
+	err = iqr2.AppendKnownValues(knownValues)
+	assert.NoError(t, err)
+
+	_, err = sorter.Process(iqr2)
+	assert.NoError(t, err)
+
+	result, err = sorter.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	expected = []utils.CValueEnclosure{
+		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: utils.SS_DT_STRING, CVal: "2"},
+		{Dtype: utils.SS_DT_STRING, CVal: "1"},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	}
+
+	actualCol1, err = result.ReadColumn("col1")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actualCol1)
+}
