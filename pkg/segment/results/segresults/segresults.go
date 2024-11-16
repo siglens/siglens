@@ -365,7 +365,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			// If the measure is not an eval statement, then update the segment stats
 			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], currSst, measureAgg)
 			if err != nil {
-				return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				log.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				continue
 			}
 			sr.runningSegStat[idx] = resSegStat
 			continue

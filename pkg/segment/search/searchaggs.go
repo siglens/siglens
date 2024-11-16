@@ -943,6 +943,9 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				if !exists {
 					hasListFunc = false
 				}
+				if cValEnc.Dtype == utils.SS_DT_BACKFILL {
+					continue
+				}
 
 				if cValEnc.Dtype == utils.SS_DT_STRING {
 					str, err := cValEnc.GetString()
