@@ -32,7 +32,7 @@ type DistributedQueryService struct {
 	isDistributed bool // whether or not this is a distributed query
 }
 
-func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults) *DistributedQueryService {
+func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults, dqid string) *DistributedQueryService {
 
 	return &DistributedQueryService{
 		isDistributed: false,
