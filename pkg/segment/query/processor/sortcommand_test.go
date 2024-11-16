@@ -282,7 +282,7 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 func TestSortMultipleDataTypes(t *testing.T) {
 	knownValues := map[string][]utils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: utils.SS_DT_STRING, CVal: "z"},
 			{Dtype: utils.SS_DT_STRING, CVal: "a"},
 			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
@@ -295,6 +295,8 @@ func TestSortMultipleDataTypes(t *testing.T) {
 			{Dtype: utils.SS_DT_BOOL, CVal: false},
 			{Dtype: utils.SS_DT_BOOL, CVal: false},
 			{Dtype: utils.SS_DT_BOOL, CVal: true},
+			{Dtype: utils.SS_DT_STRING, CVal: "A"},
+			{Dtype: utils.SS_DT_STRING, CVal: "Z"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
@@ -317,12 +319,14 @@ func TestSortMultipleDataTypes(t *testing.T) {
 		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
 		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_STRING, CVal: "A"},
+		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
 		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_STRING, CVal: "z"},
 		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 	}
@@ -357,12 +361,14 @@ func TestSortMultipleDataTypes(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+		{Dtype: utils.SS_DT_STRING, CVal: "z"},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: true},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_BOOL, CVal: false},
 		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
+		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: utils.SS_DT_STRING, CVal: "A"},
 		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
 		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},

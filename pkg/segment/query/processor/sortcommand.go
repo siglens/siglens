@@ -103,7 +103,6 @@ type DTYPE_RANK uint8
 
 const (
 	NUMERIC DTYPE_RANK = iota
-	BOOL
 	STRING
 	OTHER
 )
@@ -115,19 +114,6 @@ const (
 	LESS
 	GREATER
 )
-
-func compareBool(a, b bool) COMPARE {
-	if a == b {
-		return EQUAL
-	}
-
-	// true is greater than false
-	if a {
-		return GREATER
-	}
-
-	return LESS
-}
 
 func compareFloat(a, b float64) COMPARE {
 	if dtypeutils.AlmostEquals(a, b) {
@@ -155,10 +141,10 @@ func compareString(a, b string) COMPARE {
 
 func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 	switch CValEnc.Dtype {
+	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
+		return OTHER
 	case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT:
 		return NUMERIC
-	case segutils.SS_DT_BOOL:
-		return BOOL
 	case segutils.SS_DT_STRING:
 		_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
 		if err == nil {
@@ -167,6 +153,10 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 		}
 		return STRING
 	default:
+		_, err := CValEnc.GetStringForGroupByCol()
+		if err == nil {
+			return STRING
+		}
 		return OTHER
 	}
 }
@@ -206,10 +196,16 @@ func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
 				return LESS
 			}
 			result = compareFloat(floatValA, floatValB)
-		case BOOL:
-			result = compareBool(valueA.CVal.(bool), valueB.CVal.(bool))
 		case STRING:
-			result = compareString(valueA.CVal.(string), valueB.CVal.(string))
+			strValA, err := valueA.GetStringForGroupByCol()
+			if err != nil {
+				return GREATER
+			}
+			strValB, err := valueB.GetStringForGroupByCol()
+			if err != nil {
+				return LESS
+			}
+			result = compareString(strValA, strValB)
 		default:
 			result = COMPARE(LESS)
 		}
