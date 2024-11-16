@@ -163,21 +163,23 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 
 // Returns A comparison B
 func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
-	if valueA.Dtype == segutils.SS_DT_BACKFILL && valueB.Dtype == segutils.SS_DT_BACKFILL {
-		return EQUAL
-	}
-
-	// If one value is backfilled, it has to come after the non-backfilled value irrespective of the sort order.
-	if valueA.Dtype == segutils.SS_DT_BACKFILL && valueB.Dtype != segutils.SS_DT_BACKFILL {
-		return GREATER
-	}
-	if valueA.Dtype != segutils.SS_DT_BACKFILL && valueB.Dtype == segutils.SS_DT_BACKFILL {
-		return LESS
-	}
-
 	var result COMPARE
 	rankA := getRank(valueA)
 	rankB := getRank(valueB)
+
+	// OTHER rank records always be at the end
+	if rankA == OTHER && rankB == OTHER {
+		return EQUAL
+	}
+
+	if rankA == OTHER && rankB != OTHER {
+		return GREATER
+	}
+
+	if rankA != OTHER && rankB == OTHER {
+		return LESS
+	}
+
 	if rankA != rankB {
 		if rankA < rankB {
 			result = COMPARE(LESS)
