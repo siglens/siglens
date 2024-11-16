@@ -640,7 +640,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 	strSetToMerge *map[string]struct{}) {
 	if hllToMerge == nil || strSetToMerge == nil {
 		// This should never happen
-		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil")
+		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil. hllToMerge: %v, strSetToMerge: %v", hllToMerge, strSetToMerge)
 		return
 	}
 
@@ -702,6 +702,9 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			eVal.Dtype = utils.SS_DT_FLOAT
 		} else {
 			if usedByTimechart {
+				// If used by timechart, we need to calculate the average by dividing the sum of the values by the count of the values
+				// so we will be using two indices one for sum and one for count
+				// so incrementIdxBy will be 2
 				incrementIdxBy = 2
 			} else {
 				incrementIdxBy = 1
