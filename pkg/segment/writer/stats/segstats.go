@@ -36,7 +36,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	var stats *SegStats
 	var ok bool
 	stats, ok = segstats[cname]
-	if !ok {
+	if !ok || !stats.IsNumeric {
 		numStats := &NumericStats{
 			Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 				IntgrVal: math.MaxInt64},
@@ -239,6 +239,9 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		stats.CreateNewHll()
 
 		segstats[cname] = stats
+	}
+	if stats.IsNumeric {
+		return
 	}
 	stats.Count++
 
