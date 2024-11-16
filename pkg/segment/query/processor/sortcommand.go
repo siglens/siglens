@@ -162,7 +162,7 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 	case segutils.SS_DT_STRING:
 		_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
 		if err == nil {
-			// If floatValue is possible then it is a number
+			// If floatValue is possible then it is considered as a number
 			return NUMERIC
 		}
 		return STRING
@@ -173,7 +173,6 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 
 // Returns A comparison B
 func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
-	// If both are backfilled, first value is always comes before the second value irrespective of the sort order.
 	if valueA.Dtype == segutils.SS_DT_BACKFILL && valueB.Dtype == segutils.SS_DT_BACKFILL {
 		return EQUAL
 	}
