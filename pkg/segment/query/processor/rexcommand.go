@@ -71,7 +71,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	for i, value := range values {
-		valueStr, err := value.GetString()
+		valueStr, err := value.GetStringForGroupByCol()
 		if err != nil {
 			log.Errorf("rex.Process: cannot convert value %v to string; err=%v",
 				value, err)
