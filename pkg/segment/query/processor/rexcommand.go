@@ -67,7 +67,10 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	newColValues := make(map[string][]segutils.CValueEnclosure, len(p.options.RexColNames))
 	for _, rexColName := range p.options.RexColNames {
-		newColValues[rexColName] = make([]segutils.CValueEnclosure, len(values))
+		newColValues[rexColName] = toputils.ResizeSliceWithDefault(newColValues[rexColName], len(values), segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_BACKFILL,
+			CVal:  nil,
+		})
 	}
 
 	for i, value := range values {
@@ -80,8 +83,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 		rexResultMap, err := structs.MatchAndExtractGroups(valueStr, p.compiledRegex)
 		if err != nil {
-			log.Warnf("rex.Process: cannot match and extract groups for value=%s; err=%v",
-				valueStr, err)
+			// If there are no matches we will skip this row
 			continue
 		}
 
