@@ -1657,7 +1657,7 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
-// use toputils.BatchError instead
+// TODO: use toputils.BatchError instead
 func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
 	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)
 }

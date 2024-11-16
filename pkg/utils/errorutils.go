@@ -53,7 +53,6 @@ func init() {
 	qidToBatchErrorMapLock = &sync.RWMutex{}
 }
 
-// NewBatchError creates a new BatchError instance
 func NewBatchError() *BatchError {
 	return &BatchError{
 		beMap: &sync.Map{},
@@ -103,12 +102,12 @@ func (be *BatchError) LogAllErrors() {
 	})
 }
 
-// Reset clears all stored errors
+// Reset clears all errors and qid
 func (be *BatchError) Reset() {
 	be.beMap = &sync.Map{}
+	be.qid = -1
 }
 
-// HasErrors returns true if there are any stored errors
 func (be *BatchError) HasErrors() bool {
 	hasErrors := false
 	be.beMap.Range(func(_, _ interface{}) bool {
