@@ -235,6 +235,8 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
+	// Can remove the LogGlobalSearchErrors after we fully migrate
+	// to the putils.BatchError
 	LogGlobalSearchErrors(qid)
 	putils.LogAllErrorsWithQidAndDelete(qid)
 	arqMapLock.Lock()

@@ -402,14 +402,12 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	}
 	fieldToValue, err := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
 	if err != nil {
-		// return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: failed to populate field to value, err: %v", err)
 		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:POPULATE_FIELD_TO_VALUE", err)
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
 	if err != nil {
-		// return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: failed to evaluate ValueColRequest, err: %v", err)
 		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:PerformEvalAggForSum", err)
 	}
 	(*runningStats)[i].rawVal = result
