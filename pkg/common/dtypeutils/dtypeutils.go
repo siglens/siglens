@@ -624,19 +624,27 @@ func AlmostEquals(left, right float64) bool {
 	}
 }
 
-func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{}, error) {
+func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{}) {
 
 	if fmt.Sprintf("%T", leftType) == fmt.Sprintf("%T", rightType) {
-		return leftType, rightType, nil
+		return leftType, rightType
 	}
 
+	var err error
+
 	if unsafe.Sizeof(leftType) > unsafe.Sizeof(rightType) {
-		rightType, err := ConvertExpToType(rightType, leftType)
-		return leftType, rightType, err
+		rightType, err = ConvertExpToType(rightType, leftType)
 	} else {
-		leftType, err := ConvertExpToType(leftType, rightType)
-		return rightType, leftType, err
+		leftType, err = ConvertExpToType(leftType, rightType)
 	}
+
+	if err != nil {
+		// convert both to strings
+		leftType = fmt.Sprint(leftType)
+		rightType = fmt.Sprint(rightType)
+	}
+
+	return leftType, rightType
 }
 
 // If you add a new field here or change the order of LogFileData, update the columnNames in logfileutils.go

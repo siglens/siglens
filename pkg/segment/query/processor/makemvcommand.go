@@ -79,8 +79,14 @@ func (p *makemvProcessor) processOneValue(value *utils.CValueEnclosure) error {
 
 	strVal, err := value.GetString()
 	if err != nil {
-		log.Errorf("makemv.processOneValue: failed to get string value; err=%v", err)
-		return err
+		if toputils.IsNilValueError(err) {
+			cErr := value.ConvertValue(nil)
+			if cErr != nil {
+				return fmt.Errorf("makemv.processOneValue: failed to convert nil value; err=%v", cErr)
+			}
+			return nil
+		}
+		return fmt.Errorf("makemv.processOneValue: failed to get string value; err=%v", err)
 	}
 
 	var values []string

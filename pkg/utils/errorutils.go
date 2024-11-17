@@ -30,6 +30,9 @@ const MAX_SIMILAR_ERRORS_TO_LOG = 5 // Maximum number of similar errors to store
 var qidToBatchErrorMap map[uint64]*BatchError
 var qidToBatchErrorMapLock *sync.RWMutex
 
+const NIL_VALUE_ERR = "NIL_VALUE_ERR"
+const CONVERSION_ERR = "CONVERSION_ERR"
+
 // BatchErrorData holds error information for a specific error key
 type BatchErrorData struct {
 	errors  []error
@@ -176,4 +179,36 @@ func LogAllErrorsWithQidAndDelete(qid uint64) {
 		be.LogAllErrors()
 		DeleteBatchErrorWithQid(qid)
 	}
+}
+
+func FormatErrorWithTracef(err error, message string, options ...any) error {
+	if err == nil {
+		return nil
+	}
+
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return NewErrorWithCode(ewc.code, fmt.Errorf(message, options...))
+	}
+
+	return fmt.Errorf(message, options...)
+}
+
+func IsNilValueError(err error) bool {
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return ewc.code == NIL_VALUE_ERR
+	}
+
+	return false
+}
+
+func IsConversionError(err error) bool {
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return ewc.code == CONVERSION_ERR
+	}
+
+	return false
+}
+
+func IsErrorNonNilValueError(err error) bool {
+	return err != nil && !IsNilValueError(err)
 }

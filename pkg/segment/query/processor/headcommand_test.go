@@ -178,13 +178,13 @@ func Test_Head_Expr_Null(t *testing.T) {
 
 	iqr1, err = headProcessor1.Process(iqr1)
 	assert.Equal(t, io.EOF, err)
-	assert.Equal(t, 3, iqr1.NumberOfRecords())
+	assert.Equal(t, 1, iqr1.NumberOfRecords())
 
 	columnValues, err := iqr1.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(columnValues))
-	assert.Equal(t, knownValues["gender"][:3], columnValues["gender"])
-	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
+	assert.Equal(t, knownValues["gender"][:1], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:1], columnValues["ident"])
 }
 
 func Test_Head_Expr_Keeplast(t *testing.T) {
@@ -231,11 +231,11 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 	knownValues := map[string][]utils.CValueEnclosure{
 		"gender": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 		},
@@ -265,13 +265,13 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 
 	iqr1, err = headProcessor1.Process(iqr1)
 	assert.Equal(t, io.EOF, err)
-	assert.Equal(t, 5, iqr1.NumberOfRecords())
+	assert.Equal(t, 3, iqr1.NumberOfRecords())
 
 	columnValues, err := iqr1.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(columnValues))
-	assert.Equal(t, knownValues["gender"][:5], columnValues["gender"])
-	assert.Equal(t, knownValues["ident"][:5], columnValues["ident"])
+	assert.Equal(t, knownValues["gender"][:3], columnValues["gender"])
+	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
 
 	headProcessor2 := &headProcessor{
 		options: &structs.HeadExpr{
@@ -325,10 +325,10 @@ func Test_Head_Expr_NonExistentCol(t *testing.T) {
 
 	iqr1, err = headProcessor1.Process(iqr1)
 	assert.Equal(t, io.EOF, err)
-	assert.Equal(t, 3, iqr1.NumberOfRecords())
+	assert.Equal(t, 1, iqr1.NumberOfRecords())
 
 	columnValues, err := iqr1.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(columnValues))
-	assert.Equal(t, knownValues["ident"][:3], columnValues["ident"])
+	assert.Equal(t, knownValues["ident"][:1], columnValues["ident"])
 }

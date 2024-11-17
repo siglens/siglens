@@ -1288,6 +1288,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		}
 
 		for _, measureFunc := range measureColumns {
+			if measureFunc == "tonum" || measureFunc == "logValue" {
+				fmt.Println("measureFunc", measureFunc, "value: ", knownValues[measureFunc][i].CVal)
+			}
 			bucketHolderArr[i].MeasureVal[measureFunc] = knownValues[measureFunc][i].CVal
 		}
 	}
