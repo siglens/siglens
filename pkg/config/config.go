@@ -574,6 +574,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 		},
 		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
+		UseNewPipelineConverted: true,
 	}
 
 	return testConfig
