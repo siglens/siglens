@@ -93,6 +93,8 @@ func (ms *mockStreamer) Rewind() {
 	ms.numSent = 0
 }
 
+func (ms *mockStreamer) Cleanup() {}
+
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{

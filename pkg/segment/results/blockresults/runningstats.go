@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
 )
 
@@ -35,6 +34,7 @@ type RunningBucketResults struct {
 	currStats           []*structs.MeasureAggregator // measure aggregators in result
 	groupedRunningStats map[string][]runningStats    // maps timechart group by col's vals to corresponding running stats
 	count               uint64                       // total number of elements belonging to the bucket
+	qid                 uint64                       // query id
 }
 
 type runningStats struct {
@@ -67,13 +67,14 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 	return retVal
 }
 
-func initRunningGroupByBucket(internalMeasureFns []*structs.MeasureAggregator) *RunningBucketResults {
+func initRunningGroupByBucket(internalMeasureFns []*structs.MeasureAggregator, qid uint64) *RunningBucketResults {
 
 	return &RunningBucketResults{
 		count:               0,
 		runningStats:        initRunningStats(internalMeasureFns),
 		currStats:           internalMeasureFns,
 		groupedRunningStats: make(map[string][]runningStats),
+		qid:                 qid,
 	}
 }
 
@@ -97,46 +98,51 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		runningStats = &rr.runningStats
 	}
 
+	batchErr := putils.GetOrCreateBatchErrorWithQid(qid)
+
 	for i := 0; i < len(*runningStats); i++ {
-		switch rr.currStats[i].MeasureFunc {
+		measureFunc := rr.currStats[i].MeasureFunc
+		// TODO: Change All the Eval functions to return error
+		// of type *ErrorWithCode
+		switch measureFunc {
 		case utils.Sum:
 			step, err := rr.AddEvalResultsForSum(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for sum, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Sum", err)
 			}
 			i += step
 		case utils.Avg:
 			step, err := rr.AddEvalResultsForAvg(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for avg, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Avg", err)
 			}
 			i += step
 		case utils.Max:
 			fallthrough
 		case utils.Min:
-			isMin := rr.currStats[i].MeasureFunc == utils.Min
+			isMin := measureFunc == utils.Min
 			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isMin)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for min/max, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
 			}
 			i += step
 		case utils.Range:
 			step, err := rr.AddEvalResultsForRange(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for range, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Range", err)
 			}
 			i += step
 		case utils.Count:
 			step, err := rr.AddEvalResultsForCount(runningStats, measureResults, i, usedByTimechart, cnt)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for count, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Count", err)
 			}
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
 				rawVal, err := measureResults[i].GetString()
 				if err != nil {
-					log.Errorf("RunningBucketResults.AddMeasureResults: failed to add measurement to running stats: %v", err)
+					batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
 					continue
 				}
 				bb := bbp.Get()
@@ -150,19 +156,19 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		case utils.Values:
 			step, err := rr.AddEvalResultsForValuesOrCardinality(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for values/cardinality, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Values", err)
 			}
 			i += step
 		case utils.List:
 			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for list, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:List", err)
 			}
 			i += step
 		default:
 			err := rr.ProcessReduce(runningStats, measureResults[i], i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.AddMeasureResults: Error while ProcessReduce, err: %v", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:ProcessReduce", err)
 			}
 		}
 	}
@@ -201,19 +207,21 @@ func (rr *RunningBucketResults) MergeRunningBuckets(toJoin *RunningBucketResults
 }
 
 func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, toJoinRunningStats []runningStats) {
+	batchErr := putils.GetOrCreateBatchErrorWithQid(rr.qid)
+
 	for i := 0; i < len(toJoinRunningStats); i++ {
 		switch rr.currStats[i].MeasureFunc {
 		case utils.Sum, utils.Min, utils.Max:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for %v while ValueColRequest is nil, err: %v", rr.currStats[i].MeasureFunc, err)
+					batchErr.AddError(fmt.Sprintf("RunningBucketResults.mergeRunningStats:%s", rr.currStats[i].MeasureFunc), err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduceForEval(runningStats, toJoinRunningStats[i].rawVal, i, rr.currStats[i].MeasureFunc)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for %v err: %v", rr.currStats[i].MeasureFunc, err)
+					batchErr.AddError(fmt.Sprintf("RunningBucketResults.mergeRunningStats:%s", rr.currStats[i].MeasureFunc), err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -223,7 +231,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				(*runningStats)[i].avgStat = ReduceAvg((*runningStats)[i].avgStat, toJoinRunningStats[i].avgStat)
 				i += (len(fields) - 1)
 			} else {
-				log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'avg' while ValueColRequest is nil")
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:Avg", fmt.Errorf("ValueColRequest is nil"))
 			}
 		case utils.Range:
 			if rr.currStats[i].ValueColRequest != nil {
@@ -231,19 +239,19 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				(*runningStats)[i].rangeStat = ReduceRange((*runningStats)[i].rangeStat, toJoinRunningStats[i].rangeStat)
 				i += (len(fields) - 1)
 			} else {
-				log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'range' while ValueColRequest is nil")
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:Range", fmt.Errorf("ValueColRequest is nil"))
 			}
 		case utils.Values:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' while ValueColRequest is nil, err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Values", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Values", err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -251,13 +259,13 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'list' while ValueColRequest is nil, err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'list' err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -265,13 +273,13 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := (*runningStats)[i].hll.StrictUnion(toJoinRunningStats[i].hll.Hll)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: failed merge HLL!: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Cardinality", putils.NewErrorWithCode("HLL_UNION", err))
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'cardinality', err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Cardinality", err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -279,20 +287,20 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'count', err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Count", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("RunningBucketResults.mergeRunningStats: failed to add measurement to running stats, err: %v", err)
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Count", err)
 				}
 				i += (len(fields) - 1)
 			}
 		default:
 			err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 			if err != nil {
-				log.Errorf("RunningBucketResults.mergeRunningStats: err: %v", err)
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:ProcessReduce", err)
 			}
 		}
 	}
@@ -389,17 +397,18 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	}
 	fields := rr.currStats[i].ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: Need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String())
+		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:NON_ZERO_FIELDS",
+			fmt.Errorf("need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String()))
 	}
 	fieldToValue, err := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: failed to populate field to value, err: %v", err)
+		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:POPULATE_FIELD_TO_VALUE", err)
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForSum: failed to evaluate ValueColRequest, err: %v", err)
+		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:PerformEvalAggForSum", err)
 	}
 	(*runningStats)[i].rawVal = result
 
