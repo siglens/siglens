@@ -1129,14 +1129,12 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	case SS_DT_SIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
 		bufIdx += 1
-		bytesVal := toputils.Int64ToBytesLittleEndian(e.CVal.(int64))
-		copy(buf[bufIdx:], bytesVal)
+		toputils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_FLOAT:
 		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
 		bufIdx += 1
-		bytesVal := toputils.Float64ToBytesLittleEndian(e.CVal.(float64))
-		copy(buf[bufIdx:], bytesVal)
+		toputils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_STRING:
 		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
