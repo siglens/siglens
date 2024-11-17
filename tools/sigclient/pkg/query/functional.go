@@ -94,6 +94,7 @@ func RunQuery(filePath string, qid int, dest string) {
 		"endEpoch":      endEpoch,
 		"indexName":     "*",
 		"queryLanguage": queryLanguage,
+		"includeNulls":  true,
 	}
 
 	query, expRes, err := ReadAndValidateQueryFile(filePath)
