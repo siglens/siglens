@@ -162,7 +162,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
 	go startServer()
 
-	log.Infof ("Benchmark_EndToEnd: new query pipeline: %v", config.IsNewQueryPipelineEnabled())
+	log.Infof("Benchmark_EndToEnd: new query pipeline: %v", config.IsNewQueryPipelineEnabled())
 	// Wait for the server to start
 	time.Sleep(1 * time.Second)
 
