@@ -1085,6 +1085,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		return
 	}
 
+	segKeyEnc := allSearchResults.GetAddSegEnc(searchReq.SegmentKey)
 	numRecsMatched := uint16(0)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
 		if !recIT.ShouldProcessRecord(recNum) {
@@ -1108,7 +1109,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		if config.IsNewQueryPipelineEnabled() {
 			rrc := &utils.RecordResultContainer{
 				SegKeyInfo: utils.SegKeyInfo{
-					SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+					SegKeyEnc: segKeyEnc,
 					IsRemote:  false,
 				},
 				BlockNum:         blockStatus.BlockNum,
@@ -1123,7 +1124,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 					rrc := &utils.RecordResultContainer{
 						SegKeyInfo: utils.SegKeyInfo{
-							SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+							SegKeyEnc: segKeyEnc,
 							IsRemote:  false,
 						},
 						BlockNum:         blockStatus.BlockNum,
