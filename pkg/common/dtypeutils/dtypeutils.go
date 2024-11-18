@@ -669,7 +669,7 @@ func CompareValues(leftVal interface{}, rightVal interface{}, Op string) bool {
 	leftFloatVal, errLeft := ConvertToFloat(leftVal, 64)
 	rightFloatVal, errRight := ConvertToFloat(rightVal, 64)
 
-	if errLeft == nil || errRight == nil {
+	if errLeft == nil && errRight == nil {
 		switch Op {
 		case "<":
 			return leftFloatVal < rightFloatVal
@@ -679,6 +679,8 @@ func CompareValues(leftVal interface{}, rightVal interface{}, Op string) bool {
 			return leftFloatVal <= rightFloatVal
 		case ">=":
 			return leftFloatVal >= rightFloatVal
+		default:
+			return false
 		}
 	}
 

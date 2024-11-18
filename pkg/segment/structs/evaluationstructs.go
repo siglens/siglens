@@ -58,8 +58,6 @@ type BoolExpr struct {
 	LeftBool  *BoolExpr
 	RightBool *BoolExpr
 	BoolOp    BoolOperator
-
-	ThrowErrOnNull bool
 }
 
 type EvalExpr struct {
@@ -736,22 +734,14 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]utils.CV
 			return nil, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
 		}
 
+		if isLeftValNull || isRightValNull {
+			// If any of the values are NULL, then the result cannot be determined.
+			// Return NULL.
+			return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
+		}
+
 		switch self.ValueOp {
 		case "=", "!=":
-			if isLeftValNull || isRightValNull {
-				if isLeftValNull && isRightValNull && self.ValueOp == "=" {
-					// if both values are null, then the evaluation should result in true for "="
-					return getBoolCValueEnclosure(true), nil
-				} else if self.ValueOp == "!=" {
-					// if either value is null, then the evaluation should result in true for "!="
-					return getBoolCValueEnclosure(true), nil
-				}
-
-				// if either value is null, then the evaluation should result in false for "="
-				// But since one of the values is null, the evaluation should send a nil value
-				return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
-			}
-
 			convertedLeftVal, convertedRightVal := dtypeutils.ConvertToSameType(leftVal, rightVal)
 			if self.ValueOp == "=" {
 				return getBoolCValueEnclosure(convertedLeftVal == convertedRightVal), nil
@@ -759,10 +749,6 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]utils.CV
 				return getBoolCValueEnclosure(convertedLeftVal != convertedRightVal), nil
 			}
 		case "<", ">", "<=", ">=":
-			if isLeftValNull || isRightValNull {
-				return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
-			}
-
 			return getBoolCValueEnclosure(dtypeutils.CompareValues(leftVal, rightVal, self.ValueOp)), nil
 		}
 
