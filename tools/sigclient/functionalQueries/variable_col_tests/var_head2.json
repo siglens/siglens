@@ -10,12 +10,16 @@
         "allColumns": [
             "city",
             "gender",
-            "app_name"
+            "app_name",
+            "variable_col_7",
+            "variable_col_3"
         ],
         "columnsOrder": [
             "city",
             "gender",
-            "app_name"
+            "app_name",
+            "variable_col_7",
+            "variable_col_3"
         ]
     }
 }

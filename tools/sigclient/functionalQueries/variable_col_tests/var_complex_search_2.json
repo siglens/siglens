@@ -9,25 +9,21 @@
          ],
          "allColumns": [
             "ident",
+            "variable_col_16",
+            "variable_col_3",
             "http_status",
-            "city",
-            "country",
-            "latency",
+            "variable_col_18",
             "gender",
-            "first_name",
-            "_index",
-            "timestamp"
+            "first_name"
         ],
          "columnsOrder": [
             "ident",
+            "variable_col_16",
+            "variable_col_3",
             "http_status",
-            "city",
-            "country",
-            "latency",
+            "variable_col_18",
             "gender",
-            "first_name",
-            "_index",
-            "timestamp"
+            "first_name"
         ]
      }
  }

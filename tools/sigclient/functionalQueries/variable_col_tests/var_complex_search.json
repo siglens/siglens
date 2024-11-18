@@ -8,30 +8,18 @@
         "records": [
         ],
          "allColumns": [
-            "address",
-            "app_name",
-            "city",
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_16",
             "gender",
-            "http_status",
-            "country",
-            "batch",
-            "bool_col",
-            "ident",
-            "_index",
-            "timestamp"
+            "app_name"
         ],
          "columnsOrder": [
-            "address",
-            "app_name",
-            "city",
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_16",
             "gender",
-            "http_status",
-            "country",
-            "batch",
-            "bool_col",
-            "ident",
-            "_index",
-            "timestamp"
+            "app_name"
         ]
      }
  }

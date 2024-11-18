@@ -6,19 +6,19 @@
          "qtype": "aggs-query",
          "groupByCols": [
             "bool_col",
-            "gender"
+            "variable_col_16"
         ],
          "measureFunctions": [
+            "list(variable_col_2)",
+            "range(variable_col_15)",
+            "avg(variable_col_4)",
             "cnt",
             "min",
-            "distinct_count",
-            "sum",
-            "list(http_method)",
             "max",
-            "range(latency)",
-            "values(weekday)",
-            "avg(http_status)"
-        ],
+            "distinct_count",
+            "values(variable_col_9)",
+            "sum"
+          ],
          "measure": [
         ]
      }

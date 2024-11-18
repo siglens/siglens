@@ -59,7 +59,7 @@ type Result struct {
 	Qtype                    string
 	BucketCount              int
 	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
-	VerifyMinimal 		  bool // If true, only minimal validation will be done
+	VerifyMinimal            bool // If true, only minimal validation will be done
 }
 
 const TimeStamp_Col_Name = "timestamp"
@@ -254,6 +254,14 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error creating expected result, file: %v, err: %v", filePath, err)
 	}
+	verifyMinimal, exist := expectedResult["verifyMinimal"]
+	if exist {
+		expRes.VerifyMinimal = verifyMinimal.(bool)
+	}
+	if expRes.VerifyMinimal {
+		return query, expRes, nil
+	}
+
 	if expRes.Qtype == "logs-query" {
 		uniqueKeyCols, exist := expectedResult["uniqueKeyCols"]
 		if exist {
@@ -261,13 +269,6 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 			if err != nil {
 				return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
 			}
-		}
-		verifyMinimal, exist := expectedResult["verifyMinimal"]
-		if exist {
-			expRes.VerifyMinimal = verifyMinimal.(bool)
-		}
-		if expRes.VerifyMinimal {
-			return query, expRes, nil
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -634,13 +635,20 @@ func sortMeasureResults(buckets []BucketHolder) {
 */
 func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 
-	if len(queryRes.MeasureResults) != len(expRes.MeasureResults) {
-		return fmt.Errorf("ValidateStatsQueryResults: MeasureResults length mismatch, expected: %v, got: %v", len(expRes.MeasureResults), len(queryRes.MeasureResults))
-	}
-
 	equal := utils.ElementsMatch(queryRes.MeasureFunctions, expRes.MeasureFunctions)
 	if !equal {
 		return fmt.Errorf("ValidateStatsQueryResults: MeasureFunctions mismatch, expected: %+v, got: %+v", expRes.MeasureFunctions, queryRes.MeasureFunctions)
+	}
+
+	if expRes.VerifyMinimal {
+		if len(queryRes.MeasureResults) == 0 {
+			return fmt.Errorf("ValidateStatsQueryResults: No MeasureResults found for minimal verification")
+		}
+		return nil
+	}
+
+	if len(queryRes.MeasureResults) != len(expRes.MeasureResults) {
+		return fmt.Errorf("ValidateStatsQueryResults: MeasureResults length mismatch, expected: %v, got: %v", len(expRes.MeasureResults), len(queryRes.MeasureResults))
 	}
 
 	// BucketResults are not send in a specific order, so sort them before comparing
@@ -710,8 +718,14 @@ func ValidateStatsQueryResults(queryRes *Result, expRes *Result) error {
 *
 */
 func ValidateGroupByQueryResults(queryRes *Result, expRes *Result) error {
-	if queryRes.BucketCount != expRes.BucketCount {
-		return fmt.Errorf("ValidateGroupByQueryResults: BucketCount mismatch, expected: %v, got: %v", expRes.BucketCount, queryRes.BucketCount)
+	if !expRes.VerifyMinimal {
+		if queryRes.BucketCount != expRes.BucketCount {
+			return fmt.Errorf("ValidateGroupByQueryResults: BucketCount mismatch, expected: %v, got: %v", expRes.BucketCount, queryRes.BucketCount)
+		}
+	} else {
+		if queryRes.BucketCount == 0 {
+			return fmt.Errorf("ValidateGroupByQueryResults: BucketCount is 0 for minimal verification")
+		}
 	}
 
 	equal := utils.ElementsMatch(queryRes.GroupByCols, expRes.GroupByCols)

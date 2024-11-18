@@ -27,6 +27,7 @@
             "len_gender",
             "logValue",
             "longitude",
+            "ltrim",
             "match",
             "max_cnt",
             "request_status",
@@ -39,7 +40,11 @@
             "toNumber",
             "x",
             "y",
-            "z"
+            "z",
+            "variable_col_4",
+            "latitude",
+            "variable_col_18",
+            "variable_col_0"
         ],
         "columnsOrder": [
             "abs_sum",
@@ -61,6 +66,7 @@
             "len_gender",
             "logValue",
             "longitude",
+            "ltrim",
             "match",
             "max_cnt",
             "request_status",
@@ -73,7 +79,11 @@
             "toNumber",
             "x",
             "y",
-            "z"
+            "z",
+            "variable_col_4",
+            "latitude",
+            "variable_col_18",
+            "variable_col_0"
         ]
     }
 }

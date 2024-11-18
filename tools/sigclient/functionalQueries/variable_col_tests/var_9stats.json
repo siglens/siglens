@@ -4,15 +4,15 @@
         "verifyMinimal": true,
          "qtype": "segstats-query",
          "measureFunctions": [
-            "avg",
-            "max(http_status)",
-            "min(latitude)",
-            "sum(longitude)",
-            "range(latitude)",
+            "range(variable_col_19)",
             "count(*)",
-            "values(http_method)",
+            "sum(variable_col_17)",
+            "list(variable_col_16)",
+            "avg",
             "distinct_count",
-            "list(gender)"
+            "max(variable_col_15)",
+            "min(variable_col_18)",
+            "values(variable_col_3)"
         ],
          "measure": [
         ]

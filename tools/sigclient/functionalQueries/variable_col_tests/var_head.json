@@ -8,18 +8,18 @@
         "records": [
         ],
         "allColumns": [
-            "http_method",
-            "gender",
-            "variable_col_9",
             "country",
-            "app_name"
-        ],
+            "variable_col_3",
+            "variable_col_9",
+            "gender",
+            "variable_col_18"
+          ],
         "columnsOrder": [
             "country",
-            "app_name",
+            "variable_col_3",
             "variable_col_9",
             "gender",
-            "http_method"
-        ]
+            "variable_col_18"
+          ]
     }
 }

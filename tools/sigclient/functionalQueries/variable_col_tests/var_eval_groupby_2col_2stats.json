@@ -5,7 +5,6 @@
          "totalMatched": {
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["gender", "temp_value"],
          "records": [
         ],
          "allColumns": [

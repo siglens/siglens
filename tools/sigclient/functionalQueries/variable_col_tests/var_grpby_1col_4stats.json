@@ -5,14 +5,14 @@
         "bucketCount": 0,
         "qtype": "aggs-query",
         "groupByCols": [
-             "gender"
-         ],
+        "variable_col_3"
+        ],
         "measureFunctions": [
             "count(*)",
-            "temp_value",
-            "min(http_status)",
-            "max(latency)",
-            "sum(longitude)"
+            "min(variable_col_15)",
+            "max(variable_col_17)",
+            "sum(variable_col_18)",
+            "temp_value"
         ],
         "measure": [
         ]

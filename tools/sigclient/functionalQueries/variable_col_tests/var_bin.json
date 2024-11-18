@@ -17,7 +17,7 @@
             "bin_http_7",
             "bin_http_8",
             "bin_http_9",
-            "http_status",
+            "variable_col_4",
             "ident"
         ],
         "columnsOrder": [
@@ -30,7 +30,7 @@
             "bin_http_7",
             "bin_http_8",
             "bin_http_9",
-            "http_status",
+            "variable_col_4",
             "ident"
         ]
      }

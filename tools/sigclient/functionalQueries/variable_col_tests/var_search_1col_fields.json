@@ -8,20 +8,18 @@
         "records": [
         ],
         "allColumns": [
-            "app_name",
+            "variable_col_1",
             "batch",
             "http_status",
             "ident",
-            "_index",
-            "timestamp"
-        ],
+            "variable_col_0"
+          ],
         "columnsOrder": [
-            "app_name",
+            "variable_col_1",
             "batch",
             "http_status",
             "ident",
-            "timestamp",
-            "_index"
-        ]
+            "variable_col_0"
+          ]
     }
 }

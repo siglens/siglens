@@ -8,15 +8,15 @@
         "records": [
         ],
         "allColumns": [
-            "timestamp",
-            "avg_lat_http: PATCH",
-            "avg_lat_http: PUT",
-            "avg_lat_http: POST"
+            "avg_lat_http: &{8 <nil>}",
+            "avg_lat_http: female",
+            "avg_lat_http: male",
+            "timestamp"
         ],
         "columnsOrder": [
-            "avg_lat_http: PATCH",
-            "avg_lat_http: POST",
-            "avg_lat_http: PUT",
+            "avg_lat_http: &{8 <nil>}",
+            "avg_lat_http: female",
+            "avg_lat_http: male",
             "timestamp"
         ]
     }

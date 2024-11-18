@@ -5,7 +5,7 @@
         "bucketCount": 0,
         "qtype": "aggs-query",
         "groupByCols": [
-            "http_method"
+            "variable_col_16"
         ],
         "measureFunctions": [
             "rare_count",

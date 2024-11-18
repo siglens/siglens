@@ -1,5 +1,5 @@
 {
-    "queryText": "variable_col_3=female | fields variable_col3, ident, variable_col_6 | tail",
+    "queryText": "variable_col_3=female | fields variable_col_3, ident, variable_col_6 | tail",
     "expectedResult": {
         "verifyMinimal": true,
         "totalMatched": {
@@ -8,14 +8,14 @@
         "records": [
         ],
         "allColumns": [
-            "app_name",
+            "variable_col_3",
             "ident",
-            "country"
+            "variable_col_6"
         ],
         "columnsOrder": [
-            "app_name",
+            "variable_col_3",
             "ident",
-            "country"
+            "variable_col_6"
         ]
     }
 }
