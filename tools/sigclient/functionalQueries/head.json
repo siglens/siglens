@@ -2,7 +2,7 @@
     "queryText": "app_name = Bracecould | head (gender=\"female\" OR variable_col_9=\"Director\") null=true keeplast=true | fields country, app_name, variable_col_9, gender, http_method",
     "expectedResult": {
         "totalMatched": {
-            "value": 1,
+            "value": 4,
             "relation": "eq"
         },
         "qtype": "logs-query",
