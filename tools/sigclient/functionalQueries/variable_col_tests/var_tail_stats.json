@@ -1,0 +1,21 @@
+{
+    "queryText": "* | tail 30000 | stats count, sum(variable_col_19) as sum, avg(variable_col_18) as avg_latency",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "avg_latency",
+            "count(*)",
+            "sum"
+        ],
+        "columnsOrder": [
+            "avg_latency",
+            "count(*)",
+            "sum"
+        ]
+    }
+}

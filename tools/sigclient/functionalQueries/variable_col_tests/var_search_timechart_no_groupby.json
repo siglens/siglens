@@ -1,0 +1,14 @@
+{
+    "queryText": "search variable_col_0=batch* group=\"group 0\" user_agent=Mozilla*Mac* AND user_agent!=Opera* variable_col_17 > 0 | earliest=-12h@h | timechart span=15m max(variable_col_19) as max_latency",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "bucketCount": 0,
+        "qtype": "aggs-query",
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": ["max_latency"],
+        "measure": [
+        ]
+    }
+}
+  
