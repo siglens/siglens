@@ -27,17 +27,17 @@ import (
 )
 
 var qid = int64(1)
-var connReset = int64(0)
-var timeout = int64(0)
-var failed = int64(0)
-var completed = int64(0)
+var numConnResets = int64(0)
+var numTimeouts = int64(0)
+var numFailed = int64(0)
+var numCompleted = int64(0)
 
 func sendQuery(queryReq map[string]interface{}, qid int64, websocketURL string) {
 
 	conn, _, err := websocket.DefaultDialer.Dial(websocketURL, nil)
 	if err != nil {
 		log.Errorf("sendQuery: Error connecting to the websocket: %v\n", err)
-		atomic.AddInt64(&connReset, 1)
+		atomic.AddInt64(&numConnResets, 1)
 		return
 	}
 	defer conn.Close()
@@ -60,15 +60,15 @@ func sendQuery(queryReq map[string]interface{}, qid int64, websocketURL string) 
 		case "QUERY_UPDATE":
 		case "TIMEOUT":
 			log.Debugf("qid=%v Query timed out\n", qid)
-			atomic.AddInt64(&timeout, 1)
+			atomic.AddInt64(&numTimeouts, 1)
 			return
 		case "COMPLETE":
 			log.Debugf("qid=%v Query completed\n", qid)
-			atomic.AddInt64(&completed, 1)
+			atomic.AddInt64(&numCompleted, 1)
 			return
 		case "error":
 			log.Debugf("qid=%v Query failed: %v\n", qid, readEvent)
-			atomic.AddInt64(&failed, 1)
+			atomic.AddInt64(&numFailed, 1)
 			return
 		default:
 			return
@@ -98,10 +98,10 @@ func RunConcurrentQueries(dest string, query string, numOfConcurrentQueries int,
 	var wg sync.WaitGroup
 	for itr := 0; itr < iterations; itr++ {
 		log.Infof("Iteration: %v\n", itr+1)
-		connReset = 0
-		timeout = 0
-		failed = 0
-		completed = 0
+		numConnResets = 0
+		numTimeouts = 0
+		numFailed = 0
+		numCompleted = 0
 		for i := 0; i < numOfConcurrentQueries; i++ {
 			wg.Add(1)
 			go func(qid int64) {
@@ -112,10 +112,10 @@ func RunConcurrentQueries(dest string, query string, numOfConcurrentQueries int,
 		}
 		log.Info("Waiting for all queries to complete\n")
 		wg.Wait()
-		log.Infof("Conn resets: %v\n", int(connReset))
-		log.Infof("Completed: %v\n", int(completed))
-		log.Infof("Failed: %v\n", int(failed))
-		log.Infof("Timeouts: %v\n", int(timeout))
+		log.Infof("Conn resets: %v\n", int(numConnResets))
+		log.Infof("Completed: %v\n", int(numCompleted))
+		log.Infof("Failed: %v\n", int(numFailed))
+		log.Infof("Timeouts: %v\n", int(numTimeouts))
 		log.Info("------------------------------------------------------------------------------\n")
 	}
 }
