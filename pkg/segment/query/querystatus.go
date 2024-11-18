@@ -44,7 +44,7 @@ type QueryState int
 var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
-const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
+
 var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
 const PULL_QUERY_INTERVAL = 10 * time.Millisecond
@@ -298,8 +298,9 @@ func PullQueriesToRun() {
 
 func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 	var timeoutCancelFunc context.CancelFunc
-	if CANCEL_QUERY_AFTER_SECONDS != 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
+	timeoutSecs := config.GetQueryTimeoutSecs()
+	if timeoutSecs != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second)
 		timeoutCancelFunc = cancel
 
 		go func() {
@@ -309,7 +310,7 @@ func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 			arqMapLock.RUnlock()
 
 			if ok && ctx.Err() == context.DeadlineExceeded {
-				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, timeoutSecs)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
 			}

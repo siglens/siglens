@@ -989,7 +989,7 @@ input.form-control:focus {
     color: var(--search-bar-text-color-active);
     border-radius: 5px;
     background: var(--search-bar-bg);
-    
+    border-color: var(--purple-1);
 }
 
 .dropdown-toggle::after {
