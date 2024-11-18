@@ -4013,6 +4013,10 @@ float: right;
     overflow: visible;
 }
 
+.myOrg .pqs-grid .ag-cell{
+    overflow: hidden !important;
+}
+
 .copy-msg {
     font-size: 22px;
     /* color: var(--text-color); */
