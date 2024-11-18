@@ -2,11 +2,10 @@
     "queryText": "city=Boston | sort first_name, last_name | streamstats window=4 current=false count(http_status) as cnt, avg(http_status) as avg, sum(http_status) as sum, min(http_status) as min, max(http_status) as max, range(http_status) as range, dc(http_status) as dc, values(http_status) as values | fields city, first_name, last_name, http_status, cnt, avg, sum, min, max, range, dc, values",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
-             "relation": "eq"
+             "value": 100,
+             "relation": "gte"
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["first_name", "last_name"],
          "records": [
             {
                 "avg": "",

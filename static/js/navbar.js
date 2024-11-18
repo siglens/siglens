@@ -138,6 +138,7 @@ let orgUpperNavTabs = [
     {{ .OrgUpperNavTabs }}
     { name: 'Settings', url: './org-settings.html', class: 'org-settings' },
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
+    { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
     { name: 'Version', url: './application-version.html', class: 'application-version' },
 ];
 
@@ -179,7 +180,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes('all-slos.html')) {
         $('.nav-slos').addClass('active');
         $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
-    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html') || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }} ) {
+    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html')|| currentUrl.includes('query-stats.html')  || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }} ) {
         $('.nav-myorg').addClass('active');
         $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
     } else if (currentUrl.includes('minion-searches.html')) {
