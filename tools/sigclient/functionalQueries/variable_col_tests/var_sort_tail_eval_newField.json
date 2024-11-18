@@ -1,0 +1,23 @@
+{
+    "queryText": "variable_col_8=A* | sort ident | tail 2 | eval varField=12 | fields city, app_name, ident, var*",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ],
+        "columnsOrder": [
+            "city",
+            "app_name",
+            "ident",
+            "newField"
+        ]
+    }
+}

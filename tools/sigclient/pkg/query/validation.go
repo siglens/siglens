@@ -59,6 +59,7 @@ type Result struct {
 	Qtype                    string
 	BucketCount              int
 	DoNotVerifyGroupByValues bool // If true, group by values elements match will not be done. Used when grouping on timestamp.
+	VerifyMinimal 		  bool // If true, only minimal validation will be done
 }
 
 const TimeStamp_Col_Name = "timestamp"
@@ -260,6 +261,13 @@ func ReadAndValidateQueryFile(filePath string) (string, *Result, error) {
 			if err != nil {
 				return "", nil, fmt.Errorf("ReadAndValidateQueryFile: Error fetching uniqueKeyCols, uniqueKeyCols: %v file: %v", uniqueKeyCols, filePath)
 			}
+		}
+		verifyMinimal, exist := expectedResult["verifyMinimal"]
+		if exist {
+			expRes.VerifyMinimal = verifyMinimal.(bool)
+		}
+		if expRes.VerifyMinimal {
+			return query, expRes, nil
 		}
 		err = populateTotalMatchedAndRecords(expectedResult, expRes)
 		if err != nil {
@@ -545,10 +553,6 @@ func sortRecords(records []map[string]interface{}, columns []string) {
 func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	var err error
 
-	equal := reflect.DeepEqual(queryRes.TotalMatched, expRes.TotalMatched)
-	if !equal {
-		return fmt.Errorf("ValidateLogsQueryResults: TotalMatched mismatch, expected: %v, got: %v", expRes.TotalMatched, queryRes.TotalMatched)
-	}
 	colsToRemove := map[string]struct{}{
 		"timestamp": {},
 		"_index":    {},
@@ -557,7 +561,7 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	queryRes.AllColumns = utils.RemoveValues(queryRes.AllColumns, colsToRemove)
 	expRes.AllColumns = utils.RemoveValues(expRes.AllColumns, colsToRemove)
 
-	equal = utils.ElementsMatch(queryRes.AllColumns, expRes.AllColumns)
+	equal := utils.ElementsMatch(queryRes.AllColumns, expRes.AllColumns)
 	if !equal {
 		return fmt.Errorf("ValidateLogsQueryResults: AllColumns mismatch, expected: %+v, got: %+v", expRes.AllColumns, queryRes.AllColumns)
 	}
@@ -571,6 +575,18 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	}
 	if len(queryRes.Records) < len(expRes.Records) {
 		return fmt.Errorf("ValidateLogsQueryResults: Less records than, expected at least: %v, got: %v", len(expRes.Records), len(queryRes.Records))
+	}
+
+	if expRes.VerifyMinimal {
+		if len(queryRes.Records) > 0 && queryRes.TotalMatched != nil {
+			return nil
+		}
+		return fmt.Errorf("ValidateLogsQueryResults: No records found for minimal verification")
+	}
+
+	equal = reflect.DeepEqual(queryRes.TotalMatched, expRes.TotalMatched)
+	if !equal {
+		return fmt.Errorf("ValidateLogsQueryResults: TotalMatched mismatch, expected: %v, got: %v", expRes.TotalMatched, queryRes.TotalMatched)
 	}
 
 	if len(expRes.UniqueKeyCols) > 0 {

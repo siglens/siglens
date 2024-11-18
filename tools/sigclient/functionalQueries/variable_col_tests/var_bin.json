@@ -1,0 +1,38 @@
+{
+    "queryText": "city=Boston | bin variable_col_4 as bin_http | bin bins=2 variable_col_4 as bin_http_2 | bin span=5s variable_col_4 as bin_http_3 | bin span=2log3 variable_col_4 as bin_http_4 | bin minspan=500 variable_col_4 as bin_http_5 | bin bins=50000 variable_col_4 as bin_http_6 | bin bins=50000 minspan=2 variable_col_4 as bin_http_7 | bin end=100000 variable_col_4 as bin_http_8 | bin start=-10000 variable_col_4 as bin_http_9 | fields bin_http, bin_http_2, bin_http_3, bin_http_4, bin_http_5, bin_http_6, bin_http_7, bin_http_8, bin_http_9, variable_col_4, ident",
+    "expectedResult": {
+        "verifyMinimal": true,
+         "totalMatched": {
+         },
+         "qtype": "logs-query",
+         "records": [
+        ],
+        "allColumns": [
+            "bin_http",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_5",
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http_9",
+            "http_status",
+            "ident"
+        ],
+        "columnsOrder": [
+            "bin_http",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_5",
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http_9",
+            "http_status",
+            "ident"
+        ]
+     }
+ }
+ 

@@ -1,0 +1,25 @@
+{
+    "queryText": "variable_col_18 > 0 | fields var*, http_status, country | dedup variable_col_3 sortby http_status, country",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ],
+        "columnsOrder": [
+            "city",
+            "bool_col",
+            "http_status",
+            "app_name",
+            "country"
+        ]
+    }
+}
