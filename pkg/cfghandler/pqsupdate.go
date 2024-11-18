@@ -23,7 +23,6 @@ import (
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/querytracker"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -80,14 +79,10 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 }
 
 func SavePQSConfigToRunMod(filepath string, pqsEnabled bool) error {
-	var configData common.RunModConfig
-
-	existingConfig, err := config.ReadRunModConfig(filepath)
+	configData, err := config.ReadRunModConfig(filepath)
 	if err != nil {
 		log.Errorf("SavePQSConfigToRunMod: Using defaults as couldn't read config: %v", err)
 		configData = config.GetDefaultRunModConfig()
-	} else {
-		configData = existingConfig
 	}
 
 	configData.PQSEnabled = pqsEnabled

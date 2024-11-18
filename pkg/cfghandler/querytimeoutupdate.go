@@ -23,7 +23,6 @@ import (
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/config/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -57,14 +56,10 @@ func GetQueryTimeout(ctx *fasthttp.RequestCtx) {
 }
 
 func SaveQueryTimeoutToRunMod(filepath string, timeoutSecs int) error {
-	var configData common.RunModConfig
-
-	existingConfig, err := config.ReadRunModConfig(filepath)
+	configData, err := config.ReadRunModConfig(filepath)
 	if err != nil {
-		log.Errorf("SaveQueryTimeoutToRunMod: Using defaults as couldn't read config: %v", err)
+		log.Errorf("SavePQSConfigToRunMod: Using defaults as couldn't read config: %v", err)
 		configData = config.GetDefaultRunModConfig()
-	} else {
-		configData = existingConfig
 	}
 
 	configData.QueryTimeoutSecs = timeoutSecs
