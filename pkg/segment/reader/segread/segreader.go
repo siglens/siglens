@@ -429,6 +429,26 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[uint16]map[
 	return sfr.deToResults(results, orderedRecNums)
 }
 
+func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileCnameBased(results map[string][]utils.CValueEnclosure,
+	blockNum uint16, orderedRecNums []uint16) bool {
+
+	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
+		valid, err := sfr.readBlock(blockNum)
+		if !valid {
+			return false
+		}
+		if err != nil {
+			return false
+		}
+	}
+
+	if sfr.encType != utils.ZSTD_DICTIONARY_BLOCK[0] {
+		return false
+	}
+
+	return sfr.deToResultsCnameBased(results, orderedRecNums)
+}
+
 func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interface{},
 	orderedRecNums []uint16) bool {
 
@@ -449,6 +469,35 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 			results[rn][sfr.ColName] = toputils.BytesToFloat64LittleEndian(dWord[1:])
 		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
+		} else {
+			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
+			return false
+		}
+	}
+	return true
+}
+
+func (sfr *SegmentFileReader) deToResultsCnameBased(results map[string][]utils.CValueEnclosure,
+	orderedRecNums []uint16) bool {
+
+	for recIdx, rn := range orderedRecNums {
+		dwIdx := sfr.deRecToTlv[rn]
+		dWord := sfr.deTlv[dwIdx]
+
+		if dWord[0] == utils.VALTYPE_ENC_SMALL_STRING[0] {
+			results[sfr.ColName][recIdx].CVal = string(dWord[3:])
+			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_STRING
+		} else if dWord[0] == utils.VALTYPE_ENC_BOOL[0] {
+			results[sfr.ColName][recIdx].CVal = toputils.BytesToBoolLittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BOOL
+		} else if dWord[0] == utils.VALTYPE_ENC_INT64[0] {
+			results[sfr.ColName][recIdx].CVal = toputils.BytesToInt64LittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_SIGNED_NUM
+		} else if dWord[0] == utils.VALTYPE_ENC_FLOAT64[0] {
+			results[sfr.ColName][recIdx].CVal = toputils.BytesToFloat64LittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_FLOAT
+		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
+			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BACKFILL
 		} else {
 			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
 			return false

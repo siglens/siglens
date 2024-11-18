@@ -386,6 +386,18 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[uint16
 	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFile(results, blockNum, orderedRecNums)
 }
 
+func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileCnameBased(results map[string][]utils.CValueEnclosure,
+	col string, blockNum uint16, orderedRecNums []uint16, qid uint64) bool {
+
+	keyIndex, ok := mcsr.allColsReverseIndex[col]
+	if !ok {
+		return false
+	}
+
+	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFileCnameBased(results, blockNum,
+		orderedRecNums)
+}
+
 func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
 	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool) (bool, error) {
 

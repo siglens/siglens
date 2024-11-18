@@ -433,31 +433,142 @@ func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint1
 	esQuery := false
 	aggs := &structs.QueryAggregators{}
 	nodeRes := &structs.NodeResult{}
-	unorderedResults := readAllRawRecords(orderedRecNums, blockNum, segReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
-
 	results := make(map[string][]utils.CValueEnclosure)
-	for cname := range allMatchedColumns {
-		results[cname] = make([]utils.CValueEnclosure, 0, len(orderedRecNums))
+
+	for _, colInfo := range segReader.AllColums {
+		cname := colInfo.ColumnName
+
+		if !esQuery && (cname == "_type" || cname == "_id") {
+			continue
+		}
+
+		if cname == config.GetTimeStampKey() {
+			continue
+		}
+
+		results[cname] = make([]utils.CValueEnclosure, len(orderedRecNums))
 	}
 
-	for _, recNum := range orderedRecNums {
-		for cname, value := range unorderedResults[recNum] {
-			if _, ok := results[cname]; !ok {
-				results[cname] = make([]utils.CValueEnclosure, 0)
-			}
-			enclosure := utils.CValueEnclosure{}
-			err := enclosure.ConvertValue(value)
-			if err != nil {
-				log.Errorf("qid=%d, readColsForRecords: failed to convert value %+v for column %v; err=%v",
-					qid, value, cname, err)
-				return nil, err
-			}
+	readAllRawRecordsV2(orderedRecNums, blockNum, segReader,
+		allMatchedColumns, esQuery, qid, aggs, nodeRes, results)
 
-			results[cname] = append(results[cname], enclosure)
+	if aggs != nil && aggs.OutputTransforms != nil {
+		if aggs.OutputTransforms.OutputColumns != nil && aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
+			for oldCname, newCname := range aggs.OutputTransforms.OutputColumns.RenameColumns {
+
+				if results[oldCname] != nil && oldCname != newCname {
+					results[newCname] = results[oldCname]
+					delete(results, oldCname)
+					allMatchedColumns[newCname] = true
+					delete(allMatchedColumns, oldCname)
+				}
+			}
 		}
 	}
 
 	return results, nil
+}
+
+// TODO: remove calls to this function so that only readColsForRecords calls
+// this function. Then remove the parameters that are not needed.
+func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
+	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
+	nodeRes *structs.NodeResult,
+	results map[string][]utils.CValueEnclosure) {
+
+	dictEncCols := make(map[string]bool)
+	allColKeyIndices := make(map[int]string)
+
+	for _, colInfo := range segReader.AllColums {
+		col := colInfo.ColumnName
+
+		if !esQuery && (col == "_type" || col == "_id") {
+			dictEncCols[col] = true
+			continue
+		}
+		if col == config.GetTimeStampKey() {
+			dictEncCols[col] = true
+			continue
+		}
+		ok := segReader.GetDictEncCvalsFromColFileCnameBased(results, col, blockNum,
+			orderedRecNums, qid)
+		if ok {
+			dictEncCols[col] = true
+			allMatchedColumns[col] = true
+		}
+		cKeyidx, ok := segReader.GetColKeyIndex(col)
+		if ok {
+			allColKeyIndices[cKeyidx] = col
+		}
+	}
+
+	var mathColMap map[string]int
+	var mathColOpsPresent bool
+
+	if aggs != nil && aggs.MathOperations != nil && len(aggs.MathOperations) > 0 {
+		mathColMap = getMathOpsColMap(aggs.MathOperations)
+		mathColOpsPresent = true
+	} else {
+		mathColOpsPresent = false
+		mathColMap = make(map[string]int)
+	}
+
+	colsToReadIndices := make(map[int]struct{})
+	for colKeyIdx, cname := range allColKeyIndices {
+		_, exists := dictEncCols[cname]
+		if exists {
+			continue
+		}
+		colsToReadIndices[colKeyIdx] = struct{}{}
+	}
+
+	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
+	if err != nil {
+		log.Errorf("qid=%d, readAllRawRecordsV2: failed to validate and read block: %d, err: %v", qid, blockNum, err)
+		return
+	}
+
+	var isTsCol bool
+	for idx, recNum := range orderedRecNums {
+
+		for colKeyIdx, cname := range allColKeyIndices {
+
+			_, ok := dictEncCols[cname]
+			if ok {
+				continue
+			}
+
+			isTsCol = (config.GetTimeStampKey() == cname)
+
+			var cValEnc utils.CValueEnclosure
+
+			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
+				qid, isTsCol, &cValEnc)
+			if err != nil {
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
+			} else {
+
+				if mathColOpsPresent {
+					colIndex, exists := mathColMap[cname]
+					if exists {
+						mathOp := aggs.MathOperations[colIndex]
+						fieldToValue := make(map[string]utils.CValueEnclosure)
+						fieldToValue[mathOp.MathCol] = cValEnc
+						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
+						if err != nil {
+							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
+						} else {
+							cValEnc.CVal = valueFloat
+						}
+					}
+				}
+
+				results[cname][idx] = cValEnc
+
+				allMatchedColumns[cname] = true
+			}
+		}
+	}
 }
 
 // TODO: remove calls to this function so that only readColsForRecords calls
