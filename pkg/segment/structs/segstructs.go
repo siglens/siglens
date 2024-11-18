@@ -778,6 +778,9 @@ func (ss *SegStats) Merge(other *SegStats) {
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
+	if other == nil {
+		return
+	}
 	if ss.StrSet != nil {
 		for key, value := range other.StrSet {
 			ss.StrSet[key] = value
@@ -806,6 +809,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
+	if other == nil {
+		return
+	}
 	switch ss.Min.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Dtype == utils.SS_DT_FLOAT {
