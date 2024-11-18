@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -50,27 +51,32 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 			fieldToValue[field] = records[field][row]
 		}
 
-		conditionPassed, err := p.options.BoolExpr.Evaluate(fieldToValue)
+		// Will result in true, false, or backfill;
+		conditionCValEnc, err := p.options.BoolExpr.EvaluateWithNull(fieldToValue)
 		if err != nil {
 			nullFields, errGetNullFields := p.options.BoolExpr.GetNullFields(fieldToValue)
 			if errGetNullFields != nil {
 				return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: error while getting null fields, err: %v", errGetNullFields)
-			} else if len(nullFields) > 0 {
-				// evaluation failed due to null fields
-				if p.options.Null {
-					// include the records since null is allowed
-				} else if p.options.Keeplast {
-					p.options.Done = true
-					// if keeplast is true, we need to include this record
-				} else {
-					// if null is not allowed and keeplast is false, we are done processing
-					p.options.Done = true
-					break
-				}
-			} else {
-				return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: Error while evaluating boolean expr, err: %v", err)
 			}
-		} else {
+
+			if len(nullFields) > 0 {
+				conditionCValEnc.ConvertValue(nil)
+			}
+		}
+
+		if conditionCValEnc.Dtype == utils.SS_DT_BACKFILL {
+			if p.options.Null {
+				// include the records since null is allowed
+			} else if p.options.Keeplast {
+				// if keeplast is true, we need to include this record
+				p.options.Done = true
+			} else {
+				// if null is not allowed and keeplast is false, we are done processing
+				p.options.Done = true
+				break
+			}
+		} else if conditionCValEnc.Dtype == utils.SS_DT_BOOL {
+			conditionPassed := conditionCValEnc.CVal.(bool)
 			if !conditionPassed {
 				// false condition so adding last record if keeplast
 				if p.options.Keeplast {
@@ -80,7 +86,10 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 					break
 				}
 			}
+		} else {
+			return nil, fmt.Errorf("headProcessor.processHeadExpr: unexpected dtype: %v", conditionCValEnc.Dtype)
 		}
+
 		row++
 		p.numRecordsSent++
 	}

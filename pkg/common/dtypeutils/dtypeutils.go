@@ -657,3 +657,42 @@ type LogFileData struct {
 	StatusCode  int
 	Duration    int64
 }
+
+func CompareValues(leftVal interface{}, rightVal interface{}, Op string) bool {
+	switch Op {
+	case "=":
+		return leftVal == rightVal
+	case "!=":
+		return leftVal != rightVal
+	}
+
+	leftFloatVal, errLeft := ConvertToFloat(leftVal, 64)
+	rightFloatVal, errRight := ConvertToFloat(rightVal, 64)
+
+	if errLeft == nil || errRight == nil {
+		switch Op {
+		case "<":
+			return leftFloatVal < rightFloatVal
+		case ">":
+			return leftFloatVal > rightFloatVal
+		case "<=":
+			return leftFloatVal <= rightFloatVal
+		case ">=":
+			return leftFloatVal >= rightFloatVal
+		}
+	}
+
+	leftStr, rightStr := fmt.Sprint(leftVal), fmt.Sprint(rightVal)
+	switch Op {
+	case "<":
+		return leftStr < rightStr
+	case ">":
+		return leftStr > rightStr
+	case "<=":
+		return leftStr <= rightStr
+	case ">=":
+		return leftStr >= rightStr
+	}
+
+	return false
+}

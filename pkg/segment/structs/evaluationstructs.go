@@ -58,6 +58,8 @@ type BoolExpr struct {
 	LeftBool  *BoolExpr
 	RightBool *BoolExpr
 	BoolOp    BoolOperator
+
+	ThrowErrOnNull bool
 }
 
 type EvalExpr struct {
@@ -565,150 +567,164 @@ func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string
 	return true, nil
 }
 
+func validateBoolExprError(err error, errInfo string) (*utils.CValueEnclosure, error) {
+	if toputils.IsNilValueError(err) {
+		return &utils.CValueEnclosure{
+			Dtype: utils.SS_DT_BACKFILL,
+			CVal:  nil,
+		}, nil
+	} else if toputils.IsErrorNonNilValueError(err) {
+		return nil, toputils.FormatErrorWithTracef(err, "%v. Error: %v", errInfo, err)
+	}
+
+	return nil, nil
+}
+
+func getBoolCValueEnclosure(boolVal bool) *utils.CValueEnclosure {
+	return &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_BOOL,
+		CVal:  boolVal,
+	}
+}
+
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
-// with the value specified by fieldToValue. Each field listed by GetFields()
-// must be in fieldToValue.
-func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+// with the value specified by fieldToValue. if the field is not present in the fieldToValue map
+// then NULL is returned.
+func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]utils.CValueEnclosure) (*utils.CValueEnclosure, error) {
+
 	if self.IsTerminal {
 		switch self.ValueOp {
 		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: can not evaluate Eval In function: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate Eval In function")
 			}
-			return inFlag, err
+			return getBoolCValueEnclosure(inFlag), nil
 		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: 'isbool' can not evaluate to String: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isbool' can not evaluate to String")
 			}
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
-			return isBool, nil
+			return getBoolCValueEnclosure(isBool), nil
 
 		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, err
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isint' can not evaluate to String")
 			}
 
 			_, parseErr := strconv.Atoi(val)
-			return parseErr == nil, nil
+			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isnum":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, err
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isnum' can not evaluate to String")
 			}
 
 			_, parseErr := strconv.ParseFloat(val, 64)
-			return parseErr == nil, nil
+			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
 
 			if floatErr == nil {
-				return false, nil
+				return getBoolCValueEnclosure(false), nil
 			}
 
 			_, strErr := self.LeftValue.EvaluateToString(fieldToValue)
-			return strErr == nil, nil
+			if strErr != nil {
+				return validateBoolExprError(strErr, "BoolExpr.Evaluate: 'isstr' can not evaluate to String")
+			}
+
+			return getBoolCValueEnclosure(strErr == nil), nil
 		case "isnull":
 			// Get the fields associated with this expression
 			fields := self.GetFields()
 			if len(fields) == 0 {
-				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnull operation")
+				return nil, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnull operation")
 			}
 
 			// Check the first field's value in the fieldToValue map
 			value, exists := fieldToValue[fields[0]]
 			if !exists {
-				return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+				return getBoolCValueEnclosure(true), nil
 			}
 			// Check if the value's Dtype is SS_DT_BACKFILL
 			if value.Dtype == utils.SS_DT_BACKFILL {
-				return true, nil
+				return getBoolCValueEnclosure(true), nil
 			}
-			return false, nil
+			return getBoolCValueEnclosure(false), nil
 		case "like":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errLeftStr) {
-				return false, toputils.FormatErrorWithTracef(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of LIKE to string: %v", errLeftStr)
+			if errLeftStr != nil {
+				return validateBoolExprError(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of LIKE to string")
 			}
 
 			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errRightStr) {
-				return false, toputils.FormatErrorWithTracef(errRightStr, "BoolExpr.Evaluate: error evaluating right side of LIKE to string: %v", errRightStr)
-			}
-
-			if toputils.IsNilValueError(errLeftStr) || toputils.IsNilValueError(errRightStr) {
-				return false, nil
+			if errRightStr != nil {
+				return validateBoolExprError(errRightStr, "BoolExpr.Evaluate: error evaluating right side of LIKE to string")
 			}
 
 			regexPattern := strings.Replace(strings.Replace(regexp.QuoteMeta(rightStr), "%", ".*", -1), "_", ".", -1)
 			matched, err := regexp.MatchString("^"+regexPattern+"$", leftStr)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
+				return nil, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
 			}
-			return matched, nil
+			return getBoolCValueEnclosure(matched), nil
 		case "match":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errLeftStr) {
-				return false, toputils.FormatErrorWithTracef(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of MATCH to string: %v", errLeftStr)
+			if errLeftStr != nil {
+				return validateBoolExprError(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of MATCH to string")
 			}
 
 			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errRightStr) {
-				return false, toputils.FormatErrorWithTracef(errRightStr, "BoolExpr.Evaluate: error evaluating right side of MATCH to string: %v", errRightStr)
-			}
-
-			if toputils.IsNilValueError(errLeftStr) || toputils.IsNilValueError(errRightStr) {
-				return false, nil
+			if errRightStr != nil {
+				return validateBoolExprError(errRightStr, "BoolExpr.Evaluate: error evaluating right side of MATCH to string")
 			}
 
 			matched, err := regexp.MatchString(rightStr, leftStr)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: regex error in MATCH operation leftString %v, rightString %v, err: %v", leftStr, rightStr, err)
+				return nil, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: regex error in MATCH operation leftString %v, rightString %v, err: %v", leftStr, rightStr, err)
 			}
-			return matched, nil
+			return getBoolCValueEnclosure(matched), nil
 
 		case "cidrmatch":
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errCidr) {
-				return false, toputils.FormatErrorWithTracef(errCidr, "BoolExpr.Evaluate: error evaluating left side of CIDR to string: %v", errCidr)
+			if errCidr != nil {
+				return validateBoolExprError(errCidr, "BoolExpr.Evaluate: error evaluating left side of CIDR to string")
 			}
 
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
-			if toputils.IsErrorNonNilValueError(errIp) {
-				return false, toputils.FormatErrorWithTracef(errIp, "BoolExpr.Evaluate: error evaluating right side of CIDR to string: %v", errIp)
-			}
-
-			if toputils.IsNilValueError(errCidr) || toputils.IsNilValueError(errIp) {
-				return false, nil
+			if errIp != nil {
+				return validateBoolExprError(errIp, "BoolExpr.Evaluate: error evaluating right side of CIDR to string")
 			}
 
 			match, err := isIPInCIDR(cidrStr, ipStr)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
+				return nil, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
 			}
-			return match, nil
+			return getBoolCValueEnclosure(match), nil
 		case "isnotnull":
 			fields := self.GetFields()
 			if len(fields) == 0 {
-				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
+				return nil, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
 			}
 
 			value, exists := fieldToValue[fields[0]]
 			if !exists {
-				return false, nil
+				return getBoolCValueEnclosure(false), nil
 			}
 			if value.Dtype != utils.SS_DT_BACKFILL {
-				return true, nil
+				return getBoolCValueEnclosure(true), nil
 			}
-			return false, nil
+			return getBoolCValueEnclosure(false), nil
 		case "searchmatch":
 			searchStr, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, toputils.FormatErrorWithTracef(err, "BoolExpr.Evaluate: error evaluating searchmatch string to string, err: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: error evaluating searchmatch string to string")
 			}
-			return handleSearchMatch(self, searchStr, fieldToValue)
+			resultBool, err := handleSearchMatch(self, searchStr, fieldToValue)
+			return getBoolCValueEnclosure(resultBool), err
 		}
 
 		leftVal, errLeft := self.LeftValue.EvaluateValueExpr(fieldToValue)
@@ -717,50 +733,77 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 		isRightValNull := toputils.IsNilValueError(errRight) || rightVal == nil
 
 		if (errLeft != nil && !isLeftValNull) || (errRight != nil && !isRightValNull) {
-			return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
+			return nil, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
 		}
 
 		switch self.ValueOp {
 		case "=", "!=":
 			if isLeftValNull || isRightValNull {
-				if isLeftValNull && isRightValNull {
-					return self.ValueOp == "=", nil
+				if isLeftValNull && isRightValNull && self.ValueOp == "=" {
+					// if both values are null, then the evaluation should result in true for "="
+					return getBoolCValueEnclosure(true), nil
+				} else if self.ValueOp == "!=" {
+					// if either value is null, then the evaluation should result in true for "!="
+					return getBoolCValueEnclosure(true), nil
 				}
-				return self.ValueOp == "!=", nil
+
+				// if either value is null, then the evaluation should result in false for "="
+				// But since one of the values is null, the evaluation should send a nil value
+				return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
 			}
 
 			convertedLeftVal, convertedRightVal := dtypeutils.ConvertToSameType(leftVal, rightVal)
 			if self.ValueOp == "=" {
-				return convertedLeftVal == convertedRightVal, nil
+				return getBoolCValueEnclosure(convertedLeftVal == convertedRightVal), nil
 			} else {
-				return convertedLeftVal != convertedRightVal, nil
+				return getBoolCValueEnclosure(convertedLeftVal != convertedRightVal), nil
 			}
 		case "<", ">", "<=", ">=":
 			if isLeftValNull || isRightValNull {
-				return false, nil
+				return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
 			}
 
-			leftFloatVal, errLeftFloat := dtypeutils.ConvertToFloat(leftVal, 64)
-			rightFloatVal, errRightFloat := dtypeutils.ConvertToFloat(rightVal, 64)
-
-			if errLeftFloat != nil || errRightFloat != nil {
-				return false, nil
-			}
-
-			switch self.ValueOp {
-			case "<":
-				return leftFloatVal < rightFloatVal, nil
-			case ">":
-				return leftFloatVal > rightFloatVal, nil
-			case "<=":
-				return leftFloatVal <= rightFloatVal, nil
-			case ">=":
-				return leftFloatVal >= rightFloatVal, nil
-			}
+			return getBoolCValueEnclosure(dtypeutils.CompareValues(leftVal, rightVal, self.ValueOp)), nil
 		}
 
-		return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
+		return getBoolCValueEnclosure(false), fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
 	} else { // IsTerminal is false
+		return nil, fmt.Errorf("BoolExpr.Evaluate: non-terminal BoolExprs are not supported")
+	}
+}
+
+func GetBoolResult(leftVal bool, rightVal bool, Op BoolOperator) (bool, error) {
+	switch Op {
+	case BoolOpNot:
+		return !leftVal, nil
+	case BoolOpAnd:
+		return leftVal && rightVal, nil
+	case BoolOpOr:
+		return leftVal || rightVal, nil
+	default:
+		return false, fmt.Errorf("GetBoolResult: invalid BoolOp: %v", Op)
+	}
+}
+
+// Evaluate this BoolExpr to a boolean, replacing each field in the expression
+// with the value specified by fieldToValue. If the field is not present in the fieldToValue map
+// then false is returned.
+func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	if self.IsTerminal {
+		cValueEnclosure, err := self.evaluateToCValueEnclosure(fieldToValue)
+		if err != nil {
+			return false, err
+		}
+
+		if cValueEnclosure.Dtype == utils.SS_DT_BACKFILL {
+			return false, nil
+		} else if cValueEnclosure.Dtype != utils.SS_DT_BOOL {
+			return false, fmt.Errorf("BoolExpr.Evaluate: result is not a boolean")
+		}
+
+		return cValueEnclosure.CVal.(bool), nil
+	} else {
+		// Non-terminal BoolExprs
 		left, err := self.LeftBool.Evaluate(fieldToValue)
 		if err != nil {
 			return false, err
@@ -775,16 +818,53 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 		}
 
-		switch self.BoolOp {
-		case BoolOpNot:
-			return !left, nil
-		case BoolOpAnd:
-			return left && right, nil
-		case BoolOpOr:
-			return left || right, nil
-		default:
-			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
+		boolResult, err := GetBoolResult(left, right, self.BoolOp)
+		if err != nil {
+			return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating BoolExpr: %v", err)
 		}
+
+		return boolResult, nil
+	}
+}
+
+// Evaluate this BoolExpr to a boolean, replacing each field in the expression
+// with the value specified by fieldToValue.
+// Will be evaluated to either true, false, or NULL.
+func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	if self.IsTerminal {
+		cValEnc, err := self.evaluateToCValueEnclosure(fieldToValue)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating terminal BoolExpr: %v", err)
+		}
+		return *cValEnc, nil
+	} else {
+		left, err := self.LeftBool.EvaluateWithNull(fieldToValue)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating left BoolExpr: %v", err)
+		}
+
+		if left.IsNull() {
+			return left, nil
+		}
+
+		right := utils.CValueEnclosure{CVal: false}
+		if self.RightBool != nil {
+			right, err = self.RightBool.EvaluateWithNull(fieldToValue)
+			if err != nil {
+				return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating right BoolExpr: %v", err)
+			}
+
+			if right.IsNull() {
+				return right, nil
+			}
+		}
+
+		boolResult, err := GetBoolResult(left.CVal.(bool), right.CVal.(bool), self.BoolOp)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating BoolExpr: %v", err)
+		}
+
+		return utils.CValueEnclosure{Dtype: utils.SS_DT_BOOL, CVal: boolResult}, nil
 	}
 }
 
@@ -901,7 +981,7 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 
 func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
 	valueStr, err := value.EvaluateToString(fieldToValue)
-	if err != nil {
+	if toputils.IsErrorNonNilValueError(err) {
 		return false, toputils.FormatErrorWithTracef(err, "isInValueList: can not evaluate to String: %v", err)
 	}
 
@@ -1173,6 +1253,7 @@ func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]utils.CValu
 	return floatValue, nil
 }
 
+// TODO: Migrate so that every Evaluation Expression returns an utils.CValueEnclosure
 func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
 	var value interface{}
 	var err error
