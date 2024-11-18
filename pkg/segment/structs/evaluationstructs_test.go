@@ -580,26 +580,32 @@ func Test_BoolExpr(t *testing.T) {
 		RightValue: valueExprC, // Evaluates to string
 	}
 
-	_, err = boolExprBadOpForStringValues.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprBadOpForStringValues.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
 	// When fieldToValue is missing fields, Evaluate() should error.
 	delete(fieldToValue, "Max")
 	delete(fieldToValue, "FieldWithNumbers")
-	_, err = boolExprA.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprA.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
-	_, err = boolExprB.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprB.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
-	_, err = boolExprC.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprC.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
-	_, err = boolExprD.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprD.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
-	_, err = boolExprE.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprE.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, true)
 }
 
 func EvaluateForInputLookup_Helper(t *testing.T, boolExpr *BoolExpr, colValues []string, expectedOutput []bool, valueOps []string, colName string) {
