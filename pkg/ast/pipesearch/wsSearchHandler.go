@@ -305,7 +305,7 @@ func processTimeoutUpdate(conn *websocket.Conn, qid uint64) {
 	e := map[string]interface{}{
 		"state":          query.TIMEOUT.String(),
 		"qid":            qid,
-		"timeoutSeconds": fmt.Sprintf("%v", query.CANCEL_QUERY_AFTER_SECONDS),
+		"timeoutSeconds": fmt.Sprintf("%v", config.GetQueryTimeoutSecs()),
 	}
 	err := conn.WriteJSON(e)
 	if err != nil {
