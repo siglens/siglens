@@ -161,12 +161,12 @@ type QueryStats struct {
 
 type ActiveQueryInfo struct {
 	QueryText     string  `json:"queryText"`
-	ExecutionTime float64 `json:"executionTimeMs"` // in milliseconds
+	ExecutionTime float64 `json:"executionTimeMs"`
 }
 
 type WaitingQueryInfo struct {
 	QueryText   string  `json:"queryText"`
-	WaitingTime float64 `json:"waitingTimeMs"` // in milliseconds
+	WaitingTime float64 `json:"waitingTimeMs"`
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -1319,57 +1319,57 @@ func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
 }
 
 func GetQueryStats(ctx *fasthttp.RequestCtx) {
-    response := QueryStats{
-        ActiveQueries:  getActiveQueriesInfo(),
-        WaitingQueries: getWaitingQueriesInfo(),
-    }
+	response := QueryStats{
+		ActiveQueries:  getActiveQueriesInfo(),
+		WaitingQueries: getWaitingQueriesInfo(),
+	}
 
-    ctx.SetContentType("application/json")
-    if err := json.NewEncoder(ctx).Encode(response); err != nil {
-        ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-        ctx.SetBodyString("Failed to encode response")
-        return
-    }
+	ctx.SetContentType("application/json")
+	if err := json.NewEncoder(ctx).Encode(response); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString("Failed to encode response")
+		return
+	}
 }
 
 func getActiveQueriesInfo() []ActiveQueryInfo {
-    arqMapLock.RLock()
-    queries := make([]*RunningQueryState, 0, len(allRunningQueries))
-    for _, q := range allRunningQueries {
-        queries = append(queries, q)
-    }
-    arqMapLock.RUnlock()
+	arqMapLock.RLock()
+	queries := make([]*RunningQueryState, 0, len(allRunningQueries))
+	for _, q := range allRunningQueries {
+		queries = append(queries, q)
+	}
+	arqMapLock.RUnlock()
 
-    activeQueries := make([]ActiveQueryInfo, 0, len(queries))
+	activeQueries := make([]ActiveQueryInfo, 0, len(queries))
 
-    for _, rQuery := range queries {
-        rQuery.rqsLock.Lock()
-        activeQueries = append(activeQueries, ActiveQueryInfo{
-            QueryText:     rQuery.queryText,
-            ExecutionTime: float64(time.Since(rQuery.startTime).Milliseconds()),
-        })
-        rQuery.rqsLock.Unlock()
-    }
+	for _, rQuery := range queries {
+		rQuery.rqsLock.Lock()
+		activeQueries = append(activeQueries, ActiveQueryInfo{
+			QueryText:     rQuery.queryText,
+			ExecutionTime: float64(time.Since(rQuery.startTime).Milliseconds()),
+		})
+		rQuery.rqsLock.Unlock()
+	}
 
-    return activeQueries
+	return activeQueries
 }
 
 func getWaitingQueriesInfo() []WaitingQueryInfo {
-    waitingQueriesLock.Lock()
-    queries := make([]*WaitStateData, len(waitingQueries))
-    copy(queries, waitingQueries)
-    waitingQueriesLock.Unlock()
+	waitingQueriesLock.Lock()
+	queries := make([]*WaitStateData, len(waitingQueries))
+	copy(queries, waitingQueries)
+	waitingQueriesLock.Unlock()
 
-    waitingQueriesInfo := make([]WaitingQueryInfo, 0, len(queries))
+	waitingQueriesInfo := make([]WaitingQueryInfo, 0, len(queries))
 
-    for _, wQuery := range queries {
-        wQuery.rQuery.rqsLock.Lock()
-        waitingQueriesInfo = append(waitingQueriesInfo, WaitingQueryInfo{
-            QueryText:   wQuery.rQuery.queryText,
-            WaitingTime: float64(time.Since(wQuery.rQuery.startTime).Milliseconds()),
-        })
-        wQuery.rQuery.rqsLock.Unlock()
-    }
+	for _, wQuery := range queries {
+		wQuery.rQuery.rqsLock.Lock()
+		waitingQueriesInfo = append(waitingQueriesInfo, WaitingQueryInfo{
+			QueryText:   wQuery.rQuery.queryText,
+			WaitingTime: float64(time.Since(wQuery.rQuery.startTime).Milliseconds()),
+		})
+		wQuery.rQuery.rqsLock.Unlock()
+	}
 
-    return waitingQueriesInfo
+	return waitingQueriesInfo
 }

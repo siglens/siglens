@@ -25,6 +25,11 @@ $(document).ready(function () {
     setInterval(updateGrids, 5000); // Refresh every 5 seconds
 });
 
+// eslint-disable-next-line no-unused-vars, no-undef
+const activeGrid = new agGrid.Grid(document.querySelector('#active-queries'), activeGridOptions);
+// eslint-disable-next-line no-unused-vars, no-undef
+const waitingGrid = new agGrid.Grid(document.querySelector('#waiting-queries'), waitingGridOptions);
+
 const activeGridOptions = {
     columnDefs: [
         {
@@ -68,9 +73,6 @@ const waitingGridOptions = {
         resizable: true,
     },
 };
-
-const activeGrid = new agGrid.Grid(document.querySelector('#active-queries'), activeGridOptions);
-const waitingGrid = new agGrid.Grid(document.querySelector('#waiting-queries'), waitingGridOptions);
 
 function updateGrids() {
     $.ajax({
