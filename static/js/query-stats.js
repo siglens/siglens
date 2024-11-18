@@ -20,10 +20,14 @@
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
     updateGrids();
+    renderQueryStatsTables();
     const savedViewMode = Cookies.get('query-view') || 'single';
     toggleViewMode(savedViewMode);
     setInterval(updateGrids, 5000); // Refresh every 5 seconds
 });
+
+$('#log-opt-multi-btn').on('click', () => toggleViewMode('multi'));
+$('#log-opt-table-btn').on('click', () => toggleViewMode('table'));
 
 const activeGridOptions = {
     columnDefs: [
@@ -125,5 +129,41 @@ function toggleViewMode(viewMode) {
     Cookies.set('query-view', viewMode, { expires: 365 });
 }
 
-$('#log-opt-multi-btn').on('click', () => toggleViewMode('multi'));
-$('#log-opt-table-btn').on('click', () => toggleViewMode('table'));
+function renderQueryStatsTables() {
+    $.ajax({
+        method: 'get',
+        url: 'api/clusterStats',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        crossDomain: true,
+        dataType: 'json',
+    }).then(function (res) {
+        processQueryStats(res);
+    });
+}
+
+function processQueryStats(res) {
+    _.forEach(res, (value, key) => {
+        if (key === 'queryStats') {
+            let table = $('#query-table');
+            _.forEach(value, (v, k) => {
+                let tr = $('<tr>');
+                tr.append('<td>' + k + '</td>');
+
+                let formattedValue;
+                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
+                    const numericPart = parseFloat(v);
+                    const avgLatency = Math.round(numericPart);
+                    formattedValue = avgLatency.toLocaleString() + ' ms';
+                } else {
+                    const numericValue = parseInt(v, 10);
+                    formattedValue = numericValue.toLocaleString();
+                }
+                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
+                table.find('tbody').append(tr);
+            });
+        }
+    });
+}
