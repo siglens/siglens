@@ -116,6 +116,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         {{ end }}
                         {{ .OrgSettingsExtras | safeHTML }}
+                        <div class="settings-card pt-2 pb-3">
+                            <table class="org-settings-table mt-2" id="org-settings-table">
+                                <tr>
+                                    <th>
+                                        <div>
+                                            <div>Query Timeout</div>
+                                            <div style="font-weight: 100; font-size: 12px;">
+                                                <p class="mb-0">
+                                                    Set the maximum duration a query can
+                                                </p>
+                                                <p class="mb-0">run before automatic cancellation. Range: 1-30 minutes.</p>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="d-flex align-items-center">
+                                            <input type="number" id="queryTimeout" min="1" max="30" class="form-control" style="width: 70px;">
+                                            <span style="margin-left: 8px; font-weight: 100;">minutes</span>
+                                            <button id="saveTimeout" class="btn primary-btn" style="display: none; margin-left: 10px; ">Save
+                                            </button>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

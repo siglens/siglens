@@ -724,3 +724,15 @@ func getQueryStatsHandler() func(ctx *fasthttp.RequestCtx) {
 		query.GetQueryStats(ctx)
 	}
 }
+
+func GetQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetQueryTimeout(ctx)
+	}
+}
+
+func UpdateQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.UpdateQueryTimeout(ctx)
+	}
+}
