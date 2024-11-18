@@ -6228,6 +6228,13 @@ input.form-control {
     cursor: pointer;
 }
 
+.myOrg-inner-container #active-queries .ag-row:hover,
+.myOrg-inner-container #waiting-queries .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: text;
+    user-select: text;
+}
+
 .myOrg-inner-container .ag-theme-mycustomtheme .ag-center-cols-container {
     background-color: var(--black1-to-white0) !important;
 }
