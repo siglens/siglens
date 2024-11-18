@@ -97,7 +97,7 @@ func RunConcurrentQueries(dest string, query string, numOfConcurrentQueries int,
 
 	var wg sync.WaitGroup
 	for itr := 0; itr < iterations; itr++ {
-		log.Infof("Iteration: %v\n", itr)
+		log.Infof("Iteration: %v\n", itr+1)
 		connReset = 0
 		timeout = 0
 		failed = 0
