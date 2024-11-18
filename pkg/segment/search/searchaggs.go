@@ -1037,6 +1037,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					}
 				}
 
+				if rawVal == nil {
+					continue
+				}
+
 				hasValuesFunc, exists := valuesUsage[colName]
 				if !exists {
 					hasValuesFunc = false
