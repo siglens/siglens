@@ -60,7 +60,10 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 
 			if len(nullFields) > 0 {
-				conditionCValEnc.ConvertValue(nil)
+				err := conditionCValEnc.ConvertValue(nil)
+				if err != nil {
+					return nil, fmt.Errorf("headProcessor.processHeadExpr: failed to convert value to nil: %v", err)
+				}
 			}
 		}
 

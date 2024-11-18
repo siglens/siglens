@@ -181,7 +181,9 @@ func LogAllErrorsWithQidAndDelete(qid uint64) {
 	}
 }
 
-func FormatErrorWithTracef(err error, message string, options ...any) error {
+// WrapErrorf wraps the message with the error
+// if err is of type ErrorWithCode, the code is preserved
+func WrapErrorf(err error, message string, options ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -209,6 +211,6 @@ func IsConversionError(err error) bool {
 	return false
 }
 
-func IsErrorNonNilValueError(err error) bool {
+func IsNonNilValueError(err error) bool {
 	return err != nil && !IsNilValueError(err)
 }
