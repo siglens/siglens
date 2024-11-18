@@ -99,23 +99,23 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	return nil, nil
 }
 
-type DTYPE_RANK uint8
+type dTypeRank uint8
 
 const (
-	NUMERIC DTYPE_RANK = iota
+	NUMERIC dTypeRank = iota + 1
 	STRING
 	OTHER
 )
 
-type COMPARE uint8
+type compare uint8
 
 const (
-	EQUAL = iota
+	EQUAL compare = iota + 1
 	LESS
 	GREATER
 )
 
-func compareFloat(a, b float64) COMPARE {
+func compareFloat(a, b float64) compare {
 	if dtypeutils.AlmostEquals(a, b) {
 		return EQUAL
 	}
@@ -127,7 +127,7 @@ func compareFloat(a, b float64) COMPARE {
 	return GREATER
 }
 
-func compareString(a, b string) COMPARE {
+func compareString(a, b string) compare {
 	if a == b {
 		return EQUAL
 	}
@@ -139,7 +139,7 @@ func compareString(a, b string) COMPARE {
 	return GREATER
 }
 
-func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
+func getRank(CValEnc *segutils.CValueEnclosure) dTypeRank {
 	switch CValEnc.Dtype {
 	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
 		return OTHER
@@ -153,7 +153,7 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 		}
 		return STRING
 	default:
-		_, err := CValEnc.GetStringForGroupByCol()
+		_, err := CValEnc.GetValueAsString()
 		if err == nil {
 			return STRING
 		}
@@ -162,12 +162,12 @@ func getRank(CValEnc *segutils.CValueEnclosure) DTYPE_RANK {
 }
 
 // Returns A comparison B
-func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
-	var result COMPARE
+func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
+	var result compare
 	rankA := getRank(valueA)
 	rankB := getRank(valueB)
 
-	// OTHER rank records always be at the end
+	// OTHER rank records always get sorted to the end
 	if rankA == OTHER && rankB == OTHER {
 		return EQUAL
 	}
@@ -180,12 +180,10 @@ func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
 		return LESS
 	}
 
-	if rankA != rankB {
-		if rankA < rankB {
-			result = COMPARE(LESS)
-		} else {
-			result = COMPARE(GREATER)
-		}
+	if rankA < rankB {
+		result = compare(LESS)
+	} else if rankA > rankB {
+		result = compare(GREATER)
 	} else {
 		switch rankA {
 		case NUMERIC:
@@ -199,17 +197,17 @@ func compare(valueA, valueB *segutils.CValueEnclosure, asc bool) COMPARE {
 			}
 			result = compareFloat(floatValA, floatValB)
 		case STRING:
-			strValA, err := valueA.GetStringForGroupByCol()
+			strValA, err := valueA.GetValueAsString()
 			if err != nil {
 				return GREATER
 			}
-			strValB, err := valueB.GetStringForGroupByCol()
+			strValB, err := valueB.GetValueAsString()
 			if err != nil {
 				return LESS
 			}
 			result = compareString(strValA, strValB)
 		default:
-			result = COMPARE(LESS)
+			result = compare(LESS)
 		}
 	}
 
@@ -246,7 +244,7 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 		case "", "auto", "str", "num":
 			// Try as number first, then as string.
 			// TODO: try as IP before generic string?
-			comparison := compare(valA, valB, element.SortByAsc)
+			comparison := compareValues(valA, valB, element.SortByAsc)
 			if comparison == EQUAL {
 				continue
 			}
