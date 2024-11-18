@@ -14,10 +14,10 @@
                     "*"
                 ],
                 "MeasureVal": {
-                    "cnt": "6",
-                    "max_http_status": "500",
-                    "min_ss": "101",
-                    "values_ss": "[500]"
+                    "cnt": 6,
+                    "max_http_status": 500,
+                    "min_ss": 101,
+                    "values_ss": ["500"]
                 }
             }
         ]

@@ -77,21 +77,30 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 
 	}
 }
+
 func SavePQSConfigToRunMod(filepath string, pqsEnabled bool) error {
-	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0666)
+	configData, err := config.ReadRunModConfig(filepath)
 	if err != nil {
-		log.Errorf("SavePQSConfigToRunMod:Failed to open or create the file %s: %v", filepath, err)
+		log.Errorf("SavePQSConfigToRunMod: Using defaults as couldn't read config: %v", err)
+		configData = config.GetDefaultRunModConfig()
+	}
+
+	configData.PQSEnabled = pqsEnabled
+
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Errorf("SavePQSConfigToRunMod: Failed to open or create the file %s: %v", filepath, err)
 		return err
 	}
 	defer file.Close()
-	configData := map[string]bool{"PQSEnabled": pqsEnabled}
-	encoder := json.NewEncoder(file)
 
-	err = encoder.Encode(configData)
-	if err != nil {
-		log.Errorf("SavePQSConfigToRunMod:Failed to encode JSON data to file %s: %v", filepath, err)
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(configData); err != nil {
+		log.Errorf("SavePQSConfigToRunMod: Failed to encode JSON data to file %s: %v", filepath, err)
 		return err
 	}
+
+	config.SetPQSEnabled(pqsEnabled)
 
 	if !pqsEnabled {
 		querytracker.ClearPqs()

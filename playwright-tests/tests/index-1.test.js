@@ -64,8 +64,8 @@ test.describe('Logs Page Tests', () => {
     test('should change query language', async ({ page }) => {
         await page.click('#logs-settings');
         await page.click('#query-language-btn');
-        await page.click('#option-1');
-        await expect(page.locator('#query-language-btn span')).toHaveText('SQL');
+        await page.click('#option-2');
+        await expect(page.locator('#query-language-btn span')).toHaveText('Log QL');
     });
 
     test('should change query mode', async ({ page }) => {

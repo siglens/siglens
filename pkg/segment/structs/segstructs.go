@@ -240,12 +240,16 @@ type StreamStatsOptions struct {
 	ResetBefore   *BoolExpr
 	ResetAfter    *BoolExpr
 	TimeWindow    *BinSpanLength
+	TimeSortAsc   bool
 	// expensive for large data and window size
 	// maps index of measureAgg -> bucket key -> RunningStreamStatsResults
 	RunningStreamStats map[int]map[string]*RunningStreamStatsResults
 	// contains segment records recordKey -> record
 	SegmentRecords      map[string]map[string]interface{}
 	NumProcessedRecords uint64
+
+	MeasureOperations []*MeasureAggregator
+	GroupByRequest    *GroupByRequest
 }
 
 type RunningStreamStatsResults struct {
@@ -774,6 +778,9 @@ func (ss *SegStats) Merge(other *SegStats) {
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
+	if other == nil {
+		return
+	}
 	if ss.StrSet != nil {
 		for key, value := range other.StrSet {
 			ss.StrSet[key] = value
@@ -802,6 +809,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
+	if other == nil {
+		return
+	}
 	switch ss.Min.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Dtype == utils.SS_DT_FLOAT {

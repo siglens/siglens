@@ -942,7 +942,7 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	}
 }
 
-// TODO: After evaluation is fixed, merge GetString and GetStringForGroupByCol
+// TODO: After evaluation is fixed, merge GetString and GetValueAsString
 func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
@@ -964,7 +964,7 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	}
 }
 
-func (e *CValueEnclosure) GetStringForGroupByCol() (string, error) {
+func (e *CValueEnclosure) GetValueAsString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
@@ -983,7 +983,7 @@ func (e *CValueEnclosure) GetStringForGroupByCol() (string, error) {
 	case SS_DT_BACKFILL:
 		return "", nil
 	default:
-		return "", fmt.Errorf("CValueEnclosure.GetStringForGroupByCol: unsupported Dtype: %v", e.Dtype)
+		return "", fmt.Errorf("CValueEnclosure.GetValueAsString: unsupported Dtype: %v", e.Dtype)
 	}
 }
 
@@ -1001,6 +1001,25 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
 	default:
 		return 0, errors.New("CValueEnclosure GetFloatValue: unsupported Dtype")
+	}
+}
+
+func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		floatVal, err := strconv.ParseFloat(e.CVal.(string), 64)
+		if err != nil {
+			return 0, false
+		}
+		return floatVal, true
+	case SS_DT_UNSIGNED_NUM:
+		return float64(e.CVal.(uint64)), true
+	case SS_DT_SIGNED_NUM:
+		return float64(e.CVal.(int64)), true
+	case SS_DT_FLOAT:
+		return e.CVal.(float64), true
+	default:
+		return 0, false
 	}
 }
 
@@ -1092,8 +1111,7 @@ func (e *CValueEnclosure) getWriteTotalBytesSize() int {
 		size += 1 // for the type
 	default:
 		str := fmt.Sprintf("%v", e.CVal)
-		strBytes := []byte(str)
-		strLen := len(strBytes)
+		strLen := len(str)
 		if strLen <= math.MaxUint16 {
 			size += 1 // for the type
 			sizeOfStrLen := 2
@@ -1133,20 +1151,17 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	case SS_DT_UNSIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
 		bufIdx += 1
-		bytesVal := toputils.Uint64ToBytesLittleEndian(e.CVal.(uint64))
-		copy(buf[bufIdx:], bytesVal)
+		toputils.Uint64ToBytesLittleEndianInplace(e.CVal.(uint64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_SIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
 		bufIdx += 1
-		bytesVal := toputils.Int64ToBytesLittleEndian(e.CVal.(int64))
-		copy(buf[bufIdx:], bytesVal)
+		toputils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_FLOAT:
 		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
 		bufIdx += 1
-		bytesVal := toputils.Float64ToBytesLittleEndian(e.CVal.(float64))
-		copy(buf[bufIdx:], bytesVal)
+		toputils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_STRING:
 		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)

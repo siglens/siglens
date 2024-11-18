@@ -1,7 +1,7 @@
 {
     "queryText": "* | stats count as cnt by http_method, http_status | sort cnt, http_method, http_status | streamstats window=5 global=false reset_after=(http_method = \"GET\" AND http_status = 500) avg(http_status) as avg by http_method | streamstats window = 3 current=false reset_before=(cnt = 2724 OR cnt = 2736) sum(cnt) as sum",
     "expectedResult": {
-         "bucketCount": 72,
+         "bucketCount": 36,
          "qtype": "aggs-query",
          "groupByCols": [
             "http_method",

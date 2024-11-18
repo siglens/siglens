@@ -124,18 +124,21 @@ func (iqr *IQR) validate() error {
 		return fmt.Errorf("IQR.mode is invalid")
 	}
 
-	if len(iqr.rrcs) == 0 {
+	rrcsLen := len(iqr.rrcs)
+
+	if rrcsLen == 0 {
 		err := validateKnownValues(iqr.knownValues)
 		if err != nil {
 			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
 		}
-	} else {
-		for cname, values := range iqr.knownValues {
-			if len(values) != len(iqr.rrcs) {
-				if _, ok := iqr.deletedColumns[cname]; !ok {
-					return fmt.Errorf("knownValues for column %s has %v values, but there are %v RRCs",
-						cname, len(values), len(iqr.rrcs))
-				}
+		return nil
+	}
+
+	for cname, values := range iqr.knownValues {
+		if len(values) != rrcsLen {
+			if _, ok := iqr.deletedColumns[cname]; !ok {
+				return fmt.Errorf("knownValues for column %s has %v values, but there are %v RRCs",
+					cname, len(values), len(iqr.rrcs))
 			}
 		}
 	}
@@ -1276,7 +1279,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 			colValue := knownValues[aggGroupByCol][i]
 			bucketHolderArr[i].IGroupByValues[idx] = colValue
 
-			convertedValue, err := colValue.GetStringForGroupByCol()
+			convertedValue, err := colValue.GetValueAsString()
 			if err != nil {
 				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
 			}

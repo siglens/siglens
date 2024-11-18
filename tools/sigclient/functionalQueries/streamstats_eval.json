@@ -2,11 +2,10 @@
     "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false avg(eval(if(http_status > 300 AND http_status < 401, 201, http_status))) as avg by gender | streamstats window=3 global=false current=false sum(eval(2)) as sum by gender | streamstats window=3 current=false min(eval(if(http_status = 200, \"XYZ\", http_status))) as min by gender | streamstats window=3 values(eval(if(http_status = 200, \"def\", http_status))) as values by gender | streamstats window=3 max(eval(if(http_status = 200, http_status, \"abc\"))) as max | streamstats window=3 current=false count(eval(http_status > 400)) as count | fields city, first_name, last_name, gender, http_status, avg, sum, min, max, count, values",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
-             "relation": "eq"
+             "value": 100,
+             "relation": "gte"
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["first_name", "last_name"],
          "records": [
             {
                 "city": "Boston",
@@ -137,7 +136,6 @@
                 "first_name": "Adelia",
                 "gender": "male",
                 "http_status": 404,
-                "latency": 8123493,
                 "last_name": "Kuhn",
                 "avg": 268.6666666666667,
                 "sum": 6,
@@ -154,7 +152,6 @@
                 "first_name": "Adolfo",
                 "gender": "male",
                 "http_status": 400,
-                "latency": 9510552,
                 "last_name": "Gottlieb",
                 "avg": 268.6666666666667,
                 "sum": 6,

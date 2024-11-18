@@ -1,0 +1,26 @@
+{
+    "queryText": "(((variable_col_13=Sea* AND variable_col_14 = \"Oregon\") AND invalidCol != XYZ) OR (variable_col_16 = Croa* AND NOT gender = MALE) OR (Snowcook OR app_name=\"Omenwi*\")) | fields variable_col_13, variable_col_14, variable_col_16, gender, app_name",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+         "allColumns": [
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_16",
+            "gender",
+            "app_name"
+        ],
+         "columnsOrder": [
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_16",
+            "gender",
+            "app_name"
+        ]
+     }
+ }
+ 

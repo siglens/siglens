@@ -17,11 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-$(document).ready(function () {
+let currentTimeout = 0;
 
+$(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
     getSystemInfo();
+    fetchQueryTimeout()
     {{ .SettingsExtraOnReadySetup }}
     {{ .Button1Function }}
 });
@@ -132,3 +134,56 @@ function formatUptime(uptimeMinutes) {
     }
 }
 
+ function fetchQueryTimeout() {
+    $.ajax({
+        url: '/api/get-query-timeout',
+        method: 'GET',
+        success: function(response) {
+            // Convert seconds to minutes
+            currentTimeout = Math.floor(response.timeoutSecs / 60);
+            $('#queryTimeout').val(currentTimeout);
+        },
+        error: function() {
+            showToast('Failed to load timeout setting', 'error')
+        }
+    });
+}
+
+$('#queryTimeout').on('input', function() {
+    const newValue = parseInt($(this).val());
+    const isValid = !isNaN(newValue) && newValue >= 1 && newValue <= 30;
+    
+    if (isValid && newValue !== currentTimeout) {
+        $('#saveTimeout').show();
+    } else {
+        $('#saveTimeout').hide();
+    }
+});
+
+$('#saveTimeout').on('click', function() {
+    const newTimeout = parseInt($('#queryTimeout').val());
+    const button = $(this);
+    const originalText = button.text();
+
+    button.prop('disabled', true).text('Saving...');
+    console.log(newTimeout * 60);
+    $.ajax({
+        url: '/api/update-query-timeout',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            timeoutSecs: newTimeout * 60 // Convert to seconds
+        }),
+        success: function() {
+            currentTimeout = newTimeout;
+            button.hide();
+            showToast('Query timeout updated successfully', 'success');
+        },
+        error: function(xhr) {
+            showToast('Failed to update timeout', 'error');
+        },
+        complete: function() {
+            button.prop('disabled', false).text(originalText);
+        }
+    });
+});
