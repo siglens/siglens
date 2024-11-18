@@ -323,7 +323,7 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
 func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *putils.GobbableHll, hllToMerge *putils.GobbableHll,
-	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool) {
+	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool, batchErr *putils.BatchError) {
 
 	tmp := utils.CValueEnclosure{
 		Dtype: eVal.Dtype,
@@ -349,7 +349,7 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		} else {
 			err := hll.StrictUnion(hllToMerge.Hll)
 			if err != nil {
-				log.Errorf("MergeVal: failed to merge hll stats: %v", err)
+				batchErr.AddError("MergeVal:HLL_STATS", err)
 			}
 			eVal.CVal = hll.Cardinality()
 			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
@@ -376,7 +376,7 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 
 	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
-		log.Errorf("MergeVal: failed to merge eVal into otherCVal: %v", err)
+		batchErr.AddError("MergeVal:eVAL_INTO_cVAL", err)
 		return
 	}
 	eVal.CVal = retVal.CVal
@@ -408,7 +408,8 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal utils.CValueEnclosure,
-	hllToMerge *putils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
+	hllToMerge *putils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string,
+	isOtherCol bool, batchErr *putils.BatchError) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
 	isRankBySum := IsRankBySum(timechart)
@@ -416,12 +417,12 @@ func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLim
 	// If true, current col's val will be added into 'other' col. So its val should not be added into res at this time
 	if isOtherCol {
 		otherCVal := tmLimitResult.OtherCValArr[index]
-		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge)
+		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
 		return false
 	} else {
 		if isRankBySum && tmLimitResult.OtherCValArr == nil {
 			scoreVal := tmLimitResult.GroupValScoreMap[groupByColVal]
-			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge)
+			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
 			return false
 		}
 		return true
