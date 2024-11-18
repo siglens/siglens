@@ -694,7 +694,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 	iqr, err := mergeMetadata(iqrs)
 	if err != nil {
-		log.Errorf("qid=%v, MergeIQRs: error merging metadata: %v", iqr.qid, err)
+		log.Errorf("MergeIQRs: error merging metadata: %v", err)
 		return nil, 0, err
 	}
 
@@ -1276,7 +1276,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 			colValue := knownValues[aggGroupByCol][i]
 			bucketHolderArr[i].IGroupByValues[idx] = colValue
 
-			convertedValue, err := colValue.GetString()
+			convertedValue, err := colValue.GetStringForGroupByCol()
 			if err != nil {
 				return nil, nil, nil, 0, fmt.Errorf("IQR.getFinalStatsResults: conversion error for aggGroupByCol %v with value:%v. Error=%v", aggGroupByCol, colValue, err)
 			}
@@ -1347,6 +1347,10 @@ func (iqr *IQR) GetBucketCount(qType structs.QueryType) int {
 }
 
 func (iqr *IQR) GobEncode() ([]byte, error) {
+	if iqr == nil {
+		return nil, nil
+	}
+
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 
@@ -1381,6 +1385,10 @@ func (iqr *IQR) GobEncode() ([]byte, error) {
 
 // GobDecode deserializes bytes back to IQR struct
 func (iqr *IQR) GobDecode(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
 	// Register types with gob
 	gob.Register(map[string][]utils.CValueEnclosure{})
 	gob.Register(map[string]struct{}{})

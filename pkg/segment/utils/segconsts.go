@@ -936,6 +936,7 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	}
 }
 
+// TODO: After evaluation is fixed, merge GetString and GetStringForGroupByCol
 func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
@@ -952,6 +953,29 @@ func (e *CValueEnclosure) GetString() (string, error) {
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
 	default:
 		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
+	}
+}
+
+func (e *CValueEnclosure) GetStringForGroupByCol() (string, error) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		return e.CVal.(string), nil
+	case SS_DT_STRING_SLICE:
+		return fmt.Sprintf("%v", e.CVal.([]string)), nil
+	case SS_DT_STRING_SET:
+		return fmt.Sprintf("%v", e.CVal.(map[string]struct{})), nil
+	case SS_DT_BOOL:
+		return strconv.FormatBool(e.CVal.(bool)), nil
+	case SS_DT_UNSIGNED_NUM:
+		return strconv.FormatUint(e.CVal.(uint64), 10), nil
+	case SS_DT_SIGNED_NUM:
+		return strconv.FormatInt(e.CVal.(int64), 10), nil
+	case SS_DT_FLOAT:
+		return fmt.Sprintf("%f", e.CVal.(float64)), nil
+	case SS_DT_BACKFILL:
+		return "", nil
+	default:
+		return "", fmt.Errorf("CValueEnclosure.GetStringForGroupByCol: unsupported Dtype: %v", e.Dtype)
 	}
 }
 
