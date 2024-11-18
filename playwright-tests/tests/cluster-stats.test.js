@@ -25,7 +25,7 @@ test('Cluster Stats Page Test', async ({ page }) => {
     await expect(page.locator('text=Logs Stats')).toBeVisible();
     await expect(page.locator('text=Metrics Stats')).toBeVisible();
     await expect(page.locator('text=Traces Stats')).toBeVisible();
-    await expect(page.locator('text=Query Stats')).toBeVisible();
+    await expect(page.locator('p.query-stats-header')).toBeVisible();
 
     // Check for the presence of charts
     await expect(page.locator('#EventCountChart-logs')).toBeVisible();
