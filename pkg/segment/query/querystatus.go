@@ -150,6 +150,7 @@ type RunningQueryState struct {
 	pipeResp                 *structs.PipeSearchResponseOuter
 	Progress                 *structs.Progress
 	scrollFrom               uint64
+	batchError               *putils.BatchError
 	queryText                string
 }
 
@@ -186,6 +187,12 @@ func (rQuery *RunningQueryState) SendQueryStateComplete() {
 	if rQuery.cleanupCallback != nil {
 		rQuery.cleanupCallback()
 	}
+}
+
+func (rQuery *RunningQueryState) GetQueryBatchError() *putils.BatchError {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.batchError
 }
 
 func (rQuery *RunningQueryState) GetStartTime() time.Time {
@@ -231,6 +238,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 		rqsLock:           &sync.Mutex{},
 		isAsync:           async,
 		timeoutCancelFunc: nil,
+		batchError:        putils.NewBatchErrorWithQid(qid),
 	}
 
 	waitingQueriesLock.Lock()
@@ -245,7 +253,10 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
+	// Can remove the LogGlobalSearchErrors after we fully migrate
+	// to the putils.BatchError
 	LogGlobalSearchErrors(qid)
+	putils.LogAllErrorsWithQidAndDelete(qid)
 	arqMapLock.Lock()
 	rQuery, ok := allRunningQueries[qid]
 	if ok {
