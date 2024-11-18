@@ -26,6 +26,7 @@ import (
 type Streamer interface {
 	Fetch() (*iqr.IQR, error)
 	Rewind()
+	Cleanup()
 }
 
 type CachedStream struct {
@@ -74,4 +75,8 @@ func (cs *CachedStream) SetUnusedDataFromLastFetch(iqr *iqr.IQR) {
 
 func (cs *CachedStream) IsExhausted() bool {
 	return cs.isExhausted
+}
+
+func (cs *CachedStream) Cleanup() {
+	cs.stream.Cleanup()
 }

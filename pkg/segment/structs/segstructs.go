@@ -485,7 +485,7 @@ type Progress struct {
 type NodeResult struct {
 	AllRecords                  []*utils.RecordResultContainer
 	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
-	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info
+	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info  (Deprecated: use toputils.BatchError)
 	Histogram                   map[string]*AggregationResult
 	TotalResults                *QueryCount
 	VectorResultValue           float64
@@ -774,6 +774,9 @@ func (ss *SegStats) Merge(other *SegStats) {
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
+	if other == nil {
+		return
+	}
 	if ss.StrSet != nil {
 		for key, value := range other.StrSet {
 			ss.StrSet[key] = value
@@ -802,6 +805,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
+	if other == nil {
+		return
+	}
 	switch ss.Min.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Dtype == utils.SS_DT_FLOAT {
@@ -1657,6 +1663,7 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
+// TODO: use toputils.BatchError instead
 func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
 	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)
 }

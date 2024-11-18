@@ -98,6 +98,10 @@ func (s *Searcher) Rewind() {
 	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
 }
 
+func (s *Searcher) Cleanup() {
+	// Nothing to do.
+}
+
 func getNumRecords(blocks []*block) uint64 {
 	var totalRecords uint64
 	for _, block := range blocks {
