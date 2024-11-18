@@ -20,9 +20,12 @@ package processor
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	dtypeutils "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -96,6 +99,129 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	return nil, nil
 }
 
+type dTypeRank uint8
+
+const (
+	NUMERIC dTypeRank = iota + 1
+	STRING
+	OTHER
+)
+
+type compare uint8
+
+const (
+	EQUAL compare = iota + 1
+	LESS
+	GREATER
+)
+
+func compareFloat(a, b float64) compare {
+	if dtypeutils.AlmostEquals(a, b) {
+		return EQUAL
+	}
+
+	if a < b {
+		return LESS
+	}
+
+	return GREATER
+}
+
+func compareString(a, b string) compare {
+	if a == b {
+		return EQUAL
+	}
+
+	if a < b {
+		return LESS
+	}
+
+	return GREATER
+}
+
+func getRank(CValEnc *segutils.CValueEnclosure) dTypeRank {
+	switch CValEnc.Dtype {
+	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
+		return OTHER
+	case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT:
+		return NUMERIC
+	case segutils.SS_DT_STRING:
+		_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
+		if err == nil {
+			// If floatValue is possible then it is considered as a number
+			return NUMERIC
+		}
+		return STRING
+	default:
+		_, err := CValEnc.GetValueAsString()
+		if err == nil {
+			return STRING
+		}
+		return OTHER
+	}
+}
+
+// Returns A comparison B
+func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
+	var result compare
+	rankA := getRank(valueA)
+	rankB := getRank(valueB)
+
+	// OTHER rank records always get sorted to the end
+	if rankA == OTHER && rankB == OTHER {
+		return EQUAL
+	}
+
+	if rankA == OTHER && rankB != OTHER {
+		return GREATER
+	}
+
+	if rankA != OTHER && rankB == OTHER {
+		return LESS
+	}
+
+	if rankA < rankB {
+		result = compare(LESS)
+	} else if rankA > rankB {
+		result = compare(GREATER)
+	} else {
+		switch rankA {
+		case NUMERIC:
+			floatValA, isFloat := valueA.GetFloatValueIfPossible()
+			if !isFloat {
+				return GREATER
+			}
+			floatValB, isFloat := valueB.GetFloatValueIfPossible()
+			if !isFloat {
+				return LESS
+			}
+			result = compareFloat(floatValA, floatValB)
+		case STRING:
+			strValA, err := valueA.GetValueAsString()
+			if err != nil {
+				return GREATER
+			}
+			strValB, err := valueB.GetValueAsString()
+			if err != nil {
+				return LESS
+			}
+			result = compareString(strValA, strValB)
+		default:
+			result = compare(LESS)
+		}
+	}
+
+	if !asc {
+		if result == LESS {
+			result = GREATER
+		} else if result == GREATER {
+			result = LESS
+		}
+	}
+
+	return result
+}
+
 // This function cannot return an error, so it stores any error in the
 // processor to avoid flooding the logs with the same error.
 func (p *sortProcessor) less(a, b *iqr.Record) bool {
@@ -115,97 +241,15 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 
 		// From https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Sort#Sort_field_options
 		switch p.options.SortEles[i].Op {
-		case "", "auto":
+		case "", "auto", "str", "num":
 			// Try as number first, then as string.
 			// TODO: try as IP before generic string?
-
-			valANum, err := valA.GetFloatValue()
-			if err == nil {
-				valBNum, err := valB.GetFloatValue()
-				if err == nil {
-					if valANum == valBNum {
-						continue
-					}
-
-					if element.SortByAsc {
-						return valANum < valBNum
-					} else {
-						return valANum > valBNum
-					}
-				}
-			}
-
-			valAStr, err := valA.GetString()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record A to string; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			valBStr, err := valB.GetString()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record B to string; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			if valAStr == valBStr {
+			comparison := compareValues(valA, valB, element.SortByAsc)
+			if comparison == EQUAL {
 				continue
 			}
 
-			if element.SortByAsc {
-				return valAStr < valBStr
-			} else {
-				return valAStr > valBStr
-			}
-		case "str":
-			valAStr, err := valA.GetString()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record A to string; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			valBStr, err := valB.GetString()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record B to string; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			if valAStr == valBStr {
-				continue
-			}
-
-			if element.SortByAsc {
-				return valAStr < valBStr
-			} else {
-				return valAStr > valBStr
-			}
-		case "num":
-			valANum, err := valA.GetFloatValue()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record A to number; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			valBNum, err := valB.GetFloatValue()
-			if err != nil {
-				p.err = fmt.Errorf("cannot convert value of column %v from record B to number; err=%v",
-					element.Field, err)
-				return false
-			}
-
-			if valANum == valBNum {
-				continue
-			}
-
-			if element.SortByAsc {
-				return valANum < valBNum
-			} else {
-				return valANum > valBNum
-			}
+			return comparison == LESS
 		case "ip": // TODO
 			p.err = fmt.Errorf("IP comparison not implemented")
 		default:
