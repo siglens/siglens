@@ -936,7 +936,7 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	}
 }
 
-// TODO: After evaluation is fixed, merge GetString and GetStringForGroupByCol
+// TODO: After evaluation is fixed, merge GetString and GetValueAsString
 func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
@@ -956,7 +956,7 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	}
 }
 
-func (e *CValueEnclosure) GetStringForGroupByCol() (string, error) {
+func (e *CValueEnclosure) GetValueAsString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
@@ -975,7 +975,7 @@ func (e *CValueEnclosure) GetStringForGroupByCol() (string, error) {
 	case SS_DT_BACKFILL:
 		return "", nil
 	default:
-		return "", fmt.Errorf("CValueEnclosure.GetStringForGroupByCol: unsupported Dtype: %v", e.Dtype)
+		return "", fmt.Errorf("CValueEnclosure.GetValueAsString: unsupported Dtype: %v", e.Dtype)
 	}
 }
 
@@ -991,6 +991,25 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 		return e.CVal.(float64), nil
 	default:
 		return 0, errors.New("CValueEnclosure GetFloatValue: unsupported Dtype")
+	}
+}
+
+func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
+	switch e.Dtype {
+	case SS_DT_STRING:
+		floatVal, err := strconv.ParseFloat(e.CVal.(string), 64)
+		if err != nil {
+			return 0, false
+		}
+		return floatVal, true
+	case SS_DT_UNSIGNED_NUM:
+		return float64(e.CVal.(uint64)), true
+	case SS_DT_SIGNED_NUM:
+		return float64(e.CVal.(int64)), true
+	case SS_DT_FLOAT:
+		return e.CVal.(float64), true
+	default:
+		return 0, false
 	}
 }
 

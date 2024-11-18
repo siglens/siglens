@@ -25,6 +25,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
@@ -81,6 +82,10 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
 	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
+
+	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
+	}
 
 	sortMode := recentFirst // TODO: compute this from the query.
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
@@ -215,6 +220,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 
 	if queryAgg.BinExpr != nil {
 		return NewBinDP(queryAgg.BinExpr)
+	} else if queryAgg.StreamstatsExpr != nil {
+		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.DedupExpr != nil {
 		return NewDedupDP(queryAgg.DedupExpr)
 	} else if queryAgg.EvalExpr != nil {
@@ -259,8 +266,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.StatsExpr != nil {
 		return NewStatsDP(queryAgg.StatsExpr)
-	} else if queryAgg.StreamstatsExpr != nil {
-		return NewStreamstatsDP(queryAgg.StreamstatsExpr)
 	} else if queryAgg.TailExpr != nil {
 		return NewTailDP(queryAgg.TailExpr)
 	} else if queryAgg.TransactionExpr != nil {
@@ -474,4 +479,29 @@ func createEmptyResponse(queryType structs.QueryType) *structs.PipeSearchRespons
 	}
 
 	return response
+}
+
+func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
+	hasSort := false
+	timeSort := false
+	timeSortAsc := true
+
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.HasSortBlock() {
+			hasSort = true
+			timeSort, timeSortAsc = aggregations.CheckIfTimeSort(curAgg)
+		}
+		if curAgg.HasTail() {
+			timeSortAsc = !timeSortAsc
+		}
+
+		if curAgg.StreamstatsExpr != nil && curAgg.StreamstatsExpr.TimeWindow != nil {
+			// If there's a non-timestamp sort before streamstats, return error
+			if hasSort && !timeSort {
+				return utils.TeeErrorf("streamstats with time_window requires records to maintain timestamp order")
+			}
+			curAgg.StreamstatsExpr.TimeSortAsc = timeSortAsc
+		}
+	}
+	return nil
 }

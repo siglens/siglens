@@ -39,6 +39,7 @@ import (
 	lookups "github.com/siglens/siglens/pkg/lookups"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
+	"github.com/siglens/siglens/pkg/segment/query"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	writer "github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -715,5 +716,11 @@ func getLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
 func deleteLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		lookups.DeleteLookupFile(ctx)
+	}
+}
+
+func getQueryStatsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		query.GetQueryStats(ctx)
 	}
 }
