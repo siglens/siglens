@@ -72,9 +72,9 @@ var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
 const (
-	MIN_QUERY_TIMEOUT = 60   // 1 minute
-	MAX_QUERY_TIMEOUT = 1800 // 30 minutes
-	DEFAULT_TIMEOUT   = 300  // 5 minutes
+	MIN_QUERY_TIMEOUT_SECONDS = 60   // 1 minute
+	MAX_QUERY_TIMEOUT_SECONDS = 1800 // 30 minutes
+	DEFAULT_TIMEOUT_SECONDS   = 300  // 5 minutes
 )
 
 func init() {
@@ -460,10 +460,17 @@ func SetQueryPort(value uint64) {
 func GetQueryTimeoutSecs() int {
 	timeout := runningConfig.QueryTimeoutSecs
 	if timeout <= 0 {
-		log.Warnf("GetQueryTimeoutSecs: Invalid timeout %d, using default %d", timeout, DEFAULT_TIMEOUT)
-		return DEFAULT_TIMEOUT
+		log.Warnf("GetQueryTimeoutSecs: Invalid timeout %d, using default %d", timeout, DEFAULT_TIMEOUT_SECONDS)
+		return DEFAULT_TIMEOUT_SECONDS
 	}
 	return timeout
+}
+
+func GetDefaultRunModConfig() common.RunModConfig {
+	return common.RunModConfig{
+		PQSEnabled:       true,
+		QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+	}
 }
 
 func SetQueryTimeoutSecs(timeout int) {
@@ -623,10 +630,9 @@ func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
 	if len(strings.TrimSpace(string(jsonData))) == 0 {
-		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using defaults from server.yaml")
-		runModConfig.PQSEnabled = IsPQSEnabled()
-		runModConfig.QueryTimeoutSecs = GetQueryTimeoutSecs()
-		return runModConfig, nil
+		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using defaults")
+		defaultConfig := GetDefaultRunModConfig()
+		return defaultConfig, nil
 	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
@@ -634,9 +640,13 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 		return runModConfig, err
 	}
 
-	SetPQSEnabled(runModConfig.PQSEnabled)
-	SetQueryTimeoutSecs(runModConfig.QueryTimeoutSecs)
+	applyRunModConfig(&runModConfig)
 	return runModConfig, nil
+}
+
+func applyRunModConfig(config *common.RunModConfig) {
+	SetPQSEnabled(config.PQSEnabled)
+	SetQueryTimeoutSecs(config.QueryTimeoutSecs)
 }
 
 func ReadConfigFile(fileName string) (common.Configuration, error) {
@@ -963,16 +973,16 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.SamplingPercentage = 100
 	}
 	if config.QueryTimeoutSecs <= 0 {
-		config.QueryTimeoutSecs = DEFAULT_TIMEOUT
+		config.QueryTimeoutSecs = DEFAULT_TIMEOUT_SECONDS
 	}
-	if config.QueryTimeoutSecs < MIN_QUERY_TIMEOUT {
+	if config.QueryTimeoutSecs < MIN_QUERY_TIMEOUT_SECONDS {
 		log.Errorf("ExtractConfigData: Query timeout cannot be less than 1 minute.")
 		log.Info("ExtractConfigData: Setting Query timeout to 1 minute")
-		config.QueryTimeoutSecs = MIN_QUERY_TIMEOUT
-	} else if config.QueryTimeoutSecs > MAX_QUERY_TIMEOUT {
+		config.QueryTimeoutSecs = MIN_QUERY_TIMEOUT_SECONDS
+	} else if config.QueryTimeoutSecs > MAX_QUERY_TIMEOUT_SECONDS {
 		log.Errorf("ExtractConfigData: Query timeout cannot exceed 30 minutes.")
 		log.Info("ExtractConfigData: Setting Query timeout to 30 minutes")
-		config.QueryTimeoutSecs = MAX_QUERY_TIMEOUT
+		config.QueryTimeoutSecs = MAX_QUERY_TIMEOUT_SECONDS
 	}
 	return config, nil
 }

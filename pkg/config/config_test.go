@@ -242,7 +242,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -296,7 +296,7 @@ invalid input, we should error out
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -353,7 +353,7 @@ a: b
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 	}

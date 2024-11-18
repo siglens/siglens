@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/config/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -56,21 +57,16 @@ func GetQueryTimeout(ctx *fasthttp.RequestCtx) {
 }
 
 func SaveQueryTimeoutToRunMod(filepath string, timeoutSecs int) error {
+	var configData common.RunModConfig
+
 	existingConfig, err := config.ReadRunModConfig(filepath)
 	if err != nil {
-		log.Errorf("SaveQueryTimeoutToRunMod: Could not read existing config from %s: %v", filepath, err)
-	}
-
-	var configData struct {
-		PQSEnabled       bool `json:"pqsEnabled"`
-		QueryTimeoutSecs int  `json:"queryTimeoutSecs"`
-	}
-
-	if err == nil {
-		configData.PQSEnabled = existingConfig.PQSEnabled
+		log.Errorf("SaveQueryTimeoutToRunMod: Using defaults as couldn't read config: %v", err)
+		configData = config.GetDefaultRunModConfig()
 	} else {
-		configData.PQSEnabled = true
+		configData = existingConfig
 	}
+
 	configData.QueryTimeoutSecs = timeoutSecs
 
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
@@ -99,9 +95,9 @@ func UpdateQueryTimeout(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if cfg.TimeoutSecs < config.MIN_QUERY_TIMEOUT || cfg.TimeoutSecs > config.MAX_QUERY_TIMEOUT {
+	if cfg.TimeoutSecs < config.MIN_QUERY_TIMEOUT_SECONDS || cfg.TimeoutSecs > config.MAX_QUERY_TIMEOUT_SECONDS {
 		log.Errorf("UpdateQueryTimeoutUpdate: Invalid timeout value %d. Must be between %d and %d seconds",
-			cfg.TimeoutSecs, config.MIN_QUERY_TIMEOUT, config.MAX_QUERY_TIMEOUT)
+			cfg.TimeoutSecs, config.MIN_QUERY_TIMEOUT_SECONDS, config.MAX_QUERY_TIMEOUT_SECONDS)
 		ctx.Error("Timeout must be between 1 and 30 minutes", fasthttp.StatusBadRequest)
 		return
 	}
