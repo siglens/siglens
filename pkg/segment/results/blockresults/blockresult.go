@@ -57,6 +57,7 @@ type BlockResults struct {
 	nextUnsortedIdx uint64 // next index to put result in
 	sortResults     bool
 	sizeLimit       uint64
+	batchErr        *toputils.BatchError
 }
 
 // json exportable and mergeable results for query
@@ -115,6 +116,7 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 	}
 	blockRes.sizeLimit = count
 	blockRes.MatchedCount = 0
+	blockRes.batchErr = toputils.GetOrCreateBatchErrorWithQid(qid)
 	return blockRes, nil
 }
 
@@ -507,13 +509,13 @@ func (b *BlockResults) GetGroupByBuckets() *structs.AggregationResult {
 	if b.aggs.UsedByTimechart() {
 		timechart = b.aggs.TimeHistogram.Timechart
 	}
-	return b.GroupByAggregation.ConvertToAggregationResult(b.aggs.GroupByRequest, timechart)
+	return b.GroupByAggregation.ConvertToAggregationResult(b.aggs.GroupByRequest, timechart, b.batchErr)
 }
 
 // If the current GroupByBuckets are used by timechart, and timechart has a limit option, there are two different methods to add results at this point. This is because the limit option has two different ways of calculating scores, and we only return the top or bottom N results, with the remaining ones merged and placed into the 'other' col
 // 1. Single Agg: The score is based on the sum of the values in the aggregation. It requires two iterations. In the first iteration, sum up scores for each groupVal
 // 2. Multiple Aggs: The score is based on the frequency of each value of <field>. It only requires one iteration because we already have the frep for groupVal before the iteration begins
-func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, timechart *structs.TimechartExpr) *structs.AggregationResult {
+func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, timechart *structs.TimechartExpr, batchErr *toputils.BatchError) *structs.AggregationResult {
 
 	tmLimitResult := &structs.TMLimitResult{
 		GroupValScoreMap: aggregations.InitialScoreMap(timechart, gb.GroupByColValCnt),
@@ -528,7 +530,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			// Add results for group by cols inside the time range bucket
 			if len(bucket.groupedRunningStats) > 0 {
 				for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
-					gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult)
+					gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult, batchErr)
 				}
 			}
 		}
@@ -554,7 +556,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 			tmLimitResult.OtherCValArr = otherCValArr
 			for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
-				gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult)
+				gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult, batchErr)
 			}
 
 			if timechart.LimitExpr != nil && timechart.LimitExpr.Num < len(bucket.groupedRunningStats) {
@@ -566,7 +568,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			}
 
 		} else {
-			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", nil, tmLimitResult)
+			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", nil, tmLimitResult, batchErr)
 		}
 
 		var bucketKey interface{}
@@ -581,7 +583,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		}
 
 		if err != nil {
-			log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
+			batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:CONVERT_GROUP_BY_KEY", fmt.Errorf("failed to convert group by key: %v, err: %v", key, err))
 		}
 
 		if !newQueryPipeline && len(bucketKey.([]string)) == 1 {
@@ -605,7 +607,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 }
 
 func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket *RunningBucketResults, runningStats []runningStats, currRes map[string]utils.CValueEnclosure,
-	groupByColVal string, timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult) {
+	groupByColVal string, timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, batchErr *toputils.BatchError) {
 	// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
 	// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
 	idx := 0
@@ -626,9 +628,9 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 		var strSetToMerge map[string]struct{}
 		var eVal utils.CValueEnclosure
 
-		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge)
+		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge, batchErr)
 
-		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol)
+		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol, batchErr)
 		if shouldAddRes {
 			currRes[mInfoStr] = eVal
 		}
@@ -637,7 +639,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAggregator, runningStats []runningStats, usedByTimechart bool, mInfoStr string,
 	currRes map[string]utils.CValueEnclosure, bucket *RunningBucketResults, idxPtr *int, eVal *utils.CValueEnclosure, hllToMerge **toputils.GobbableHll,
-	strSetToMerge *map[string]struct{}) {
+	strSetToMerge *map[string]struct{}, batchErr *toputils.BatchError) {
 	if hllToMerge == nil || strSetToMerge == nil {
 		// This should never happen
 		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil. hllToMerge: %v, strSetToMerge: %v", hllToMerge, strSetToMerge)
@@ -657,7 +659,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		incrementIdxBy = 1
 		if mInfo.ValueColRequest != nil || usedByTimechart {
 			if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for count: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:COUNT", fmt.Errorf("zero fields of ValueColRequest for count: %v", mInfoStr))
 				return
 			}
 
@@ -681,7 +683,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			incrementIdxBy = 1
 
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Avg: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:AVG", fmt.Errorf("zero fields of ValueColRequest for avg: %v", mInfoStr))
 				return
 			}
 			valIdx := gb.reverseMeasureIndex[idx]
@@ -750,7 +752,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			incrementIdxBy = 1
 
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:RANGE", fmt.Errorf("zero fields of ValueColRequest for range: %v", mInfoStr))
 				return
 			}
 			valIdx := gb.reverseMeasureIndex[idx]
@@ -792,7 +794,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		valIdx := gb.reverseMeasureIndex[idx]
 		if mInfo.ValueColRequest != nil {
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for cardinality: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:CARDINALITY", fmt.Errorf("zero fields of ValueColRequest for cardinality: %v", mInfoStr))
 				return
 			}
 			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
@@ -814,7 +816,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 		if mInfo.ValueColRequest != nil {
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:VALUES", fmt.Errorf("zero fields of ValueColRequest for values: %v", mInfoStr))
 				return
 			}
 		}
@@ -841,7 +843,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 		if mInfo.ValueColRequest != nil {
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:LIST", fmt.Errorf("zero fields of ValueColRequest for list: %v", mInfoStr))
 				return
 			}
 		}
@@ -862,7 +864,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 		if mInfo.ValueColRequest != nil {
 			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for Range: %v", mInfoStr)
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:SUM/MAX/MIN", fmt.Errorf("zero fields of ValueColRequest for sum/max/min: %v", mInfoStr))
 				return
 			}
 		}
