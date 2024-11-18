@@ -936,7 +936,7 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	}
 }
 
-// TODO: After evaluation is fixed, merge GetString and GetStringValue
+// TODO: After evaluation is fixed, merge GetString and GetValueAsString
 func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
