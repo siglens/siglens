@@ -170,9 +170,9 @@ const (
 )
 
 const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
-const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
+const SEGMENT_ROTATE_DURATION_SECONDS = 1 * 60             // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 30
 
 const QUERY_EARLY_EXIT_LIMIT = uint64(100)
 const QUERY_MAX_BUCKETS = uint64(10_000)
