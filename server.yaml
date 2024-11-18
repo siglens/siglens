@@ -45,3 +45,5 @@ tls:
 
 # SigLens server hostname
 queryHostname: ""
+
+queryTimeoutSecs: 300  # 5 minutes default

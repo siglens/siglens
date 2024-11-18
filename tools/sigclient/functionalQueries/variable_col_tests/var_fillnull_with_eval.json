@@ -1,0 +1,41 @@
+{
+    "queryText": "variable_col_2=F* AND (variable_col_7=Future OR variable_col_7=C*) | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(variable_col_3, \"male\") | fillnull value=FILLING nullField1 nullField2 | fields city, variable_col_18, variable_col_3, nullField1, nullField2, nullStatus, user_email | where variable_col_3=\"male\" | eval masked_email=replace(user_email, \"^([^@]+)@\", \"xxxxx@\") | eval original_date_string=\"2024-06-25 12:00:00 UTC\" | eval original_parsed_time=strptime(original_date_string, \"%Y-%m-%d %H:%M:%S %Z\") | eval formatted_time=strftime(original_parsed_time*1000, \"%Y-%m-%d %H:%M:%S %Z\") | eval reparsed_time=strptime(formatted_time, \"%Y-%m-%d %H:%M:%S %Z\") | eval res=if(original_parsed_time=reparsed_time ,\"pass\" ,\"fail\") | eval rel_time=relative_time(1721738260, \"-1m\") | fields city,http_status,nullField1,nullField2,nullStatus,user_email,masked_email,res,reparsed_time,formatted_time,original_parsed_time,original_date_string,rel_time, variable_col_2, variable_col_7, variable_col_3",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "city",
+            "http_status",
+            "nullField1",
+            "nullField2",
+            "nullStatus",
+            "user_email",
+            "masked_email",
+            "res",
+            "reparsed_time",
+            "formatted_time",
+            "original_parsed_time",
+            "original_date_string",
+            "rel_time"
+        ],
+        "columnsOrder": [
+            "city",
+            "http_status",
+            "nullField1",
+            "nullField2",
+            "nullStatus",
+            "user_email",
+            "masked_email",
+            "res",
+            "reparsed_time",
+            "formatted_time",
+            "original_parsed_time",
+            "original_date_string",
+            "rel_time"
+        ]
+    }
+}

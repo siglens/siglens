@@ -63,9 +63,9 @@ function renderMeasuresGrid(columnOrder, hits) {
             } else if (ind != -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] != '*') {
                 newRow.set(fieldId, resMap.GroupByValues[0]);
             } else {
-                // Check if MeasureVal is undefined or null and set it to 0
+                // Check if MeasureVal is undefined or null and set it to ''
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(fieldId, '0');
+                    newRow.set(fieldId, '');
                 } else {
                     newRow.set(fieldId, resMap.MeasureVal[colName]);
                 }

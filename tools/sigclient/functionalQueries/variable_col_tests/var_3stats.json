@@ -1,0 +1,15 @@
+{
+   "queryText": "* | stats avg(variable_col_4), max(variable_col_18), sum(variable_col_17) | eval temp_value = 1",
+   "expectedResult": {
+        "verifyMinimal": true,
+        "qtype": "segstats-query",
+        "measureFunctions": [
+            "avg(variable_col_4)",
+            "max(variable_col_18)",
+            "sum(variable_col_17)",
+            "temp_value"
+        ],
+        "measure": [
+        ]
+    }
+}

@@ -365,7 +365,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			// If the measure is not an eval statement, then update the segment stats
 			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], currSst, measureAgg)
 			if err != nil {
-				return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				log.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				continue
 			}
 			sr.runningSegStat[idx] = resSegStat
 			continue
@@ -646,7 +647,8 @@ func (sr *SearchResults) SetFinalStatsFromNodeResult(nodeResult *structs.NodeRes
 		sr.convertedBuckets = nodeResult.Histogram
 	} else {
 		if length := len(nodeResult.MeasureResults); length != 1 {
-			err := fmt.Errorf("SetFinalStatsFromNodeResult: unexpected MeasureResults length, qid=%v", sr.qid)
+			err := fmt.Errorf("SetFinalStatsFromNodeResult: unexpected MeasureResults length: %v, qid=%v",
+				len(nodeResult.MeasureResults), sr.qid)
 			log.Errorf("SetFinalStatsFromNodeResult: qid=%v, err: %v", sr.qid, err)
 			return err
 		}
