@@ -4013,6 +4013,10 @@ float: right;
     overflow: visible;
 }
 
+.myOrg .pqs-grid .ag-cell{
+    overflow: hidden !important;
+}
+
 .copy-msg {
     font-size: 22px;
     /* color: var(--text-color); */
@@ -6222,6 +6226,13 @@ input.form-control {
 .myOrg-inner-container .pqs-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
+}
+
+.myOrg-inner-container #active-queries .ag-row:hover,
+.myOrg-inner-container #waiting-queries .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: text;
+    user-select: text;
 }
 
 .myOrg-inner-container .ag-theme-mycustomtheme .ag-center-cols-container {

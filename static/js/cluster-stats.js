@@ -477,25 +477,6 @@ function processClusterStats(res) {
                 table.find('tbody').append(tr);
             });
         }
-        if (key === 'queryStats') {
-            let table = $('#query-table');
-            _.forEach(value, (v, k) => {
-                let tr = $('<tr>');
-                tr.append('<td>' + k + '</td>');
-
-                let formattedValue;
-                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
-                    const numericPart = parseFloat(v);
-                    const avgLatency = Math.round(numericPart);
-                    formattedValue = avgLatency.toLocaleString() + ' ms';
-                } else {
-                    const numericValue = parseInt(v, 10);
-                    formattedValue = numericValue.toLocaleString();
-                }
-                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
-                table.find('tbody').append(tr);
-            });
-        }
     });
 
     let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', ''];

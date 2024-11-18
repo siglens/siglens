@@ -1252,9 +1252,6 @@ function renderLogsGrid(columnOrder, hits) {
         });
 
         logsRowData = [...logsRowData, ...mappedHits];
-        if (liveTailState && logsRowData.length > 500) {
-            logsRowData = logsRowData.slice(0, 500);
-        }
     }
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));

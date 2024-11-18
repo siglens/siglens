@@ -20,6 +20,7 @@ package query
 import (
 	"container/heap"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
@@ -35,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type QueryState int
@@ -149,6 +151,22 @@ type RunningQueryState struct {
 	Progress                 *structs.Progress
 	scrollFrom               uint64
 	batchError               *putils.BatchError
+	queryText                string
+}
+
+type QueryStats struct {
+	ActiveQueries  []ActiveQueryInfo  `json:"activeQueries"`
+	WaitingQueries []WaitingQueryInfo `json:"waitingQueries"`
+}
+
+type ActiveQueryInfo struct {
+	QueryText     string  `json:"queryText"`
+	ExecutionTime float64 `json:"executionTimeMs"`
+}
+
+type WaitingQueryInfo struct {
+	QueryText   string  `json:"queryText"`
+	WaitingTime float64 `json:"waitingTimeMs"`
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -319,7 +337,7 @@ func runQuery(wsData WaitStateData) {
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
-	qType structs.QueryType) error {
+	qType structs.QueryType, queryText string) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -333,6 +351,7 @@ func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, ag
 	rQuery.aggs = aggs
 	rQuery.dqs = dqs
 	rQuery.QType = qType
+	rQuery.queryText = queryText
 	rQuery.rqsLock.Unlock()
 
 	return nil
@@ -1298,4 +1317,60 @@ func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
 	}
 
 	return putils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
+}
+
+func GetQueryStats(ctx *fasthttp.RequestCtx) {
+	response := QueryStats{
+		ActiveQueries:  getActiveQueriesInfo(),
+		WaitingQueries: getWaitingQueriesInfo(),
+	}
+
+	ctx.SetContentType("application/json")
+	if err := json.NewEncoder(ctx).Encode(response); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString("Failed to encode response")
+		return
+	}
+}
+
+func getActiveQueriesInfo() []ActiveQueryInfo {
+	arqMapLock.RLock()
+	queries := make([]*RunningQueryState, 0, len(allRunningQueries))
+	for _, q := range allRunningQueries {
+		queries = append(queries, q)
+	}
+	arqMapLock.RUnlock()
+
+	activeQueries := make([]ActiveQueryInfo, 0, len(queries))
+
+	for _, rQuery := range queries {
+		rQuery.rqsLock.Lock()
+		activeQueries = append(activeQueries, ActiveQueryInfo{
+			QueryText:     rQuery.queryText,
+			ExecutionTime: float64(time.Since(rQuery.startTime).Milliseconds()),
+		})
+		rQuery.rqsLock.Unlock()
+	}
+
+	return activeQueries
+}
+
+func getWaitingQueriesInfo() []WaitingQueryInfo {
+	waitingQueriesLock.Lock()
+	queries := make([]*WaitStateData, len(waitingQueries))
+	copy(queries, waitingQueries)
+	waitingQueriesLock.Unlock()
+
+	waitingQueriesInfo := make([]WaitingQueryInfo, 0, len(queries))
+
+	for _, wQuery := range queries {
+		wQuery.rQuery.rqsLock.Lock()
+		waitingQueriesInfo = append(waitingQueriesInfo, WaitingQueryInfo{
+			QueryText:   wQuery.rQuery.queryText,
+			WaitingTime: float64(time.Since(wQuery.rQuery.startTime).Milliseconds()),
+		})
+		wQuery.rQuery.rqsLock.Unlock()
+	}
+
+	return waitingQueriesInfo
 }
