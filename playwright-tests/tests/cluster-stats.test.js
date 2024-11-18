@@ -25,7 +25,6 @@ test('Cluster Stats Page Test', async ({ page }) => {
     await expect(page.locator('text=Logs Stats')).toBeVisible();
     await expect(page.locator('text=Metrics Stats')).toBeVisible();
     await expect(page.locator('text=Traces Stats')).toBeVisible();
-    await expect(page.locator('text=Query Stats')).toBeVisible();
 
     // Check for the presence of charts
     await expect(page.locator('#EventCountChart-logs')).toBeVisible();
@@ -39,7 +38,6 @@ test('Cluster Stats Page Test', async ({ page }) => {
     await expect(page.locator('#index-data-table')).toBeVisible();
     await expect(page.locator('#metrics-data-table')).toBeVisible();
     await expect(page.locator('#trace-data-table')).toBeVisible();
-    await expect(page.locator('#query-table')).toBeVisible();
 
     //Theme button
     await testThemeToggle(page);

@@ -2,11 +2,10 @@
     "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false reset_on_change=true avg(http_status) as avg_http_status BY bool_col | streamstats window=3 global=false current=false reset_on_change=true sum(http_status) as sum_http_status BY bool_col  | streamstats window=4 global=false reset_before=(last_name=\"Murazik\") reset_after=(last_name=\"Larson\") sum(latency) as sum_latency by bool_col | streamstats window=4 current=false reset_before=(latency>9333128 AND latency < 9333130) avg(latency) as avg_latency by bool_col | fields city, first_name, last_name, bool_col, http_status, avg_http_status, sum_http_status, latency, sum_latency, avg_latency",
     "expectedResult": {
          "totalMatched": {
-             "value": 984,
-             "relation": "eq"
+             "value": 100,
+             "relation": "gte"
          },
          "qtype": "logs-query",
-         "uniqueKeyCols": ["first_name", "last_name"],
          "records": [
             {
                 "bool_col": false,

@@ -264,6 +264,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.DELETE(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(deleteLookupFileHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/query-stats", hs.Recovery(getQueryStatsHandler()))
 	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
