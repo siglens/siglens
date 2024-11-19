@@ -1,7 +1,7 @@
 steps:
 
   # Build Siglens
-  - name: 'build123'
+  - name: 'cimg/go:1.19'
     entrypoint: 'bash'
     args:
       - '-c'
