@@ -34,7 +34,7 @@ func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 	var err error
 	if !record.validated {
 		values, err = record.iqr.ReadColumn(cname)
-		if err != nil {
+		if err == nil {
 			record.validated = true
 		}
 	} else {
