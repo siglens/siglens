@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
@@ -295,7 +294,6 @@ func Test_MetadataFilter(t *testing.T) {
 	config.InitializeTestingConfig(dir)
 	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {

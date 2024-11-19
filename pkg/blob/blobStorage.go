@@ -120,10 +120,7 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 		}
 	}
 
-	if inUseFlag {
-		// TODO: mark it as in use
-	}
-
+	// TODO: mark it as in use when inUseFlag is true
 	return nil
 }
 
