@@ -1,7 +1,6 @@
 {
     "queryText": "variable_col_9=A* | rare 5 variable_col_7 useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.variable_col_7 | top 5 variable_col_7, city_count useother=false countfield=top_count percentfield=top_percent",
     "expectedResult": {
-        "verifyMinimal": true,
         "bucketCount": 5,
         "qtype": "aggs-query",
         "groupByCols": [
