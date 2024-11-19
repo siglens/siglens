@@ -22,7 +22,6 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -36,7 +35,6 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 	config.InitializeTestingConfig(dir)
 	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
@@ -110,7 +108,6 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	config.InitializeTestingConfig(dir)
 	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
@@ -174,7 +171,6 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	config.InitializeTestingConfig(dir)
 	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2

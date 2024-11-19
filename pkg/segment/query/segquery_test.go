@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -409,7 +408,6 @@ func Test_segQueryFilter(t *testing.T) {
 	numEntriesForBuffer := 10
 	fileCount := 5
 	instrumentation.InitMetrics()
-	_ = localstorage.InitLocalStorage()
 	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
