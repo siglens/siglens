@@ -72,7 +72,6 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				log.Errorf("where.Process: cannot evaluate expression; err=%v", err)
 				p.loggedEvalError = true
 			}
-			continue
 		}
 
 		if !shouldKeep {
