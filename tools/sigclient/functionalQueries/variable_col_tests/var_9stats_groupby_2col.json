@@ -1,0 +1,26 @@
+{
+    "queryText": "variable_col_3=male AND (app_name=Bracecould OR variable_col_7=C*) | regex variable_col_8=\".*s\" | stats avg(variable_col_4), max(variable_col_19) as max, min(variable_col_18) as min, sum(variable_col_17) as sum, range(variable_col_15), count as cnt, values(variable_col_9), dc(variable_col_6) as distinct_count, list(variable_col_2) BY variable_col_16, bool_col",
+    "expectedResult": {
+         "verifyMinimal": true,
+         "bucketCount": 0,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "bool_col",
+            "variable_col_16"
+        ],
+         "measureFunctions": [
+            "list(variable_col_2)",
+            "range(variable_col_15)",
+            "avg(variable_col_4)",
+            "cnt",
+            "min",
+            "max",
+            "distinct_count",
+            "values(variable_col_9)",
+            "sum"
+          ],
+         "measure": [
+        ]
+     }
+ }
+ 

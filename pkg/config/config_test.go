@@ -74,6 +74,7 @@ func Test_ExtractConfigData(t *testing.T) {
  analyticsEnabled: false
  agileAggsEnabled: false
  isNewQueryPipelineEnabled: false
+ queryTimeoutSecs: 600
  safeMode: true
  tracing:
    endpoint: "http://localhost:4317"
@@ -134,6 +135,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
+				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					SearchPercent:   50,
@@ -178,6 +180,7 @@ func Test_ExtractConfigData(t *testing.T) {
  dualCaseCheck: true
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
+ queryTimeoutSecs: 0
  tracing:
    endpoint: ""
    serviceName: ""
@@ -238,7 +241,8 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
+				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -291,7 +295,8 @@ invalid input, we should error out
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
+				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -347,7 +352,8 @@ a: b
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
+				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
+				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 	}

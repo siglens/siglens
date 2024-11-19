@@ -20,6 +20,7 @@ package query
 import (
 	"container/heap"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
@@ -35,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type QueryState int
@@ -42,7 +44,7 @@ type QueryState int
 var numStates = 4
 
 const MAX_GRP_BUCKS = 3000
-const CANCEL_QUERY_AFTER_SECONDS = 5 * 60 // If 0, the query will never timeout
+
 var MAX_RUNNING_QUERIES = uint64(runtime.GOMAXPROCS(0))
 
 const PULL_QUERY_INTERVAL = 10 * time.Millisecond
@@ -149,6 +151,22 @@ type RunningQueryState struct {
 	Progress                 *structs.Progress
 	scrollFrom               uint64
 	batchError               *putils.BatchError
+	queryText                string
+}
+
+type QueryStats struct {
+	ActiveQueries  []ActiveQueryInfo  `json:"activeQueries"`
+	WaitingQueries []WaitingQueryInfo `json:"waitingQueries"`
+}
+
+type ActiveQueryInfo struct {
+	QueryText     string  `json:"queryText"`
+	ExecutionTime float64 `json:"executionTimeMs"`
+}
+
+type WaitingQueryInfo struct {
+	QueryText   string  `json:"queryText"`
+	WaitingTime float64 `json:"waitingTimeMs"`
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
@@ -280,8 +298,9 @@ func PullQueriesToRun() {
 
 func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 	var timeoutCancelFunc context.CancelFunc
-	if CANCEL_QUERY_AFTER_SECONDS != 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(CANCEL_QUERY_AFTER_SECONDS)*time.Second)
+	timeoutSecs := config.GetQueryTimeoutSecs()
+	if timeoutSecs != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second)
 		timeoutCancelFunc = cancel
 
 		go func() {
@@ -291,7 +310,7 @@ func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 			arqMapLock.RUnlock()
 
 			if ok && ctx.Err() == context.DeadlineExceeded {
-				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, CANCEL_QUERY_AFTER_SECONDS)
+				log.Infof("qid=%v Canceling query due to timeout (%v seconds)", qid, timeoutSecs)
 				rQuery.StateChan <- &QueryStateChanData{StateName: TIMEOUT}
 				CancelQuery(qid)
 			}
@@ -318,7 +337,7 @@ func runQuery(wsData WaitStateData) {
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
-	qType structs.QueryType) error {
+	qType structs.QueryType, queryText string) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -332,6 +351,7 @@ func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, ag
 	rQuery.aggs = aggs
 	rQuery.dqs = dqs
 	rQuery.QType = qType
+	rQuery.queryText = queryText
 	rQuery.rqsLock.Unlock()
 
 	return nil
@@ -1297,4 +1317,60 @@ func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
 	}
 
 	return putils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
+}
+
+func GetQueryStats(ctx *fasthttp.RequestCtx) {
+	response := QueryStats{
+		ActiveQueries:  getActiveQueriesInfo(),
+		WaitingQueries: getWaitingQueriesInfo(),
+	}
+
+	ctx.SetContentType("application/json")
+	if err := json.NewEncoder(ctx).Encode(response); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString("Failed to encode response")
+		return
+	}
+}
+
+func getActiveQueriesInfo() []ActiveQueryInfo {
+	arqMapLock.RLock()
+	queries := make([]*RunningQueryState, 0, len(allRunningQueries))
+	for _, q := range allRunningQueries {
+		queries = append(queries, q)
+	}
+	arqMapLock.RUnlock()
+
+	activeQueries := make([]ActiveQueryInfo, 0, len(queries))
+
+	for _, rQuery := range queries {
+		rQuery.rqsLock.Lock()
+		activeQueries = append(activeQueries, ActiveQueryInfo{
+			QueryText:     rQuery.queryText,
+			ExecutionTime: float64(time.Since(rQuery.startTime).Milliseconds()),
+		})
+		rQuery.rqsLock.Unlock()
+	}
+
+	return activeQueries
+}
+
+func getWaitingQueriesInfo() []WaitingQueryInfo {
+	waitingQueriesLock.Lock()
+	queries := make([]*WaitStateData, len(waitingQueries))
+	copy(queries, waitingQueries)
+	waitingQueriesLock.Unlock()
+
+	waitingQueriesInfo := make([]WaitingQueryInfo, 0, len(queries))
+
+	for _, wQuery := range queries {
+		wQuery.rQuery.rqsLock.Lock()
+		waitingQueriesInfo = append(waitingQueriesInfo, WaitingQueryInfo{
+			QueryText:   wQuery.rQuery.queryText,
+			WaitingTime: float64(time.Since(wQuery.rQuery.startTime).Milliseconds()),
+		})
+		wQuery.rQuery.rqsLock.Unlock()
+	}
+
+	return waitingQueriesInfo
 }

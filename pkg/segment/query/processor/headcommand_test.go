@@ -191,7 +191,7 @@ func Test_Head_Expr_Keeplast(t *testing.T) {
 	knownValues := map[string][]utils.CValueEnclosure{
 		"gender": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: "female"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
@@ -231,11 +231,11 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 	knownValues := map[string][]utils.CValueEnclosure{
 		"gender": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
 		},

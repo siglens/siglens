@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
@@ -51,7 +50,6 @@ func Test_simpleRawSearch(t *testing.T) {
 	config.SetSSInstanceName("mock-host")
 	err = config.InitDerivedConfig("test")
 	assert.NoError(t, err)
-	_ = localstorage.InitLocalStorage()
 
 	numBuffers := 5
 	numEntriesForBuffer := 10
@@ -294,7 +292,6 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	config.SetSSInstanceName("mock-host")
 	err := config.InitDerivedConfig("test")
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	dataDir := "data/"
 	err = os.MkdirAll(dataDir+"mock-host/", 0755)
 	if err != nil {

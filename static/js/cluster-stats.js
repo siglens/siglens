@@ -477,25 +477,6 @@ function processClusterStats(res) {
                 table.find('tbody').append(tr);
             });
         }
-        if (key === 'queryStats') {
-            let table = $('#query-table');
-            _.forEach(value, (v, k) => {
-                let tr = $('<tr>');
-                tr.append('<td>' + k + '</td>');
-
-                let formattedValue;
-                if (k === 'Average Query Latency (since install)' || k === 'Average Query Latency (since restart)') {
-                    const numericPart = parseFloat(v);
-                    const avgLatency = Math.round(numericPart);
-                    formattedValue = avgLatency.toLocaleString() + ' ms';
-                } else {
-                    const numericValue = parseInt(v, 10);
-                    formattedValue = numericValue.toLocaleString();
-                }
-                tr.append('<td class="health-stats-value">' + formattedValue + '</td>');
-                table.find('tbody').append(tr);
-            });
-        }
     });
 
     let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', ''];
@@ -782,10 +763,8 @@ function processClusterStats(res) {
     function showIndexDetailsPopup(indexName, indexData) {
         $('#index-name').text(indexName);
         $('#incoming-volume').text(formatIngestVolume(indexData["ingestVolume"]));
-        $('#total-bytes-received').text(bytesToMBFormatted(indexData["bytesReceivedCount"]));
         $('#storage-used').text(bytesToMBFormatted(indexData["onDiskBytes"]));
         $('#event-count').text(indexData["eventCount"]);
-        $('#record-count').text(indexData["recordCount"]);
         $('#segment-count').text(indexData["segmentCount"]);
         $('#column-count').text(indexData["columnCount"]);
         $('#earliest-record').text(indexData["earliestEpoch"]);

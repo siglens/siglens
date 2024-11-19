@@ -1,0 +1,21 @@
+{
+    "queryText": "* | stats min(variable_col_15), max(variable_col_17), sum(variable_col_18), count BY variable_col_3 | eval temp_value = 1",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "bucketCount": 0,
+        "qtype": "aggs-query",
+        "groupByCols": [
+        "variable_col_3"
+        ],
+        "measureFunctions": [
+            "count(*)",
+            "min(variable_col_15)",
+            "max(variable_col_17)",
+            "sum(variable_col_18)",
+            "temp_value"
+        ],
+        "measure": [
+        ]
+     }
+ }
+ 
