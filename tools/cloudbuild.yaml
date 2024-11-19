@@ -1,0 +1,27 @@
+steps:
+
+  # Build Siglens
+  - name: 'build'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'make build'
+
+  # Run Siglens (background)
+  - name: 'start-siglens'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        ./siglens --config server.yaml &
+        sleep 10
+
+  # Run the functional tests
+  - name: 'functional-test'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
+
+timeout: 3600s
