@@ -9,7 +9,6 @@
         "records": [
             {
                 "city": "Washington",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@ortiz.io",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -24,7 +23,6 @@
             },
             {
                 "city": "Omaha",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@goyette.org",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -39,7 +37,6 @@
             },
             {
                 "city": "Scottsdale",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@senger.info",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -54,7 +51,6 @@
             },
             {
                 "city": "Fremont",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@hand.info",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -69,7 +65,6 @@
             },
             {
                 "city": "Bakersfield",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@altenwerth.org",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -84,7 +79,6 @@
             },
             {
                 "city": "New York City",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@robel.com",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -99,7 +93,6 @@
             },
             {
                 "city": "Columbus",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@rowe.io",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -114,7 +107,6 @@
             },
             {
                 "city": "Mesa",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@wolf.biz",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -129,7 +121,6 @@
             },
             {
                 "city": "Philadelphia",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@stehr.name",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
@@ -144,7 +135,6 @@
             },
             {
                 "city": "Lexington-Fayette",
-                "formatted_time": "2024-06-25 08:00:00 EDT",
                 "masked_email": "xxxxx@reynolds.net",
                 "nullField1": "FILLING",
                 "nullField2": "FILLING",
