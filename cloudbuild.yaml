@@ -5,7 +5,7 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - 'make build'
+      - 'sudo make build'
 
   # Run Siglens (background)
   - name: 'start-siglens'
