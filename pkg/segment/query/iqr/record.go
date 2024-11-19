@@ -24,12 +24,22 @@ import (
 )
 
 type Record struct {
-	iqr   *IQR
-	index int
+	iqr       *IQR
+	index     int
+	validated bool
 }
 
 func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
-	values, err := record.iqr.ReadColumn(cname)
+	var values []utils.CValueEnclosure
+	var err error
+	if !record.validated {
+		values, err = record.iqr.ReadColumn(cname)
+		if err == nil {
+			record.validated = true
+		}
+	} else {
+		values, err = record.iqr.readColumnInternal(cname)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
 	}
