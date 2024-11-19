@@ -6,8 +6,9 @@ steps:
       - '-c'
       - |
         sudo make build && \
-        go run cmd/siglens/main.go --config server.yaml & \
+        ./siglens --config server.yaml & \
         sleep 10 && \
+        cd tools/sigclient && \
         go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
 
 
