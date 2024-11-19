@@ -1,7 +1,7 @@
 steps:
 
   # Build Siglens
-  - name: 'build'
+  - name: 'build123'
     entrypoint: 'bash'
     args:
       - '-c'
