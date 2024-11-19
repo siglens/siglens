@@ -55,21 +55,21 @@ variable_col_tests/var_simple_where.json
 variable_col_tests/var_simple_sort.json
 variable_col_tests/var_complex_search.json
 variable_col_tests/var_complex_search_2.json
-# variable_col_tests/var_search_with_eval.json   Not working because of NULL issue in eval
+variable_col_tests/var_search_with_eval.json
 variable_col_tests/var_search_1col_fields.json
 variable_col_tests/var_grpby_1col_4stats.json
 variable_col_tests/var_3stats.json
 # variable_col_tests/var_bin.json Cannot perform bin on NULL value
 variable_col_tests/var_9stats.json
-# variable_col_tests/var_stats_groupby_with_eval.json Issue with Inf in response
+variable_col_tests/var_stats_groupby_with_eval.json
 variable_col_tests/var_9stats_groupby_2col.json
 variable_col_tests/var_head.json
 variable_col_tests/var_head2.json
-# variable_col_tests/var_fillnull_with_eval.json Not working because of NULL issue in eval
-# variable_col_tests/var_stats_group_by_eval.json Not working because of NULL issue in eval
-# variable_col_tests/var_eval_groupby_2col_2stats.json Not working because of NULL issue in eval
+variable_col_tests/var_fillnull_with_eval.json
+variable_col_tests/var_stats_group_by_eval.json
+variable_col_tests/var_eval_groupby_2col_2stats.json
 variable_col_tests/var_eval_fields_timechart.json
-# variable_col_tests/var_multi_value.json Not working because of NULL issue in eval
+variable_col_tests/var_multi_value.json
 variable_col_tests/var_mvexpand.json
 variable_col_tests/var_rex_stats_groupby_eval_stats.json
 variable_col_tests/var_stats_eval.json
@@ -82,7 +82,7 @@ variable_col_tests/var_dedup_sortby_consecutive.json
 variable_col_tests/var_dedup_sortby.json
 variable_col_tests/var_top.json
 variable_col_tests/var_rare.json
-# variable_col_tests/var_rare_top.json Not working because of NULL issue in eval
+variable_col_tests/var_rare_top.json
 variable_col_tests/var_stats_top.json
 
 ## Queries not working for multi-index
