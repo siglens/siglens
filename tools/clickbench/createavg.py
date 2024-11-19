@@ -30,6 +30,9 @@ def calculate_averages(input_file, output_file):
     print(f"Averages written to {output_file}")
 
 # File paths
+## input file format, each line contains responses for N tries for the given query matching with queries.spl:
+#  [n1, n2. n3]
+#  [n1, n2. n3]
 input_file = "input.csv"  # Replace with your input file path
 output_file = "out.csv"  # Replace with your desired output file path
 
