@@ -106,8 +106,8 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 		sumColSize += uint64(len(cname))
 	}
 
-	blockHolderSize := sumColSize * (8 + 4)
-	blockHolderSize += 2 + 6 + 8 + 8 // blockNum, padding, 2 map pointers
+	blockHolderSize := sumColSize * (8 + 4) // int64 value + uint32 value
+	blockHolderSize += 2 + 6 + 8 + 8        // blockNum, padding, 2 map pointers
 	searchMetadataSize += uint64(sm.NumBlocks) * blockHolderSize
 
 	sm.SearchMetadataSize = searchMetadataSize
