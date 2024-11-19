@@ -1,0 +1,392 @@
+{
+    "queryText": "variable_col_3=male | eval multi_val = variable_col_6.\",\".variable_col_7.\",\".variable_col_8.\",\".variable_col_5.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, ident",
+    "expectedResult": {
+         "totalMatched": {
+            "value": 100,
+            "relation": "gte"
+        },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "app_name": "Scoldfly",
+                "city": "San Bernardino",
+                "country": "Germany",
+                "first_name": "Kylie",
+                "ident": "53298903-1d62-4a5b-8440-a5fa4f421f82",
+                "last_name": "Lubowitz",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599999
+            },
+            {
+                "app_name": "Snakesmell",
+                "city": "Irving",
+                "country": "Korea (Democratic People's Republic of)",
+                "first_name": "Dina",
+                "ident": "83ebd8ce-adca-4704-83e3-59dbd4636102",
+                "last_name": "Predovic",
+                "multi_val": [
+                    "Topiary",
+                    "Future",
+                    "Implementation",
+                    "https://picsum.photos/179/323 multi val"
+                ],
+                "mvcount": "4",
+                "mvfind": "",
+                "mvindex02": [
+                    "Topiary",
+                    "Future",
+                    "Implementation"
+                ],
+                "mvindex2": [
+                    "Implementation"
+                ],
+                "mvindex_1": [
+                    "https://picsum.photos/179/323 multi val"
+                ],
+                "mvindex_3_1": [
+                    "Future",
+                    "Implementation",
+                    "https://picsum.photos/179/323 multi val"
+                ],
+                "mvjoin": "Topiary:Future:Implementation:https://picsum.photos/179/323 multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599993
+            },
+            {
+                "app_name": "Yearhas",
+                "city": "Minneapolis",
+                "country": "Saint Martin (French part)",
+                "first_name": "Jamie",
+                "ident": "ac1ab53f-caa5-40bb-abdc-5e49db396cb6",
+                "last_name": "Daugherty",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599992
+            },
+            {
+                "app_name": "Magentaday",
+                "city": "Milwaukee",
+                "country": "New Caledonia",
+                "first_name": "Harold",
+                "ident": "4c2f5cd1-ad16-4232-957f-cc29b99aa41d",
+                "last_name": "Torp",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599990
+            },
+            {
+                "app_name": "Macawhave",
+                "city": "Dallas",
+                "country": "Mauritania",
+                "first_name": "Amalia",
+                "ident": "cfacd911-149a-422b-9813-e0f35b764929",
+                "last_name": "Quitzon",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599977
+            },
+            {
+                "app_name": "Baboondo",
+                "city": "Glendale",
+                "country": "Italy",
+                "first_name": "Kimberly",
+                "ident": "e733fa1d-ccea-40ef-bab2-394c9fca7255",
+                "last_name": "Wisoky",
+                "multi_val": [
+                    "Dance",
+                    "Lead",
+                    "Mobility",
+                    "https://picsum.photos/150/378 multi val"
+                ],
+                "mvcount": "4",
+                "mvfind": "",
+                "mvindex02": [
+                    "Dance",
+                    "Lead",
+                    "Mobility"
+                ],
+                "mvindex2": [
+                    "Mobility"
+                ],
+                "mvindex_1": [
+                    "https://picsum.photos/150/378 multi val"
+                ],
+                "mvindex_3_1": [
+                    "Lead",
+                    "Mobility",
+                    "https://picsum.photos/150/378 multi val"
+                ],
+                "mvjoin": "Dance:Lead:Mobility:https://picsum.photos/150/378 multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599971
+            },
+            {
+                "app_name": "Pandais",
+                "city": "Plano",
+                "country": "Mauritania",
+                "first_name": "Arlo",
+                "ident": "4923542e-492b-458e-97f6-8ace8dde54f3",
+                "last_name": "Bruen",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599970
+            },
+            {
+                "app_name": "Paircould",
+                "city": "Buffalo",
+                "country": "Switzerland",
+                "first_name": "Leonel",
+                "ident": "6d154a01-00c7-46bb-b18a-6cf1965c4000",
+                "last_name": "Tromp",
+                "multi_val": [
+                    "Powerlifting",
+                    "Direct",
+                    "Program",
+                    "https://picsum.photos/454/426 multi val"
+                ],
+                "mvcount": "4",
+                "mvfind": "",
+                "mvindex02": [
+                    "Powerlifting",
+                    "Direct",
+                    "Program"
+                ],
+                "mvindex2": [
+                    "Program"
+                ],
+                "mvindex_1": [
+                    "https://picsum.photos/454/426 multi val"
+                ],
+                "mvindex_3_1": [
+                    "Direct",
+                    "Program",
+                    "https://picsum.photos/454/426 multi val"
+                ],
+                "mvjoin": "Powerlifting:Direct:Program:https://picsum.photos/454/426 multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599968
+            },
+            {
+                "app_name": "Grasshopperwould",
+                "city": "Newark",
+                "country": "Comoros",
+                "first_name": "Piper",
+                "ident": "d6965e4a-f92c-45c8-8dc6-d2a221108c14",
+                "last_name": "Wilderman",
+                "multi_val": [
+                    "Electrochemistry",
+                    "Regional",
+                    "Group",
+                    "https://picsum.photos/195/269 multi val"
+                ],
+                "mvcount": "4",
+                "mvfind": "",
+                "mvindex02": [
+                    "Electrochemistry",
+                    "Regional",
+                    "Group"
+                ],
+                "mvindex2": [
+                    "Group"
+                ],
+                "mvindex_1": [
+                    "https://picsum.photos/195/269 multi val"
+                ],
+                "mvindex_3_1": [
+                    "Regional",
+                    "Group",
+                    "https://picsum.photos/195/269 multi val"
+                ],
+                "mvjoin": "Electrochemistry:Regional:Group:https://picsum.photos/195/269 multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599966
+            },
+            {
+                "app_name": "Zebrasit",
+                "city": "San Bernardino",
+                "country": "Cameroon",
+                "first_name": "Reggie",
+                "ident": "58823245-d1c3-4503-bb64-ec4c91721e91",
+                "last_name": "Schiller",
+                "multi_val": [
+                    "Bridge",
+                    "Human",
+                    "Paradigm",
+                    "https://picsum.photos/260/404 multi val"
+                ],
+                "mvcount": "4",
+                "mvfind": "",
+                "mvindex02": [
+                    "Bridge",
+                    "Human",
+                    "Paradigm"
+                ],
+                "mvindex2": [
+                    "Paradigm"
+                ],
+                "mvindex_1": [
+                    "https://picsum.photos/260/404 multi val"
+                ],
+                "mvindex_3_1": [
+                    "Human",
+                    "Paradigm",
+                    "https://picsum.photos/260/404 multi val"
+                ],
+                "mvjoin": "Bridge:Human:Paradigm:https://picsum.photos/260/404 multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1731963599960
+            }
+        ],
+         "allColumns": [
+            "mvindex2",
+            "split_count",
+            "mvindex02",
+            "split_index",
+            "split_join",
+            "ident",
+            "city",
+            "mvindex_3_1",
+            "mvcount",
+            "split",
+            "country",
+            "mvindex_1",
+            "app_name",
+            "first_name",
+            "multi_val",
+            "mvjoin",
+            "split_find",
+            "mvfind",
+            "last_name",
+            "timestamp"
+        ],
+         "columnsOrder": [
+            "timestamp",
+            "app_name",
+            "first_name",
+            "last_name",
+            "country",
+            "city",
+            "multi_val",
+            "mvindex2",
+            "mvindex02",
+            "mvindex_1",
+            "mvindex_3_1",
+            "mvcount",
+            "mvjoin",
+            "mvfind",
+            "split",
+            "split_join",
+            "split_count",
+            "split_index",
+            "split_find",
+            "ident"
+        ]
+     }
+ }
+ 

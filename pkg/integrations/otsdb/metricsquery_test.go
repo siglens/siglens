@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	"github.com/siglens/siglens/pkg/segment"
@@ -43,7 +42,6 @@ func Test_MetricsQuery(t *testing.T) {
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
 	err = metadata.InitMockMetricsMetadataStore(10000)
 	assert.Nil(t, err)
@@ -83,7 +81,6 @@ func Test_MetricsQueryMultipleTagValues(t *testing.T) {
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
 	assert.Nil(t, err)
 	startTime := "1d-ago"

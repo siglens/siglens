@@ -1,0 +1,25 @@
+{
+    "queryText": "variable_col_7 = Future | head variable_col_3=\"male\" OR city=\"Norfolk\" keeplast=true | fields city, gender, app_name, variable_col_7, variable_col_3",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "city",
+            "gender",
+            "app_name",
+            "variable_col_7",
+            "variable_col_3"
+        ],
+        "columnsOrder": [
+            "city",
+            "gender",
+            "app_name",
+            "variable_col_7",
+            "variable_col_3"
+        ]
+    }
+}

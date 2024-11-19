@@ -991,7 +991,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			continue
 		}
 		results := make(map[uint16]map[string]interface{})
-		ok := mcr.GetDictEncCvalsFromColFile(results, colName, blockNum, filterdRecNums, qid)
+		ok := mcr.GetDictEncCvalsFromColFileOldPipeline(results, colName, blockNum, filterdRecNums, qid)
 		if !ok {
 			log.Errorf("qid=%d, segmentStatsWorker failed to get dict cvals for col %s", qid, colName)
 			continue
@@ -1015,7 +1015,6 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						retVal[colName] = true
 						continue
 					}
-
 					var stats *structs.SegStats
 					var ok bool
 					stats, ok = lStats[colName]
@@ -1035,6 +1034,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					if colUsage == utils.WithEvalUsage {
 						continue
 					}
+				}
+
+				if rawVal == nil {
+					continue
 				}
 
 				hasValuesFunc, exists := valuesUsage[colName]
@@ -1085,6 +1088,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		return
 	}
 
+	segKeyEnc := allSearchResults.GetAddSegEnc(searchReq.SegmentKey)
 	numRecsMatched := uint16(0)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
 		if !recIT.ShouldProcessRecord(recNum) {
@@ -1108,7 +1112,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		if config.IsNewQueryPipelineEnabled() {
 			rrc := &utils.RecordResultContainer{
 				SegKeyInfo: utils.SegKeyInfo{
-					SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+					SegKeyEnc: segKeyEnc,
 					IsRemote:  false,
 				},
 				BlockNum:         blockStatus.BlockNum,
@@ -1123,7 +1127,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 					rrc := &utils.RecordResultContainer{
 						SegKeyInfo: utils.SegKeyInfo{
-							SegKeyEnc: allSearchResults.GetAddSegEnc(searchReq.SegmentKey),
+							SegKeyEnc: segKeyEnc,
 							IsRemote:  false,
 						},
 						BlockNum:         blockStatus.BlockNum,

@@ -206,6 +206,27 @@ var performanceTestCmd = &cobra.Command{
 	},
 }
 
+var concurrentQueriesTestCmd = &cobra.Command{
+	Use:   "concurrentQueries",
+	Short: "testing concurrent queries on SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryText, _ := cmd.Flags().GetString("queryText")
+		numOfConcurrentQueries, _ := cmd.Flags().GetInt("numOfConcurrentQueries")
+		iterations, _ := cmd.Flags().GetInt("iterations")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", dest)
+		log.Infof("queryText : %+v\n", queryText)
+		log.Infof("numOfConcurrentQueries : %+v\n", numOfConcurrentQueries)
+		log.Infof("iterations : %+v\n", iterations)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		query.RunConcurrentQueries(dest, queryText, numOfConcurrentQueries, iterations)
+	},
+}
+
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
@@ -469,6 +490,10 @@ func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
 	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
 
+	concurrentQueriesTestCmd.PersistentFlags().IntP("numOfConcurrentQueries", "c", 1, "Number of concurrent queries to run")
+	concurrentQueriesTestCmd.PersistentFlags().IntP("iterations", "i", 1, "Number of iterations to run")
+	concurrentQueriesTestCmd.PersistentFlags().StringP("queryText", "q", "", "Query to run")
+
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
@@ -533,4 +558,5 @@ func init() {
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)
+	rootCmd.AddCommand(concurrentQueriesTestCmd)
 }

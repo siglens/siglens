@@ -24,14 +24,12 @@ import (
 	"strconv"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_AddSementInfo(t *testing.T) {
-	_ = localstorage.InitLocalStorage()
 	ResetGlobalMetadataForTest()
 	for i := uint64(0); i < 10; i++ {
 		currInfo := &SegmentMicroIndex{
@@ -101,7 +99,6 @@ func Test_RebalanceMetadata(t *testing.T) {
 
 	t.Cleanup(func() { os.RemoveAll("data/") })
 
-	_ = localstorage.InitLocalStorage()
 	ResetGlobalMetadataForTest()
 
 	fileCount := 3
@@ -147,7 +144,6 @@ func createMockMetaStore(dir string, segcount int) {
 
 func Test_readEmptyColumnMicroIndices(t *testing.T) {
 	ResetGlobalMetadataForTest()
-	_ = localstorage.InitLocalStorage()
 
 	cnames := make(map[string]*structs.ColSizeInfo)
 	cnames["clickid"] = &structs.ColSizeInfo{CmiSize: 0, CsgSize: 0}

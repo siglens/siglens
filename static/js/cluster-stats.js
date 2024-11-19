@@ -763,10 +763,8 @@ function processClusterStats(res) {
     function showIndexDetailsPopup(indexName, indexData) {
         $('#index-name').text(indexName);
         $('#incoming-volume').text(formatIngestVolume(indexData["ingestVolume"]));
-        $('#total-bytes-received').text(bytesToMBFormatted(indexData["bytesReceivedCount"]));
         $('#storage-used').text(bytesToMBFormatted(indexData["onDiskBytes"]));
         $('#event-count').text(indexData["eventCount"]);
-        $('#record-count').text(indexData["recordCount"]);
         $('#segment-count').text(indexData["segmentCount"]);
         $('#column-count').text(indexData["columnCount"]);
         $('#earliest-record').text(indexData["earliestEpoch"]);

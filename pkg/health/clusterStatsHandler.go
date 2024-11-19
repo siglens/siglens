@@ -151,7 +151,7 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 
 func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
 	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
-	recordCountField, bytesReceivedField, onDiskBytesField string) []map[string]map[string]interface{} {
+	onDiskBytesField string) []map[string]map[string]interface{} {
 
 	indices := make([]string, 0)
 	for index := range allIndexStats.IndexToStats {
@@ -175,8 +175,6 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
 		nextVal[index][earliestEpochField] = time.Unix(int64(indexStats.EarliestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
 		nextVal[index][latestEpochField] = time.Unix(int64(indexStats.LatestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
-		nextVal[index][recordCountField] = humanize.Comma(int64(indexStats.NumRecords))
-		nextVal[index][bytesReceivedField] = float64(indexStats.NumBytesIngested)
 		nextVal[index][onDiskBytesField] = float64(indexStats.TotalOnDiskBytes)
 
 		retVal = append(retVal, nextVal)
@@ -186,11 +184,11 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 }
 
 func convertIndexDataToSlice(indexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "recordCount", "bytesReceivedCount", "onDiskBytes")
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes")
 }
 
 func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "recordCount", "bytesReceivedCount", "onDiskBytes")
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes")
 }
 
 func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {

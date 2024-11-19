@@ -53,7 +53,6 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastrand"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	esquery "github.com/siglens/siglens/pkg/es/query"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
@@ -128,7 +127,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 		b.Fatalf("Failed to initialize vtable: %v", err)
 	}
 
-	_ = localstorage.InitLocalStorage()
+	writer.InitWriterNode()
 
 	smFile := writer.GetLocalSegmetaFName()
 	err = query.PopulateSegmentMetadataForTheFile_TestOnly(smFile)
@@ -143,7 +142,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 
 	websocketURL := "ws://localhost:8080/ws"
 	queryLanguage := "Splunk QL"
-	start := "now-1h"
+	start := "now-90d"
 	end := "now"
 	index := "*"
 
@@ -160,6 +159,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	log.Infof("Benchmark_EndToEnd: Starting WebSocket server")
 	go startServer()
 
+	log.Infof("Benchmark_EndToEnd: new query pipeline: %v", config.IsNewQueryPipelineEnabled())
 	// Wait for the server to start
 	time.Sleep(1 * time.Second)
 
@@ -234,7 +234,6 @@ func Benchmark_EndToEnd(b *testing.B) {
 
 func Benchmark_RRCToJson(b *testing.B) {
 	config.InitializeTestingConfig(b.TempDir())
-	_ = localstorage.InitLocalStorage()
 	currTime := utils.GetCurrentTimeMillis()
 	startTime := uint64(0)
 	tRange := &dtu.TimeRange{
@@ -494,7 +493,6 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 func Benchmark_E2E_AgileTree(b *testing.B) {
 	config.InitializeTestingConfig(b.TempDir())
 	config.SetAggregationsFlag(true)
-	_ = localstorage.InitLocalStorage()
 	currTime := utils.GetCurrentTimeMillis()
 	startTime := uint64(0)
 	tRange := &dtu.TimeRange{

@@ -102,9 +102,9 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 type dTypeRank uint8
 
 const (
-	NUMERIC dTypeRank = iota + 1
-	STRING
-	OTHER
+	RANK_NUMERIC dTypeRank = iota + 1
+	RANK_STRING
+	RANK_OTHER
 )
 
 type compare uint8
@@ -139,44 +139,58 @@ func compareString(a, b string) compare {
 	return GREATER
 }
 
-func getRank(CValEnc *segutils.CValueEnclosure) dTypeRank {
+func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 	switch CValEnc.Dtype {
 	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
-		return OTHER
+		return RANK_OTHER
 	case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT:
-		return NUMERIC
-	case segutils.SS_DT_STRING:
-		_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
-		if err == nil {
-			// If floatValue is possible then it is considered as a number
-			return NUMERIC
+		switch op {
+		case "num", "auto", "":
+			return RANK_NUMERIC
+		case "str":
+			return RANK_STRING
+		default:
+			return RANK_NUMERIC
 		}
-		return STRING
+	case segutils.SS_DT_STRING:
+		switch op {
+		case "num", "auto", "":
+			_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
+			if err == nil {
+				// If floatValue is possible then it is considered as a number
+				return RANK_NUMERIC
+			}
+			return RANK_STRING
+		case "str":
+			return RANK_STRING
+		default:
+			return RANK_STRING
+		}
 	default:
 		_, err := CValEnc.GetValueAsString()
 		if err == nil {
-			return STRING
+			return RANK_STRING
 		}
-		return OTHER
+		return RANK_OTHER
 	}
 }
 
 // Returns A comparison B
-func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
+func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string) compare {
 	var result compare
-	rankA := getRank(valueA)
-	rankB := getRank(valueB)
+	rankA := getRank(valueA, op)
+	rankB := getRank(valueB, op)
 
 	// OTHER rank records always get sorted to the end
-	if rankA == OTHER && rankB == OTHER {
+	if rankA == RANK_OTHER && rankB == RANK_OTHER {
 		return EQUAL
 	}
 
-	if rankA == OTHER && rankB != OTHER {
+	if rankA == RANK_OTHER && rankB != RANK_OTHER {
 		return GREATER
 	}
 
-	if rankA != OTHER && rankB == OTHER {
+	if rankA != RANK_OTHER && rankB == RANK_OTHER {
 		return LESS
 	}
 
@@ -186,7 +200,7 @@ func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
 		result = compare(GREATER)
 	} else {
 		switch rankA {
-		case NUMERIC:
+		case RANK_NUMERIC:
 			floatValA, isFloat := valueA.GetFloatValueIfPossible()
 			if !isFloat {
 				return GREATER
@@ -196,7 +210,7 @@ func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
 				return LESS
 			}
 			result = compareFloat(floatValA, floatValB)
-		case STRING:
+		case RANK_STRING:
 			strValA, err := valueA.GetValueAsString()
 			if err != nil {
 				return GREATER
@@ -244,7 +258,7 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 		case "", "auto", "str", "num":
 			// Try as number first, then as string.
 			// TODO: try as IP before generic string?
-			comparison := compareValues(valA, valB, element.SortByAsc)
+			comparison := compareValues(valA, valB, element.SortByAsc, p.options.SortEles[i].Op)
 			if comparison == EQUAL {
 				continue
 			}

@@ -315,6 +315,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
+	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
 		rQuery, err := query.StartQuery(qid, false, nil)
@@ -493,7 +494,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 		return hits, []string{}, nil
 	}
 
-	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs, allColsInAggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrcOldPipeline(rrcs, false, qid, segencmap, aggs, allColsInAggs)
 	if err != nil {
 		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err: %v", qid, err)
 		return allJsons, allCols, err

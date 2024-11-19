@@ -30,7 +30,6 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 
 	"github.com/google/uuid"
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -210,7 +209,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		recIdxs[rrc.RecordNum] = 1
 		blkRecIndexes[rrc.BlockNum] = recIdxs
 		segkey := result.SegEncToKey[rrc.SegKeyInfo.SegKeyEnc]
-		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int), nil, nodeRes, nil)
+		records, _, err := record.GetRecordsFromSegmentOldPipeline(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int), nil, nodeRes, nil)
 		assert.Nil(t, err)
 
 		log.Info(records)
@@ -1482,7 +1481,6 @@ func Test_Query(t *testing.T) {
 	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
 	assert.Nil(t, err)
 
-	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
 
@@ -1522,7 +1520,6 @@ func Test_Scroll(t *testing.T) {
 	assert.Nil(t, err)
 
 	limit.InitMemoryLimiter()
-	_ = localstorage.InitLocalStorage()
 
 	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
@@ -1547,7 +1544,6 @@ func Test_unrotatedQuery(t *testing.T) {
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
 	writer.InitWriterNode()
-	_ = localstorage.InitLocalStorage()
 	numBatch := 10
 	numRec := 100
 	_ = vtable.InitVTable()
@@ -1691,7 +1687,6 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 	batchSize := 10
 	entryCount := 10
 	err := os.MkdirAll(dir, os.FileMode(0755))
-	_ = localstorage.InitLocalStorage()
 
 	if err != nil {
 		log.Fatal(err)
