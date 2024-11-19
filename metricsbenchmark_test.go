@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	otsdbwriter "github.com/siglens/siglens/pkg/integrations/otsdb/writer"
@@ -136,7 +135,6 @@ func Benchmark_MetricsEndToEnd_OTSDB(b *testing.B) {
 	*/
 
 	config.InitializeDefaultConfig(b.TempDir())
-	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	metrics.InitTestingConfig()
 	err := meta.InitMetricsMeta()
@@ -187,7 +185,6 @@ func Benchmark_MetricsEndToEnd_PROMQL(b *testing.B) {
 	*/
 
 	config.InitializeDefaultConfig(b.TempDir())
-	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	metrics.InitTestingConfig()
 

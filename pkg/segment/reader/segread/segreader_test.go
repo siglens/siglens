@@ -241,7 +241,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	}
 
 	results := make(map[uint16]map[string]interface{})
-	_ = sfr.deToResults(results, orderedRecNums)
+	_ = sfr.deToResultOldPipeline(results, orderedRecNums)
 
 	for rn, val := range results {
 		dWord := val[cname]

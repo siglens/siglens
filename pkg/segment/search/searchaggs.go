@@ -991,7 +991,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			continue
 		}
 		results := make(map[uint16]map[string]interface{})
-		ok := mcr.GetDictEncCvalsFromColFile(results, colName, blockNum, filterdRecNums, qid)
+		ok := mcr.GetDictEncCvalsFromColFileOldPipeline(results, colName, blockNum, filterdRecNums, qid)
 		if !ok {
 			log.Errorf("qid=%d, segmentStatsWorker failed to get dict cvals for col %s", qid, colName)
 			continue
@@ -1015,7 +1015,6 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						retVal[colName] = true
 						continue
 					}
-
 					var stats *structs.SegStats
 					var ok bool
 					stats, ok = lStats[colName]
