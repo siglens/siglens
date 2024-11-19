@@ -889,6 +889,9 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	case uint64:
 		e.Dtype = SS_DT_UNSIGNED_NUM
 		e.CVal = val
+	case uint:
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		e.CVal = uint64(val)
 	case int8:
 		e.Dtype = SS_DT_SIGNED_NUM
 		e.CVal = int64(val)
@@ -901,6 +904,9 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	case int64:
 		e.Dtype = SS_DT_SIGNED_NUM
 		e.CVal = val
+	case int:
+		e.Dtype = SS_DT_SIGNED_NUM
+		e.CVal = int64(val)
 	case float64:
 		e.Dtype = SS_DT_FLOAT
 		e.CVal = val
@@ -951,6 +957,8 @@ func (e *CValueEnclosure) GetString() (string, error) {
 		return strconv.FormatInt(e.CVal.(int64), 10), nil
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
+	case SS_DT_BACKFILL:
+		return "", toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:
 		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
 	}
@@ -989,6 +997,8 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 		return float64(e.CVal.(int64)), nil
 	case SS_DT_FLOAT:
 		return e.CVal.(float64), nil
+	case SS_DT_BACKFILL:
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
 	default:
 		return 0, errors.New("CValueEnclosure GetFloatValue: unsupported Dtype")
 	}

@@ -1,0 +1,17 @@
+{
+    "queryText": "variable_col_1=B* | top variable_col_8 useother=true countfield=count percentfield=percent",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "bucketCount": 0,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "variable_col_8"
+        ],
+        "measureFunctions": [
+            "percent",
+            "count"
+        ],
+        "measure": [
+        ]
+    }
+}
