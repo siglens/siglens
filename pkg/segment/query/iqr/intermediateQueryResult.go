@@ -288,11 +288,6 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 	return iqr.readColumnInternal(cname)
 }
 
-// If the column doesn't exist, `nil, nil` is returned.
-func (iqr *IQR) ReadColumnWithoutValidate(cname string) ([]utils.CValueEnclosure, error) {
-	return iqr.readColumnInternal(cname)
-}
-
 // Since this is an internal function, don't validate() the IQR.
 func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error) {
 	if iqr.mode == notSet {

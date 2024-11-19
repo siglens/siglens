@@ -38,7 +38,7 @@ func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 			record.validated = true
 		}
 	} else {
-		values, err = record.iqr.ReadColumnWithoutValidate(cname)
+		values, err = record.iqr.readColumnInternal(cname)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
