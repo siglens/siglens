@@ -324,7 +324,7 @@ func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, ag
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
-	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode, queryResult.AllColumnsInAggs)
+	allJsons, _, err := record.GetJsonFromAllRrcOldPipeline(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode, queryResult.AllColumnsInAggs)
 	if err != nil {
 		log.Errorf("qid=%v, GetColValues: fetching JSON records from All RRC failed! %+v", qid, err)
 		return nil, err
