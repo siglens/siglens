@@ -25,3 +25,6 @@ steps:
         go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
 
 timeout: 3600s
+
+options:
+ defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
