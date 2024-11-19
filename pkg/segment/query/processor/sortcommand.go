@@ -139,19 +139,33 @@ func compareString(a, b string) compare {
 	return GREATER
 }
 
-func getRank(CValEnc *segutils.CValueEnclosure) dTypeRank {
+func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 	switch CValEnc.Dtype {
 	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
 		return OTHER
 	case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT:
-		return NUMERIC
-	case segutils.SS_DT_STRING:
-		_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
-		if err == nil {
-			// If floatValue is possible then it is considered as a number
+		switch op {
+		case "num", "auto", "":
+			return NUMERIC
+		case "str":
+			return STRING
+		default:
 			return NUMERIC
 		}
-		return STRING
+	case segutils.SS_DT_STRING:
+		switch op {
+		case "num", "auto", "":
+			_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
+			if err == nil {
+				// If floatValue is possible then it is considered as a number
+				return NUMERIC
+			}
+			return STRING
+		case "str":
+			return STRING
+		default:
+			return STRING
+		}
 	default:
 		_, err := CValEnc.GetValueAsString()
 		if err == nil {
@@ -162,10 +176,10 @@ func getRank(CValEnc *segutils.CValueEnclosure) dTypeRank {
 }
 
 // Returns A comparison B
-func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool) compare {
+func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string) compare {
 	var result compare
-	rankA := getRank(valueA)
-	rankB := getRank(valueB)
+	rankA := getRank(valueA, op)
+	rankB := getRank(valueB, op)
 
 	// OTHER rank records always get sorted to the end
 	if rankA == OTHER && rankB == OTHER {
@@ -244,7 +258,7 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 		case "", "auto", "str", "num":
 			// Try as number first, then as string.
 			// TODO: try as IP before generic string?
-			comparison := compareValues(valA, valB, element.SortByAsc)
+			comparison := compareValues(valA, valB, element.SortByAsc, p.options.SortEles[i].Op)
 			if comparison == EQUAL {
 				continue
 			}
