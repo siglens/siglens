@@ -147,6 +147,9 @@ const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
 const MAX_SIMILAR_ERRORS_TO_LOG = 5 // max number of similar errors to log: This is used to avoid flooding the logs with similar errors
 
+const MAX_SEGMENTS_PER_NODE uint32 = 1_000_000 // 1 million segments per node
+const MAX_NODES uint32 = 4000                  // 4000 nodes
+
 type SS_DTYPE uint8
 
 const (

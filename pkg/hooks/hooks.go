@@ -110,7 +110,7 @@ type Hooks struct {
 	ShouldAddDistributedInfoHook func() bool
 
 	// Distributed query
-	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string) interface{}
+	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string, segEncToKey uint32) interface{}
 	FilterQsrsHook                  func(qsrs interface{}, isRotated bool) (interface{}, error)
 	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) interface{}
 

@@ -63,8 +63,9 @@ type Searcher struct {
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	qsrs                  []*query.QuerySegmentRequest
 
-	unsentRRCs  []*segutils.RecordResultContainer
-	segEncToKey *toputils.TwoWayMap[uint16, string]
+	unsentRRCs           []*segutils.RecordResultContainer
+	segEncToKey          *toputils.TwoWayMap[uint16, string]
+	segEncToKeyBaseValue uint32
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
@@ -88,6 +89,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
 		segEncToKey:           toputils.NewTwoWayMap[uint16, string](),
+		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
 	}, nil
 }
 
@@ -418,6 +420,10 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 	return allBlocks, nil
 }
 
+func (s *Searcher) getNextSegEncTokey() uint32 {
+	return s.segEncToKeyBaseValue + uint32(s.segEncToKey.Len())
+}
+
 func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,
 	blockSummaries []*structs.BlockSummary, qsr *query.QuerySegmentRequest,
 	pqmr *pqmr.SegmentPQMRResults) []*block {
@@ -595,7 +601,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 
 	encoding, ok := s.segEncToKey.GetReverse(segkey)
 	if !ok {
-		encoding = uint16(s.segEncToKey.Len())
+		encoding = uint16(s.getNextSegEncTokey())
 		s.segEncToKey.Set(encoding, segkey)
 	}
 	searchResults.NextSegKeyEnc = encoding
