@@ -484,44 +484,25 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 		dwIdx := sfr.deRecToTlv[rn]
 		dWord := sfr.deTlv[dwIdx]
 
-		if dWord[0] == utils.VALTYPE_ENC_SMALL_STRING[0] {
+		switch dWord[0] {
+		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			results[sfr.ColName][recIdx].CVal = string(dWord[3:])
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_STRING
-		} else if dWord[0] == utils.VALTYPE_ENC_BOOL[0] {
+		case utils.VALTYPE_ENC_BOOL[0]:
 			results[sfr.ColName][recIdx].CVal = toputils.BytesToBoolLittleEndian(dWord[1:])
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BOOL
-		} else if dWord[0] == utils.VALTYPE_ENC_INT64[0] {
+		case utils.VALTYPE_ENC_INT64[0]:
 			results[sfr.ColName][recIdx].CVal = toputils.BytesToInt64LittleEndian(dWord[1:])
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_SIGNED_NUM
-		} else if dWord[0] == utils.VALTYPE_ENC_FLOAT64[0] {
+		case utils.VALTYPE_ENC_FLOAT64[0]:
 			results[sfr.ColName][recIdx].CVal = toputils.BytesToFloat64LittleEndian(dWord[1:])
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_FLOAT
-		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
+		case utils.VALTYPE_ENC_BACKFILL[0]:
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BACKFILL
-		} else {
-			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
+		default:
+			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
 			return false
 		}
-
-		// switch dWord[0] {
-		// case utils.VALTYPE_ENC_SMALL_STRING[0]:
-		// 	results[sfr.ColName][recIdx].CVal = string(dWord[3:])
-		// 	results[sfr.ColName][recIdx].Dtype = utils.SS_DT_STRING
-		// case utils.VALTYPE_ENC_BOOL[0]:
-		// 	results[sfr.ColName][recIdx].CVal = toputils.BytesToBoolLittleEndian(dWord[1:])
-		// 	results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BOOL
-		// case utils.VALTYPE_ENC_INT64[0]:
-		// 	results[sfr.ColName][recIdx].CVal = toputils.BytesToInt64LittleEndian(dWord[1:])
-		// 	results[sfr.ColName][recIdx].Dtype = utils.SS_DT_SIGNED_NUM
-		// case utils.VALTYPE_ENC_FLOAT64[0]:
-		// 	results[sfr.ColName][recIdx].CVal = toputils.BytesToFloat64LittleEndian(dWord[1:])
-		// 	results[sfr.ColName][recIdx].Dtype = utils.SS_DT_FLOAT
-		// case utils.VALTYPE_ENC_BACKFILL[0]:
-		// 	results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BACKFILL
-		// default:
-		// 	log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
-		// 	return false
-		// }
 	}
 
 	return true
