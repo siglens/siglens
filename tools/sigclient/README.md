@@ -199,3 +199,17 @@ Options:
 -d, --dest string              Complete destination URL of the ingest server.
 -q, --queryDest string         Query server URL in the form IP:PORT.
 ```
+
+## Concurrent Query Test
+To run the concurrent queries test use the following command
+```
+go run main.go concurrentQueries -d localhost:5122 -q "*" -c 3 -i 2
+```
+
+Options:
+```
+-d, --dest                   string   Query server URL in the form IP:PORT.
+-q, --queryText              string   Query to run.
+-c, --numOfConcurrentQueries int      Number of concurrent queries to run.
+-i, --iterations             int      Number of iterations for this test
+```
