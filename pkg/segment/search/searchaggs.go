@@ -990,28 +990,22 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			retVal[colName] = true
 			continue
 		}
-		results := make(map[uint16]map[string]interface{})
+		results := make(map[string][]utils.CValueEnclosure)
 		ok := mcr.GetDictEncCvalsFromColFile(results, colName, blockNum, filterdRecNums, qid)
 		if !ok {
 			log.Errorf("qid=%d, segmentStatsWorker failed to get dict cvals for col %s", qid, colName)
 			continue
 		}
-		for _, cMap := range results {
-			for colName, rawVal := range cMap {
+		for colName, colValues := range results {
+			for _, colValue := range colValues {
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
 					colUsage = utils.NoEvalUsage
 				}
 				// If current col will be used by eval funcs, we should store the raw data and process it
 				if colUsage == utils.WithEvalUsage || colUsage == utils.BothUsage {
-					e := utils.CValueEnclosure{}
-					err := e.ConvertValue(rawVal)
-					if err != nil {
-						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
-						continue
-					}
 
-					if e.Dtype != utils.SS_DT_STRING {
+					if colValue.Dtype != utils.SS_DT_STRING {
 						retVal[colName] = true
 						continue
 					}
@@ -1029,7 +1023,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 
 						lStats[colName] = stats
 					}
-					stats.Records = append(stats.Records, &e)
+					stats.Records = append(stats.Records, &colValue)
 
 					// Current col only used by eval statements
 					if colUsage == utils.WithEvalUsage {
@@ -1045,13 +1039,13 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				if !exists {
 					hasListFunc = false
 				}
-				switch val := rawVal.(type) {
-				case string:
-					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc)
-				case int64:
-					stats.AddSegStatsNums(lStats, colName, utils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
-				case float64:
-					stats.AddSegStatsNums(lStats, colName, utils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+				switch colValue.Dtype {
+				case utils.SS_DT_STRING:
+					stats.AddSegStatsStr(lStats, colName, colValue.CVal.(string), bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case utils.SS_DT_SIGNED_NUM:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_INT64, colValue.CVal.(int64), 0, 0, fmt.Sprintf("%v", colValue.CVal), bb, aggColUsage, hasValuesFunc, hasListFunc)
+				case utils.SS_DT_FLOAT:
+					stats.AddSegStatsNums(lStats, colName, utils.SS_FLOAT64, 0, 0, colValue.CVal.(float64), fmt.Sprintf("%v", colValue.CVal), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true

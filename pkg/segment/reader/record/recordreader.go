@@ -240,22 +240,22 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 // returns a map of record identifiers to record maps, and all columns seen
 // record identifiers is segfilename + blockNum + recordNum
 // If esResponse is false, _id and _type will not be added to any record
-func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
+func GetRecordsFromSegmentOldPipeline(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
 	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
 
-	records, columns, err := getRecordsFromSegmentHelper(segKey, vTable, blkRecIndexes, tsKey,
+	records, columns, err := getRecordsFromSegmentHelperOldPipeline(segKey, vTable, blkRecIndexes, tsKey,
 		esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
 	if err != nil {
 		// This may have failed because we're using the unrotated key, but the
 		// data has since been rotated. Try with the rotated key.
 		rotatedKey := writer.GetRotatedVersion(segKey)
 		var rotatedErr error
-		records, columns, rotatedErr = getRecordsFromSegmentHelper(rotatedKey, vTable, blkRecIndexes, tsKey,
+		records, columns, rotatedErr = getRecordsFromSegmentHelperOldPipeline(rotatedKey, vTable, blkRecIndexes, tsKey,
 			esQuery, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
 		if rotatedErr != nil {
-			log.Errorf("GetRecordsFromSegment: failed to get records for segkey=%v, err=%v."+
+			log.Errorf("GetRecordsFromSegmentOldPipeline: failed to get records for segkey=%v, err=%v."+
 				" Also failed for rotated segkey=%v with err=%v.",
 				segKey, err, rotatedKey, rotatedErr)
 			return nil, nil, err
@@ -265,7 +265,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	return records, columns, nil
 }
 
-func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
+func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	colsIndexMap map[string]int, allColsInAggs map[string]struct{}, nodeRes *structs.NodeResult,
 	consistentCValLen map[string]uint32) (map[string]map[string]interface{}, map[string]bool, error) {
@@ -273,7 +273,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
 	if err != nil {
-		log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get recently rotated information for key %s table %s. err %+v",
+		log.Errorf("qid=%d getRecordsFromSegmentHelperOldPipeline: failed to get recently rotated information for key %s table %s. err %+v",
 			qid, segKey, vTable, err)
 	}
 	var allCols map[string]bool
@@ -282,7 +282,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 	if !exists {
 		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
 		if !exists {
-			log.Errorf("getRecordsFromSegmentHelper: globalMetadata does not have segKey: %s", segKey)
+			log.Errorf("getRecordsFromSegmentHelperOldPipeline: globalMetadata does not have segKey: %s", segKey)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}
@@ -388,7 +388,7 @@ func getRecordsFromSegmentHelper(segKey string, vTable string, blkRecIndexes map
 			idx++
 		}
 		sort.Slice(allRecNums, func(i, j int) bool { return allRecNums[i] < allRecNums[j] })
-		resultAllRawRecs := readAllRawRecords(allRecNums, blockNum, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
+		resultAllRawRecs := readAllRawRecordsOldPipeline(allRecNums, blockNum, multiReader, allMatchedColumns, esQuery, qid, aggs, nodeRes)
 
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
@@ -449,29 +449,25 @@ func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint1
 		results[cname] = make([]utils.CValueEnclosure, len(orderedRecNums))
 	}
 
-	readAllRawRecordsV2(orderedRecNums, blockNum, segReader,
+	readAllRawRecords(orderedRecNums, blockNum, segReader,
 		allMatchedColumns, esQuery, qid, aggs, nodeRes, results)
-
-	if aggs != nil && aggs.OutputTransforms != nil {
-		if aggs.OutputTransforms.OutputColumns != nil && aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
-			for oldCname, newCname := range aggs.OutputTransforms.OutputColumns.RenameColumns {
-
-				if results[oldCname] != nil && oldCname != newCname {
-					results[newCname] = results[oldCname]
-					delete(results, oldCname)
-					allMatchedColumns[newCname] = true
-					delete(allMatchedColumns, oldCname)
-				}
-			}
-		}
-	}
 
 	return results, nil
 }
 
+func isDictCol(col string, esQuery bool) bool {
+	if !esQuery && (col == "_type" || col == "_id") {
+		return true
+	}
+	if col == config.GetTimeStampKey() {
+		return true
+	}
+	return false
+}
+
 // TODO: remove calls to this function so that only readColsForRecords calls
 // this function. Then remove the parameters that are not needed.
-func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
+func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	nodeRes *structs.NodeResult,
 	results map[string][]utils.CValueEnclosure) {
@@ -482,15 +478,12 @@ func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *se
 	for _, colInfo := range segReader.AllColums {
 		col := colInfo.ColumnName
 
-		if !esQuery && (col == "_type" || col == "_id") {
+		if isDictCol(col, esQuery) {
 			dictEncCols[col] = true
 			continue
 		}
-		if col == config.GetTimeStampKey() {
-			dictEncCols[col] = true
-			continue
-		}
-		ok := segReader.GetDictEncCvalsFromColFileCnameBased(results, col, blockNum,
+
+		ok := segReader.GetDictEncCvalsFromColFile(results, col, blockNum,
 			orderedRecNums, qid)
 		if ok {
 			dictEncCols[col] = true
@@ -524,7 +517,7 @@ func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *se
 
 	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		log.Errorf("qid=%d, readAllRawRecordsV2: failed to validate and read block: %d, err: %v", qid, blockNum, err)
+		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockNum, err)
 		return
 	}
 
@@ -545,7 +538,7 @@ func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *se
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
-				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("readAllRawRecords: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {
@@ -573,7 +566,7 @@ func readAllRawRecordsV2(orderedRecNums []uint16, blockNum uint16, segReader *se
 
 // TODO: remove calls to this function so that only readColsForRecords calls
 // this function. Then remove the parameters that are not needed.
-func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
+func readAllRawRecordsOldPipeline(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	nodeRes *structs.NodeResult) map[uint16]map[string]interface{} {
 
@@ -591,7 +584,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 			dictEncCols[col] = true
 			continue
 		}
-		ok := segReader.GetDictEncCvalsFromColFile(results, col, blockNum, orderedRecNums, qid)
+		ok := segReader.GetDictEncCvalsFromColFileOldPipeline(results, col, blockNum, orderedRecNums, qid)
 		if ok {
 			dictEncCols[col] = true
 			allMatchedColumns[col] = true
@@ -624,7 +617,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 
 	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockNum, err)
+		log.Errorf("qid=%d, readAllRawRecordsOldPipeline: failed to validate and read block: %d, err: %v", qid, blockNum, err)
 		return results
 	}
 
@@ -649,7 +642,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
-				nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", cname), log.ErrorLevel, err)
+				nodeRes.StoreGlobalSearchError(fmt.Sprintf("readAllRawRecordsOldPipeline: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {
