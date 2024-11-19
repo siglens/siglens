@@ -64,7 +64,7 @@ type Searcher struct {
 	qsrs                  []*query.QuerySegmentRequest
 
 	unsentRRCs           []*segutils.RecordResultContainer
-	segEncToKey          *toputils.TwoWayMap[uint16, string]
+	segEncToKey          *toputils.TwoWayMap[uint32, string]
 	segEncToKeyBaseValue uint32
 }
 
@@ -88,7 +88,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
-		segEncToKey:           toputils.NewTwoWayMap[uint16, string](),
+		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
 	}, nil
 }
@@ -97,7 +97,7 @@ func (s *Searcher) Rewind() {
 	s.gotBlocks = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
-	s.segEncToKey = toputils.NewTwoWayMap[uint16, string]()
+	s.segEncToKey = toputils.NewTwoWayMap[uint32, string]()
 }
 
 func (s *Searcher) Cleanup() {
@@ -584,7 +584,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 }
 
 // All of the blocks must be for the same segment.
-func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint16]string, error) {
+func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint32]string, error) {
 	if len(blocks) == 0 {
 		return nil, nil, nil
 	}
@@ -601,7 +601,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 
 	encoding, ok := s.segEncToKey.GetReverse(segkey)
 	if !ok {
-		encoding = uint16(s.getNextSegEncTokey())
+		encoding = s.getNextSegEncTokey()
 		s.segEncToKey.Set(encoding, segkey)
 	}
 	searchResults.NextSegKeyEnc = encoding

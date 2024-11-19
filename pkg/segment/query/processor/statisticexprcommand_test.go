@@ -125,7 +125,7 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	iqr1 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr1)
 
-	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint16]string{1: "seg1"})
+	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint32]string{1: "seg1"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr1)
@@ -134,7 +134,7 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	iqr2 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr2)
 
-	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint16]string{1: "seg2"})
+	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint32]string{1: "seg2"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr2)
@@ -196,7 +196,7 @@ func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 	iqr1 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr1)
 
-	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint16]string{1: "seg1"})
+	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint32]string{1: "seg1"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr1)
@@ -205,7 +205,7 @@ func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 	iqr2 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr2)
 
-	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint16]string{1: "seg2"})
+	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint32]string{1: "seg2"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr2)
@@ -267,7 +267,7 @@ func Test_StatisticExpr_withRRCs_GroupBy(t *testing.T) {
 	iqr1 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr1)
 
-	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint16]string{1: "seg1"})
+	err := iqr1.AppendRRCs(mockReader.RRCs[:3], map[uint32]string{1: "seg1"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr1)
@@ -276,7 +276,7 @@ func Test_StatisticExpr_withRRCs_GroupBy(t *testing.T) {
 	iqr2 := iqr.NewIQRWithReader(0, mockReader)
 	assert.NotNil(t, iqr2)
 
-	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint16]string{1: "seg2"})
+	err = iqr2.AppendRRCs(mockReader.RRCs[3:], map[uint32]string{1: "seg2"})
 	assert.Nil(t, err)
 
 	_, err = processor.Process(iqr2)

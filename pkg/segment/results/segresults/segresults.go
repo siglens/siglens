@@ -88,11 +88,11 @@ type SearchResults struct {
 	runningEvalStats       map[string]interface{}
 	segStatsResults        *segStatsResults
 	convertedBuckets       map[string]*structs.AggregationResult
-	allSSTS                map[uint16]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
+	allSSTS                map[uint32]map[string]*structs.SegStats // maps segKeyEnc to a map of segstats
 	AllErrors              []error
-	SegKeyToEnc            map[string]uint16
-	SegEncToKey            map[uint16]string
-	NextSegKeyEnc          uint16
+	SegKeyToEnc            map[string]uint32
+	SegEncToKey            map[uint32]string
+	NextSegKeyEnc          uint32
 	ColumnsOrder           map[string]int
 	ProcessedRemoteRecords map[string]map[string]struct{}
 
@@ -148,12 +148,12 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 		},
 		qid:                    qid,
 		sAggs:                  aggs,
-		allSSTS:                make(map[uint16]map[string]*structs.SegStats),
+		allSSTS:                make(map[uint32]map[string]*structs.SegStats),
 		runningSegStat:         runningSegStat,
 		runningEvalStats:       make(map[string]interface{}),
 		AllErrors:              allErrors,
-		SegKeyToEnc:            make(map[string]uint16),
-		SegEncToKey:            make(map[uint16]string),
+		SegKeyToEnc:            make(map[string]uint32),
+		SegEncToKey:            make(map[uint32]string),
 		NextSegKeyEnc:          1,
 		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
 	}, nil
@@ -215,7 +215,7 @@ func (sr *SearchResults) removeLog(id string) {
 	delete(sr.remoteInfo.remoteLogs, id)
 }
 
-func (sr *SearchResults) AddSSTMap(sstMap map[string]*structs.SegStats, skEnc uint16) {
+func (sr *SearchResults) AddSSTMap(sstMap map[string]*structs.SegStats, skEnc uint32) {
 	sr.updateLock.Lock()
 	sr.allSSTS[skEnc] = sstMap
 	sr.updateLock.Unlock()
@@ -228,7 +228,7 @@ func (sr *SearchResults) AddResultCount(count uint64) {
 }
 
 // deletes segKeyEnc from the map of allSSTS and any errors associated with it
-func (sr *SearchResults) GetEncodedSegStats(segKeyEnc uint16) ([]byte, error) {
+func (sr *SearchResults) GetEncodedSegStats(segKeyEnc uint32) ([]byte, error) {
 	sr.updateLock.Lock()
 	retVal, ok := sr.allSSTS[segKeyEnc]
 	delete(sr.allSSTS, segKeyEnc)
@@ -511,7 +511,7 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
-func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
+func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
@@ -836,7 +836,7 @@ func (sr *SearchResults) SetEarlyExit(exited bool) {
 	sr.EarlyExit = exited
 }
 
-func (sr *SearchResults) GetAddSegEnc(sk string) uint16 {
+func (sr *SearchResults) GetAddSegEnc(sk string) uint32 {
 
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()

@@ -56,7 +56,7 @@ type IQR struct {
 	// Used if and only if the mode is withRRCs.
 	reader           record.RRCsReaderI
 	rrcs             []*utils.RecordResultContainer
-	encodingToSegKey map[uint16]string
+	encodingToSegKey map[uint32]string
 
 	// Used in both modes.
 	qid            uint64
@@ -75,7 +75,7 @@ type IQR struct {
 type SerializableIQR struct {
 	Mode             iqrMode
 	RRCs             []*utils.RecordResultContainer
-	EncodingToSegKey map[uint16]string
+	EncodingToSegKey map[uint32]string
 	Qid              uint64
 	KnownValues      map[string][]utils.CValueEnclosure
 	DeletedColumns   map[string]struct{}
@@ -91,7 +91,7 @@ func NewIQR(qid uint64) *IQR {
 		qid:              qid,
 		reader:           &record.RRCsReader{},
 		rrcs:             make([]*utils.RecordResultContainer, 0),
-		encodingToSegKey: make(map[uint16]string),
+		encodingToSegKey: make(map[uint32]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
 		deletedColumns:   make(map[string]struct{}),
 		renamedColumns:   make(map[string]string),
@@ -146,7 +146,7 @@ func (iqr *IQR) validate() error {
 	return nil
 }
 
-func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
+func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint32]string) error {
 
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
@@ -246,7 +246,7 @@ func (iqr *IQR) NumberOfRecords() int {
 	}
 }
 
-func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
+func (iqr *IQR) mergeEncodings(segEncToKey map[uint32]string) error {
 	// Verify the new encodings don't conflict with the existing ones.
 	for encoding, newSegKey := range segEncToKey {
 		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok && existingSegKey != newSegKey {
@@ -361,13 +361,13 @@ func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CVa
 
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
 		if rrc == nil {
 			return NIL_RRC_SEGKEY
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
+	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) map[string][]utils.CValueEnclosure {
 		if len(rrcs) == 0 {
 			return nil
@@ -431,10 +431,10 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	}
 
 	// Prepare to call BatchProcess().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
+	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
 			return nil, nil

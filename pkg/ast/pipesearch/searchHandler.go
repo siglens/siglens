@@ -483,7 +483,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 
 // returns converted json, all columns, or any errors
 func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators,
+	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
 	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)

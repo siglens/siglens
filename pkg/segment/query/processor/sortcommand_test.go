@@ -240,10 +240,10 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 	iqr1 := iqr.NewIQRWithReader(0, mockReader)
 	iqr2 := iqr.NewIQRWithReader(0, mockReader)
 
-	err := iqr1.AppendRRCs(rrcs[:3], map[uint16]string{1: "segKey1"})
+	err := iqr1.AppendRRCs(rrcs[:3], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
-	err = iqr2.AppendRRCs(rrcs[3:], map[uint16]string{1: "segKey1"})
+	err = iqr2.AppendRRCs(rrcs[3:], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	_, err = sorter.Process(iqr1)

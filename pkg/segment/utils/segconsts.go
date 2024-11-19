@@ -1280,7 +1280,7 @@ func (e *CValueDictEnclosure) GetValue() (interface{}, error) {
 // Stores if the RRC came from a remote node
 type SegKeyInfo struct {
 	// Encoded segment key
-	SegKeyEnc uint16
+	SegKeyEnc uint32
 	// If the RRC came from a remote node
 	IsRemote bool
 	// if IsRemote, Record will be initialized to a string of the form <<node_id>>-<<segkey>>-<<block_num>>-<<record_num>>
