@@ -30,7 +30,7 @@ eval_stats_sort.json
 # eval_timechart_sort.json failing on unrotated data
 # search_timechart_no_groupby.json failing on unrotated data
 mvexpand.json
-tail.json
+# tail.json failing on unrotated data
 sort_tail_eval_newField.json
 tail_stats.json
 dedup_sortby_consecutive.json
