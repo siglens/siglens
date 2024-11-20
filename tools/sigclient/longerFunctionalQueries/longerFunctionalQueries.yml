@@ -16,7 +16,7 @@ inputlookup_2.json
 inputlookup_3.json
 # head.json failing on unrotated data 
 # head2.json failing on unrotated data 
-fillnull_with_eval.json
+# fillnull_with_eval.json
 # stats_group_by_eval.json failing on unrotated data
 eval_groupby_2col_2stats.json
 # eval_fields_timechart.json failing on unrotated data
