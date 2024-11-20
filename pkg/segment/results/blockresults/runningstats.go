@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
-	bbp "github.com/valyala/bytebufferpool"
 )
 
 type RunningBucketResults struct {
@@ -90,15 +89,13 @@ func (rr *RunningBucketResults) AddTimeToBucketStats(count uint16) {
 }
 
 func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, qid uint64,
-	cnt uint64, usedByTimechart bool) {
+	cnt uint64, usedByTimechart bool, batchErr *putils.BatchError) {
 	if runningStats == nil {
 		if rr.runningStats == nil {
 			return
 		}
 		runningStats = &rr.runningStats
 	}
-
-	batchErr := putils.GetOrCreateBatchErrorWithQid(qid)
 
 	for i := 0; i < len(*runningStats); i++ {
 		measureFunc := rr.currStats[i].MeasureFunc
@@ -140,16 +137,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				rawVal, err := measureResults[i].GetString()
+				rawValStr, err := measureResults[i].GetString()
 				if err != nil {
 					batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
 					continue
 				}
-				bb := bbp.Get()
-				defer bbp.Put(bb)
-				bb.Reset()
-				_, _ = bb.WriteString(rawVal)
-				(*runningStats)[i].hll.AddRaw(xxhash.Sum64(bb.B))
+				(*runningStats)[i].hll.AddRaw(xxhash.Sum64String(rawValStr))
 				continue
 			}
 			fallthrough

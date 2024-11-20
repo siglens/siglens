@@ -184,7 +184,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 }
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
-func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
+func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
 	segEncToKey map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
@@ -210,10 +210,10 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		var recs map[string]map[string]interface{}
 		if currSeg != "" {
 			consistentCValLen := consistentCValLenPerSeg[currSeg]
-			_recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes, config.GetTimeStampKey(),
+			_recs, cols, err := GetRecordsFromSegmentOldPipeline(currSeg, virtualTableName, blkRecIndexes, config.GetTimeStampKey(),
 				esResponse, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
 			if err != nil {
-				log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
+				log.Errorf("GetJsonFromAllRrcOldPipeline: failed to read recs from segfile=%v, err=%v", currSeg, err)
 				return
 			}
 			recs = _recs
@@ -350,7 +350,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// it's an async query we're running this function with
 				// len(segmap)=1 because we try to process the data as the
 				// searched complete.
-				nodeRes.StoreGlobalSearchError("GetJsonFromAllRrc: Did not find index for record identifier", log.ErrorLevel, nil)
+				nodeRes.StoreGlobalSearchError("GetJsonFromAllRrcOldPipeline: Did not find index for record identifier", log.ErrorLevel, nil)
 				unknownIndex = true
 			}
 			if logfmtRequest {
@@ -363,15 +363,15 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					switch valType := val.(type) {
 					case []interface{}:
 						if actualIndex > len(valType)-1 || actualIndex < 0 {
-							log.Errorf("GetJsonFromAllRrc: index=%v out of bounds for column=%v of length %v", actualIndex, cname, len(valType))
+							log.Errorf("GetJsonFromAllRrcOldPipeline: index=%v out of bounds for column=%v of length %v", actualIndex, cname, len(valType))
 							continue
 						}
 						includeValues[valuesToLabels[cname]] = valType[actualIndex]
 					case interface{}:
-						log.Errorf("GetJsonFromAllRrc: accessing object in %v as array!", cname)
+						log.Errorf("GetJsonFromAllRrcOldPipeline: accessing object in %v as array!", cname)
 						continue
 					default:
-						log.Errorf("GetJsonFromAllRrc: unsupported value type")
+						log.Errorf("GetJsonFromAllRrcOldPipeline: unsupported value type")
 						continue
 					}
 				}
@@ -379,7 +379,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			}
 			for label, val := range includeValues {
 				if record[label] != nil {
-					log.Errorf("GetJsonFromAllRrc: accessing object in %v as array!", label) //case where label == original column
+					log.Errorf("GetJsonFromAllRrcOldPipeline: accessing object in %v as array!", label) //case where label == original column
 					continue
 				}
 				record[label] = val
