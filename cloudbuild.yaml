@@ -1,7 +1,7 @@
 steps:
 
   - name: golang:1.21-alpine3.18
-    entrypoint: '/bin/bash'
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
