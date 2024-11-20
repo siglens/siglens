@@ -1,9 +1,9 @@
 steps:
 
-  - name: golang:1.21-alpine3.18
-    entrypoint: 'bash'
+  - name: golang:1.19
+    entrypoint: /bin/bash
     args:
-      - '-c'
+      - -c
       - |
         make build && \
         ./siglens --config server.yaml & \
