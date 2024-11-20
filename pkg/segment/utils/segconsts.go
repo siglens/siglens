@@ -1330,3 +1330,41 @@ const (
 	RR_ENC_UINT64 = 1
 	RR_ENC_BITSET = 2
 )
+
+func GobEncodeCValueEnclosureMap(m map[string][]CValueEnclosure) ([]byte, error) {
+	gob.Register(map[string][]CValueEnclosure{})
+	gob.Register(CValueEnclosure{})
+
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	err := encoder.Encode(m)
+	if err != nil {
+		return nil, fmt.Errorf("GobEncodeCValueEnclosureMap: error encoding map: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func GobDecodeCValueEnclosureMap(data []byte, m *map[string][]CValueEnclosure) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if m == nil {
+		return fmt.Errorf("GobDecodeCValueEnclosureMap: map is nil")
+	}
+
+	gob.Register(map[string][]CValueEnclosure{})
+	gob.Register(CValueEnclosure{})
+
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+
+	err := dec.Decode(m)
+	if err != nil {
+		return fmt.Errorf("GobDecodeCValueEnclosureMap: error decoding map: %v", err)
+	}
+
+	return nil
+}
