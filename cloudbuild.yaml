@@ -1,11 +1,11 @@
 steps:
 
   - name: cimg/go:1.19
-    entrypoint: 'bash'
+    entrypoint: '/bin/bash'
     args:
       - '-c'
       - |
-        sudo make build && \
+        make build && \
         ./siglens --config server.yaml & \
         sleep 10 && \
         cd tools/sigclient && \
