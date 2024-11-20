@@ -16,3 +16,5 @@ timeout: 3600s
 
 options:
  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+ pool:
+    name: 'projects/siglens-425323/locations/us-east4/workerPools/Nightly-Test-Pool'
