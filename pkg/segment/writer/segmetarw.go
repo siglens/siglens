@@ -108,27 +108,31 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 		return retVal
 	}
 
+	workSfm := &structs.SegFullMeta{}
+
 	// continue reading/merging from individual segfiles
 	for _, smentry := range retVal {
-		sfmData, _ := readSfm(smentry.SegmentKey)
-		if sfmData == nil {
+		err := readSfm(smentry.SegmentKey, workSfm)
+		if err != nil {
+			// error is logged in the func
 			continue
 		}
+
 		if smentry.AllPQIDs == nil {
-			smentry.AllPQIDs = sfmData.AllPQIDs
+			smentry.AllPQIDs = workSfm.AllPQIDs
 		} else {
-			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, sfmData.AllPQIDs)
+			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
 		}
 		if smentry.ColumnNames == nil {
-			smentry.ColumnNames = sfmData.ColumnNames
+			smentry.ColumnNames = workSfm.ColumnNames
 		} else {
-			utils.MergeMapsRetainingFirst(smentry.ColumnNames, sfmData.ColumnNames)
+			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
 		}
 	}
 	return retVal
 }
 
-func readSfm(segkey string) (*structs.SegFullMeta, error) {
+func readSfm(segkey string, sfm *structs.SegFullMeta) error {
 
 	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
 
@@ -137,15 +141,14 @@ func readSfm(segkey string) (*structs.SegFullMeta, error) {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
 		}
-		return nil, err
+		return err
 	}
-	sfm := &structs.SegFullMeta{}
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
-		return nil, err
+		return err
 	}
-	return sfm, nil
+	return nil
 }
 
 func writeSfm(segkey string, sfmData *structs.SegFullMeta) {
@@ -481,16 +484,12 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 }
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
-	sfmData, err := readSfm(segkey)
+
+	sfmData := &structs.SegFullMeta{}
+
+	err := readSfm(segkey, sfmData)
 	if err != nil {
 		return
-	}
-
-	// it could be nil, if we didn't have any pqs data or the previous version,
-	// we used to have pqs in segmeta.json, from this version onwards, we will
-	// add it in segment specific file
-	if sfmData == nil {
-		sfmData = &structs.SegFullMeta{}
 	}
 
 	if sfmData.AllPQIDs == nil {
