@@ -5,12 +5,6 @@ steps:
     args:
       - -c
       - |
-        make build
-  - name: golang:1.19
-    entrypoint: /bin/bash
-    args:
-      - -c
-      - |
         ./siglens --config server.yaml &
         sleep 30
         curl http://127.0.0.1:8081
