@@ -9,7 +9,7 @@ steps:
         ./siglens --config server.yaml &
         sleep 30
         cd tools/sigclient
-        go run main.go functional -d http://localhost:8081/elastic -f longerfunctionalQueries/longerfunctionalQueries.yml -q localhost:5122 -l true
+        go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true
 
 
 timeout: 3600s
