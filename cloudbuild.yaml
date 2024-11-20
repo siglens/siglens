@@ -8,8 +8,21 @@ steps:
         make build && \
         echo "Build Complete" && \
         ./siglens --config server.yaml & \
-        echo "STARTED SERVER AFTER BUILD NOW SLEEPING" && \
-        sleep 30 && \
+        echo "STARTING SERVER"
+
+  - name: golang:1.19
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
+        ./siglens --config server.yaml & \
+        sleep 30
+        
+  - name: golang:1.19
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
         cd tools/sigclient && \
         go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
 
