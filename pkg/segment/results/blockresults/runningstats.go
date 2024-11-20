@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	putils "github.com/siglens/siglens/pkg/utils"
-	bbp "github.com/valyala/bytebufferpool"
 )
 
 type RunningBucketResults struct {
@@ -140,16 +139,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				rawVal, err := measureResults[i].GetString()
+				rawValStr, err := measureResults[i].GetString()
 				if err != nil {
 					batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
 					continue
 				}
-				bb := bbp.Get()
-				defer bbp.Put(bb)
-				bb.Reset()
-				_, _ = bb.WriteString(rawVal)
-				(*runningStats)[i].hll.AddRaw(xxhash.Sum64(bb.B))
+				(*runningStats)[i].hll.AddRaw(xxhash.Sum64String(rawValStr))
 				continue
 			}
 			fallthrough
