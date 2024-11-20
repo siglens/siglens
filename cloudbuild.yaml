@@ -19,7 +19,8 @@ steps:
     args:
       - -c
       - |
-        cd tools/sigclient && \
+        curl http://127.0.0.1:8081
+        cd tools/sigclient
         go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
 
 
