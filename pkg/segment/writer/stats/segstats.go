@@ -29,7 +29,7 @@ import (
 	bbp "github.com/valyala/bytebufferpool"
 )
 
-func getDefaultNumStats() *NumericStats {
+func GetDefaultNumStats() *NumericStats {
 	return &NumericStats{
 		Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 			IntgrVal: math.MaxInt64},
@@ -52,7 +52,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			NumStats:  getDefaultNumStats(),
+			NumStats:  GetDefaultNumStats(),
 			Records:   make([]*CValueEnclosure, 0),
 		}
 		stats.CreateNewHll()
@@ -60,7 +60,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	}
 	if !stats.IsNumeric {
 		stats.IsNumeric = true
-		stats.NumStats = getDefaultNumStats()
+		stats.NumStats = GetDefaultNumStats()
 	}
 
 	colUsage := NoEvalUsage

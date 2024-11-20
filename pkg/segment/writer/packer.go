@@ -38,6 +38,8 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
+
+	// statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
@@ -1547,6 +1549,7 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
+
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
@@ -1555,6 +1558,33 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 
 		segstats[cname] = stats
 	}
+
+	// floatVal, err := strconv.ParseFloat(string(valBytes), 64)
+	// if err == nil {
+	// 	if !stats.IsNumeric {
+	// 		stats.IsNumeric = true
+	// 	}
+	// 	addSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, valBytes)
+	// 	return
+	// }
+
+	// minVal, err := segutils.ReduceMinMax(stats.Min, segutils.CValueEnclosure{
+	// 	CVal: string(valBytes),
+	// 	Dtype: SS_DT_STRING,
+	// }, true)
+	// if err != nil {
+	// 	log.Errorf("addSegStatsStrIngestion: ReduceMinMax failed for minVal=%v, err=%v", minVal, err)
+	// }
+	// stats.Min = minVal
+
+	// maxVal, err := segutils.ReduceMinMax(stats.Max, segutils.CValueEnclosure{
+	// 	CVal: string(valBytes),
+	// 	Dtype: SS_DT_STRING,
+	// }, false)
+	// if err != nil {
+	// 	log.Errorf("addSegStatsStrIngestion: ReduceMinMax failed for maxVal=%v, err=%v", maxVal, err)
+	// }
+	// stats.Max = maxVal
 
 	stats.Count++
 	stats.InsertIntoHll(valBytes)
@@ -1627,6 +1657,7 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats.IsNumeric = true // TODO: what if we have a mix of numeric and non-numeric
 	}
 
+	stats.NumStats.NumCount++
 	stats.InsertIntoHll(valBytes)
 	processStats(stats, inNumType, intVal, uintVal, fltVal)
 }

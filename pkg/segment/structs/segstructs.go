@@ -525,6 +525,8 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
+	Min         utils.CValueEnclosure
+	Max         utils.CValueEnclosure
 	Hll         *sutils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
@@ -532,10 +534,11 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	Min   utils.NumTypeEnclosure `json:"min,omitempty"`
-	Max   utils.NumTypeEnclosure `json:"max,omitempty"`
-	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
-	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
+	NumCount uint64
+	Min      utils.NumTypeEnclosure `json:"min,omitempty"`
+	Max      utils.NumTypeEnclosure `json:"max,omitempty"`
+	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
+	Dtype    utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
 
 type StringStats struct {
