@@ -28,8 +28,7 @@ import (
 )
 
 type whereProcessor struct {
-	options         *structs.BoolExpr
-	loggedEvalError bool
+	options *structs.BoolExpr
 }
 
 func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
