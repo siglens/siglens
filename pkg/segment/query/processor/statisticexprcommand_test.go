@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"testing"
@@ -316,8 +315,6 @@ func Test_StatisticExpr_withRRCs_GroupBy(t *testing.T) {
 			{Dtype: utils.SS_DT_FLOAT, CVal: float64(16.666)},
 		},
 	}
-
-	fmt.Println(actualKnownValues)
 
 	col1Values := actualKnownValues["col1"]
 	col3Values := actualKnownValues["col3"]

@@ -1332,6 +1332,10 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNu
 }
 
 func (iqr *IQR) GetBucketCount(qType structs.QueryType) int {
+	if iqr == nil {
+		return 0
+	}
+
 	if iqr.mode == notSet || iqr.mode == withRRCs {
 		return 0
 	}
@@ -1411,13 +1415,16 @@ func (iqr *IQR) GobDecode(data []byte) error {
 	iqr.mode = serializableIQR.Mode
 	iqr.rrcs = serializableIQR.RRCs
 	iqr.encodingToSegKey = serializableIQR.EncodingToSegKey
-	iqr.qid = serializableIQR.Qid
 	iqr.knownValues = serializableIQR.KnownValues
 	iqr.deletedColumns = serializableIQR.DeletedColumns
 	iqr.renamedColumns = serializableIQR.RenamedColumns
 	iqr.columnIndex = serializableIQR.ColumnIndex
-	iqr.groupbyColumns = serializableIQR.GroupbyColumns
-	iqr.measureColumns = serializableIQR.MeasureColumns
+	if len(serializableIQR.GroupbyColumns) > 0 {
+		iqr.groupbyColumns = serializableIQR.GroupbyColumns
+	}
+	if len(serializableIQR.MeasureColumns) > 0 {
+		iqr.measureColumns = serializableIQR.MeasureColumns
+	}
 
 	return nil
 }
