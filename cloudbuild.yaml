@@ -5,11 +5,7 @@ steps:
     args:
       - -c
       - |
-        make build && \
-        echo "Build Complete" && \
-        ./siglens --config server.yaml & \
-        echo "STARTING SERVER"
-
+        make build
   - name: golang:1.19
     entrypoint: /bin/bash
     args:
