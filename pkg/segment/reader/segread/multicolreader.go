@@ -375,7 +375,7 @@ returns:
 
 	bool: if we are able to find the requested column in dict encoding
 */
-func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[uint16]map[string]interface{},
+func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileOldPipeline(results map[uint16]map[string]interface{},
 	col string, blockNum uint16, orderedRecNums []uint16, qid uint64) bool {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[col]
@@ -383,7 +383,19 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[uint16
 		return false
 	}
 
-	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFile(results, blockNum, orderedRecNums)
+	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFileOldPipeline(results, blockNum, orderedRecNums)
+}
+
+func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
+	col string, blockNum uint16, orderedRecNums []uint16, qid uint64) bool {
+
+	keyIndex, ok := mcsr.allColsReverseIndex[col]
+	if !ok {
+		return false
+	}
+
+	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFile(results, blockNum,
+		orderedRecNums)
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,

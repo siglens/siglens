@@ -1,7 +1,7 @@
 {
     "queryText": "* | stats count as cnt by http_method, http_status | sort cnt, http_method, http_status | streamstats window=5 global=false reset_after=(http_method = \"GET\" AND http_status = 500) avg(http_status) as avg by http_method | streamstats window = 3 current=false reset_before=(cnt = 2724 OR cnt = 2736) sum(cnt) as sum",
     "expectedResult": {
-         "bucketCount": 72,
+         "bucketCount": 36,
          "qtype": "aggs-query",
          "groupByCols": [
             "http_method",
@@ -14,399 +14,759 @@
         ],
          "measure": [
             {
-                "GroupByValues": [
-                    "DELETE",
-                    "200"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 200,
-                    "cnt": 2693,
-                    "sum": ""
-                }
-            },
-            {
-                "GroupByValues": [
-                    "GET",
-                    "404"
-                ],
-                "MeasureVal": {
-                    "avg": 404,
-                    "cnt": 2705,
-                    "sum": 2693
-                }
-            },
-            {
-                "GroupByValues": [
-                    "GET",
-                    "200"
-                ],
-                "MeasureVal": {
-                    "avg": 302,
-                    "cnt": 2724,
-                    "sum": ""
-                }
-            },
-            {
-                "GroupByValues": [
-                    "HEAD",
-                    "200"
-                ],
-                "MeasureVal": {
-                    "avg": 200,
-                    "cnt": 2728,
-                    "sum": 2724
-                }
-            },
-            {
                 "GroupByValues": [
                     "PATCH",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 500,
+                    "cnt": 554084,
+                    "sum": ""
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 200,
+                    "cnt": 554363,
+                    "sum": 554084
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE",
                     "302"
                 ],
                 "MeasureVal": {
                     "avg": 302,
-                    "cnt": 2729,
-                    "sum": 5452
+                    "cnt": 554625,
+                    "sum": 1108447
                 }
             },
             {
-                "GroupByValues": [
-                    "GET",
-                    "500"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 368,
-                    "cnt": 2731,
-                    "sum": 8181
-                }
-            },
-            {
                 "GroupByValues": [
                     "POST",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 554700,
+                    "sum": 1663072
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
                     "301"
                 ],
                 "MeasureVal": {
                     "avg": 301,
-                    "cnt": 2732,
-                    "sum": 8188
+                    "cnt": 554728,
+                    "sum": 1663688
                 }
             },
             {
-                "GroupByValues": [
-                    "HEAD",
-                    "400"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 400,
-                    "cnt": 2736,
-                    "sum": ""
-                }
-            },
-            {
                 "GroupByValues": [
-                    "PATCH",
+                    "DELETE",
                     "404"
                 ],
                 "MeasureVal": {
-                    "avg": 404,
-                    "cnt": 2740,
-                    "sum": 2736
+                    "avg": 353,
+                    "cnt": 554864,
+                    "sum": 1664053
                 }
             },
             {
-                "GroupByValues": [
-                    "POST",
-                    "200"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 250.5,
-                    "cnt": 2742,
-                    "sum": 5476
-                }
-            },
-            {
                 "GroupByValues": [
-                    "DELETE",
-                    "400"
-                ],
-                "MeasureVal": {
-                    "avg": 400,
-                    "cnt": 2745,
-                    "sum": 8218
-                }
-            },
-            {
-                "GroupByValues": [
-                    "HEAD",
+                    "PUT",
                     "301"
                 ],
                 "MeasureVal": {
-                    "avg": 350.5,
-                    "cnt": 2747,
-                    "sum": 8227
+                    "avg": 301,
+                    "cnt": 554919,
+                    "sum": 1664292
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
+                ],
                 "GroupByValues": [
-                    "HEAD",
-                    "404"
+                    "DELETE",
+                    "301"
                 ],
                 "MeasureVal": {
-                    "avg": 368.3333333333333,
-                    "cnt": 2759,
-                    "sum": 8234
+                    "avg": 335.6666666666667,
+                    "cnt": 555168,
+                    "sum": 1664511
                 }
             },
             {
-                "GroupByValues": [
-                    "PUT",
-                    "400"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 400,
-                    "cnt": 2759,
-                    "sum": 8251
-                }
-            },
-            {
                 "GroupByValues": [
-                    "HEAD",
-                    "302"
-                ],
-                "MeasureVal": {
-                    "avg": 351.75,
-                    "cnt": 2761,
-                    "sum": 8265
-                }
-            },
-            {
-                "GroupByValues": [
-                    "GET",
-                    "400"
-                ],
-                "MeasureVal": {
-                    "avg": 400,
-                    "cnt": 2762,
-                    "sum": 8279
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PUT",
+                    "POST",
                     "200"
                 ],
                 "MeasureVal": {
                     "avg": 300,
-                    "cnt": 2762,
-                    "sum": 8282
+                    "cnt": 555192,
+                    "sum": 1664951
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
+                ],
                 "GroupByValues": [
-                    "DELETE",
+                    "PUT",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 250.5,
+                    "cnt": 555205,
+                    "sum": 1665279
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 250.5,
+                    "cnt": 555257,
+                    "sum": 1665565
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 401,
+                    "cnt": 555290,
+                    "sum": 1665654
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
+                ],
+                "GroupByValues": [
+                    "POST",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 366.6666666666667,
+                    "cnt": 555341,
+                    "sum": 1665752
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 251,
+                    "cnt": 555354,
+                    "sum": 1665888
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 333.6666666666667,
+                    "cnt": 555363,
+                    "sum": 1665985
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
                     "301"
                 ],
                 "MeasureVal": {
-                    "avg": 350.5,
-                    "cnt": 2766,
-                    "sum": 8285
+                    "avg": 267.6666666666667,
+                    "cnt": 555382,
+                    "sum": 1666058
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 301.6666666666667,
+                    "cnt": 555432,
+                    "sum": 1666099
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
+                ],
                 "GroupByValues": [
                     "HEAD",
                     "500"
                 ],
                 "MeasureVal": {
-                    "avg": 381.4,
-                    "cnt": 2767,
-                    "sum": 8290
+                    "avg": 351.25,
+                    "cnt": 555434,
+                    "sum": 1666177
                 }
             },
             {
-                "GroupByValues": [
-                    "PUT",
-                    "302"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 300.6666666666667,
-                    "cnt": 2771,
-                    "sum": 8295
-                }
-            },
-            {
                 "GroupByValues": [
                     "PATCH",
                     "301"
                 ],
                 "MeasureVal": {
-                    "avg": 352.5,
-                    "cnt": 2772,
-                    "sum": 8304
+                    "avg": 367.6666666666667,
+                    "cnt": 555487,
+                    "sum": 1666248
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
+                ],
                 "GroupByValues": [
-                    "GET",
+                    "PATCH",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 375.75,
+                    "cnt": 555510,
+                    "sum": 1666353
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT",
                     "302"
                 ],
                 "MeasureVal": {
-                    "avg": 351,
-                    "cnt": 2778,
-                    "sum": 8310
+                    "avg": 325.75,
+                    "cnt": 555531,
+                    "sum": 1666431
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 340.6,
+                    "cnt": 555576,
+                    "sum": 1666528
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE",
+                    "200"
+                ],
+                "MeasureVal": {
+                    "avg": 301.75,
+                    "cnt": 555713,
+                    "sum": 1666617
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 321.4,
+                    "cnt": 555743,
+                    "sum": 1666820
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 381.4,
+                    "cnt": 555748,
+                    "sum": 1667032
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 325.75,
+                    "cnt": 555753,
+                    "sum": 1667204
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 200
+                    }
+                ],
                 "GroupByValues": [
                     "PATCH",
                     "200"
                 ],
                 "MeasureVal": {
-                    "avg": 301.6666666666667,
-                    "cnt": 2786,
-                    "sum": 8321
+                    "avg": 200,
+                    "cnt": 555773,
+                    "sum": 1667244
                 }
             },
             {
-                "GroupByValues": [
-                    "POST",
-                    "400"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
                 ],
-                "MeasureVal": {
-                    "avg": 300.3333333333333,
-                    "cnt": 2796,
-                    "sum": 8336
-                }
-            },
-            {
-                "GroupByValues": [
-                    "POST",
-                    "500"
-                ],
-                "MeasureVal": {
-                    "avg": 350.25,
-                    "cnt": 2799,
-                    "sum": 8360
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PUT",
-                    "301"
-                ],
-                "MeasureVal": {
-                    "avg": 300.75,
-                    "cnt": 2803,
-                    "sum": 8381
-                }
-            },
-            {
-                "GroupByValues": [
-                    "DELETE",
-                    "302"
-                ],
-                "MeasureVal": {
-                    "avg": 334.3333333333333,
-                    "cnt": 2804,
-                    "sum": 8398
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PATCH",
-                    "400"
-                ],
-                "MeasureVal": {
-                    "avg": 326.25,
-                    "cnt": 2821,
-                    "sum": 8406
-                }
-            },
-            {
-                "GroupByValues": [
-                    "DELETE",
-                    "404"
-                ],
-                "MeasureVal": {
-                    "avg": 351.75,
-                    "cnt": 2823,
-                    "sum": 8428
-                }
-            },
-            {
-                "GroupByValues": [
-                    "DELETE",
-                    "500"
-                ],
-                "MeasureVal": {
-                    "avg": 381.4,
-                    "cnt": 2824,
-                    "sum": 8448
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PUT",
-                    "500"
-                ],
-                "MeasureVal": {
-                    "avg": 340.6,
-                    "cnt": 2833,
-                    "sum": 8468
-                }
-            },
-            {
-                "GroupByValues": [
-                    "POST",
-                    "404"
-                ],
-                "MeasureVal": {
-                    "avg": 361,
-                    "cnt": 2842,
-                    "sum": 8480
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PUT",
-                    "404"
-                ],
-                "MeasureVal": {
-                    "avg": 341.4,
-                    "cnt": 2844,
-                    "sum": 8499
-                }
-            },
-            {
-                "GroupByValues": [
-                    "PATCH",
-                    "500"
-                ],
-                "MeasureVal": {
-                    "avg": 361,
-                    "cnt": 2849,
-                    "sum": 8519
-                }
-            },
-            {
                 "GroupByValues": [
                     "GET",
-                    "301"
+                    "400"
                 ],
                 "MeasureVal": {
-                    "avg": 334.3333333333333,
-                    "cnt": 2870,
-                    "sum": 8535
+                    "avg": 400,
+                    "cnt": 555832,
+                    "sum": 1667274
                 }
             },
             {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 402,
+                    "cnt": 555899,
+                    "sum": 1667358
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 400
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
+                    "400"
+                ],
+                "MeasureVal": {
+                    "avg": 400,
+                    "cnt": 555902,
+                    "sum": 1667504
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
+                    "302"
+                ],
+                "MeasureVal": {
+                    "avg": 351,
+                    "cnt": 556040,
+                    "sum": 1667633
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
+                ],
+                "GroupByValues": [
+                    "POST",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 404,
+                    "cnt": 556227,
+                    "sum": 1667841
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 404
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT",
+                    "404"
+                ],
+                "MeasureVal": {
+                    "avg": 404,
+                    "cnt": 556755,
+                    "sum": 1668169
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 302
+                    }
+                ],
                 "GroupByValues": [
                     "POST",
                     "302"
                 ],
                 "MeasureVal": {
-                    "avg": 361.2,
-                    "cnt": 2897,
-                    "sum": 8563
+                    "avg": 353,
+                    "cnt": 557142,
+                    "sum": 1669022
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 500
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE",
+                    "500"
+                ],
+                "MeasureVal": {
+                    "avg": 500,
+                    "cnt": 557262,
+                    "sum": 1670124
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": 301
+                    }
+                ],
+                "GroupByValues": [
+                    "POST",
+                    "301"
+                ],
+                "MeasureVal": {
+                    "avg": 335.6666666666667,
+                    "cnt": 557406,
+                    "sum": 1671159
                 }
             }
         ]

@@ -31,7 +31,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/blob"
-	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
@@ -317,7 +316,6 @@ func ShutdownSiglensServer() {
 	if err != nil {
 		log.Errorf("flushing of aliasmap file failed, err=%v", err)
 	}
-	local.ForceFlushSegSetKeysToFile()
 	scroll.ForcedFlushToScrollFile()
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()

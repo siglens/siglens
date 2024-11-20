@@ -29,6 +29,18 @@ import (
 	bbp "github.com/valyala/bytebufferpool"
 )
 
+func getDefaultNumStats() *NumericStats {
+	return &NumericStats{
+		Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+			IntgrVal: math.MaxInt64},
+		Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+			IntgrVal: math.MinInt64},
+		Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+			IntgrVal: 0},
+		Dtype: SS_DT_SIGNED_NUM,
+	}
+}
+
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
 	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
@@ -37,23 +49,18 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
-		numStats := &NumericStats{
-			Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: math.MaxInt64},
-			Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: math.MinInt64},
-			Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: 0},
-			Dtype: SS_DT_SIGNED_NUM,
-		}
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			NumStats:  numStats,
+			NumStats:  getDefaultNumStats(),
 			Records:   make([]*CValueEnclosure, 0),
 		}
 		stats.CreateNewHll()
 		segstats[cname] = stats
+	}
+	if !stats.IsNumeric {
+		stats.IsNumeric = true
+		stats.NumStats = getDefaultNumStats()
 	}
 
 	colUsage := NoEvalUsage

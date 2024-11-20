@@ -1,0 +1,25 @@
+{
+    "queryText": "variable_col_3 = female | head (variable_col_18 > 0 OR variable_col_9=\"Director\") null=true keeplast=true | fields country, variable_col_3, variable_col_9, gender, variable_col_18",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "country",
+            "variable_col_3",
+            "variable_col_9",
+            "gender",
+            "variable_col_18"
+          ],
+        "columnsOrder": [
+            "country",
+            "variable_col_3",
+            "variable_col_9",
+            "gender",
+            "variable_col_18"
+          ]
+    }
+}

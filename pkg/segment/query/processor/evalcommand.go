@@ -69,9 +69,10 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	knownValues := make(map[string][]utils.CValueEnclosure)
+	knownValuesCvals := make([]utils.CValueEnclosure, numRecords)
 
+	fieldToValue := make(map[string]utils.CValueEnclosure)
 	for i := 0; i < numRecords; i++ {
-		fieldToValue := make(map[string]utils.CValueEnclosure)
 		for field, record := range records {
 			fieldToValue[field] = record[i]
 		}
@@ -80,13 +81,14 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		if err != nil {
 			return nil, fmt.Errorf("evalProcessor.Process: failed to evaluate ValueExpr on raw record, err: %v", err)
 		}
-		CValEnc := utils.CValueEnclosure{}
-		err = CValEnc.ConvertValue(value)
+
+		err = knownValuesCvals[i].ConvertValue(value)
 		if err != nil {
 			return nil, fmt.Errorf("evalProcessor.Process: failed to convert value: %v, err: %v", value, err)
 		}
-		knownValues[p.options.FieldName] = append(knownValues[p.options.FieldName], CValEnc)
 	}
+
+	knownValues[p.options.FieldName] = knownValuesCvals
 
 	err := iqr.AppendKnownValues(knownValues)
 	if err != nil {

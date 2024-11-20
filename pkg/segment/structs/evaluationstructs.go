@@ -565,183 +565,231 @@ func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string
 	return true, nil
 }
 
+func validateBoolExprError(err error, errInfo string) (*utils.CValueEnclosure, error) {
+	if toputils.IsNilValueError(err) {
+		return &utils.CValueEnclosure{
+			Dtype: utils.SS_DT_BACKFILL,
+			CVal:  nil,
+		}, nil
+	} else if toputils.IsNonNilValueError(err) {
+		return nil, toputils.WrapErrorf(err, "%v. Error: %v", errInfo, err)
+	}
+
+	return nil, nil
+}
+
+func getBoolCValueEnclosure(boolVal bool) *utils.CValueEnclosure {
+	return &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_BOOL,
+		CVal:  boolVal,
+	}
+}
+
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
-// with the value specified by fieldToValue. Each field listed by GetFields()
-// must be in fieldToValue.
-func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+// with the value specified by fieldToValue. if the field is not present in the fieldToValue map
+// then NULL is returned.
+func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]utils.CValueEnclosure) (*utils.CValueEnclosure, error) {
+
 	if self.IsTerminal {
 		switch self.ValueOp {
 		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: can not evaluate Eval In function: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate Eval In function")
 			}
-			return inFlag, err
+			return getBoolCValueEnclosure(inFlag), nil
 		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: 'isbool' can not evaluate to String: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isbool' can not evaluate to String")
 			}
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
-			return isBool, nil
+			return getBoolCValueEnclosure(isBool), nil
 
 		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, err
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isint' can not evaluate to String")
 			}
 
 			_, parseErr := strconv.Atoi(val)
-			return parseErr == nil, nil
+			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isnum":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, err
+				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isnum' can not evaluate to String")
 			}
 
 			_, parseErr := strconv.ParseFloat(val, 64)
-			return parseErr == nil, nil
+			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
 
 			if floatErr == nil {
-				return false, nil
+				return getBoolCValueEnclosure(false), nil
 			}
 
 			_, strErr := self.LeftValue.EvaluateToString(fieldToValue)
-			return strErr == nil, nil
+			if strErr != nil {
+				return validateBoolExprError(strErr, "BoolExpr.Evaluate: 'isstr' can not evaluate to String")
+			}
+
+			return getBoolCValueEnclosure(strErr == nil), nil
 		case "isnull":
 			// Get the fields associated with this expression
 			fields := self.GetFields()
 			if len(fields) == 0 {
-				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnull operation")
+				return nil, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnull operation")
 			}
 
 			// Check the first field's value in the fieldToValue map
 			value, exists := fieldToValue[fields[0]]
 			if !exists {
-				return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+				return getBoolCValueEnclosure(true), nil
 			}
 			// Check if the value's Dtype is SS_DT_BACKFILL
 			if value.Dtype == utils.SS_DT_BACKFILL {
-				return true, nil
+				return getBoolCValueEnclosure(true), nil
 			}
-			// Check for string values that are empty and treat them as NULL
-			if strValue, ok := value.CVal.(string); ok && strings.TrimSpace(strValue) == "" {
-				return true, nil
-			}
-			return false, nil
+			return getBoolCValueEnclosure(false), nil
 		case "like":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of LIKE to string: %v", errLeftStr)
+				return validateBoolExprError(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of LIKE to string")
 			}
 
 			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
 			if errRightStr != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating right side of LIKE to string: %v", errRightStr)
+				return validateBoolExprError(errRightStr, "BoolExpr.Evaluate: error evaluating right side of LIKE to string")
 			}
 
 			regexPattern := strings.Replace(strings.Replace(regexp.QuoteMeta(rightStr), "%", ".*", -1), "_", ".", -1)
 			matched, err := regexp.MatchString("^"+regexPattern+"$", leftStr)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
+				return nil, toputils.WrapErrorf(err, "BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
 			}
-			return matched, nil
+			return getBoolCValueEnclosure(matched), nil
 		case "match":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of MATCH to string: %v", errLeftStr)
+				return validateBoolExprError(errLeftStr, "BoolExpr.Evaluate: error evaluating left side of MATCH to string")
 			}
 
 			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
 			if errRightStr != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating right side of MATCH to string: %v", errRightStr)
+				return validateBoolExprError(errRightStr, "BoolExpr.Evaluate: error evaluating right side of MATCH to string")
 			}
 
 			matched, err := regexp.MatchString(rightStr, leftStr)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in MATCH operation leftString %v, rightString %v, err: %v", leftStr, rightStr, err)
+				return nil, toputils.WrapErrorf(err, "BoolExpr.Evaluate: regex error in MATCH operation leftString %v, rightString %v, err: %v", leftStr, rightStr, err)
 			}
-			return matched, nil
+			return getBoolCValueEnclosure(matched), nil
 
 		case "cidrmatch":
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
+			if errCidr != nil {
+				return validateBoolExprError(errCidr, "BoolExpr.Evaluate: error evaluating left side of CIDR to string")
+			}
+
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
-			if errCidr != nil || errIp != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error evaluating arguments errCidr: %v, errIp: %v", errCidr, errIp)
+			if errIp != nil {
+				return validateBoolExprError(errIp, "BoolExpr.Evaluate: error evaluating right side of CIDR to string")
 			}
 
 			match, err := isIPInCIDR(cidrStr, ipStr)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
+				return nil, toputils.WrapErrorf(err, "BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
 			}
-			return match, nil
+			return getBoolCValueEnclosure(match), nil
 		case "isnotnull":
 			fields := self.GetFields()
 			if len(fields) == 0 {
-				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
+				return nil, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
 			}
 
 			value, exists := fieldToValue[fields[0]]
 			if !exists {
-				return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+				return getBoolCValueEnclosure(false), nil
 			}
 			if value.Dtype != utils.SS_DT_BACKFILL {
-				return true, nil
+				return getBoolCValueEnclosure(true), nil
 			}
-			return false, nil
+			return getBoolCValueEnclosure(false), nil
 		case "searchmatch":
 			searchStr, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating searchmatch string to string, err: %v", err)
+				return validateBoolExprError(err, "BoolExpr.Evaluate: error evaluating searchmatch string to string")
 			}
-			return handleSearchMatch(self, searchStr, fieldToValue)
+			resultBool, err := handleSearchMatch(self, searchStr, fieldToValue)
+			return getBoolCValueEnclosure(resultBool), err
 		}
 
-		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
-		rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
-		leftFloat, errLeftFloat := self.LeftValue.EvaluateToFloat(fieldToValue)
-		rightFloat, errRightFloat := self.RightValue.EvaluateToFloat(fieldToValue)
+		leftVal, errLeft := self.LeftValue.EvaluateValueExpr(fieldToValue)
+		rightVal, errRight := self.RightValue.EvaluateValueExpr(fieldToValue)
+		isLeftValNull := toputils.IsNilValueError(errLeft) || leftVal == nil
+		isRightValNull := toputils.IsNilValueError(errRight) || rightVal == nil
 
-		if errLeftFloat == nil && errRightFloat == nil {
-			switch self.ValueOp {
-			case "=":
-				return leftFloat == rightFloat, nil
-			case "!=":
-				return leftFloat != rightFloat, nil
-			case "<":
-				return leftFloat < rightFloat, nil
-			case ">":
-				return leftFloat > rightFloat, nil
-			case "<=":
-				return leftFloat <= rightFloat, nil
-			case ">=":
-				return leftFloat >= rightFloat, nil
-			default:
-				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for floats", self.ValueOp)
-			}
-		} else if errLeftStr == nil && errRightStr == nil {
-			switch self.ValueOp {
-			case "=":
-				return leftStr == rightStr, nil
-			case "!=":
-
-				return leftStr != rightStr, nil
-			default:
-				return false, fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
-			}
-		} else {
-			if errLeftStr != nil && errLeftFloat != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: left cannot be evaluated to a string or float")
-			}
-			if errRightStr != nil && errRightFloat != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: right cannot be evaluated to a string or float")
-			}
-
-			return false, fmt.Errorf("BoolExpr.Evaluate: left and right ValueExpr have different types")
+		if (errLeft != nil && !isLeftValNull) || (errRight != nil && !isRightValNull) {
+			return nil, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
 		}
+
+		if isLeftValNull || isRightValNull {
+			// If any of the values are NULL, then the result cannot be determined.
+			// Return NULL.
+			return &utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil}, nil
+		}
+
+		switch self.ValueOp {
+		case "=", "!=":
+			convertedLeftVal, convertedRightVal := dtypeutils.ConvertToSameType(leftVal, rightVal)
+			if self.ValueOp == "=" {
+				return getBoolCValueEnclosure(convertedLeftVal == convertedRightVal), nil
+			} else {
+				return getBoolCValueEnclosure(convertedLeftVal != convertedRightVal), nil
+			}
+		case "<", ">", "<=", ">=":
+			return getBoolCValueEnclosure(dtypeutils.CompareValues(leftVal, rightVal, self.ValueOp)), nil
+		}
+
+		return getBoolCValueEnclosure(false), fmt.Errorf("BoolExpr.Evaluate: invalid ValueOp %v for strings", self.ValueOp)
 	} else { // IsTerminal is false
+		return nil, fmt.Errorf("BoolExpr.Evaluate: non-terminal BoolExprs are not supported")
+	}
+}
+
+func GetBoolResult(leftVal bool, rightVal bool, Op BoolOperator) (bool, error) {
+	switch Op {
+	case BoolOpNot:
+		return !leftVal, nil
+	case BoolOpAnd:
+		return leftVal && rightVal, nil
+	case BoolOpOr:
+		return leftVal || rightVal, nil
+	default:
+		return false, fmt.Errorf("GetBoolResult: invalid BoolOp: %v", Op)
+	}
+}
+
+// Evaluate this BoolExpr to a boolean, replacing each field in the expression
+// with the value specified by fieldToValue. If the field is not present in the fieldToValue map
+// then false is returned.
+func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	if self.IsTerminal {
+		cValueEnclosure, err := self.evaluateToCValueEnclosure(fieldToValue)
+		if err != nil {
+			return false, err
+		}
+
+		if cValueEnclosure.Dtype == utils.SS_DT_BACKFILL {
+			return false, nil
+		} else if cValueEnclosure.Dtype != utils.SS_DT_BOOL {
+			return false, fmt.Errorf("BoolExpr.Evaluate: result is not a boolean")
+		}
+
+		return cValueEnclosure.CVal.(bool), nil
+	} else {
+		// Non-terminal BoolExprs
 		left, err := self.LeftBool.Evaluate(fieldToValue)
 		if err != nil {
 			return false, err
@@ -756,16 +804,53 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 		}
 
-		switch self.BoolOp {
-		case BoolOpNot:
-			return !left, nil
-		case BoolOpAnd:
-			return left && right, nil
-		case BoolOpOr:
-			return left || right, nil
-		default:
-			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
+		boolResult, err := GetBoolResult(left, right, self.BoolOp)
+		if err != nil {
+			return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating BoolExpr: %v", err)
 		}
+
+		return boolResult, nil
+	}
+}
+
+// Evaluate this BoolExpr to a boolean, replacing each field in the expression
+// with the value specified by fieldToValue.
+// Will be evaluated to either true, false, or NULL.
+func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	if self.IsTerminal {
+		cValEnc, err := self.evaluateToCValueEnclosure(fieldToValue)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating terminal BoolExpr: %v", err)
+		}
+		return *cValEnc, nil
+	} else {
+		left, err := self.LeftBool.EvaluateWithNull(fieldToValue)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating left BoolExpr: %v", err)
+		}
+
+		if left.IsNull() {
+			return left, nil
+		}
+
+		right := utils.CValueEnclosure{CVal: false}
+		if self.RightBool != nil {
+			right, err = self.RightBool.EvaluateWithNull(fieldToValue)
+			if err != nil {
+				return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating right BoolExpr: %v", err)
+			}
+
+			if right.IsNull() {
+				return right, nil
+			}
+		}
+
+		boolResult, err := GetBoolResult(left.CVal.(bool), right.CVal.(bool), self.BoolOp)
+		if err != nil {
+			return utils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating BoolExpr: %v", err)
+		}
+
+		return utils.CValueEnclosure{Dtype: utils.SS_DT_BOOL, CVal: boolResult}, nil
 	}
 }
 
@@ -826,9 +911,15 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]utils.CValu
 			}
 		} else {
 			if errLeftStr != nil && errLeftFloat != nil {
+				if toputils.IsNilValueError(errLeftStr) || toputils.IsNilValueError(errLeftFloat) {
+					return false, nil
+				}
 				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left cannot be evaluated to a string or float")
 			}
 			if errRightStr != nil && errRightFloat != nil {
+				if toputils.IsNilValueError(errRightStr) || toputils.IsNilValueError(errRightFloat) {
+					return false, nil
+				}
 				return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: right cannot be evaluated to a string or float")
 			}
 			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left and right ValueExpr have different types")
@@ -876,14 +967,14 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 
 func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
 	valueStr, err := value.EvaluateToString(fieldToValue)
-	if err != nil {
-		return false, fmt.Errorf("isInValueList: can not evaluate to String: %v", err)
+	if toputils.IsNonNilValueError(err) {
+		return false, toputils.WrapErrorf(err, "isInValueList: can not evaluate to String: %v", err)
 	}
 
 	for _, atom := range valueList {
 		atomStr, err := atom.EvaluateToString(fieldToValue)
-		if err != nil {
-			return false, fmt.Errorf("isInValueList: can not evaluate to string: %v", err)
+		if toputils.IsNonNilValueError(err) {
+			continue
 		}
 
 		if atomStr == valueStr {
@@ -935,9 +1026,12 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]utils.CValueEnclo
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: split requires two arguments")
 	}
 	cellValueStr, err := self.StringExprParams[0].Evaluate(fieldToValue)
-	if err != nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate input value as a string: %v", err)
+	if toputils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate input value as a string: %v", err)
 	}
+
 	delimiterStr, err := self.StringExprParams[1].Evaluate(fieldToValue)
 	if err != nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate delimiter as a string: %v", err)
@@ -952,7 +1046,9 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]utils.CValueEnc
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
 	}
 	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
-	if err != nil {
+	if toputils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
 		return []string{}, fmt.Errorf("TextExpr.EvaluateText: %v", err)
 	}
 
@@ -995,10 +1091,10 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosu
 	if self.MultiValueExprMode == MVEMField {
 		fieldValue, exists := fieldToValue[self.FieldName]
 		if !exists {
-			return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: field %s not found", self.FieldName)
+			return nil, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("MultiValueExpr.Evaluate: field %v not found", self.FieldName))
 		}
-		if fieldValue.CVal == nil || fieldValue.CVal == "" {
-			return []string{}, nil
+		if fieldValue.CVal == nil {
+			return nil, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("MultiValueExpr.Evaluate: field %v is nil", self.FieldName))
 		}
 		if fieldValue.Dtype != utils.SS_DT_STRING_SLICE {
 			value := fmt.Sprintf("%v", fieldValue.CVal)
@@ -1029,7 +1125,7 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 	case VEMStringExpr:
 		str, err := self.StringExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
+			return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
 		return str, nil
 	//In this case, field name will be recognized as part of NumericExpr at first. It it can not be converted to float64, it should be evaluated as a str
@@ -1038,32 +1134,39 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 		if err != nil {
 			//Because parsing is successful and it can not evaluate as a float in here,
 			//There is one possibility: field name may not be float
+			if !self.NumericExpr.IsTerminal {
+				// But this is not a terminal case, so we just return 0
+				return "0", err
+			}
+
 			str, err := getValueAsString(fieldToValue, self.NumericExpr.Value)
 
 			if err == nil {
 				return str, nil
+			} else if toputils.IsNilValueError(err) {
+				return "", nil
 			}
 
-			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to float64 or string: %v", err)
+			return "0", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to float64 or string: %v", err)
 		}
 		return strconv.FormatFloat(floatValue, 'f', -1, 64), nil
 	case VEMConditionExpr:
 		val, err := self.ConditionExpr.EvaluateCondition(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
+			return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateToString: cannot evaluate Condition Expr to string %v", err)
 		}
 		str := fmt.Sprintf("%v", val)
 		return str, nil
 	case VEMBooleanExpr:
 		boolResult, err := self.BooleanExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", err
+			return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateToString: cannot evaluate Boolean Expr to string %v", err)
 		}
 		return strconv.FormatBool(boolResult), nil
 	case VEMMultiValueExpr:
 		mvSlice, err := self.MultiValueExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
+			return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
 		if len(mvSlice) == 0 {
 			return "", nil
@@ -1083,12 +1186,18 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 	case SEMRawString:
 		return self.RawString, nil
 	case SEMField:
-		if floatValue, err := getValueAsFloat(fieldToValue, self.FieldName); err == nil {
+		floatValue, err := getValueAsFloat(fieldToValue, self.FieldName)
+		if err == nil {
 			return strconv.FormatFloat(floatValue, 'f', -1, 64), nil
 		}
 
-		if str, err := getValueAsString(fieldToValue, self.FieldName); err == nil {
+		str, err := getValueAsString(fieldToValue, self.FieldName)
+		if err == nil {
 			return str, nil
+		}
+
+		if toputils.IsNilValueError(err) {
+			return "", err
 		}
 		return "", fmt.Errorf("StringExpr.Evaluate: cannot evaluate to field")
 	case SEMConcatExpr:
@@ -1130,63 +1239,63 @@ func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]utils.CValu
 	return floatValue, nil
 }
 
+// TODO: Migrate so that every Evaluation Expression returns an utils.CValueEnclosure
 func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
+	var value interface{}
+	var err error
 	switch valueExpr.ValueExprMode {
 	case VEMConditionExpr:
-		value, err := valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate condition expr, err: %v", err)
-		}
-		return value, nil
+		value, err = valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
 	case VEMStringExpr:
-		value, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate string expr, err: %v", err)
-		}
-		return value, nil
+		value, err = valueExpr.EvaluateToString(fieldToValue)
 	case VEMNumericExpr:
-		value, err := valueExpr.EvaluateToFloat(fieldToValue)
-		if err != nil {
-			// It failed to evaluate to a float, it could possibly that the field given is a string
-			valueStr, err := valueExpr.EvaluateToString(fieldToValue)
-			if err != nil {
-				return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate numeric expr to numeric and string expr, err: %v", err)
-			}
-
-			return valueStr, err
-		}
-		return value, nil
+		value, err = valueExpr.EvaluateValueExprToNumberOrString(fieldToValue)
 	case VEMBooleanExpr:
-		value, err := valueExpr.EvaluateToString(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate boolean expr, err: %v", err)
-		}
-		return value, nil
+		value, err = valueExpr.BooleanExpr.Evaluate(fieldToValue)
 	case VEMMultiValueExpr:
-		mvSlice, err := valueExpr.EvaluateToMultiValue(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("EvaluateValueExpr: failed to evaluate multi value expr, err: %v", err)
-		}
-		return mvSlice, nil
+		value, err = valueExpr.EvaluateToMultiValue(fieldToValue)
 	default:
 		return nil, fmt.Errorf("EvaluateValueExpr: unknown value expr mode %v", valueExpr.ValueExprMode)
 	}
+
+	if toputils.IsNilValueError(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, toputils.WrapErrorf(err, "EvaluateValueExpr: failed to evaluate value expr, err: %v", err)
+	}
+
+	return value, nil
 }
 
 // This function will first try to evaluate the ValueExpr to a Number (float64 or int64). If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
 func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]utils.CValueEnclosure) (interface{}, error) {
-	value, err := expr.EvaluateToNumber(fieldToValue)
-	if err == nil {
-		return value, nil
+
+	switch expr.ValueExprMode {
+	case VEMNumericExpr, VEMStringExpr:
+		// Nothing to do
+	default:
+		return nil, fmt.Errorf("ValueExpr.EvaluateValueExprToNumberOrString: invalid ValueExprMode %v", expr.ValueExprMode)
 	}
 
-	valueStr, err := expr.EvaluateToString(fieldToValue)
-	if err == nil {
+	value, numErr := expr.EvaluateToNumber(fieldToValue)
+	if numErr == nil {
+		return value, nil
+	} else if toputils.IsNilValueError(numErr) {
+		return nil, numErr
+	}
+
+	valueStr, strErr := expr.EvaluateToString(fieldToValue)
+	if strErr == nil {
 		return valueStr, nil
 	}
-	return nil, fmt.Errorf("ValueExpr.EvaluateValueExpr: cannot evaluate to float or string")
+
+	if toputils.IsConversionError(numErr) && expr.ValueExprMode == VEMNumericExpr {
+		return int64(0), nil
+	}
+
+	return nil, toputils.WrapErrorf(strErr, "ValueExpr.EvaluateValueExprToNumberOrString: failed to evaluate to number or string. numErr: %v, strErr: %v", numErr, strErr)
 }
 
 func (self *ValueExpr) GetFields() []string {
@@ -1274,6 +1383,8 @@ func (self *ConcatExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 		if atom.IsField {
 			value, err := getValueAsString(fieldToValue, atom.Value)
 			if err != nil {
+				return "", err
+			} else if toputils.IsNilValueError(err) {
 				return "", err
 			}
 
@@ -1583,7 +1694,9 @@ func (self *RenameExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, 
 func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
 
 	fieldValue, err := getValueAsString(fieldToValue, self.FieldName)
-	if err != nil {
+	if toputils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
 		return nil, fmt.Errorf("RexExpr.Evaluate: %v", err)
 	}
 
@@ -1814,12 +1927,12 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 				if len(nullFields) > 0 {
 					continue
 				}
-				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
+				return "", toputils.WrapErrorf(err, "handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
 			}
 			if !res {
-				val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
+				val, err := cvPair.Value.EvaluateValueExpr(fieldToValue)
 				if err != nil {
-					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
+					return "", toputils.WrapErrorf(err, "handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
 				}
 				return val, nil
 			}
@@ -1854,7 +1967,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 
 				value, err := strconv.ParseFloat(self.Value, 64)
 				if err != nil {
-					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value)
+					return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value))
 				}
 				return value, nil
 			case NEMLenString:
@@ -1870,7 +1983,6 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		if self.Left != nil {
 			left, err = self.Left.Evaluate(fieldToValue)
 			if err != nil {
-
 				return 0, err
 			}
 		}
@@ -2002,7 +2114,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			}
 			strValue, err := self.Val.Evaluate(fieldToValue)
 			if err != nil {
-				return 0, fmt.Errorf("NumericExpr.Evaluate: Error in tonumber operation: %v", err)
+				return 0, toputils.WrapErrorf(err, "NumericExpr.Evaluate: Error in tonumber operation: %v", err)
 			}
 			base := 10
 			if self.Right != nil {
@@ -2017,7 +2129,9 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			}
 			number, err := strconv.ParseInt(strValue, base, 64)
 			if err != nil {
-				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
+				// DO NOT return an error if the string is not a number
+				// just return 0
+				return 0, nil
 			}
 			return float64(number), nil
 		case "relative_time":
@@ -2168,7 +2282,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "strftime":
 		timestamp, err := self.Val.EvaluateToFloat(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
 		}
 		timestampInSeconds := timestamp / 1000
 		t := time.Unix(int64(timestampInSeconds), 0) // time.Unix(sec int64, nsec int64) -> expects seconds and nanoseconds. Since strftime expects seconds, we pass 0 for nanoseconds.
@@ -2178,11 +2292,11 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "strptime":
 		dateStr, err := self.Val.EvaluateToString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate date string: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot evaluate date string: %v", err)
 		}
 		t, err := parseTime(dateStr, self.Param.RawString)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot parse date string: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot parse date string: %v", err)
 		}
 		return strconv.FormatInt(t.Unix(), 10), nil
 	case "ipmask":
@@ -2205,29 +2319,29 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 
 		regexStr, err := self.ValueList[0].Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate regex as a string: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot evaluate regex as a string: %v", err)
 		}
 		replacementStr, err := self.ValueList[1].Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
 		}
 		baseStr, err := self.Val.EvaluateValueExprAsString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate base string, err: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: cannot evaluate base string, err: %v", err)
 		}
 		regex, err := regexp.Compile(regexStr)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: failed to compile regex '%s': %v", regexStr, err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to compile regex '%s': %v", regexStr, err)
 		}
 		return regex.ReplaceAllString(baseStr, replacementStr), nil
 	case "mvjoin":
 		mvSlice, err := self.MultiValueExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
 		}
 
 		if self.Delimiter == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: Delimiter is nil")
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: Delimiter is nil")
 		}
 		delimiter := self.Delimiter.RawString
 
@@ -2235,20 +2349,20 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "mvcount":
 		mvSlice, err := self.MultiValueExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
 		}
 
 		return strconv.Itoa(len(mvSlice)), nil
 	case "mvfind":
 		mvSlice, err := self.MultiValueExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: Error while evaluating MultiValueExpr, err: %v", err)
 		}
 		compiledRegex := self.Regex.GetCompiledRegex()
 
 		// Check if compiledRegex is nil
 		if compiledRegex == nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: compiled regex is nil")
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: compiled regex is nil")
 		}
 
 		for index, value := range mvSlice {
@@ -2321,7 +2435,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		maxString := ""
 		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
-			if err != nil {
+			if toputils.IsNonNilValueError(err) {
 				return "", err
 			}
 			if result > maxString {
@@ -2337,7 +2451,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		minString := ""
 		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
-			if err != nil {
+			if toputils.IsNonNilValueError(err) {
 				return "", err
 			}
 			if minString == "" || result < minString {
@@ -2349,24 +2463,24 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	} else if self.Op == "tostring" {
 		valueStr, err := self.Val.EvaluateToString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate value for 'tostring' operation: %v", err)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to evaluate value for 'tostring' operation: %v", err)
 		}
 		if self.Param != nil {
 			formatStr, err := self.Param.Evaluate(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate format for 'tostring' operation: %v", err)
+				return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to evaluate format for 'tostring' operation: %v", err)
 			}
 			switch formatStr {
 			case "hex":
 				num, convErr := strconv.Atoi(valueStr)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
+					return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
 				}
 				return fmt.Sprintf("%#x", num), nil
 			case "commas":
 				num, convErr := strconv.ParseFloat(valueStr, 64)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
+					return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
 				}
 				roundedNum := math.Round(num*100) / 100
 				formattedNum := humanize.CommafWithDigits(roundedNum, 2)
@@ -2374,14 +2488,14 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			case "duration":
 				num, convErr := strconv.Atoi(valueStr)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
+					return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
 				}
 				hours := num / 3600
 				minutes := (num % 3600) / 60
 				seconds := num % 60
 				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds), nil
 			default:
-				return "", fmt.Errorf("TextExpr.EvaluateText: unsupported format '%s' for tostring operation", formatStr)
+				return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: unsupported format '%s' for tostring operation", formatStr)
 			}
 		} else {
 			return valueStr, nil
@@ -2389,7 +2503,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	}
 	cellValueStr, err := self.Param.Evaluate(fieldToValue)
 	if err != nil {
-		return "", fmt.Errorf("TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
+		return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
 	}
 
 	switch self.Op {
@@ -2402,7 +2516,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "urldecode":
 		decodedStr, decodeErr := url.QueryUnescape(cellValueStr)
 		if decodeErr != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: failed to decode URL: %v", decodeErr)
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: failed to decode URL: %v", decodeErr)
 		}
 		return decodedStr, nil
 	case "substr":
@@ -2422,7 +2536,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			startIndex = len(baseString) + startIndex
 		}
 		if startIndex < 0 || startIndex >= len(baseString) {
-			return "", fmt.Errorf("TextExpr.EvaluateText: 'substr' start index is out of range")
+			return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: 'substr' start index is out of range")
 		}
 		substrLength := len(baseString) - startIndex
 		if self.LengthExpr != nil {
@@ -2432,7 +2546,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 			substrLength = int(lengthFloat)
 			if substrLength < 0 || startIndex+substrLength > len(baseString) {
-				return "", fmt.Errorf("TextExpr.EvaluateText: 'substr' length leads to out of range substring")
+				return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: 'substr' length leads to out of range substring")
 			}
 		}
 		endIndex := startIndex + substrLength
@@ -2442,7 +2556,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return baseString[startIndex:endIndex], nil
 
 	default:
-		return "", fmt.Errorf("TextExpr.EvaluateText: unexpected operation: %v", self.Op)
+		return "", toputils.WrapErrorf(err, "TextExpr.EvaluateText: unexpected operation: %v", self.Op)
 	}
 }
 
@@ -2457,13 +2571,13 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 		if err != nil {
 			str, err = self.EvaluateToString(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("ValueExpr.EvaluateValueExprAsString: can not evaluate VEMNumericExpr to string: %v", err)
+				return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateValueExprAsString: can not evaluate VEMNumericExpr to string: %v", err)
 			}
 		}
 	case VEMStringExpr:
 		str, err = self.EvaluateToString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ValueExpr.EvaluateValueExprAsString: can not evaluate VEMStringExpr to string: %v", err)
+			return "", toputils.WrapErrorf(err, "ValueExpr.EvaluateValueExprAsString: can not evaluate VEMStringExpr to string: %v", err)
 		}
 	}
 	return str, nil
@@ -2478,12 +2592,12 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 			if err2 == nil && len(nullFields) > 0 {
 				continue
 			}
-			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
+			return "", toputils.WrapErrorf(err, "handleCaseFunction: Error while evaluating condition, err: %v", err)
 		}
 		if res {
-			val, err := cvPair.Value.EvaluateValueExprToNumberOrString(fieldToValue)
+			val, err := cvPair.Value.EvaluateValueExpr(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
+				return "", toputils.WrapErrorf(err, "handleCaseFunction: Error while evaluating value, err: %v", err)
 			}
 			return val, nil
 		}
@@ -2499,9 +2613,9 @@ func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.C
 			continue
 		}
 
-		val, err := valueExpr.EvaluateValueExprToNumberOrString(fieldToValue)
+		val, err := valueExpr.EvaluateValueExpr(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+			return "", toputils.WrapErrorf(err, "handleCoalesceFunction: Error while evaluating value, err: %v", err)
 		}
 		return val, nil
 	}
@@ -2514,14 +2628,14 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]utils.CVa
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
 
-	value1, err := expr.ValueList[0].EvaluateValueExprToNumberOrString(fieldToValue)
+	value1, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
 	if err != nil {
-		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value1, err: %v", err)
+		return nil, toputils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value1, err: %v", err)
 	}
 
-	value2, err := expr.ValueList[1].EvaluateValueExprToNumberOrString(fieldToValue)
+	value2, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
 	if err != nil {
-		return nil, fmt.Errorf("handleNullIfFunction: Error while evaluating value2, err: %v", err)
+		return nil, toputils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value2, err: %v", err)
 	}
 
 	if value1 == value2 {
@@ -2538,23 +2652,23 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 	case "if":
 		predicateFlag, err := expr.BoolExpr.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
+			return "", toputils.WrapErrorf(err, "ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
 		}
 
 		var trueValue interface{}
 		var falseValue interface{}
 
 		if predicateFlag {
-			trueValue, err = expr.TrueValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			trueValue, err = expr.TrueValue.EvaluateValueExpr(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a string or number ValueExpr: %v", err)
+				return "", toputils.WrapErrorf(err, "ConditionExpr.EvaluateCondition: can not evaluate trueValue. ValueExpr: %v", err)
 			}
 
 			return trueValue, nil
 		} else {
-			falseValue, err = expr.FalseValue.EvaluateValueExprToNumberOrString(fieldToValue)
+			falseValue, err = expr.FalseValue.EvaluateValueExpr(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a string or number ValueExpr: %v", err)
+				return "", toputils.WrapErrorf(err, "ConditionExpr.EvaluateCondition: can not evaluate falseValue. ValueExpr: %v", err)
 			}
 
 			return falseValue, nil
@@ -2657,7 +2771,7 @@ func (self *NumericExpr) GetFields() []string {
 func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field string) (string, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return "", fmt.Errorf("getValueAsString: Missing field %v", field)
+		return "", toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsString: Missing field %v", field))
 	}
 
 	return enclosure.GetString()
@@ -2666,7 +2780,11 @@ func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field strin
 func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, fmt.Errorf("getValueAsFloat: Missing field %v", field)
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Missing field %v", field))
+	}
+
+	if enclosure.IsNull() {
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Field %v is null", field))
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -2680,7 +2798,7 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 		}
 	}
 
-	return 0, fmt.Errorf("getValueAsFloat: Cannot convert CValueEnclosure %v to float", enclosure)
+	return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, fmt.Errorf("getValueAsFloat: Cannot convert CValueEnclosure %v to float", enclosure))
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {

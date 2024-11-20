@@ -78,7 +78,7 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 	})
 }
 
-func checkIfTimeSort(agg *structs.QueryAggregators) (bool, bool) {
+func CheckIfTimeSort(agg *structs.QueryAggregators) (bool, bool) {
 	if agg == nil {
 		return false, false
 	}
@@ -134,7 +134,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 			hasSort = true
 		}
 		if agg.Sort != nil || agg.HasSortBlock() {
-			timeSort, timeSortAsc = checkIfTimeSort(agg)
+			timeSort, timeSortAsc = CheckIfTimeSort(agg)
 		}
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort, timeSort, timeSortAsc)
 

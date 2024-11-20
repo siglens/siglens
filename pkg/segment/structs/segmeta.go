@@ -126,21 +126,13 @@ type SegSetDataWithStrFname struct {
    ***********************************************************
 */
 
-const SIZE_OF_BSUM = 18
+const SIZE_OF_BSUM = 24 // 8 + 8 + 2 + 6 (padding)
 
 // If new member is added to BlockSum, make sure to reset it's value in resetwipblock()
 type BlockSummary struct {
 	HighTs   uint64
 	LowTs    uint64
 	RecCount uint16
-}
-
-const SIZE_OF_BlockInfo = 14 // 2 + 4 + 8 bytes
-type BlockInfo struct {
-	BlkNum    uint16
-	BlkLen    uint32
-	BlkOffset int64
-	// if you add a element here make sure to update the SIZE_OF_BlockInfo
 }
 
 type HostMetaData struct {

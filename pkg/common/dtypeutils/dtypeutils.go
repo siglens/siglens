@@ -624,19 +624,27 @@ func AlmostEquals(left, right float64) bool {
 	}
 }
 
-func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{}, error) {
+func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{}) {
 
 	if fmt.Sprintf("%T", leftType) == fmt.Sprintf("%T", rightType) {
-		return leftType, rightType, nil
+		return leftType, rightType
 	}
 
+	var err error
+
 	if unsafe.Sizeof(leftType) > unsafe.Sizeof(rightType) {
-		rightType, err := ConvertExpToType(rightType, leftType)
-		return leftType, rightType, err
+		rightType, err = ConvertExpToType(rightType, leftType)
 	} else {
-		leftType, err := ConvertExpToType(leftType, rightType)
-		return rightType, leftType, err
+		leftType, err = ConvertExpToType(leftType, rightType)
 	}
+
+	if err != nil {
+		// convert both to strings
+		leftType = fmt.Sprint(leftType)
+		rightType = fmt.Sprint(rightType)
+	}
+
+	return leftType, rightType
 }
 
 // If you add a new field here or change the order of LogFileData, update the columnNames in logfileutils.go
@@ -648,4 +656,45 @@ type LogFileData struct {
 	RequestBody string
 	StatusCode  int
 	Duration    int64
+}
+
+func CompareValues(leftVal interface{}, rightVal interface{}, Op string) bool {
+	switch Op {
+	case "=":
+		return leftVal == rightVal
+	case "!=":
+		return leftVal != rightVal
+	}
+
+	leftFloatVal, errLeft := ConvertToFloat(leftVal, 64)
+	rightFloatVal, errRight := ConvertToFloat(rightVal, 64)
+
+	if errLeft == nil && errRight == nil {
+		switch Op {
+		case "<":
+			return leftFloatVal < rightFloatVal
+		case ">":
+			return leftFloatVal > rightFloatVal
+		case "<=":
+			return leftFloatVal <= rightFloatVal
+		case ">=":
+			return leftFloatVal >= rightFloatVal
+		default:
+			return false
+		}
+	}
+
+	leftStr, rightStr := fmt.Sprint(leftVal), fmt.Sprint(rightVal)
+	switch Op {
+	case "<":
+		return leftStr < rightStr
+	case ">":
+		return leftStr > rightStr
+	case "<=":
+		return leftStr <= rightStr
+	case ">=":
+		return leftStr >= rightStr
+	}
+
+	return false
 }

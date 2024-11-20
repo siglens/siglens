@@ -24,6 +24,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -188,7 +189,7 @@ func GenerateEvents(aggs *structs.QueryAggregators, qid uint64) *structs.NodeRes
 }
 
 func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
-	qid uint64, qc *structs.QueryContext) (*QueryInformation, *summary.QuerySummary, string, bool, []string, *segresults.SearchResults, int64, error) {
+	qid uint64, qc *structs.QueryContext, dqid string) (*QueryInformation, *summary.QuerySummary, string, bool, []string, *segresults.SearchResults, int64, error) {
 
 	kibanaIndices := qc.TableInfo.GetKibanaIndices()
 	nonKibanaIndices := qc.TableInfo.GetQueryTables()
@@ -212,10 +213,10 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 
 	var dqs DistributedQueryServiceInterface
 	if hook := hooks.GlobalHooks.InitDistributedQueryServiceHook; hook != nil {
-		result := hook(querySummary, allSegFileResults)
+		result := hook(querySummary, allSegFileResults, dqid)
 		dqs = result.(DistributedQueryServiceInterface)
 	} else {
-		dqs = InitDistQueryService(querySummary, allSegFileResults)
+		dqs = InitDistQueryService(querySummary, allSegFileResults, dqid)
 	}
 
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
@@ -224,7 +225,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
-	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType)
+	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType, qc.RawQuery)
 	if err != nil {
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to associate search results with qid! Error: %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
@@ -249,9 +250,10 @@ func PrepareToRunQuery(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *st
 		startTime = time.Now()
 	}
 	searchNode := ConvertASTNodeToSearchNode(node, qid)
+	dqid := uuid.New().String()
 
 	queryInfo, querySummary, pqid, containsKibana, kibanaIndices,
-		allSegFileResults, parallelismPerFile, err := InitQueryInfoAndSummary(searchNode, timeRange, aggs, qid, qc)
+		allSegFileResults, parallelismPerFile, err := InitQueryInfoAndSummary(searchNode, timeRange, aggs, qid, qc, dqid)
 	if err != nil {
 		log.Errorf("qid=%d, PrepareToRunQuery: Failed to init query info and summary! Error: %+v", qid, err)
 		return nil, nil, nil, "", nil, nil, 0, false, nil, err

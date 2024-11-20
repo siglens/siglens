@@ -365,7 +365,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			// If the measure is not an eval statement, then update the segment stats
 			resSegStat, err := sr.UpdateNonEvalSegStats(sr.runningSegStat[idx], currSst, measureAgg)
 			if err != nil {
-				return fmt.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				log.Errorf("UpdateSegmentStats: qid=%v, err: %v", sr.qid, err)
+				continue
 			}
 			sr.runningSegStat[idx] = resSegStat
 			continue
@@ -646,7 +647,8 @@ func (sr *SearchResults) SetFinalStatsFromNodeResult(nodeResult *structs.NodeRes
 		sr.convertedBuckets = nodeResult.Histogram
 	} else {
 		if length := len(nodeResult.MeasureResults); length != 1 {
-			err := fmt.Errorf("SetFinalStatsFromNodeResult: unexpected MeasureResults length, qid=%v", sr.qid)
+			err := fmt.Errorf("SetFinalStatsFromNodeResult: unexpected MeasureResults length: %v, qid=%v",
+				len(nodeResult.MeasureResults), sr.qid)
 			log.Errorf("SetFinalStatsFromNodeResult: qid=%v, err: %v", sr.qid, err)
 			return err
 		}
@@ -879,6 +881,9 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 
 func CreateMeasResultsFromAggResults(limit int,
 	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
+	batchErr := putils.NewBatchError()
+	defer batchErr.LogAllErrors()
+
 	newQueryPipeline := config.IsNewQueryPipelineEnabled()
 
 	bucketHolderArr := make([]*structs.BucketHolder, 0)
@@ -892,7 +897,7 @@ func CreateMeasResultsFromAggResults(limit int,
 			for mName, mVal := range aggVal.StatRes {
 				rawVal, err := mVal.GetValue()
 				if err != nil {
-					log.Errorf("CreateMeasResultsFromAggResults: failed to get raw value for measurement %+v", err)
+					batchErr.AddError("CreateMeasResultsFromAggResults:RAW_VALUE_ERR", err)
 					continue
 				}
 				internalMFuncs[mName] = true
@@ -906,14 +911,14 @@ func CreateMeasResultsFromAggResults(limit int,
 			if newQueryPipeline {
 				bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
 				if !ok {
-					log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", aggVal.BucketKey)
+					batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("expected []interface{} got bucket Key Type as %T", aggVal.BucketKey))
 					continue
 				}
 				for _, bk := range bucketKeySlice {
 					cValue := utils.CValueEnclosure{}
 					err := cValue.ConvertValue(bk)
 					if err != nil {
-						log.Errorf("CreateMeasResultsFromAggResults: failed to convert bucket key %+v", err)
+						batchErr.AddError("CreateMeasResultsFromAggResults:CONVERT_BUCKET_KEY_ERR", err)
 						cValue = utils.CValueEnclosure{
 							Dtype: utils.SS_DT_STRING,
 							CVal:  fmt.Sprintf("%+v", bk),
@@ -940,7 +945,7 @@ func CreateMeasResultsFromAggResults(limit int,
 				}
 				added++
 			default:
-				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
+				batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("got bucket Key Type as %T", bKey))
 			}
 			bucketHolder := &structs.BucketHolder{
 				IGroupByValues: iGroupByValues,
