@@ -90,15 +90,13 @@ func (rr *RunningBucketResults) AddTimeToBucketStats(count uint16) {
 }
 
 func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, qid uint64,
-	cnt uint64, usedByTimechart bool) {
+	cnt uint64, usedByTimechart bool, batchErr *putils.BatchError) {
 	if runningStats == nil {
 		if rr.runningStats == nil {
 			return
 		}
 		runningStats = &rr.runningStats
 	}
-
-	batchErr := putils.GetOrCreateBatchErrorWithQid(qid)
 
 	for i := 0; i < len(*runningStats); i++ {
 		measureFunc := rr.currStats[i].MeasureFunc
