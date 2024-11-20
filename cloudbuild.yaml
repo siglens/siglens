@@ -6,7 +6,12 @@ steps:
       - -c
       - |
         make build && \
-        ./siglens --config server.yaml
+        echo "Build Complete" && \
+        ./siglens --config server.yaml & \
+        echo "STARTED SERVER AFTER BUILD NOW SLEEPING" && \
+        sleep 30 && \
+        cd tools/sigclient && \
+        go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
 
 
 timeout: 3600s
