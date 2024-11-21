@@ -228,7 +228,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 		return &currSegStat.Max, nil
 	}
 
-	result, err := utils.ReduceMinMax(runningSegStat.Max, currSegStat.Max, true)
+	result, err := utils.ReduceMinMax(runningSegStat.Max, currSegStat.Max, false)
 	if err != nil {
 		return &utils.CValueEnclosure{}, err
 	}
@@ -238,7 +238,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 		runningSegStat.IsNumeric = true
 	}
 
-	return &runningSegStat.Min, nil
+	return &runningSegStat.Max, nil
 }
 
 func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValueEnclosure {
@@ -440,7 +440,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 		return &rSst, err
 	}
 	// Calculate and return the average
-	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.NumStats.NumCount)
+	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
 	rSst.FloatVal = avg
 	return &rSst, err
 }
