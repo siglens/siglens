@@ -359,6 +359,11 @@ func IsNewQueryPipelineEnabled() bool {
 	return runningConfig.UseNewPipelineConverted
 }
 
+func SetNewQueryPipelineEnabled(enabled bool) {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	runningConfig.UseNewPipelineConverted = enabled
+}
+
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)
