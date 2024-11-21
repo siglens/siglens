@@ -365,7 +365,7 @@ let dashboardColumnDefs = [
         headerName: 'Created At',
         field: 'createdAt',
         sortable: true,
-        cellStyle: { justifyContent: 'flex-end'},
+        cellStyle: { justifyContent: 'flex-end' },
         headerClass: 'ag-right-aligned-header',
         cellRenderer: (params) => {
             if (!params.value) return '-';
