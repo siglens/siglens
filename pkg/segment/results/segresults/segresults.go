@@ -288,7 +288,15 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		}
 		return runningSegStat, nil
 	case utils.Range:
-		sstResult, err = segread.GetSegRange(runningSegStat, incomingSegStat)
+		res, err := segread.GetSegRange(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case utils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
 	case utils.Count:

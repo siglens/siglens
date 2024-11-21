@@ -240,25 +240,34 @@ func GetMinMaxString(str1 string, str2 string, isMin bool) string {
 }
 
 func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnclosure, error) {
+	if e1.Dtype == SS_INVALID || e1.Dtype == SS_DT_BACKFILL {
+		return e2, nil
+	}
+	if e2.Dtype == SS_INVALID || e2.Dtype == SS_DT_BACKFILL {
+		return e1, nil
+	}
+
 	if e1.Dtype == e2.Dtype {
-		if e1.Dtype == SS_DT_FLOAT {
-			if isMin {
-				return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			} else {
-				return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
-			}
-		} else if e1.Dtype == SS_DT_STRING {
+		if e1.Dtype == SS_DT_STRING {
 			return CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
 		} else {
-			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtypes: %v, %v", e1.Dtype, e2.Dtype)
+			if isMin {
+				return Reduce(e1, e2, Min)
+			} else {
+				return Reduce(e1, e2, Max)
+			}
 		}
 	} else {
-		if e1.Dtype == SS_DT_FLOAT {
+		if e1.IsNumeric() && e2.IsNumeric() {
+			if isMin {
+				return Reduce(e1, e2, Min)
+			} else {
+				return Reduce(e1, e2, Max)
+			}
+		} else if e1.IsNumeric() {
 			return e1, nil
-		} else if e2.Dtype == SS_DT_FLOAT {
-			return e2, nil
 		} else {
-			return CValueEnclosure{}, fmt.Errorf("ReduceMinMax: unsupported CVal Dtype: %v, %v", e1.Dtype, e2.Dtype)
+			return e2, nil
 		}
 	}
 }

@@ -22,10 +22,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
-	bbp "github.com/valyala/bytebufferpool"
 )
 
 func Test_writeSstToBuf(t *testing.T) {
@@ -33,10 +31,8 @@ func Test_writeSstToBuf(t *testing.T) {
 	sstMap := make(map[string]*structs.SegStats)
 	numRecs := uint64(2)
 
-	bb := bbp.Get()
-
-	stats.AddSegStatsNums(sstMap, cname, sutils.SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false, false)
-	stats.AddSegStatsNums(sstMap, cname, sutils.SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false, false)
+	addSegStatsNums(sstMap, cname, sutils.SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
+	addSegStatsNums(sstMap, cname, sutils.SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
 
 	assert.Equal(t, numRecs, sstMap[cname].Count)
 

@@ -449,22 +449,18 @@ func Test_GetSegMin(t *testing.T) {
 	runningSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     3,
-		NumStats: &structs.NumericStats{
-			Min: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
-				IntgrVal: 30,
-			},
+		Min: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_SIGNED_NUM,
+			CVal:  int64(30),
 		},
 	}
 
 	currSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     2,
-		NumStats: &structs.NumericStats{
-			Min: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
-				FloatVal: 20,
-			},
+		Min: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_FLOAT,
+			CVal:  float64(20),
 		},
 	}
 
@@ -479,11 +475,9 @@ func Test_GetSegMin(t *testing.T) {
 
 	runningSegStat2 := &structs.SegStats{
 		IsNumeric: false,
-		StringStats: &structs.StringStats{
-			Min: utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  "abc",
-			},
+		Min: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING,
+			CVal:  "abc",
 		},
 	}
 
@@ -498,22 +492,18 @@ func Test_GetSegMax(t *testing.T) {
 	runningSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     3,
-		NumStats: &structs.NumericStats{
-			Max: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
-				IntgrVal: 30,
-			},
+		Max: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_SIGNED_NUM,
+			CVal:  int64(30),
 		},
 	}
 
 	currSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     2,
-		NumStats: &structs.NumericStats{
-			Max: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
-				FloatVal: 20,
-			},
+		Max: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_FLOAT,
+			CVal:  float64(20),
 		},
 	}
 
@@ -528,11 +518,9 @@ func Test_GetSegMax(t *testing.T) {
 
 	runningSegStat2 := &structs.SegStats{
 		IsNumeric: false,
-		StringStats: &structs.StringStats{
-			Max: utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING,
-				CVal:  "abc",
-			},
+		Max: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_STRING,
+			CVal:  "abc",
 		},
 	}
 
