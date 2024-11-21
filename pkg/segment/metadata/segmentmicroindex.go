@@ -91,12 +91,24 @@ func InitSegmentMicroIndex(segMetaInfo *structs.SegMeta, loadSsm bool) *SegmentM
 // Initializes sm.searchMetadaSize
 func (sm *SegmentMicroIndex) initMetadataSize() {
 	searchMetadataSize := uint64(0)
+
+	// The list of BlockSummary structs
 	searchMetadataSize += uint64(sm.NumBlocks * structs.SIZE_OF_BSUM) // block summaries
-	// for values of the BlockMetadataHolder
-	searchMetadataSize += uint64(sm.NumBlocks * uint16(len(sm.ColumnNames)) * structs.SIZE_OF_BlockInfo)
-	// for keys of BlockMetadataHolder
-	// 2 ==> two maps, 10 ==> avg colnamesize
-	searchMetadataSize += uint64(sm.NumBlocks) * 2 * 10 * uint64(len(sm.ColumnNames))
+
+	// The map of blockNum to BlockMetadataHolder structs
+	// type BlockMetadataHolder struct {
+	// 	BlkNum            uint16
+	// 	ColumnBlockOffset map[string]int64
+	// 	ColumnBlockLen    map[string]uint32
+	// }
+	sumColSize := uint64(0)
+	for cname := range sm.ColumnNames {
+		sumColSize += uint64(len(cname))
+	}
+
+	blockHolderSize := sumColSize * (8 + 4) // int64 value + uint32 value
+	blockHolderSize += 2 + 6 + 8 + 8        // blockNum, padding, 2 map pointers
+	searchMetadataSize += uint64(sm.NumBlocks) * blockHolderSize
 
 	sm.SearchMetadataSize = searchMetadataSize
 }

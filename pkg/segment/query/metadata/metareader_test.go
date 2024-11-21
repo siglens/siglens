@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -49,7 +48,6 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	}
 	bMicro.SegbaseDir = segKey // for mocks its fine
 
-	_ = localstorage.InitLocalStorage()
 	_, blockSum, _, err := bMicro.ReadBlockSummaries([]byte{})
 	assert.Nil(t, err)
 	log.Infof("num block summaries: %d", len(blockSum))
