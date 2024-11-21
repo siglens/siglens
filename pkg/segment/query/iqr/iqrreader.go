@@ -137,7 +137,10 @@ func (iqrRdr *IQRReader) AddSingleIQRReader(iqr *IQR) error {
 
 	otherReaderId := otherRdr.reader.GetReaderId()
 
-	iqrRdr.AddReader(otherReaderId, otherRdr.reader)
+	err := iqrRdr.AddReader(otherReaderId, otherRdr.reader)
+	if err != nil {
+		return fmt.Errorf("iqrReader.AddSingleIQRReader: cannot add reader to iqr; err=%v", err)
+	}
 
 	for segEnc := range iqr.encodingToSegKey {
 		if err := iqrRdr.AddSegEncodingToReader(segEnc, otherReaderId); err != nil {
@@ -180,7 +183,9 @@ func (iqr *IQR) mergeIQRReaders(otherIQR *IQR) error {
 	}
 
 	if otherRdr.IsSingleReader() {
-		iqrRdr.AddSingleIQRReader(otherIQR)
+		if err := iqrRdr.AddSingleIQRReader(otherIQR); err != nil {
+			return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add otherIQR to iqr; err=%v", err)
+		}
 	} else {
 		for readerId, reader := range otherRdr.readerIdToReader {
 			if err := iqrRdr.AddReader(readerId, reader); err != nil {
