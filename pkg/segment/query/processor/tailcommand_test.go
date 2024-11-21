@@ -181,13 +181,13 @@ func Test_TailCommand_WithRRC(t *testing.T) {
 	iqr2 := iqr.NewIQRWithReader(0, mockReader)
 	iqr3 := iqr.NewIQRWithReader(0, mockReader)
 
-	err := iqr1.AppendRRCs(rrcs[:2], map[uint16]string{1: "segKey1"})
+	err := iqr1.AppendRRCs(rrcs[:2], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
-	err = iqr2.AppendRRCs(rrcs[2:4], map[uint16]string{1: "segKey1"})
+	err = iqr2.AppendRRCs(rrcs[2:4], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
-	err = iqr3.AppendRRCs(rrcs[4:], map[uint16]string{1: "segKey1"})
+	err = iqr3.AppendRRCs(rrcs[4:], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	_, err = tail.Process(iqr1)

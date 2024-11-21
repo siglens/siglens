@@ -571,8 +571,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 	return wsResponse, nil
 }
 
-func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
-	segencmap map[uint16]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
+func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint32, anySegKey bool, sizeLimit uint64,
+	segencmap map[uint32]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
 	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {

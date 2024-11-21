@@ -59,7 +59,7 @@ const (
 
 type QueryUpdate struct {
 	QUpdate   QueryUpdateType
-	SegKeyEnc uint16
+	SegKeyEnc uint32
 	RemoteID  string
 }
 
@@ -374,7 +374,7 @@ func AssociateSearchResult(qid uint64, result *segresults.SearchResults) error {
 
 // increments the finished segments. If incr is 0, then the current query is finished and a histogram will be flushed
 func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
-	skEnc uint16, remoteId string, doBuckPull bool, sstMap map[string]*structs.SegStats) {
+	skEnc uint32, remoteId string, doBuckPull bool, sstMap map[string]*structs.SegStats) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -713,7 +713,7 @@ func GetAllColsInAggsForQid(qid uint64) (map[string]struct{}, error) {
 
 // gets the measure results for the running query.
 // if the query is segment stats, it will delete the input segkeyenc
-func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit int) ([]*structs.BucketHolder, []string, []string, []string, int) {
+func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint32, limit int) ([]*structs.BucketHolder, []string, []string, []string, int) {
 
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -837,7 +837,7 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 }
 
 // returns the rrcs, query counts, map of segkey encoding, and errors
-func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint16]string, map[string]struct{}, error) {
+func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContainer, uint64, map[uint32]string, map[string]struct{}, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -857,7 +857,7 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContai
 		eres := make([]*utils.RecordResultContainer, 0)
 		return eres, 0, nil, nil, nil
 	}
-	skCopy := make(map[uint16]string, len(rQuery.searchRes.SegEncToKey))
+	skCopy := make(map[uint32]string, len(rQuery.searchRes.SegEncToKey))
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
@@ -866,7 +866,7 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContai
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
 func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContainer, *blockresults.TimeBuckets,
-	*blockresults.GroupByBuckets, *segresults.RemoteStats, map[uint16]string, error) {
+	*blockresults.GroupByBuckets, *segresults.RemoteStats, map[uint32]string, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -887,7 +887,7 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContai
 	} else {
 		eres = rQuery.rawRecords[scroll:]
 	}
-	skCopy := make(map[uint16]string, len(rQuery.searchRes.SegEncToKey))
+	skCopy := make(map[uint32]string, len(rQuery.searchRes.SegEncToKey))
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
@@ -909,7 +909,7 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContai
 
 // Gets the json encoding of segstats for RPC.
 // Returns encoded segstats for the given segkeyEnc and qid, bool if the query is segstats or not, and error
-func GetEncodedSegStatsForRPC(qid uint64, segKeyEnc uint16) ([]byte, bool, error) {
+func GetEncodedSegStatsForRPC(qid uint64, segKeyEnc uint32) ([]byte, bool, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()

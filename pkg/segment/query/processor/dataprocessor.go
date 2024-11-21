@@ -316,7 +316,7 @@ func sortByTimestampLess(r1, r2 *iqr.Record) bool {
 		return true
 	}
 
-	return r1Timestamp < r2Timestamp
+	return r1Timestamp > r2Timestamp
 }
 
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
