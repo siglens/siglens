@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -37,10 +38,6 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
-
-	statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
-
-
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
@@ -1550,7 +1547,6 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
-
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
@@ -1559,20 +1555,6 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 
 		segstats[cname] = stats
 	}
-
-	floatVal, err := strconv.ParseFloat(string(valBytes), 64)
-	if err == nil {
-		if !stats.IsNumeric {
-			stats.IsNumeric = true
-		}
-		addSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, valBytes)
-		return
-	} 
-
-	UpdateMinMax(stats, segutils.CValueEnclosure{
-		CVal: string(valBytes),
-		Dtype: SS_DT_STRING,
-	})
 
 	stats.Count++
 	stats.InsertIntoHll(valBytes)
@@ -1604,22 +1586,44 @@ func addSegStatsNums(segstats map[string]*SegStats, cname string,
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
+		numStats := &NumericStats{
+			Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: math.MaxInt64,
+				FloatVal: math.MaxFloat64,
+			},
+			Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: math.MinInt64,
+				FloatVal: math.SmallestNonzeroFloat64,
+			},
+			Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: 0,
+				FloatVal: 0},
+		}
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			NumStats:  statswriter.GetDefaultNumStats(),
+			NumStats:  numStats,
 		}
 		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
-	if !stats.IsNumeric {
-		stats.IsNumeric = true
-		stats.NumStats = statswriter.GetDefaultNumStats()
-	}
 
 	// prior entries were non numeric, so we should init NumStats, but keep the hll and count vars
 	if stats.NumStats == nil {
-		stats.NumStats = statswriter.GetDefaultNumStats()
+		numStats := &NumericStats{
+			Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: math.MaxInt64,
+				FloatVal: math.MaxFloat64,
+			},
+			Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: math.MinInt64,
+				FloatVal: math.SmallestNonzeroFloat64,
+			},
+			Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+				IntgrVal: 0,
+				FloatVal: 0},
+		}
+		stats.NumStats = numStats
 		stats.IsNumeric = true // TODO: what if we have a mix of numeric and non-numeric
 	}
 
@@ -1631,7 +1635,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 	uintVal uint64, fltVal float64) {
 
 	stats.Count++
-	stats.NumStats.NumCount++
 
 	var inIntgrVal int64
 	switch inNumType {
@@ -1645,23 +1648,33 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 	// logic to max and sum
 	switch inNumType {
 	case SS_FLOAT64:
-		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: fltVal})
-		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
+		if stats.NumStats.Min.Ntype == SS_DT_FLOAT {
 			// incoming float, stored is float, simple min
+			stats.NumStats.Min.FloatVal = math.Min(stats.NumStats.Min.FloatVal, fltVal)
+			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, fltVal)
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + fltVal
 		} else {
 			// incoming float, stored is non-float, upgrade it
+			stats.NumStats.Min.FloatVal = math.Min(float64(stats.NumStats.Min.IntgrVal), fltVal)
+			stats.NumStats.Min.Ntype = SS_DT_FLOAT
+
+			stats.NumStats.Max.FloatVal = math.Max(float64(stats.NumStats.Max.IntgrVal), fltVal)
+			stats.NumStats.Max.Ntype = SS_DT_FLOAT
+
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
 		}
 	// incoming is NON-float
 	default:
-		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: inIntgrVal})
-		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
+		if stats.NumStats.Min.Ntype == SS_DT_FLOAT {
 			// incoming non-float, stored is float, cast it
+			stats.NumStats.Min.FloatVal = math.Min(stats.NumStats.Min.FloatVal, float64(inIntgrVal))
+			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, float64(inIntgrVal))
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + float64(inIntgrVal)
 		} else {
 			// incoming non-float, stored is non-float, simple min
+			stats.NumStats.Min.IntgrVal = utils.MinInt64(stats.NumStats.Min.IntgrVal, inIntgrVal)
+			stats.NumStats.Max.IntgrVal = utils.MaxInt64(stats.NumStats.Max.IntgrVal, inIntgrVal)
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
 		}
 	}

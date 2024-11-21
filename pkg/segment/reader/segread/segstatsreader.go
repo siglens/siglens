@@ -269,7 +269,7 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 			return &utils.CValueEnclosure{}
 		}
 	}
-	
+
 	return &result
 }
 
@@ -433,7 +433,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 
 	// Update running segment statistics
 	runningSegStat.Count += currSegStat.Count
-	runningSegStat.NumStats.NumCount += currSegStat.NumStats.NumCount
+
 	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
 	if err != nil {
 		log.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)

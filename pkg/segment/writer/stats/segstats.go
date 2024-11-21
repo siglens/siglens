@@ -18,6 +18,7 @@
 package stats
 
 import (
+	"math"
 	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -28,6 +29,10 @@ import (
 
 func GetDefaultNumStats() *NumericStats {
 	return &NumericStats{
+		Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+			IntgrVal: math.MaxInt64},
+		Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
+			IntgrVal: math.MinInt64},
 		Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 			IntgrVal: 0},
 		Dtype: SS_DT_SIGNED_NUM,
@@ -222,7 +227,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 	if err == nil {
 		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
 		return
-	} 
+	}
 
 	stats.Count++
 

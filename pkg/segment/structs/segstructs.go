@@ -534,11 +534,10 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	NumCount uint64
-	Min 	utils.NumTypeEnclosure `json:"min,omitempty"`
-	Max 	utils.NumTypeEnclosure `json:"max,omitempty"`
-	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
-	Dtype    utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
+	Min   utils.NumTypeEnclosure `json:"min,omitempty"` // Remove when we migrate to new SST format
+	Max   utils.NumTypeEnclosure `json:"max,omitempty"` // Remove when we migrate to new SST format
+	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
+	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
 
 type StringStats struct {
@@ -728,7 +727,6 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 	return columns
 }
 
-
 func UpdateMinMax(stats *SegStats, value utils.CValueEnclosure) {
 	minVal, err := utils.ReduceMinMax(stats.Min, value, true)
 	if err != nil {
@@ -801,7 +799,6 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 	if other == nil {
 		return
 	}
-	ss.NumCount += other.NumCount
 
 	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
