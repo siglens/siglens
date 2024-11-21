@@ -583,7 +583,7 @@ func GetColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []s
 }
 
 // returns the a map with columns as keys and returns a bool if the segkey/table was found
-func CheckAndGetColsForSegKey(segKey string, vtable string) (map[string]bool, bool) {
+func CheckAndGetColsForSegKey(segKey string) (map[string]bool, bool) {
 
 	globalMetadata.updateLock.RLock()
 	segmentMetadata, segKeyOk := globalMetadata.segmentMetadataReverseIndex[segKey]

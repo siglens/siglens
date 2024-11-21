@@ -54,7 +54,7 @@ type IQR struct {
 	mode iqrMode
 
 	// Used if and only if the mode is withRRCs.
-	reader           record.RRCsReaderI
+	reader           *IQRReader
 	rrcs             []*utils.RecordResultContainer
 	encodingToSegKey map[uint32]string
 
@@ -86,10 +86,10 @@ type SerializableIQR struct {
 }
 
 func NewIQR(qid uint64) *IQR {
-	return &IQR{
+	iqr := &IQR{
 		mode:             notSet,
 		qid:              qid,
-		reader:           &record.RRCsReader{},
+		reader:           NewIQRReader(&record.RRCsReader{}),
 		rrcs:             make([]*utils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint32]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
@@ -99,11 +99,13 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 	}
+
+	return iqr
 }
 
 func NewIQRWithReader(qid uint64, reader record.RRCsReaderI) *IQR {
 	iqr := NewIQR(qid)
-	iqr.reader = reader
+	iqr.reader = NewIQRReader(reader)
 	return iqr
 }
 
@@ -572,7 +574,7 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
-func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
+func (iqr *IQR) GetSegKeyToVirtualTableMapFromRRCs() map[string]string {
 	// segKey -> virtual table name
 	segKeyVTableMap := make(map[string]string)
 	for _, rrc := range iqr.rrcs {
@@ -605,12 +607,13 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 
 // Since this is an internal function, don't validate() the IQR.
 func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
-	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
 	allColumns := make(map[string]struct{})
 
-	for segkey, vTable := range segKeyVTableMap {
-		columns, err := iqr.reader.GetColsForSegKey(segkey, vTable)
+	vTable := ""
+
+	for segEnc, segkey := range iqr.encodingToSegKey {
+		columns, err := iqr.reader.getColumnsForSegKey(segkey, vTable, utils.T_SegEncoding(segEnc))
 		if err != nil {
 			log.Errorf("qid=%v, IQR.getColumnsInternal: error getting columns for segKey %v: %v and Virtual Table name: %v",
 				iqr.qid, segkey, vTable, err)
@@ -800,6 +803,11 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 			return nil, fmt.Errorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, result.qid)
 		}
 
+		err = result.mergeIQRReaders(iqr)
+		if err != nil {
+			return nil, fmt.Errorf("mergeMetadata: error merging IQR readers: %v", err)
+		}
+
 		if iqr.mode != result.mode {
 			if result.mode == notSet {
 				result.mode = iqr.mode
@@ -825,6 +833,11 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent measure columns (%v and %v)",
 				iqr.qid, iqr.measureColumns, result.measureColumns)
 		}
+	}
+
+	err := result.reader.validate()
+	if err != nil {
+		return nil, fmt.Errorf("mergeMetadata: error validating reader: %v", err)
 	}
 
 	return result, nil
