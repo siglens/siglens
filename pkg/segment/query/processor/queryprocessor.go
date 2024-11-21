@@ -258,12 +258,6 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 			timeRange: queryInfo.GetQueryRange(),
 		}
 		return NewTimechartDP(timechartOptions)
-	} else if queryAgg.GroupByRequest != nil {
-		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
-		return NewStatsDP(queryAgg.StatsExpr)
-	} else if queryAgg.MeasureOperations != nil {
-		queryAgg.StatsExpr = &structs.StatsExpr{MeasureOperations: queryAgg.MeasureOperations}
-		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.StatsExpr != nil {
 		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.TailExpr != nil {
