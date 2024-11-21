@@ -1865,6 +1865,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
 
 	if config.IsNewQueryPipelineEnabled() {
 		root.GroupByRequest = aggNode.GroupByRequest
+        root.StatisticExpr = statisticExpr.(*structs.StatisticExpr)
 		return root, nil
 	}
 
@@ -4478,6 +4479,7 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.TransactionType,
         TransactionArguments: txnOptions.(*structs.TransactionArguments),
+        TransactionExpr: txnOptions.(*structs.TransactionArguments),
     }
     return queryAgg, nil
 }
