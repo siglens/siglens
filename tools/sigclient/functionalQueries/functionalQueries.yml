@@ -59,7 +59,7 @@ variable_col_tests/var_complex_search_2.json
 variable_col_tests/var_search_1col_fields.json
 variable_col_tests/var_grpby_1col_4stats.json
 variable_col_tests/var_3stats.json
-# variable_col_tests/var_bin.json Cannot perform bin on NULL value
+variable_col_tests/var_bin.json
 variable_col_tests/var_9stats.json
 variable_col_tests/var_stats_groupby_with_eval.json
 variable_col_tests/var_9stats_groupby_2col.json

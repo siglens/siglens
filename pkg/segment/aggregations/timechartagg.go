@@ -153,7 +153,8 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 // Timechart will only display N highest/lowest scoring distinct values of the split-by field
 // For Single agg, the score is based on the sum of the values in the aggregation. Therefore, we can only know groupByColVal's ranking after processing all the runningStats
 // For multiple aggs, the score is based on the freq of the field. Which means we can rank groupByColVal at this time.
-func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*utils.CValueEnclosure, measureOperations []*structs.MeasureAggregator) map[string]bool {
+func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*utils.CValueEnclosure,
+	measureOperations []*structs.MeasureAggregator, batchErr *putils.BatchError) map[string]bool {
 
 	if timechart == nil || timechart.LimitExpr == nil {
 		return nil
@@ -177,7 +178,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 			valIsInLimit[groupByColVal] = false
 			score, err := cVal.GetFloatValue()
 			if err != nil {
-				log.Errorf("CheckGroupByColValsAgainstLimit: %v does not have a score", groupByColVal)
+				batchErr.AddError("CheckGroupByColValsAgainstLimit:score", fmt.Errorf("%v does not have a score", groupByColVal))
 				continue
 			}
 			scorePairs = append(scorePairs, scorePair{
