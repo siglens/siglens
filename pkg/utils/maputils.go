@@ -180,16 +180,6 @@ func AddToSet[K comparable](set map[K]struct{}, key K) {
 	set[key] = struct{}{}
 }
 
-func MapKeysToSlice[K comparable, V any](m map[K]V) []K {
-	keys := make([]K, len(m))
-	i := 0
-	for k := range m {
-		keys[i] = k
-		i++
-	}
-	return keys
-}
-
 // IntersectionWithFirstMapValues returns a map containing the intersection of the keys of the two maps.
 // The values of the first map are retained.
 func IntersectionWithFirstMapValues[K comparable, V1 any, V2 any](map1 map[K]V1, map2 map[K]V2) map[K]V1 {
