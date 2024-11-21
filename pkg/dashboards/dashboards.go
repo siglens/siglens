@@ -83,7 +83,6 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 	return dashboardData, nil
 }
 
-
 func getAllIdsFileName(orgid uint64) string {
 	var allidsFname string
 	if orgid == 0 {
