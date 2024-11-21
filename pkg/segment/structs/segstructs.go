@@ -730,13 +730,13 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 func UpdateMinMax(stats *SegStats, value utils.CValueEnclosure) {
 	minVal, err := utils.ReduceMinMax(stats.Min, value, true)
 	if err != nil {
-		log.Errorf("updateMinMax: Error while reducing min: %v", err)
+		log.Errorf("UpdateMinMax: Error while reducing min: %v", err)
 	} else {
 		stats.Min = minVal
 	}
 	maxVal, err := utils.ReduceMinMax(stats.Max, value, false)
 	if err != nil {
-		log.Errorf("updateMinMax: Error while reducing max: %v", err)
+		log.Errorf("UpdateMinMax: Error while reducing max: %v", err)
 	} else {
 		stats.Max = maxVal
 	}

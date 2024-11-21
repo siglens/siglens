@@ -189,11 +189,8 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 func GetSegMin(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 
-	result := utils.CValueEnclosure{}
-
 	if currSegStat == nil {
-		log.Errorf("GetSegMin: currSegStat is nil")
-		return &result, errors.New("GetSegMin: currSegStat is nil")
+		return &utils.CValueEnclosure{}, fmt.Errorf("GetSegMin: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -203,7 +200,7 @@ func GetSegMin(runningSegStat *structs.SegStats,
 
 	result, err := utils.ReduceMinMax(runningSegStat.Min, currSegStat.Min, true)
 	if err != nil {
-		return &utils.CValueEnclosure{}, err
+		return &utils.CValueEnclosure{}, fmt.Errorf("GetSegMin: error in ReduceMinMax, err: %v", err)
 	}
 	runningSegStat.Min = result
 	if !runningSegStat.IsNumeric && runningSegStat.Min.IsNumeric() {
@@ -216,11 +213,8 @@ func GetSegMin(runningSegStat *structs.SegStats,
 func GetSegMax(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 
-	result := utils.CValueEnclosure{}
-
 	if currSegStat == nil {
-		log.Errorf("GetSegMax: currSegStat is nil")
-		return &result, errors.New("GetSegMax: currSegStat is nil")
+		return &utils.CValueEnclosure{}, fmt.Errorf("GetSegMax: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -230,7 +224,7 @@ func GetSegMax(runningSegStat *structs.SegStats,
 
 	result, err := utils.ReduceMinMax(runningSegStat.Max, currSegStat.Max, false)
 	if err != nil {
-		return &utils.CValueEnclosure{}, err
+		return &utils.CValueEnclosure{}, fmt.Errorf("GetSegMax: error in ReduceMinMax, err: %v", err)
 	}
 	runningSegStat.Max = result
 
@@ -280,8 +274,7 @@ func GetSegRange(runningSegStat *structs.SegStats,
 	result := utils.CValueEnclosure{}
 
 	if currSegStat == nil {
-		log.Errorf("GetSegRange: currSegStat is nil")
-		return &result, errors.New("GetSegRange: currSegStat is nil")
+		return &result, fmt.Errorf("GetSegRange: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -308,13 +301,11 @@ func GetSegSum(runningSegStat *structs.SegStats,
 		IntgrVal: 0,
 	}
 	if currSegStat == nil {
-		log.Errorf("GetSegSum: currSegStat is nil")
-		return &rSst, errors.New("GetSegSum: currSegStat is nil")
+		return &rSst, fmt.Errorf("GetSegSum: currSegStat is nil")
 	}
 
 	if !currSegStat.IsNumeric {
-		log.Errorf("GetSegSum: current segStats is non-numeric")
-		return &rSst, errors.New("GetSegSum: current segStat is non-numeric")
+		return &rSst, fmt.Errorf("GetSegSum: current segStats is non-numeric")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -363,8 +354,7 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 	}
 
 	if currSegStat == nil {
-		log.Errorf("GetSegCardinality: currSegStat is nil")
-		return &res, errors.New("GetSegCardinality: currSegStat is nil")
+		return &res, fmt.Errorf("GetSegCardinality: currSegStat is nil")
 	}
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
@@ -375,8 +365,7 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 
 	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
 	if err != nil {
-		log.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("GetSegCardinality: error in Hll.Merge, err: %+v", err)
 	}
 	res.IntgrVal = int64(runningSegStat.GetHllCardinality())
 
@@ -391,8 +380,7 @@ func GetSegCount(runningSegStat *structs.SegStats,
 		IntgrVal: int64(0),
 	}
 	if currSegStat == nil {
-		log.Errorf("GetSegCount: currSegStat is nil")
-		return &rSst, errors.New("GetSegCount: currSegStat is nil")
+		return &rSst, fmt.Errorf("GetSegCount: currSegStat is nil")
 	}
 
 	if runningSegStat == nil {
@@ -415,13 +403,11 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 	}
 
 	if currSegStat == nil {
-		log.Errorf("GetSegAvg: currSegStat is nil")
-		return &rSst, errors.New("GetSegAvg: currSegStat is nil")
+		return &rSst, fmt.Errorf("GetSegAvg: currSegStat is nil")
 	}
 
 	if !currSegStat.IsNumeric {
-		log.Errorf("GetSegAvg: current segStats is non-numeric")
-		return &rSst, errors.New("GetSegAvg: current segStat is non-numeric")
+		return &rSst, fmt.Errorf("GetSegAvg: current segStats is non-numeric")
 	}
 
 	// If running segment statistics are nil, return the current segment's average
@@ -433,11 +419,9 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 
 	// Update running segment statistics
 	runningSegStat.Count += currSegStat.Count
-
 	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
 	if err != nil {
-		log.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)
-		return &rSst, err
+		return &rSst, fmt.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)
 	}
 	// Calculate and return the average
 	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
@@ -449,8 +433,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 func getAverage(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
 	avg := 0.0
 	if count == 0 {
-		log.Errorf("getAverage: count is 0")
-		return avg, errors.New("getAverage: count is 0, cannot divide by 0")
+		return avg, fmt.Errorf("getAverage: count is 0, cannot divide by 0")
 	}
 	switch sum.Ntype {
 	case utils.SS_DT_FLOAT:
@@ -458,8 +441,7 @@ func getAverage(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
 	case utils.SS_DT_SIGNED_NUM:
 		avg = float64(sum.IntgrVal) / float64(count)
 	default:
-		log.Errorf("getAverage: invalid data type: %v", sum.Ntype)
-		return avg, fmt.Errorf("getAverage: invalid data type %v", sum.Ntype)
+		return avg, fmt.Errorf("getAverage: invalid data type: %v", sum.Ntype)
 	}
 	return avg, nil
 }
@@ -471,7 +453,6 @@ func GetSegList(runningSegStat *structs.SegStats,
 		CVal:  make([]string, 0),
 	}
 	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
-		log.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
 		return &res, fmt.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
 	}
 
@@ -517,7 +498,6 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 	}
 
 	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrSet == nil {
-		log.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
 	}
 	// Initialize or retrieve the string set from running segment stats

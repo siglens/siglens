@@ -297,7 +297,6 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
-		// sstResult, err = segread.GetSegRange(runningSegStat, incomingSegStat)
 	case utils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
 	case utils.Count:
