@@ -50,12 +50,12 @@ func Test_addSegStatsNums(t *testing.T) {
 	bb := bbp.Get()
 
 	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false, false)
-	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
+	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, int64(2345), sst[cname].Min.CVal)
 
 	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false, false)
-	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(345.1), sst[cname].Min.CVal)
 
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
 	assert.Equal(t, float64(345.1+2345), sst[cname].NumStats.Sum.FloatVal)
@@ -120,14 +120,14 @@ func Test_addSegStatsStrForMinMaxStrings(t *testing.T) {
 
 	assert.Nil(t, sst[cname].StringStats.StrSet)
 	assert.Nil(t, sst[cname].StringStats.StrList)
-	assert.Equal(t, "Abd", sst[cname].StringStats.Min.CVal)
-	assert.Equal(t, "abc", sst[cname].StringStats.Max.CVal)
+	assert.Equal(t, "Abd", sst[cname].Min.CVal)
+	assert.Equal(t, "abc", sst[cname].Max.CVal)
 
 	AddSegStatsStr(sst, cname, "", bb, nil, true, false)
 	AddSegStatsStr(sst, cname, "xyz", bb, nil, false, true)
 
-	assert.Equal(t, "", sst[cname].StringStats.Min.CVal)
-	assert.Equal(t, "xyz", sst[cname].StringStats.Max.CVal)
+	assert.Equal(t, "", sst[cname].Min.CVal)
+	assert.Equal(t, "xyz", sst[cname].Max.CVal)
 }
 
 func Test_mergeSegStats(t *testing.T) {
@@ -138,23 +138,23 @@ func Test_mergeSegStats(t *testing.T) {
 	map2["col1"] = &SegStats{IsNumeric: true, Count: 2}
 	expectedCol1 := &SegStats{IsNumeric: true, Count: 3}
 
-	map1["colA"] = &SegStats{IsNumeric: false, StringStats: &StringStats{
+	map1["colA"] = &SegStats{IsNumeric: false,
 		Min: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "abc"},
 		Max: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "xyz"},
-	}}
-	map2["colA"] = &SegStats{IsNumeric: false, StringStats: &StringStats{
+	}
+	map2["colA"] = &SegStats{IsNumeric: false,
 		Min: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "Abc"},
 		Max: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "Xyz"},
-	}}
-	expectedColA := &SegStats{IsNumeric: false, StringStats: &StringStats{
+	}
+	expectedColA := &SegStats{IsNumeric: false,
 		Min: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "Abc"},
 		Max: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "xyz"},
-	}}
+	}
 
-	map1["colB"] = &SegStats{IsNumeric: false, StringStats: &StringStats{
+	map1["colB"] = &SegStats{IsNumeric: false,
 		Min: CValueEnclosure{Dtype: SS_DT_STRING, CVal: ""},
 		Max: CValueEnclosure{Dtype: SS_DT_STRING, CVal: "ABC"},
-	}}
+	}
 
 	map1["col2"] = &SegStats{IsNumeric: true, Count: 42}
 	expectedCol2 := &SegStats{IsNumeric: true, Count: 42}
