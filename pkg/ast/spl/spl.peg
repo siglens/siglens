@@ -846,14 +846,26 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
 
     if byFields == nil {
         aggNode.PipeCommandType = structs.MeasureAggsType
+        // TODO: remove the duplication; use StatsExpr instead of MeasureOperations
         aggNode.MeasureOperations = measureAggs
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+        }
     } else {
         aggNode.PipeCommandType = structs.GroupByType
+        // TODO: remove the duplication; use StatsExpr instead of GroupByRequest
         aggNode.GroupByRequest = &structs.GroupByRequest {
             MeasureOperations: measureAggs,
             GroupByColumns: byFields.([]string),
         }
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+            GroupByRequest: &structs.GroupByRequest {
+                MeasureOperations: measureAggs,
+                GroupByColumns: byFields.([]string),
+            },
+        }
     }
 
     return aggNode, nil
