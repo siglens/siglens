@@ -83,36 +83,6 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 	return dashboardData, nil
 }
 
-func readDefaultDashboards(orgid uint64) ([]byte, error) {
-	var dashboardData []byte
-	allidsFname := getDefaultDashboardFileName()
-
-	dashboardData, err := os.ReadFile(allidsFname)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		log.Errorf("readDefaultDashboards: Failed to read allidsFname file fname=%v, err=%v", allidsFname, err)
-		return nil, err
-	}
-
-	allDashboardsIdsLock.Lock()
-	if _, ok := allDashboardsIds[orgid]; !ok {
-		allDashboardsIds[orgid] = make(map[string]string)
-	}
-	var allDashboardNames map[string]string
-	err = json.Unmarshal(dashboardData, &allDashboardNames)
-	if err != nil {
-		allDashboardsIdsLock.Unlock()
-		log.Errorf("readDefaultDashboards: Failed to unmarshall allidsFname file fname=%v, err=%v, dashboardData=%v",
-			allidsFname, err, dashboardData)
-		return nil, err
-	}
-	allDashboardsIds[orgid] = allDashboardNames
-	latestDashboardReadTimeMillis[orgid] = utils.GetCurrentTimeInMs()
-	allDashboardsIdsLock.Unlock()
-	return dashboardData, nil
-}
 
 func getAllIdsFileName(orgid uint64) string {
 	var allidsFname string
@@ -209,20 +179,6 @@ func getAllDashboardIds(orgid uint64) (map[string]string, error) {
 	if err != nil {
 		releaseLock(orgid)
 		log.Errorf("getAllDashboardIds: failed to read, orgid=%v, err=%v", orgid, err)
-		return nil, err
-	}
-	releaseLock(orgid)
-	allDashboardsIdsLock.RLock()
-	defer allDashboardsIdsLock.RUnlock()
-	return allDashboardsIds[orgid], nil
-}
-
-func getAllDefaultDashboardIds(orgid uint64) (map[string]string, error) {
-	createOrAcquireLock(orgid)
-	_, err := readDefaultDashboards(orgid)
-	if err != nil {
-		releaseLock(orgid)
-		log.Errorf("getAllDefaultDashboardIds: failed to read, orgid=%v,  err=%v", orgid, err)
 		return nil, err
 	}
 	releaseLock(orgid)
@@ -432,6 +388,10 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 		return errors.New("updateDashboard: Error fetching dashboard details")
 	}
 
+	if currentCreatedAt, exists := currentDashboardDetails["createdAt"]; exists {
+		dashboardDetails["createdAt"] = currentCreatedAt
+	}
+
 	// Check if isFavorite is provided in the update
 	if _, exists := currentDashboardDetails["isFavorite"]; !exists {
 		// If isFavorite does not exist in currentDashboardDetails, set it to false
@@ -613,85 +573,11 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessListFavoritesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	dIds, err := getAllFavoriteDashboardIds(myid)
-
-	if err != nil {
-		log.Errorf("ProcessListFavoritesRequest: could not get favorite dashboard ids, err=%v", err)
-		utils.SetBadMsg(ctx, "")
-		return
-	}
-	utils.WriteJsonResponse(ctx, dIds)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func getAllFavoriteDashboardIds(orgId uint64) (map[string]string, error) {
-	allDashboards, err := getAllDashboardIds(orgId)
-	if err != nil {
-		return nil, err
-	}
-
-	favoriteDashboards := make(map[string]string)
-	for id, name := range allDashboards {
-		isFavorite, err := isDashboardFavorite(id)
-		if err != nil {
-			return nil, err
-		}
-
-		if isFavorite {
-			favoriteDashboards[id] = name
-		}
-	}
-
-	return favoriteDashboards, nil
-}
-
-func isDashboardFavorite(id string) (bool, error) {
-	var dashboardDetailsFname string
-
-	if isDefaultDashboard(id) {
-		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
-	} else {
-		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-	}
-
-	dashboardJson, err := os.ReadFile(dashboardDetailsFname)
-	if err != nil {
-		return false, err
-	}
-
-	var dashboard map[string]interface{}
-	err = json.Unmarshal(dashboardJson, &dashboard)
-	if err != nil {
-		log.Errorf("isDashboardFavorite: Failed to unmarshal json: %v, err=%v", dashboardJson, err)
-		return false, err
-	}
-
-	isFav, ok := dashboard["isFavorite"].(bool)
-	if !ok {
-		isFav = false
-	}
-
-	return isFav, nil
-}
-
 func ProcessListAllRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	dIds, err := getAllDashboardIds(myid)
+	dIds, err := getDashboardsWithMetadata(myid)
 
 	if err != nil {
 		log.Errorf("ProcessListAllRequest: could not get dashboard ids, err=%v", err)
-		utils.SetBadMsg(ctx, "")
-		return
-	}
-	utils.WriteJsonResponse(ctx, dIds)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func ProcessListAllDefaultDBRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	dIds, err := getAllDefaultDashboardIds(myid)
-
-	if err != nil {
-		log.Errorf("ProcessListAllDefaultDBRequest: could not get dashboard ids, err=%v", err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -844,4 +730,67 @@ func ProcessDeleteDashboardsByOrgId(orgid uint64) error {
 		log.Warnf("ProcessDeleteDashboardsByOrgId: Failed to delete the dashboard allids file: %v", dashboardAllIdsFilename)
 	}
 	return nil
+}
+
+func getDashboardsWithMetadata(orgid uint64) (map[string]interface{}, error) {
+	dashboardIds, err := getAllDashboardIds(orgid)
+	if err != nil {
+		return nil, err
+	}
+
+	dashboardDetails := make(map[string]interface{})
+	for id, name := range dashboardIds {
+		dashboardInfo, err := getDashboardMetadata(id, name)
+		if err != nil {
+			log.Errorf("Error getting metadata for dashboard %s: %v", id, err)
+			continue
+		}
+		dashboardDetails[id] = dashboardInfo
+	}
+
+	return dashboardDetails, nil
+}
+
+func getDashboardMetadata(id string, name string) (map[string]interface{}, error) {
+	dashboardInfo := map[string]interface{}{
+		"name":       name,
+		"isFavorite": false,
+		"isDefault":  isDefaultDashboard(id),
+	}
+
+	var detailsFname string
+	if dashboardInfo["isDefault"].(bool) {
+		detailsFname = "defaultDBs/details/" + id + ".json"
+		dashboardInfo["createdAt"] = 0 // Default dashboards always have 0
+	} else {
+		detailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	}
+
+	details, err := os.ReadFile(detailsFname)
+	if err != nil {
+		return dashboardInfo, nil
+	}
+
+	var dashboardDetails map[string]interface{}
+	if err := json.Unmarshal(details, &dashboardDetails); err != nil {
+		return dashboardInfo, nil
+	}
+
+	// For non-default dashboards
+	if !dashboardInfo["isDefault"].(bool) {
+		if createdAt, exists := dashboardDetails["createdAt"]; exists {
+			dashboardInfo["createdAt"] = createdAt
+		} else {
+			// Legacy case only
+			if fileInfo, err := os.Stat(detailsFname); err == nil {
+				dashboardInfo["createdAt"] = fileInfo.ModTime().UnixMilli()
+			}
+		}
+	}
+
+	if favorite, exists := dashboardDetails["isFavorite"].(bool); exists {
+		dashboardInfo["isFavorite"] = favorite
+	}
+
+	return dashboardInfo, nil
 }
