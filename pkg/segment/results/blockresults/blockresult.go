@@ -540,7 +540,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
 	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
-	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations)
+	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations, batchErr)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)

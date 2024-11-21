@@ -494,7 +494,7 @@ type NodeResult struct {
 	TotalResults                *QueryCount
 	VectorResultValue           float64
 	RenameColumns               map[string]string
-	SegEncToKey                 map[uint16]string
+	SegEncToKey                 map[uint32]string
 	TotalRRCCount               uint64
 	MeasureFunctions            []string        `json:"measureFunctions,omitempty"`
 	MeasureResults              []*BucketHolder `json:"measure,omitempty"`
