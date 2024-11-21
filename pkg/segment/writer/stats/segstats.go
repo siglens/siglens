@@ -92,6 +92,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
 
 	stats.Count++
+	stats.NumStats.NumCount++
 
 	var inIntgrVal int64
 	switch inNumType {

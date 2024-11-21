@@ -535,13 +535,15 @@ type SegStats struct {
 
 type NumericStats struct {
 	NumCount uint64
-	Min 	utils.NumTypeEnclosure `json:"min,omitempty"`
-	Max 	utils.NumTypeEnclosure `json:"max,omitempty"`
+	Min 	utils.NumTypeEnclosure `json:"min,omitempty"` // remove for new SST
+	Max 	utils.NumTypeEnclosure `json:"max,omitempty"` // remove for new SST
 	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
 	Dtype    utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
 
 type StringStats struct {
+	Min         utils.CValueEnclosure // remove for new SST
+	Max         utils.CValueEnclosure // remove for new SST
 	StrSet  map[string]struct{}
 	StrList []string
 }

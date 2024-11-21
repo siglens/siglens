@@ -120,7 +120,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	var hllSize uint32
 
 	switch version {
-	case utils.VERSION_SEGSTATS_BUF[0]:
+	case utils.VERSION_SEGSTATS_BUF[0], utils.VERSION_SEGSTATS_BUF_LEGACY_3[0]:
 		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
 		idx += 4
 	case utils.VERSION_SEGSTATS_BUF_LEGACY_2[0], utils.VERSION_SEGSTATS_BUF_LEGACY_1[0]:
@@ -143,10 +143,22 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	idx += hllSize
 
+	if version == utils.VERSION_SEGSTATS_BUF[0] {
+		// read new way and return sst
+		readNewSST(&sst, fdata, idx)
+		return &sst, nil
+	}
+
 	if !sst.IsNumeric {
 		return &sst, nil
 	}
 
+	readNumericData(&sst, fdata, idx)
+
+	return &sst, nil
+}
+
+func readNumericData(sst *structs.SegStats, fdata []byte, idx uint32) {
 	sst.NumStats = &structs.NumericStats{}
 	// read Min Ntype
 	min := utils.NumTypeEnclosure{}
@@ -182,8 +194,15 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 		sum.IntgrVal = toputils.BytesToInt64LittleEndian(fdata[idx : idx+8])
 	}
 	sst.NumStats.Sum = sum
+}
 
-	return &sst, nil
+func readNewSST(sst *structs.SegStats, fdata []byte, idx uint32) {
+	if sst.IsNumeric {
+		readNumericData(sst, fdata, idx)
+		// read NumCount
+	}
+	// read min max for strings
+	// return sst with min max
 }
 
 func GetSegMin(runningSegStat *structs.SegStats,
@@ -426,7 +445,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 
 	// If running segment statistics are nil, return the current segment's average
 	if runningSegStat == nil {
-		avg, err := getAverage(currSegStat.NumStats.Sum, currSegStat.Count)
+		avg, err := getAverage(currSegStat.NumStats.Sum, currSegStat.NumStats.NumCount)
 		rSst.FloatVal = avg
 		return &rSst, err
 	}
@@ -440,7 +459,7 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 		return &rSst, err
 	}
 	// Calculate and return the average
-	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.Count)
+	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.NumStats.NumCount)
 	rSst.FloatVal = avg
 	return &rSst, err
 }

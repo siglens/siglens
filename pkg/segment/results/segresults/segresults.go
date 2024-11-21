@@ -306,6 +306,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
 	case utils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+		a := sstResult
+		_ = a
 	case utils.Values:
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
