@@ -262,7 +262,7 @@ class btnRenderer {
                                 {
                                     dbname: duplicatedDBName,
                                     uniqId: uniqIDdb,
-                                    createdAt: utils.GetCurrentTimeInMs(),
+                                    createdAt: Date.now(),
                                     favorite: false,
                                     isDefault: false,
                                 },
