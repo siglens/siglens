@@ -1273,6 +1273,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     measureAggs := make([]*structs.MeasureAggregator, 0)
 
     timechartExpr := &structs.TimechartExpr{}
+    aggNode.TimechartExpr = timechartExpr
     byField := ""
 
     if tcArgs == nil {
@@ -1321,6 +1322,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
         MeasureOperations: measureAggs,
         GroupByColumns:    []string{"timestamp"},
     }
+    timechartExpr.GroupBy = aggNode.GroupByRequest
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
     if bOptions == nil {
