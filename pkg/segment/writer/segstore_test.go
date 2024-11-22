@@ -52,11 +52,11 @@ func verifyNumericStats(t *testing.T, sst *structs.SegStats, buf []byte, idx int
 	idx += 8
 
 	// NumCount
-	assert.Equal(t, sst.NumStats.NumCount, utils.BytesToUint64LittleEndian(buf[idx:idx+8]))
+	assert.Equal(t, sst.NumStats.NumericCount, utils.BytesToUint64LittleEndian(buf[idx:idx+8]))
 }
 
 func verifyCommon(t *testing.T, sst *structs.SegStats, buf []byte, idx int) int {
-	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF[0], buf[idx])
+	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF_V4[0], buf[idx])
 	idx++
 
 	isNumeric := utils.BytesToBoolLittleEndian(buf[idx : idx+1])
@@ -81,7 +81,7 @@ func verifyCommon(t *testing.T, sst *structs.SegStats, buf []byte, idx int) int 
 }
 
 func verifyNonNumeric(t *testing.T, sst *structs.SegStats, buf []byte, idx int) {
-	// Min DType
+	// DType
 	assert.Equal(t, uint8(sst.Min.Dtype), buf[idx : idx+1][0])
 	idx += 1
 
@@ -93,10 +93,6 @@ func verifyNonNumeric(t *testing.T, sst *structs.SegStats, buf []byte, idx int) 
 	// Min Value
 	assert.Equal(t, sst.Min.CVal, string(buf[idx:idx+int(minLen)]))
 	idx += int(minLen)
-
-	// Max DType
-	assert.Equal(t, uint8(sst.Max.Dtype), buf[idx : idx+1][0])
-	idx += 1
 
 	// Max Len
 	maxLen := uint16(len(sst.Max.CVal.(string)))

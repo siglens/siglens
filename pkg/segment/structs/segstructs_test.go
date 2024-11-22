@@ -766,7 +766,7 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 				CVal:  int64(42),
 			},
 			NumStats: &NumericStats{
-				NumCount: 10,
+				NumericCount: 10,
 				Sum: utils.NumTypeEnclosure{
 					Ntype:    utils.SS_DT_SIGNED_NUM,
 					IntgrVal: 200,

@@ -891,7 +891,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
-				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! computing segStats manually Error: %v", qid, segReq.segKey, err)
+				log.Errorf("qid=%d, applyAggOpOnSegments: ReadSegStats: Failed to get segment level stats for segKey %+v! computing segStats manually. Error: %v",
+					qid, segReq.segKey, err)
 				allSegFileResults.AddError(err)
 				// If we can't read the segment stats, we should compute it manually
 				sstMap = make(map[string]*structs.SegStats)

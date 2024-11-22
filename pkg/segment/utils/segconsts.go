@@ -139,7 +139,7 @@ var VERSION_MBLOCKSUMMARY = []byte{0x01}
 var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
 var VERSION_SEGSTATS_LEGACY = []byte{1}
 
-var VERSION_SEGSTATS_BUF = []byte{4} // version of the single column Seg Stats in a Segment
+var VERSION_SEGSTATS_BUF_V4 = []byte{4} // current version of the single column Seg Stats in a Segment
 var VERSION_SEGSTATS_BUF_V1 = []byte{1}
 var VERSION_SEGSTATS_BUF_V2 = []byte{2}
 var VERSION_SEGSTATS_BUF_V3 = []byte{3}

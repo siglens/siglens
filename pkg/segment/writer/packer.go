@@ -1623,7 +1623,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 	uintVal uint64, fltVal float64) {
 
 	stats.Count++
-	stats.NumStats.NumCount++
+	stats.NumStats.NumericCount++
 
 	var inIntgrVal int64
 	switch inNumType {

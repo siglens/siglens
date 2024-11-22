@@ -467,7 +467,7 @@ func Test_addSegStatsNums(t *testing.T) {
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
 	assert.Equal(t, float64(345.1+2345), sst[cname].NumStats.Sum.FloatVal)
 
-	assert.Equal(t, uint64(2), sst[cname].NumStats.NumCount)
+	assert.Equal(t, uint64(2), sst[cname].NumStats.NumericCount)
 }
 
 func Test_addSegStatsNumsMixed(t *testing.T) {
@@ -491,7 +491,7 @@ func Test_addSegStatsNumsMixed(t *testing.T) {
 
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
 	assert.Equal(t, float64(20+123.45+100), sst[cname].NumStats.Sum.FloatVal)
-	assert.Equal(t, uint64(3), sst[cname].NumStats.NumCount)
+	assert.Equal(t, uint64(3), sst[cname].NumStats.NumericCount)
 }
 
 func Test_SegStoreAllColumnsRecLen(t *testing.T) {

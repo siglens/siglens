@@ -534,8 +534,8 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	NumCount uint64                 `json:"numCount,omitempty"`
-	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
+	NumericCount uint64                 `json:"numericCount,omitempty"`
+	Sum          utils.NumTypeEnclosure `json:"sum,omitempty"`
 }
 
 type StringStats struct {
@@ -814,7 +814,7 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 		return
 	}
 
-	ss.NumCount += other.NumCount
+	ss.NumericCount += other.NumericCount
 	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Sum.Ntype == utils.SS_DT_FLOAT {
