@@ -202,6 +202,13 @@ func (qi *QueryInformation) GetDQS() DistributedQueryServiceInterface {
 	return qi.dqs
 }
 
+func (qi *QueryInformation) GetSegEncToKeyBaseValue() uint32 {
+	if qi.dqs == nil {
+		return 0
+	}
+	return qi.dqs.GetSegEncToKeyBaseValue()
+}
+
 // returns map[table] -> map[segKey] -> blkTracker to pass into MicroIndexCheck and ExtractSSRFromSearchNode
 // Returns error if qsr.blkTracker is nil
 func (qsr *QuerySegmentRequest) GetMicroIndexFilter() (map[string]map[string]*structs.BlockTracker, error) {

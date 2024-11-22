@@ -38,6 +38,7 @@ type binProcessor struct {
 	maxVal            float64
 	secondPass        bool
 	spanError         error
+	batchErr          *utils.BatchError
 }
 
 const MAX_SIMILAR_ERRORS_TO_LOG = 5
@@ -45,6 +46,12 @@ const MAX_SIMILAR_ERRORS_TO_LOG = 5
 func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
 		return nil, io.EOF
+	}
+
+	qid := iqr.GetQID()
+
+	if p.batchErr == nil {
+		p.batchErr = utils.GetOrCreateBatchErrorWithQid(qid)
 	}
 
 	if p.options.BinSpanOptions == nil && !p.secondPass {
@@ -59,8 +66,6 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 		return iqr, nil
 	}
-
-	qid := iqr.GetQID()
 
 	if p.spanError != nil {
 		return iqr, utils.TeeErrorf("qid=%v, bin.Process: error=%v", qid, p.spanError)
@@ -175,8 +180,8 @@ func (p *binProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error {
 	value, err := cval.GetFloatValue()
 	if err != nil {
-		return fmt.Errorf("bin.performBinWithSpan: %+v cannot be converted to float; err=%v",
-			cval, err)
+		p.batchErr.AddError("bin.performBinWithSpan:GetFloatValue", fmt.Errorf("value=%v; err=%v", cval, err))
+		return nil
 	}
 
 	if p.options.BinSpanOptions.BinSpanLength != nil {

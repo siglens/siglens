@@ -251,19 +251,13 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewRexDP(queryAgg.RexExpr)
 	} else if queryAgg.SortExpr != nil {
 		return NewSortDP(queryAgg.SortExpr)
-	} else if queryAgg.TimeHistogram != nil && queryAgg.TimeHistogram.Timechart != nil {
+	} else if queryAgg.TimechartExpr != nil {
 		timechartOptions := &timechartOptions{
-			aggs:      queryAgg,
-			qid:       queryInfo.GetQid(),
-			timeRange: queryInfo.GetQueryRange(),
+			timeChartExpr: queryAgg.TimechartExpr,
+			qid:           queryInfo.GetQid(),
+			timeRange:     queryInfo.GetQueryRange(),
 		}
 		return NewTimechartDP(timechartOptions)
-	} else if queryAgg.GroupByRequest != nil {
-		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
-		return NewStatsDP(queryAgg.StatsExpr)
-	} else if queryAgg.MeasureOperations != nil {
-		queryAgg.StatsExpr = &structs.StatsExpr{MeasureOperations: queryAgg.MeasureOperations}
-		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.StatsExpr != nil {
 		return NewStatsDP(queryAgg.StatsExpr)
 	} else if queryAgg.TailExpr != nil {

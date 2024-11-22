@@ -225,6 +225,6 @@ func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 		AllRecords:   make([]*segutils.RecordResultContainer, 0),
 		Histogram:    aggResult,
 		TotalResults: &structs.QueryCount{TotalCount: totalHits, Op: segutils.Equals},
-		SegEncToKey:  make(map[uint16]string),
+		SegEncToKey:  make(map[uint32]string),
 	}
 }

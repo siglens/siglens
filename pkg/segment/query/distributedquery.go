@@ -26,13 +26,14 @@ type DistributedQueryServiceInterface interface {
 	Wait(qid uint64, querySummary *summary.QuerySummary) error
 	DistributeQuery(qI *QueryInformation) (uint64, error)
 	IsDistributed() bool
+	GetSegEncToKeyBaseValue() uint32
 }
 
 type DistributedQueryService struct {
 	isDistributed bool // whether or not this is a distributed query
 }
 
-func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults, dqid string) *DistributedQueryService {
+func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults, dqid string, segEncTokey uint32) *DistributedQueryService {
 
 	return &DistributedQueryService{
 		isDistributed: false,
@@ -61,4 +62,8 @@ func (d *DistributedQueryService) IsDistributed() bool {
 		return false
 	}
 	return d.isDistributed
+}
+
+func (d *DistributedQueryService) GetSegEncToKeyBaseValue() uint32 {
+	return 0
 }

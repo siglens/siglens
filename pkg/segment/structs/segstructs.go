@@ -494,7 +494,7 @@ type NodeResult struct {
 	TotalResults                *QueryCount
 	VectorResultValue           float64
 	RenameColumns               map[string]string
-	SegEncToKey                 map[uint16]string
+	SegEncToKey                 map[uint32]string
 	TotalRRCCount               uint64
 	MeasureFunctions            []string        `json:"measureFunctions,omitempty"`
 	MeasureResults              []*BucketHolder `json:"measure,omitempty"`
@@ -525,6 +525,8 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
+	Min         utils.CValueEnclosure
+	Max         utils.CValueEnclosure
 	Hll         *sutils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
@@ -532,8 +534,8 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	Min   utils.NumTypeEnclosure `json:"min,omitempty"`
-	Max   utils.NumTypeEnclosure `json:"max,omitempty"`
+	Min   utils.NumTypeEnclosure `json:"min,omitempty"` // Remove when we migrate to new SST format
+	Max   utils.NumTypeEnclosure `json:"max,omitempty"` // Remove when we migrate to new SST format
 	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
 	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
@@ -541,8 +543,6 @@ type NumericStats struct {
 type StringStats struct {
 	StrSet  map[string]struct{}
 	StrList []string
-	Min     utils.CValueEnclosure
-	Max     utils.CValueEnclosure
 }
 
 type SearchErrorInfo struct {
@@ -727,31 +727,18 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 	return columns
 }
 
-func (ss *StringStats) MergeMinStrStats(other *StringStats) {
-	if ss.Min.Dtype == utils.SS_INVALID {
-		ss.Min = other.Min
+func UpdateMinMax(stats *SegStats, value utils.CValueEnclosure) {
+	minVal, err := utils.ReduceMinMax(stats.Min, value, true)
+	if err != nil {
+		log.Errorf("UpdateMinMax: Error while reducing min: %v", err)
+	} else {
+		stats.Min = minVal
 	}
-	if other.Min.Dtype != utils.SS_INVALID {
-		res, err := utils.ReduceMinMax(ss.Min, other.Min, true)
-		if err != nil {
-			log.Errorf("StringStats.MergeMinStrStats: Failed to merge min string stats. error: %v", err)
-			return
-		}
-		ss.Min = res
-	}
-}
-
-func (ss *StringStats) MergeMaxStrStats(other *StringStats) {
-	if ss.Max.Dtype == utils.SS_INVALID {
-		ss.Max = other.Max
-	}
-	if other.Min.Dtype != utils.SS_INVALID {
-		res, err := utils.ReduceMinMax(ss.Max, other.Max, false)
-		if err != nil {
-			log.Errorf("StringStats.MergeMinStrStats: Failed to merge max string stats. error: %v", err)
-			return
-		}
-		ss.Max = res
+	maxVal, err := utils.ReduceMinMax(stats.Max, value, false)
+	if err != nil {
+		log.Errorf("UpdateMinMax: Error while reducing max: %v", err)
+	} else {
+		stats.Max = maxVal
 	}
 }
 
@@ -764,6 +751,9 @@ func (ss *SegStats) Merge(other *SegStats) {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
 		}
 	}
+
+	UpdateMinMax(ss, other.Min)
+	UpdateMinMax(ss, other.Max)
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
@@ -792,9 +782,6 @@ func (ss *StringStats) Merge(other *StringStats) {
 		}
 	}
 
-	ss.MergeMinStrStats(other)
-	ss.MergeMaxStrStats(other)
-
 	if ss.StrList != nil {
 		ss.StrList = append(ss.StrList, other.StrList...)
 	} else if other.StrList != nil {
@@ -812,26 +799,19 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 	if other == nil {
 		return
 	}
-	switch ss.Min.Ntype {
+
+	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Dtype == utils.SS_DT_FLOAT {
-			ss.Min.FloatVal = math.Min(ss.Min.FloatVal, other.Min.FloatVal)
-			ss.Max.FloatVal = math.Max(ss.Max.FloatVal, other.Max.FloatVal)
 			ss.Sum.FloatVal = ss.Sum.FloatVal + other.Sum.FloatVal
 		} else {
-			ss.Min.FloatVal = math.Min(ss.Min.FloatVal, float64(other.Min.IntgrVal))
-			ss.Max.FloatVal = math.Max(ss.Max.FloatVal, float64(other.Max.IntgrVal))
 			ss.Sum.FloatVal = ss.Sum.FloatVal + float64(other.Sum.IntgrVal)
 		}
 	default:
 		if other.Dtype == utils.SS_DT_FLOAT {
-			ss.Min.FloatVal = math.Min(float64(ss.Min.IntgrVal), other.Min.FloatVal)
-			ss.Max.FloatVal = math.Max(float64(ss.Max.IntgrVal), other.Max.FloatVal)
 			ss.Sum.FloatVal = float64(ss.Sum.IntgrVal) + other.Sum.FloatVal
 			ss.Dtype = utils.SS_DT_FLOAT
 		} else {
-			ss.Min.IntgrVal = sutils.MinInt64(ss.Min.IntgrVal, other.Min.IntgrVal)
-			ss.Max.IntgrVal = sutils.MaxInt64(ss.Max.IntgrVal, other.Max.IntgrVal)
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
 			ss.Dtype = utils.SS_DT_SIGNED_NUM
 		}

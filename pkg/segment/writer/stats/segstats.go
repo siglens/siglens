@@ -23,13 +23,11 @@ import (
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/utils"
 
-	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
 )
 
-func getDefaultNumStats() *NumericStats {
+func GetDefaultNumStats() *NumericStats {
 	return &NumericStats{
 		Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 			IntgrVal: math.MaxInt64},
@@ -52,7 +50,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			NumStats:  getDefaultNumStats(),
+			NumStats:  GetDefaultNumStats(),
 			Records:   make([]*CValueEnclosure, 0),
 		}
 		stats.CreateNewHll()
@@ -60,7 +58,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	}
 	if !stats.IsNumeric {
 		stats.IsNumeric = true
-		stats.NumStats = getDefaultNumStats()
+		stats.NumStats = GetDefaultNumStats()
 	}
 
 	colUsage := NoEvalUsage
@@ -84,19 +82,10 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
-		numStats := &NumericStats{
-			Min: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: math.MaxInt64},
-			Max: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: math.MinInt64},
-			Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
-				IntgrVal: 0},
-			Dtype: SS_DT_SIGNED_NUM,
-		}
 		stats = &SegStats{
 			IsNumeric: true,
 			Count:     0,
-			NumStats:  numStats,
+			NumStats:  GetDefaultNumStats(),
 		}
 		stats.CreateNewHll()
 		segstats[cname] = stats
@@ -137,10 +126,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 	// logic to max and sum
 	switch inNumType {
 	case SS_FLOAT64:
-		if stats.NumStats.Min.Ntype == SS_DT_FLOAT {
-			// incoming float, stored is float, simple min
-			stats.NumStats.Min.FloatVal = math.Min(stats.NumStats.Min.FloatVal, fltVal)
-			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, fltVal)
+		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: fltVal})
+		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + fltVal
 			stats.NumStats.Dtype = SS_DT_FLOAT
 
@@ -159,13 +146,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 		} else {
-			// incoming float, stored is non-float, upgrade it
-			stats.NumStats.Min.FloatVal = math.Min(float64(stats.NumStats.Min.IntgrVal), fltVal)
-			stats.NumStats.Min.Ntype = SS_DT_FLOAT
-
-			stats.NumStats.Max.FloatVal = math.Max(float64(stats.NumStats.Max.IntgrVal), fltVal)
-			stats.NumStats.Max.Ntype = SS_DT_FLOAT
-
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
 			stats.NumStats.Dtype = SS_DT_FLOAT
@@ -186,10 +166,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		}
 	// incoming is NON-float
 	default:
-		if stats.NumStats.Min.Ntype == SS_DT_FLOAT {
-			// incoming non-float, stored is float, cast it
-			stats.NumStats.Min.FloatVal = math.Min(stats.NumStats.Min.FloatVal, float64(inIntgrVal))
-			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, float64(inIntgrVal))
+		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: inIntgrVal})
+		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + float64(inIntgrVal)
 			stats.NumStats.Dtype = SS_DT_FLOAT
 
@@ -207,9 +185,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 		} else {
-			// incoming non-float, stored is non-float, simple min
-			stats.NumStats.Min.IntgrVal = utils.MinInt64(stats.NumStats.Min.IntgrVal, inIntgrVal)
-			stats.NumStats.Max.IntgrVal = utils.MaxInt64(stats.NumStats.Max.IntgrVal, inIntgrVal)
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
 			stats.NumStats.Dtype = SS_DT_SIGNED_NUM
 
@@ -247,6 +222,13 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 		segstats[cname] = stats
 	}
+
+	floatVal, err := strconv.ParseFloat(strVal, 64)
+	if err == nil {
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+		return
+	}
+
 	stats.Count++
 
 	colUsage := NoEvalUsage
@@ -285,28 +267,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		}
 	}
 
-	CVal := CValueEnclosure{Dtype: SS_DT_STRING, CVal: strVal}
-	if stats.StringStats.Min.Dtype == SS_DT_STRING {
-		res, err := ReduceMinMax(stats.StringStats.Min, CVal, true)
-		if err != nil {
-			log.Errorf("AddSegStatsStr: Error while reducing min: %v", err)
-		} else {
-			stats.StringStats.Min = res
-		}
-	} else {
-		stats.StringStats.Min = CVal
-	}
-
-	if stats.StringStats.Max.Dtype == SS_DT_STRING {
-		res, err := ReduceMinMax(stats.StringStats.Max, CVal, false)
-		if err != nil {
-			log.Errorf("AddSegStatsStr: Error while reducing max: %v", err)
-		} else {
-			stats.StringStats.Max = res
-		}
-	} else {
-		stats.StringStats.Max = CVal
-	}
+	UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_STRING, CVal: strVal})
 
 	bb.Reset()
 	_, _ = bb.WriteString(strVal)

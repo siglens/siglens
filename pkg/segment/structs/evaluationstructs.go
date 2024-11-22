@@ -249,11 +249,13 @@ type ConditionValuePair struct {
 }
 
 type TimechartExpr struct {
-	TcOptions  *TcOptions
-	BinOptions *BinOptions
-	SingleAgg  *SingleAgg
-	ByField    string // group by this field inside each time range bucket (timechart)
-	LimitExpr  *LimitExpr
+	TimeHistogram *TimeBucket
+	GroupBy       *GroupByRequest
+	TcOptions     *TcOptions
+	BinOptions    *BinOptions
+	SingleAgg     *SingleAgg
+	ByField       string // group by this field inside each time range bucket (timechart)
+	LimitExpr     *LimitExpr
 }
 
 type LimitExpr struct {

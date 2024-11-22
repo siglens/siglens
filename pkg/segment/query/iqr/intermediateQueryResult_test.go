@@ -43,7 +43,7 @@ func Test_AppendRRCs(t *testing.T) {
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
-	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	encodingToSegKey := map[uint32]string{1: "segKey1"}
 	rrcs := []*utils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
@@ -128,24 +128,24 @@ func Test_mergeMetadata(t *testing.T) {
 	iqr2 := NewIQR(0)
 
 	// Disjoint encodings.
-	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
-	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2"}
+	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1"}
+	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2"}
 
 	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
 	assert.NoError(t, err)
-	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2"}, iqr.encodingToSegKey)
+	assert.Equal(t, map[uint32]string{1: "segKey1", 2: "segKey2"}, iqr.encodingToSegKey)
 
 	// Overlapping encodings.
-	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
-	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2", 3: "segKey3"}
+	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
+	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2", 3: "segKey3"}
 
 	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
 	assert.NoError(t, err)
-	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2", 3: "segKey3"}, iqr.encodingToSegKey)
+	assert.Equal(t, map[uint32]string{1: "segKey1", 2: "segKey2", 3: "segKey3"}, iqr.encodingToSegKey)
 
 	// Inconsistent encodings.
-	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
-	iqr2.encodingToSegKey = map[uint16]string{2: "segKey100", 3: "segKey3"}
+	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
+	iqr2.encodingToSegKey = map[uint32]string{2: "segKey100", 3: "segKey3"}
 
 	_, err = mergeMetadata([]*IQR{iqr1, iqr2})
 	assert.Error(t, err)
@@ -259,8 +259,8 @@ func Test_Append_mergeMetaData(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)
 
-	iqr1.encodingToSegKey = map[uint16]string{1: "segKey1"}
-	iqr2.encodingToSegKey = map[uint16]string{2: "segKey2"}
+	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1"}
+	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2"}
 
 	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
 		"col1": {
@@ -284,7 +284,7 @@ func Test_Append_mergeMetaData(t *testing.T) {
 	err = iqr1.Append(iqr2)
 	assert.NoError(t, err)
 	assert.Equal(t, iqr1.mode, withoutRRCs)
-	assert.Equal(t, map[uint16]string{1: "segKey1", 2: "segKey2"}, iqr1.encodingToSegKey)
+	assert.Equal(t, map[uint32]string{1: "segKey1", 2: "segKey2"}, iqr1.encodingToSegKey)
 	assert.Equal(t, map[string]struct{}{"col10": {}, "col11": {}}, iqr1.deletedColumns)
 	assert.Equal(t, map[string]int{"col1": 0, "col2": 1}, iqr1.columnIndex)
 }
@@ -294,7 +294,7 @@ func Test_Append_withRRCs(t *testing.T) {
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
-	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	encodingToSegKey := map[uint32]string{1: "segKey1"}
 	rrcs := []*utils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
@@ -307,7 +307,7 @@ func Test_Append_withRRCs(t *testing.T) {
 	segKeyInfo2 := utils.SegKeyInfo{
 		SegKeyEnc: 2,
 	}
-	encodingToSegKey2 := map[uint16]string{2: "segKey2"}
+	encodingToSegKey2 := map[uint32]string{2: "segKey2"}
 	rrcs2 := []*utils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 2},
@@ -354,12 +354,12 @@ func setupTestIQRsWithRRCs(t *testing.T) (*IQR, *IQR) {
 
 	iqr1 := NewIQR(0)
 	iqr1.reader = mockReader
-	err := iqr1.AppendRRCs(allRRCs[:2], map[uint16]string{1: "segKey1"})
+	err := iqr1.AppendRRCs(allRRCs[:2], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	iqr2 := NewIQR(0)
 	iqr2.reader = mockReader
-	err = iqr2.AppendRRCs(allRRCs[2:], map[uint16]string{1: "segKey1"})
+	err = iqr2.AppendRRCs(allRRCs[2:], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	return iqr1, iqr2
@@ -504,7 +504,7 @@ func Test_Sort_multipleColumns(t *testing.T) {
 
 	iqr := NewIQR(0)
 	iqr.reader = mockReader
-	err := iqr.AppendRRCs(rrcs, map[uint16]string{1: "segKey1"})
+	err := iqr.AppendRRCs(rrcs, map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	less := func(a, b *Record) bool {
@@ -669,7 +669,7 @@ func Test_Mode_AfterAppendRRC(t *testing.T) {
 	iqr := NewIQR(0)
 	assert.Equal(t, notSet, iqr.mode)
 
-	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	encodingToSegKey := map[uint32]string{1: "segKey1"}
 
 	err := iqr.AppendRRCs([]*utils.RecordResultContainer{}, encodingToSegKey)
 	assert.NoError(t, err)
@@ -718,7 +718,7 @@ func Test_DiscardAfter(t *testing.T) {
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
-	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	encodingToSegKey := map[uint32]string{1: "segKey1"}
 	rrcs := []*utils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
@@ -758,7 +758,7 @@ func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	segKeyInfo1 := utils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
-	encodingToSegKey := map[uint16]string{1: "segKey1"}
+	encodingToSegKey := map[uint32]string{1: "segKey1"}
 	rrcs := []*utils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
@@ -1227,7 +1227,7 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 		},
 	}
 
-	iqr.encodingToSegKey = map[uint16]string{1: "segKey1", 2: "segKey2"}
+	iqr.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
 	iqr.rrcs = rrcs
 	iqr.knownValues = knownValues
 	iqr.mode = withRRCs
