@@ -18,6 +18,7 @@
 package suffix
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ import (
 
 func Test_getNextSuffix(t *testing.T) {
 	dir := t.TempDir()
-	fileName := dir + "/suffix.json"
+	fileName := filepath.Join(dir, "suffix.json")
 
 	// Test non-existent file.
 	suffix, err := getAndIncrementSuffixFromFile(fileName)

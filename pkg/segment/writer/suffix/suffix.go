@@ -18,9 +18,7 @@
 package suffix
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -33,93 +31,154 @@ type SuffixEntry struct {
 	NextSuffix uint64 `json:"suffix"`
 }
 
-func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR, 0764)
+func getSuffix(fileName string) (*SuffixEntry, error) {
+	jsonBytes, err := os.ReadFile(fileName)
 	if os.IsNotExist(err) {
-		err := os.MkdirAll(path.Dir(fileName), 0764)
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: directory %v does not exist and cannot be created, err=%v", path.Dir(fileName), err)
-			return 0, err
-		}
-		f, err := os.Create(fileName)
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: Cannot create file %v, err=%v", fileName, err)
-			return 0, err
-		}
-		defer f.Close()
-
-		initialSuffix := &SuffixEntry{NextSuffix: 1}
-		raw, err := json.Marshal(initialSuffix)
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: Cannot marshal initial suffix %v to json, err=%v", initialSuffix, err)
-			return 0, err
-		}
-		_, err = f.Write(raw)
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: Cannot write initial suffix %v to file %v, err=%v", initialSuffix, fileName, err)
-			return 0, err
-		}
-		_, err = f.WriteString("\n")
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: Cannot write newline to file %v (just created), err=%v", fileName, err)
-			return 0, err
-		}
-
-		err = f.Sync()
-		if err != nil {
-			log.Errorf("getAndIncrementSuffixFromFile: Cannot sync file %v, err=%v", fileName, err)
-			return 0, err
-		}
-		return 0, nil
+		return &SuffixEntry{NextSuffix: 0}, nil
 	}
 	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot open file %v, err=%v", fileName, err)
-		return 0, err
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	scanner.Scan()
-	rawbytes := scanner.Bytes()
-	if len(rawbytes) == 0 {
-		log.Errorf("getAndIncrementSuffixFromFile: Empty suffix file %v", fileName)
-		return 0, fmt.Errorf("empty suffix file %v", fileName)
-	}
-	var suffixEntry SuffixEntry
-	err = json.Unmarshal(rawbytes, &suffixEntry)
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot unmarshal file=%v with data=%v from json, err=%v", fileName, string(rawbytes), err)
-		return 0, err
-	}
-	retVal := suffixEntry.NextSuffix
-	suffixEntry.NextSuffix++
-	raw, err := json.Marshal(suffixEntry)
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot marshal suffix %v to json. file=%v, err=%v", suffixEntry, fileName, err)
-		return 0, err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot truncate file %v, err=%v", fileName, err)
-		return 0, err
-	}
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot seek to start of file %v, err=%v", fileName, err)
-		return 0, err
-	}
-	_, err = f.Write(raw)
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot write data %v to file %v, err=%v", string(raw), fileName, err)
-		return 0, err
-	}
-	_, err = f.WriteString("\n")
-	if err != nil {
-		log.Errorf("getAndIncrementSuffixFromFile: Cannot write newline to file %v (already existed), err=%v", fileName, err)
-		return 0, err
+		log.Errorf("getSuffix: Cannot read file %v, err=%v", fileName, err)
+		return nil, err
 	}
 
-	return retVal, nil
+	var entry SuffixEntry
+	err = json.Unmarshal(jsonBytes, &entry)
+	if err != nil {
+		log.Errorf("getSuffix: Cannot unmarshal json=%s from file=%v; err=%v", jsonBytes, fileName, err)
+		return nil, err
+	}
+
+	return &entry, nil
 }
+
+func writeSuffix(fileName string, entry *SuffixEntry) error {
+	jsonBytes, err := json.Marshal(entry)
+	if err != nil {
+		log.Errorf("writeSuffix: Cannot marshal entry=%v to json; err=%v", entry, err)
+		return err
+	}
+
+	err = os.WriteFile(fileName, jsonBytes, 0644)
+	if err != nil {
+		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, fileName, err)
+		return err
+	}
+
+	return nil
+}
+
+func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
+	dir := path.Dir(fileName)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot create directory %v; err=%v", dir, err)
+		return 0, err
+	}
+
+	entry, err := getSuffix(fileName)
+	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot get suffix from file %v; err=%v", fileName, err)
+		return 0, err
+	}
+
+	nextSuffix := entry.NextSuffix
+	entry.NextSuffix++
+	err = writeSuffix(fileName, entry)
+	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot write suffix to file %v; err=%v", fileName, err)
+		return 0, err
+	}
+
+	return nextSuffix, nil
+}
+
+// func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
+// 	f, err := os.OpenFile(fileName, os.O_RDWR, 0764)
+// 	if os.IsNotExist(err) {
+// 		err := os.MkdirAll(path.Dir(fileName), 0764)
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: directory %v does not exist and cannot be created, err=%v", path.Dir(fileName), err)
+// 			return 0, err
+// 		}
+// 		f, err := os.Create(fileName)
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: Cannot create file %v, err=%v", fileName, err)
+// 			return 0, err
+// 		}
+// 		defer f.Close()
+
+// 		initialSuffix := &SuffixEntry{NextSuffix: 1}
+// 		raw, err := json.Marshal(initialSuffix)
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: Cannot marshal initial suffix %v to json, err=%v", initialSuffix, err)
+// 			return 0, err
+// 		}
+// 		_, err = f.Write(raw)
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: Cannot write initial suffix %v to file %v, err=%v", initialSuffix, fileName, err)
+// 			return 0, err
+// 		}
+// 		_, err = f.WriteString("\n")
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: Cannot write newline to file %v (just created), err=%v", fileName, err)
+// 			return 0, err
+// 		}
+
+// 		err = f.Sync()
+// 		if err != nil {
+// 			log.Errorf("getAndIncrementSuffixFromFile: Cannot sync file %v, err=%v", fileName, err)
+// 			return 0, err
+// 		}
+// 		return 0, nil
+// 	}
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot open file %v, err=%v", fileName, err)
+// 		return 0, err
+// 	}
+// 	defer f.Close()
+// 	scanner := bufio.NewScanner(f)
+// 	scanner.Scan()
+// 	rawbytes := scanner.Bytes()
+// 	if len(rawbytes) == 0 {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Empty suffix file %v", fileName)
+// 		return 0, fmt.Errorf("empty suffix file %v", fileName)
+// 	}
+// 	var suffixEntry SuffixEntry
+// 	err = json.Unmarshal(rawbytes, &suffixEntry)
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot unmarshal file=%v with data=%v from json, err=%v", fileName, string(rawbytes), err)
+// 		return 0, err
+// 	}
+// 	retVal := suffixEntry.NextSuffix
+// 	suffixEntry.NextSuffix++
+// 	raw, err := json.Marshal(suffixEntry)
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot marshal suffix %v to json. file=%v, err=%v", suffixEntry, fileName, err)
+// 		return 0, err
+// 	}
+// 	err = f.Truncate(0)
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot truncate file %v, err=%v", fileName, err)
+// 		return 0, err
+// 	}
+// 	_, err = f.Seek(0, 0)
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot seek to start of file %v, err=%v", fileName, err)
+// 		return 0, err
+// 	}
+// 	_, err = f.Write(raw)
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot write data %v to file %v, err=%v", string(raw), fileName, err)
+// 		return 0, err
+// 	}
+// 	_, err = f.WriteString("\n")
+// 	if err != nil {
+// 		log.Errorf("getAndIncrementSuffixFromFile: Cannot write newline to file %v (already existed), err=%v", fileName, err)
+// 		return 0, err
+// 	}
+
+// 	return retVal, nil
+// }
 
 /*
 Get the next suffix for the given streamid and table combination
