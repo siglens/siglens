@@ -659,8 +659,7 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 func validateAndApplyConfig(config *common.RunModConfig) {
 	reqData := make(map[string]interface{})
 	jsonData, _ := json.Marshal(config)
-	json.Unmarshal(jsonData, &reqData)
-
+	_ = json.Unmarshal(jsonData, &reqData)
 	// Check if fields exist in runmod json
 	if _, exists := reqData["queryTimeoutSecs"]; !exists {
 		if runningConfig.QueryTimeoutSecs > DEFAULT_TIMEOUT_SECONDS {
