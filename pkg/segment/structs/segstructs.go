@@ -536,7 +536,6 @@ type SegStats struct {
 type NumericStats struct {
 	NumCount uint64                 `json:"numCount,omitempty"`
 	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
-	Dtype    utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
 
 type StringStats struct {
@@ -818,18 +817,17 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 	ss.NumCount += other.NumCount
 	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
-		if other.Dtype == utils.SS_DT_FLOAT {
+		if other.Sum.Ntype == utils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + other.Sum.FloatVal
 		} else {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + float64(other.Sum.IntgrVal)
 		}
 	default:
-		if other.Dtype == utils.SS_DT_FLOAT {
+		if other.Sum.Ntype == utils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = float64(ss.Sum.IntgrVal) + other.Sum.FloatVal
-			ss.Dtype = utils.SS_DT_FLOAT
+			ss.Sum.Ntype = utils.SS_DT_FLOAT
 		} else {
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
-			ss.Dtype = utils.SS_DT_SIGNED_NUM
 		}
 	}
 }
@@ -1170,15 +1168,6 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 func (qa *QueryAggregators) HasListFunc() bool {
 	for _, agg := range qa.MeasureOperations {
 		if agg.MeasureFunc == utils.List {
-			return true
-		}
-	}
-	return false
-}
-
-func (qa *QueryAggregators) HasMinMaxFunc() bool {
-	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == utils.Max || agg.MeasureFunc == utils.Min {
 			return true
 		}
 	}

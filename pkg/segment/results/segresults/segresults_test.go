@@ -48,7 +48,6 @@ func Test_Remote_Stats(t *testing.T) {
 	myNums := structs.NumericStats{
 		Sum: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
 			IntgrVal: 789},
-		Dtype: utils.SS_DT_USIGNED_16_NUM,
 	}
 
 	segStat := structs.SegStats{

@@ -31,7 +31,6 @@ func GetDefaultNumStats() *NumericStats {
 		NumCount: 0,
 		Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 			IntgrVal: 0},
-		Dtype: SS_DT_SIGNED_NUM,
 	}
 }
 
@@ -126,7 +125,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: fltVal})
 		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + fltVal
-			stats.NumStats.Dtype = SS_DT_FLOAT
 
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
@@ -145,7 +143,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		} else {
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
-			stats.NumStats.Dtype = SS_DT_FLOAT
 
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
@@ -166,7 +163,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: inIntgrVal})
 		if stats.NumStats.Sum.Ntype == SS_DT_FLOAT {
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + float64(inIntgrVal)
-			stats.NumStats.Dtype = SS_DT_FLOAT
 
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
@@ -183,7 +179,6 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			}
 		} else {
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
-			stats.NumStats.Dtype = SS_DT_SIGNED_NUM
 
 			if hasValuesFunc {
 				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
