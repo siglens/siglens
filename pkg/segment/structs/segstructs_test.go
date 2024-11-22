@@ -757,20 +757,20 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 		{
 			IsNumeric: true,
 			Count:     123,
+			Min: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_SIGNED_NUM,
+				CVal:  int64(1),
+			},
+			Max: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_SIGNED_NUM,
+				CVal:  int64(42),
+			},
 			NumStats: &NumericStats{
-				Min: utils.NumTypeEnclosure{
-					Ntype:    utils.SS_DT_SIGNED_NUM,
-					IntgrVal: 1,
-				},
-				Max: utils.NumTypeEnclosure{
-					Ntype:    utils.SS_DT_SIGNED_NUM,
-					IntgrVal: 42,
-				},
+				NumCount: 10,
 				Sum: utils.NumTypeEnclosure{
 					Ntype:    utils.SS_DT_SIGNED_NUM,
 					IntgrVal: 200,
 				},
-				Dtype: utils.SS_DT_SIGNED_NUM,
 			},
 			StringStats: nil,
 			Records:     nil,
@@ -778,6 +778,8 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 		{
 			IsNumeric: false,
 			Count:     42,
+			Min:       utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "str1"},
+			Max:       utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "str2"},
 			NumStats:  nil,
 			StringStats: &StringStats{
 				StrSet: map[string]struct{}{

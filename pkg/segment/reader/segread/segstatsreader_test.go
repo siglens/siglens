@@ -39,10 +39,7 @@ func Test_sstReadWrite(t *testing.T) {
 	_ = os.MkdirAll(path.Dir(fname), 0755)
 
 	myNums := structs.NumericStats{
-		Min: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
-			IntgrVal: 456},
-		Max: utils.NumTypeEnclosure{Ntype: utils.SS_DT_FLOAT,
-			FloatVal: 23.4567},
+		NumCount: 123,
 		Sum: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
 			IntgrVal: 789},
 	}
@@ -50,7 +47,11 @@ func Test_sstReadWrite(t *testing.T) {
 	inSst := structs.SegStats{
 		IsNumeric: true,
 		Count:     2345,
-		NumStats:  &myNums,
+		Min: utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM,
+			CVal: int64(456)},
+		Max: utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT,
+			CVal: 23.4567},
+		NumStats: &myNums,
 	}
 	inSst.CreateNewHll()
 
@@ -84,6 +85,12 @@ func Test_sstReadWrite(t *testing.T) {
 	assert.Equal(t, inSst.NumStats, outSst.NumStats)
 
 	assert.Equal(t, inSst.GetHllCardinality(), outSst.GetHllCardinality())
+
+	assert.Equal(t, inSst.GetHllBytes(), outSst.GetHllBytes())
+
+	assert.Equal(t, inSst.Min, outSst.Min)
+
+	assert.Equal(t, inSst.Max, outSst.Max)
 
 	_ = os.RemoveAll(fname)
 }

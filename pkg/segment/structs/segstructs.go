@@ -534,10 +534,9 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	Min   utils.NumTypeEnclosure `json:"min,omitempty"` // Remove when we migrate to new SST format
-	Max   utils.NumTypeEnclosure `json:"max,omitempty"` // Remove when we migrate to new SST format
-	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
-	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
+	NumCount uint64                 `json:"numCount,omitempty"`
+	Sum      utils.NumTypeEnclosure `json:"sum,omitempty"`
+	Dtype    utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
 }
 
 type StringStats struct {
@@ -555,6 +554,8 @@ type SearchErrorInfo struct {
 type SegStatsJSON struct {
 	IsNumeric   bool
 	Count       uint64
+	Min         interface{}
+	Max         interface{}
 	RawHll      []byte
 	NumStats    *NumericStats
 	StringStats *StringStats
@@ -694,6 +695,18 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 			return nil, err
 		}
 	}
+	minVal := utils.CValueEnclosure{}
+	err := minVal.ConvertValue(ssj.Min)
+	if err != nil {
+		log.Errorf("SegStatsJSON.ToStats: Failed to convert min value. error: %v data: %v", err, ssj.Min)
+	}
+	maxVal := utils.CValueEnclosure{}
+	err = maxVal.ConvertValue(ssj.Max)
+	if err != nil {
+		log.Errorf("SegStatsJSON.ToStats: Failed to convert max value. error: %v data: %v", err, ssj.Max)
+	}
+	ss.Min = minVal
+	ss.Max = maxVal
 	ss.NumStats = ssj.NumStats
 	ss.StringStats = ssj.StringStats
 	return ss, nil
@@ -708,6 +721,8 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
 	segStatJson.StringStats = ss.StringStats
+	segStatJson.Min = ss.Min.CVal
+	segStatJson.Max = ss.Max.CVal
 	return segStatJson, nil
 }
 

@@ -457,16 +457,17 @@ func Test_addSegStatsNums(t *testing.T) {
 	sst := make(map[string]*SegStats)
 
 	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
-	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
+	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, int64(2345), sst[cname].Min.CVal)
 
 	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
-	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(345.1), sst[cname].Min.CVal)
 
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
 	assert.Equal(t, float64(345.1+2345), sst[cname].NumStats.Sum.FloatVal)
 
+	assert.Equal(t, uint64(2), sst[cname].NumStats.NumCount)
 }
 
 func Test_SegStoreAllColumnsRecLen(t *testing.T) {

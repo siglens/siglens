@@ -590,8 +590,8 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 						FloatVal: dtypeVal.FloatVal,
 					}
 					segStat.NumStats = &structs.NumericStats{
-						Min:   *nTypeEnclosure,
-						Max:   *nTypeEnclosure,
+						// Min:   *nTypeEnclosure,
+						// Max:   *nTypeEnclosure,
 						Sum:   *nTypeEnclosure,
 						Dtype: dtypeVal.Dtype,
 					}

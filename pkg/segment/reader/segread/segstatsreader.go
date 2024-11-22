@@ -120,10 +120,10 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	var hllSize uint32
 
 	switch version {
-	case utils.VERSION_SEGSTATS_BUF[0]:
+	case utils.VERSION_SEGSTATS_BUF[0], utils.VERSION_SEGSTATS_BUF_V3[0]:
 		hllSize = toputils.BytesToUint32LittleEndian(fdata[idx : idx+4])
 		idx += 4
-	case utils.VERSION_SEGSTATS_BUF_LEGACY_2[0], utils.VERSION_SEGSTATS_BUF_LEGACY_1[0]:
+	case utils.VERSION_SEGSTATS_BUF_V2[0], utils.VERSION_SEGSTATS_BUF_V1[0]:
 		hllSize = uint32(toputils.BytesToUint16LittleEndian(fdata[idx : idx+2]))
 		idx += 2
 	default:
@@ -131,7 +131,7 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 		return nil, errors.New("readSingleSst: unknown version")
 	}
 
-	if version == utils.VERSION_SEGSTATS_BUF_LEGACY_1[0] {
+	if version == utils.VERSION_SEGSTATS_BUF_V1[0] {
 		log.Infof("qid=%d, readSingleSst: ignoring Hll (old version)", qid)
 	} else {
 		err := sst.CreateHllFromBytes(fdata[idx : idx+hllSize])
@@ -143,33 +143,47 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 
 	idx += hllSize
 
+	if version == utils.VERSION_SEGSTATS_BUF[0] {
+		err := readCurrentSST(&sst, fdata, idx)
+		if err != nil {
+			return nil, fmt.Errorf("readSingleSst: error reading current sst, err: %v", err)
+		}
+		return &sst, nil
+	}
+
 	if !sst.IsNumeric {
 		return &sst, nil
 	}
 
+	readNumericStats(&sst, fdata, idx, false)
+
+	return &sst, nil
+}
+
+func readNumericStats(sst *structs.SegStats, fdata []byte, idx uint32, readNumCount bool) {
 	sst.NumStats = &structs.NumericStats{}
 	// read Min Ntype
-	min := utils.NumTypeEnclosure{}
-	min.Ntype = utils.SS_DTYPE(fdata[idx : idx+1][0])
+	min := utils.CValueEnclosure{}
+	min.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
 	idx += 1
-	if min.Ntype == utils.SS_DT_FLOAT {
-		min.FloatVal = toputils.BytesToFloat64LittleEndian(fdata[idx : idx+8])
+	if min.Dtype == utils.SS_DT_FLOAT {
+		min.CVal = toputils.BytesToFloat64LittleEndian(fdata[idx : idx+8])
 	} else {
-		min.IntgrVal = toputils.BytesToInt64LittleEndian(fdata[idx : idx+8])
+		min.CVal = toputils.BytesToInt64LittleEndian(fdata[idx : idx+8])
 	}
-	sst.NumStats.Min = min
+	sst.Min = min
 	idx += 8
 
 	// read Max Ntype
-	max := utils.NumTypeEnclosure{}
-	max.Ntype = utils.SS_DTYPE(fdata[idx : idx+1][0])
+	max := utils.CValueEnclosure{}
+	max.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
 	idx += 1
-	if max.Ntype == utils.SS_DT_FLOAT {
-		max.FloatVal = toputils.BytesToFloat64LittleEndian(fdata[idx : idx+8])
+	if max.Dtype == utils.SS_DT_FLOAT {
+		max.CVal = toputils.BytesToFloat64LittleEndian(fdata[idx : idx+8])
 	} else {
-		max.IntgrVal = toputils.BytesToInt64LittleEndian(fdata[idx : idx+8])
+		max.CVal = toputils.BytesToInt64LittleEndian(fdata[idx : idx+8])
 	}
-	sst.NumStats.Max = max
+	sst.Max = max
 	idx += 8
 
 	// read Sum Ntype
@@ -183,7 +197,46 @@ func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
 	}
 	sst.NumStats.Sum = sum
 
-	return &sst, nil
+	if readNumCount {
+		idx += 8
+
+		// read NumCount
+		sst.NumStats.NumCount = toputils.BytesToUint64LittleEndian(fdata[idx : idx+8])
+	}
+}
+
+func readCurrentSST(sst *structs.SegStats, fdata []byte, idx uint32) error {
+	if sst.IsNumeric {
+		readNumericStats(sst, fdata, idx, true)
+		return nil
+	}
+
+	// read string stats
+
+	// read Max
+	max := utils.CValueEnclosure{}
+	max.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
+	idx += 1
+	// len of string
+	maxlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
+	idx += 2
+	// actual string
+	max.CVal = string(fdata[idx : idx+uint32(maxlen)])
+	sst.Max = max
+	idx += uint32(maxlen)
+
+	// read Min
+	min := utils.CValueEnclosure{}
+	min.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
+	idx += 1
+	// len of string
+	minlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
+	idx += 2
+	// actual string
+	min.CVal = string(fdata[idx : idx+uint32(minlen)])
+	sst.Min = min
+
+	return nil
 }
 
 func GetSegMin(runningSegStat *structs.SegStats,
