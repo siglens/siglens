@@ -379,6 +379,13 @@ func GetS3ConfigMap() map[string]interface{} {
 	return newMap
 }
 
+func getServerYamlConfig() common.RunModConfig {
+	return common.RunModConfig{
+		QueryTimeoutSecs: runningConfig.QueryTimeoutSecs,
+		PQSEnabled:       runningConfig.PQSEnabledConverted,
+	}
+}
+
 func IsIngestNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.IngestNode)
 	if err != nil {
@@ -634,10 +641,10 @@ func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
+	// If runmod.cfg is empty, use server.yaml values
 	if len(strings.TrimSpace(string(jsonData))) == 0 {
-		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using defaults")
-		defaultConfig := GetDefaultRunModConfig()
-		return defaultConfig, nil
+		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using server.yaml values")
+		return getServerYamlConfig(), nil
 	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
@@ -645,11 +652,27 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 		return runModConfig, err
 	}
 
-	applyRunModConfig(&runModConfig)
+	validateAndApplyConfig(&runModConfig)
 	return runModConfig, nil
 }
 
-func applyRunModConfig(config *common.RunModConfig) {
+func validateAndApplyConfig(config *common.RunModConfig) {
+	reqData := make(map[string]interface{})
+	jsonData, _ := json.Marshal(config)
+	_ = json.Unmarshal(jsonData, &reqData)
+	// Check if fields exist in runmod json
+	if _, exists := reqData["queryTimeoutSecs"]; !exists {
+		if runningConfig.QueryTimeoutSecs > DEFAULT_TIMEOUT_SECONDS {
+			config.QueryTimeoutSecs = runningConfig.QueryTimeoutSecs
+		} else {
+			config.QueryTimeoutSecs = DEFAULT_TIMEOUT_SECONDS
+		}
+	}
+
+	if _, exists := reqData["pqsEnabled"]; !exists {
+		config.PQSEnabled = runningConfig.PQSEnabledConverted
+	}
+
 	SetPQSEnabled(config.PQSEnabled)
 	SetQueryTimeoutSecs(config.QueryTimeoutSecs)
 }
