@@ -42,9 +42,14 @@ type RRCsReaderI interface {
 		qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error)
 	GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
 	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error)
+	GetReaderId() utils.T_SegReaderId
 }
 
 type RRCsReader struct{}
+
+func (reader *RRCsReader) GetReaderId() utils.T_SegReaderId {
+	return utils.T_SegReaderId(0)
+}
 
 func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
@@ -78,7 +83,7 @@ func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[st
 	var allCols map[string]bool
 	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
-		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
+		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey)
 		if !exists {
 			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
@@ -280,7 +285,7 @@ func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRec
 	var exists bool
 	allCols, exists = writer.CheckAndGetColsForUnrotatedSegKey(segKey)
 	if !exists {
-		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey, vTable)
+		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey)
 		if !exists {
 			log.Errorf("getRecordsFromSegmentHelperOldPipeline: globalMetadata does not have segKey: %s", segKey)
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
