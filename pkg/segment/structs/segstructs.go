@@ -815,6 +815,7 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 		return
 	}
 
+	ss.NumCount += other.NumCount
 	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
 		if other.Dtype == utils.SS_DT_FLOAT {

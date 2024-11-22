@@ -233,6 +233,7 @@ func TestGetSegAvg_FirstSegmentWithIntegerStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: 20,
@@ -255,6 +256,7 @@ func TestGetSegAvg_FirstSegmentWithFloatStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_FLOAT,
 				FloatVal: 20.0,
@@ -277,6 +279,7 @@ func TestGetSegAvg_RunningSegmentIntAndCurrentSegmentFloat(t *testing.T) {
 		IsNumeric: true,
 		Count:     3,
 		NumStats: &structs.NumericStats{
+			NumCount: 3,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: 30,
@@ -288,6 +291,7 @@ func TestGetSegAvg_RunningSegmentIntAndCurrentSegmentFloat(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_FLOAT,
 				FloatVal: 20.0,
@@ -310,6 +314,7 @@ func TestGetSegAvg_RunningAndCurrentSegmentWithFloatStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_FLOAT,
 				FloatVal: 20.0,
@@ -321,6 +326,7 @@ func TestGetSegAvg_RunningAndCurrentSegmentWithFloatStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_FLOAT,
 				FloatVal: 10.0,
@@ -343,6 +349,7 @@ func TestGetSegAvg_RunningSegmentFloatAndCurrentSegmentInt(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_FLOAT,
 				FloatVal: 20.0,
@@ -354,6 +361,7 @@ func TestGetSegAvg_RunningSegmentFloatAndCurrentSegmentInt(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: 10,
@@ -376,6 +384,7 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     3,
 		NumStats: &structs.NumericStats{
+			NumCount: 3,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: 30,
@@ -387,6 +396,7 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2,
 		NumStats: &structs.NumericStats{
+			NumCount: 2,
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: 20,
