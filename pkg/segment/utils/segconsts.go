@@ -1285,9 +1285,6 @@ type SegKeyInfo struct {
 	IsRemote bool
 	// if IsRemote, Record will be initialized to a string of the form <<node_id>>-<<segkey>>-<<block_num>>-<<record_num>>
 	RecordId string
-
-	// If the RRC came from a remote node, the remote Reader Index
-	ReaderId T_SegReaderId
 }
 
 type RecordResultContainer struct {

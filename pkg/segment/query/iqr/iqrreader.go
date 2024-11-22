@@ -20,11 +20,9 @@ package iqr
 import (
 	"fmt"
 	"reflect"
-	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 type ReaderMode uint8
@@ -189,17 +187,19 @@ func (iqr *IQR) mergeIQRReaders(otherIQR *IQR) error {
 	}
 
 	if iqrRdr.IsSingleReader() {
-		iqrRdr.readerMode = ReaderModeMultiReader
-		if err := iqrRdr.AddSingleIQRReader(otherIQR); err != nil {
-			return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add otherIQR to iqr; err=%v", err)
+		// IQR is single Reader and otherIQR is multiReader
+		err := otherRdr.AddSingleIQRReader(iqr)
+		if err != nil {
+			return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add iqr to otherIQR; err=%v", err)
 		}
-	}
-
-	if otherRdr.IsSingleReader() {
+		iqr.reader = otherRdr
+	} else if otherRdr.IsSingleReader() {
+		// IQR is multiReader and otherIQR is singleReader
 		if err := iqrRdr.AddSingleIQRReader(otherIQR); err != nil {
 			return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add otherIQR to iqr; err=%v", err)
 		}
 	} else {
+		// IQR is multiReader and otherIQR is multiReader
 		for readerId, reader := range otherRdr.readerIdToReader {
 			if err := iqrRdr.AddReader(readerId, reader); err != nil {
 				return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add reader to iqr; err=%v", err)
@@ -243,115 +243,37 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: single reader mode not supported")
 	}
 
-	rrcReaderGroups := make(map[utils.T_SegReaderId][]*rrcWithIndex)
-
-	for i, rrc := range rrcs {
-		readerId := iqrRdr.encodingToReaderId[rrc.SegKeyInfo.SegKeyEnc]
-		_, ok := rrcReaderGroups[readerId]
-		if !ok {
-			rrcReaderGroups[readerId] = make([]*rrcWithIndex, 0, len(rrcs))
-		}
-		rrcReaderGroups[readerId] = append(rrcReaderGroups[readerId], &rrcWithIndex{rrc: rrc, index: i})
+	segEnc := rrcs[0].SegKeyInfo.SegKeyEnc
+	readerId, ok := iqrRdr.encodingToReaderId[segEnc]
+	if !ok {
+		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: readerId not found for segKey=%v, segEnc=%v", segKey, segEnc)
 	}
 
-	resultChan := make(chan readerResult, len(rrcReaderGroups))
-
-	wg := sync.WaitGroup{}
-
-	for readerId, rrcsWithIndex := range rrcReaderGroups {
-		reader := iqrRdr.readerIdToReader[readerId]
-
-		wg.Add(1)
-		go func(readerId utils.T_SegReaderId, rrcsWithIndex []*rrcWithIndex, reader record.RRCsReaderI) {
-			defer wg.Done()
-
-			rrcs := make([]*utils.RecordResultContainer, len(rrcsWithIndex))
-
-			for i, rrcWithIndex := range rrcsWithIndex {
-				rrcs[i] = rrcWithIndex.rrc
-			}
-
-			var knownValues map[string][]utils.CValueEnclosure
-			var err error
-
-			if columnName != nil {
-				var values []utils.CValueEnclosure
-				values, err = reader.ReadColForRRCs(segKey, rrcs, *columnName, qid)
-				if err == nil {
-					knownValues = map[string][]utils.CValueEnclosure{
-						*columnName: values,
-					}
-				}
-			} else {
-				knownValues, err = reader.ReadAllColsForRRCs(segKey, vTable, rrcs, qid, ignoredCols)
-			}
-
-			resultChan <- readerResult{
-				readerId:    readerId,
-				knownValues: knownValues,
-				err:         err,
-			}
-
-		}(readerId, rrcsWithIndex, reader)
+	reader, ok := iqrRdr.readerIdToReader[readerId]
+	if !ok {
+		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: reader not found for readerID=%v, segkey=%v, segEnc=%v", readerId, segKey, segEnc)
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
+	var knownValues map[string][]utils.CValueEnclosure
+	var err error
 
-	readerResultGroups := make(map[utils.T_SegReaderId]map[string][]utils.CValueEnclosure)
-	var errors []error
-
-	defer func() {
-		if len(errors) > 0 {
-			log.Errorf("iqrReader.ReadAllColsForRRCs: errors=%v", errors)
-		}
-	}()
-
-	for result := range resultChan {
-		if result.err != nil {
-			errors = append(errors, fmt.Errorf("readerId=%v; err=%v", result.readerId, result.err))
-			continue
-		}
-
-		readerResultGroups[result.readerId] = result.knownValues
-	}
-
-	finalKnownValues := make(map[string][]utils.CValueEnclosure)
-
-	for _, knownValues := range readerResultGroups {
-		for cname := range knownValues {
-			if _, ok := finalKnownValues[cname]; !ok {
-				finalKnownValues[cname] = make([]utils.CValueEnclosure, len(rrcs))
+	if columnName != nil {
+		var values []utils.CValueEnclosure
+		values, err = reader.ReadColForRRCs(segKey, rrcs, *columnName, qid)
+		if err == nil {
+			knownValues = map[string][]utils.CValueEnclosure{
+				*columnName: values,
 			}
 		}
+	} else {
+		knownValues, err = reader.ReadAllColsForRRCs(segKey, vTable, rrcs, qid, ignoredCols)
 	}
 
-	for readerId, rrcsWithIndex := range rrcReaderGroups {
-		knownValues := readerResultGroups[readerId]
-		valuesLen := 0
-
-		if len(knownValues) > 0 {
-			for _, values := range knownValues {
-				valuesLen = len(values)
-				break
-			}
-		}
-
-		if valuesLen != len(rrcsWithIndex) {
-			return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: readerId=%v; valuesLen=%v != len(rrcsWithIndex)=%v",
-				readerId, valuesLen, len(rrcsWithIndex))
-		}
-
-		for i, indexedRRC := range rrcsWithIndex {
-			for cname, values := range knownValues {
-				finalKnownValues[cname][indexedRRC.index] = values[i]
-			}
-		}
+	if err != nil {
+		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: cannot read columns for segKey=%v; err=%v", segKey, err)
 	}
 
-	return finalKnownValues, nil
+	return knownValues, nil
 }
 
 func (iqrRdr *IQRReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
