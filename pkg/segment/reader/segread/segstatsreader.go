@@ -211,30 +211,33 @@ func readCurrentSST(sst *structs.SegStats, fdata []byte, idx uint32) error {
 		return nil
 	}
 
-	// read string stats
+	// read Min
+	min := utils.CValueEnclosure{}
+	min.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
+	idx += 1
+	if min.Dtype == utils.SS_DT_STRING {
+		// len of string
+		minlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
+		idx += 2
+		// actual string
+		min.CVal = string(fdata[idx : idx+uint32(minlen)])
+		sst.Min = min
+		idx += uint32(minlen)
+	}
 
 	// read Max
 	max := utils.CValueEnclosure{}
 	max.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
 	idx += 1
-	// len of string
-	maxlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
-	idx += 2
-	// actual string
-	max.CVal = string(fdata[idx : idx+uint32(maxlen)])
-	sst.Max = max
-	idx += uint32(maxlen)
 
-	// read Min
-	min := utils.CValueEnclosure{}
-	min.Dtype = utils.SS_DTYPE(fdata[idx : idx+1][0])
-	idx += 1
-	// len of string
-	minlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
-	idx += 2
-	// actual string
-	min.CVal = string(fdata[idx : idx+uint32(minlen)])
-	sst.Min = min
+	if max.Dtype == utils.SS_DT_STRING {
+		// len of string
+		maxlen := toputils.BytesToUint16LittleEndian(fdata[idx : idx+2])
+		idx += 2
+		// actual string
+		max.CVal = string(fdata[idx : idx+uint32(maxlen)])
+		sst.Max = max
+	}
 
 	return nil
 }

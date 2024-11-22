@@ -818,9 +818,8 @@ func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed b
 	aggHasEvalFunc := aggs.HasValueColRequest()
 	aggHasValuesFunc := aggs.HasValuesFunc()
 	aggHasListFunc := aggs.HasListFunc()
-	aggHasMinMaxFunc := aggs.HasMinMaxFunc() // TODO: Add support for min/max strings in sst
 	return searchType == structs.MatchAllQuery && segmentFullyEnclosed &&
-		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc
+		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc
 
 }
 
