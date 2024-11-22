@@ -474,7 +474,6 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 	}
 
 	// Update running segment statistics
-	runningSegStat.Count += currSegStat.Count
 	runningSegStat.NumStats.NumCount += currSegStat.NumStats.NumCount
 	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
 	if err != nil {

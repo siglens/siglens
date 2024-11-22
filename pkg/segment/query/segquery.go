@@ -856,18 +856,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 
 		var sstMap map[string]*structs.SegStats
-		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
-			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
-			if err != nil {
-				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
-				allSegFileResults.AddError(err)
-				continue
-			}
-			sstMap["*"] = &structs.SegStats{
-				Count: uint64(segReq.TotalRecords),
-			}
-			allSegFileResults.AddResultCount(uint64(segReq.TotalRecords))
-		} else {
+
+		computeSegStatsFunc := func() {
 			// run through micro index check for block tracker & generate SSR
 			blocksToRawSearch, err := segReq.GetMicroIndexFilter()
 			if err != nil {
@@ -897,6 +887,25 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 				}
 			}
 		}
+
+		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
+			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
+			if err != nil {
+				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! computing segStats manually Error: %v", qid, segReq.segKey, err)
+				allSegFileResults.AddError(err)
+				// If we can't read the segment stats, we should compute it manually
+				sstMap = make(map[string]*structs.SegStats)
+				computeSegStatsFunc()
+			} else {
+				sstMap["*"] = &structs.SegStats{
+					Count: uint64(segReq.TotalRecords),
+				}
+				allSegFileResults.AddResultCount(uint64(segReq.TotalRecords))
+			}
+		} else {
+			computeSegStatsFunc()
+		}
+
 		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

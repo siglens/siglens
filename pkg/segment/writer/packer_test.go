@@ -470,6 +470,30 @@ func Test_addSegStatsNums(t *testing.T) {
 	assert.Equal(t, uint64(2), sst[cname].NumStats.NumCount)
 }
 
+func Test_addSegStatsNumsMixed(t *testing.T) {
+
+	cname := "mycol1"
+	sst := make(map[string]*SegStats)
+
+	addSegStatsStrIngestion(sst, cname, []byte("abc"))
+	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, []byte("100"))
+	addSegStatsStrIngestion(sst, cname, []byte("def"))
+	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(123.45), []byte("123.45"))
+	addSegStatsStrIngestion(sst, cname, []byte("20"))
+	addSegStatsStrIngestion(sst, cname, []byte("xyz"))
+
+	assert.Equal(t, uint64(6), sst[cname].Count)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(20), sst[cname].Min.CVal)
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Max.Dtype)
+	assert.Equal(t, float64(123.45), sst[cname].Max.CVal)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
+	assert.Equal(t, float64(20+123.45+100), sst[cname].NumStats.Sum.FloatVal)
+	assert.Equal(t, uint64(3), sst[cname].NumStats.NumCount)
+}
+
 func Test_SegStoreAllColumnsRecLen(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath())
