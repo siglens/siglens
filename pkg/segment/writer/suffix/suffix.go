@@ -19,10 +19,12 @@ package suffix
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,7 +68,7 @@ func writeSuffix(fileName string, entry *entry) error {
 	return nil
 }
 
-func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
+func getAndIncrementSuffixFromFile(fileName string, getSegKey func(suffix uint64) string) (uint64, error) {
 	dir := path.Dir(fileName)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
@@ -80,7 +82,22 @@ func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
 		return 0, err
 	}
 
-	nextSuffix := entry.NextSuffix
+	if hook := hooks.GlobalHooks.GetNextSuffixHook; hook != nil {
+		if getSegKey == nil {
+			return 0, fmt.Errorf("getAndIncrementSuffixFromFile: getSegKey is nil")
+		}
+
+		suffix, err := hook(entry.NextSuffix, getSegKey)
+		if err != nil {
+			log.Errorf("getAndIncrementSuffixFromFile: Cannot get suffix from hook; err=%v", err)
+			return 0, err
+		}
+
+		entry.NextSuffix = suffix
+	}
+
+	resultSuffix := entry.NextSuffix
+
 	entry.NextSuffix++
 	err = writeSuffix(fileName, entry)
 	if err != nil {
@@ -88,7 +105,7 @@ func getAndIncrementSuffixFromFile(fileName string) (uint64, error) {
 		return 0, err
 	}
 
-	return nextSuffix, nil
+	return resultSuffix, nil
 }
 
 /*
@@ -98,7 +115,11 @@ Internally, creates & reads the suffix file persist suffixes
 */
 func GetNextSuffix(streamid, table string) (uint64, error) {
 	fileName := config.GetSuffixFile(table, streamid)
-	nextSuffix, err := getAndIncrementSuffixFromFile(fileName)
+	getSegKey := func(suffix uint64) string {
+		return config.GetSegKey(streamid, table, suffix)
+	}
+
+	nextSuffix, err := getAndIncrementSuffixFromFile(fileName, getSegKey)
 	if err != nil {
 		log.Errorf("GetSuffix: Error generating suffix for streamid=%v, table=%v. Err: %v", streamid, table, err)
 		return 0, err
