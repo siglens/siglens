@@ -470,7 +470,11 @@ func SetQueryPort(value uint64) {
 }
 
 func GetQueryTimeoutSecs() int {
-	return runningConfig.QueryTimeoutSecs
+	timeout := runningConfig.QueryTimeoutSecs
+	if timeout <= 0 {
+		return DEFAULT_TIMEOUT_SECONDS
+	}
+	return timeout
 }
 
 func GetDefaultRunModConfig() common.RunModConfig {
