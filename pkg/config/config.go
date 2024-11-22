@@ -379,6 +379,13 @@ func GetS3ConfigMap() map[string]interface{} {
 	return newMap
 }
 
+func getServerYamlConfig() common.RunModConfig {
+	return common.RunModConfig{
+		QueryTimeoutSecs: runningConfig.QueryTimeoutSecs,
+		PQSEnabled:       runningConfig.PQSEnabledConverted,
+	}
+}
+
 func IsIngestNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.IngestNode)
 	if err != nil {
@@ -463,12 +470,7 @@ func SetQueryPort(value uint64) {
 }
 
 func GetQueryTimeoutSecs() int {
-	timeout := runningConfig.QueryTimeoutSecs
-	if timeout <= 0 {
-		log.Warnf("GetQueryTimeoutSecs: Invalid timeout %d, using default %d", timeout, DEFAULT_TIMEOUT_SECONDS)
-		return DEFAULT_TIMEOUT_SECONDS
-	}
-	return timeout
+	return runningConfig.QueryTimeoutSecs
 }
 
 func GetDefaultRunModConfig() common.RunModConfig {
@@ -634,10 +636,10 @@ func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
+	// If runmod.cfg is empty, use server.yaml values
 	if len(strings.TrimSpace(string(jsonData))) == 0 {
-		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using defaults")
-		defaultConfig := GetDefaultRunModConfig()
-		return defaultConfig, nil
+		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using server.yaml values")
+		return getServerYamlConfig(), nil
 	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
@@ -645,11 +647,28 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 		return runModConfig, err
 	}
 
-	applyRunModConfig(&runModConfig)
+	validateAndApplyConfig(&runModConfig)
 	return runModConfig, nil
 }
 
-func applyRunModConfig(config *common.RunModConfig) {
+func validateAndApplyConfig(config *common.RunModConfig) {
+	reqData := make(map[string]interface{})
+	jsonData, _ := json.Marshal(config)
+	json.Unmarshal(jsonData, &reqData)
+
+	// Check if fields exist in runmod json
+	if _, exists := reqData["queryTimeoutSecs"]; !exists {
+		if runningConfig.QueryTimeoutSecs > DEFAULT_TIMEOUT_SECONDS {
+			config.QueryTimeoutSecs = runningConfig.QueryTimeoutSecs
+		} else {
+			config.QueryTimeoutSecs = DEFAULT_TIMEOUT_SECONDS
+		}
+	}
+
+	if _, exists := reqData["pqsEnabled"]; !exists {
+		config.PQSEnabled = runningConfig.PQSEnabledConverted
+	}
+
 	SetPQSEnabled(config.PQSEnabled)
 	SetQueryTimeoutSecs(config.QueryTimeoutSecs)
 }
