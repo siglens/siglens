@@ -846,14 +846,26 @@ CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
 
     if byFields == nil {
         aggNode.PipeCommandType = structs.MeasureAggsType
+        // TODO: remove the duplication; use StatsExpr instead of MeasureOperations
         aggNode.MeasureOperations = measureAggs
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+        }
     } else {
         aggNode.PipeCommandType = structs.GroupByType
+        // TODO: remove the duplication; use StatsExpr instead of GroupByRequest
         aggNode.GroupByRequest = &structs.GroupByRequest {
             MeasureOperations: measureAggs,
             GroupByColumns: byFields.([]string),
         }
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+            GroupByRequest: &structs.GroupByRequest {
+                MeasureOperations: measureAggs,
+                GroupByColumns: byFields.([]string),
+            },
+        }
     }
 
     return aggNode, nil
@@ -1261,6 +1273,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     measureAggs := make([]*structs.MeasureAggregator, 0)
 
     timechartExpr := &structs.TimechartExpr{}
+    aggNode.TimechartExpr = timechartExpr
     byField := ""
 
     if tcArgs == nil {
@@ -1309,6 +1322,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
         MeasureOperations: measureAggs,
         GroupByColumns:    []string{"timestamp"},
     }
+    timechartExpr.GroupBy = aggNode.GroupByRequest
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
     if bOptions == nil {
@@ -1333,6 +1347,8 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
     aggNode.TimeHistogram = timeBucket
+    timechartExpr.TimeHistogram = timeBucket
+    timechartExpr.ByField = byField
 
     return aggNode, nil
 }
@@ -1865,6 +1881,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
 
 	if config.IsNewQueryPipelineEnabled() {
 		root.GroupByRequest = aggNode.GroupByRequest
+        root.StatisticExpr = statisticExpr.(*structs.StatisticExpr)
 		return root, nil
 	}
 
@@ -4478,6 +4495,7 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.TransactionType,
         TransactionArguments: txnOptions.(*structs.TransactionArguments),
+        TransactionExpr: txnOptions.(*structs.TransactionArguments),
     }
     return queryAgg, nil
 }

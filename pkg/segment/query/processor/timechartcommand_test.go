@@ -67,21 +67,19 @@ func getTestInput(timeNow uint64) map[string][]utils.CValueEnclosure {
 func getTimechartProcessor(startTime uint64) *timechartProcessor {
 	endTime := startTime + uint64(15*time.Minute.Milliseconds())
 
-	aggs := &structs.QueryAggregators{
-		TimeHistogram: &structs.TimeBucket{
-			IntervalMillis: uint64(1 * time.Minute.Milliseconds()),
-			Timechart:      &structs.TimechartExpr{},
-		},
-		GroupByRequest: &structs.GroupByRequest{
-			MeasureOperations: []*structs.MeasureAggregator{
-				{
-					MeasureCol:  "measurecol",
-					MeasureFunc: utils.Sum,
-					StrEnc:      "sum_measurecol",
-				},
+	timeHistogram := &structs.TimeBucket{
+		IntervalMillis: uint64(1 * time.Minute.Milliseconds()),
+		Timechart:      &structs.TimechartExpr{},
+	}
+	groupByRequest := &structs.GroupByRequest{
+		MeasureOperations: []*structs.MeasureAggregator{
+			{
+				MeasureCol:  "measurecol",
+				MeasureFunc: utils.Sum,
+				StrEnc:      "sum_measurecol",
 			},
-			GroupByColumns: []string{"timestamp"},
 		},
+		GroupByColumns: []string{"timestamp"},
 	}
 
 	timeRange := &dtypeutils.TimeRange{
@@ -90,7 +88,12 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 	}
 
 	timechartOptions := &timechartOptions{
-		aggs:      aggs,
+		timeBucket:     timeHistogram,
+		groupByRequest: groupByRequest,
+		timeChartExpr: &structs.TimechartExpr{
+			TimeHistogram: timeHistogram,
+			GroupBy:       groupByRequest,
+		},
 		timeRange: timeRange,
 		qid:       0,
 	}

@@ -40,8 +40,8 @@ func Test_GetJsonFromAllRrcOldPipeline(t *testing.T) {
 	numRecords := 2
 	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{
@@ -113,8 +113,8 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	numRecords := 2
 	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{
@@ -176,8 +176,8 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	numRecords := 2
 	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{

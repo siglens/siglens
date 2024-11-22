@@ -319,12 +319,14 @@ func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 		log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: not supported stats type: %v", qid, p.errorData.notSupportedStatsType)
 	}
 
-	allErrorsLen := len(p.searchResults.AllErrors)
-	if allErrorsLen > 0 {
-		size := allErrorsLen
-		if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
-			size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+	if p.searchResults != nil {
+		allErrorsLen := len(p.searchResults.AllErrors)
+		if allErrorsLen > 0 {
+			size := allErrorsLen
+			if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+			}
+			log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 		}
-		log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 	}
 }

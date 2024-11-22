@@ -249,11 +249,13 @@ type ConditionValuePair struct {
 }
 
 type TimechartExpr struct {
-	TcOptions  *TcOptions
-	BinOptions *BinOptions
-	SingleAgg  *SingleAgg
-	ByField    string // group by this field inside each time range bucket (timechart)
-	LimitExpr  *LimitExpr
+	TimeHistogram *TimeBucket
+	GroupBy       *GroupByRequest
+	TcOptions     *TcOptions
+	BinOptions    *BinOptions
+	SingleAgg     *SingleAgg
+	ByField       string // group by this field inside each time range bucket (timechart)
+	LimitExpr     *LimitExpr
 }
 
 type LimitExpr struct {
@@ -1232,10 +1234,11 @@ func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]utils.CValu
 		return 0, err
 	}
 
-	if math.Mod(floatValue, 1) == 0 {
-		return int64(floatValue), nil
+	// Check if the float value can be represented as an integer
+	int64Value := int64(floatValue)
+	if floatValue == float64(int64Value) {
+		return int64Value, nil
 	}
-
 	return floatValue, nil
 }
 
