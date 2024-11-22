@@ -515,6 +515,7 @@ func (iqr *IQR) Append(other *IQR) error {
 	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 	iqr.deletedColumns = mergedIQR.deletedColumns
 	iqr.columnIndex = mergedIQR.columnIndex
+	iqr.reader = mergedIQR.reader
 
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
@@ -788,7 +789,12 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	result.measureColumns = append(result.measureColumns, iqrs[0].measureColumns...)
 
 	for _, iqr := range iqrs {
-		err := result.mergeEncodings(iqr.encodingToSegKey)
+		err := result.mergeIQRReaders(iqr)
+		if err != nil {
+			return nil, fmt.Errorf("mergeMetadata: error merging IQR readers: %v", err)
+		}
+
+		err = result.mergeEncodings(iqr.encodingToSegKey)
 		if err != nil {
 			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
 		}
@@ -801,11 +807,6 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 		if iqr.qid != result.qid {
 			return nil, fmt.Errorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, result.qid)
-		}
-
-		err = result.mergeIQRReaders(iqr)
-		if err != nil {
-			return nil, fmt.Errorf("mergeMetadata: error merging IQR readers: %v", err)
 		}
 
 		if iqr.mode != result.mode {

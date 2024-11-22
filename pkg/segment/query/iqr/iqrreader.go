@@ -35,10 +35,10 @@ const (
 )
 
 type IQRReader struct {
-	readerMode            ReaderMode
-	readerIdToReader      map[utils.T_SegReaderId]record.RRCsReaderI
-	encodingToReaderIndex map[utils.T_SegEncoding]utils.T_SegReaderId
-	reader                record.RRCsReaderI
+	readerMode         ReaderMode
+	readerIdToReader   map[utils.T_SegReaderId]record.RRCsReaderI
+	encodingToReaderId map[utils.T_SegEncoding]utils.T_SegReaderId
+	reader             record.RRCsReaderI
 }
 
 type rrcWithIndex struct {
@@ -54,10 +54,10 @@ type readerResult struct {
 
 func NewIQRReader(reader record.RRCsReaderI) *IQRReader {
 	iqrRdr := &IQRReader{
-		readerMode:            ReaderModeSingleReader,
-		readerIdToReader:      make(map[utils.T_SegReaderId]record.RRCsReaderI),
-		encodingToReaderIndex: make(map[utils.T_SegEncoding]utils.T_SegReaderId),
-		reader:                reader,
+		readerMode:         ReaderModeSingleReader,
+		readerIdToReader:   make(map[utils.T_SegReaderId]record.RRCsReaderI),
+		encodingToReaderId: make(map[utils.T_SegEncoding]utils.T_SegReaderId),
+		reader:             reader,
 	}
 
 	return iqrRdr
@@ -65,9 +65,9 @@ func NewIQRReader(reader record.RRCsReaderI) *IQRReader {
 
 func NewMultiIQRReader() *IQRReader {
 	iqrRdr := &IQRReader{
-		readerMode:            ReaderModeMultiReader,
-		readerIdToReader:      make(map[utils.T_SegReaderId]record.RRCsReaderI),
-		encodingToReaderIndex: make(map[utils.T_SegEncoding]utils.T_SegReaderId),
+		readerMode:         ReaderModeMultiReader,
+		readerIdToReader:   make(map[utils.T_SegReaderId]record.RRCsReaderI),
+		encodingToReaderId: make(map[utils.T_SegEncoding]utils.T_SegReaderId),
 	}
 
 	return iqrRdr
@@ -81,13 +81,24 @@ func (iqrRdr *IQRReader) IsMultiReader() bool {
 	return iqrRdr.readerMode == ReaderModeMultiReader
 }
 
+func (rdrMode ReaderMode) String() string {
+	switch rdrMode {
+	case ReaderModeSingleReader:
+		return "SingleReader"
+	case ReaderModeMultiReader:
+		return "MultiReader"
+	default:
+		return fmt.Sprintf("UnknownReaderMode(%d)", rdrMode)
+	}
+}
+
 func (iqrRdr *IQRReader) AddReader(readerId utils.T_SegReaderId, reader record.RRCsReaderI) error {
 	if !iqrRdr.IsMultiReader() {
 		return fmt.Errorf("iqrReader.AddReader: reader mode is not multi reader: %v", iqrRdr.readerMode)
 	}
 
-	if reader, ok := iqrRdr.readerIdToReader[readerId]; ok {
-		if reflect.TypeOf(reader) != reflect.TypeOf(reader) {
+	if rdr, ok := iqrRdr.readerIdToReader[readerId]; ok {
+		if readerId != rdr.GetReaderId() {
 			return fmt.Errorf("iqrReader.AddReader: readerId=%v already exists", readerId)
 		}
 
@@ -108,7 +119,7 @@ func (iqrRdr *IQRReader) AddSegEncodingToReader(segEnc utils.T_SegEncoding, read
 		return fmt.Errorf("iqrReader.AddSegEncodingToReader: readerId=%v not found", readerId)
 	}
 
-	if ri, ok := iqrRdr.encodingToReaderIndex[segEnc]; ok {
+	if ri, ok := iqrRdr.encodingToReaderId[segEnc]; ok {
 		if ri != readerId {
 			return fmt.Errorf("iqrReader.AddSegEncodingToReader: segEnc=%v already exists for readerId=%v", segEnc, ri)
 		}
@@ -116,7 +127,7 @@ func (iqrRdr *IQRReader) AddSegEncodingToReader(segEnc utils.T_SegEncoding, read
 		return nil
 	}
 
-	iqrRdr.encodingToReaderIndex[segEnc] = readerId
+	iqrRdr.encodingToReaderId[segEnc] = readerId
 
 	return nil
 }
@@ -156,7 +167,7 @@ func (iqr *IQR) mergeIQRReaders(otherIQR *IQR) error {
 	otherRdr := otherIQR.reader
 
 	if iqrRdr.IsSingleReader() && otherRdr.IsSingleReader() {
-		if reflect.TypeOf(iqrRdr) == reflect.TypeOf(otherRdr) {
+		if reflect.DeepEqual(iqrRdr, otherRdr) {
 			return nil
 		}
 
@@ -173,6 +184,8 @@ func (iqr *IQR) mergeIQRReaders(otherIQR *IQR) error {
 		}
 
 		iqr.reader = resultRdr
+
+		return nil
 	}
 
 	if iqrRdr.IsSingleReader() {
@@ -193,7 +206,7 @@ func (iqr *IQR) mergeIQRReaders(otherIQR *IQR) error {
 			}
 		}
 
-		for segEnc, readerId := range otherRdr.encodingToReaderIndex {
+		for segEnc, readerId := range otherRdr.encodingToReaderId {
 			if err := iqrRdr.AddSegEncodingToReader(segEnc, readerId); err != nil {
 				return fmt.Errorf("iqrReader.MergeIQRReaders: cannot add seg encoding to reader; err=%v", err)
 			}
@@ -211,7 +224,7 @@ func (iqrRdr *IQRReader) validate() error {
 		return nil
 	}
 
-	for segEnc, readerId := range iqrRdr.encodingToReaderIndex {
+	for segEnc, readerId := range iqrRdr.encodingToReaderId {
 		if _, ok := iqrRdr.readerIdToReader[readerId]; !ok {
 			return fmt.Errorf("iqrReader.validate: readerId=%v not found for segEnc=%v", readerId, segEnc)
 		}
@@ -232,12 +245,13 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 
 	rrcReaderGroups := make(map[utils.T_SegReaderId][]*rrcWithIndex)
 
-	for readerId := range iqrRdr.readerIdToReader {
-		rrcReaderGroups[readerId] = make([]*rrcWithIndex, 0, len(rrcs))
-	}
-
-	for _, rrc := range rrcs {
-		rrcReaderGroups[rrc.SegKeyInfo.ReaderId] = append(rrcReaderGroups[rrc.SegKeyInfo.ReaderId], &rrcWithIndex{rrc: rrc, index: 0})
+	for i, rrc := range rrcs {
+		readerId := iqrRdr.encodingToReaderId[rrc.SegKeyInfo.SegKeyEnc]
+		_, ok := rrcReaderGroups[readerId]
+		if !ok {
+			rrcReaderGroups[readerId] = make([]*rrcWithIndex, 0, len(rrcs))
+		}
+		rrcReaderGroups[readerId] = append(rrcReaderGroups[readerId], &rrcWithIndex{rrc: rrc, index: i})
 	}
 
 	resultChan := make(chan readerResult, len(rrcReaderGroups))
@@ -275,7 +289,7 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 			resultChan <- readerResult{
 				readerId:    readerId,
 				knownValues: knownValues,
-				err:         fmt.Errorf("readerId=%v; err=%v", readerId, err),
+				err:         err,
 			}
 
 		}(readerId, rrcsWithIndex, reader)
@@ -297,7 +311,7 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 
 	for result := range resultChan {
 		if result.err != nil {
-			errors = append(errors, result.err)
+			errors = append(errors, fmt.Errorf("readerId=%v; err=%v", result.readerId, result.err))
 			continue
 		}
 
@@ -316,10 +330,18 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 
 	for readerId, rrcsWithIndex := range rrcReaderGroups {
 		knownValues := readerResultGroups[readerId]
+		valuesLen := 0
 
-		if len(knownValues) != len(rrcsWithIndex) {
-			return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: readerId=%v; len(knownValues)=%v != len(rrcsWithIndex)=%v",
-				readerId, len(knownValues), len(rrcsWithIndex))
+		if len(knownValues) > 0 {
+			for _, values := range knownValues {
+				valuesLen = len(values)
+				break
+			}
+		}
+
+		if valuesLen != len(rrcsWithIndex) {
+			return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: readerId=%v; valuesLen=%v != len(rrcsWithIndex)=%v",
+				readerId, valuesLen, len(rrcsWithIndex))
 		}
 
 		for i, indexedRRC := range rrcsWithIndex {
@@ -334,7 +356,6 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 
 func (iqrRdr *IQRReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
-
 	if iqrRdr.IsSingleReader() {
 		return iqrRdr.reader.ReadAllColsForRRCs(segKey, vTable, rrcs, qid, ignoredCols)
 	}
@@ -352,14 +373,14 @@ func (iqrRdr *IQRReader) getColumnsForSegKey(segKey string, vTable string, segEn
 		return iqrRdr.reader.GetColsForSegKey(segKey, vTable)
 	}
 
-	readerId, ok := iqrRdr.encodingToReaderIndex[segEnc]
+	readerId, ok := iqrRdr.encodingToReaderId[segEnc]
 	if !ok {
-		return nil, fmt.Errorf("iqrReader.GetColsForSegKey: readerID not found for segKey=%v", segKey)
+		return nil, fmt.Errorf("iqrReader.GetColsForSegKey: readerID not found for segKey=%v, segEnc=%v", segKey, segEnc)
 	}
 
 	reader, ok := iqrRdr.readerIdToReader[readerId]
 	if !ok {
-		return nil, fmt.Errorf("iqrReader.GetColsForSegKey: reader not found for readerID=%v, segkey=%v", readerId, segKey)
+		return nil, fmt.Errorf("iqrReader.GetColsForSegKey: reader not found for readerID=%v, segkey=%v, segEnc=%v", readerId, segKey, segEnc)
 	}
 
 	return reader.GetColsForSegKey(segKey, vTable)
