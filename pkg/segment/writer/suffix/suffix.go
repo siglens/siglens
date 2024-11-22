@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -98,7 +97,7 @@ Get the next suffix for the given streamid and table combination
 Internally, creates & reads the suffix file persist suffixes
 */
 func GetNextSuffix(streamid, table string) (uint64, error) {
-	fileName := getSuffixFile(table, streamid)
+	fileName := config.GetSuffixFile(table, streamid)
 	nextSuffix, err := getAndIncrementSuffixFromFile(fileName)
 	if err != nil {
 		log.Errorf("GetSuffix: Error generating suffix for streamid=%v, table=%v. Err: %v", streamid, table, err)
@@ -106,16 +105,4 @@ func GetNextSuffix(streamid, table string) (uint64, error) {
 	}
 
 	return nextSuffix, nil
-}
-
-func getSuffixFile(virtualTable string, streamId string) string {
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/suffix/")
-	sb.WriteString(virtualTable)
-	sb.WriteString("/")
-	sb.WriteString(streamId)
-	sb.WriteString(".suffix")
-	return sb.String()
 }
