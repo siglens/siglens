@@ -472,6 +472,7 @@ func SetQueryPort(value uint64) {
 func GetQueryTimeoutSecs() int {
 	timeout := runningConfig.QueryTimeoutSecs
 	if timeout <= 0 {
+		log.Warnf("GetQueryTimeoutSecs: Invalid timeout %d, using default %d", timeout, DEFAULT_TIMEOUT_SECONDS)
 		return DEFAULT_TIMEOUT_SECONDS
 	}
 	return timeout
