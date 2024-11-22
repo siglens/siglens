@@ -47,6 +47,13 @@ var latestDashboardReadTimeMillis map[uint64]uint64
 var allDashboardsIds map[uint64]map[string]string = make(map[uint64]map[string]string)
 var allDashboardsIdsLock *sync.RWMutex = &sync.RWMutex{}
 
+type DashboardMetadata struct {
+	Name       string `json:"name"`
+	IsFavorite bool   `json:"isFavorite"`
+	IsDefault  bool   `json:"isDefault"`
+	CreatedAt  int64  `json:"createdAt"`
+}
+
 func readSavedDashboards(orgid uint64) ([]byte, error) {
 	var dashboardData []byte
 	allidsFname := getAllIdsFileName(orgid)
@@ -750,17 +757,17 @@ func getDashboardsWithMetadata(orgid uint64) (map[string]interface{}, error) {
 	return dashboardDetails, nil
 }
 
-func getDashboardMetadata(id string, name string) (map[string]interface{}, error) {
-	dashboardInfo := map[string]interface{}{
-		"name":       name,
-		"isFavorite": false,
-		"isDefault":  isDefaultDashboard(id),
+func getDashboardMetadata(id string, name string) (*DashboardMetadata, error) {
+	dashboardInfo := &DashboardMetadata{
+		Name:       name,
+		IsFavorite: false,
+		IsDefault:  isDefaultDashboard(id),
 	}
 
 	var detailsFname string
-	if dashboardInfo["isDefault"].(bool) {
+	if dashboardInfo.IsDefault {
 		detailsFname = "defaultDBs/details/" + id + ".json"
-		dashboardInfo["createdAt"] = 0 // Default dashboards always have 0
+		dashboardInfo.CreatedAt = 0 // Default dashboards always have 0
 	} else {
 		detailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
 	}
@@ -776,19 +783,23 @@ func getDashboardMetadata(id string, name string) (map[string]interface{}, error
 	}
 
 	// For non-default dashboards
-	if !dashboardInfo["isDefault"].(bool) {
+	if !dashboardInfo.IsDefault {
 		if createdAt, exists := dashboardDetails["createdAt"]; exists {
-			dashboardInfo["createdAt"] = createdAt
+			if createdAtFloat, ok := createdAt.(float64); ok {
+				dashboardInfo.CreatedAt = int64(createdAtFloat)
+			}
 		} else {
 			// Legacy case only
 			if fileInfo, err := os.Stat(detailsFname); err == nil {
-				dashboardInfo["createdAt"] = fileInfo.ModTime().UnixMilli()
+				dashboardInfo.CreatedAt = fileInfo.ModTime().UnixMilli()
 			}
 		}
 	}
 
-	if favorite, exists := dashboardDetails["isFavorite"].(bool); exists {
-		dashboardInfo["isFavorite"] = favorite
+	if favorite, exists := dashboardDetails["isFavorite"]; exists {
+		if favoriteBool, ok := favorite.(bool); ok {
+			dashboardInfo.IsFavorite = favoriteBool
+		}
 	}
 
 	return dashboardInfo, nil
