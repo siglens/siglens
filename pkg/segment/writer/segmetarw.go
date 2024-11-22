@@ -108,16 +108,13 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 		return retVal
 	}
 
-	workSfm := &structs.SegFullMeta{}
-
 	// continue reading/merging from individual segfiles
 	for _, smentry := range retVal {
-		err := readSfm(smentry.SegmentKey, workSfm)
+		workSfm, err := readSfm(smentry.SegmentKey)
 		if err != nil {
 			// error is logged in the func
 			continue
 		}
-
 		if smentry.AllPQIDs == nil {
 			smentry.AllPQIDs = workSfm.AllPQIDs
 		} else {
@@ -132,7 +129,9 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 	return retVal
 }
 
-func readSfm(segkey string, sfm *structs.SegFullMeta) error {
+func readSfm(segkey string) (*structs.SegFullMeta, error) {
+
+	sfm := &structs.SegFullMeta{}
 
 	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
 
@@ -141,14 +140,14 @@ func readSfm(segkey string, sfm *structs.SegFullMeta) error {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
 		}
-		return err
+		return sfm, err
 	}
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
-		return err
+		return sfm, err
 	}
-	return nil
+	return sfm, nil
 }
 
 func writeSfm(segkey string, sfmData *structs.SegFullMeta) {
@@ -485,9 +484,7 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 
-	sfmData := &structs.SegFullMeta{}
-
-	err := readSfm(segkey, sfmData)
+	sfmData, err := readSfm(segkey)
 	if err != nil {
 		return
 	}
