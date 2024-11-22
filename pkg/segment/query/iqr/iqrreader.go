@@ -39,17 +39,6 @@ type IQRReader struct {
 	reader             record.RRCsReaderI
 }
 
-type rrcWithIndex struct {
-	rrc   *utils.RecordResultContainer
-	index int
-}
-
-type readerResult struct {
-	readerId    utils.T_SegReaderId
-	knownValues map[string][]utils.CValueEnclosure
-	err         error
-}
-
 func NewIQRReader(reader record.RRCsReaderI) *IQRReader {
 	iqrRdr := &IQRReader{
 		readerMode:         ReaderModeSingleReader,
