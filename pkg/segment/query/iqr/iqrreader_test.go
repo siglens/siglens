@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestIQRsWithMockReaders() (*IQR, *IQR, *IQR, *IQR) {
+func getTestIQRsWithMockReaders(t *testing.T) (*IQR, *IQR, *IQR, *IQR) {
 	allRRCs1 := []*utils.RecordResultContainer{
 		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
@@ -52,10 +52,12 @@ func getTestIQRsWithMockReaders() (*IQR, *IQR, *IQR, *IQR) {
 	}
 
 	iqr1 := NewIQRWithReader(0, mockReader1)
-	iqr1.AppendRRCs(allRRCs1[:2], map[uint32]string{1: "r1/seg1"})
+	err := iqr1.AppendRRCs(allRRCs1[:2], map[uint32]string{1: "r1/seg1"})
+	assert.Nil(t, err)
 
 	iqr2 := NewIQRWithReader(0, mockReader1)
-	iqr2.AppendRRCs(allRRCs1[2:], map[uint32]string{2: "r1/seg2"})
+	err = iqr2.AppendRRCs(allRRCs1[2:], map[uint32]string{2: "r1/seg2"})
+	assert.Nil(t, err)
 
 	allRRCs2 := []*utils.RecordResultContainer{
 		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1000}, BlockNum: 1, RecordNum: 1},
@@ -84,10 +86,12 @@ func getTestIQRsWithMockReaders() (*IQR, *IQR, *IQR, *IQR) {
 	}
 
 	iqr3 := NewIQRWithReader(0, mockReader2)
-	iqr3.AppendRRCs(allRRCs2[:2], map[uint32]string{1000: "r2/seg1"})
+	err = iqr3.AppendRRCs(allRRCs2[:2], map[uint32]string{1000: "r2/seg1"})
+	assert.Nil(t, err)
 
 	iqr4 := NewIQRWithReader(0, mockReader2)
-	iqr4.AppendRRCs(allRRCs2[2:], map[uint32]string{1001: "r2/seg2"})
+	err = iqr4.AppendRRCs(allRRCs2[2:], map[uint32]string{1001: "r2/seg2"})
+	assert.Nil(t, err)
 
 	return iqr1, iqr2, iqr3, iqr4
 }
@@ -107,7 +111,7 @@ func testSortByTimestampDesc(r1 *Record, r2 *Record) bool {
 }
 
 func Test_MergeIQRReaders_Append(t *testing.T) {
-	iqr1, iqr2, iqr3, iqr4 := getTestIQRsWithMockReaders()
+	iqr1, iqr2, iqr3, iqr4 := getTestIQRsWithMockReaders(t)
 
 	err := iqr1.Append(iqr2)
 	assert.Nil(t, err)
@@ -155,8 +159,8 @@ func Test_MergeIQRReaders_Append(t *testing.T) {
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
+			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
 			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
 		},
@@ -171,7 +175,7 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 	// iqr3 timestamps: 7, 2
 	// iqr4 timestamps: 5, 3
 
-	iqr1, iqr2, iqr3, iqr4 := getTestIQRsWithMockReaders()
+	iqr1, iqr2, iqr3, iqr4 := getTestIQRsWithMockReaders(t)
 
 	iqrs := []*IQR{iqr1, iqr2, iqr3, iqr4}
 
