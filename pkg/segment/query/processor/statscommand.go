@@ -44,6 +44,7 @@ type statsProcessor struct {
 	bucketKeyWorkingBuf []byte
 	byteBuffer          *bbp.ByteBuffer
 	searchResults       *segresults.SearchResults
+	statsResults        *segresults.StatsResults
 	qid                 uint64
 	processorType       structs.QueryType
 	errorData           *ErrorData
@@ -223,6 +224,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 		}
 		p.searchResults = searchResults
 		p.searchResults.InitSegmentStatsResults(p.options.MeasureOperations)
+		p.statsResults = segresults.InitStatsResults()
 	}
 
 	if p.byteBuffer == nil {
@@ -282,18 +284,27 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 		}
 	}
 
-	err := p.searchResults.UpdateSegmentStats(segStatsMap, p.options.MeasureOperations)
-	if err != nil {
-		log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot update segment stats; err=%v", qid, err)
-	}
+	p.statsResults.MergeSegStats(segStatsMap)
 
 	return nil, nil
 }
 
 func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, error) {
+
+	if p.statsResults == nil {
+		return nil, io.EOF
+	}
+
+	segStatsMap := p.statsResults.GetSegStats()
+
+	err := p.searchResults.UpdateSegmentStats(segStatsMap, p.options.MeasureOperations)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot update segment stats; err=%v", iqr.GetQID(), err)
+	}
+
 	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := p.searchResults.GetSegmentStatsResults(0, false)
 
-	err := iqr.CreateStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
+	err = iqr.CreateStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
