@@ -140,6 +140,7 @@ var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
 var VERSION_SEGSTATS_LEGACY = []byte{1}
 
 var VERSION_SEGSTATS_BUF_V4 = []byte{4} // current version of the single column Seg Stats in a Segment
+// deprecated versions
 var VERSION_SEGSTATS_BUF_V1 = []byte{1}
 var VERSION_SEGSTATS_BUF_V2 = []byte{2}
 var VERSION_SEGSTATS_BUF_V3 = []byte{3}

@@ -1549,6 +1549,7 @@ func (ss *SegStore) FlushSegStats() error {
 Encoding Schema for SegStats Single Column Data
 [Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
 Numeric [DType 1B] [Min 8B] [DType 1B] [Max 8B] [NType 1B] [Sum 8B] [NumericCount 8B]
+OR
 NonNumeric [DType 1B] [Min_Size 2B] [Min_Data xB] [Max_Size 2B] [Max_Data xB]
 */
 func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
