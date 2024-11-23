@@ -63,7 +63,7 @@ jobs:
       - run: npm run lint:js
   
   Functional-Test-SH:
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
     name: Self hosted Functional Test
     steps:
       - uses: actions/setup-go@v3
