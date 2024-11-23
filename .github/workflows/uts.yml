@@ -83,4 +83,12 @@ jobs:
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
             go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
+      
+      - name: Cleanup
+        run: |
+            pkill siglens
+            sleep 2
+            cd ../..
+            rm -rf siglens
+
 
