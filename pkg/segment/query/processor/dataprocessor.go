@@ -19,6 +19,7 @@ package processor
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 
@@ -43,6 +44,7 @@ type DataProcessor struct {
 	inputOrderMatters bool
 	isPermutingCmd    bool // This command may change the order of input.
 	isBottleneckCmd   bool // This command must see all input before yielding any output.
+	isTransformingCmd bool // This command transforms the input into a different format (e.g., stats).
 	isTwoPassCmd      bool // A subset of bottleneck commands.
 	finishedFirstPass bool // Only used for two-pass commands.
 
@@ -213,6 +215,23 @@ func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
 		dp.processor.(*inputlookupProcessor).qid = qid
 	default:
 	}
+}
+
+func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
+	switch dp.processor.(type) {
+	case *statsProcessor:
+		dp.processor.(*statsProcessor).SetAsIqrStatsResults()
+	case *topProcessor:
+		dp.processor.(*topProcessor).SetAsIqrStatsResults()
+	case *rareProcessor:
+		dp.processor.(*rareProcessor).SetAsIqrStatsResults()
+	case *timechartProcessor:
+		dp.processor.(*timechartProcessor).SetAsIqrStatsResults()
+	default:
+		return fmt.Errorf("dp.SetStatsAsIqrStatsResults: processor is not a stats type processor. processor type: %T", dp.processor)
+	}
+
+	return nil
 }
 
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
@@ -527,6 +546,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -539,6 +559,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -561,6 +582,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -573,6 +595,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
