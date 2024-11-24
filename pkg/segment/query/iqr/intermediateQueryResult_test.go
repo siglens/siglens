@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
+	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -1227,6 +1228,60 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 		},
 	}
 
+	segStatsMap := make(map[string]*structs.SegStats)
+	segStatsMap["segKey1"] = &structs.SegStats{
+		IsNumeric: true,
+		Count:     10,
+		Min:       utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		Max:       utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+		Hll:       structs.CreateNewHll(),
+		NumStats: &structs.NumericStats{
+			Min: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: int64(1),
+				FloatVal: float64(1),
+			},
+			Max: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: int64(10),
+				FloatVal: float64(10),
+			},
+			Sum: utils.NumTypeEnclosure{
+				Ntype:    utils.SS_DT_SIGNED_NUM,
+				IntgrVal: int64(55),
+				FloatVal: float64(55),
+			},
+			Dtype: utils.SS_DT_SIGNED_NUM,
+		},
+		StringStats: &structs.StringStats{
+			StrSet: map[string]struct{}{
+				"a": {},
+				"b": {},
+				"c": {},
+			},
+			StrList: []string{"a", "b", "c"},
+		},
+	}
+
+	allRunningBuckets := blockresults.GetRunningBucketResultsSliceForTest()
+
+	timeBuckets := &blockresults.TimeBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		UnsignedBucketIdx: map[uint64]int{1: 0, 2: 1},
+	}
+
+	groupByBuckets := &blockresults.GroupByBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		StringBucketIdx:   map[string]int{"a": 0, "b": 1, "c": 2},
+		GroupByColValCnt:  map[string]int{"a": 1, "b": 1, "c": 1},
+	}
+
+	statsRes := &IQRStatsResults{
+		segStatsMap:    segStatsMap,
+		timeBuckets:    timeBuckets,
+		groupByBuckets: groupByBuckets,
+	}
+
 	iqr.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
 	iqr.rrcs = rrcs
 	iqr.knownValues = knownValues
@@ -1236,11 +1291,25 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	iqr.deletedColumns = map[string]struct{}{"col2": {}}
 	iqr.renamedColumns = map[string]string{"col1": "newCol1"}
 	iqr.columnIndex = map[string]int{"col1": 0, "col2": 1}
+	iqr.statsResults = statsRes
 
 	bytes, err := iqr.GobEncode()
 	assert.NoError(t, err)
 
 	decodedIQR := NewIQRWithReader(1, &record.RRCsReader{})
+
+	err = decodedIQR.GobDecode(bytes)
+	assert.NoError(t, err)
+
+	assert.Equal(t, iqr, decodedIQR)
+
+	statsRes.timeBuckets = nil
+	iqr.statsResults = statsRes
+
+	bytes, err = iqr.GobEncode()
+	assert.NoError(t, err)
+
+	decodedIQR = NewIQRWithReader(1, &record.RRCsReader{})
 
 	err = decodedIQR.GobDecode(bytes)
 	assert.NoError(t, err)

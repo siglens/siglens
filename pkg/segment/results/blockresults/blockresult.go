@@ -40,8 +40,19 @@ type GroupByBuckets struct {
 	GroupByColValCnt    map[string]int               // calculate freq for group by col val
 }
 
+type SerializedGroupByBuckets struct {
+	AllRunningBuckets []*SerializedRunningBucketResults
+	StringBucketIdx   map[string]int
+	GroupByColValCnt  map[string]int
+}
+
 type TimeBuckets struct {
 	AllRunningBuckets []*RunningBucketResults
+	UnsignedBucketIdx map[uint64]int
+}
+
+type SerializedTimeBuckets struct {
+	AllRunningBuckets []*SerializedRunningBucketResults
 	UnsignedBucketIdx map[uint64]int
 }
 
@@ -1005,4 +1016,73 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 	}
 	newBucket.runningStats = currRunningStats
 	return newBucket, nil
+}
+
+func (gb *GroupByBuckets) ToSerializedGroupByBuckets() *SerializedGroupByBuckets {
+	if gb == nil {
+		return nil
+	}
+
+	allRunningBuckets := make([]*SerializedRunningBucketResults, len(gb.AllRunningBuckets))
+	for i, bucket := range gb.AllRunningBuckets {
+		allRunningBuckets[i] = bucket.ToSerializedRunningBucketResults()
+	}
+
+	return &SerializedGroupByBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		StringBucketIdx:   gb.StringBucketIdx,
+		GroupByColValCnt:  gb.GroupByColValCnt,
+	}
+}
+
+func (tb *TimeBuckets) ToSerializedTimeBuckets() *SerializedTimeBuckets {
+	if tb == nil {
+		return nil
+	}
+
+	allRunningBuckets := make([]*SerializedRunningBucketResults, len(tb.AllRunningBuckets))
+
+	for i, bucket := range tb.AllRunningBuckets {
+		allRunningBuckets[i] = bucket.ToSerializedRunningBucketResults()
+	}
+
+	return &SerializedTimeBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		UnsignedBucketIdx: tb.UnsignedBucketIdx,
+	}
+}
+
+func (sgb *SerializedGroupByBuckets) ToGroupByBuckets() *GroupByBuckets {
+	if sgb == nil {
+		return nil
+	}
+
+	allRunningBuckets := make([]*RunningBucketResults, len(sgb.AllRunningBuckets))
+
+	for i, bucket := range sgb.AllRunningBuckets {
+		allRunningBuckets[i] = bucket.ToRunningBucketResults()
+	}
+
+	return &GroupByBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		StringBucketIdx:   sgb.StringBucketIdx,
+		GroupByColValCnt:  sgb.GroupByColValCnt,
+	}
+}
+
+func (stb *SerializedTimeBuckets) ToTimeBuckets() *TimeBuckets {
+	if stb == nil {
+		return nil
+	}
+
+	allRunningBuckets := make([]*RunningBucketResults, len(stb.AllRunningBuckets))
+
+	for i, bucket := range stb.AllRunningBuckets {
+		allRunningBuckets[i] = bucket.ToRunningBucketResults()
+	}
+
+	return &TimeBuckets{
+		AllRunningBuckets: allRunningBuckets,
+		UnsignedBucketIdx: stb.UnsignedBucketIdx,
+	}
 }

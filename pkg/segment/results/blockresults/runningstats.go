@@ -36,6 +36,13 @@ type RunningBucketResults struct {
 	qid                 uint64                       // query id
 }
 
+type SerializedRunningBucketResults struct {
+	RunningStats        []SerializedRunningStats
+	CurrStats           []*structs.MeasureAggregator
+	GroupedRunningStats map[string][]SerializedRunningStats
+	Count               uint64
+}
+
 type runningStats struct {
 	rawVal    utils.CValueEnclosure // raw value
 	hll       *putils.GobbableHll
@@ -50,6 +57,13 @@ type RunningStatsJSON struct {
 	AvgStat   *structs.AvgStat    `json:"avgStat"`
 	StrSet    map[string]struct{} `json:"strSet"`
 	StrList   []string            `json:"strList"`
+}
+
+type SerializedRunningStats struct {
+	RawVal    utils.CValueEnclosure
+	Hll       *putils.GobbableHll
+	RangeStat *structs.RangeStat
+	AvgStat   *structs.AvgStat
 }
 
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
@@ -664,4 +678,176 @@ func (rj RunningStatsJSON) GetRunningStats() (runningStats, error) {
 		}
 	}
 	return rs, nil
+}
+
+func (rbr *RunningBucketResults) ToSerializedRunningBucketResults() *SerializedRunningBucketResults {
+	runningStats := make([]SerializedRunningStats, len(rbr.runningStats))
+	for i := 0; i < len(rbr.runningStats); i++ {
+		runningStats[i] = *rbr.runningStats[i].ToSerializedRunningStats()
+	}
+	groupedRunningStats := make(map[string][]SerializedRunningStats)
+	for k, v := range rbr.groupedRunningStats {
+		groupedRunningStats[k] = make([]SerializedRunningStats, len(v))
+		for i := 0; i < len(v); i++ {
+			groupedRunningStats[k][i] = *v[i].ToSerializedRunningStats()
+		}
+	}
+
+	return &SerializedRunningBucketResults{
+		RunningStats:        runningStats,
+		CurrStats:           rbr.currStats,
+		GroupedRunningStats: groupedRunningStats,
+		Count:               rbr.count,
+	}
+}
+
+func (rs *runningStats) ToSerializedRunningStats() *SerializedRunningStats {
+	return &SerializedRunningStats{
+		RawVal:    rs.rawVal,
+		Hll:       rs.hll,
+		RangeStat: rs.rangeStat,
+		AvgStat:   rs.avgStat,
+	}
+}
+
+func (srb *SerializedRunningBucketResults) ToRunningBucketResults() *RunningBucketResults {
+	runStats := make([]runningStats, len(srb.RunningStats))
+	for i := 0; i < len(srb.RunningStats); i++ {
+		runStats[i] = *srb.RunningStats[i].ToRunningStats()
+	}
+	groupedRunningStats := make(map[string][]runningStats)
+	for k, v := range srb.GroupedRunningStats {
+		groupedRunningStats[k] = make([]runningStats, len(v))
+		for i := 0; i < len(v); i++ {
+			groupedRunningStats[k][i] = *v[i].ToRunningStats()
+		}
+	}
+	return &RunningBucketResults{
+		runningStats:        runStats,
+		currStats:           srb.CurrStats,
+		groupedRunningStats: groupedRunningStats,
+		count:               srb.Count,
+	}
+}
+
+func (srs *SerializedRunningStats) ToRunningStats() *runningStats {
+	return &runningStats{
+		rawVal:    srs.RawVal,
+		hll:       srs.Hll,
+		rangeStat: srs.RangeStat,
+		avgStat:   srs.AvgStat,
+	}
+}
+
+func GetRunningBucketResultsSliceForTest() []*RunningBucketResults {
+	hll := structs.CreateNewHll()
+	runningBucketResults := make([]*RunningBucketResults, 0)
+
+	hll.AddRaw(1)
+	hll.AddRaw(2)
+	hll.AddRaw(1)
+
+	valueExpr := &structs.ValueExpr{
+		ValueExprMode: structs.VEMBooleanExpr,
+		FloatValue:    10.0,
+		BooleanExpr: &structs.BoolExpr{
+			IsTerminal: true,
+			LeftValue: &structs.ValueExpr{
+				ValueExprMode: structs.VEMNumericExpr,
+				NumericExpr: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "col2",
+				},
+			},
+			RightValue: &structs.ValueExpr{
+				ValueExprMode: structs.VEMNumericExpr,
+				NumericExpr: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumericExpr,
+					IsTerminal:      false,
+					Op:              "+",
+					Left: &structs.NumericExpr{
+						NumericExprMode: structs.NEMNumberField,
+						IsTerminal:      true,
+						ValueIsField:    true,
+						Value:           "col1",
+					},
+					Right: &structs.NumericExpr{
+						NumericExprMode: structs.NEMNumber,
+						IsTerminal:      true,
+						ValueIsField:    true,
+						Value:           "1",
+					},
+				},
+			},
+			ValueOp: "=",
+		},
+	}
+
+	rs := runningStats{
+		rawVal: utils.CValueEnclosure{
+			Dtype: utils.SS_DT_FLOAT,
+			CVal:  10.0,
+		},
+		hll: hll,
+		rangeStat: &structs.RangeStat{
+			Min: 0.0,
+			Max: 10.0,
+		},
+		avgStat: &structs.AvgStat{
+			Sum:   10.0,
+			Count: 1,
+		},
+	}
+
+	groupedRunningStats := make(map[string][]runningStats)
+	groupedRunningStats["group1"] = []runningStats{rs, rs}
+	groupedRunningStats["group2"] = []runningStats{rs}
+
+	runningBucketResults = append(runningBucketResults, &RunningBucketResults{
+		count:        1,
+		runningStats: []runningStats{rs},
+		currStats: []*structs.MeasureAggregator{
+			{
+				MeasureCol:      "test",
+				MeasureFunc:     utils.Sum,
+				StrEnc:          "sum(test)",
+				ValueColRequest: valueExpr,
+			},
+		},
+		groupedRunningStats: groupedRunningStats,
+		qid:                 0,
+	})
+	runningBucketResults = append(runningBucketResults, &RunningBucketResults{
+		count: 2,
+		runningStats: []runningStats{
+			{
+				rawVal: utils.CValueEnclosure{
+					Dtype: utils.SS_DT_FLOAT,
+					CVal:  10.0,
+				},
+				hll: hll,
+				rangeStat: &structs.RangeStat{
+					Min: 0.0,
+					Max: 10.0,
+				},
+				avgStat: &structs.AvgStat{
+					Sum:   10.0,
+					Count: 1,
+				},
+			},
+		},
+		currStats: []*structs.MeasureAggregator{
+			{
+				MeasureCol:      "test",
+				MeasureFunc:     utils.Count,
+				StrEnc:          "count(test)",
+				ValueColRequest: valueExpr,
+			},
+		},
+		groupedRunningStats: groupedRunningStats,
+	})
+
+	return runningBucketResults
 }

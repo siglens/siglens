@@ -96,6 +96,7 @@ type StatisticExpr struct {
 	FieldList             []string //Must have FieldList
 	ByClause              []string
 	AggregationResult     map[string]*AggregationResult
+	ExprSplitDone         bool
 }
 
 type StatisticOptions struct {

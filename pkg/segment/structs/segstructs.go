@@ -1210,6 +1210,22 @@ func (qtype QueryType) String() string {
 	}
 }
 
+func (qtype QueryType) IsRRCCmd() bool {
+	return qtype == RRCCmd
+}
+
+func (qtype QueryType) IsGroupByCmd() bool {
+	return qtype == GroupByCmd
+}
+
+func (qtype QueryType) IsSegmentStatsCmd() bool {
+	return qtype == SegmentStatsCmd
+}
+
+func (qtype QueryType) IsInvalid() bool {
+	return qtype == InvalidCmd
+}
+
 func (qa *QueryAggregators) HasTopExpr() bool {
 	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMTop
 }
