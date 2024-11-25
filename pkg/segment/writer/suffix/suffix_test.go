@@ -29,12 +29,12 @@ func Test_getNextSuffix(t *testing.T) {
 	fileName := filepath.Join(dir, "suffix.json")
 
 	// Test non-existent file.
-	suffix, err := getAndIncrementSuffixFromFile(fileName)
+	suffix, err := getAndIncrementSuffixFromFile(fileName, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), suffix)
 
 	// Now the file exists.
-	suffix, err = getAndIncrementSuffixFromFile(fileName)
+	suffix, err = getAndIncrementSuffixFromFile(fileName, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), suffix)
 }
