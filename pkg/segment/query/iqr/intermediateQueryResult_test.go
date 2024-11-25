@@ -353,12 +353,12 @@ func setupTestIQRsWithRRCs(t *testing.T) (*IQR, *IQR) {
 	}
 
 	iqr1 := NewIQR(0)
-	iqr1.reader = mockReader
+	iqr1.reader = NewIQRReader(mockReader)
 	err := iqr1.AppendRRCs(allRRCs[:2], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
 	iqr2 := NewIQR(0)
-	iqr2.reader = mockReader
+	iqr2.reader = NewIQRReader(mockReader)
 	err = iqr2.AppendRRCs(allRRCs[2:], map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
@@ -503,7 +503,7 @@ func Test_Sort_multipleColumns(t *testing.T) {
 	}
 
 	iqr := NewIQR(0)
-	iqr.reader = mockReader
+	iqr.reader = NewIQRReader(mockReader)
 	err := iqr.AppendRRCs(rrcs, map[uint32]string{1: "segKey1"})
 	assert.NoError(t, err)
 
