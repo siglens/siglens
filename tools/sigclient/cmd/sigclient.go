@@ -227,6 +227,25 @@ var concurrentQueriesTestCmd = &cobra.Command{
 	},
 }
 
+var clickBenchTestCmd = &cobra.Command{
+	Use:   "clickBench",
+	Short: "testing clickBench queries on SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		thresholdFactor, _ := cmd.Flags().GetFloat64("thresholdFactor")
+
+		log.Infof("dest : %+v\n", dest)
+
+		queriesAndRespTimes, err := query.GetClickBenchQueriesAndRespTimes()
+		if err != nil {
+			log.Fatalf("Error getting clickbench queries: %v", err)
+			return
+		}
+
+		query.ValidateClickBenchQueries(dest, queriesAndRespTimes, thresholdFactor)
+	},
+}
+
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
@@ -494,6 +513,8 @@ func init() {
 	concurrentQueriesTestCmd.PersistentFlags().IntP("iterations", "i", 1, "Number of iterations to run")
 	concurrentQueriesTestCmd.PersistentFlags().StringP("queryText", "q", "", "Query to run")
 
+	clickBenchTestCmd.PersistentFlags().Float64P("thresholdFactor", "t", 1.1, "Threshold factor for clickbench queries")
+
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
@@ -559,4 +580,5 @@ func init() {
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)
 	rootCmd.AddCommand(concurrentQueriesTestCmd)
+	rootCmd.AddCommand(clickBenchTestCmd)
 }
