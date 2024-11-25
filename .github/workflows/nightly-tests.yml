@@ -19,12 +19,14 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
-      - name: Ingest Data
+      - name: Get Data
         run: |
             cd tools/clickbench
             wget https://github.com/siglens/pub-datasets/releases/download/v1.0.1/splithits_aa.tar
             tar -xvf splithits_aa.tar
             rm splithits_aa.tar
+      - name: Ingest Data
+        run: |
             python3 send_datamulti.py
       - name: Restart Siglens
         run: |
