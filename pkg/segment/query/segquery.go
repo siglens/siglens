@@ -898,6 +898,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 				allSegFileResults.AddError(err)
 				// If we can't read the segment stats, we should compute it from raw records
 				sstMap, err = computeSegStatsFromRawRecords(segReq, qs, allSegFileResults, qid, nodeRes)
+				if err != nil {
+					allSegFileResults.AddError(err)
+				}
 			} else {
 				sstMap["*"] = &structs.SegStats{
 					Count: uint64(segReq.TotalRecords),
@@ -906,9 +909,9 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 			}
 		} else {
 			sstMap, err = computeSegStatsFromRawRecords(segReq, qs, allSegFileResults, qid, nodeRes)
-		}
-		if err != nil {
-			allSegFileResults.AddError(err)
+			if err != nil {
+				allSegFileResults.AddError(err)
+			}
 		}
 
 		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
