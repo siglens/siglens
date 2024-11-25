@@ -262,17 +262,16 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	}
 	segstore.suffix = nextSuffix
 
-	basedir := getBaseSegDir(streamid, virtualTableName, nextSuffix)
+	basedir := config.GetBaseSegDir(streamid, virtualTableName, nextSuffix)
 	err = os.MkdirAll(basedir, 0764)
 	if err != nil {
 		log.Errorf("resetSegStore : Could not mkdir basedir=%v,  %v", basedir, err)
 		return err
 	}
 
-	basename := fmt.Sprintf("%s%d", basedir, nextSuffix)
 	segstore.earliest_millis = 0
 	segstore.latest_millis = 0
-	segstore.SegmentKey = basename
+	segstore.SegmentKey = config.GetSegKey(streamid, virtualTableName, nextSuffix)
 	segstore.segbaseDir = basedir
 	segstore.VirtualTableName = virtualTableName
 	segstore.RecordCount = 0

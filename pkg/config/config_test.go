@@ -373,3 +373,13 @@ a: b
 		assert.EqualValues(t, test.expected, actualConfig, fmt.Sprintf("Comparison failed, test=%v", i+1))
 	}
 }
+
+func Test_GetBaseSegDir(t *testing.T) {
+	dataPath := t.TempDir()
+	InitializeDefaultConfig(dataPath)
+	virtualTableName := "evts"
+	streamid := "10005995996882630313"
+	nextsuff_idx := uint64(1)
+	basedir := GetBaseSegDir(streamid, virtualTableName, nextsuff_idx)
+	assert.EqualValues(t, dataPath+"/"+GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
+}

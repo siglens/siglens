@@ -1373,6 +1373,37 @@ func GetQueryServerBaseUrl() string {
 	return hostname
 }
 
+func GetSuffixFile(virtualTable string, streamId string) string {
+	var sb strings.Builder
+	sb.WriteString(GetDataPath())
+	sb.WriteString(GetHostID())
+	sb.WriteString("/suffix/")
+	sb.WriteString(virtualTable)
+	sb.WriteString("/")
+	sb.WriteString(streamId)
+	sb.WriteString(".suffix")
+	return sb.String()
+}
+
+func GetBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
+	// Note: this is coupled to getSegBaseDirFromFilename. If the directory
+	// structure changes, change getSegBaseDirFromFilename too.
+	// TODO: use filepath.Join to avoid "/" issues
+	var sb strings.Builder
+	sb.WriteString(GetDataPath())
+	sb.WriteString(GetHostID())
+	sb.WriteString("/final/")
+	sb.WriteString(virtualTableName + "/")
+	sb.WriteString(streamid + "/")
+	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
+	basedir := sb.String()
+	return basedir
+}
+
+func GetSegKey(streamid string, virtualTableName string, suffix uint64) string {
+	return fmt.Sprintf("%s%d", GetBaseSegDir(streamid, virtualTableName, suffix), suffix)
+}
+
 // DefaultUIServerHttpConfig  set fasthttp server default configuration
 func DefaultQueryServerHttpConfig() WebConfig {
 	return WebConfig{

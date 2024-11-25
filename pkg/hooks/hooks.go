@@ -101,6 +101,7 @@ type Hooks struct {
 	ExtraIngestEndpointsHook       func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 	OverrideIngestRequestHook      func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
 	OverrideDeleteIndexRequestHook func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
+	GetNextSuffixHook              func(uint64, func(uint64) string) (uint64, error)
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
