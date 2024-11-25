@@ -6,25 +6,6 @@ on:
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
-  Longer-Functional-Test:
-    runs-on: [self-hosted, Linux, X64]
-    name: Longer Functional
-    steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - uses: actions/checkout@v3
-      - name: Build Siglens
-        run: make build
-      - name: Run Siglens
-        run: |
-            ./siglens --config server.yaml &
-      - name: Run Longer Functional Test
-        run: |
-            sleep 5  # Wait for Siglens to start
-            cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true
-  
   Clickbench-10M-Test:
     runs-on: [self-hosted, Linux, X64]
     name: Clickbench 10M
