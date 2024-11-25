@@ -399,3 +399,11 @@ func SelectFromSlice[T any](slice []T, shouldKeep func(T) bool) []T {
 
 	return result
 }
+
+func NormalizeSlice[T any](slice []T) []T {
+	if slice == nil {
+		return []T{}
+	}
+
+	return slice
+}

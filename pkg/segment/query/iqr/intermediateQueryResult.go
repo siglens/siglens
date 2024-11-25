@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"sort"
@@ -52,11 +53,12 @@ const (
 const NIL_RRC_SEGKEY = math.MaxUint16
 
 type IQRStatsResults struct {
-	statsType      structs.QueryType
-	aggs           *structs.QueryAggregators
-	segStatsMap    map[string]*structs.SegStats
-	timeBuckets    *blockresults.TimeBuckets
-	groupByBuckets *blockresults.GroupByBuckets
+	statsType         structs.QueryType
+	aggs              *structs.QueryAggregators
+	segStatsMap       map[string]*structs.SegStats
+	timeBuckets       *blockresults.TimeBuckets
+	groupByBuckets    *blockresults.GroupByBuckets
+	aggregationResult map[string]*structs.AggregationResult
 }
 
 type SerializedIQRStatsResults struct {
@@ -727,10 +729,14 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, err
 	}
 
-	err = iqr.MergeIQRStatsResults(iqrs)
+	statsResultsExists, err := iqr.MergeIQRStatsResults(iqrs)
 	if err != nil {
 		log.Errorf("MergeIQRs: error merging stats results: %v", err)
 		return nil, 0, err
+	}
+
+	if statsResultsExists {
+		return iqr, -1, io.EOF
 	}
 
 	originalKnownColumns := toputils.GetKeysOfMap(iqr.knownValues)
@@ -853,11 +859,13 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 				iqr.qid, iqr.renamedColumns, result.renamedColumns)
 		}
 
+		iqr.groupbyColumns = toputils.NormalizeSlice(iqr.groupbyColumns)
 		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent groupby columns (%v and %v)",
 				iqr.qid, iqr.groupbyColumns, result.groupbyColumns)
 		}
 
+		iqr.measureColumns = toputils.NormalizeSlice(iqr.measureColumns)
 		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent measure columns (%v and %v)",
 				iqr.qid, iqr.measureColumns, result.measureColumns)
@@ -872,19 +880,29 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	return result, nil
 }
 
-func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) error {
+// Merge the stats results of multiple IQRs into one.
+// The IQRs must have the same stats type.
+// The bool return value indicates whether the result should be a stats result.
+func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 
 	statsType := iqrs[0].statsResults.statsType
 	if statsType.IsRRCCmd() {
-		return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: stats type is not supported (%v)",
+		// This should never be the case. The statsResults were initialized while creating the IQR.
+		// The default stats type should be Invalid.
+		return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: stats type is not supported (%v)",
 			iqr.qid, statsType)
 	}
 
 	for _, iqr := range iqrs {
 		if iqr.statsResults.statsType != statsType {
-			return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: inconsistent stats types (%v and %v)",
+			return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: inconsistent stats types (%v and %v)",
 				iqr.qid, statsType, iqr.statsResults.statsType)
 		}
+	}
+
+	if statsType.IsInvalid() {
+		// This means that the IQRs don't have any stats results.
+		return false, nil
 	}
 
 	segStatsRes := segresults.InitStatsResults()
@@ -903,7 +921,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) error {
 			if searchResults == nil {
 				searchResults, err = segresults.InitSearchResults(0, statsRes.aggs, statsType, iqr.qid)
 				if err != nil {
-					return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing search results: %v",
+					return true, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing search results: %v",
 						iqr.qid, err)
 				}
 				searchResults.InitSegmentStatsResults(statsRes.aggs.MeasureOperations)
@@ -918,7 +936,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) error {
 			if searchResults == nil {
 				searchResults, err = segresults.InitSearchResults(0, statsRes.aggs, statsType, iqr.qid)
 				if err != nil {
-					return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing search results: %v",
+					return true, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing search results: %v",
 						iqr.qid, err)
 				}
 
@@ -930,7 +948,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) error {
 
 			blockRes, err := blockresults.InitBlockResults(0, statsRes.aggs, iqr.qid)
 			if err != nil {
-				return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing block results: %v",
+				return true, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error initializing block results: %v",
 					iqr.qid, err)
 			}
 			blockRes.GroupByAggregation = statsRes.groupByBuckets
@@ -948,10 +966,10 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error creating stats results: %v", iqr.qid, err)
+		return true, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: error creating stats results: %v", iqr.qid, err)
 	}
 
-	return nil
+	return true, nil
 }
 
 func (iqr *IQR) GetIQRStatsResults() (map[string]*structs.SegStats, *blockresults.GroupByBuckets, *blockresults.TimeBuckets) {
@@ -1314,6 +1332,22 @@ func (iqr *IQR) SetIqrStatsResults(statsType structs.QueryType, segStatsMap map[
 	return nil
 }
 
+func (iqr *IQR) SetStatsAggregationResult(aggregationResult map[string]*structs.AggregationResult) {
+	if iqr.statsResults == nil {
+		iqr.statsResults = &IQRStatsResults{}
+	}
+
+	iqr.statsResults.aggregationResult = aggregationResult
+}
+
+func (iqr *IQR) GetStatsAggregationResult() map[string]*structs.AggregationResult {
+	if iqr.statsResults == nil {
+		return nil
+	}
+
+	return iqr.statsResults.aggregationResult
+}
+
 func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, measureFuncs []string, aggGroupByCols []string, bucketCount int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendStatsResults: validation failed: %v", err)
@@ -1382,7 +1416,7 @@ func (iqr *IQR) CreateGroupByStatsResults(searchResults *segresults.SearchResult
 		return nil
 	}
 
-	_ = searchResults.GetBucketResults()
+	iqr.statsResults.aggregationResult = searchResults.GetBucketResults()
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
 
@@ -1643,9 +1677,13 @@ func (iqr *IQR) GobDecode(data []byte) error {
 	iqr.columnIndex = serializableIQR.ColumnIndex
 	if len(serializableIQR.GroupbyColumns) > 0 {
 		iqr.groupbyColumns = serializableIQR.GroupbyColumns
+	} else {
+		iqr.groupbyColumns = []string{}
 	}
 	if len(serializableIQR.MeasureColumns) > 0 {
 		iqr.measureColumns = serializableIQR.MeasureColumns
+	} else {
+		iqr.measureColumns = []string{}
 	}
 
 	if serializableIQR.StatsResults != nil {

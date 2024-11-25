@@ -285,7 +285,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		qc.SizeLimit, aggs, qid, querySummary)
 	switch qType {
 	case structs.SegmentStatsCmd:
-		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid)
+		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid, false)
 	case structs.RRCCmd, structs.GroupByCmd:
 		bucketLimit := MAX_GRP_BUCKS
 		if aggs != nil {
@@ -323,13 +323,15 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
-	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary) *structs.NodeResult {
+	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary, returnAggBuckets bool) *structs.NodeResult {
 	applyFopAllRequests(sortedQSRSlice, queryInfo, allSegFileResults, querySummary)
-	err := queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
-		return &structs.NodeResult{
-			ErrList: []error{err},
+	if !returnAggBuckets {
+		err := queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
 		}
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
@@ -341,6 +343,16 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 			bucketLimit = queryInfo.aggs.BucketLimit
 		}
 	}
+
+	if returnAggBuckets {
+		return &structs.NodeResult{
+			ErrList:        allSegFileResults.GetAllErrors(),
+			Qtype:          queryType.String(),
+			GroupByBuckets: allSegFileResults.BlockResults.GroupByAggregation,
+			TimeBuckets:    allSegFileResults.BlockResults.TimeAggregation,
+		}
+	}
+
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
 	allSegResults := allSegFileResults.GetResults()
 	scrollFrom := queryInfo.GetScrollFrom()
@@ -385,7 +397,7 @@ func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 		}
 	}
 
-	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
+	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary, false)
 }
 
 func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *summary.QuerySummary) ([]*QuerySegmentRequest, error) {
@@ -412,7 +424,7 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 }
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64) *structs.NodeResult {
+	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64, getSstMap bool) *structs.NodeResult {
 
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, sTime, orgid)
@@ -436,20 +448,32 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
 	}
 
+	var sstMap map[string]*structs.SegStats
+
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
 	log.Infof("qid=%d, GetNodeResultsForSegmentStatsCmd: Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
-		applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations)
+		sstMap = applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations, getSstMap)
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
 	queryType := GetQueryType(queryInfo.qid)
-	err = queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+	if !getSstMap {
+		err = queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
+		}
+	}
+
+	if getSstMap {
 		return &structs.NodeResult{
-			ErrList: []error{err},
+			ErrList:     allSegFileResults.GetAllErrors(),
+			Qtype:       queryType.String(),
+			SegStatsMap: sstMap,
 		}
 	}
 
@@ -825,13 +849,15 @@ func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed b
 }
 
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
-	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
+	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator, getSsstMap bool) map[string]*structs.SegStats {
 
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to get or create query search node result! Error: %v", qid, err)
-		return
+		return nil
 	}
+
+	statsRes := segresults.InitStatsResults()
 
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
@@ -898,12 +924,18 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
-		if err != nil {
-			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
-			allSegFileResults.AddError(err)
-			continue
+
+		if getSsstMap {
+			statsRes.MergeSegStats(sstMap)
+		} else {
+			err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
+			if err != nil {
+				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
+				allSegFileResults.AddError(err)
+				continue
+			}
 		}
+
 		totalRecsSearched := uint64(0)
 		if segReq.sType == structs.SEGMENT_STATS_SEARCH {
 			totalRecsSearched = segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
@@ -917,6 +949,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 	if len(sortedQSRSlice) == 0 {
 		IncrementNumFinishedSegments(0, qid, 0, 0, "", true, nil)
 	}
+
+	return statsRes.GetSegStats()
 }
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request

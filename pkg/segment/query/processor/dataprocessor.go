@@ -68,6 +68,10 @@ func (dp *DataProcessor) IsTwoPassCmd() bool {
 	return dp.isTwoPassCmd
 }
 
+func (dp *DataProcessor) IsTransformingCmd() bool {
+	return dp.isTransformingCmd
+}
+
 func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 	if streams == nil {
 		streams = make([]*CachedStream, 0)
@@ -227,6 +231,23 @@ func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
 		dp.processor.(*rareProcessor).SetAsIqrStatsResults()
 	case *timechartProcessor:
 		dp.processor.(*timechartProcessor).SetAsIqrStatsResults()
+	case *passThroughProcessor:
+		streams := dp.streams
+		if len(streams) == 0 {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: no streams")
+		}
+
+		if len(streams) > 1 {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: multiple streams")
+		}
+
+		stream := streams[0]
+		searcher, ok := stream.stream.(*Searcher)
+		if !ok {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: stream is not a searcher")
+		}
+
+		searcher.SetAsIqrStatsResults()
 	default:
 		return fmt.Errorf("dp.SetStatsAsIqrStatsResults: processor is not a stats type processor. processor type: %T", dp.processor)
 	}
@@ -256,6 +277,10 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.less)
 		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.getStreamInput: failed to merge IQRs: %v", err)
+		}
+
+		if exhaustedIQRIndex == -1 {
+			return iqr, err
 		}
 
 		for i, iqr := range iqrs {
@@ -653,11 +678,13 @@ func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
 }
 
-func NewSearcherDP(searcher Streamer) *DataProcessor {
+func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcessor {
+	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
-		streams:       []*CachedStream{NewCachedStream(searcher)},
-		processor:     &passThroughProcessor{},
-		processorLock: &sync.Mutex{},
+		streams:           []*CachedStream{NewCachedStream(searcher)},
+		processor:         &passThroughProcessor{},
+		processorLock:     &sync.Mutex{},
+		isTransformingCmd: isTransformingCmd,
 	}
 }
 

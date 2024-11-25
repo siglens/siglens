@@ -363,8 +363,9 @@ func Test_ProcessGroupByRequest_MergeIqrStats(t *testing.T) {
 	iqrs := []*iqr.IQR{resultIqr1, resultIqr2, resultIqr3}
 
 	resultIqr := iqr.NewIQR(0)
-	err = resultIqr.MergeIQRStatsResults(iqrs)
+	statsExists, err := resultIqr.MergeIQRStatsResults(iqrs)
 	assert.NoError(t, err)
+	assert.True(t, statsExists)
 
 	knownValues, err = resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
@@ -555,8 +556,9 @@ func Test_ProcessSegmentStats_MergeIqrStats(t *testing.T) {
 	iqrs := []*iqr.IQR{resultIqr1, resultIqr2, resultIqr3}
 
 	resultIqr := iqr.NewIQR(0)
-	err = resultIqr.MergeIQRStatsResults(iqrs)
+	statsExists, err := resultIqr.MergeIQRStatsResults(iqrs)
 	assert.NoError(t, err)
+	assert.True(t, statsExists)
 
 	knownValues, err = resultIqr.ReadAllColumns()
 	assert.NoError(t, err)

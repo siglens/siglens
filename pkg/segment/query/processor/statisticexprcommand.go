@@ -61,9 +61,9 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	// if the queryType is GroupByCMD, the AggregationResult is already set by the searcher
-	if p.options.AggregationResult != nil && inputIQR != nil {
+	if inputIQR != nil && inputIQR.GetStatsAggregationResult() != nil {
 		p.qid = inputIQR.GetQID()
-		return p.processAggregationResult(p.options.AggregationResult)
+		return p.processAggregationResult(inputIQR.GetStatsAggregationResult())
 	}
 
 	if inputIQR != nil {

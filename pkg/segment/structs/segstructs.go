@@ -501,6 +501,9 @@ type NodeResult struct {
 	GroupByCols                 []string        `json:"groupByCols,omitempty"`
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
+	SegStatsMap                 map[string]*SegStats
+	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
 	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
 	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
 	GroupByRequest              *GroupByRequest
