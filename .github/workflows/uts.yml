@@ -61,4 +61,3 @@ jobs:
           node-version: "18.18.0"
       - run: npm ci
       - run: npm run lint:js
-

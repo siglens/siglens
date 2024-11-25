@@ -10,11 +10,18 @@
     request: http://localhost:5122/api/dashboards/listall
     response: 
         {
-            "1546954169045081977": "dashboard-y",
-            "4729811385114799544": "dashboard-2",
-            "5025894940373832739": "new-dashboard",
-            "9089097379643921334": "test-dashboard",
-            "9352623799225230043": "test-new"
+            "53cb3dde-fd78-4253-808c-18e4077ef0f1": {
+                "createdAt": 0,
+                "isDefault": true,
+                "isFavorite": false,
+                "name": "Sample Dashboard"
+            },
+            "634674be-84f9-493c-b1b4-be23909b09d4": {
+                "createdAt": 1731994980586,
+                "isDefault": false,
+                "isFavorite": true,
+                "name": "2"
+            }
         }
 
 ### Get dashboard by id

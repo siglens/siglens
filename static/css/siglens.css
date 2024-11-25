@@ -2023,7 +2023,7 @@ div.dts div.dataTables_scrollBody table {
     background-color: transparent;
     border-width: 0;
     margin-left: 15px;
-    background-size: contain;
+    background-size: cover;
 }
 #favbutton{
     background-image: url(../assets/star-outline.svg);
@@ -3530,7 +3530,7 @@ float: right;
 }
 #dashboard-grid .ag-cell{
     display: flex !important;
-    padding: 0px 15px !important;
+    padding: 0px 0px 0px 15px !important;
     cursor: pointer;
     font-size: 14px;
     text-decoration-line: none;

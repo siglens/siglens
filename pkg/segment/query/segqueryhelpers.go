@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,6 +50,7 @@ type QueryInformation struct {
 	orgId              uint64
 	alreadyDistributed bool
 	containsKibana     bool
+	batchErr           *toputils.BatchError
 }
 
 type QuerySegmentRequest struct {
@@ -135,6 +137,10 @@ func (qi *QueryInformation) ContainsKibana() bool {
 	return qi.containsKibana
 }
 
+func (qi *QueryInformation) GetBatchError() *toputils.BatchError {
+	return qi.batchErr
+}
+
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
 }
@@ -190,6 +196,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		qType:              qType,
 		orgId:              orgid,
 		containsKibana:     containsKibana,
+		batchErr:           toputils.GetOrCreateBatchErrorWithQid(qid),
 	}, nil
 }
 
