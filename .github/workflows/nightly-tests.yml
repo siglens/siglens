@@ -27,12 +27,12 @@ jobs:
             rm splithits_aa.tar
       - name: Ingest Data
         run: |
+            cd tools/clickbench
             python3 send_datamulti.py
       - name: Restart Siglens
         run: |
             sleep 10
             pkill siglens
-            cd ../..
             ./siglens --config server.yaml &
       - name: Run Longer Functional Test
         run: |
