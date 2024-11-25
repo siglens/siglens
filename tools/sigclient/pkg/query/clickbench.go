@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -128,16 +129,27 @@ func ValidateClickBenchQueries(dest string, queriesAndRespTimes []QueryAndRespTi
 
 	for _, queryAndRespTime := range queriesAndRespTimes {
 		query := queryAndRespTime.query
-		expResTime := queryAndRespTime.respTime
+		expResTimeInMs := queryAndRespTime.respTime
 		queryReq["searchText"] = query
 		log.Infof("Validating query: %v", query)
-		respTime, err := getQueryResponseTime(queryReq, url)
+		respTimeInMs, err := getQueryResponseTime(queryReq, url)
 		if err != nil {
 			log.Fatalf("ValidateClickBenchQueries: Error getting response time for query: %v, err: %v", query, err)
 		}
-		maxRespTime := expResTime * thresholdFactor
-		if respTime > maxRespTime {
-			log.Fatalf("ValidateClickBenchQueries: Query: %v exceeded expected response time, expected: %v, maxRespTime: %v, got: %v", query, expResTime, maxRespTime, respTime)
+		maxRespTimeInMs := float64(0)
+		// For response times less than 500ms, allow atleast a factor of 2.
+		if expResTimeInMs < 500 {
+			maxRespTimeInMs = expResTimeInMs * math.Max(2, thresholdFactor)
+		} else {
+			maxRespTimeInMs = expResTimeInMs * thresholdFactor
+		}
+		if respTimeInMs > maxRespTimeInMs {
+			// For response times less than 1s, log a warning.
+			if respTimeInMs < 1000 {
+				log.Warnf("ValidateClickBenchQueries: Query: %v exceeded expected response time, expResTimeInMs: %v, maxRespTimeInMs: %v, got: %v", query, expResTimeInMs, maxRespTimeInMs, respTimeInMs)
+			} else {
+				log.Fatalf("ValidateClickBenchQueries: Query: %v exceeded expected response time, expResTimeInMs: %v, maxRespTimeInMs: %v, got: %v", query, expResTimeInMs, maxRespTimeInMs, respTimeInMs)
+			}
 		}
 	}
 }

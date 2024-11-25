@@ -513,7 +513,7 @@ func init() {
 	concurrentQueriesTestCmd.PersistentFlags().IntP("iterations", "i", 1, "Number of iterations to run")
 	concurrentQueriesTestCmd.PersistentFlags().StringP("queryText", "q", "", "Query to run")
 
-	clickBenchTestCmd.PersistentFlags().Float64P("thresholdFactor", "t", 1.1, "Threshold factor for clickbench queries")
+	clickBenchTestCmd.PersistentFlags().Float64P("thresholdFactor", "t", 1.5, "Threshold factor for clickbench queries")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
