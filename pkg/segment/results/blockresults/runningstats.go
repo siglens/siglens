@@ -710,7 +710,7 @@ func (rs *runningStats) ToSerializedRunningStats() *SerializedRunningStats {
 	}
 }
 
-func (srb *SerializedRunningBucketResults) ToRunningBucketResults() *RunningBucketResults {
+func (srb *SerializedRunningBucketResults) ToRunningBucketResults(qid uint64) *RunningBucketResults {
 	runStats := make([]runningStats, len(srb.RunningStats))
 	for i := 0; i < len(srb.RunningStats); i++ {
 		runStats[i] = *srb.RunningStats[i].ToRunningStats()
@@ -727,6 +727,7 @@ func (srb *SerializedRunningBucketResults) ToRunningBucketResults() *RunningBuck
 		currStats:           srb.CurrStats,
 		groupedRunningStats: groupedRunningStats,
 		count:               srb.Count,
+		qid:                 qid,
 	}
 }
 

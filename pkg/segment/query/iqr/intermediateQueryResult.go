@@ -929,7 +929,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 
 			segStatsRes.MergeSegStats(statsRes.segStatsMap)
 		} else if statsType.IsGroupByCmd() {
-			if statsRes.groupByBuckets == nil {
+			if statsRes.groupByBuckets == nil && statsRes.timeBuckets == nil {
 				continue
 			}
 
@@ -1312,17 +1312,9 @@ func (iqr *IQR) SetIqrStatsResults(statsType structs.QueryType, segStatsMap map[
 	if statsType.IsRRCCmd() {
 		return fmt.Errorf("qid=%v, IQR.SetIqrStatsResults: statsType cannot be RRCCmd", iqr.qid)
 	} else if statsType.IsGroupByCmd() {
-		if groupByBuckets == nil && timeBuckets == nil {
-			return fmt.Errorf("qid=%v, IQR.SetIqrStatsResults: both groupByBuckets and timeBuckets are nil", iqr.qid)
-		}
-
 		iqr.statsResults.groupByBuckets = groupByBuckets
 		iqr.statsResults.timeBuckets = timeBuckets
 	} else {
-		if segStatsMap == nil {
-			return fmt.Errorf("qid=%v, IQR.SetIqrStatsResults: segStatsMap is nil", iqr.qid)
-		}
-
 		iqr.statsResults.segStatsMap = segStatsMap
 	}
 
@@ -1687,12 +1679,18 @@ func (iqr *IQR) GobDecode(data []byte) error {
 	}
 
 	if serializableIQR.StatsResults != nil {
+		searchResults, err := segresults.InitSearchResults(0, serializableIQR.StatsResults.Aggs, serializableIQR.StatsResults.StatsType, iqr.qid)
+		if err != nil {
+			return fmt.Errorf("IQR.GobDecode: error initializing search results: %v", err)
+		}
+		groupByBuckets := searchResults.BlockResults.GroupByAggregation
+		timeBuckets := searchResults.BlockResults.TimeAggregation
 		iqr.statsResults = &IQRStatsResults{
 			statsType:      serializableIQR.StatsResults.StatsType,
 			aggs:           serializableIQR.StatsResults.Aggs,
 			segStatsMap:    serializableIQR.StatsResults.SegStatsMap,
-			groupByBuckets: serializableIQR.StatsResults.GroupByBuckets.ToGroupByBuckets(),
-			timeBuckets:    serializableIQR.StatsResults.TimeBuckets.ToTimeBuckets(),
+			groupByBuckets: serializableIQR.StatsResults.GroupByBuckets.ToGroupByBuckets(groupByBuckets, iqr.qid),
+			timeBuckets:    serializableIQR.StatsResults.TimeBuckets.ToTimeBuckets(timeBuckets, iqr.qid),
 		}
 	}
 

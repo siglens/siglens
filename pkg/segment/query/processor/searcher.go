@@ -282,9 +282,17 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 		}
 		if s.setAsIqrStatsResults {
 			var isGroupByBuckets, isTimeBuckets bool
-			groupByBuckets, isGroupByBuckets = nodeResult.GroupByBuckets.(*blockresults.GroupByBuckets)
-			timeBuckets, isTimeBuckets = nodeResult.TimeBuckets.(*blockresults.TimeBuckets)
-			if !isGroupByBuckets || !isTimeBuckets {
+			isGroupByBucketNil, isTimeBucketsNil := true, true
+			if nodeResult.GroupByBuckets != nil {
+				isGroupByBucketNil = false
+				groupByBuckets, isGroupByBuckets = nodeResult.GroupByBuckets.(*blockresults.GroupByBuckets)
+			}
+			if nodeResult.TimeBuckets != nil {
+				isTimeBucketsNil = false
+				timeBuckets, isTimeBuckets = nodeResult.TimeBuckets.(*blockresults.TimeBuckets)
+			}
+
+			if (!isGroupByBucketNil && !isGroupByBuckets) || (!isTimeBucketsNil && !isTimeBuckets) {
 				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: Expected GroupByBuckets and TimeBuckets, got %T and %T",
 					qid, nodeResult.GroupByBuckets, nodeResult.TimeBuckets)
 			}

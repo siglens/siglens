@@ -1052,7 +1052,7 @@ func (tb *TimeBuckets) ToSerializedTimeBuckets() *SerializedTimeBuckets {
 	}
 }
 
-func (sgb *SerializedGroupByBuckets) ToGroupByBuckets() *GroupByBuckets {
+func (sgb *SerializedGroupByBuckets) ToGroupByBuckets(groupByBuckets *GroupByBuckets, qid uint64) *GroupByBuckets {
 	if sgb == nil {
 		return nil
 	}
@@ -1060,17 +1060,21 @@ func (sgb *SerializedGroupByBuckets) ToGroupByBuckets() *GroupByBuckets {
 	allRunningBuckets := make([]*RunningBucketResults, len(sgb.AllRunningBuckets))
 
 	for i, bucket := range sgb.AllRunningBuckets {
-		allRunningBuckets[i] = bucket.ToRunningBucketResults()
+		allRunningBuckets[i] = bucket.ToRunningBucketResults(qid)
 	}
 
 	return &GroupByBuckets{
-		AllRunningBuckets: allRunningBuckets,
-		StringBucketIdx:   sgb.StringBucketIdx,
-		GroupByColValCnt:  sgb.GroupByColValCnt,
+		AllRunningBuckets:   allRunningBuckets,
+		StringBucketIdx:     sgb.StringBucketIdx,
+		GroupByColValCnt:    sgb.GroupByColValCnt,
+		allMeasureCols:      groupByBuckets.allMeasureCols,
+		internalMeasureFns:  groupByBuckets.internalMeasureFns,
+		reverseMeasureIndex: groupByBuckets.reverseMeasureIndex,
+		maxBuckets:          groupByBuckets.maxBuckets,
 	}
 }
 
-func (stb *SerializedTimeBuckets) ToTimeBuckets() *TimeBuckets {
+func (stb *SerializedTimeBuckets) ToTimeBuckets(timeBuckets *TimeBuckets, qid uint64) *TimeBuckets {
 	if stb == nil {
 		return nil
 	}
@@ -1078,7 +1082,7 @@ func (stb *SerializedTimeBuckets) ToTimeBuckets() *TimeBuckets {
 	allRunningBuckets := make([]*RunningBucketResults, len(stb.AllRunningBuckets))
 
 	for i, bucket := range stb.AllRunningBuckets {
-		allRunningBuckets[i] = bucket.ToRunningBucketResults()
+		allRunningBuckets[i] = bucket.ToRunningBucketResults(qid)
 	}
 
 	return &TimeBuckets{
