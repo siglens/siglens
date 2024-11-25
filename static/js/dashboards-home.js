@@ -20,44 +20,32 @@
 let dbgridDiv = null;
 let dbRowData = [];
 
+let initialDashboards = null;
+
+$(document).ready(async function () {
+    $('.theme-btn').on('click', themePickerHandler);
+
+    initialDashboards = await getAllDashboards();
+    displayDashboards(initialDashboards);
+
+    $('#create-db-btn').click(createDashboard);
+    $('.search-db-input').on('input', searchDB);
+    $('.search-db-input').on('keyup', function (e) {
+        if (e.target.value === '') {
+            displayOriginalDashboards();
+        }
+    });
+
+    let stDate = 'now-1h';
+    let endDate = 'now';
+    datePickerHandler(stDate, endDate, stDate);
+});
+
 async function getAllDashboards() {
     let serverResponse = [];
     await $.ajax({
         method: 'get',
         url: 'api/dashboards/listall',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-    }).then(function (res) {
-        serverResponse = res;
-    });
-    return serverResponse;
-}
-
-async function getAllDefaultDashboards() {
-    let serverResponse = [];
-    await $.ajax({
-        method: 'get',
-        url: 'api/dashboards/defaultlistall',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-    }).then(function (res) {
-        serverResponse = res;
-    });
-    return serverResponse;
-}
-async function getAllFavoriteDashboards() {
-    let serverResponse = [];
-    await $.ajax({
-        method: 'get',
-        url: 'api/dashboards/listfavorites',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -185,10 +173,10 @@ class btnRenderer {
         this.dButton.style.marginRight = '5px';
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon = this.eGui.querySelector('.star-icon');
-        this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
+        this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
 
         //Disable delete for default dashboards and show "Default" label
-        if (defaultDashboardIds.includes(params.data.uniqId)) {
+        if (params.data.isDefault) {
             const defaultLabel = document.createElement('span');
             defaultLabel.className = 'default-label';
             defaultLabel.innerText = 'Default';
@@ -274,6 +262,9 @@ class btnRenderer {
                                 {
                                     dbname: duplicatedDBName,
                                     uniqId: uniqIDdb,
+                                    createdAt: Date.now(),
+                                    favorite: false,
+                                    isDefault: false,
                                 },
                             ],
                         });
@@ -291,13 +282,8 @@ class btnRenderer {
                 },
                 crossDomain: true,
             }).then((response) => {
-                // Update the favorite status based on the response
                 params.data.favorite = response.isFavorite;
-                if (params.data.favorite) {
-                    this.starIcon.style.backgroundImage = starFilledURL;
-                } else {
-                    this.starIcon.style.backgroundImage = starOutlineURL;
-                }
+                this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
             });
         }
 
@@ -331,10 +317,8 @@ class btnRenderer {
     }
 
     refresh(params) {
-        // Use the URL of the SVG files for star icons
         const starOutlineURL = 'url("../assets/star-outline.svg")';
         const starFilledURL = 'url("../assets/star-filled.svg")';
-
         this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
         return false;
     }
@@ -378,8 +362,27 @@ let dashboardColumnDefs = [
         },
     },
     {
+        headerName: 'Created At',
+        field: 'createdAt',
+        sortable: true,
+        cellStyle: { justifyContent: 'flex-end' },
+        headerClass: 'ag-right-aligned-header',
+        cellRenderer: (params) => {
+            if (!params.value) return '-';
+            const date = new Date(params.value);
+            return date.toLocaleDateString([], {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        },
+        width: 50,
+    },
+    {
         cellRenderer: btnRenderer,
-        width: 40,
+        width: 50,
     },
 ];
 
@@ -409,18 +412,28 @@ function displayDashboards(res, flag) {
     let nonFavorites = [];
 
     for (let [key, value] of Object.entries(res)) {
-        if (favoriteDBsSet.has(key)) {
+        // Check if the dashboard is a favorite from the response itself
+        if (value.isFavorite) {
             favorites.push([key, value]);
         } else {
             nonFavorites.push([key, value]);
         }
     }
-    favorites.sort((a, b) => b[1].localeCompare(a[1]));
-    nonFavorites.sort((a, b) => b[1].localeCompare(a[1]));
+
+    // Sort favorites and non-favorites by creation time (newest first)
+    const sortByTime = (a, b) => {
+        const timeA = a[1].createdAt || 0;
+        const timeB = b[1].createdAt || 0;
+        return timeB - timeA;
+    };
+
+    favorites.sort(sortByTime);
+    nonFavorites.sort(sortByTime);
+
     let resArray = [...favorites, ...nonFavorites];
-    res = Object.fromEntries(resArray);
+
     if (flag == -1) {
-        // show search results
+        // Show search results
         let dbFilteredRowData = [];
         if (dbgridDiv === null) {
             dbgridDiv = document.querySelector('#dashboard-grid');
@@ -428,16 +441,19 @@ function displayDashboards(res, flag) {
             new agGrid.Grid(dbgridDiv, dbgridOptions);
         }
         dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
-        let idx = 0;
-        let newRow = new Map();
-        $.each(res, function (key, value) {
-            newRow.set('rowId', idx);
-            newRow.set('uniqId', key);
-            newRow.set('dbname', value);
 
-            dbFilteredRowData = _.concat(dbFilteredRowData, Object.fromEntries(newRow));
-            idx = idx + 1;
+        resArray.forEach((item, idx) => {
+            const [key, dashboardInfo] = item;
+            dbFilteredRowData.push({
+                rowId: idx,
+                uniqId: key,
+                dbname: dashboardInfo.name,
+                createdAt: dashboardInfo.createdAt,
+                favorite: dashboardInfo.isFavorite,
+                isDefault: dashboardInfo.isDefault,
+            });
         });
+
         dbgridOptions.api.setRowData(dbFilteredRowData);
         dbgridOptions.api.sizeColumnsToFit();
     } else {
@@ -447,16 +463,19 @@ function displayDashboards(res, flag) {
             new agGrid.Grid(dbgridDiv, dbgridOptions);
         }
         dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
-        let idx = 0;
-        let newRow = new Map();
-        $.each(res, function (key, value) {
-            newRow.set('rowId', idx);
-            newRow.set('uniqId', key);
-            newRow.set('dbname', value);
 
-            dbRowData = _.concat(dbRowData, Object.fromEntries(newRow));
-            idx = idx + 1;
+        dbRowData = resArray.map((item, idx) => {
+            const [key, dashboardInfo] = item;
+            return {
+                rowId: idx,
+                uniqId: key,
+                dbname: dashboardInfo.name,
+                createdAt: dashboardInfo.createdAt,
+                favorite: dashboardInfo.isFavorite,
+                isDefault: dashboardInfo.isDefault,
+            };
         });
+
         dbgridOptions.api.setRowData(dbRowData);
         dbgridOptions.api.sizeColumnsToFit();
     }
@@ -464,6 +483,13 @@ function displayDashboards(res, flag) {
 
 function searchDB() {
     let searchText = $('.search-db-input').val();
+
+    // If search is empty, restore original dashboards
+    if (!searchText.trim()) {
+        displayOriginalDashboards();
+        return;
+    }
+
     var tokens = searchText
         .toLowerCase()
         .split(' ')
@@ -471,29 +497,29 @@ function searchDB() {
             return token.trim() !== '';
         });
 
-    let dbNames = [];
-    dbRowData.forEach((rowData) => {
-        dbNames.push(rowData.dbname);
-    });
-
-    let dbFilteredRowsObject = {};
     if (tokens.length) {
         var searchTermRegex = new RegExp(tokens.join('|'), 'gi');
-        dbNames.filter(function (dbName, i) {
-            if (dbName.match(searchTermRegex)) {
-                let uniqIdDB = dbRowData[i].uniqId;
-                dbFilteredRowsObject[`${uniqIdDB}`] = dbRowData[i].dbname;
+
+        // Filter the original dbRowData
+        let filteredDashboards = {};
+        dbRowData.forEach((rowData) => {
+            if (rowData.dbname.match(searchTermRegex)) {
+                filteredDashboards[rowData.uniqId] = {
+                    name: rowData.dbname,
+                    createdAt: rowData.createdAt,
+                    isFavorite: rowData.favorite,
+                    isDefault: rowData.isDefault,
+                };
             }
-            return dbName.match(searchTermRegex);
         });
 
-        if (Object.keys(dbFilteredRowsObject).length === 0) {
-            displayDashboards(dbFilteredRowsObject, -1);
+        if (Object.keys(filteredDashboards).length === 0) {
+            displayDashboards(filteredDashboards, -1);
             showDBNotFoundMsg();
         } else {
             $('#dashboard-grid-container').show();
             $('#empty-response').hide();
-            displayDashboards(dbFilteredRowsObject, -1);
+            displayDashboards(filteredDashboards, -1);
         }
     }
 }
@@ -509,34 +535,12 @@ function displayOriginalDashboards() {
         }
         $('#dashboard-grid-container').show();
         $('#empty-response').hide();
-        dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
-        dbgridOptions.api.setRowData(dbRowData);
-        dbgridOptions.api.sizeColumnsToFit();
+
+        // Use the initial dashboard data to reset
+        displayDashboards(initialDashboards);
     }
 }
-
 function showDBNotFoundMsg() {
     $('#dashboard-grid-container').hide();
     $('#empty-response').show();
 }
-let favoriteDBsSet;
-
-$(document).ready(async function () {
-    $('.theme-btn').on('click', themePickerHandler);
-
-    let normalDBs = await getAllDashboards();
-    let allDefaultDBs = await getAllDefaultDashboards();
-    let allDBs = { ...normalDBs, ...allDefaultDBs };
-    let favoriteDBs = await getAllFavoriteDashboards();
-    // Convert the array of favorite dashboards to a Set for faster lookup
-    favoriteDBsSet = new Set(Object.keys(favoriteDBs));
-    displayDashboards(allDBs);
-
-    $('#create-db-btn').click(createDashboard);
-    $('.search-db-input').on('input', searchDB);
-    $('.search-db-input').on('keyup', displayOriginalDashboards);
-
-    let stDate = 'now-1h';
-    let endDate = 'now';
-    datePickerHandler(stDate, endDate, stDate);
-});

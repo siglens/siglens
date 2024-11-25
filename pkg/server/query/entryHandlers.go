@@ -443,20 +443,9 @@ func favoriteDashboardHandler() fasthttp.RequestHandler {
 	}
 }
 
-func getFavoriteDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListFavoritesRequest, ctx)
-	}
-}
 func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(dashboards.ProcessListAllRequest, ctx)
-	}
-}
-
-func getDefaultDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListAllDefaultDBRequest, ctx)
 	}
 }
 
