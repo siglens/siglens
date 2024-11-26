@@ -15,7 +15,7 @@ jobs:
           go-version: 1.19
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.12.0
       - uses: actions/checkout@v3
       - name: Build Siglens
         run: make build
