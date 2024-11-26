@@ -47,7 +47,7 @@ jobs:
             python3 send_datamulti.py
             rm splithits_trunc_d
             wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_e.tar
-            tar -xvf splithits_trunc_r.tar
+            tar -xvf splithits_trunc_e.tar
             rm splithits_trunc_e.tar
             python3 send_datamulti.py
             rm splithits_trunc_e
