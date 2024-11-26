@@ -691,6 +691,58 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	return nil
 }
 
+func MergeAndDiscardAfter(iqr1, iqr2 *IQR, less func(*Record, *Record) bool, limit uint64) (*IQR, error) {
+	if iqr1 == nil {
+		err := iqr2.DiscardAfter(limit)
+		if err != nil {
+			log.Errorf("MergeAndDiscardAfter: error discarding after %v: %v", limit, err)
+			return nil, err
+		}
+		return iqr2, nil
+	}
+
+	if iqr2 == nil {
+		err := iqr1.DiscardAfter(limit)
+		if err != nil {
+			log.Errorf("MergeAndDiscardAfter: error discarding after %v: %v", limit, err)
+			return nil, err
+		}
+		return iqr1, nil
+	}
+
+	// Merge the two IQRs.
+	iqr, firstExhausted, err := MergeIQRs([]*IQR{iqr1, iqr2}, less)
+	if err != nil {
+		log.Errorf("MergeAndDiscardAfter: cannot merge IQRs; err=%v", err)
+		return nil, err
+	}
+
+	var leftover *IQR
+	switch firstExhausted {
+	case 0:
+		leftover = iqr2
+	case 1:
+		leftover = iqr1
+	default:
+		return nil, toputils.TeeErrorf("MergeAndDiscardAfter: unexpected value for firstExhausted: %v",
+			firstExhausted)
+	}
+
+	err = iqr.Append(leftover)
+	if err != nil {
+		log.Errorf("MergeAndDiscardAfter: cannot append leftover IQR; err=%v", err)
+		return nil, err
+	}
+
+	err = iqr.DiscardAfter(limit)
+	if err != nil {
+		log.Errorf("MergeAndDiscardAfter: cannot discard after limit; err=%v", err)
+		return nil, err
+	}
+
+	return iqr, nil
+}
+
 // This merges multiple IQRs into one. It stops when one of the IQRs runs out
 // of records, and returns the index of the IQR that ran out of records.
 //

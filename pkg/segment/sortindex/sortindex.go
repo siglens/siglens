@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -97,8 +98,33 @@ func WriteSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 }
 
 type line struct {
-	value  string
-	blocks []block
+	Value  string
+	Blocks []block
+}
+
+func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContainer, []segutils.CValueEnclosure) {
+	rrcs := make([]*segutils.RecordResultContainer, 0)
+	values := make([]segutils.CValueEnclosure, 0)
+
+	for _, line := range lines {
+		for _, block := range line.Blocks {
+			for _, recordNum := range block.Records {
+				rrcs = append(rrcs, &segutils.RecordResultContainer{
+					BlockNum:  block.BlockNum,
+					RecordNum: recordNum,
+					SegKeyInfo: segutils.SegKeyInfo{
+						SegKeyEnc: segKeyEncoding,
+					},
+				})
+				values = append(values, segutils.CValueEnclosure{
+					Dtype: segutils.SS_DT_STRING,
+					CVal:  line.Value,
+				})
+			}
+		}
+	}
+
+	return rrcs, values
 }
 
 func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) {
@@ -151,8 +177,8 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) 
 		}
 
 		lines = append(lines, line{
-			value:  value,
-			blocks: blocks,
+			Value:  value,
+			Blocks: blocks,
 		})
 	}
 

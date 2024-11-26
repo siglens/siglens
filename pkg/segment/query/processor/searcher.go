@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
+	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -57,6 +58,7 @@ type Searcher struct {
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
 	sortMode     sortMode
+	sortExpr     *structs.SortExpr // Overrides sortMode if not nil. TODO: remove sortMode.
 	startTime    time.Time
 
 	gotBlocks             bool
@@ -69,7 +71,7 @@ type Searcher struct {
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
-	sortMode sortMode, startTime time.Time) (*Searcher, error) {
+	sortMode sortMode, sortExpr *structs.SortExpr, startTime time.Time) (*Searcher, error) {
 
 	if queryInfo == nil {
 		return nil, toputils.TeeErrorf("searcher.NewSearcher: queryInfo is nil")
@@ -85,6 +87,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
 		sortMode:              sortMode,
+		sortExpr:              sortExpr,
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
@@ -117,6 +120,9 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
+		if s.sortExpr != nil {
+			return s.fetchColumnSortedRRCs()
+		}
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
 			if err != nil {
@@ -140,6 +146,65 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: invalid query type: %v",
 			s.qid, s.queryInfo.GetQueryType())
 	}
+}
+
+func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
+	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, searcher.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
+		return nil, err
+	}
+
+	// TODO: read PQS if enabled.
+
+	result := iqr.NewIQR(s.queryInfo.GetQid())
+	sorter := &sortProcessor{
+		options: s.sortExpr,
+	}
+
+	for _, qsr := range qsrs {
+		nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
+			return nil, err
+		}
+
+		result, err = iqr.MergeAndDiscardAfter(result, nextIQR, sorter.less, s.sortExpr.Limit)
+	}
+
+	return result, nil
+}
+
+func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
+	// TODO: handle subsequent fetches to this QSR.
+
+	const recordLimit = 1000              // TODO: find a better way to limit.
+	cname := s.sortExpr.SortEles[0].Field // TODO
+	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, recordLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lines) == 0 {
+		// TODO: raw search this segment if it has the cname
+		panic("got no results in sortindex")
+	}
+
+	segKeyEncoding := s.getSegKeyEncoding(qsr.GetSegKey())
+
+	rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
+	err = iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
+	if err != nil {
+		return nil, err
+	}
+
+	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
+	if err != nil {
+		return nil, err
+	}
+
+	return iqr, nil
 }
 
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
@@ -422,6 +487,18 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 func (s *Searcher) getNextSegEncTokey() uint32 {
 	return s.segEncToKeyBaseValue + uint32(s.segEncToKey.Len())
+}
+
+func (s *Searcher) getSegKeyEncoding(segKey string) uint32 {
+	encoding, ok := s.segEncToKey.GetReverse(segKey)
+	if ok {
+		return encoding
+	}
+
+	encoding = s.getNextSegEncTokey()
+	s.segEncToKey.Set(encoding, segKey)
+
+	return encoding
 }
 
 func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,
