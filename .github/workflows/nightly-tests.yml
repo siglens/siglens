@@ -2,7 +2,7 @@ name: Nightly-Tests
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Runs every day at midnight EST (UTC-5)
+    - cron: '0 * * * *'  # TODO: Change to every day at midnight EST (UTC-5)
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
@@ -19,10 +19,23 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
-      - name: Run Longer Functional Test
+      - name: Ingest Longer Functional Data
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true
+            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -u=false
+            sleep 5  # Wait for data to ingest
+      - name: Restart Siglens
+        run: |
+            pkill siglens
+            sleep 10
+            sed -i 's/pqsEnabled: true/pqsEnabled: false/' server.yaml
+            ./siglens --config server.yaml &
+      - name: Query Longer Functional
+        run: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -i=false
+
 
 

@@ -341,7 +341,11 @@ func EvaluateQueryForAPI(dest string, queryReq map[string]interface{}, qid int, 
 
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForAPI: Failed query: %v, resp: %v\n err: %v", query, resp, err)
+		if queryRes.Qtype == "logs-query" {
+			return fmt.Errorf("EvaluateQueryForAPI: Failed evaluating query: %v, err: %v", query, err)
+		} else {
+			return fmt.Errorf("EvaluateQueryForAPI: Failed evaluating query: %v, resp: %v, err: %v", query, resp, err)
+		}
 	}
 
 	log.Infof("EvaluateQueryForAPI: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -452,7 +456,11 @@ func EvaluateQueryForWebSocket(dest string, queryReq map[string]interface{}, qid
 
 	err = CompareResults(queryRes, expRes, query)
 	if err != nil {
-		return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, resp: %v\n err: %v", query, resp, err)
+		if queryRes.Qtype == "logs-query" {
+			return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, err: %v", query, err)
+		} else {
+			return fmt.Errorf("EvaluateQueryForWebSocket: Failed evaluating query: %v, resp: %v, err: %v", query, resp, err)
+		}
 	}
 
 	log.Infof("EvaluateQueryForWebSocket: Query %v was succesful. In %+v", query, time.Since(sTime))
@@ -537,6 +545,17 @@ func sortRecords(records []map[string]interface{}, columns []string) {
 	})
 }
 
+func getPartialRecord(record map[string]interface{}, cols []string) map[string]interface{} {
+	filterRecord := make(map[string]interface{})
+	for _, col := range cols {
+		value, exist := record[col]
+		if exist {
+			filterRecord[col] = value
+		}
+	}
+	return filterRecord
+}
+
 /*
 *
   - ValidateLogsQueryResults validates the logs query results
@@ -604,7 +623,8 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
 		if err != nil {
-			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records: queryRes Record: %v, expRes Record: %v, err: %v", queryRes.Records[idx], record, err)
+			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records at index: %v, partial queryRes Record: %v, expRes Record: %v, err: %v",
+				idx, getPartialRecord(queryRes.Records[idx], utils.GetKeysOfMap(record)), record, err)
 		}
 	}
 

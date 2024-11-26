@@ -167,3 +167,11 @@ func AlmostEqual(actual, expected, tolerancePercentage float64) bool {
 
 	return (diff / math.Abs(expected)) < tolerancePercentage
 }
+
+func GetKeysOfMap[K comparable, T any](m map[K]T) []K {
+	keys := make([]K, 0)
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
