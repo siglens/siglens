@@ -35,8 +35,8 @@ jobs:
             python3 send_datamulti.py
       - name: Restart Siglens
         run: |
-            sleep 10
             pkill siglens
+            sleep 10
             ./siglens --config server.yaml &
       - name: Run Clickbench Test
         run: |
