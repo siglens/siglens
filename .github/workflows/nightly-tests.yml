@@ -28,7 +28,7 @@ jobs:
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -u=false
+            go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122 -u=false
             sleep 5  # Wait for data to ingest
       - name: Restart Siglens
         run: |
@@ -40,7 +40,7 @@ jobs:
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -i=false
+            go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122 -i=false
 
 
 
