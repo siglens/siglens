@@ -19,6 +19,11 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
+      - name: Tail logs file
+        run: |
+            sleep 10
+            ls -l
+            tail -f logs/siglens.log &
       - name: Ingest Longer Functional Data
         run: |
             sleep 5  # Wait for Siglens to start
