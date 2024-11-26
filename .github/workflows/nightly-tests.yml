@@ -15,7 +15,7 @@ jobs:
           go-version: 1.19
       - name: Install dependencies
         run: |
-          sudo yum install python3-pip
+          yum install python3-pip
           pip install requests
       - uses: actions/checkout@v3
       - name: Build Siglens
@@ -23,6 +23,12 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
+      - name: Get Data
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/v1.0.1/splithits_aa.tar
+            tar -xvf splithits_aa.tar
+            rm splithits_aa.tar
       - name: Ingest Data
         run: |
             cd tools/clickbench
@@ -32,7 +38,7 @@ jobs:
             sleep 10
             pkill siglens
             ./siglens --config server.yaml &
-      - name: Run Longer Functional Test
+      - name: Run Clickbench Test
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
