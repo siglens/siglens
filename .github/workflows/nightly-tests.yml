@@ -15,7 +15,7 @@ jobs:
           go-version: 1.19
       - name: Install dependencies
         run: |
-          yum install python3-pip
+          sudo yum install python3-pip
           pip install requests
       - uses: actions/checkout@v3
       - name: Build Siglens
