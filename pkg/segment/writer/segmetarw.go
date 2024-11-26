@@ -700,8 +700,11 @@ func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
 	for _, colInfo := range sfm.ColumnNames {
 		stats.TotalCmiSize += colInfo.CmiSize
 		stats.TotalCsgSize += colInfo.CsgSize
-		if colInfo.CmiSize > 0 && colInfo.CsgSize > 0 {
-			stats.NumIndexFiles += 2
+		if colInfo.CmiSize > 0 {
+			stats.NumIndexFiles++
+		}
+		if colInfo.CsgSize > 0 {
+			stats.NumIndexFiles++
 		}
 	}
 	return stats, nil
@@ -767,9 +770,11 @@ func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats 
 	for _, usi := range AllUnrotatedSegmentInfo {
 		if usi.TableName == indexName &&
 			(usi.orgid == orgId || orgId == 10618270676840840323) {
-			stats.TotalCmiSize += usi.cmiSize
-			stats.NumIndexFiles += len(usi.allColumns) * 2
-
+			if usi.cmiSize > 0 {
+				stats.TotalCmiSize += usi.cmiSize
+				stats.NumIndexFiles += len(usi.allColumns)
+			}
+			stats.NumIndexFiles += len(usi.allColumns)
 			stats.NumBlocks += int64(len(usi.blockSummaries))
 		}
 	}
