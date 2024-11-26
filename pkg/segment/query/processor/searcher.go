@@ -398,6 +398,12 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 			for _, block := range blocks {
 				pqmrBlockNumbers[block.BlkNum] = struct{}{}
 			}
+
+			totalBlocksInSegment := metadata.GetNumBlocksInSegment(qsr.GetSegKey())
+			if len(pqmrBlockNumbers) == int(totalBlocksInSegment) {
+				// All blocks in the segment are covered by the PQMR, so we can skip the raw search.
+				continue
+			}
 		}
 
 		fileToSSR, err := query.GetSSRsFromQSR(qsr, s.querySummary)
