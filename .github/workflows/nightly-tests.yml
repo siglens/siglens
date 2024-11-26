@@ -2,7 +2,7 @@ name: Nightly-Tests
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # TODO: Change to every day at midnight EST (UTC-5)
+    - cron: '0 * * * *'  # TODO: Change to every day at midnight EST (UTC-5)
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
