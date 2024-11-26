@@ -940,16 +940,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 			}
 		}
 
-		if getSsstMap {
-			statsRes.MergeSegStats(sstMap)
-		} else {
-			err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
-			if err != nil {
-				log.Errorf("qid=%d, applyAggOpOnSegments: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
-				allSegFileResults.AddError(err)
-				continue
-			}
-		}
+		statsRes.MergeSegStats(sstMap)
 
 		totalRecsSearched := uint64(0)
 		if segReq.sType == structs.SEGMENT_STATS_SEARCH {
@@ -961,11 +952,21 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		IncrementNumFinishedSegments(1, qid, totalRecsSearched, segenc, "", true, sstMap)
 	}
 
+	finalSstMap := statsRes.GetSegStats()
+
+	if !getSsstMap {
+		err = allSegFileResults.UpdateSegmentStats(finalSstMap, measureOperations)
+		if err != nil {
+			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey! Error: %v", qid, err)
+			allSegFileResults.AddError(err)
+		}
+	}
+
 	if len(sortedQSRSlice) == 0 {
 		IncrementNumFinishedSegments(0, qid, 0, 0, "", true, nil)
 	}
 
-	return statsRes.GetSegStats()
+	return finalSstMap
 }
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request
