@@ -4293,7 +4293,7 @@ color: #C8C7CC;
 
 #index-summary-prompt .summary-content{
     border: 1px solid var(--border-btn-color);
-    padding: 20px;
+    padding: 20px 20px 0px 20px;
     border-radius: 10px;
 }
 
