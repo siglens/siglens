@@ -1234,6 +1234,10 @@ func (qtype QueryType) IsInvalid() bool {
 	return qtype == InvalidCmd
 }
 
+func (qtype QueryType) IsNotStatsType() bool {
+	return qtype != SegmentStatsCmd && qtype != GroupByCmd
+}
+
 func (qa *QueryAggregators) HasTopExpr() bool {
 	return qa != nil && qa.StatisticExpr != nil && qa.StatisticExpr.StatisticFunctionMode == SFMTop
 }

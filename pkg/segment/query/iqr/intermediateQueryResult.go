@@ -907,7 +907,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 		}
 	}
 
-	if statsType.IsInvalid() {
+	if statsType.IsNotStatsType() {
 		// This means that the IQRs don't have any stats results.
 		return false, nil
 	}

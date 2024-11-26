@@ -258,24 +258,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.StatisticExpr != nil {
-		statsExpr := &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
-		queryAgg.StatsExpr = statsExpr
-
-		if queryInfo.IsDistributed() && !queryAgg.StatisticExpr.ExprSplitDone {
-			// Split the Aggs into two data processors, the first one is the stats processor
-			// and the second one will perform the actual statisticExpr.
-			nextAgg := &structs.QueryAggregators{
-				GroupByRequest: queryAgg.GroupByRequest,
-				StatisticExpr:  queryAgg.StatisticExpr,
-			}
-			nextAgg.Next = queryAgg.Next
-			queryAgg.Next = nextAgg
-			nextAgg.StatisticExpr.ExprSplitDone = true
-
-			return NewStatsDP(statsExpr)
-		}
-
-		return NewStatisticExprDP(queryAgg)
+		return NewStatisticExprDP(queryAgg, queryInfo.IsDistributed())
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {
