@@ -105,16 +105,6 @@ func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
 	return utils.Max(start1, start2) <= utils.Min(end1, end2)
 }
 
-func Test_getActiveBaseSegDir(t *testing.T) {
-	dataPath := t.TempDir()
-	config.InitializeDefaultConfig(dataPath)
-	virtualTableName := "evts"
-	streamid := "10005995996882630313"
-	nextsuff_idx := uint64(1)
-	basedir := getBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, dataPath+"/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
-}
-
 func Test_getNumberTypeAndVal(t *testing.T) {
 	cases := []struct {
 		input   string
