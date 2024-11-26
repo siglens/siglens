@@ -26,25 +26,37 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_writeSstToBuf(t *testing.T) {
-	cname := "mycol1"
-	sstMap := make(map[string]*structs.SegStats)
-	numRecs := uint64(2)
+func verifyNumericStats(t *testing.T, sst *structs.SegStats, buf []byte, idx int) {
+	// Min DType
+	assert.Equal(t, uint8(sst.Min.Dtype), buf[idx : idx+1][0])
+	idx += 1
 
-	addSegStatsNums(sstMap, cname, sutils.SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
-	addSegStatsNums(sstMap, cname, sutils.SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
+	// Min Num Value
+	assert.Equal(t, sst.Min.CVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
+	idx += 8
 
-	assert.Equal(t, numRecs, sstMap[cname].Count)
+	// Max DType
+	assert.Equal(t, uint8(sst.Max.Dtype), buf[idx : idx+1][0])
+	idx += 1
 
-	sst := sstMap[cname]
+	// Max Num Value
+	assert.Equal(t, sst.Max.CVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
+	idx += 8
 
-	buf := make([]byte, sutils.WIP_SIZE)
+	// Sum Num Type
+	assert.Equal(t, uint8(sst.NumStats.Sum.Ntype), buf[idx : idx+1][0])
+	idx += 1
 
-	_, err := writeSstToBuf(sst, buf)
-	assert.Nil(t, err)
+	// Sum Num Value
+	assert.Equal(t, sst.NumStats.Sum.FloatVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
+	idx += 8
 
-	idx := 0
-	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF[0], buf[idx])
+	// NumCount
+	assert.Equal(t, sst.NumStats.NumericCount, utils.BytesToUint64LittleEndian(buf[idx:idx+8]))
+}
+
+func verifyCommon(t *testing.T, sst *structs.SegStats, buf []byte, idx int) int {
+	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF_V4[0], buf[idx])
 	idx++
 
 	isNumeric := utils.BytesToBoolLittleEndian(buf[idx : idx+1])
@@ -65,26 +77,103 @@ func Test_writeSstToBuf(t *testing.T) {
 	assert.Equal(t, sst.GetHllBytes(), hllData)
 	idx += int(hllDataSize)
 
-	// Min Num Type
-	assert.Equal(t, uint8(sst.NumStats.Min.Ntype), buf[idx : idx+1][0])
+	return idx
+}
+
+func verifyNonNumeric(t *testing.T, sst *structs.SegStats, buf []byte, idx int) {
+	// DType
+	assert.Equal(t, uint8(sst.Min.Dtype), buf[idx : idx+1][0])
 	idx += 1
 
-	// Min Num Value
-	assert.Equal(t, sst.NumStats.Min.FloatVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
-	idx += 8
+	// Min Len
+	minLen := uint16(len(sst.Min.CVal.(string)))
+	assert.Equal(t, minLen, utils.BytesToUint16LittleEndian(buf[idx:idx+2]))
+	idx += 2
 
-	// Max Num Type
-	assert.Equal(t, uint8(sst.NumStats.Max.Ntype), buf[idx : idx+1][0])
-	idx += 1
+	// Min Value
+	assert.Equal(t, sst.Min.CVal, string(buf[idx:idx+int(minLen)]))
+	idx += int(minLen)
 
-	// Max Num Value
-	assert.Equal(t, sst.NumStats.Max.FloatVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
-	idx += 8
+	// Max Len
+	maxLen := uint16(len(sst.Max.CVal.(string)))
+	assert.Equal(t, uint16(maxLen), utils.BytesToUint16LittleEndian(buf[idx:idx+2]))
+	idx += 2
 
-	// Sum Num Type
-	assert.Equal(t, uint8(sst.NumStats.Sum.Ntype), buf[idx : idx+1][0])
-	idx += 1
+	// Max Value
+	assert.Equal(t, sst.Max.CVal, string(buf[idx:idx+int(maxLen)]))
+}
 
-	// Sum Num Value
-	assert.Equal(t, sst.NumStats.Sum.FloatVal, utils.BytesToFloat64LittleEndian(buf[idx:idx+8]))
+func Test_writeSstToBufNumStats(t *testing.T) {
+	cname := "mycol1"
+	sstMap := make(map[string]*structs.SegStats)
+	numRecs := uint64(6)
+
+	addSegStatsStrIngestion(sstMap, cname, []byte("abc"))
+	addSegStatsNums(sstMap, cname, sutils.SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("def"))
+	addSegStatsNums(sstMap, cname, sutils.SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("9999"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("ghi"))
+
+	assert.Equal(t, numRecs, sstMap[cname].Count)
+
+	sst := sstMap[cname]
+
+	buf := make([]byte, sutils.WIP_SIZE)
+
+	_, err := writeSstToBuf(sst, buf)
+	assert.Nil(t, err)
+
+	idx := verifyCommon(t, sst, buf, 0)
+
+	verifyNumericStats(t, sst, buf, idx)
+}
+
+func Test_writeSstToBufStringStats(t *testing.T) {
+	cname := "mycol1"
+	sstMap := make(map[string]*structs.SegStats)
+	numRecs := uint64(5)
+
+	addSegStatsStrIngestion(sstMap, cname, []byte("abc"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("Abc"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("ABCDEF"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("ghi"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("wxyz"))
+
+	assert.Equal(t, numRecs, sstMap[cname].Count)
+
+	sst := sstMap[cname]
+
+	buf := make([]byte, sutils.WIP_SIZE)
+
+	_, err := writeSstToBuf(sst, buf)
+	assert.Nil(t, err)
+
+	idx := verifyCommon(t, sst, buf, 0)
+
+	verifyNonNumeric(t, sst, buf, idx)
+}
+
+func Test_writeSstToBufMixed(t *testing.T) {
+	cname := "mycol1"
+	sstMap := make(map[string]*structs.SegStats)
+	numRecs := uint64(4)
+
+	addSegStatsStrIngestion(sstMap, cname, []byte("abc"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("123"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("def"))
+	addSegStatsStrIngestion(sstMap, cname, []byte("345.67"))
+
+	assert.Equal(t, numRecs, sstMap[cname].Count)
+
+	sst := sstMap[cname]
+
+	buf := make([]byte, sutils.WIP_SIZE)
+
+	_, err := writeSstToBuf(sst, buf)
+	assert.Nil(t, err)
+
+	idx := verifyCommon(t, sst, buf, 0)
+
+	verifyNumericStats(t, sst, buf, idx)
 }
