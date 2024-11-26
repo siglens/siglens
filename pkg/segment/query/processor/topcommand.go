@@ -34,6 +34,10 @@ func NewTopProcessor(options *structs.QueryAggregators) *topProcessor {
 	}
 }
 
+func (p *topProcessor) SetAsIqrStatsResults() {
+	p.statisticExprProcessor.SetAsIqrStatsResults()
+}
+
 func (p *topProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return p.statisticExprProcessor.Process(iqr)
 }
