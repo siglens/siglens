@@ -881,7 +881,7 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 }
 
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
-	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator, getSsstMap bool) map[string]*structs.SegStats {
+	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator, getSstMap bool) map[string]*structs.SegStats {
 
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
@@ -954,7 +954,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 	finalSstMap := statsRes.GetSegStats()
 
-	if !getSsstMap {
+	if !getSstMap {
 		err = allSegFileResults.UpdateSegmentStats(finalSstMap, measureOperations)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey! Error: %v", qid, err)
