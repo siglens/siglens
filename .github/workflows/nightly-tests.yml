@@ -13,6 +13,10 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.19
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.7'  # or whatever version you're using
       - uses: actions/checkout@v3
       - name: Build Siglens
         run: make build
@@ -21,7 +25,8 @@ jobs:
             ./siglens --config server.yaml &
       - name: Ingest Data
         run: |
-            pip install requests
+            python -m pip install --upgrade pip  # Ensure pip is upgraded
+            pip install requests  # Install the `requests` library
             cd tools/clickbench
             python3 send_datamulti.py
       - name: Restart Siglens
