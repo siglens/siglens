@@ -53,6 +53,13 @@ type PQSChanMeta struct {
 	deleteFromEmptyPqMeta bool
 }
 
+type SegmentSizeStats struct {
+	TotalCmiSize uint64
+	TotalCsgSize uint64
+	NumSegFiles  int
+	NumBlocks    int64
+}
+
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
@@ -681,4 +688,91 @@ func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
 	}
 
 	return nil
+}
+
+func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
+	sfm, err := readSfm(segmentKey)
+	if err != nil {
+		return nil, fmt.Errorf("calculateSegmentSizes: failed to read sfm for segment %s: %v", segmentKey, err)
+	}
+
+	stats := &SegmentSizeStats{}
+	for _, colInfo := range sfm.ColumnNames {
+		if colInfo.CmiSize == 0 && colInfo.CsgSize == 0 {
+			continue
+		}
+		stats.TotalCmiSize += colInfo.CmiSize
+		stats.TotalCsgSize += colInfo.CsgSize
+		stats.NumSegFiles += 2
+	}
+	return stats, nil
+}
+
+func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error) {
+	allSegMetas := ReadGlobalSegmetas()
+	stats := &utils.IndexStats{}
+
+	type result struct {
+		stats *SegmentSizeStats
+		err   error
+	}
+
+	ch := make(chan result, len(allSegMetas))
+	var wg sync.WaitGroup
+
+	for _, meta := range allSegMetas {
+		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != 10618270676840840323) {
+			continue
+		}
+
+		wg.Add(1)
+		go func(segmentKey string, numBlocks uint16) {
+			defer wg.Done()
+			segStats, err := calculateSegmentSizes(segmentKey)
+			if err == nil {
+				segStats.NumBlocks = int64(numBlocks)
+			}
+			ch <- result{segStats, err}
+		}(meta.SegmentKey, meta.NumBlocks)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for res := range ch {
+		if res.err != nil {
+			return nil, res.err
+		}
+		stats.TotalCmiSize += res.stats.TotalCmiSize
+		stats.TotalCsgSize += res.stats.TotalCsgSize
+		stats.NumSegFiles += res.stats.NumSegFiles
+		stats.NumBlocks += res.stats.NumBlocks
+	}
+
+	unrotatedStats := getUnrotatedSegmentStats(indexName, orgId)
+	stats.TotalCmiSize += unrotatedStats.TotalCmiSize
+	stats.TotalCsgSize += unrotatedStats.TotalCsgSize
+	stats.NumSegFiles += unrotatedStats.NumSegFiles
+	stats.NumBlocks += unrotatedStats.NumBlocks
+
+	return stats, nil
+}
+
+func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats {
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+
+	stats := &SegmentSizeStats{}
+	for _, usi := range AllUnrotatedSegmentInfo {
+		if usi.TableName == indexName &&
+			(usi.orgid == orgId || orgId == 10618270676840840323) {
+			stats.TotalCmiSize += usi.cmiSize
+			stats.NumSegFiles += len(usi.allColumns) * 2
+
+			stats.NumBlocks += int64(len(usi.blockSummaries))
+		}
+	}
+	return stats
 }
