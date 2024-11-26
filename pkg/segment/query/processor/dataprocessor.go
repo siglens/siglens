@@ -19,6 +19,7 @@ package processor
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 
@@ -43,6 +44,7 @@ type DataProcessor struct {
 	inputOrderMatters bool
 	isPermutingCmd    bool // This command may change the order of input.
 	isBottleneckCmd   bool // This command must see all input before yielding any output.
+	isTransformingCmd bool // This command transforms the input into a different format (e.g., stats).
 	isTwoPassCmd      bool // A subset of bottleneck commands.
 	finishedFirstPass bool // Only used for two-pass commands.
 
@@ -64,6 +66,10 @@ func (dp *DataProcessor) IsBottleneckCmd() bool {
 
 func (dp *DataProcessor) IsTwoPassCmd() bool {
 	return dp.isTwoPassCmd
+}
+
+func (dp *DataProcessor) IsTransformingCmd() bool {
+	return dp.isTransformingCmd
 }
 
 func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
@@ -215,6 +221,40 @@ func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
 	}
 }
 
+func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
+	switch dp.processor.(type) {
+	case *statsProcessor:
+		dp.processor.(*statsProcessor).SetAsIqrStatsResults()
+	case *topProcessor:
+		dp.processor.(*topProcessor).SetAsIqrStatsResults()
+	case *rareProcessor:
+		dp.processor.(*rareProcessor).SetAsIqrStatsResults()
+	case *timechartProcessor:
+		dp.processor.(*timechartProcessor).SetAsIqrStatsResults()
+	case *passThroughProcessor:
+		streams := dp.streams
+		if len(streams) == 0 {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: no streams")
+		}
+
+		if len(streams) > 1 {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: multiple streams")
+		}
+
+		stream := streams[0]
+		searcher, ok := stream.stream.(*Searcher)
+		if !ok {
+			return fmt.Errorf("dp.SetStatsAsIqrStatsResults: stream is not a searcher")
+		}
+
+		searcher.SetAsIqrStatsResults()
+	default:
+		return fmt.Errorf("dp.SetStatsAsIqrStatsResults: processor is not a stats type processor. processor type: %T", dp.processor)
+	}
+
+	return nil
+}
+
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	switch len(dp.streams) {
 	case 0:
@@ -237,6 +277,10 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.less)
 		if err != nil && err != io.EOF {
 			return nil, utils.TeeErrorf("DP.getStreamInput: failed to merge IQRs: %v", err)
+		}
+
+		if exhaustedIQRIndex == -1 {
+			return iqr, err
 		}
 
 		for i, iqr := range iqrs {
@@ -527,6 +571,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -539,12 +584,30 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
 }
 
-func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
+func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *DataProcessor {
+	statsExpr := &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
+	options.StatsExpr = statsExpr
+
+	if isDistributed && !options.StatisticExpr.ExprSplitDone {
+		// Split the Aggs into two data processors, the first one is the stats processor
+		// and the second one will perform the actual statisticExpr.
+		nextAgg := &structs.QueryAggregators{
+			GroupByRequest: options.GroupByRequest,
+			StatisticExpr:  options.StatisticExpr,
+		}
+		nextAgg.Next = options.Next
+		options.Next = nextAgg
+		nextAgg.StatisticExpr.ExprSplitDone = true
+
+		return NewStatsDP(statsExpr)
+	}
+
 	if options.HasTopExpr() {
 		return NewTopDP(options)
 	} else if options.HasRareExpr() {
@@ -561,6 +624,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -573,6 +637,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 		inputOrderMatters: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
+		isTransformingCmd: true,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
 	}
@@ -630,11 +695,13 @@ func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
 }
 
-func NewSearcherDP(searcher Streamer) *DataProcessor {
+func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcessor {
+	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
-		streams:       []*CachedStream{NewCachedStream(searcher)},
-		processor:     &passThroughProcessor{},
-		processorLock: &sync.Mutex{},
+		streams:           []*CachedStream{NewCachedStream(searcher)},
+		processor:         &passThroughProcessor{},
+		processorLock:     &sync.Mutex{},
+		isTransformingCmd: isTransformingCmd,
 	}
 }
 
