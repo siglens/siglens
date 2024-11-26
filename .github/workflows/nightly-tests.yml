@@ -19,11 +19,6 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
-      - name: Tail logs file
-        run: |
-            sleep 10
-            ls -l
-            tail -f logs/siglens.log &
       - name: Ingest Longer Functional Data
         run: |
             sleep 5  # Wait for Siglens to start
@@ -41,6 +36,10 @@ jobs:
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
             go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122 -i=false
+      - name: Tail logs file
+        if: always()
+        run: |
+            cat logs/siglens.log
 
 
 
