@@ -27,7 +27,7 @@ jobs:
       - name: Restart Siglens
         run: |
             pkill siglens
-            sleep 5
+            sleep 20
             ./siglens --config server.yaml &
       - name: Query Longer Functional
         run: |
