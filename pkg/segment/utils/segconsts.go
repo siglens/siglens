@@ -149,6 +149,9 @@ const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
 const MAX_SIMILAR_ERRORS_TO_LOG = 5 // max number of similar errors to log: This is used to avoid flooding the logs with similar errors
 
+type T_SegReaderId = uint16
+type T_SegEncoding = uint32
+
 type SS_DTYPE uint8
 
 const (

@@ -26,6 +26,11 @@ import (
 type MockRRCsReader struct {
 	RRCs          []*utils.RecordResultContainer
 	FieldToValues map[string][]utils.CValueEnclosure
+	ReaderId      utils.T_SegReaderId
+}
+
+func (mocker *MockRRCsReader) GetReaderId() utils.T_SegReaderId {
+	return mocker.ReaderId
 }
 
 func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
