@@ -1691,13 +1691,12 @@ func (iqr *IQR) GobDecode(data []byte) error {
 			return fmt.Errorf("IQR.GobDecode: error initializing search results: %v", err)
 		}
 		groupByBuckets := searchResults.BlockResults.GroupByAggregation
-		timeBuckets := searchResults.BlockResults.TimeAggregation
 		iqr.statsResults = &IQRStatsResults{
 			statsType:      serializableIQR.StatsResults.StatsType,
 			aggs:           serializableIQR.StatsResults.Aggs,
 			segStatsMap:    serializableIQR.StatsResults.SegStatsMap,
 			groupByBuckets: serializableIQR.StatsResults.GroupByBuckets.ToGroupByBuckets(groupByBuckets, iqr.qid),
-			timeBuckets:    serializableIQR.StatsResults.TimeBuckets.ToTimeBuckets(timeBuckets, iqr.qid),
+			timeBuckets:    serializableIQR.StatsResults.TimeBuckets.ToTimeBuckets(iqr.qid),
 		}
 	}
 

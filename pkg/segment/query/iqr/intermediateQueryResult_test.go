@@ -1197,7 +1197,7 @@ func Test_ReadColumnsWithBackfill(t *testing.T) {
 }
 
 func Test_IQRBytesEncodeDecode(t *testing.T) {
-	iqr := NewIQR(1)
+	iqr := NewIQR(0)
 	knownValues := map[string][]utils.CValueEnclosure{
 		"col1": {
 			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
@@ -1236,22 +1236,11 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 		Max:       utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
 		Hll:       structs.CreateNewHll(),
 		NumStats: &structs.NumericStats{
-			Min: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
-				IntgrVal: int64(1),
-				FloatVal: float64(1),
-			},
-			Max: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
-				IntgrVal: int64(10),
-				FloatVal: float64(10),
-			},
 			Sum: utils.NumTypeEnclosure{
 				Ntype:    utils.SS_DT_SIGNED_NUM,
 				IntgrVal: int64(55),
 				FloatVal: float64(55),
 			},
-			Dtype: utils.SS_DT_SIGNED_NUM,
 		},
 		StringStats: &structs.StringStats{
 			StrSet: map[string]struct{}{
@@ -1277,6 +1266,7 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	}
 
 	statsRes := &IQRStatsResults{
+		aggs:           &structs.QueryAggregators{},
 		segStatsMap:    segStatsMap,
 		timeBuckets:    timeBuckets,
 		groupByBuckets: groupByBuckets,
@@ -1296,7 +1286,7 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	bytes, err := iqr.GobEncode()
 	assert.NoError(t, err)
 
-	decodedIQR := NewIQRWithReader(1, &record.RRCsReader{})
+	decodedIQR := NewIQRWithReader(0, &record.RRCsReader{})
 
 	err = decodedIQR.GobDecode(bytes)
 	assert.NoError(t, err)
@@ -1309,7 +1299,7 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	bytes, err = iqr.GobEncode()
 	assert.NoError(t, err)
 
-	decodedIQR = NewIQRWithReader(1, &record.RRCsReader{})
+	decodedIQR = NewIQRWithReader(0, &record.RRCsReader{})
 
 	err = decodedIQR.GobDecode(bytes)
 	assert.NoError(t, err)

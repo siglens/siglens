@@ -1057,6 +1057,10 @@ func (sgb *SerializedGroupByBuckets) ToGroupByBuckets(groupByBuckets *GroupByBuc
 		return nil
 	}
 
+	if groupByBuckets == nil {
+		groupByBuckets = &GroupByBuckets{}
+	}
+
 	allRunningBuckets := make([]*RunningBucketResults, len(sgb.AllRunningBuckets))
 
 	for i, bucket := range sgb.AllRunningBuckets {
@@ -1074,7 +1078,7 @@ func (sgb *SerializedGroupByBuckets) ToGroupByBuckets(groupByBuckets *GroupByBuc
 	}
 }
 
-func (stb *SerializedTimeBuckets) ToTimeBuckets(timeBuckets *TimeBuckets, qid uint64) *TimeBuckets {
+func (stb *SerializedTimeBuckets) ToTimeBuckets(qid uint64) *TimeBuckets {
 	if stb == nil {
 		return nil
 	}
