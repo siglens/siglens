@@ -434,7 +434,9 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		if !exists {
 			continue
 		}
-		results[newName] = results[oldName]
+		if _, isDeleted := iqr.deletedColumns[newName]; !isDeleted {
+			results[newName] = results[oldName]
+		}
 		delete(results, oldName)
 	}
 
@@ -644,9 +646,14 @@ func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 				iqr.qid, segkey, vTable, err)
 		}
 
-		for column := range columns {
-			if _, ok := iqr.deletedColumns[column]; !ok {
-				allColumns[column] = struct{}{}
+		for cname := range columns {
+			if _, ok := iqr.deletedColumns[cname]; !ok {
+				finalCname := cname
+				// Check if the column was renamed and use the new Cname for the results.
+				if newColName, ok := iqr.renamedColumns[cname]; ok {
+					finalCname = newColName
+				}
+				allColumns[finalCname] = struct{}{}
 			}
 		}
 	}

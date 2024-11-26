@@ -2280,7 +2280,7 @@ RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
 }
 
 // Rename with a phrase
-RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
+RenameExpr <- originalPattern:FieldName AS newPattern:QuotedString {
     renameExpr := &structs.RenameExpr {
         RenameExprMode: structs.REMPhrase,
         OriginalPattern: originalPattern.(string),
@@ -2291,7 +2291,7 @@ RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
 }
 // Rename fields with similar names using a wildcard
 // Or Rename to a existing field
-/ originalPattern:RenamePattern AS newPattern:RenamePattern {
+/ originalPattern:FieldName AS newPattern:RenamePattern {
     isRegex, err := isRegexRename(originalPattern.(string), newPattern.(string))
     if err != nil {
         return nil, fmt.Errorf("Spl peg: RenameExpr: %v", err)
@@ -4334,6 +4334,9 @@ AbsoluteTimestamp <- timestamp:FullTimeStamp {
 // some places; those rules should check whether the field has a wildcard.
 FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
     return string(c.text), nil
+}
+/ QuotedString {
+    return removeQuotes(string(c.text)), nil
 }
 
 FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
