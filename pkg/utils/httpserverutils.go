@@ -385,7 +385,7 @@ type IndexStats struct {
 	TotalOnDiskBytes  uint64
 	TotalCmiSize      uint64
 	TotalCsgSize      uint64
-	NumSegFiles       int
+	NumIndexFiles     int
 	NumBlocks         int64
 }
 

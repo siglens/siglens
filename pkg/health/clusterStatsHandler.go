@@ -151,7 +151,7 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 
 func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
 	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
-	onDiskBytesField, cmiSizeField, csgSizeField, numSegFilesField, numBlocksField string) []map[string]map[string]interface{} {
+	onDiskBytesField, cmiSizeField, csgSizeField, numIndexFilesField, numBlocksField string) []map[string]map[string]interface{} {
 
 	indices := make([]string, 0)
 	for index := range allIndexStats.IndexToStats {
@@ -179,7 +179,7 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 
 		nextVal[index][cmiSizeField] = humanize.Bytes(indexStats.TotalCmiSize)
 		nextVal[index][csgSizeField] = humanize.Bytes(indexStats.TotalCsgSize)
-		nextVal[index][numSegFilesField] = humanize.Comma(int64(indexStats.NumSegFiles))
+		nextVal[index][numIndexFilesField] = humanize.Comma(int64(indexStats.NumIndexFiles))
 		nextVal[index][numBlocksField] = humanize.Comma(int64(indexStats.NumBlocks))
 
 		retVal = append(retVal, nextVal)
@@ -189,11 +189,11 @@ func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countF
 }
 
 func convertIndexDataToSlice(indexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "segFiles", "numBlocks")
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
 }
 
 func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[string]map[string]interface{} {
-	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "segFiles", "numBlocks")
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
 }
 
 func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
@@ -459,7 +459,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			TotalOnDiskBytes:  totalOnDiskBytesCountForIndex,
 			TotalCmiSize:      indexSegStats.TotalCmiSize,
 			TotalCsgSize:      indexSegStats.TotalCsgSize,
-			NumSegFiles:       indexSegStats.NumSegFiles,
+			NumIndexFiles:     indexSegStats.NumIndexFiles,
 			NumBlocks:         indexSegStats.NumBlocks,
 		}
 

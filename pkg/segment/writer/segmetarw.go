@@ -54,10 +54,10 @@ type PQSChanMeta struct {
 }
 
 type SegmentSizeStats struct {
-	TotalCmiSize uint64
-	TotalCsgSize uint64
-	NumSegFiles  int
-	NumBlocks    int64
+	TotalCmiSize  uint64
+	TotalCsgSize  uint64
+	NumIndexFiles int
+	NumBlocks     int64
 }
 
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
@@ -698,12 +698,11 @@ func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
 
 	stats := &SegmentSizeStats{}
 	for _, colInfo := range sfm.ColumnNames {
-		if colInfo.CmiSize == 0 && colInfo.CsgSize == 0 {
-			continue
-		}
 		stats.TotalCmiSize += colInfo.CmiSize
 		stats.TotalCsgSize += colInfo.CsgSize
-		stats.NumSegFiles += 2
+		if colInfo.CmiSize > 0 && colInfo.CsgSize > 0 {
+			stats.NumIndexFiles += 2
+		}
 	}
 	return stats, nil
 }
@@ -747,14 +746,14 @@ func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error
 		}
 		stats.TotalCmiSize += res.stats.TotalCmiSize
 		stats.TotalCsgSize += res.stats.TotalCsgSize
-		stats.NumSegFiles += res.stats.NumSegFiles
+		stats.NumIndexFiles += res.stats.NumIndexFiles
 		stats.NumBlocks += res.stats.NumBlocks
 	}
 
 	unrotatedStats := getUnrotatedSegmentStats(indexName, orgId)
 	stats.TotalCmiSize += unrotatedStats.TotalCmiSize
 	stats.TotalCsgSize += unrotatedStats.TotalCsgSize
-	stats.NumSegFiles += unrotatedStats.NumSegFiles
+	stats.NumIndexFiles += unrotatedStats.NumIndexFiles
 	stats.NumBlocks += unrotatedStats.NumBlocks
 
 	return stats, nil
@@ -769,7 +768,7 @@ func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats 
 		if usi.TableName == indexName &&
 			(usi.orgid == orgId || orgId == 10618270676840840323) {
 			stats.TotalCmiSize += usi.cmiSize
-			stats.NumSegFiles += len(usi.allColumns) * 2
+			stats.NumIndexFiles += len(usi.allColumns) * 2
 
 			stats.NumBlocks += int64(len(usi.blockSummaries))
 		}

@@ -771,7 +771,7 @@ function processClusterStats(res) {
         $('#latest-record').text(indexData["latestEpoch"]);
         $('#total-cmi-size').text(indexData["cmiSize"]);
         $('#total-csg-size').text(indexData["csgSize"]);
-        $('#num-seg-files').text(indexData["segFiles"]);
+        $('#num-index-files').text(indexData["numIndexFiles"]);
         $('#num-blocks').text(indexData["numBlocks"]);
     
         $('.popupOverlay, #index-summary-prompt').addClass('active');
