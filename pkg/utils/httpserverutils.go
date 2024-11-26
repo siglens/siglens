@@ -383,6 +383,10 @@ type IndexStats struct {
 	EarliestTimestamp uint64
 	LatestTimestamp   uint64
 	TotalOnDiskBytes  uint64
+	TotalCmiSize      uint64
+	TotalCsgSize      uint64
+	NumIndexFiles     int
+	NumBlocks         int64
 }
 
 type ClusterStatsResponseInfo struct {

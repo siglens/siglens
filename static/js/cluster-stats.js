@@ -769,6 +769,10 @@ function processClusterStats(res) {
         $('#column-count').text(indexData["columnCount"]);
         $('#earliest-record').text(indexData["earliestEpoch"]);
         $('#latest-record').text(indexData["latestEpoch"]);
+        $('#total-cmi-size').text(indexData["cmiSize"]);
+        $('#total-csg-size').text(indexData["csgSize"]);
+        $('#num-index-files').text(indexData["numIndexFiles"]);
+        $('#num-blocks').text(indexData["numBlocks"]);
     
         $('.popupOverlay, #index-summary-prompt').addClass('active');
     
