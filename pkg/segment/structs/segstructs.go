@@ -501,6 +501,9 @@ type NodeResult struct {
 	GroupByCols                 []string        `json:"groupByCols,omitempty"`
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
+	SegStatsMap                 map[string]*SegStats
+	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
 	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
 	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
 	GroupByRequest              *GroupByRequest
@@ -1213,6 +1216,26 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+func (qtype QueryType) IsRRCCmd() bool {
+	return qtype == RRCCmd
+}
+
+func (qtype QueryType) IsGroupByCmd() bool {
+	return qtype == GroupByCmd
+}
+
+func (qtype QueryType) IsSegmentStatsCmd() bool {
+	return qtype == SegmentStatsCmd
+}
+
+func (qtype QueryType) IsInvalid() bool {
+	return qtype == InvalidCmd
+}
+
+func (qtype QueryType) IsNotStatsType() bool {
+	return qtype != SegmentStatsCmd && qtype != GroupByCmd
 }
 
 func (qa *QueryAggregators) HasTopExpr() bool {
