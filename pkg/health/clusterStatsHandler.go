@@ -411,10 +411,7 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 			counts = &structs.VtableCounts{}
 		}
 
-		// Get CMI/CSG stats
 		indexSegStats, err := writer.GetIndexSizeStats(indexName, myid)
-		log.Errorf("indexName %v, indexSegStats %v", indexName, indexSegStats)
-		log.Errorf("TotalCmiSize %v, TotalCsgSize %v, NumSegFiles %v", indexSegStats.TotalCmiSize, indexSegStats.TotalCsgSize, indexSegStats.NumSegFiles)
 		if err != nil {
 			log.Errorf("getStats: failed to get size stats for index %s: %v", indexName, err)
 			continue
