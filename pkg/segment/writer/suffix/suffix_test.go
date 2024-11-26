@@ -15,10 +15,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package suffix
 
-package config
+import (
+	"path/filepath"
+	"testing"
 
-const SigLensVersion = "1.0.5"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_getNextSuffix(t *testing.T) {
+	dir := t.TempDir()
+	fileName := filepath.Join(dir, "suffix.json")
+
+	// Test non-existent file.
+	suffix, err := getAndIncrementSuffixFromFile(fileName, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), suffix)
+
+	// Now the file exists.
+	suffix, err = getAndIncrementSuffixFromFile(fileName, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), suffix)
+}

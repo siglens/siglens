@@ -139,13 +139,18 @@ var VERSION_MBLOCKSUMMARY = []byte{0x01}
 var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
 var VERSION_SEGSTATS_LEGACY = []byte{1}
 
-var VERSION_SEGSTATS_BUF = []byte{3} // version of the single column Seg Stats in a Segment
-var VERSION_SEGSTATS_BUF_LEGACY_1 = []byte{1}
-var VERSION_SEGSTATS_BUF_LEGACY_2 = []byte{2}
+var VERSION_SEGSTATS_BUF_V4 = []byte{4} // current version of the single column Seg Stats in a Segment
+// deprecated versions
+var VERSION_SEGSTATS_BUF_V1 = []byte{1}
+var VERSION_SEGSTATS_BUF_V2 = []byte{2}
+var VERSION_SEGSTATS_BUF_V3 = []byte{3}
 
 const INCONSISTENT_CVAL_SIZE uint32 = math.MaxUint32
 
 const MAX_SIMILAR_ERRORS_TO_LOG = 5 // max number of similar errors to log: This is used to avoid flooding the logs with similar errors
+
+type T_SegReaderId = uint16
+type T_SegEncoding = uint32
 
 type SS_DTYPE uint8
 
@@ -1277,7 +1282,7 @@ func (e *CValueDictEnclosure) GetValue() (interface{}, error) {
 // Stores if the RRC came from a remote node
 type SegKeyInfo struct {
 	// Encoded segment key
-	SegKeyEnc uint16
+	SegKeyEnc uint32
 	// If the RRC came from a remote node
 	IsRemote bool
 	// if IsRemote, Record will be initialized to a string of the form <<node_id>>-<<segkey>>-<<block_num>>-<<record_num>>
@@ -1327,3 +1332,41 @@ const (
 	RR_ENC_UINT64 = 1
 	RR_ENC_BITSET = 2
 )
+
+func GobEncodeCValueEnclosureMap(m map[string][]CValueEnclosure) ([]byte, error) {
+	gob.Register(map[string][]CValueEnclosure{})
+	gob.Register(CValueEnclosure{})
+
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	err := encoder.Encode(m)
+	if err != nil {
+		return nil, fmt.Errorf("GobEncodeCValueEnclosureMap: error encoding map: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func GobDecodeCValueEnclosureMap(data []byte, m *map[string][]CValueEnclosure) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if m == nil {
+		return fmt.Errorf("GobDecodeCValueEnclosureMap: map is nil")
+	}
+
+	gob.Register(map[string][]CValueEnclosure{})
+	gob.Register(CValueEnclosure{})
+
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+
+	err := dec.Decode(m)
+	if err != nil {
+		return fmt.Errorf("GobDecodeCValueEnclosureMap: error decoding map: %v", err)
+	}
+
+	return nil
+}

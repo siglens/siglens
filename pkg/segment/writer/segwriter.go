@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -803,21 +802,6 @@ func getBlockBloomSize(bi *BloomIndex) uint32 {
 		return 1
 	}
 	return nextBloomSize
-}
-
-func getBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
-	// Note: this is coupled to getSegBaseDirFromFilename. If the directory
-	// structure changes, change getSegBaseDirFromFilename too.
-	// TODO: use filepath.Join to avoid "/" issues
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/final/")
-	sb.WriteString(virtualTableName + "/")
-	sb.WriteString(streamid + "/")
-	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
-	basedir := sb.String()
-	return basedir
 }
 
 // TODO: delete this function

@@ -37,7 +37,6 @@ type timechartOptions struct {
 	timeBucket     *structs.TimeBucket
 	timeChartExpr  *structs.TimechartExpr
 	groupByRequest *structs.GroupByRequest
-	aggs           *structs.QueryAggregators
 	timeRange      *dtypeutils.TimeRange
 	qid            uint64
 }
@@ -60,11 +59,11 @@ type timechartProcessor struct {
 }
 
 func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
-	aggs := options.aggs
+	timechart := options.timeChartExpr
 	qid := options.qid
 	timeRange := options.timeRange
 
-	if aggs == nil || aggs.TimeHistogram == nil || aggs.TimeHistogram.Timechart == nil {
+	if timechart == nil || timechart.TimeHistogram == nil || timechart.TimeHistogram.Timechart == nil {
 		return &timechartProcessor{options: nil, qid: qid}
 	}
 
@@ -76,36 +75,36 @@ func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
 		}
 	}
 
-	if aggs.GroupByRequest != nil {
-		aggs.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
+	if timechart.GroupBy != nil {
+		timechart.GroupBy.BucketCount = int(utils.QUERY_MAX_BUCKETS)
 	}
 
 	processor := &timechartProcessor{qid: qid}
-	aggs.TimeHistogram.StartTime = timeRange.StartEpochMs
-	aggs.TimeHistogram.EndTime = timeRange.EndEpochMs
+	timechart.TimeHistogram.StartTime = timeRange.StartEpochMs
+	timechart.TimeHistogram.EndTime = timeRange.EndEpochMs
 
-	if aggs.TimeHistogram.Timechart.BinOptions != nil &&
-		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
-		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
+	if timechart.TimeHistogram.Timechart.BinOptions != nil &&
+		timechart.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
+		timechart.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
 		spanOptions, err := structs.GetDefaultTimechartSpanOptions(timeRange.StartEpochMs, timeRange.EndEpochMs, qid)
 		if err != nil {
 			processor.initializationError = err
 			return processor
 		}
-		aggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
-		aggs.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+		timechart.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
+		timechart.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
 	}
 
-	processor.timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
+	processor.timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(timechart.TimeHistogram)
 	processor.errorData = &errorData{
 		readColumns:     make(map[string]error),
 		getStringErrors: make(map[string]error),
 	}
 
 	processor.options = &timechartOptions{
-		timeBucket:     aggs.TimeHistogram,
-		timeChartExpr:  aggs.TimeHistogram.Timechart,
-		groupByRequest: aggs.GroupByRequest,
+		timeBucket:     timechart.TimeHistogram,
+		timeChartExpr:  timechart.TimeHistogram.Timechart,
+		groupByRequest: timechart.GroupBy,
 	}
 
 	return processor

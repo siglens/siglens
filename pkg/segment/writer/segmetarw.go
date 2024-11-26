@@ -53,6 +53,13 @@ type PQSChanMeta struct {
 	deleteFromEmptyPqMeta bool
 }
 
+type SegmentSizeStats struct {
+	TotalCmiSize  uint64
+	TotalCsgSize  uint64
+	NumIndexFiles int
+	NumBlocks     int64
+}
+
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
@@ -110,25 +117,28 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	// continue reading/merging from individual segfiles
 	for _, smentry := range retVal {
-		sfmData, _ := readSfm(smentry.SegmentKey)
-		if sfmData == nil {
+		workSfm, err := readSfm(smentry.SegmentKey)
+		if err != nil {
+			// error is logged in the func
 			continue
 		}
 		if smentry.AllPQIDs == nil {
-			smentry.AllPQIDs = sfmData.AllPQIDs
+			smentry.AllPQIDs = workSfm.AllPQIDs
 		} else {
-			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, sfmData.AllPQIDs)
+			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
 		}
 		if smentry.ColumnNames == nil {
-			smentry.ColumnNames = sfmData.ColumnNames
+			smentry.ColumnNames = workSfm.ColumnNames
 		} else {
-			utils.MergeMapsRetainingFirst(smentry.ColumnNames, sfmData.ColumnNames)
+			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
 		}
 	}
 	return retVal
 }
 
 func readSfm(segkey string) (*structs.SegFullMeta, error) {
+
+	sfm := &structs.SegFullMeta{}
 
 	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
 
@@ -137,13 +147,12 @@ func readSfm(segkey string) (*structs.SegFullMeta, error) {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
 		}
-		return nil, err
+		return sfm, err
 	}
-	sfm := &structs.SegFullMeta{}
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
-		return nil, err
+		return sfm, err
 	}
 	return sfm, nil
 }
@@ -481,16 +490,10 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 }
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
+
 	sfmData, err := readSfm(segkey)
 	if err != nil {
 		return
-	}
-
-	// it could be nil, if we didn't have any pqs data or the previous version,
-	// we used to have pqs in segmeta.json, from this version onwards, we will
-	// add it in segment specific file
-	if sfmData == nil {
-		sfmData = &structs.SegFullMeta{}
 	}
 
 	if sfmData.AllPQIDs == nil {
@@ -685,4 +688,95 @@ func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
 	}
 
 	return nil
+}
+
+func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
+	sfm, err := readSfm(segmentKey)
+	if err != nil {
+		return nil, fmt.Errorf("calculateSegmentSizes: failed to read sfm for segment %s: %v", segmentKey, err)
+	}
+
+	stats := &SegmentSizeStats{}
+	for _, colInfo := range sfm.ColumnNames {
+		stats.TotalCmiSize += colInfo.CmiSize
+		stats.TotalCsgSize += colInfo.CsgSize
+		if colInfo.CmiSize > 0 {
+			stats.NumIndexFiles++
+		}
+		if colInfo.CsgSize > 0 {
+			stats.NumIndexFiles++
+		}
+	}
+	return stats, nil
+}
+
+func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error) {
+	allSegMetas := ReadGlobalSegmetas()
+	stats := &utils.IndexStats{}
+
+	type result struct {
+		stats *SegmentSizeStats
+		err   error
+	}
+
+	ch := make(chan result, len(allSegMetas))
+	var wg sync.WaitGroup
+
+	for _, meta := range allSegMetas {
+		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != 10618270676840840323) {
+			continue
+		}
+
+		wg.Add(1)
+		go func(segmentKey string, numBlocks uint16) {
+			defer wg.Done()
+			segStats, err := calculateSegmentSizes(segmentKey)
+			if err == nil {
+				segStats.NumBlocks = int64(numBlocks)
+			}
+			ch <- result{segStats, err}
+		}(meta.SegmentKey, meta.NumBlocks)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for res := range ch {
+		if res.err != nil {
+			return nil, res.err
+		}
+		stats.TotalCmiSize += res.stats.TotalCmiSize
+		stats.TotalCsgSize += res.stats.TotalCsgSize
+		stats.NumIndexFiles += res.stats.NumIndexFiles
+		stats.NumBlocks += res.stats.NumBlocks
+	}
+
+	unrotatedStats := getUnrotatedSegmentStats(indexName, orgId)
+	stats.TotalCmiSize += unrotatedStats.TotalCmiSize
+	stats.TotalCsgSize += unrotatedStats.TotalCsgSize
+	stats.NumIndexFiles += unrotatedStats.NumIndexFiles
+	stats.NumBlocks += unrotatedStats.NumBlocks
+
+	return stats, nil
+}
+
+func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats {
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+
+	stats := &SegmentSizeStats{}
+	for _, usi := range AllUnrotatedSegmentInfo {
+		if usi.TableName == indexName &&
+			(usi.orgid == orgId || orgId == 10618270676840840323) {
+			if usi.cmiSize > 0 {
+				stats.TotalCmiSize += usi.cmiSize
+				stats.NumIndexFiles += len(usi.allColumns)
+			}
+			stats.NumIndexFiles += len(usi.allColumns)
+			stats.NumBlocks += int64(len(usi.blockSummaries))
+		}
+	}
+	return stats
 }

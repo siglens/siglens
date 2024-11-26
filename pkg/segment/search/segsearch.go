@@ -318,12 +318,14 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	} else {
 		defer rupReader.Close()
 	}
+
+	segKeyEnc := allSearchResults.GetAddSegEnc(req.SegmentKey)
 	allBlocksToXRollup, aggsHasTimeHt, _ := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		runningBlockManagers.Add(1)
 		go rawSearchSingleSPQMR(sharedReader.MultiColReaders[i], req, aggs, runningBlockManagers,
 			filterBlockRequestsChan, spqmr, allSearchResults, allTimestamps, timeRange, sizeLimit, queryMetrics,
-			allBlocksToXRollup, aggsHasTimeHt, qid, nodeRes)
+			allBlocksToXRollup, aggsHasTimeHt, qid, nodeRes, segKeyEnc)
 	}
 
 	sortedAllBlks := spqmr.GetAllBlocks()
@@ -348,7 +350,8 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *structs.SegmentSearchRequest, aggs *structs.QueryAggregators,
 	runningWG *sync.WaitGroup, filterBlockRequestsChan chan uint16, sqpmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults,
 	allTimestamps map[uint16][]uint64, tRange *dtu.TimeRange, sizeLimit uint64, queryMetrics *structs.QueryProcessingMetrics,
-	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64, nodeRes *structs.NodeResult) {
+	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64, nodeRes *structs.NodeResult,
+	segKeyEnc uint32) {
 	defer runningWG.Done()
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
@@ -422,7 +425,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						if !invalidCol {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
-									SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
+									SegKeyEnc: segKeyEnc,
 									IsRemote:  false,
 								},
 								BlockNum:         blockNum,
@@ -439,7 +442,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 								rrc := &utils.RecordResultContainer{
 									SegKeyInfo: utils.SegKeyInfo{
-										SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
+										SegKeyEnc: segKeyEnc,
 										IsRemote:  false,
 									},
 									BlockNum:         blockNum,

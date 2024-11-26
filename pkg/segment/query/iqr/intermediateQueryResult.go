@@ -54,9 +54,9 @@ type IQR struct {
 	mode iqrMode
 
 	// Used if and only if the mode is withRRCs.
-	reader           record.RRCsReaderI
+	reader           *IQRReader
 	rrcs             []*utils.RecordResultContainer
-	encodingToSegKey map[uint16]string
+	encodingToSegKey map[uint32]string
 
 	// Used in both modes.
 	qid            uint64
@@ -75,7 +75,7 @@ type IQR struct {
 type SerializableIQR struct {
 	Mode             iqrMode
 	RRCs             []*utils.RecordResultContainer
-	EncodingToSegKey map[uint16]string
+	EncodingToSegKey map[uint32]string
 	Qid              uint64
 	KnownValues      map[string][]utils.CValueEnclosure
 	DeletedColumns   map[string]struct{}
@@ -86,12 +86,12 @@ type SerializableIQR struct {
 }
 
 func NewIQR(qid uint64) *IQR {
-	return &IQR{
+	iqr := &IQR{
 		mode:             notSet,
 		qid:              qid,
-		reader:           &record.RRCsReader{},
+		reader:           NewIQRReader(&record.RRCsReader{}),
 		rrcs:             make([]*utils.RecordResultContainer, 0),
-		encodingToSegKey: make(map[uint16]string),
+		encodingToSegKey: make(map[uint32]string),
 		knownValues:      make(map[string][]utils.CValueEnclosure),
 		deletedColumns:   make(map[string]struct{}),
 		renamedColumns:   make(map[string]string),
@@ -99,11 +99,13 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 	}
+
+	return iqr
 }
 
 func NewIQRWithReader(qid uint64, reader record.RRCsReaderI) *IQR {
 	iqr := NewIQR(qid)
-	iqr.reader = reader
+	iqr.reader = NewIQRReader(reader)
 	return iqr
 }
 
@@ -146,7 +148,7 @@ func (iqr *IQR) validate() error {
 	return nil
 }
 
-func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint16]string) error {
+func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint32]string) error {
 
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
@@ -246,7 +248,7 @@ func (iqr *IQR) NumberOfRecords() int {
 	}
 }
 
-func (iqr *IQR) mergeEncodings(segEncToKey map[uint16]string) error {
+func (iqr *IQR) mergeEncodings(segEncToKey map[uint32]string) error {
 	// Verify the new encodings don't conflict with the existing ones.
 	for encoding, newSegKey := range segEncToKey {
 		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok && existingSegKey != newSegKey {
@@ -361,13 +363,13 @@ func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CVa
 
 func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
 		if rrc == nil {
 			return NIL_RRC_SEGKEY
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
+	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) map[string][]utils.CValueEnclosure {
 		if len(rrcs) == 0 {
 			return nil
@@ -408,7 +410,9 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		if !exists {
 			continue
 		}
-		results[newName] = results[oldName]
+		if _, isDeleted := iqr.deletedColumns[newName]; !isDeleted {
+			results[newName] = results[oldName]
+		}
 		delete(results, oldName)
 	}
 
@@ -431,10 +435,10 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 	}
 
 	// Prepare to call BatchProcess().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint16 {
+	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint16, uint16) bool]()
+	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		if len(rrcs) == 0 {
 			return nil, nil
@@ -513,6 +517,7 @@ func (iqr *IQR) Append(other *IQR) error {
 	iqr.encodingToSegKey = mergedIQR.encodingToSegKey
 	iqr.deletedColumns = mergedIQR.deletedColumns
 	iqr.columnIndex = mergedIQR.columnIndex
+	iqr.reader = mergedIQR.reader
 
 	numInitialRecords := iqr.NumberOfRecords()
 	numAddedRecords := other.NumberOfRecords()
@@ -572,7 +577,7 @@ func (iqr *IQR) Append(other *IQR) error {
 	return nil
 }
 
-func (iqr *IQR) getSegKeyToVirtualTableMapFromRRCs() map[string]string {
+func (iqr *IQR) GetSegKeyToVirtualTableMapFromRRCs() map[string]string {
 	// segKey -> virtual table name
 	segKeyVTableMap := make(map[string]string)
 	for _, rrc := range iqr.rrcs {
@@ -605,20 +610,26 @@ func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 
 // Since this is an internal function, don't validate() the IQR.
 func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
-	segKeyVTableMap := iqr.getSegKeyToVirtualTableMapFromRRCs()
 
 	allColumns := make(map[string]struct{})
 
-	for segkey, vTable := range segKeyVTableMap {
-		columns, err := iqr.reader.GetColsForSegKey(segkey, vTable)
+	vTable := ""
+
+	for segEnc, segkey := range iqr.encodingToSegKey {
+		columns, err := iqr.reader.getColumnsForSegKey(segkey, vTable, utils.T_SegEncoding(segEnc))
 		if err != nil {
 			log.Errorf("qid=%v, IQR.getColumnsInternal: error getting columns for segKey %v: %v and Virtual Table name: %v",
 				iqr.qid, segkey, vTable, err)
 		}
 
-		for column := range columns {
-			if _, ok := iqr.deletedColumns[column]; !ok {
-				allColumns[column] = struct{}{}
+		for cname := range columns {
+			if _, ok := iqr.deletedColumns[cname]; !ok {
+				finalCname := cname
+				// Check if the column was renamed and use the new Cname for the results.
+				if newColName, ok := iqr.renamedColumns[cname]; ok {
+					finalCname = newColName
+				}
+				allColumns[finalCname] = struct{}{}
 			}
 		}
 	}
@@ -785,7 +796,12 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 	result.measureColumns = append(result.measureColumns, iqrs[0].measureColumns...)
 
 	for _, iqr := range iqrs {
-		err := result.mergeEncodings(iqr.encodingToSegKey)
+		err := result.mergeIQRReaders(iqr)
+		if err != nil {
+			return nil, fmt.Errorf("mergeMetadata: error merging IQR readers: %v", err)
+		}
+
+		err = result.mergeEncodings(iqr.encodingToSegKey)
 		if err != nil {
 			return nil, fmt.Errorf("mergeMetadata: error merging encodings: %v", err)
 		}
@@ -825,6 +841,11 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent measure columns (%v and %v)",
 				iqr.qid, iqr.measureColumns, result.measureColumns)
 		}
+	}
+
+	err := result.reader.validate()
+	if err != nil {
+		return nil, fmt.Errorf("mergeMetadata: error validating reader: %v", err)
 	}
 
 	return result, nil
@@ -1332,6 +1353,10 @@ func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNu
 }
 
 func (iqr *IQR) GetBucketCount(qType structs.QueryType) int {
+	if iqr == nil {
+		return 0
+	}
+
 	if iqr.mode == notSet || iqr.mode == withRRCs {
 		return 0
 	}
@@ -1411,13 +1436,16 @@ func (iqr *IQR) GobDecode(data []byte) error {
 	iqr.mode = serializableIQR.Mode
 	iqr.rrcs = serializableIQR.RRCs
 	iqr.encodingToSegKey = serializableIQR.EncodingToSegKey
-	iqr.qid = serializableIQR.Qid
 	iqr.knownValues = serializableIQR.KnownValues
 	iqr.deletedColumns = serializableIQR.DeletedColumns
 	iqr.renamedColumns = serializableIQR.RenamedColumns
 	iqr.columnIndex = serializableIQR.ColumnIndex
-	iqr.groupbyColumns = serializableIQR.GroupbyColumns
-	iqr.measureColumns = serializableIQR.MeasureColumns
+	if len(serializableIQR.GroupbyColumns) > 0 {
+		iqr.groupbyColumns = serializableIQR.GroupbyColumns
+	}
+	if len(serializableIQR.MeasureColumns) > 0 {
+		iqr.measureColumns = serializableIQR.MeasureColumns
+	}
 
 	return nil
 }

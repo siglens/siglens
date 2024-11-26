@@ -52,7 +52,7 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
-func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
+func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
 
@@ -185,7 +185,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
+	segEncToKey map[uint32]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
 	nodeRes := GetOrCreateNodeRes(qid)

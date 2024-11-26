@@ -1,0 +1,20 @@
+steps:
+
+  - name: golang:1.19
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
+        make build
+        ./siglens --config server.yaml &
+        sleep 30
+        cd tools/sigclient
+        go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true
+
+
+timeout: 3600s
+
+options:
+ defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+ pool:
+    name: 'projects/siglens-425323/locations/us-east4/workerPools/Nightly-Test-Pool'

@@ -410,9 +410,9 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 			bucket.groupedRunningStats[groupByColVal] = gRunningStats
 		}
 		gRunningStats = bucket.groupedRunningStats[groupByColVal]
-		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true)
+		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr)
 	} else {
-		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false)
+		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr)
 	}
 
 }
@@ -436,7 +436,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
-	bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, cnt, false)
+	bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, cnt, false, b.batchErr)
 }
 
 func (b *BlockResults) AddKeyToTimeBucket(bucketKey uint64, count uint16) {
@@ -540,7 +540,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
 	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
-	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations)
+	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations, batchErr)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)

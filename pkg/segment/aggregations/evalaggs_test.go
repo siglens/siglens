@@ -7,6 +7,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,24 +25,7 @@ func getDummySegStats() *structs.SegStats {
 		IsNumeric: true,
 		Count:     3,
 		Hll:       nil,
-		NumStats: &structs.NumericStats{
-			Min: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
-				IntgrVal: 1,
-				FloatVal: 1.0,
-			},
-			Max: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
-				IntgrVal: 10,
-				FloatVal: 10.0,
-			},
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
-				IntgrVal: 15,
-				FloatVal: 15.0,
-			},
-			Dtype: utils.SS_DT_FLOAT,
-		},
+		NumStats:  statswriter.GetDefaultNumStats(),
 		StringStats: &structs.StringStats{
 			StrSet: map[string]struct{}{
 				"1":  {},
