@@ -23,7 +23,7 @@ jobs:
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
-      - name: Get Data
+      - name: Get and Ingest Data 1
         run: |
             cd tools/clickbench
             wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
@@ -36,6 +36,88 @@ jobs:
             tar -xzvf splithits_3.tar
             rm splithits_3.tar
             python3 send_datamulti.py
+            rm splithits_1 splithits_2 splithits_3
+      - name: Get and Ingest Data 2
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_4.tar
+            tar -xzvf splithits_4.tar
+            rm splithits_4.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_5.tar
+            tar -xzvf splithits_5.tar
+            rm splithits_5.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_6.tar
+            tar -xzvf splithits_6.tar
+            rm splithits_6.tar
+            python3 send_datamulti.py
+            rm splithits_4 splithits_5 splithits_6
+      - name: Get and Ingest Data 3
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_7.tar
+            tar -xzvf splithits_7.tar
+            rm splithits_7.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_8.tar
+            tar -xzvf splithits_8.tar
+            rm splithits_8.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_9.tar
+            tar -xzvf splithits_9.tar
+            rm splithits_9.tar
+            python3 send_datamulti.py
+            rm splithits_7 splithits_8 splithits_9
+      - name: Get and Ingest Data 4
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_10.tar
+            tar -xzvf splithits_10.tar
+            rm splithits_10.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_11.tar
+            tar -xzvf splithits_11.tar
+            rm splithits_11.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_12.tar
+            tar -xzvf splithits_12.tar
+            rm splithits_12.tar
+            python3 send_datamulti.py
+            rm splithits_10 splithits_11 splithits_12
+      - name: Get and Ingest Data 5
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_13.tar
+            tar -xzvf splithits_13.tar
+            rm splithits_13.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_14.tar
+            tar -xzvf splithits_14.tar
+            rm splithits_14.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_15.tar
+            tar -xzvf splithits_15.tar
+            rm splithits_15.tar
+            python3 send_datamulti.py
+            rm splithits_13 splithits_14 splithits_15
+      - name: Get and Ingest Data 6
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_16.tar
+            tar -xzvf splithits_16.tar
+            rm splithits_16.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_17.tar
+            tar -xzvf splithits_17.tar
+            rm splithits_17.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_18.tar
+            tar -xzvf splithits_18.tar
+            rm splithits_18.tar
+            python3 send_datamulti.py
+            rm splithits_16 splithits_17 splithits_18
+      - name: Get and Ingest Data 7
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_19.tar
+            tar -xzvf splithits_19.tar
+            rm splithits_19.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_20.tar
+            tar -xzvf splithits_20.tar
+            rm splithits_20.tar
+            python3 send_datamulti.py
+            rm splithits_19 splithits_20
       - name: Restart Siglens
         run: |
             pkill siglens
