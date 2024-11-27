@@ -34,6 +34,10 @@ func NewRareProcessor(options *structs.QueryAggregators) *rareProcessor {
 	}
 }
 
+func (p *rareProcessor) SetAsIqrStatsResults() {
+	p.statisticExprProcessor.SetAsIqrStatsResults()
+}
+
 func (p *rareProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return p.statisticExprProcessor.Process(iqr)
 }

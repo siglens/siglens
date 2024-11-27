@@ -952,12 +952,27 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					}
 					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc, hasListFunc)
 				} else {
-					fVal, err := cValEnc.GetFloatValue()
+					var floatVal float64
+					var intVal int64
+					var valueType utils.SS_IntUintFloatTypes
+					var numStr string
+					var err error
+					if cValEnc.IsFloat() {
+						valueType = utils.SS_FLOAT64
+						floatVal, err = cValEnc.GetFloatValue()
+						numStr = fmt.Sprintf("%v", floatVal)
+					} else {
+						valueType = utils.SS_INT64
+						intVal, err = cValEnc.GetIntValue()
+						numStr = fmt.Sprintf("%v", intVal)
+					}
+
 					if err != nil {
-						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for type %+v. Err: %v", qid, cValEnc.Dtype, err)
+						log.Errorf("qid=%d, segmentStatsWorker failed to extract numerical value for CValueEnc %+v. Err: %v", qid, cValEnc, err)
 						continue
 					}
-					stats.AddSegStatsNums(localStats, cname, utils.SS_FLOAT64, 0, 0, fVal, fmt.Sprintf("%v", fVal), bb, aggColUsage, hasValuesFunc, hasListFunc)
+
+					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, numStr, bb, aggColUsage, hasValuesFunc, hasListFunc)
 				}
 			}
 		}

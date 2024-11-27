@@ -48,14 +48,15 @@ type errorData struct {
 }
 
 type timechartProcessor struct {
-	options             *timechartOptions
-	initializationError error
-	qid                 uint64
-	searchResults       *segresults.SearchResults
-	bucketKeyWorkingBuf []byte
-	timeRangeBuckets    []uint64
-	errorData           *errorData
-	hasFinalResult      bool
+	options              *timechartOptions
+	initializationError  error
+	qid                  uint64
+	searchResults        *segresults.SearchResults
+	bucketKeyWorkingBuf  []byte
+	timeRangeBuckets     []uint64
+	errorData            *errorData
+	hasFinalResult       bool
+	setAsIqrStatsResults bool
 }
 
 func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
@@ -108,6 +109,10 @@ func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
 	}
 
 	return processor
+}
+
+func (p *timechartProcessor) SetAsIqrStatsResults() {
+	p.setAsIqrStatsResults = true
 }
 
 func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
@@ -261,14 +266,18 @@ func (p *timechartProcessor) extractTimechartResults() (*iqr.IQR, error) {
 
 	iqr := iqr.NewIQR(p.qid)
 
-	// load and convert the bucket results
-	_ = p.searchResults.GetBucketResults()
-
-	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := p.searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
-
-	err := iqr.CreateStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
-	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot create timechart results; err=%v", iqr.GetQID(), err)
+	if p.setAsIqrStatsResults {
+		aggs := p.searchResults.GetAggs()
+		groupByBuckets, timeBuckets := p.searchResults.BlockResults.GroupByAggregation, p.searchResults.BlockResults.TimeAggregation
+		err := iqr.SetIqrStatsResults(structs.GroupByCmd, nil, groupByBuckets, timeBuckets, aggs)
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
+		}
+	} else {
+		err := iqr.CreateGroupByStatsResults(p.searchResults)
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot create groupby results; err=%v", iqr.GetQID(), err)
+		}
 	}
 
 	p.hasFinalResult = true
@@ -284,12 +293,14 @@ func (p *timechartProcessor) logErrorsAndWarnings(qid uint64) {
 		log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: failed to get string from CValue: %v", qid, p.errorData.getStringErrors)
 	}
 
-	allErrorsLen := len(p.searchResults.AllErrors)
-	if allErrorsLen > 0 {
-		size := allErrorsLen
-		if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
-			size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+	if p.searchResults != nil {
+		allErrorsLen := len(p.searchResults.AllErrors)
+		if allErrorsLen > 0 {
+			size := allErrorsLen
+			if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+			}
+			log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 		}
-		log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 	}
 }

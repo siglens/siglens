@@ -418,10 +418,10 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 	key6Block0Stats := block0["key6"]
 	assert.True(t, key6Block0Stats.IsNumeric)
 	assert.Equal(t, key6Block0Stats.Count, uint64(numEntriesForBuffer))
-	assert.Equal(t, key6Block0Stats.Min.Dtype, utils.SS_DT_FLOAT)
-	assert.Equal(t, key6Block0Stats.Min.CVal, float64(0))
-	assert.Equal(t, key6Block0Stats.Max.Dtype, utils.SS_DT_FLOAT)
-	assert.Equal(t, key6Block0Stats.Max.CVal, float64(numEntriesForBuffer-1)*2)
+	assert.Equal(t, key6Block0Stats.Min.Dtype, utils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Min.CVal, int64(0))
+	assert.Equal(t, key6Block0Stats.Max.Dtype, utils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Max.CVal, int64(numEntriesForBuffer-1)*2)
 }
 
 type BenchQueryConds struct {

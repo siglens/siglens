@@ -36,6 +36,10 @@ jobs:
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
             go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -i=false
+      - name: Print logs file
+        if: always()
+        run: |
+            cat logs/siglens.log
 
 
 
