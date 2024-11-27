@@ -556,7 +556,7 @@ func getPartialRecord(record map[string]interface{}, cols []string) map[string]i
 	return filterRecord
 }
 
-func GetTimestampFromRecord(records []map[string]interface{}) ([]interface{}) {
+func GetTimestampFromRecord(records []map[string]interface{}) []interface{} {
 	timestamps := make([]interface{}, 0)
 	for _, record := range records {
 		timestamp, exist := record[TimeStamp_Col_Name]
