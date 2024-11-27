@@ -42,7 +42,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -265,7 +264,7 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
-	if !toputils.IsFileForRotatedSegment(searchReq.SegmentKey) {
+	if writer.IsSegKeyUnrotated(searchReq.SegmentKey) {
 		return
 	}
 	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
