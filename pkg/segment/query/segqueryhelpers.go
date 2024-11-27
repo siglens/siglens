@@ -122,6 +122,9 @@ func (qi *QueryInformation) GetOrgId() uint64 {
 }
 
 func (qi *QueryInformation) IsDistributed() bool {
+	if qi.dqs == nil {
+		return false
+	}
 	return qi.dqs.IsDistributed()
 }
 
