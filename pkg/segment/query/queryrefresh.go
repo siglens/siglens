@@ -20,7 +20,9 @@ package query
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 
@@ -56,6 +59,7 @@ func initSegmentMetaRefresh() {
 			log.Errorf("initSegmentMetaRefresh:Error loading initial metadata from file %v: %v", smFile, err)
 		}
 	}
+	go syncSegMetaWithSegFullMeta()
 	go refreshLocalMetadataLoop()
 }
 
@@ -248,6 +252,78 @@ func populateMicroIndices(smFile string) error {
 	segmetadata.BulkAddSegmentMicroIndex(allSmi)
 	updateLastModifiedTimeForMetaFile(smFile, metaModificationTimeMs)
 	return nil
+}
+
+func syncSegMetaWithSegFullMeta() {
+	myid := uint64(0)
+
+	vTableNames, err := virtualtable.GetVirtualTableNames(myid)
+	if err != nil {
+		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
+		return
+	}
+
+	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
+
+	for vTableName := range vTableNames {
+		streamid := utils.CreateStreamId(vTableName, myid)
+		vTableBaseDir := config.GetBaseVTableDir(streamid, vTableName)
+
+		filesInDir, err := os.ReadDir(vTableBaseDir)
+		if err != nil {
+			log.Errorf("syncSegMetaWithSegFullMeta: Error in reading directory, vTableBaseDir:%v , err:%v", vTableBaseDir, err)
+			continue
+		}
+
+		for _, file := range filesInDir {
+			fileName := file.Name()
+			segkey := filepath.Join(vTableBaseDir, fileName, fileName)
+			_, exists := segmetadata.GetMicroIndex(segkey)
+			if exists {
+				continue
+			}
+
+			smi, err := readSegFullMetaFileAndPopulate(segkey)
+			if err != nil {
+				log.Errorf("syncSegMetaWithSegFullMeta: Error populating segfullmeta, err:%v", err)
+				continue
+			}
+
+			allSmi = append(allSmi, smi)
+		}
+	}
+
+	// sort from latest to oldest
+	sort.Slice(allSmi, func(i, j int) bool {
+		return allSmi[i].SegMeta.LatestEpochMS > allSmi[j].SegMeta.LatestEpochMS
+	})
+
+	segmetadata.BulkAddSegmentMicroIndex(allSmi)
+
+	smiCount := len(allSmi)
+	segMetaSlice := make([]*structs.SegMeta, smiCount)
+	for idx, smi := range allSmi {
+		reverseIdx := smiCount - idx - 1
+		segMetaSlice[reverseIdx] = &smi.SegMeta
+	}
+
+	writer.BulkAddRotatedSegmetas(segMetaSlice, false)
+	log.Infof("syncSegMetaWithSegFullMeta: Added %d segmeta entries", smiCount)
+}
+
+func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
+	sfmData, err := writer.ReadSfm(segKey)
+	if err != nil {
+		return nil, fmt.Errorf("readSegFullMetaFileAndPopulate: Error in reading segfullmeta file, err:%v", err)
+	}
+
+	segMeta := sfmData.SegMeta
+	segMeta.ColumnNames = sfmData.ColumnNames
+	segMeta.AllPQIDs = sfmData.AllPQIDs
+
+	smi := segmetadata.ProcessSegmetaInfo(segMeta)
+
+	return smi, nil
 }
 
 func populateMetricsMetadata(mName string) error {

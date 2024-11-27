@@ -328,7 +328,7 @@ func (sm *SegmentMicroIndex) getRecordCount() uint32 {
 
 func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, error) {
 
-	smi, exists := getMicroIndex(segkey)
+	smi, exists := GetMicroIndex(segkey)
 	if !exists {
 		return nil, toputils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
 	}
@@ -381,7 +381,7 @@ func (smi *SegmentMicroIndex) RUnlockSmi() {
 
 func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHolder, []*structs.BlockSummary, error) {
 
-	smi, ok := getMicroIndex(segkey)
+	smi, ok := GetMicroIndex(segkey)
 	if !ok {
 		return nil, nil, errors.New("GetSearchInfoAndSummary:failed to find segkey in all block micro")
 	}

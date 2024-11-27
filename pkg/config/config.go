@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -1383,6 +1384,10 @@ func GetSuffixFile(virtualTable string, streamId string) string {
 	sb.WriteString(streamId)
 	sb.WriteString(".suffix")
 	return sb.String()
+}
+
+func GetBaseVTableDir(streamid string, virtualTableName string) string {
+	return filepath.Join(GetDataPath(), GetHostID(), "final", virtualTableName, streamid)
 }
 
 func GetBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {

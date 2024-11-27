@@ -670,12 +670,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		sidFname := fmt.Sprintf("%v.sid", segstore.SegmentKey)
-		err = writeRunningSegMeta(sidFname, &segmeta)
-		if err != nil {
-			log.Errorf("AppendWipToSegfile: failed to write sidFname=%v, err=%v", sidFname, err)
-			return err
-		}
+		writeRunningSegMeta(segstore.SegmentKey, &segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
