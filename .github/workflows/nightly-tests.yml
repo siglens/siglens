@@ -29,7 +29,6 @@ jobs:
         run: |
             pkill siglens
             sleep 10
-            sed -i 's/pqsEnabled: true/pqsEnabled: false/' server.yaml
             ./siglens --config server.yaml &
       - name: Query Longer Functional
         run: |
