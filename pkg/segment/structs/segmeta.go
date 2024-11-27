@@ -78,7 +78,7 @@ const (
 	Cmi    FileType = iota // columnar micro index
 	Csg                    // columnar seg file
 	Bsu                    // block summary
-	Sfm                    // segment file meta
+	Sfm                    // segment full meta file
 	Pqmr                   // segment persistent query matched results
 	Rollup                 // rollup files
 	Sst                    // Segment column stats files
