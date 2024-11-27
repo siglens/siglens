@@ -26,44 +26,16 @@ jobs:
       - name: Get Data
         run: |
             cd tools/clickbench
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_a.tar
-            tar -xvf splithits_trunc_a.tar
-            rm splithits_trunc_a.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_b.tar
-            tar -xvf splithits_trunc_b.tar
-            rm splithits_trunc_b.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_c.tar
-            tar -xvf splithits_trunc_c.tar
-            rm splithits_trunc_c.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
+            tar -xzvf splithits_1.tar
+            rm splithits_1.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_2.tar
+            tar -xzvf splithits_2.tar
+            rm splithits_2.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_3.tar
+            tar -xzvf splithits_3.tar
+            rm splithits_3.tar
             python3 send_datamulti.py
-            rm splithits_trunc_a splithits_trunc_b splithits_trunc_c
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_d.tar
-            tar -xvf splithits_trunc_d.tar
-            rm splithits_trunc_d.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_e.tar
-            tar -xvf splithits_trunc_e.tar
-            rm splithits_trunc_e.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_f.tar
-            tar -xvf splithits_trunc_f.tar
-            rm splithits_trunc_f.tar
-            python3 send_datamulti.py
-            rm splithits_trunc_d splithits_trunc_e splithits_trunc_f
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_g.tar
-            tar -xvf splithits_trunc_g.tar
-            rm splithits_trunc_g.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_h.tar
-            tar -xvf splithits_trunc_h.tar
-            rm splithits_trunc_h.tar
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_i.tar
-            tar -xvf splithits_trunc_i.tar
-            rm splithits_trunc_i.tar
-            python3 send_datamulti.py
-            rm splithits_trunc_g splithits_trunc_h splithits_trunc_i
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_j.tar
-            tar -xvf splithits_trunc_j.tar
-            rm splithits_trunc_j.tar
-            python3 send_datamulti.py
-            rm splithits_trunc_j
       - name: Restart Siglens
         run: |
             pkill siglens
