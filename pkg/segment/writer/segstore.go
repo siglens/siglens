@@ -1585,7 +1585,6 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	if !sst.IsNumeric {
 
 		if sst.Min.Dtype != utils.SS_DT_STRING || sst.Max.Dtype != utils.SS_DT_STRING {
-			log.Errorf("writeSstToBuf: Min or Max Dtype is not string, Min: %v, Max: %v", sst.Min.Dtype, sst.Max.Dtype)
 			copy(buf[idx:], []byte{byte(utils.SS_DT_BACKFILL)})
 			idx++
 			return idx, nil

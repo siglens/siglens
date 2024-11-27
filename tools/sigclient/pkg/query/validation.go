@@ -556,6 +556,19 @@ func getPartialRecord(record map[string]interface{}, cols []string) map[string]i
 	return filterRecord
 }
 
+func GetTimestampFromRecord(records []map[string]interface{}) []interface{} {
+	timestamps := make([]interface{}, 0)
+	for _, record := range records {
+		timestamp, exist := record[TimeStamp_Col_Name]
+		if !exist {
+			timestamp = append(timestamps, nil)
+			continue
+		}
+		timestamps = append(timestamps, timestamp)
+	}
+	return timestamps
+}
+
 /*
 *
   - ValidateLogsQueryResults validates the logs query results
@@ -623,8 +636,9 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
 		if err != nil {
-			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records at index: %v, partial queryRes Record: %v, expRes Record: %v, err: %v",
-				idx, getPartialRecord(queryRes.Records[idx], utils.GetKeysOfMap(record)), record, err)
+			timestamps := GetTimestampFromRecord(queryRes.Records[:10])
+			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records at index: %v, partial queryRes Record: %v, expRes Record: %v, err: %v, timestamps: %v",
+				idx, getPartialRecord(queryRes.Records[idx], utils.GetKeysOfMap(record)), record, err, timestamps)
 		}
 	}
 
