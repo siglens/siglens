@@ -798,9 +798,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		// Upload segment files to s3
 		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
 
-		err := blob.UploadSegmentFiles(filesToUpload)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", err)
+		blobErr := blob.UploadSegmentFiles(filesToUpload)
+		if blobErr != nil {
+			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", blobErr)
 		}
 
 		allPqids := make(map[string]bool, len(segstore.pqMatches))
@@ -825,13 +825,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		// upload ingest node dir to s3
-		err = blob.UploadIngestNodeDir()
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+		if blobErr == nil {
+			// upload ingest node dir to s3
+			err := blob.UploadIngestNodeDir()
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+			}
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
