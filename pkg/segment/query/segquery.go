@@ -285,7 +285,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		qc.SizeLimit, aggs, qid, querySummary)
 	switch qType {
 	case structs.SegmentStatsCmd:
-		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid)
+		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid, false)
 	case structs.RRCCmd, structs.GroupByCmd:
 		bucketLimit := MAX_GRP_BUCKS
 		if aggs != nil {
@@ -323,13 +323,15 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
-	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary) *structs.NodeResult {
+	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary, returnAggBuckets bool) *structs.NodeResult {
 	applyFopAllRequests(sortedQSRSlice, queryInfo, allSegFileResults, querySummary)
-	err := queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
-		return &structs.NodeResult{
-			ErrList: []error{err},
+	if !returnAggBuckets {
+		err := queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
 		}
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
@@ -341,6 +343,16 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 			bucketLimit = queryInfo.aggs.BucketLimit
 		}
 	}
+
+	if returnAggBuckets {
+		return &structs.NodeResult{
+			ErrList:        allSegFileResults.GetAllErrors(),
+			Qtype:          queryType.String(),
+			GroupByBuckets: allSegFileResults.BlockResults.GroupByAggregation,
+			TimeBuckets:    allSegFileResults.BlockResults.TimeAggregation,
+		}
+	}
+
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
 	allSegResults := allSegFileResults.GetResults()
 	scrollFrom := queryInfo.GetScrollFrom()
@@ -385,7 +397,7 @@ func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 		}
 	}
 
-	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
+	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary, false)
 }
 
 func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *summary.QuerySummary) ([]*QuerySegmentRequest, error) {
@@ -412,7 +424,7 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 }
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64) *structs.NodeResult {
+	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64, getSstMap bool) *structs.NodeResult {
 
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, sTime, orgid)
@@ -436,20 +448,32 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
 	}
 
+	var sstMap map[string]*structs.SegStats
+
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
 	log.Infof("qid=%d, GetNodeResultsForSegmentStatsCmd: Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
-		applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations)
+		sstMap = applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations, getSstMap)
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
 	queryType := GetQueryType(queryInfo.qid)
-	err = queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+	if !getSstMap {
+		err = queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
+		}
+	}
+
+	if getSstMap {
 		return &structs.NodeResult{
-			ErrList: []error{err},
+			ErrList:     allSegFileResults.GetAllErrors(),
+			Qtype:       queryType.String(),
+			SegStatsMap: sstMap,
 		}
 	}
 
@@ -818,20 +842,54 @@ func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed b
 	aggHasEvalFunc := aggs.HasValueColRequest()
 	aggHasValuesFunc := aggs.HasValuesFunc()
 	aggHasListFunc := aggs.HasListFunc()
-	aggHasMinMaxFunc := aggs.HasMinMaxFunc() // TODO: Add support for min/max strings in sst
 	return searchType == structs.MatchAllQuery && segmentFullyEnclosed &&
-		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasMinMaxFunc
+		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc
 
 }
 
+func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.QuerySummary, allSegFileResults *segresults.SearchResults,
+	qid uint64, nodeRes *structs.NodeResult) (map[string]*structs.SegStats, error) {
+	var sstMap map[string]*structs.SegStats
+	// run through micro index check for block tracker & generate SSR
+	blocksToRawSearch, err := segReq.GetMicroIndexFilter()
+	if err != nil {
+		log.Errorf("qid=%d, computeSegStatsFromRawRecords: failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", segReq.qid, segReq.segKey)
+		blocksToRawSearch = segReq.GetEntireFileMicroIndexFilter()
+	}
+	sTime := time.Now()
+	isQueryPersistent, err := querytracker.IsQueryPersistent([]string{segReq.tableName}, segReq.sNode)
+	if err != nil {
+		log.Errorf("qid=%d, computeSegStatsFromRawRecords: Failed to check if query is persistent! Error: %v", qid, err)
+	}
+	var rawSearchSSR map[string]*structs.SegmentSearchRequest
+	if segReq.sType == structs.SEGMENT_STATS_SEARCH {
+		rawSearchSSR = ExtractSSRFromSearchNode(segReq.sNode, blocksToRawSearch, segReq.queryRange, segReq.indexInfo.GetQueryTables(), qs, segReq.qid, isQueryPersistent, segReq.pqid)
+	} else {
+		rawSearchSSR = metadata.ExtractUnrotatedSSRFromSearchNode(segReq.sNode, segReq.queryRange, segReq.indexInfo.GetQueryTables(), blocksToRawSearch, qs, segReq.qid)
+	}
+	qs.UpdateExtractSSRTime(time.Since(sTime))
+
+	// rawSearchSSR should be of size 1 or 0
+	for _, req := range rawSearchSSR {
+		req.ConsistentCValLenMap = segReq.ConsistentCValLenMap
+		sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs, nodeRes)
+		if err != nil {
+			return sstMap, fmt.Errorf("qid=%d, computeSegStatsFromRawRecords: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
+		}
+	}
+	return sstMap, nil
+}
+
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
-	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
+	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator, getSstMap bool) map[string]*structs.SegStats {
 
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to get or create query search node result! Error: %v", qid, err)
-		return
+		return nil
 	}
+
+	statsRes := segresults.InitStatsResults()
 
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
@@ -857,53 +915,33 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 
 		var sstMap map[string]*structs.SegStats
+
 		if canUseSSTForStats(searchType, isSegmentFullyEnclosed, segReq.aggs) {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
-				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
+				log.Errorf("qid=%d, applyAggOpOnSegments: Failed to read segStats for segKey %+v! computing segStats from raw records. Error: %v",
+					qid, segReq.segKey, err)
 				allSegFileResults.AddError(err)
-				continue
-			}
-			sstMap["*"] = &structs.SegStats{
-				Count: uint64(segReq.TotalRecords),
-			}
-			allSegFileResults.AddResultCount(uint64(segReq.TotalRecords))
-		} else {
-			// run through micro index check for block tracker & generate SSR
-			blocksToRawSearch, err := segReq.GetMicroIndexFilter()
-			if err != nil {
-				log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", segReq.qid, segReq.segKey)
-				blocksToRawSearch = segReq.GetEntireFileMicroIndexFilter()
-			}
-			sTime := time.Now()
-			isQueryPersistent, err := querytracker.IsQueryPersistent([]string{segReq.tableName}, segReq.sNode)
-			if err != nil {
-				log.Errorf("qid=%d, applyAggOpOnSegments: Failed to check if query is persistent! Error: %v", qid, err)
-			}
-			var rawSearchSSR map[string]*structs.SegmentSearchRequest
-			if segReq.sType == structs.SEGMENT_STATS_SEARCH {
-				rawSearchSSR = ExtractSSRFromSearchNode(segReq.sNode, blocksToRawSearch, segReq.queryRange, segReq.indexInfo.GetQueryTables(), qs, segReq.qid, isQueryPersistent, segReq.pqid)
-			} else {
-				rawSearchSSR = metadata.ExtractUnrotatedSSRFromSearchNode(segReq.sNode, segReq.queryRange, segReq.indexInfo.GetQueryTables(), blocksToRawSearch, qs, segReq.qid)
-			}
-			qs.UpdateExtractSSRTime(time.Since(sTime))
-
-			// rawSearchSSR should be of size 1 or 0
-			for _, req := range rawSearchSSR {
-				req.ConsistentCValLenMap = segReq.ConsistentCValLenMap
-				sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs, nodeRes)
+				// If we can't read the segment stats, we should compute it from raw records
+				sstMap, err = computeSegStatsFromRawRecords(segReq, qs, allSegFileResults, qid, nodeRes)
 				if err != nil {
-					log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 					allSegFileResults.AddError(err)
 				}
+			} else {
+				sstMap["*"] = &structs.SegStats{
+					Count: uint64(segReq.TotalRecords),
+				}
+				allSegFileResults.AddResultCount(uint64(segReq.TotalRecords))
+			}
+		} else {
+			sstMap, err = computeSegStatsFromRawRecords(segReq, qs, allSegFileResults, qid, nodeRes)
+			if err != nil {
+				allSegFileResults.AddError(err)
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
-		if err != nil {
-			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
-			allSegFileResults.AddError(err)
-			continue
-		}
+
+		statsRes.MergeSegStats(sstMap)
+
 		totalRecsSearched := uint64(0)
 		if segReq.sType == structs.SEGMENT_STATS_SEARCH {
 			totalRecsSearched = segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
@@ -914,9 +952,21 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		IncrementNumFinishedSegments(1, qid, totalRecsSearched, segenc, "", true, sstMap)
 	}
 
+	finalSstMap := statsRes.GetSegStats()
+
+	if !getSstMap {
+		err = allSegFileResults.UpdateSegmentStats(finalSstMap, measureOperations)
+		if err != nil {
+			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey! Error: %v", qid, err)
+			allSegFileResults.AddError(err)
+		}
+	}
+
 	if len(sortedQSRSlice) == 0 {
 		IncrementNumFinishedSegments(0, qid, 0, 0, "", true, nil)
 	}
+
+	return finalSstMap
 }
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request

@@ -62,6 +62,31 @@ func Test_addSegStatsNums(t *testing.T) {
 
 }
 
+func Test_addSegStatsNumsMixed(t *testing.T) {
+
+	cname := "mycol1"
+	sst := make(map[string]*SegStats)
+	bb := bbp.Get()
+
+	AddSegStatsStr(sst, cname, "abc", bb, nil, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, "100", bb, nil, false, false)
+	AddSegStatsStr(sst, cname, "def", bb, nil, false, false)
+	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(123.45), "123.45", bb, nil, false, false)
+	AddSegStatsStr(sst, cname, "20", bb, nil, false, false)
+	AddSegStatsStr(sst, cname, "xyz", bb, nil, false, false)
+
+	assert.Equal(t, uint64(6), sst[cname].Count)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(20), sst[cname].Min.CVal)
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Max.Dtype)
+	assert.Equal(t, float64(123.45), sst[cname].Max.CVal)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
+	assert.Equal(t, float64(20+123.45+100), sst[cname].NumStats.Sum.FloatVal)
+	assert.Equal(t, uint64(3), sst[cname].NumStats.NumericCount)
+}
+
 func Test_addSegStatsNumsForEvalFunc(t *testing.T) {
 
 	cname := "duration"

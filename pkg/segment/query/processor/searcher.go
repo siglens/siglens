@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -66,6 +67,8 @@ type Searcher struct {
 	unsentRRCs           []*segutils.RecordResultContainer
 	segEncToKey          *toputils.TwoWayMap[uint32, string]
 	segEncToKeyBaseValue uint32
+
+	setAsIqrStatsResults bool
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
@@ -91,6 +94,10 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
 	}, nil
+}
+
+func (s *Searcher) SetAsIqrStatsResults() {
+	s.setAsIqrStatsResults = true
 }
 
 func (s *Searcher) Rewind() {
@@ -259,9 +266,11 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	}
 
 	var nodeResult *structs.NodeResult
+	var groupByBuckets *blockresults.GroupByBuckets
+	var timeBuckets *blockresults.TimeBuckets
 
 	if qType == structs.SegmentStatsCmd {
-		nodeResult = query.GetNodeResultsForSegmentStatsCmd(s.queryInfo, s.startTime, searchResults, nil, s.querySummary, orgId)
+		nodeResult = query.GetNodeResultsForSegmentStatsCmd(s.queryInfo, s.startTime, searchResults, nil, s.querySummary, orgId, s.setAsIqrStatsResults)
 	} else if qType == structs.GroupByCmd {
 		nodeResult, err = s.fetchGroupByResults(searchResults, aggs)
 		if err != nil {
@@ -271,6 +280,23 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to get group by results: %v", s.qid, err)
 			}
 		}
+		if s.setAsIqrStatsResults {
+			var isGroupByBuckets, isTimeBuckets bool
+			isGroupByBucketNil, isTimeBucketsNil := true, true
+			if nodeResult.GroupByBuckets != nil {
+				isGroupByBucketNil = false
+				groupByBuckets, isGroupByBuckets = nodeResult.GroupByBuckets.(*blockresults.GroupByBuckets)
+			}
+			if nodeResult.TimeBuckets != nil {
+				isTimeBucketsNil = false
+				timeBuckets, isTimeBuckets = nodeResult.TimeBuckets.(*blockresults.TimeBuckets)
+			}
+
+			if (!isGroupByBucketNil && !isGroupByBuckets) || (!isTimeBucketsNil && !isTimeBuckets) {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: Expected GroupByBuckets and TimeBuckets, got %T and %T",
+					qid, nodeResult.GroupByBuckets, nodeResult.TimeBuckets)
+			}
+		}
 	} else {
 		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: invalid query type: %v", qid, qType)
 	}
@@ -278,9 +304,20 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	// post getting of stats results
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 
-	err = iqr.CreateStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
-	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to create stats results: %v", qid, err)
+	if s.setAsIqrStatsResults {
+		err := iqr.SetIqrStatsResults(qType, nodeResult.SegStatsMap, groupByBuckets, timeBuckets, aggs)
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to set IQR stats results: %v", qid, err)
+		}
+	} else {
+		if aggs.StatisticExpr != nil {
+			iqr.SetStatsAggregationResult(nodeResult.Histogram)
+		}
+
+		err = iqr.CreateStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
+		if err != nil {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to create stats results: %v", qid, err)
+		}
 	}
 
 	s.qsrs = s.qsrs[0:] // Clear the QSRs so we don't process them again.
@@ -306,10 +343,9 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 	}
 	aggs.BucketLimit = bucketLimit
 
-	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary)
-
-	if aggs.StatisticExpr != nil {
-		aggs.StatisticExpr.AggregationResult = nodeResult.Histogram
+	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary, s.setAsIqrStatsResults)
+	if s.setAsIqrStatsResults {
+		return nodeResult, nil
 	}
 
 	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
@@ -397,6 +433,12 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 			for _, block := range blocks {
 				pqmrBlockNumbers[block.BlkNum] = struct{}{}
+			}
+
+			totalBlocksInSegment := metadata.GetNumBlocksInSegment(qsr.GetSegKey())
+			if len(pqmrBlockNumbers) == int(totalBlocksInSegment) {
+				// All blocks in the segment are covered by the PQMR, so we can skip the raw search.
+				continue
 			}
 		}
 

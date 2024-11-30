@@ -46,19 +46,18 @@ func Test_Remote_Stats(t *testing.T) {
 	}
 
 	myNums := structs.NumericStats{
-		Min: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
-			IntgrVal: 456},
-		Max: utils.NumTypeEnclosure{Ntype: utils.SS_DT_FLOAT,
-			FloatVal: 23.4567},
 		Sum: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
 			IntgrVal: 789},
-		Dtype: utils.SS_DT_USIGNED_16_NUM,
 	}
 
 	segStat := structs.SegStats{
 		IsNumeric: true,
 		Count:     2345,
 		NumStats:  &myNums,
+		Min: utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT,
+			CVal: float64(456)},
+		Max: utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT,
+			CVal: 23.4567},
 		StringStats: &structs.StringStats{
 			StrSet: map[string]struct{}{
 				"str1": {},

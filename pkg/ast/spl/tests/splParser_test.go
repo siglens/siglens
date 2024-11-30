@@ -10635,22 +10635,16 @@ func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
 	// Check if it's the last day of the month
 	isLastDay := now.AddDate(0, 0, 1).Month() != now.Month()
 
-	var expectedEarliestTime time.Time
 	var expectedLatestTime time.Time
 
-	if isLastDay {
-		// For last day of month:
-		// earliest time is first day of current month
-		expectedEarliestTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+	// earliest time is first day of previous month
+	expectedEarliestTime := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
 
+	if isLastDay {
 		// latest time is first day of next month + 7 days
 		nextMonth := now.AddDate(0, 1, 0)
 		expectedLatestTime = time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
 	} else {
-		// For any other day of month:
-		// earliest time is first day of previous month
-		expectedEarliestTime = time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
-
 		// latest time is first day of next month + 7 days
 		expectedLatestTime = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, 7)
 	}
@@ -11546,4 +11540,57 @@ func Test_Eval_Expr(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[1].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[2].Value, "  end")
 	assert.Equal(t, aggregator.Next.Next.Next.Next.EvalExpr.ValueExpr.StringExpr.ConcatExpr.Atoms[2].IsField, false)
+}
+
+func Test_Field_With_SpecialChars(t *testing.T) {
+	query := []byte(`search A=1 | fields "first name", "last name" | rename "first name" AS firstName | rename "last name" AS "last@name" | fields "last@name"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	// fields "first name", "last name"
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.NotNil(t, pipeCommands.FieldsExpr)
+	assert.Len(t, pipeCommands.FieldsExpr.ExcludeColumns, 0)
+	assert.Len(t, pipeCommands.FieldsExpr.IncludeColumns, 2)
+	assert.Equal(t, pipeCommands.FieldsExpr.IncludeColumns[0], string(`first name`))
+	assert.Equal(t, pipeCommands.FieldsExpr.IncludeColumns[1], string(`last name`))
+
+	// rename "first name" AS firstName
+	assert.NotNil(t, pipeCommands.Next)
+	pipeCommands = pipeCommands.Next
+	assert.NotNil(t, pipeCommands.OutputTransforms)
+	assert.NotNil(t, pipeCommands.RenameExp)
+	assert.Equal(t, structs.REMOverride, int(pipeCommands.RenameExp.RenameExprMode))
+	expectedRenameColumns := map[string]string{
+		`first name`: "firstName",
+	}
+	assert.Equal(t, expectedRenameColumns, pipeCommands.RenameExp.RenameColumns)
+
+	// rename "last name" AS "last@name"
+	assert.NotNil(t, pipeCommands.Next)
+	pipeCommands = pipeCommands.Next
+	assert.NotNil(t, pipeCommands.OutputTransforms)
+	assert.NotNil(t, pipeCommands.RenameExp)
+	assert.Equal(t, structs.REMPhrase, int(pipeCommands.RenameExp.RenameExprMode))
+	expectedRenameColumns = map[string]string{
+		`last name`: "last@name",
+	}
+	assert.Equal(t, expectedRenameColumns, pipeCommands.RenameExp.RenameColumns)
+
+	// fields "last@name"
+	assert.NotNil(t, pipeCommands.Next)
+	pipeCommands = pipeCommands.Next
+	assert.NotNil(t, pipeCommands.FieldsExpr)
+	assert.Len(t, pipeCommands.FieldsExpr.ExcludeColumns, 0)
+	assert.Len(t, pipeCommands.FieldsExpr.IncludeColumns, 1)
+	assert.Equal(t, pipeCommands.FieldsExpr.IncludeColumns[0], string(`last@name`))
+
 }

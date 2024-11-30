@@ -224,10 +224,10 @@ function displayExistingDashboards() {
                 // Add empty list item when there are no additional dashboards
                 dropdown.html(`<li class="dashboard"></li>`);
             } else {
-                $.each(res, function (id, dashboardName) {
+                $.each(res, function (id, dashboardDetails) {
                     // exclude default dashboards
                     if (!defaultDashboardIds.includes(id) && !existingDashboards.includes(id)) {
-                        dropdown.append(`<li class="dashboard" id="${id}">${dashboardName}</li>`);
+                        dropdown.append(`<li class="dashboard" id="${id}">${dashboardDetails.name}</li>`);
                         existingDashboards.push(id);
                     }
                 });

@@ -116,12 +116,16 @@ var functionalTestCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
 		longer, _ := cmd.Flags().GetBool("longer")
+		doIngest, _ := cmd.Flags().GetBool("doIngest")
+		doQuery, _ := cmd.Flags().GetBool("doQuery")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("queryDest : %+v\n", queryDest)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("queriesToRunFile : %+v\n", filePath)
 		log.Infof("longer : %+v\n", longer)
+		log.Infof("doIngest : %+v\n", doIngest)
+		log.Infof("doQuery : %+v\n", doQuery)
 
 		totalEvents := 100_000
 		batchSize := 100
@@ -141,20 +145,27 @@ var functionalTestCmd = &cobra.Command{
 			sleepDuration = 30 * time.Second
 		}
 
-		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+		if doIngest {
 
-		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		time.Sleep(sleepDuration)
+			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
-		if err != nil {
-			log.Fatalf("Error while migrating lookups: %v", err)
-			return
+			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+			if err != nil {
+				log.Fatalf("Error while migrating lookups: %v", err)
+				return
+			}
+
+			if doQuery {
+				time.Sleep(sleepDuration)
+			}
 		}
 
-		query.FunctionalTest(queryDest, filePath)
+		if doQuery {
+			query.FunctionalTest(queryDest, filePath)
+		}
 	},
 }
 
@@ -535,6 +546,8 @@ func init() {
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
 	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
+	functionalTestCmd.PersistentFlags().BoolP("doIngest", "i", true, "Perfom ingestion for functional Test")
+	functionalTestCmd.PersistentFlags().BoolP("doQuery", "u", true, "Perfom query for functional Test")
 
 	performanceTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 

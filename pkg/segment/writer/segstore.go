@@ -262,17 +262,16 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	}
 	segstore.suffix = nextSuffix
 
-	basedir := getBaseSegDir(streamid, virtualTableName, nextSuffix)
+	basedir := config.GetBaseSegDir(streamid, virtualTableName, nextSuffix)
 	err = os.MkdirAll(basedir, 0764)
 	if err != nil {
 		log.Errorf("resetSegStore : Could not mkdir basedir=%v,  %v", basedir, err)
 		return err
 	}
 
-	basename := fmt.Sprintf("%s%d", basedir, nextSuffix)
 	segstore.earliest_millis = 0
 	segstore.latest_millis = 0
-	segstore.SegmentKey = basename
+	segstore.SegmentKey = config.GetSegKey(streamid, virtualTableName, nextSuffix)
 	segstore.segbaseDir = basedir
 	segstore.VirtualTableName = virtualTableName
 	segstore.RecordCount = 0
@@ -1548,14 +1547,16 @@ func (ss *SegStore) FlushSegStats() error {
 /*
 Encoding Schema for SegStats Single Column Data
 [Version 1B] [isNumeric 1B] [Count 8B] [HLL_Size 4B] [HLL_Data xB]
-[N_type 1B] [Min 8B] [N_type 1B] [Max 8B] [N_type 1B] [Sum 8B]
+Numeric [DType 1B] [Min 8B] [DType 1B] [Max 8B] [NType 1B] [Sum 8B] [NumericCount 8B]
+OR
+NonNumeric [DType 1B] [Min_Size 2B] [Min_Data xB] [Max_Size 2B] [Max_Data xB]
 */
 func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF)
+	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF_V4)
 	idx++
 
 	// isNumeric
@@ -1594,30 +1595,58 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
+
+		if sst.Min.Dtype != utils.SS_DT_STRING || sst.Max.Dtype != utils.SS_DT_STRING {
+			copy(buf[idx:], []byte{byte(utils.SS_DT_BACKFILL)})
+			idx++
+			return idx, nil
+		}
+
+		// Min Dtype
+		copy(buf[idx:], []byte{byte(utils.SS_DT_STRING)})
+		idx++
+		// Min Length
+		minLen := uint16(len(sst.Min.CVal.(string)))
+		toputils.Uint16ToBytesLittleEndianInplace(minLen, buf[idx:])
+		idx += 2
+
+		// Min Value
+		copy(buf[idx:], []byte(sst.Min.CVal.(string)))
+		idx += uint32(minLen)
+
+		// Max Length
+		maxLen := uint16(len(sst.Max.CVal.(string)))
+		toputils.Uint16ToBytesLittleEndianInplace(maxLen, buf[idx:])
+		idx += 2
+
+		// Max Value
+		copy(buf[idx:], []byte(sst.Max.CVal.(string)))
+		idx += uint32(maxLen)
+
 		return idx, nil // dont write numeric stuff if this column is not numeric
 	}
 
 	// Min NumType
-	copy(buf[idx:], []byte{byte(sst.NumStats.Min.Ntype)})
+	copy(buf[idx:], []byte{byte(sst.Min.Dtype)})
 	idx++
 
 	// Min
-	if sst.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
-		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Min.FloatVal, buf[idx:])
+	if sst.Min.Dtype == utils.SS_DT_FLOAT {
+		toputils.Float64ToBytesLittleEndianInplace(sst.Min.CVal.(float64), buf[idx:])
 	} else {
-		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Min.IntgrVal, buf[idx:])
+		toputils.Int64ToBytesLittleEndianInplace(sst.Min.CVal.(int64), buf[idx:])
 	}
 	idx += 8
 
 	// Max NumType
-	copy(buf[idx:], []byte{byte(sst.NumStats.Max.Ntype)})
+	copy(buf[idx:], []byte{byte(sst.Max.Dtype)})
 	idx++
 
 	// Max
-	if sst.NumStats.Max.Ntype == utils.SS_DT_FLOAT {
-		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Max.FloatVal, buf[idx:])
+	if sst.Max.Dtype == utils.SS_DT_FLOAT {
+		toputils.Float64ToBytesLittleEndianInplace(sst.Max.CVal.(float64), buf[idx:])
 	} else {
-		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Max.IntgrVal, buf[idx:])
+		toputils.Int64ToBytesLittleEndianInplace(sst.Max.CVal.(int64), buf[idx:])
 	}
 	idx += 8
 
@@ -1631,6 +1660,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	} else {
 		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
 	}
+	idx += 8
+
+	// NumCount
+	toputils.Uint64ToBytesLittleEndianInplace(sst.NumStats.NumericCount, buf[idx:])
 	idx += 8
 
 	return idx, nil

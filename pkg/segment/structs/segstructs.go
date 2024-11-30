@@ -501,6 +501,9 @@ type NodeResult struct {
 	GroupByCols                 []string        `json:"groupByCols,omitempty"`
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
+	SegStatsMap                 map[string]*SegStats
+	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
 	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
 	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
 	GroupByRequest              *GroupByRequest
@@ -534,10 +537,8 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	Min   utils.NumTypeEnclosure `json:"min,omitempty"` // Remove when we migrate to new SST format
-	Max   utils.NumTypeEnclosure `json:"max,omitempty"` // Remove when we migrate to new SST format
-	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
-	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
+	NumericCount uint64                 `json:"numericCount,omitempty"`
+	Sum          utils.NumTypeEnclosure `json:"sum,omitempty"`
 }
 
 type StringStats struct {
@@ -555,6 +556,8 @@ type SearchErrorInfo struct {
 type SegStatsJSON struct {
 	IsNumeric   bool
 	Count       uint64
+	Min         interface{}
+	Max         interface{}
 	RawHll      []byte
 	NumStats    *NumericStats
 	StringStats *StringStats
@@ -694,6 +697,18 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 			return nil, err
 		}
 	}
+	minVal := utils.CValueEnclosure{}
+	err := minVal.ConvertValue(ssj.Min)
+	if err != nil {
+		log.Errorf("SegStatsJSON.ToStats: Failed to convert min value. error: %v data: %v", err, ssj.Min)
+	}
+	maxVal := utils.CValueEnclosure{}
+	err = maxVal.ConvertValue(ssj.Max)
+	if err != nil {
+		log.Errorf("SegStatsJSON.ToStats: Failed to convert max value. error: %v data: %v", err, ssj.Max)
+	}
+	ss.Min = minVal
+	ss.Max = maxVal
 	ss.NumStats = ssj.NumStats
 	ss.StringStats = ssj.StringStats
 	return ss, nil
@@ -708,6 +723,8 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson.RawHll = rawHll
 	segStatJson.NumStats = ss.NumStats
 	segStatJson.StringStats = ss.StringStats
+	segStatJson.Min = ss.Min.CVal
+	segStatJson.Max = ss.Max.CVal
 	return segStatJson, nil
 }
 
@@ -800,20 +817,20 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 		return
 	}
 
+	ss.NumericCount += other.NumericCount
 	switch ss.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
-		if other.Dtype == utils.SS_DT_FLOAT {
+		if other.Sum.Ntype == utils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + other.Sum.FloatVal
 		} else {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + float64(other.Sum.IntgrVal)
 		}
 	default:
-		if other.Dtype == utils.SS_DT_FLOAT {
+		if other.Sum.Ntype == utils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = float64(ss.Sum.IntgrVal) + other.Sum.FloatVal
-			ss.Dtype = utils.SS_DT_FLOAT
+			ss.Sum.Ntype = utils.SS_DT_FLOAT
 		} else {
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
-			ss.Dtype = utils.SS_DT_SIGNED_NUM
 		}
 	}
 }
@@ -1160,15 +1177,6 @@ func (qa *QueryAggregators) HasListFunc() bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasMinMaxFunc() bool {
-	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == utils.Max || agg.MeasureFunc == utils.Min {
-			return true
-		}
-	}
-	return false
-}
-
 func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
@@ -1208,6 +1216,26 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+func (qtype QueryType) IsRRCCmd() bool {
+	return qtype == RRCCmd
+}
+
+func (qtype QueryType) IsGroupByCmd() bool {
+	return qtype == GroupByCmd
+}
+
+func (qtype QueryType) IsSegmentStatsCmd() bool {
+	return qtype == SegmentStatsCmd
+}
+
+func (qtype QueryType) IsInvalid() bool {
+	return qtype == InvalidCmd
+}
+
+func (qtype QueryType) IsNotStatsType() bool {
+	return qtype != SegmentStatsCmd && qtype != GroupByCmd
 }
 
 func (qa *QueryAggregators) HasTopExpr() bool {
