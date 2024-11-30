@@ -7,6 +7,7 @@ on:
 
 jobs:
   Clickbench-10M-Test:
+    timeout-minutes: 1440
     runs-on: [self-hosted, Linux, X64]
     name: Clickbench 10M
     steps:
