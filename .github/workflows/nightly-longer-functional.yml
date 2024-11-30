@@ -22,23 +22,35 @@ jobs:
         run: make build
       - name: Run Siglens
         run: |
-            ./siglens --config server.yaml &
+            ./siglens --config server.yaml > output.log 2>&1 &
       - name: Get and Ingest Data 1
         run: |
             cd tools/clickbench
-            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
-            tar -xzvf splithits_1.tar
-            rm splithits_1.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_a.tar
+            tar -xzvf splithits_trunc_a.tar
+            rm splithits_trunc_a.tar
             python3 send_datamulti.py
-            rm splithits_1
+            rm splithits_trunc_a
       - name: Restart Siglens
         run: |
             pkill siglens
             sleep 10
-            ./siglens --config server.yaml &
+            ./siglens --config server.yaml > output2.log 2>&1 &
       - name: Run Clickbench Test
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
             go run main.go clickBench -d localhost:5122
+      - name: Print server execution logs for ingestion
+        if: always()
+        run: |
+            cat output.log
+      - name: Print server execution logs for query
+        if: always()
+        run: |
+            cat output2.log
+      - name: Print siglens logs
+        if: always()
+        run: |
+            cat logs/siglens.log
 
