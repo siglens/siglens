@@ -30,6 +30,7 @@ jobs:
             tar -xzvf splithits_1.tar
             rm splithits_1.tar
       - name: Send Data 1
+        run: |
             python3 send_datamulti.py
             rm splithits_1
       - name: Restart Siglens
