@@ -6,39 +6,39 @@ on:
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
-  Longer-Functional-Test:
+  Clickbench-10M-Test:
     runs-on: [self-hosted, Linux, X64]
-    name: Longer Functional
+    name: Clickbench 10M
     steps:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.19
+      - name: Install dependencies
+        run: |
+          sudo yum install python3-pip
+          pip install requests
       - uses: actions/checkout@v3
       - name: Build Siglens
         run: make build
       - name: Run Siglens
         run: |
             ./siglens --config server.yaml &
-      - name: Ingest Longer Functional Data
+      - name: Get and Ingest Data 1
         run: |
-            sleep 5  # Wait for Siglens to start
-            cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -u=false
-            sleep 5  # Wait for data to ingest
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
+            tar -xzvf splithits_1.tar
+            rm splithits_1.tar
+            python3 send_datamulti.py
+            rm splithits_1
       - name: Restart Siglens
         run: |
             pkill siglens
             sleep 10
             ./siglens --config server.yaml &
-      - name: Query Longer Functional
+      - name: Run Clickbench Test
         run: |
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
-            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -i=false
-      - name: Print logs file
-        if: always()
-        run: |
-            cat logs/siglens.log
-
-
+            go run main.go clickBench -d localhost:5122
 
