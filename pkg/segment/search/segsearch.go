@@ -295,7 +295,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 		allSearchResults.AddError(err)
 		return
 	}
-	defer segread.ReturnTimeBuffers(allTimestamps)
+	// defer segread.ReturnTimeBuffers(allTimestamps)
 
 	sharedReader, err := segread.InitSharedMultiColumnReaders(req.SegmentKey, req.AllPossibleColumns, req.AllBlocksToSearch,
 		req.SearchMetadata.BlockSummaries, int(fileParallelism), req.ConsistentCValLenMap, qid, nodeRes)
