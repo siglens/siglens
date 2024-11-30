@@ -636,7 +636,13 @@ func ValidateLogsQueryResults(queryRes *Result, expRes *Result) error {
 	for idx, record := range expRes.Records {
 		err = ValidateRecord(queryRes.Records[idx], record)
 		if err != nil {
-			timestamps := GetTimestampFromRecord(queryRes.Records[:10])
+			maxTimestamps := 10
+			var timestamps []interface{}
+			if len(queryRes.Records) > maxTimestamps {
+				timestamps = GetTimestampFromRecord(queryRes.Records[:maxTimestamps])
+			} else {
+				timestamps = GetTimestampFromRecord(queryRes.Records)
+			}
 			return fmt.Errorf("ValidateLogsQueryResults: Error comparing records at index: %v, partial queryRes Record: %v, expRes Record: %v, err: %v, timestamps: %v",
 				idx, getPartialRecord(queryRes.Records[idx], utils.GetKeysOfMap(record)), record, err, timestamps)
 		}
