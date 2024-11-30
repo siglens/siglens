@@ -26,11 +26,11 @@ jobs:
       - name: Get and Ingest Data 1
         run: |
             cd tools/clickbench
-            wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_a.tar
-            tar -xvf splithits_trunc_a.tar
-            rm splithits_trunc_a.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
+            tar -xzvf splithits_1.tar
+            rm splithits_1.tar
             python3 send_datamulti.py
-            rm splithits_trunc_a
+            rm splithits_1
       - name: Restart Siglens
         run: |
             pkill siglens
