@@ -10639,9 +10639,8 @@ func Test_ParseRelativeTimeModifier_Chained_1(t *testing.T) {
 	var expectedLatestTime time.Time
 
 	if isLastDay {
-		// For last day of month:
-		// earliest time is first day of current month
-		expectedEarliestTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+		// earliest time is first day of previous month
+		expectedEarliestTime = time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local)
 
 		// latest time is first day of next month + 7 days
 		nextMonth := now.AddDate(0, 1, 0)
