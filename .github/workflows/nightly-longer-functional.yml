@@ -31,6 +31,7 @@ jobs:
             rm splithits_1.tar
       - name: Send Data 1
         run: |
+            cd tools/sigclient
             python3 send_datamulti.py
             rm splithits_1
       - name: Restart Siglens
