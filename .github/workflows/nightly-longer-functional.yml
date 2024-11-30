@@ -27,7 +27,7 @@ jobs:
         run: |
             cd tools/clickbench
             wget https://github.com/siglens/pub-datasets/releases/download/test/splithits_trunc_a.tar
-            tar -xzvf splithits_trunc_a.tar
+            tar -xvf splithits_trunc_a.tar
             rm splithits_trunc_a.tar
             python3 send_datamulti.py
             rm splithits_trunc_a
@@ -41,11 +41,11 @@ jobs:
             sleep 5  # Wait for Siglens to start
             cd tools/sigclient
             go run main.go clickBench -d localhost:5122
-      - name: Print server execution logs for ingestion
+      - name: Print server execution logs for ingestion # For crashes
         if: always()
         run: |
             cat output.log
-      - name: Print server execution logs for query
+      - name: Print server execution logs for query # For crashes
         if: always()
         run: |
             cat output2.log
