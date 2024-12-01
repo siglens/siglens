@@ -44,6 +44,9 @@ var rawTimestampsBufferPool = sync.Pool{
 	},
 }
 
+var lk = sync.Mutex{}
+var addrMp = make(map[string]struct{})
+
 type timeBlockRequest struct {
 	tsRec   []byte
 	blkNum  uint16
@@ -87,8 +90,10 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 		return &TimeRangeReader{}, err
 	}
 	allInUseFiles = append(allInUseFiles, fName)
+	lk.Lock()
+	defer lk.Unlock()
 
-	return &TimeRangeReader{
+	trr := &TimeRangeReader{
 		timeFD:                  fd,
 		timestampKey:            tsKey,
 		timeMetadata:            blockMetadata,
@@ -98,13 +103,19 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 		blockUncompressedBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
-	}, nil
+	}
+	log.Errorf("InitNewTimeReader.Got: %p", trr.blockTimestamps)
+
+	return trr, nil
 }
 
 func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
 	blkRecCount map[uint16]uint16, qid uint64) (*TimeRangeReader, error) {
 
-	return &TimeRangeReader{
+	lk.Lock()
+	defer lk.Unlock()
+
+	trr := &TimeRangeReader{
 		timeFD:                  tsFD,
 		timestampKey:            tsKey,
 		timeMetadata:            blockMetadata,
@@ -113,7 +124,10 @@ func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, blockMetadata map[uint
 		blockReadBuffer:         *fileReadBufferPool.Get().(*[]byte),
 		blockUncompressedBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
-	}, nil
+	}
+	log.Errorf("InitNewTimeReaderWithFD.Got: %p", trr.blockTimestamps)
+
+	return trr, nil
 }
 
 func InitNewTimeReaderFromBlockSummaries(segKey string, tsKey string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
@@ -235,6 +249,9 @@ func (trr *TimeRangeReader) Close() error {
 func (trr *TimeRangeReader) returnBuffers() {
 	uncompressedReadBufferPool.Put(&trr.blockUncompressedBuffer)
 	fileReadBufferPool.Put(&trr.blockReadBuffer)
+	lk.Lock()
+	defer lk.Unlock()
+	log.Warnf("TimeRangeReader.returnBuffers: %p", trr.blockTimestamps)
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
 }
 
@@ -317,17 +334,24 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, retVal map[uint16][]uint64,
 	retLock *sync.Mutex) {
 	defer wg.Done()
+	lk.Lock()
+	defer lk.Unlock()
 	for req := range allRequests {
 		bufToUse := *rawTimestampsBufferPool.Get().(*[]uint64)
 		bufToUseAddr := fmt.Sprintf("%p", bufToUse)
+		if _, ok := addrMp[bufToUseAddr]; ok {
+			log.Warnf("processTimeBlocks: addrMp already has the address %v", bufToUseAddr)
+		}
+		log.Errorf("processTimeBlocks.Got: %p", bufToUse)
+		addrMp[bufToUseAddr] = struct{}{}
 		decoded, err := convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
 		if err != nil {
 			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
 		}
-		if len(bufToUse) > 1760 {
-			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %v", decoded[1760], req.blkNum, decoded, bufToUseAddr)
-		}
+		// if len(bufToUse) > 1760 {
+		// 	log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %v", decoded[1760], req.blkNum, decoded, bufToUseAddr)
+		// }
 		retLock.Lock()
 		retVal[req.blkNum] = decoded
 		retLock.Unlock()
@@ -425,10 +449,14 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {
+	lk.Lock()
+	defer lk.Unlock()
 	address := ""
 	for _, v := range og {
+		addr := fmt.Sprintf("%p", v)
+		delete(addrMp, addr)
 		rawTimestampsBufferPool.Put(&v)
-		address = fmt.Sprintf("%v %p", address, v)
+		address = fmt.Sprintf("%v %v", address, addr)
 	}
 	log.Info("------------------------------------------------------------------")
 	log.Warnf("ReturnTimeBuffers: %v", address)
