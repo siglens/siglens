@@ -16,10 +16,10 @@
 "* | stats count as cnt by UserID | sort -cnt | head 10",120
 "* | stats count as cnt by UserID, SearchPhrase | sort -cnt | head 10",150
 "* | stats count by UserID, SearchPhrase | head 10",200
-"UserID=519640690937130534 | fields UserID",90
+"UserID=435090932899640449 | fields UserID",90
 "* | regex URL = "".*google.*"" | stats count",7500
 "SearchPhrase != """" | regex URL = "".*google.*"" | stats count as c, min(eval(URL)) by SearchPhrase | sort -c | head 10",1500
-"SearchPhrase != """" | regex Title = "".*Google.*"" | regex URL != "".*\\.google\\..*"" | stats count as c, min(eval(URL)), min(eval(Title)), dc(UserID) by SearchPhrase | sort -c | head 10",8700
+"SearchPhrase != """" | regex Title = "".*Google.*"" | regex URL != "".*\.google\..*"" | stats count as c, min(eval(URL)), min(eval(Title)), dc(UserID) by SearchPhrase | sort -c | head 10",8700
 "* | regex URL = "".*google.*"" | sort -str(EventTime) | head 10",8700
 "SearchPhrase != """" | sort -str(EventTime) | head 10 | fields SearchPhrase",2700
 "SearchPhrase != """" | sort -str(SearchPhrase) | head 10 | fields SearchPhrase",2500

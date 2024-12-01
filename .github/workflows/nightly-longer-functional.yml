@@ -144,6 +144,7 @@ jobs:
         run: |
             pkill siglens
             sleep 10
+            sed -i 's/pqsEnabled: true/pqsEnabled: false/' server.yaml
             ./siglens --config server.yaml > output2.log 2>&1 &
       - name: Run Clickbench Test
         run: |
