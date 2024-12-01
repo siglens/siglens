@@ -319,10 +319,14 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 	defer wg.Done()
 	for req := range allRequests {
 		bufToUse := *rawTimestampsBufferPool.Get().(*[]uint64)
+		bufToUseAddr := fmt.Sprintf("%p", bufToUse)
 		decoded, err := convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
 		if err != nil {
 			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
+		}
+		if len(bufToUse) > 1760 {
+			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %v", decoded[1760], req.blkNum, decoded, bufToUseAddr)
 		}
 		retLock.Lock()
 		retVal[req.blkNum] = decoded
@@ -421,7 +425,12 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {
+	address := ""
 	for _, v := range og {
 		rawTimestampsBufferPool.Put(&v)
+		address = fmt.Sprintf("%v %p", address, v)
 	}
+	log.Info("------------------------------------------------------------------")
+	log.Warnf("ReturnTimeBuffers: %v", address)
+	log.Info("------------------------------------------------------------------")
 }

@@ -89,6 +89,7 @@ func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[st
 		}
 	}
 	allCols[config.GetTimeStampKey()] = true
+	allCols["_index"] = true
 
 	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
 	// of a map[string]bool so we don't have to do the conversion here

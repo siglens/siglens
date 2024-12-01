@@ -347,6 +347,14 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	querySummary.UpdateSummary(summary.PQS, timeElapsed, queryMetrics)
 }
 
+func GetSegKey(key string) string {
+	split := strings.Split(key, "/")
+	if len(split) < 4 {
+		return key
+	}
+	return split[3]
+}
+
 func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *structs.SegmentSearchRequest, aggs *structs.QueryAggregators,
 	runningWG *sync.WaitGroup, filterBlockRequestsChan chan uint16, sqpmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults,
 	allTimestamps map[uint16][]uint64, tRange *dtu.TimeRange, sizeLimit uint64, queryMetrics *structs.QueryProcessingMetrics,
@@ -419,6 +427,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						pqmr.ClearBit(recNum)
 						continue
 					}
+					log.Warnf("rawSearchSingleSPQMR: blockNum %d, recNum %d, recTs %d index %v", blockNum, recNum, recTs, GetSegKey(req.SegmentKey))
 					convertedRecNum := uint16(recNum)
 					if config.IsNewQueryPipelineEnabled() {
 						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)

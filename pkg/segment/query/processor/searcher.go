@@ -161,6 +161,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	}
 
 	desiredMaxBlocks := runtime.GOMAXPROCS(0) // TODO: tune this
+	desiredMaxBlocks = 16
 	nextBlocks, endTime, err := getNextBlocks(s.remainingBlocksSorted, desiredMaxBlocks, s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get next end time: %v", s.qid, err)
