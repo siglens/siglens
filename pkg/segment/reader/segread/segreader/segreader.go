@@ -15,14 +15,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package segread
+package segreader
 
 import (
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"sync"
 
 	"github.com/cespare/xxhash"
@@ -35,7 +34,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var uncompressedReadBufferPool = sync.Pool{
+var UncompressedReadBufferPool = sync.Pool{
 	New: func() interface{} {
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
@@ -45,7 +44,7 @@ var uncompressedReadBufferPool = sync.Pool{
 	},
 }
 
-var fileReadBufferPool = sync.Pool{
+var FileReadBufferPool = sync.Pool{
 	New: func() interface{} {
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
@@ -83,7 +82,9 @@ type SegmentFileReader struct {
 	someBlksAbsent     bool // this is used to not log some errors
 }
 
-func ReadAllRecords(segkey string, cname string) ([][]byte, error) {
+// Returns a map of blockNum -> slice, where each element of the slice has the
+// raw data for the corresponding record.
+func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segkey, xxhash.Sum64String(cname))
 	fd, err := os.Open(colCSG)
 	if err != nil {
@@ -100,30 +101,27 @@ func ReadAllRecords(segkey string, cname string) ([][]byte, error) {
 		return nil, err
 	}
 
-	sortedBlockNums := toputils.GetKeysOfMap(blockMeta)
-	sort.Slice(sortedBlockNums, func(i, j int) bool {
-		return sortedBlockNums[i] < sortedBlockNums[j]
-	})
+	blockToRecords := make(map[uint16][][]byte)
 
-	recordBytes := make([][]byte, 0)
-
-	for _, blockNum := range sortedBlockNums {
+	for blockNum := range blockMeta {
 		_, err := fileReader.readBlock(blockNum)
 		if err != nil {
 			return nil, fmt.Errorf("ReadAllRecords: error reading block %v; err=%+v", blockNum, err)
 		}
 
-		for i := uint16(0); i < blockSummaries[blockNum].RecCount; i++ {
+		numRecs := blockSummaries[blockNum].RecCount
+		blockToRecords[blockNum] = make([][]byte, 0, numRecs)
+		for i := uint16(0); i < numRecs; i++ {
 			bytes, err := fileReader.ReadRecord(i)
 			if err != nil {
 				return nil, fmt.Errorf("ReadAllRecords: error reading record %v in block %v; err=%+v", i, blockNum, err)
 			}
 
-			recordBytes = append(recordBytes, bytes)
+			blockToRecords[blockNum] = append(blockToRecords[blockNum], bytes)
 		}
 	}
 
-	return recordBytes, nil
+	return blockToRecords, nil
 }
 
 // returns a new SegmentFileReader and any errors encountered
@@ -136,8 +134,8 @@ func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]
 		currFD:                fd,
 		blockMetadata:         blockMetadata,
 		currOffset:            0,
-		currFileBuffer:        *fileReadBufferPool.Get().(*[]byte),
-		currRawBlockBuffer:    *uncompressedReadBufferPool.Get().(*[]byte),
+		currFileBuffer:        *FileReadBufferPool.Get().(*[]byte),
+		currRawBlockBuffer:    *UncompressedReadBufferPool.Get().(*[]byte),
 		consistentColValueLen: colValueRecLen,
 		isBlockLoaded:         false,
 		encType:               255,
@@ -151,13 +149,13 @@ func (sfr *SegmentFileReader) Close() error {
 	if sfr.currFD == nil {
 		return errors.New("SegmentFileReader.Close: tried to close an unopened segment file reader")
 	}
-	sfr.returnBuffers()
+	sfr.ReturnBuffers()
 	return sfr.currFD.Close()
 }
 
-func (sfr *SegmentFileReader) returnBuffers() {
-	uncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
-	fileReadBufferPool.Put(&sfr.currFileBuffer)
+func (sfr *SegmentFileReader) ReturnBuffers() {
+	UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
+	FileReadBufferPool.Put(&sfr.currFileBuffer)
 }
 
 // returns a bool indicating if blockNum is valid, and any error encountered
@@ -219,29 +217,6 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
 	}
-}
-
-func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
-	for keyIndex := range colsIndexMap {
-		if keyIndex >= len(mcsr.allFileReaders) {
-			continue // This can happen if the column does not exist
-		}
-
-		sfr := mcsr.allFileReaders[keyIndex]
-		if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
-			valid, err := sfr.readBlock(blockNum)
-			if !valid {
-				sfr.someBlksAbsent = true
-				log.Debugf("Skipped invalid block %d, error: %v", blockNum, err)
-				continue // This can happen if the column does not exist.
-			}
-			if err != nil {
-				return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
-			}
-		}
-	}
-
-	return nil
 }
 
 // Returns the raw bytes of the record in the currently loaded block
@@ -561,4 +536,34 @@ func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 	dwIdx := sfr.deRecToTlv[rn]
 	dWord := sfr.deTlv[dwIdx]
 	return dWord, nil
+}
+
+func (sfr *SegmentFileReader) AddRecNumsToMr(dwordIdx uint16, bsh *structs.BlockSearchHelper) {
+
+	for i := uint16(0); i < sfr.blockSummaries[sfr.currBlockNum].RecCount; i++ {
+		if sfr.deRecToTlv[i] == dwordIdx {
+			bsh.AddMatchedRecord(uint(i))
+		}
+	}
+}
+
+func (sfr *SegmentFileReader) GetDeTvl() [][]byte {
+	return sfr.deTlv
+}
+
+func (sfr *SegmentFileReader) ValidateAndReadBlock(blockNum uint16) error {
+	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
+		valid, err := sfr.readBlock(blockNum)
+		if !valid {
+			sfr.someBlksAbsent = true
+			log.Debugf("Skipped invalid block %d, error: %v", blockNum, err)
+			// This can happen if the column does not exist.
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+		}
+	}
+
+	return nil
 }
