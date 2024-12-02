@@ -32,8 +32,8 @@ import (
 )
 
 type block struct {
-	BlockNum uint16
-	Records  []uint16
+	blockNum uint16
+	records  []uint16
 }
 
 func getFilename(segkey string, cname string) string {
@@ -120,8 +120,8 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 
 			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
 			block := block{
-				BlockNum: blockNum,
-				Records:  sortedRecords,
+				blockNum: blockNum,
+				records:  sortedRecords,
 			}
 
 			allBlocks = append(allBlocks, block)
@@ -144,8 +144,8 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 }
 
 type line struct {
-	Value  string
-	Blocks []block
+	value  string
+	blocks []block
 }
 
 func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContainer, []segutils.CValueEnclosure) {
@@ -153,10 +153,10 @@ func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 	values := make([]segutils.CValueEnclosure, 0)
 
 	for _, line := range lines {
-		for _, block := range line.Blocks {
-			for _, recordNum := range block.Records {
+		for _, block := range line.blocks {
+			for _, recordNum := range block.records {
 				rrcs = append(rrcs, &segutils.RecordResultContainer{
-					BlockNum:  block.BlockNum,
+					BlockNum:  block.blockNum,
 					RecordNum: recordNum,
 					SegKeyInfo: segutils.SegKeyInfo{
 						SegKeyEnc: segKeyEncoding,
@@ -164,7 +164,7 @@ func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 				})
 				values = append(values, segutils.CValueEnclosure{
 					Dtype: segutils.SS_DT_STRING,
-					CVal:  line.Value,
+					CVal:  line.value,
 				})
 			}
 		}
@@ -219,12 +219,12 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) 
 		}
 
 		for _, block := range blocks {
-			numRecords += len(block.Records)
+			numRecords += len(block.records)
 		}
 
 		lines = append(lines, line{
-			Value:  value,
-			Blocks: blocks,
+			value:  value,
+			blocks: blocks,
 		})
 	}
 
