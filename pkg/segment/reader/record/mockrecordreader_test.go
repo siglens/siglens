@@ -72,12 +72,12 @@ func Test_ReadOneColumn(t *testing.T) {
 		{Dtype: utils.SS_DT_STRING, CVal: "val4"},
 	}
 
-	values, err := mocker.ReadColForRRCs("segKey", rrcs, "col1", 0)
+	values, err := mocker.ReadColForRRCs("segKey", rrcs, "col1", 0, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, values)
 
 	// Test reading a non-existent column.
-	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col2", 0)
+	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col2", 0, false)
 	assert.NoError(t, err)
 	assert.Nil(t, values)
 
@@ -96,7 +96,7 @@ func Test_ReadOneColumn(t *testing.T) {
 		{Dtype: utils.SS_DT_STRING, CVal: "val3"},
 	}
 
-	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col1", 0)
+	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col1", 0, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, values)
 }
