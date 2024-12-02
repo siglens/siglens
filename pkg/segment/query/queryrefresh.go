@@ -273,7 +273,7 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 
 		for _, file := range filesInDir {
 			fileName := file.Name()
-			segkey := config.GetSegKeyFromVTableDir(vTableName, fileName)
+			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
