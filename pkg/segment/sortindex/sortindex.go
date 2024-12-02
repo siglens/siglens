@@ -29,11 +29,12 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
 type block struct {
-	blockNum uint16
-	records  []uint16
+	BlockNum uint16   `json:"blockNum"`
+	Records  []uint16 `json:"records"`
 }
 
 func getFilename(segkey string, cname string) string {
@@ -120,8 +121,8 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 
 			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
 			block := block{
-				blockNum: blockNum,
-				records:  sortedRecords,
+				BlockNum: blockNum,
+				Records:  sortedRecords,
 			}
 
 			allBlocks = append(allBlocks, block)
@@ -154,9 +155,9 @@ func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 
 	for _, line := range lines {
 		for _, block := range line.blocks {
-			for _, recordNum := range block.records {
+			for _, recordNum := range block.Records {
 				rrcs = append(rrcs, &segutils.RecordResultContainer{
-					BlockNum:  block.blockNum,
+					BlockNum:  block.BlockNum,
 					RecordNum: recordNum,
 					SegKeyInfo: segutils.SegKeyInfo{
 						SegKeyEnc: segKeyEncoding,
@@ -219,7 +220,7 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) 
 		}
 
 		for _, block := range blocks {
-			numRecords += len(block.records)
+			numRecords += len(block.Records)
 		}
 
 		lines = append(lines, line{

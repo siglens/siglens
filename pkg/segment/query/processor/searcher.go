@@ -121,6 +121,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		if s.sortExpr != nil {
+			query.InitProgressForRRCCmd(10 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
 		if !s.gotBlocks {
@@ -172,7 +173,10 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		result, err = iqr.MergeAndDiscardAfter(result, nextIQR, sorter.less, s.sortExpr.Limit)
 	}
 
-	return result, nil
+	// TODO: run the RRCs through the initial search node.
+
+	// TODO: don't always return EOF.
+	return result, io.EOF
 }
 
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {

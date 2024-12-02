@@ -745,7 +745,6 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 }
 
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
-
 	onTreeRotate := false
 	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
 		nc := segstore.stbHolder.stbPtr.GetNodeCount()
@@ -840,7 +839,8 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		// TODO: make this a background job; somehow handle siglens being
 		// gracefully shutdown.
-		err = sortindex.WriteSortIndex(segstore.SegmentKey, "weekday") // TODO: don't hardcode
+		// err = sortindex.WriteSortIndex(segstore.SegmentKey, "weekday") // TODO: don't hardcode
+		err = sortindex.WriteSortIndex(segstore.SegmentKey, "app_name") // TODO: don't hardcode
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v; err=%v", segstore.SegmentKey, err)
 		}
