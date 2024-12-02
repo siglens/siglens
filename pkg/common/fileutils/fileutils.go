@@ -150,10 +150,3 @@ func ReadLineByLine(filePath string, processLine func(line []byte) error) error 
 
 	return nil
 }
-
-func TrimLeadingSlash(s string) string {
-	if len(s) > 0 && s[0] == '/' {
-		return s[1:]
-	}
-	return s
-}
