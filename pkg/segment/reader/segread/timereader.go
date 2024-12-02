@@ -344,7 +344,7 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
 		}
-		if len(bufToUse) > 1760 {
+		if len(decoded) > 1760 {
 			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %p", decoded[1760], req.blkNum, decoded, bufToUse)
 		}
 		retLock.Lock()
