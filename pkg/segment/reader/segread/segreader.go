@@ -22,11 +22,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync"
 
+	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -77,6 +81,49 @@ type SegmentFileReader struct {
 	deRecToTlv         []uint16 // deRecToTlv[recNum] --> dWordIdx
 	blockSummaries     []*structs.BlockSummary
 	someBlksAbsent     bool // this is used to not log some errors
+}
+
+func ReadAllRecords(segkey string, cname string) ([][]byte, error) {
+	colCSG := fmt.Sprintf("%s_%v.csg", segkey, xxhash.Sum64String(cname))
+	fd, err := os.Open(colCSG)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMeta, blockSummaries, err := segmetadata.GetSearchInfoAndSummary(segkey)
+	if err != nil {
+		return nil, fmt.Errorf("ReadAllRecords: failed to get block info for segkey %s; err=%+v", segkey, err)
+	}
+
+	fileReader, err := InitNewSegFileReader(fd, cname, blockMeta, 0, blockSummaries, segutils.INCONSISTENT_CVAL_SIZE)
+	if err != nil {
+		return nil, err
+	}
+
+	sortedBlockNums := toputils.GetKeysOfMap(blockMeta)
+	sort.Slice(sortedBlockNums, func(i, j int) bool {
+		return sortedBlockNums[i] < sortedBlockNums[j]
+	})
+
+	recordBytes := make([][]byte, 0)
+
+	for _, blockNum := range sortedBlockNums {
+		_, err := fileReader.readBlock(blockNum)
+		if err != nil {
+			return nil, fmt.Errorf("ReadAllRecords: error reading block %v; err=%+v", blockNum, err)
+		}
+
+		for i := uint16(0); i < blockSummaries[blockNum].RecCount; i++ {
+			bytes, err := fileReader.ReadRecord(i)
+			if err != nil {
+				return nil, fmt.Errorf("ReadAllRecords: error reading record %v in block %v; err=%+v", i, blockNum, err)
+			}
+
+			recordBytes = append(recordBytes, bytes)
+		}
+	}
+
+	return recordBytes, nil
 }
 
 // returns a new SegmentFileReader and any errors encountered
