@@ -289,7 +289,7 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 		return nil, nil
 	}
 
-	return mcsr.allFileReaders[colKeyIndex].ReadRecordFromBlock(blockNum, recordNum)
+	return mcsr.allFileReaders[colKeyIndex].ReadRecord(recordNum)
 }
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
