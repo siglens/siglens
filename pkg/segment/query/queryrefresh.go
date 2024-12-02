@@ -59,7 +59,6 @@ func initSegmentMetaRefresh() {
 			log.Errorf("initSegmentMetaRefresh:Error loading initial metadata from file %v: %v", smFile, err)
 		}
 	}
-	go syncSegMetaWithSegFullMeta()
 	go refreshLocalMetadataLoop()
 }
 
@@ -254,10 +253,8 @@ func populateMicroIndices(smFile string) error {
 	return nil
 }
 
-func syncSegMetaWithSegFullMeta() {
-	myid := uint64(0)
-
-	vTableNames, err := virtualtable.GetVirtualTableNames(myid)
+func syncSegMetaWithSegFullMeta(myId uint64) {
+	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
 		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
 		return
@@ -266,7 +263,7 @@ func syncSegMetaWithSegFullMeta() {
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
 
 	for vTableName := range vTableNames {
-		streamid := utils.CreateStreamId(vTableName, myid)
+		streamid := utils.CreateStreamId(vTableName, myId)
 		vTableBaseDir := config.GetBaseVTableDir(streamid, vTableName)
 
 		filesInDir, err := os.ReadDir(vTableBaseDir)

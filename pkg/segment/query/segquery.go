@@ -72,6 +72,7 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
+	go initSyncSegMetaForAllIds(getMyIds)
 	go runQueryInfoRefreshLoop(getMyIds)
 
 	// Init specific writer components for kibana requests
@@ -100,6 +101,19 @@ func queryMetricsLooper() {
 		go func() {
 			instrumentation.SetSegmentMicroindexCountGauge(segmetadata.GetTotalSMICount())
 		}()
+	}
+}
+
+func initSyncSegMetaForAllIds(getMyIds func() []uint64) {
+	defaultId := uint64(0)
+	syncSegMetaWithSegFullMeta(defaultId)
+
+	for _, myId := range getMyIds() {
+		if myId == defaultId {
+			continue
+		}
+
+		syncSegMetaWithSegFullMeta(myId)
 	}
 }
 
