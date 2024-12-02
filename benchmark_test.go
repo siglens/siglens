@@ -368,10 +368,10 @@ func Benchmark_logSummarySegKey(b *testing.B) {
 
 	segKey := "a"
 
-	sidName := segKey + ".sid"
-	segInfo, err := microreader.ReadSegMeta(sidName)
+	sfmName := segKey + ".sfm"
+	segInfo, err := microreader.ReadSegMeta(sfmName)
 	if err != nil {
-		b.Fatalf("Failed to read seginfo at %s: %v", sidName, err)
+		b.Fatalf("Failed to read seginfo at %s: %v", sfmName, err)
 	}
 
 	log.Infof("Read Seg info: %+v", segInfo)

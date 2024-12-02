@@ -1051,11 +1051,6 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 		allColsSizes[cname] = &ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
 	}
 
-	err := utils.WriteValidityFile(segBaseDir)
-	if err != nil {
-		panic(fmt.Sprintf("WriteMockColSegFile: failed to write segment validity file; err=%v", err))
-	}
-
 	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets, allColsSizes
 }
 

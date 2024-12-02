@@ -341,7 +341,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 
 }
 
-func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
