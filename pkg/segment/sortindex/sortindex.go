@@ -71,7 +71,7 @@ func WriteSortIndex(segkey string, cname string) error {
 
 				valToBlockToRecords[value][blockNum] = append(valToBlockToRecords[value][blockNum], uint16(recNum))
 			default:
-				return fmt.Errorf("WriteSortIndex: unsupported dtype=%x for segkey=%v, cname=%v, blockNum=%v, recNum=%v",
+				return fmt.Errorf("WriteSortIndex: unsupported dtype=%v for segkey=%v, cname=%v, blockNum=%v, recNum=%v",
 					dtype, segkey, cname, blockNum, recNum)
 			}
 		}

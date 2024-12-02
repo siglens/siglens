@@ -117,7 +117,13 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 				return nil, fmt.Errorf("ReadAllRecords: error reading record %v in block %v; err=%+v", i, blockNum, err)
 			}
 
-			blockToRecords[blockNum] = append(blockToRecords[blockNum], bytes)
+			// TODO: don't copy so much; without copying, there's a data
+			// integrity issue when there's multiple blocks because `bytes` is
+			// a slice of sfr.currRawBlockBuffer, but that buffer gets reused
+			// every time a new block is loaded
+			bytesCopy := make([]byte, len(bytes))
+			copy(bytesCopy, bytes)
+			blockToRecords[blockNum] = append(blockToRecords[blockNum], bytesCopy)
 		}
 	}
 
