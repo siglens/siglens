@@ -44,8 +44,7 @@ var rawTimestampsBufferPool = sync.Pool{
 	},
 }
 
-var lk = sync.Mutex{}
-var addrMp = make(map[string]struct{})
+var lk sync.Mutex = sync.Mutex{}
 
 type timeBlockRequest struct {
 	tsRec   []byte
@@ -336,22 +335,18 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 	defer wg.Done()
 	lk.Lock()
 	defer lk.Unlock()
+
 	for req := range allRequests {
 		bufToUse := *rawTimestampsBufferPool.Get().(*[]uint64)
-		bufToUseAddr := fmt.Sprintf("%p", bufToUse)
-		if _, ok := addrMp[bufToUseAddr]; ok {
-			log.Warnf("processTimeBlocks: addrMp already has the address %v", bufToUseAddr)
-		}
 		log.Errorf("processTimeBlocks.Got: %p", bufToUse)
-		addrMp[bufToUseAddr] = struct{}{}
 		decoded, err := convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
 		if err != nil {
 			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
 		}
-		// if len(bufToUse) > 1760 {
-		// 	log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %v", decoded[1760], req.blkNum, decoded, bufToUseAddr)
-		// }
+		if len(bufToUse) > 1760 {
+			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %p", decoded[1760], req.blkNum, decoded, bufToUse)
+		}
 		retLock.Lock()
 		retVal[req.blkNum] = decoded
 		retLock.Unlock()
@@ -453,12 +448,10 @@ func ReturnTimeBuffers(og map[uint16][]uint64) {
 	defer lk.Unlock()
 	address := ""
 	for _, v := range og {
-		addr := fmt.Sprintf("%p", v)
-		delete(addrMp, addr)
+		address = fmt.Sprintf("%v %p", address, v)
 		rawTimestampsBufferPool.Put(&v)
-		address = fmt.Sprintf("%v %v", address, addr)
 	}
-	log.Info("------------------------------------------------------------------")
+	// log.Info("------------------------------------------------------------------")
 	log.Warnf("ReturnTimeBuffers: %v", address)
-	log.Info("------------------------------------------------------------------")
+	// log.Info("------------------------------------------------------------------")
 }
