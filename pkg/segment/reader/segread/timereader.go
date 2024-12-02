@@ -44,7 +44,7 @@ var rawTimestampsBufferPool = sync.Pool{
 	},
 }
 
-var lk sync.Mutex = sync.Mutex{}
+var lk = &sync.Mutex{}
 
 type timeBlockRequest struct {
 	tsRec   []byte
