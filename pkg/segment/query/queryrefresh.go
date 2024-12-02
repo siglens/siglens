@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,7 +273,7 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 
 		for _, file := range filesInDir {
 			fileName := file.Name()
-			segkey := filepath.Join(vTableBaseDir, fileName, fileName)
+			segkey := config.GetSegKeyFromVTableDir(vTableName, fileName)
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue

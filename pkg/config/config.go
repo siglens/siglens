@@ -1409,6 +1409,10 @@ func GetSegKey(streamid string, virtualTableName string, suffix uint64) string {
 	return fmt.Sprintf("%s%d", GetBaseSegDir(streamid, virtualTableName, suffix), suffix)
 }
 
+func GetSegKeyFromVTableDir(virtualTableDir string, suffixStr string) string {
+	return filepath.Join(virtualTableDir, suffixStr, suffixStr)
+}
+
 // DefaultUIServerHttpConfig  set fasthttp server default configuration
 func DefaultQueryServerHttpConfig() WebConfig {
 	return WebConfig{
