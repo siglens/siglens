@@ -838,6 +838,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
+		// TODO: make this a background job; somehow handle siglens being
+		// gracefully shutdown.
+		err = sortindex.WriteSortIndex(segstore.SegmentKey, "weekday") // TODO: don't hardcode
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v; err=%v", segstore.SegmentKey, err)
+		}
+
 		// upload ingest node dir to s3
 		err = blob.UploadIngestNodeDir()
 		if err != nil {

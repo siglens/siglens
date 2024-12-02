@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
@@ -37,6 +38,51 @@ type block struct {
 
 func getFilename(segkey string, cname string) string {
 	return filepath.Join(segkey, cname+".sort")
+}
+
+func WriteSortIndex(segkey string, cname string) error {
+	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
+	if err != nil {
+		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
+	}
+
+	valToBlockToRecords := make(map[string]map[uint16][]uint16)
+	for blockNum, records := range blockToRecords {
+		for recNum, recBytes := range records {
+			if len(recBytes) == 0 {
+				return fmt.Errorf("WriteSortIndex: empty record for segkey=%v, cname=%v, blockNum=%v, recNum=%v",
+					segkey, cname, blockNum, recNum)
+			}
+
+			idx := 1
+			switch dtype := recBytes[0]; dtype {
+			case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+				length := toputils.BytesToUint16LittleEndian(recBytes[idx : idx+2])
+				idx += 2
+				value := string(recBytes[idx : idx+int(length)])
+
+				if _, ok := valToBlockToRecords[value]; !ok {
+					valToBlockToRecords[value] = make(map[uint16][]uint16)
+				}
+
+				if _, ok := valToBlockToRecords[value][blockNum]; !ok {
+					valToBlockToRecords[value][blockNum] = make([]uint16, 0)
+				}
+
+				valToBlockToRecords[value][blockNum] = append(valToBlockToRecords[value][blockNum], uint16(recNum))
+			default:
+				return fmt.Errorf("WriteSortIndex: unsupported dtype=%x for segkey=%v, cname=%v, blockNum=%v, recNum=%v",
+					dtype, segkey, cname, blockNum, recNum)
+			}
+		}
+	}
+
+	err = writeSortIndex(segkey, cname, valToBlockToRecords)
+	if err != nil {
+		return fmt.Errorf("WriteSortIndex: failed writing sort index for segkey=%v, cname=%v; err=%v", segkey, cname, err)
+	}
+
+	return nil
 }
 
 func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
