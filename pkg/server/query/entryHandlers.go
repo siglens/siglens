@@ -684,6 +684,12 @@ func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getInodesStatsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		systemconfig.GetInodeStats(ctx)
+	}
+}
+
 func uploadLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		lookups.UploadLookupFile(ctx)
