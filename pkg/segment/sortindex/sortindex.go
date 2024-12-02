@@ -39,7 +39,7 @@ func getFilename(segkey string, cname string) string {
 	return filepath.Join(segkey, cname+".sort")
 }
 
-func WriteSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
+func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
 	filename := getFilename(segkey, cname)
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, 0755)

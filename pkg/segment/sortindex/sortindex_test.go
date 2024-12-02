@@ -40,7 +40,7 @@ func Test_writeAndRead(t *testing.T) {
 
 	segkey := filepath.Join(t.TempDir(), "test-segkey")
 	cname := "col1"
-	err := WriteSortIndex(segkey, cname, data)
+	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
 	maxRecords := 100
