@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -121,6 +122,29 @@ func GetAllFilesInDirectory(path string) []string {
 			retVal = append(retVal, path+file.Name())
 		}
 	}
+	return retVal
+}
+
+func GetAllFilesWithSameNameInDirectory(path string, fname string) []string {
+	retVal := make([]string, 0)
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Errorf("GetAllFilesWithSameNameInDirectory: err: %v", err)
+		return retVal
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			res := GetAllFilesWithSameNameInDirectory(filepath.Join(path, file.Name()), fname)
+			retVal = append(retVal, res...)
+		} else {
+			if file.Name() != fname {
+				continue
+			}
+			retVal = append(retVal, filepath.Join(path, file.Name()))
+		}
+	}
+
 	return retVal
 }
 
