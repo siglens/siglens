@@ -22,7 +22,7 @@ let currentTimeout = 0;
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-    getSystemInfo();
+    getSystemAndInodeInfo();
     fetchQueryTimeout()
     {{ .SettingsExtraOnReadySetup }}
     {{ .Button1Function }}
@@ -51,28 +51,41 @@ function getRetentionDataFromConfig() {
 
 {{ .SettingsExtraFunctions }}
 
-async function getSystemInfo() {
+async function getSystemAndInodeInfo() {
     try {
-        const res = await $.ajax({
-            method: "GET",
-            url: "/api/system-info",
-            headers: {
-                "Content-Type": "application/json; charset=utf-8",
-                Accept: "*/*",
-            },
-            dataType: "json",
-            crossDomain: true,
-        });
+        const [systemInfo, inodeInfo] = await Promise.all([
+            $.ajax({
+                method: "GET",
+                url: "/api/system-info",
+                headers: {
+                    "Content-Type": "application/json; charset=utf-8",
+                    Accept: "*/*",
+                },
+                dataType: "json",
+                crossDomain: true,
+            }),
+            $.ajax({
+                method: "GET",
+                url: "/api/inode-stats",
+                headers: {
+                    "Content-Type": "application/json; charset=utf-8",
+                    Accept: "*/*",
+                },
+                dataType: "json",
+                crossDomain: true,
+            })
+        ]);
 
-        addSystemInfoTable(res);
-        return res;
+        addSystemInfoTable(systemInfo, inodeInfo);
+        return { systemInfo, inodeInfo };
     } catch (error) {
         console.error("Update failed:", error);
     }
 }
 
-function addSystemInfoTable(systemInfo) {
+function addSystemInfoTable(systemInfo, inodeInfo) {
     var table = $("#system-info-table");
+    table.empty();
 
     function createRow(header, value) {
         return `<tr><th>${header}</th><td>${value}</td></tr>`;
@@ -80,6 +93,7 @@ function addSystemInfoTable(systemInfo) {
 
     var osRow = createRow("Operating System", systemInfo.os);
     var cpuRow = createRow("vCPUs", systemInfo.v_cpu);
+
     var memoryUsage = systemInfo.memory.used_percent.toFixed(2);
     var totalMemoryGB = (systemInfo.memory.total / Math.pow(1024, 3)).toFixed(2);
     var availableMemoryGB = (systemInfo.memory.free / Math.pow(1024, 3)).toFixed(2);
@@ -87,6 +101,7 @@ function addSystemInfoTable(systemInfo) {
                     <div><b>Available:</b> ${availableMemoryGB} GB</div>
                     <div><b>Used:</b> ${memoryUsage}%</div>`;
     var memoryRow = createRow("Memory Usage", memoryInfo);
+
     var diskUsage = systemInfo.disk.used_percent.toFixed(2);
     var totalDiskGB = (systemInfo.disk.total / Math.pow(1024, 3)).toFixed(2);
     var availableDiskGB = (systemInfo.disk.free / Math.pow(1024, 3)).toFixed(2);
@@ -94,9 +109,18 @@ function addSystemInfoTable(systemInfo) {
                     <div><b>Available:</b> ${availableDiskGB} GB</div>
                     <div><b>Used:</b> ${diskUsage}%</div>`;
     var diskRow = createRow("Disk Usage", diskInfo);
+
+    var totalInodes = inodeInfo.totalInodes.toLocaleString();
+    var usedInodes = inodeInfo.usedInodes.toLocaleString();
+    var freeInodes = inodeInfo.freeInodes.toLocaleString();
+    var inodeInfo = `<div><b>Total:</b> ${totalInodes}</div>
+                     <div><b>Used:</b> ${usedInodes}</div>
+                     <div><b>Available:</b> ${freeInodes}</div>`;
+    var inodeRow = createRow("iNode Usage", inodeInfo);
+
     var uptime = createRow("Process Uptime", formatUptime(systemInfo.uptime));
 
-    table.append(uptime, cpuRow, memoryRow, osRow, diskRow);
+    table.append(uptime, cpuRow, memoryRow, osRow, diskRow, inodeRow);
 }
 
 function formatUptime(uptimeMinutes) {
