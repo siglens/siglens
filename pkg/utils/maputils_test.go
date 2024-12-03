@@ -18,7 +18,9 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -438,4 +440,46 @@ func TestRemoveKeyFromNestedMap(t *testing.T) {
 	// Test removing the last inner key and removing the outer map key
 	RemoveKeyFromNestedMap(m, "key1", "key3")
 	assert.Equal(t, 0, len(m), "Outer map key should be removed when the inner map becomes empty")
+}
+
+func TestPoolCase(t *testing.T) {
+	arrLen := 10
+	bufferPool := sync.Pool{
+		New: func() interface{} {
+			slice := make([]int64, arrLen)
+			return &slice
+		},
+	}
+
+	mp := make(map[string][]int64)
+
+	arr1 := *bufferPool.Get().(*[]int64)
+	for i := 0; i < arrLen; i++ {
+		arr1[i] = int64(i+1)
+	}
+
+	mp["key1"] = arr1
+
+	arr2 := *bufferPool.Get().(*[]int64)
+	for i := 0; i < arrLen; i++ {
+		arr2[i] = -int64(i+1)
+	}
+
+	mp["key2"] = arr2
+
+	for k := range mp {
+		val := mp[k]
+		bufferPool.Put(&val)
+	}
+
+	poolArr1 := *bufferPool.Get().(*[]int64)
+	assert.Equal(t, arrLen, len(poolArr1))
+
+	poolArr2 := *bufferPool.Get().(*[]int64)
+	assert.Equal(t, arrLen, len(poolArr2))
+	
+	fmt.Println(poolArr1)
+	fmt.Println(poolArr2)
+
+	assert.True(t, false)
 }

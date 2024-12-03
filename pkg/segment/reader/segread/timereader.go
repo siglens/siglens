@@ -446,9 +446,10 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 func ReturnTimeBuffers(og map[uint16][]uint64) {
 	lk.Lock()
 	defer lk.Unlock()
-	for _, v := range og {
-		log.Warnf("ReturnTimeBuffers: %p arr %p", &v, v)
-		rawTimestampsBufferPool.Put(&v)
+	for k := range og {
+		timestamps := og[k]
+		// log.Warnf("ReturnTimeBuffers: %p arr %p", &v, v)
+		rawTimestampsBufferPool.Put(&timestamps)
 	}
 	// log.Info("------------------------------------------------------------------")
 	// log.Warnf("ReturnTimeBuffers: %v", address)
