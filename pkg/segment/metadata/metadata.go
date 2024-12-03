@@ -366,6 +366,14 @@ func DeleteSegmentKey(segKey string) {
 	globalMetadata.deleteSegmentKey(segKey)
 }
 
+func DeleteSegmentKeys[T any](segKeys map[string]T) {
+	globalMetadata.updateLock.Lock()
+	defer globalMetadata.updateLock.Unlock()
+	for segKey := range segKeys {
+		globalMetadata.deleteSegmentKeyWithLock(segKey)
+	}
+}
+
 func DeleteVirtualTable(vTable string, orgid uint64) {
 	globalMetadata.deleteTable(vTable, orgid)
 }
