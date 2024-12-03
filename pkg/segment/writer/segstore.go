@@ -670,12 +670,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		sidFname := fmt.Sprintf("%v.sid", segstore.SegmentKey)
-		err = writeRunningSegMeta(sidFname, &segmeta)
-		if err != nil {
-			log.Errorf("AppendWipToSegfile: failed to write sidFname=%v, err=%v", sidFname, err)
-			return err
-		}
+		writeRunningSegMeta(segstore.SegmentKey, &segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
@@ -787,13 +782,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.segbaseDir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
-				segstore.SegmentKey, err)
-			return err
-		}
-
 		// delete pqmr files if empty and add to empty PQS
 		for pqid, hasMatchedAnyRecordInWip := range segstore.pqNonEmptyResults {
 			if !hasMatchedAnyRecordInWip {
@@ -810,9 +798,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		// Upload segment files to s3
 		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
 
-		err = blob.UploadSegmentFiles(filesToUpload)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", err)
+		blobErr := blob.UploadSegmentFiles(filesToUpload)
+		if blobErr != nil {
+			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", blobErr)
 		}
 
 		allPqids := make(map[string]bool, len(segstore.pqMatches))
@@ -837,13 +825,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		// upload ingest node dir to s3
-		err = blob.UploadIngestNodeDir()
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+		if blobErr == nil {
+			// upload ingest node dir to s3
+			err := blob.UploadIngestNodeDir()
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+			}
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err

@@ -197,10 +197,8 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 	return nil
 }
 
-// returns the raw bytes of the blockNum:recordNum combination in the current segfile
-// optimized for subsequent calls to have the same blockNum
-// returns : encodedVal, error
-func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uint16) ([]byte, error) {
+// Returns the raw bytes of the record in the currently loaded block
+func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
 
 	// if dict encoding, we use the dictmapping
 	if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
@@ -213,7 +211,7 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 		sfr.currOffset = 0
 		currRecLen, err := sfr.getCurrentRecordLength()
 		if err != nil {
-			log.Errorf("SegmentFileReader.ReadRecordFromBlock: error resetting SegmentFileReader %s. Error: %+v",
+			log.Errorf("SegmentFileReader.ReadRecord: error resetting SegmentFileReader %s. Error: %+v",
 				sfr.fileName, err)
 			return nil, err
 		}
@@ -236,8 +234,8 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 	}
 
 	if !sfr.someBlksAbsent {
-		errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, currRecordNum: %+v. blockNum %+v, File %+v, colname %v, sfr.currOffset: %v, sfr.currRecLen: %v, sfr.currUncompressedBlockLen: %v",
-			recordNum, sfr.currRecordNum, blockNum, sfr.fileName, sfr.ColName, sfr.currOffset,
+		errStr := fmt.Sprintf("SegmentFileReader.ReadRecord: reached end of block before matching recNum %+v, currRecordNum: %+v. blockNum %+v, File %+v, colname %v, sfr.currOffset: %v, sfr.currRecLen: %v, sfr.currUncompressedBlockLen: %v",
+			recordNum, sfr.currRecordNum, sfr.currBlockNum, sfr.fileName, sfr.ColName, sfr.currOffset,
 			sfr.currRecLen, sfr.currUncompressedBlockLen)
 
 		log.Error(errStr)
