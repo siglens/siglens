@@ -44,15 +44,15 @@ func Test_writeAndRead(t *testing.T) {
 	assert.NoError(t, err)
 
 	maxRecords := 100
-	expected := []line{
-		{value: "apple", blocks: []block{
+	expected := []Line{
+		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, Records: []uint16{1, 2}},
 			{BlockNum: 2, Records: []uint16{42, 100}},
 		}},
-		{value: "banana", blocks: []block{
+		{Value: "banana", Blocks: []Block{
 			{BlockNum: 2, Records: []uint16{2, 7, 13}},
 		}},
-		{value: "zebra", blocks: []block{
+		{Value: "zebra", Blocks: []Block{
 			{BlockNum: 1, Records: []uint16{7}},
 		}},
 	}
@@ -63,8 +63,8 @@ func Test_writeAndRead(t *testing.T) {
 
 	// Test with maxRecords
 	maxRecords = 3
-	expected = []line{
-		{value: "apple", blocks: []block{
+	expected = []Line{
+		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, Records: []uint16{1, 2}},
 			{BlockNum: 2, Records: []uint16{42, 100}},
 		}},

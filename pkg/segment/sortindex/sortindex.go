@@ -32,7 +32,7 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 )
 
-type block struct {
+type Block struct {
 	BlockNum uint16   `json:"blockNum"`
 	Records  []uint16 `json:"records"`
 }
@@ -114,7 +114,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 		sortedBlockNums := utils.GetKeysOfMap(valToBlockToRecords[value])
 		sort.Slice(sortedBlockNums, func(i, j int) bool { return sortedBlockNums[i] < sortedBlockNums[j] })
 
-		allBlocks := make([]block, 0, len(sortedBlockNums))
+		allBlocks := make([]Block, 0, len(sortedBlockNums))
 		for _, blockNum := range sortedBlockNums {
 			sortedRecords, ok := valToBlockToRecords[value][blockNum]
 			if !ok {
@@ -122,7 +122,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 			}
 
 			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
-			block := block{
+			block := Block{
 				BlockNum: blockNum,
 				Records:  sortedRecords,
 			}
@@ -146,17 +146,17 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 	return nil
 }
 
-type line struct {
-	value  string
-	blocks []block
+type Line struct {
+	Value  string
+	Blocks []Block
 }
 
-func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContainer, []segutils.CValueEnclosure) {
+func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContainer, []segutils.CValueEnclosure) {
 	rrcs := make([]*segutils.RecordResultContainer, 0)
 	values := make([]segutils.CValueEnclosure, 0)
 
 	for _, line := range lines {
-		for _, block := range line.blocks {
+		for _, block := range line.Blocks {
 			for _, recordNum := range block.Records {
 				rrcs = append(rrcs, &segutils.RecordResultContainer{
 					BlockNum:  block.BlockNum,
@@ -167,7 +167,7 @@ func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 				})
 				values = append(values, segutils.CValueEnclosure{
 					Dtype: segutils.SS_DT_STRING,
-					CVal:  line.value,
+					CVal:  line.Value,
 				})
 			}
 		}
@@ -176,14 +176,14 @@ func AsRRCs(lines []line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 	return rrcs, values
 }
 
-func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) {
+func ReadSortIndex(segkey string, cname string, maxRecords int) ([]Line, error) {
 	file, err := os.Open(getFilename(segkey, cname))
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	lines := make([]line, 0)
+	lines := make([]Line, 0)
 
 	numRecords := 0
 	for numRecords < maxRecords {
@@ -215,7 +215,7 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) 
 			return nil, err
 		}
 
-		var blocks []block
+		var blocks []Block
 		err = json.Unmarshal(blocksBytes, &blocks)
 		if err != nil {
 			return nil, err
@@ -225,9 +225,9 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]line, error) 
 			numRecords += len(block.Records)
 		}
 
-		lines = append(lines, line{
-			value:  value,
-			blocks: blocks,
+		lines = append(lines, Line{
+			Value:  value,
+			Blocks: blocks,
 		})
 	}
 

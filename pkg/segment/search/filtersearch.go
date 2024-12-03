@@ -227,7 +227,25 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			return
 		}
 
-		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
+		recordNums := make([]uint16, 0)
+		if blockToRecs, ok := searchReq.BlockToValidRecNums.Get(); ok {
+			if _, ok := blockToRecs[blockNum]; !ok {
+				// TODO: do this check in the caller.
+				return
+			}
+
+			recordNums = blockToRecs[blockNum]
+			log.Errorf("andrew got recordNums %v for block %v", recordNums, blockNum)
+		} else {
+			log.Errorf("andrew didn't get recordNums")
+			recordNums = make([]uint16, recIT.AllRecLen)
+			for i := uint16(0); i < recIT.AllRecLen; i++ {
+				recordNums[i] = i
+			}
+		}
+
+		for _, i := range recordNums {
+			i := uint(i)
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,
