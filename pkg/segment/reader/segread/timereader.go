@@ -103,7 +103,7 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
 	}
-	log.Errorf("InitNewTimeReader.Got: %p", trr.blockTimestamps)
+	log.Errorf("InitNewTimeReader.Got: %p arr: %p", &trr.blockTimestamps, trr.blockTimestamps)
 
 	return trr, nil
 }
@@ -124,7 +124,7 @@ func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, blockMetadata map[uint
 		blockUncompressedBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
 	}
-	log.Errorf("InitNewTimeReaderWithFD.Got: %p", trr.blockTimestamps)
+	log.Errorf("InitNewTimeReaderWithFD.Got: %p arr: %p", &trr.blockTimestamps, trr.blockTimestamps)
 
 	return trr, nil
 }
@@ -250,7 +250,7 @@ func (trr *TimeRangeReader) returnBuffers() {
 	fileReadBufferPool.Put(&trr.blockReadBuffer)
 	lk.Lock()
 	defer lk.Unlock()
-	log.Warnf("TimeRangeReader.returnBuffers: %p", trr.blockTimestamps)
+	log.Warnf("TimeRangeReader.returnBuffers: %p arr: %p", &trr.blockTimestamps, trr.blockTimestamps)
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
 }
 
@@ -338,14 +338,14 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 
 	for req := range allRequests {
 		bufToUse := *rawTimestampsBufferPool.Get().(*[]uint64)
-		log.Errorf("processTimeBlocks.Got: %p", bufToUse)
+		log.Errorf("processTimeBlocks.Got: %p arr: %p", &bufToUse, bufToUse)
 		decoded, err := convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
 		if err != nil {
 			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
 		}
 		if len(decoded) > 1760 {
-			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %p", decoded[1760], req.blkNum, decoded, bufToUse)
+			log.Errorf("WRITE: currTS: %v blockNum %d, currTS %p bufToUse %p arrCurrTS %p arrbufToUse %p", decoded[1760], req.blkNum, &decoded, &bufToUse, decoded, bufToUse)
 		}
 		retLock.Lock()
 		retVal[req.blkNum] = decoded
@@ -446,12 +446,11 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 func ReturnTimeBuffers(og map[uint16][]uint64) {
 	lk.Lock()
 	defer lk.Unlock()
-	address := ""
 	for _, v := range og {
-		address = fmt.Sprintf("%v %p", address, v)
+		log.Warnf("ReturnTimeBuffers: %p arr %p", &v, v)
 		rawTimestampsBufferPool.Put(&v)
 	}
 	// log.Info("------------------------------------------------------------------")
-	log.Warnf("ReturnTimeBuffers: %v", address)
+	// log.Warnf("ReturnTimeBuffers: %v", address)
 	// log.Info("------------------------------------------------------------------")
 }
