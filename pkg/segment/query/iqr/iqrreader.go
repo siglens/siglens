@@ -248,7 +248,7 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 
 	if columnName != nil {
 		var values []utils.CValueEnclosure
-		values, err = reader.ReadColForRRCs(segKey, rrcs, *columnName, qid)
+		values, err = reader.ReadColForRRCs(segKey, rrcs, *columnName, qid, true)
 		if err == nil {
 			knownValues = map[string][]utils.CValueEnclosure{
 				*columnName: values,
@@ -307,7 +307,7 @@ func (iqrRdr *IQRReader) GetColsForSegKey(segKey string, vTable string) (map[str
 
 func (iqrRdr *IQRReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
 	if iqrRdr.IsSingleReader() {
-		return iqrRdr.reader.ReadColForRRCs(segKey, rrcs, cname, qid)
+		return iqrRdr.reader.ReadColForRRCs(segKey, rrcs, cname, qid, true)
 	}
 
 	knownValues, err := iqrRdr.readColumnsForRRCs(segKey, "", rrcs, qid, nil, &cname)
