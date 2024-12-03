@@ -90,6 +90,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer fd.Close()
 
 	blockMeta, blockSummaries, err := segmetadata.GetSearchInfoAndSummary(segkey)
 	if err != nil {
@@ -100,6 +101,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer fileReader.Close()
 
 	blockToRecords := make(map[uint16][][]byte)
 
