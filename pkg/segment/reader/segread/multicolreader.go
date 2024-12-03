@@ -194,8 +194,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 	if len(bulkDownloadFiles) > 0 {
 		err = blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
 		if err != nil {
-			log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to bulk download seg files. err: %v", qid, err)
-			return nil, err
+			nodeRes.StoreGlobalSearchError("Error Downloading Segment Files", log.ErrorLevel, err)
 		}
 	}
 
