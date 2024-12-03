@@ -150,3 +150,8 @@ func ReadLineByLine(filePath string, processLine func(line []byte) error) error 
 
 	return nil
 }
+
+func DoesFileExist(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
+}

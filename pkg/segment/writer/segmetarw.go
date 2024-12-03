@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
@@ -146,9 +147,23 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
+			return sfm, err
 		}
-		return sfm, err
+
+		// check from blob
+		err = blob.DownloadSegmentBlob(sfmFname, true)
+		if err != nil {
+			log.Errorf("readSfm: Cannot read sfm File from blob: %v, err: %v", sfmFname, err)
+			return sfm, err
+		}
+
+		sfmBytes, err = os.ReadFile(sfmFname)
+		if err != nil {
+			log.Errorf("readSfm: Cannot read sfm File after download: %v, err: %v", sfmFname, err)
+			return sfm, err
+		}
 	}
+
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
