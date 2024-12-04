@@ -19,7 +19,6 @@ package writer
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -976,27 +975,15 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	return compressed, compLen, nil
 }
 
-func writeRunningSegMeta(fname string, rsm *structs.SegMeta) error {
+func writeRunningSegMeta(segKey string, rsm *structs.SegMeta) {
 
-	fd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Errorf("writeRunningSegMeta: open failed fname=%v, err=%v", fname, err)
-		return err
-	}
-	defer fd.Close()
-
-	rsmjson, err := json.Marshal(rsm)
-	if err != nil {
-		log.Errorf("writeRunningSegMeta: failed to Marshal: err=%v", err)
-		return err
+	segFullMeta := &structs.SegFullMeta{
+		SegMeta:     rsm,
+		ColumnNames: rsm.ColumnNames,
+		AllPQIDs:    rsm.AllPQIDs,
 	}
 
-	if _, err := fd.Write(rsmjson); err != nil {
-		log.Errorf("writeRunningSegMeta: failed to write rsmjson filename=%v: err=%v", fname, err)
-		return err
-	}
-
-	return nil
+	writeSfm(segKey, segFullMeta)
 }
 
 func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64, map[string]struct{}) {

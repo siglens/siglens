@@ -48,7 +48,7 @@ func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, r
 
 	results := make(map[string][]utils.CValueEnclosure)
 	for cname := range columns {
-		values, err := mocker.ReadColForRRCs(segKey, rrcs, cname, qid)
+		values, err := mocker.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
 			log.Errorf("ReadAllColsForRRCs: cannot read column %v; err=%v", cname, err)
 			return nil, err
@@ -68,7 +68,7 @@ func (mocker *MockRRCsReader) GetColsForSegKey(_segKey string, _vTable string) (
 }
 
 func (mocker *MockRRCsReader) ReadColForRRCs(_segKey string, rrcs []*utils.RecordResultContainer,
-	cname string, _qid uint64) ([]utils.CValueEnclosure, error) {
+	cname string, _qid uint64, _fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
 
 	if _, ok := mocker.FieldToValues[cname]; !ok {
 		return nil, nil

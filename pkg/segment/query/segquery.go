@@ -72,6 +72,7 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
+	go initSyncSegMetaForAllIds(getMyIds)
 	go runQueryInfoRefreshLoop(getMyIds)
 
 	// Init specific writer components for kibana requests
@@ -100,6 +101,19 @@ func queryMetricsLooper() {
 		go func() {
 			instrumentation.SetSegmentMicroindexCountGauge(segmetadata.GetTotalSMICount())
 		}()
+	}
+}
+
+func initSyncSegMetaForAllIds(getMyIds func() []uint64) {
+	defaultId := uint64(0)
+	syncSegMetaWithSegFullMeta(defaultId)
+
+	for _, myId := range getMyIds() {
+		if myId == defaultId {
+			continue
+		}
+
+		syncSegMetaWithSegFullMeta(myId)
 	}
 }
 
@@ -906,7 +920,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 		// For Unrotated search, Check if the segment is rotated and update the search type accordingly
 		if segReq.sType == structs.UNROTATED_SEGMENT_STATS_SEARCH {
-			if utils.IsFileForRotatedSegment(segReq.segKey) {
+			if !writer.IsSegKeyUnrotated(segReq.segKey) {
+				// If the segment is not unrotated, we should search the rotated segment
 				segReq.sType = structs.SEGMENT_STATS_SEARCH
 			}
 		}
@@ -1081,12 +1096,12 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 
 	sTime := time.Now()
 	var rawSearchSSRs map[string]*structs.SegmentSearchRequest
-	if utils.IsFileForRotatedSegment(qsr.segKey) {
-		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
-			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
-	} else {
+	if writer.IsSegKeyUnrotated(qsr.segKey) {
 		rawSearchSSRs = metadata.ExtractUnrotatedSSRFromSearchNode(qsr.sNode, qsr.queryRange,
 			qsr.indexInfo.GetQueryTables(), blocksToRawSearch, querySummary, qsr.qid)
+	} else {
+		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
+			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
 	}
 	querySummary.UpdateExtractSSRTime(time.Since(sTime))
 

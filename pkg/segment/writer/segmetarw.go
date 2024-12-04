@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
@@ -117,7 +118,7 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	// continue reading/merging from individual segfiles
 	for _, smentry := range retVal {
-		workSfm, err := readSfm(smentry.SegmentKey)
+		workSfm, err := ReadSfm(smentry.SegmentKey)
 		if err != nil {
 			// error is logged in the func
 			continue
@@ -136,7 +137,7 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 	return retVal
 }
 
-func readSfm(segkey string) (*structs.SegFullMeta, error) {
+func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 
 	sfm := &structs.SegFullMeta{}
 
@@ -146,9 +147,23 @@ func readSfm(segkey string) (*structs.SegFullMeta, error) {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
+			return sfm, err
 		}
-		return sfm, err
+
+		// check from blob
+		err = blob.DownloadSegmentBlob(sfmFname, true)
+		if err != nil {
+			log.Errorf("readSfm: Cannot read sfm File from blob: %v, err: %v", sfmFname, err)
+			return sfm, err
+		}
+
+		sfmBytes, err = os.ReadFile(sfmFname)
+		if err != nil {
+			log.Errorf("readSfm: Cannot read sfm File after download: %v, err: %v", sfmFname, err)
+			return sfm, err
+		}
 	}
+
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
 		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
 			sfmFname, string(sfmBytes), err)
@@ -352,18 +367,64 @@ func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
 	addSegmeta(segmeta)
 }
 
+func BulkAddRotatedSegmetas(segmetas []*structs.SegMeta, shouldWriteSfm bool) {
+	finalSegmetas := make([]*structs.SegMeta, 0, len(segmetas))
+
+	hook := hooks.GlobalHooks.AddSegMeta
+	if hook != nil {
+		for _, segmeta := range segmetas {
+			alreadyHandled, err := hook(segmeta)
+			if err != nil {
+				log.Errorf("BulkAddRotatedSegmetas: hook failed, err=%v", err)
+				continue
+			}
+
+			if !alreadyHandled {
+				finalSegmetas = append(finalSegmetas, segmeta)
+			}
+		}
+	} else {
+		finalSegmetas = segmetas
+	}
+
+	bulkAddSegmetas(finalSegmetas, shouldWriteSfm)
+}
+
 func addSegmeta(segmeta structs.SegMeta) {
+	bulkAddSegmetas([]*structs.SegMeta{&segmeta}, true)
+}
 
-	sfmData := &structs.SegFullMeta{ColumnNames: segmeta.ColumnNames, AllPQIDs: segmeta.AllPQIDs}
-
-	writeSfm(segmeta.SegmentKey, sfmData)
-
-	segmetajson, err := json.Marshal(segmeta)
-	if err != nil {
-		log.Errorf("addSegmeta: failed to Marshal: err=%v", err)
+func bulkAddSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm bool) {
+	if len(finalSegmetas) == 0 {
 		return
 	}
-	segmetajson = append(segmetajson, "\n"...)
+
+	if shouldWriteSfm {
+		for _, segmeta := range finalSegmetas {
+			sfmData := &structs.SegFullMeta{
+				SegMeta:     segmeta,
+				ColumnNames: segmeta.ColumnNames,
+				AllPQIDs:    segmeta.AllPQIDs,
+			}
+
+			writeSfm(segmeta.SegmentKey, sfmData)
+		}
+	}
+
+	var allSegmetaJson []byte
+	for _, segmeta := range finalSegmetas {
+		segmetaJson, err := json.Marshal(segmeta)
+		if err != nil {
+			log.Errorf("bulkAddSegmetas: failed to Marshal: err=%v", err)
+			continue
+		}
+		segmetaJson = append(segmetaJson, "\n"...)
+		allSegmetaJson = append(allSegmetaJson, segmetaJson...)
+	}
+
+	if len(allSegmetaJson) == 0 {
+		return
+	}
 
 	smrLock.Lock()
 	defer smrLock.Unlock()
@@ -373,25 +434,25 @@ func addSegmeta(segmeta structs.SegMeta) {
 		if errors.Is(err, os.ErrNotExist) {
 			fd, err = os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
-				log.Errorf("addSegmeta: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
+				log.Errorf("bulkAddSegmetas: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
 				return
 			}
 
 		} else {
-			log.Errorf("addSegmeta: failed to open filename=%v: err=%v", localSegmetaFname, err)
+			log.Errorf("bulkAddSegmetas: failed to open filename=%v: err=%v", localSegmetaFname, err)
 			return
 		}
 	}
 	defer fd.Close()
 
-	if _, err := fd.Write(segmetajson); err != nil {
-		log.Errorf("addSegmeta: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
+	if _, err := fd.Write(allSegmetaJson); err != nil {
+		log.Errorf("bulkAddSegmetas: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
 		return
 	}
 
 	err = fd.Sync()
 	if err != nil {
-		log.Errorf("addSegmeta: failed to sync filename=%v: err=%v", localSegmetaFname, err)
+		log.Errorf("bulkAddSegmetas: failed to sync filename=%v: err=%v", localSegmetaFname, err)
 		return
 	}
 }
@@ -491,7 +552,7 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 
-	sfmData, err := readSfm(segkey)
+	sfmData, err := ReadSfm(segkey)
 	if err != nil {
 		return
 	}
@@ -656,7 +717,11 @@ func DeletePQSData() error {
 			return err
 		}
 
-		sfmData := &structs.SegFullMeta{ColumnNames: smEntry.ColumnNames, AllPQIDs: nil}
+		sfmData := &structs.SegFullMeta{
+			SegMeta:     smEntry,
+			ColumnNames: smEntry.ColumnNames,
+			AllPQIDs:    nil,
+		}
 		writeSfm(smEntry.SegmentKey, sfmData)
 	}
 
@@ -691,7 +756,7 @@ func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
 }
 
 func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
-	sfm, err := readSfm(segmentKey)
+	sfm, err := ReadSfm(segmentKey)
 	if err != nil {
 		return nil, fmt.Errorf("calculateSegmentSizes: failed to read sfm for segment %s: %v", segmentKey, err)
 	}

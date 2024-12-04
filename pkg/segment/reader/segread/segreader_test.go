@@ -83,11 +83,11 @@ func Test_segReader(t *testing.T) {
 		sfr := multiReader.allFileReaders[colKeyIndex]
 
 		// correct block, incorrect recordNum
-		_, err = sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock))
+		_, err = sfr.ReadRecord(uint16(numEntriesInBlock))
 		assert.NotNil(t, err, "col %s should not have %+v entries", queryCol, numEntriesInBlock+1)
 
 		// correct block, correct recordNum
-		arr, err := sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock-3))
+		arr, err := sfr.ReadRecord(uint16(numEntriesInBlock - 3))
 		assert.Nil(t, err)
 		assert.NotNil(t, arr)
 
@@ -162,7 +162,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	numRead := 0
 	for blkNum := range allBlockInfo {
 		for i := uint16(0); i < numRecsPerBlock[blkNum]; i++ {
-			rawRec, err := fileReader.ReadRecordFromBlock(blkNum, i)
+			rawRec, err := fileReader.ReadRecord(i)
 			numRead++
 			assert.Nil(b, err)
 			assert.NotNil(b, rawRec)
