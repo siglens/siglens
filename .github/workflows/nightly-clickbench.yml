@@ -2,14 +2,14 @@ name: Nightly-Clickbench-Test
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Every day at midnight EST (UTC-5)
+    - cron: '0 4 * * *'  # Every day at 11PM EST (UTC-5)
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
-  Clickbench-10M-Test:
-    timeout-minutes: 1440
+  Clickbench-Test:
+    timeout-minutes: 720 # 12 hrs
     runs-on: [self-hosted, Linux, X64]
-    name: Clickbench 10M
+    name: Clickbench
     steps:
       - uses: actions/setup-go@v3
         with:

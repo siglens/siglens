@@ -81,6 +81,7 @@ func GetClickBenchQueriesAndRespTimes() ([]QueryAndRespTimes, error) {
 	defer file.Close()
 
 	csvReader := csv.NewReader(file)
+	csvReader.FieldsPerRecord = -1 // Disable record length test
 	queriesAndRespTimes := []QueryAndRespTimes{}
 	for {
 		rec, err := csvReader.Read()
