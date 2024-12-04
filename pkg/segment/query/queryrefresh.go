@@ -147,7 +147,6 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	if err != nil {
 		log.Errorf("initGlobalMetadataRefresh: Error in refreshing global metadata, err:%v", err)
 	}
-	go refreshGlobalMetadataLoop(getMyIds)
 }
 
 func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]struct{}) error {
@@ -211,17 +210,6 @@ func getOwnedSegments() map[string]struct{} {
 		return nil
 	} else {
 		return hook()
-	}
-}
-
-func refreshGlobalMetadataLoop(getMyIds func() []uint64) {
-	for {
-		ownedSegments := getOwnedSegments()
-		err := RefreshGlobalMetadata(getMyIds, ownedSegments)
-		if err != nil {
-			log.Errorf("refreshGlobalMetadataLoop: Error in refreshing global metadata, err:%v", err)
-		}
-		time.Sleep(SECONDS_REFRESH_GLOBAL_METADATA * time.Second)
 	}
 }
 

@@ -35,6 +35,7 @@ type VtableCounts struct {
 	OnDiskBytesCount uint64
 }
 
+// Ensure that when SegMeta is read, the corresponding SegFullMeta is also read
 type SegMeta struct {
 	SegmentKey         string `json:"segmentKey"`
 	EarliestEpochMS    uint64 `json:"earliestEpochMs,omitempty"`
