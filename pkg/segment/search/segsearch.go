@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -122,10 +121,10 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 }
 
 func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string,
-	virtualTableName string, qid uint64, pqid string, latestEpochMS uint64, cmiPassedCnames map[uint16]map[string]bool) error {
-	pqidFname := fmt.Sprintf("%v/pqmr/%v.pqmr", segmentKey, pqid)
+	virtualTableName string, qid uint64, pqid string, latestEpochMS uint64, cmiPassedCnames map[uint16]map[string]bool) (string, error) {
+	pqidFname := pqmr.GetPQMRFileNameFromSegKey(segmentKey, pqid)
 	reqLen := uint64(0)
-	allPqmrFile := make([]string, 0)
+
 	// Calculating the required size for the buffer that we need to write to
 	for _, blkSearchResult := range segmentSearchRecords.AllBlockStatus {
 
@@ -141,7 +140,7 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		packedLen, err := blkSearchResult.allRecords.EncodePqmr(buf[idx:], blockNum)
 		if err != nil {
 			log.Errorf("qid=%d, writePqmrFiles: failed to encode pqmr. Err:%v", qid, err)
-			return err
+			return pqidFname, err
 		}
 		idx += uint32(packedLen)
 	}
@@ -149,20 +148,11 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 	err := pqmr.WritePqmrToDisk(buf[0:idx], pqidFname)
 	if err != nil {
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
-		return err
+		return pqidFname, err
 	}
 	writer.AddToBackFillAndEmptyPQSChan(segmentKey, pqid, false)
 	pqs.AddPersistentQueryResult(segmentKey, pqid)
-	allPqmrFile = append(allPqmrFile, pqidFname)
-	err = blob.UploadIngestNodeDir()
-	if err != nil {
-		log.Errorf("qid=%d, writePqmrFiles: failed to upload ingest node directory! Err: %v", qid, err)
-	}
-	err = blob.UploadSegmentFiles(allPqmrFile)
-	if err != nil {
-		log.Errorf("qid=%d, writePqmrFiles: failed to upload backfilled pqmr file! Err: %v", qid, err)
-	}
-	return nil
+	return pqidFname, nil
 }
 
 func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *structs.SearchNode, timeRange *dtu.TimeRange,
@@ -230,12 +220,12 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
 		if config.IsNewQueryPipelineEnabled() {
-			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid, allSearchResults)
 		} else {
 			if finalMatched == 0 {
 				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
 			} else {
-				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid, allSearchResults)
 			}
 		}
 	}
@@ -263,16 +253,19 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 	return "", false
 }
 
-func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
+func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string,
+	allSearchResults *segresults.SearchResults) {
 	if writer.IsSegKeyUnrotated(searchReq.SegmentKey) {
 		return
 	}
-	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
-		err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
-		if err != nil {
-			log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
-		}
+
+	pqmrFileName, err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
+	if err != nil {
+		log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
+		return
 	}
+
+	allSearchResults.AppendPQMRFile(pqmrFileName)
 }
 
 func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int64, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,

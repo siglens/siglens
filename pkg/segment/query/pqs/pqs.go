@@ -108,3 +108,23 @@ func AddAllPqidResults(segKey string, allPqids map[string]bool) {
 	utils.MergeMapsRetainingFirst(allPersistentQueryResults[segKey], allPqids)
 	allPersistentQueryResultsLock.Unlock()
 }
+
+func UploadPQMRFiles(allFiles []string) {
+	if !config.IsPQSEnabled() {
+		return
+	}
+
+	if len(allFiles) == 0 {
+		return
+	}
+
+	err := blob.UploadIngestNodeDir()
+	if err != nil {
+		log.Errorf("UploadPQMRFiles: Failed to upload ingest Node Dir! Error: %+v", err)
+	}
+
+	err = blob.UploadSegmentFiles(allFiles)
+	if err != nil {
+		log.Errorf("UploadPQMRFiles: Failed to upload pqmr files! Error: %+v", err)
+	}
+}
