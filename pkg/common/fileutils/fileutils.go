@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -124,6 +125,31 @@ func GetAllFilesInDirectory(path string) []string {
 	return retVal
 }
 
+func GetAllFilesWithSameNameInDirectory(dir string, fname string) []string {
+	result := make([]string, 0)
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Errorf("GetAllFilesWithSameNameInDirectory: Error walking path: %v, dir: %v, fname: %v, err: %v", path, dir, fname, err)
+			return nil // Continue walking, but log the error
+		}
+
+		// Check if the current file is the one we're looking for
+		if !info.IsDir() && info.Name() == fname {
+			result = append(result, path)
+		}
+
+		// Return nil to continue walking
+		return nil
+	})
+
+	if err != nil {
+		log.Errorf("GetAllFilesWithSameNameInDirectory: Error during filepath.Walk, dir: %v, fname: %v, err: %v", dir, fname, err)
+	}
+
+	return result
+}
+
 // Note: if your processLine handler needs to keep a copy of the line, you have
 // to copy the bytes to a new slice; the contents may be overwritten by the
 // next call to processLine.
@@ -149,4 +175,9 @@ func ReadLineByLine(filePath string, processLine func(line []byte) error) error 
 	}
 
 	return nil
+}
+
+func DoesFileExist(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
 }

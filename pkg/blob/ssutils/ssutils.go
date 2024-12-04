@@ -46,8 +46,8 @@ func GetFileNameFromSegSetFile(segSetFile structs.SegSetFile) string {
 		}
 	case structs.Bsu:
 		fileName = fileName + ".bsu"
-	case structs.Sid:
-		fileName = fileName + ".sid"
+	case structs.Sfm:
+		fileName = fileName + ".sfm"
 	case structs.Pqmr:
 		fileName = fileName + "/pqmr/" + segSetFile.Identifier + ".pqmr"
 	case structs.Rollup:
