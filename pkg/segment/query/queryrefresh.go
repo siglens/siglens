@@ -55,7 +55,7 @@ var RefreshCh = make(chan struct{}, 1)
 
 func initSegmentMetaRefresh() {
 	smFile := writer.GetLocalSegmetaFName()
-	err := populateMicroIndices(smFile, nil)
+	err := populateMicroIndices(smFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Errorf("initSegmentMetaRefresh:Error loading initial metadata from file %v: %v", smFile, err)
@@ -86,10 +86,13 @@ func PopulateSegmentMetadataForTheFile_TestOnly(smrFileName string) error {
 	metaFileLastModifiedLock.Lock()
 	metaFileLastModified[smrFileName] = 0
 	metaFileLastModifiedLock.Unlock()
-	return populateMicroIndices(smrFileName, nil)
+	return populateMicroIndices(smrFileName)
 }
 
 func initMetadataRefresh() {
+	if config.IsS3Enabled() {
+		return
+	}
 	initSegmentMetaRefresh()
 	initMetricsMetaRefresh()
 }
@@ -148,16 +151,12 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 	ingestNodePath := config.GetDataPath() + "ingestnodes"
 
 	files, err := os.ReadDir(ingestNodePath)
-
 	if err != nil {
-		log.Errorf("refreshGlobalMetadataLoop: Error in reading directory, ingestNodePath:%v , err:%v", ingestNodePath, err)
+		log.Errorf("RefreshGlobalMetadata: Error in reading directory, ingestNodePath:%v , err:%v", ingestNodePath, err)
 		return err
 	}
 	for _, file := range files {
 		if file.IsDir() {
-			if strings.Contains(file.Name(), config.GetHostID()) {
-				continue
-			}
 			ingestNodes = append(ingestNodes, file.Name())
 		}
 	}
@@ -173,13 +172,13 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 			vfname := virtualtable.GetFilePathForRemoteNode(node, 0)
 			err := updateVTable(vfname, 0)
 			if err != nil {
-				log.Errorf("refreshGlobalMetadataLoop: Error updating default org vtable, err:%v", err)
+				log.Errorf("RefreshGlobalMetadata: Error updating default org vtable, err:%v", err)
 			}
 			for _, myid := range myids {
 				vfname := virtualtable.GetFilePathForRemoteNode(node, myid)
 				err := updateVTable(vfname, myid)
 				if err != nil {
-					log.Errorf("refreshGlobalMetadataLoop: Error in refreshing vtable for myid=%d  err:%v", myid, err)
+					log.Errorf("RefreshGlobalMetadata: Error in refreshing vtable for myid=%d  err:%v", myid, err)
 				}
 			}
 			// Call populateMicroIndices for all read segmeta.json
@@ -187,15 +186,17 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 			smFile.WriteString(config.GetDataPath() + "ingestnodes/" + node)
 			smFile.WriteString(SEGMETA_FILENAME)
 			smfname := smFile.String()
-			err = populateMicroIndices(smfname, ownedSegments)
+			err = populateGlobalMicroIndices(smfname, ownedSegments)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					log.Errorf("refreshGlobalMetadataLoop: Error loading initial metadata from file %v: %v", smfname, err)
+					log.Errorf("RefreshGlobalMetadata: Error loading initial metadata from file %v: %v", smfname, err)
 				}
 			}
 		}(n)
 	}
 	wg.Wait()
+	segmetadata.FilterDisownSegments(ownedSegments)
+
 	return err
 }
 
@@ -224,7 +225,7 @@ func refreshGlobalMetadataLoop(getMyIds func() []uint64) {
 	}
 }
 
-func populateMicroIndices(smFile string, ownedSegments map[string]struct{}) error {
+func populateMicroIndices(smFile string) error {
 
 	var metaModificationTimeMs uint64
 
@@ -243,6 +244,37 @@ func populateMicroIndices(smFile string, ownedSegments map[string]struct{}) erro
 	if lastTimeMetafileRefreshed >= metaModificationTimeMs {
 		log.Debugf("populateMicroIndices: not updating meta file %+v. As file was not updated after last refresh", smFile)
 		return nil
+	}
+
+	allSegMetas := writer.ReadLocalSegmeta(true)
+
+	allSmi := make([]*segmetadata.SegmentMicroIndex, len(allSegMetas))
+	for idx, segMetaInfo := range allSegMetas {
+		allSmi[idx] = segmetadata.ProcessSegmetaInfo(segMetaInfo)
+	}
+
+	// Segmeta entries inside segmeta.json are added in increasing time order.
+	// we just reverse this and we get the latest segmeta entry first.
+	// This isn't required for correctness; it just avoids more sorting in the
+	// common case when we actually update the metadata.
+	sort.SliceStable(allSmi, func(i, j int) bool {
+		return true
+	})
+
+	segmetadata.BulkAddSegmentMicroIndex(allSmi)
+	updateLastModifiedTimeForMetaFile(smFile, metaModificationTimeMs)
+	return nil
+}
+
+func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}) error {
+
+	_, err := os.Stat(smFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		log.Warnf("populateGlobalMicroIndices: error when trying to stat meta file=%+v. Error=%+v", smFile, err)
+		return err
 	}
 
 	allSegMetas := writer.ReadSegmeta(smFile)
@@ -271,7 +303,6 @@ func populateMicroIndices(smFile string, ownedSegments map[string]struct{}) erro
 	})
 
 	segmetadata.BulkAddSegmentMicroIndex(allSmi)
-	updateLastModifiedTimeForMetaFile(smFile, metaModificationTimeMs)
 	return nil
 }
 
@@ -283,6 +314,11 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 	}
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
+
+	var ownedSegments map[string]struct{}
+	if hook := hooks.GlobalHooks.GetOwnedSegmentsHook; hook != nil {
+		ownedSegments = hook()
+	}
 
 	for vTableName := range vTableNames {
 		streamid := utils.CreateStreamId(vTableName, myId)
@@ -297,6 +333,11 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 		for _, file := range filesInDir {
 			fileName := file.Name()
 			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
+			if ownedSegments != nil {
+				if _, exists := ownedSegments[segkey]; !exists {
+					continue
+				}
+			}
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
@@ -440,7 +481,7 @@ func refreshLocalMetadataLoop() {
 		lastModified := getLastModifiedTimeForMetaFile(smFile)
 		if modifiedTimeMillisec > lastModified {
 			log.Debugf("refreshLocalMetadataLoop: Meta file has been modified %+v %+v. filePath = %+v", modifiedTimeMillisec, lastModified, smFile)
-			err := populateMicroIndices(smFile, nil)
+			err := populateMicroIndices(smFile)
 			if err != nil {
 				log.Errorf("refreshLocalMetadataLoop: failed to populate micro indices from %+v: %+v", smFile, err)
 			}
