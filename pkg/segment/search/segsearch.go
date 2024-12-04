@@ -220,12 +220,12 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
 		if config.IsNewQueryPipelineEnabled() {
-			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid, allSearchResults)
+			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
 		} else {
 			if finalMatched == 0 {
 				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
 			} else {
-				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid, allSearchResults)
+				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
 			}
 		}
 	}
@@ -253,19 +253,16 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 	return "", false
 }
 
-func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string,
-	allSearchResults *segresults.SearchResults) {
+func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
 	if writer.IsSegKeyUnrotated(searchReq.SegmentKey) {
 		return
 	}
 
-	pqmrFileName, err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
+	_, err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
 	if err != nil {
 		log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
 		return
 	}
-
-	allSearchResults.AppendPQMRFile(pqmrFileName)
 }
 
 func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int64, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,

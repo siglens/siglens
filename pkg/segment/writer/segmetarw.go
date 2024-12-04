@@ -30,9 +30,11 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/pqmr"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -603,12 +605,18 @@ func listenBackFillAndEmptyPQSRequests() {
 	for {
 		select {
 		case pqsChanMeta := <-pqsChan:
+			// pqidToCountMap[pqsChanMeta.pqid]++
+			// pqidCountChan <- pqsChanMeta.pqid
 			buffer[bufferIndex] = pqsChanMeta
 			bufferIndex++
 			if bufferIndex == PQS_FLUSH_SIZE {
 				processBackFillAndEmptyPQSRequests(buffer)
 				bufferIndex = 0
 			}
+		// case pqid := <-pqidCountChan:
+		// 	pqidCountMapLock.Lock()
+		// 	pqidToCountMap[pqid]++
+		// 	pqidCountMapLock.Unlock()
 		case <-ticker.C:
 			if bufferIndex > 0 {
 				processBackFillAndEmptyPQSRequests(buffer[:bufferIndex])
@@ -632,8 +640,16 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
 	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
 
+	processedPqidCount := make(map[string]int16)
+	pqmrFiles := make(map[string]struct{})
+
 	for _, pqsRequest := range pqsRequests {
+		processedPqidCount[pqsRequest.pqid]++
+
 		if pqsRequest.writeToSegFullMeta {
+			pqidFileName := pqmr.GetPQMRFileNameFromSegKey(pqsRequest.segKey, pqsRequest.pqid)
+			pqmrFiles[pqidFileName] = struct{}{}
+
 			allPqidsMap := utils.GetOrCreateNestedMap(segKeyToAllPQIDsMap, pqsRequest.segKey)
 			allPqidsMap[pqsRequest.pqid] = true
 		}
@@ -678,6 +694,14 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	}()
 
 	wg.Wait()
+
+	if hook := hooks.GlobalHooks.UploadPQMRFilesExtrasHook; hook != nil {
+		err := hook(toputils.GetKeysOfMap(pqmrFiles))
+		if err != nil {
+			log.Errorf("callPQMRHook: failed at UploadPQMRFilesExtrasHook: %v", err)
+		}
+		fmt.Println("callPQMRHook: UploadPQMRFilesExtrasHook done: Files count: ", len(pqmrFiles))
+	}
 }
 
 func DeletePQSData() error {

@@ -95,7 +95,6 @@ type SearchResults struct {
 	NextSegKeyEnc          uint32
 	ColumnsOrder           map[string]int
 	ProcessedRemoteRecords map[string]map[string]struct{}
-	pqmrFiles              map[string]struct{} // list of pqmr files written to disk
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -157,7 +156,6 @@ func InitSearchResults(sizeLimit uint64, aggs *structs.QueryAggregators, qType s
 		SegEncToKey:            make(map[uint32]string),
 		NextSegKeyEnc:          1,
 		ProcessedRemoteRecords: make(map[string]map[string]struct{}),
-		pqmrFiles:              make(map[string]struct{}),
 	}, nil
 }
 
@@ -439,34 +437,6 @@ func (sr *SearchResults) GetAggs() *structs.QueryAggregators {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	return sr.sAggs
-}
-
-func (sr *SearchResults) SetPQMRFilesMap(pqmrFiles map[string]struct{}) {
-	sr.updateLock.Lock()
-	defer sr.updateLock.Unlock()
-	sr.pqmrFiles = pqmrFiles
-}
-
-func (sr *SearchResults) AppendPQMRFile(pqmrFile string) {
-	if !config.IsS3Enabled() {
-		return
-	}
-
-	sr.updateLock.Lock()
-	defer sr.updateLock.Unlock()
-
-	sr.pqmrFiles[pqmrFile] = struct{}{}
-}
-
-func (sr *SearchResults) GetPQMRFiles() []string {
-	if sr == nil {
-		return nil
-	}
-
-	sr.updateLock.Lock()
-	defer sr.updateLock.Unlock()
-
-	return putils.GetKeysOfMap(sr.pqmrFiles)
 }
 
 // Adds remote rrc results to the search results
