@@ -194,3 +194,21 @@ func WriteValidityFile(segBaseDir string) error {
 
 	return nil
 }
+
+func GetSegDirFromSegKey(segKey string) string {
+	parts := strings.Split(segKey, "/")
+	totalParts := len(parts)
+	// Atleast 6 parts are expected in a segKey. 
+	// Refer function GetBaseSegDir
+	if len(parts) < 6 {
+		return ""
+	}
+
+	// If duplicate is not present just return the string itself.
+	if parts[totalParts-1] != parts[totalParts-2] {
+		return segKey
+	}
+
+	// Suffixes are present twice in the seg key so remove the duplicate
+	return strings.Join(parts[:totalParts-1], "/")
+}

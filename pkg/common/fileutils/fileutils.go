@@ -150,6 +150,34 @@ func GetAllFilesWithSameNameInDirectory(dir string, fname string) []string {
 	return result
 }
 
+func GetAllFilesWithSpecificExtensions[T any](dir string, ext map[string]T) []string {
+	result := make([]string, 0)
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Errorf("GetAllFilesWithSpecificExtensions: Error walking path: %v, dir: %v, ext: %v, err: %v", path, dir, ext, err)
+			return nil // Continue walking, but log the error
+		}
+
+		// Check if the current file is the one we're looking for
+		if !info.IsDir() {
+			_, extExists := ext[filepath.Ext(path)]
+			if extExists {
+				result = append(result, path)
+			}
+		}
+
+		// Return nil to continue walking
+		return nil
+	})
+
+	if err != nil {
+		log.Errorf("GetAllFilesWithSpecificExtensions: Error during filepath.Walk, dir: %v, ext: %v, err: %v", dir, ext, err)
+	}
+
+	return result
+}
+
 // Note: if your processLine handler needs to keep a copy of the line, you have
 // to copy the bytes to a new slice; the contents may be overwritten by the
 // next call to processLine.

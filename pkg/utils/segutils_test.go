@@ -202,6 +202,16 @@ func Test_IsSubWordPresent(t *testing.T) {
 	}
 }
 
+func Test_GetSegDirFromSegKey(t *testing.T) {
+	segKey := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3"
+	expectedDir := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3"
+
+	assert.Equal(t, expectedDir, GetSegDirFromSegKey(segKey))
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3"
+	assert.Equal(t, expectedDir, GetSegDirFromSegKey(segKey))
+}
+
 func Test_SegmentValidityFile_SimpleBase(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll("data") })
 
