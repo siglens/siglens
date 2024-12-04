@@ -39,6 +39,3 @@ jobs:
         if: always()
         run: |
             cat logs/siglens.log
-
-
-
