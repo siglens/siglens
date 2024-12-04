@@ -689,9 +689,8 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	if hook := hooks.GlobalHooks.UploadPQMRFilesExtrasHook; hook != nil {
 		err := hook(toputils.GetKeysOfMap(pqmrFiles))
 		if err != nil {
-			log.Errorf("callPQMRHook: failed at UploadPQMRFilesExtrasHook: %v", err)
+			log.Errorf("processBackFillAndEmptyPQSRequests: failed at UploadPQMRFilesExtrasHook: %v", err)
 		}
-		fmt.Println("callPQMRHook: UploadPQMRFilesExtrasHook done: Files count: ", len(pqmrFiles))
 	}
 }
 
