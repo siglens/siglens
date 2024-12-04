@@ -605,18 +605,12 @@ func listenBackFillAndEmptyPQSRequests() {
 	for {
 		select {
 		case pqsChanMeta := <-pqsChan:
-			// pqidToCountMap[pqsChanMeta.pqid]++
-			// pqidCountChan <- pqsChanMeta.pqid
 			buffer[bufferIndex] = pqsChanMeta
 			bufferIndex++
 			if bufferIndex == PQS_FLUSH_SIZE {
 				processBackFillAndEmptyPQSRequests(buffer)
 				bufferIndex = 0
 			}
-		// case pqid := <-pqidCountChan:
-		// 	pqidCountMapLock.Lock()
-		// 	pqidToCountMap[pqid]++
-		// 	pqidCountMapLock.Unlock()
 		case <-ticker.C:
 			if bufferIndex > 0 {
 				processBackFillAndEmptyPQSRequests(buffer[:bufferIndex])
@@ -640,12 +634,9 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
 	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
 
-	processedPqidCount := make(map[string]int16)
 	pqmrFiles := make(map[string]struct{})
 
 	for _, pqsRequest := range pqsRequests {
-		processedPqidCount[pqsRequest.pqid]++
-
 		if pqsRequest.writeToSegFullMeta {
 			pqidFileName := pqmr.GetPQMRFileNameFromSegKey(pqsRequest.segKey, pqsRequest.pqid)
 			pqmrFiles[pqidFileName] = struct{}{}

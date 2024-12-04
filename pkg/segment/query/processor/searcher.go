@@ -108,6 +108,7 @@ func (s *Searcher) Rewind() {
 }
 
 func (s *Searcher) Cleanup() {
+	// Nothing to do.
 }
 
 func getNumRecords(blocks []*block) uint64 {
