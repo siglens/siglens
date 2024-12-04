@@ -235,9 +235,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			}
 
 			recordNums = blockToRecs[blockNum]
-			log.Errorf("andrew got recordNums %v for block %v", recordNums, blockNum)
 		} else {
-			log.Errorf("andrew didn't get recordNums")
 			recordNums = make([]uint16, recIT.AllRecLen)
 			for i := uint16(0); i < recIT.AllRecLen; i++ {
 				recordNums[i] = i

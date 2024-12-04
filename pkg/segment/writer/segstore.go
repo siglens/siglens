@@ -840,9 +840,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		// TODO: make this a background job; somehow handle siglens being
 		// gracefully shutdown.
 		// err = sortindex.WriteSortIndex(segstore.SegmentKey, "weekday") // TODO: don't hardcode
-		err = sortindex.WriteSortIndex(segstore.SegmentKey, "app_name") // TODO: don't hardcode
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v; err=%v", segstore.SegmentKey, err)
+		sortCnames := []string{"EventTime", "SearchPhrase"} // TODO: don't hardcode
+		for _, cname := range sortCnames {
+			err = sortindex.WriteSortIndex(segstore.SegmentKey, cname)
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v, cname=%v; err=%v",
+					segstore.SegmentKey, cname, err)
+			}
 		}
 
 		// upload ingest node dir to s3
