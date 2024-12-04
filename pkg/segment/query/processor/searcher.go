@@ -69,6 +69,8 @@ type Searcher struct {
 	segEncToKeyBaseValue uint32
 
 	setAsIqrStatsResults bool
+
+	pqmrFiles map[string]struct{}
 }
 
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
@@ -93,6 +95,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
 		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
+		pqmrFiles:             make(map[string]struct{}),
 	}, nil
 }
 
@@ -108,7 +111,9 @@ func (s *Searcher) Rewind() {
 }
 
 func (s *Searcher) Cleanup() {
-	// Nothing to do.
+	if len(s.pqmrFiles) > 0 {
+		pqs.UploadPQMRFiles(toputils.GetKeysOfMap(s.pqmrFiles))
+	}
 }
 
 func getNumRecords(blocks []*block) uint64 {
@@ -264,6 +269,7 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	if err != nil {
 		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to associate search results: %v", s.qid, err)
 	}
+	searchResults.SetPQMRFilesMap(s.pqmrFiles)
 
 	var nodeResult *structs.NodeResult
 	var groupByBuckets *blockresults.GroupByBuckets
@@ -640,6 +646,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to initialize search results: %v", s.qid, err)
 		return nil, nil, err
 	}
+	searchResults.SetPQMRFilesMap(s.pqmrFiles)
 
 	encoding, ok := s.segEncToKey.GetReverse(segkey)
 	if !ok {

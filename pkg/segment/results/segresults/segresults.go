@@ -441,6 +441,12 @@ func (sr *SearchResults) GetAggs() *structs.QueryAggregators {
 	return sr.sAggs
 }
 
+func (sr *SearchResults) SetPQMRFilesMap(pqmrFiles map[string]struct{}) {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	sr.pqmrFiles = pqmrFiles
+}
+
 func (sr *SearchResults) AppendPQMRFile(pqmrFile string) {
 	if !config.IsS3Enabled() {
 		return

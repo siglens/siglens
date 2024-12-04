@@ -30,7 +30,6 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -264,8 +263,6 @@ func DeleteQuery(qid uint64) {
 		delete(allRunningQueries, qid)
 	}
 	arqMapLock.Unlock()
-
-	pqs.UploadPQMRFiles(rQuery.searchRes.GetPQMRFiles())
 
 	if ok && !rQuery.isCancelled {
 		rQuery.timeoutCancelFunc()
