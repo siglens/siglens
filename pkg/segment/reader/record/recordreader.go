@@ -41,7 +41,7 @@ type RRCsReaderI interface {
 	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
 		qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error)
 	GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
-	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error)
+	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error)
 	GetReaderId() utils.T_SegReaderId
 }
 
@@ -49,6 +49,25 @@ type RRCsReader struct{}
 
 func (reader *RRCsReader) GetReaderId() utils.T_SegReaderId {
 	return utils.T_SegReaderId(0)
+}
+
+func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string]struct{}) ([]string, error) {
+	bulkDownloadFiles := make(map[string]string)
+	allFiles := make([]string, 0)
+	for col := range allCols {
+		ssFile := fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(col))
+		if !fileutils.DoesFileExist(ssFile) {
+			bulkDownloadFiles[ssFile] = col
+		}
+		allFiles = append(allFiles, ssFile)
+	}
+
+	err := blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
+	if err != nil {
+		return nil, fmt.Errorf("readSegFilesFromBlob: failed to download col file. err=%v", err)
+	}
+
+	return allFiles, nil
 }
 
 func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
@@ -61,12 +80,24 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 		return nil, err
 	}
 
+	allFiles, err := reader.ReadSegFilesFromBlob(segKey, allCols)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%v", qid, err)
+	}
+
+	defer func() {
+		err := blob.SetSegSetFilesAsNotInUse(allFiles)
+		if err != nil {
+			log.Errorf("qid=%d, ReadAllColsForRRCs: failed to set segset files as not in use. err=%v", qid, err)
+		}
+	}()
+
 	colToValues := make(map[string][]utils.CValueEnclosure)
 	for cname := range allCols {
 		if _, ignore := ignoredCols[cname]; ignore {
 			continue
 		}
-		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid)
+		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
 				qid, cname, segKey, err)
@@ -95,14 +126,14 @@ func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[st
 	return toputils.MapToSet(allCols), nil
 }
 
-func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64) ([]utils.CValueEnclosure, error) {
+func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
 	case "_index":
 		return readIndexForRRCs(rrcs)
 	default:
-		return readUserDefinedColForRRCs(segKey, rrcs, cname, qid)
+		return readUserDefinedColForRRCs(segKey, rrcs, cname, qid, fetchFromBlob)
 	}
 }
 
@@ -132,7 +163,7 @@ func readIndexForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclos
 
 // All the RRCs must belong to the same segment.
 func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContainer,
-	cname string, qid uint64) ([]utils.CValueEnclosure, error) {
+	cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
 
 	if len(rrcs) == 0 {
 		return nil, nil
@@ -174,7 +205,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		nodeRes = &structs.NodeResult{}
 	}
 	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: true},
+	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: fetchFromBlob},
 		blockMetadata, blockSummary, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)

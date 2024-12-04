@@ -169,9 +169,11 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		log.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to acquire resources to be able to open %+v FDs. Error: %+v", qid, maxOpenFds, err)
 		return sharedReader, err
 	}
+	csgFileToColNameMap := make(map[string]string)
 	bulkDownloadFiles := make(map[string]string)
+
 	var fName string
-	for cname := range colNames {
+	for cname, fetchFromBlob := range colNames {
 		if cname == "" {
 			return nil, fmt.Errorf("InitSharedMultiColumnReaders: unknown seg set col")
 		} else if cname == "*" {
@@ -179,15 +181,24 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 		} else {
 			fName = fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(cname))
 		}
-		bulkDownloadFiles[fName] = cname
-	}
-	err = blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
-	if err != nil {
-		log.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to bulk download seg files. err: %v", qid, err)
-		return nil, err
+		csgFileToColNameMap[fName] = cname
+
+		if fetchFromBlob {
+			// Check if the file exists in local storage
+			if !fileutils.DoesFileExist(fName) {
+				bulkDownloadFiles[fName] = cname
+			}
+		}
 	}
 
-	for fName, colName := range bulkDownloadFiles {
+	if len(bulkDownloadFiles) > 0 {
+		err = blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
+		if err != nil {
+			nodeRes.StoreGlobalSearchError("Error Downloading Segment Files", log.ErrorLevel, err)
+		}
+	}
+
+	for fName, colName := range csgFileToColNameMap {
 		fName := fName
 		currFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 		if err != nil {
