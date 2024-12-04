@@ -51,8 +51,6 @@ const SEGMETA_FILENAME = "/segmeta.json"
 var metaFileLastModifiedLock sync.RWMutex
 var metaFileLastModified = make(map[string]uint64) // maps meta file name to the epoch time of last modification
 
-var RefreshCh = make(chan struct{}, 1)
-
 func initSegmentMetaRefresh() {
 	smFile := writer.GetLocalSegmetaFName()
 	err := populateMicroIndices(smFile)
@@ -206,7 +204,7 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 func getOwnedSegments() map[string]struct{} {
 	hook := hooks.GlobalHooks.GetOwnedSegmentsHook
 	if hook == nil {
-		log.Errorf("downloadIngestNodesAndGetOwnedSegments: GetOwnedSegmentsHook is nil")
+		log.Errorf("getOwnedSegments: GetOwnedSegmentsHook is nil")
 		return nil
 	} else {
 		return hook()
