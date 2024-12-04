@@ -51,7 +51,6 @@ func Test_GetAllFilesWithSameNameInDirectory(t *testing.T) {
 	assert.ElementsMatch(t, expectedPaths, retVal)
 }
 
-
 func Test_GetAllFilesWithSpecificExtensions(t *testing.T) {
 	temp := t.TempDir()
 	_, err := os.Create(temp + "/abc.xyz")

@@ -198,7 +198,7 @@ func WriteValidityFile(segBaseDir string) error {
 func GetSegDirFromSegKey(segKey string) string {
 	parts := strings.Split(segKey, "/")
 	totalParts := len(parts)
-	// Atleast 6 parts are expected in a segKey. 
+	// Atleast 6 parts are expected in a segKey.
 	// Refer function GetBaseSegDir
 	if len(parts) < 6 {
 		return ""
