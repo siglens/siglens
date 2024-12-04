@@ -137,9 +137,13 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	if !config.IsQueryNode() || !config.IsS3Enabled() {
 		return
 	}
+	err := blob.DownloadAllIngestNodesDir()
+	if err != nil {
+		log.Errorf("downloadIngestNodesAndGetOwnedSegments: Error in downloading ingest nodes dir, err:%v", err)
+	}
 
-	ownedSegments := downloadIngestNodesAndGetOwnedSegments()
-	err := RefreshGlobalMetadata(getMyIds, ownedSegments)
+	ownedSegments := getOwnedSegments()
+	err = RefreshGlobalMetadata(getMyIds, ownedSegments)
 	if err != nil {
 		log.Errorf("initGlobalMetadataRefresh: Error in refreshing global metadata, err:%v", err)
 	}
@@ -200,11 +204,7 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 	return err
 }
 
-func downloadIngestNodesAndGetOwnedSegments() map[string]struct{} {
-	err := blob.DownloadAllIngestNodesDir()
-	if err != nil {
-		log.Errorf("downloadIngestNodesAndGetOwnedSegments: Error in downloading ingest nodes dir, err:%v", err)
-	}
+func getOwnedSegments() map[string]struct{} {
 	hook := hooks.GlobalHooks.GetOwnedSegmentsHook
 	if hook == nil {
 		log.Errorf("downloadIngestNodesAndGetOwnedSegments: GetOwnedSegmentsHook is nil")
@@ -216,7 +216,7 @@ func downloadIngestNodesAndGetOwnedSegments() map[string]struct{} {
 
 func refreshGlobalMetadataLoop(getMyIds func() []uint64) {
 	for {
-		ownedSegments := downloadIngestNodesAndGetOwnedSegments()
+		ownedSegments := getOwnedSegments()
 		err := RefreshGlobalMetadata(getMyIds, ownedSegments)
 		if err != nil {
 			log.Errorf("refreshGlobalMetadataLoop: Error in refreshing global metadata, err:%v", err)
@@ -460,12 +460,6 @@ func refreshMetricsMetadataLoop() {
 }
 
 func refreshLocalMetadataLoop() {
-	err := blob.DownloadAllIngestNodesDir()
-	if err != nil {
-		log.Errorf("refreshGlobalMetadataLoop: Error in downloading ingest nodes dir, err:%v", err)
-		return
-	}
-
 	for {
 		time.Sleep(SECONDS_REREAD_META * time.Second)
 		smFile := writer.GetLocalSegmetaFName()
