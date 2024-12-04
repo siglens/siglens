@@ -99,7 +99,7 @@ func BulkAddSegmentMicroIndex(allMetadata []*SegmentMicroIndex) {
 	globalMetadata.bulkAddSegmentMicroIndex(allMetadata)
 }
 
-func FilterDisownSegments(ownedSegments map[string]struct{}) {
+func DiscardUnownedSegments(ownedSegments map[string]struct{}) {
 	globalMetadata.updateLock.RLock()
 	segsToDelete := make(map[string]struct{})
 	for segKey := range globalMetadata.segmentMetadataReverseIndex {

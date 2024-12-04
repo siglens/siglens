@@ -137,7 +137,7 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	}
 	err := blob.DownloadAllIngestNodesDir()
 	if err != nil {
-		log.Errorf("downloadIngestNodesAndGetOwnedSegments: Error in downloading ingest nodes dir, err:%v", err)
+		log.Errorf("initGlobalMetadataRefresh: Error in downloading ingest nodes dir, err:%v", err)
 	}
 
 	ownedSegments := getOwnedSegments()
@@ -196,7 +196,7 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 		}(n)
 	}
 	wg.Wait()
-	segmetadata.FilterDisownSegments(ownedSegments)
+	segmetadata.DiscardUnownedSegments(ownedSegments)
 
 	return err
 }
