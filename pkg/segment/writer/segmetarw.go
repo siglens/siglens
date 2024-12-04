@@ -232,7 +232,7 @@ func ReadGlobalSegmetas() []*structs.SegMeta {
 
 	allVals := make(map[string]*structs.SegMeta)
 	for _, fName := range allSegmetas {
-		allSegMetaMap, err := getAllSegmetaToMap(fName)
+		allSegMetaMap, err := GetAllSegmetaToMap(fName)
 		if err != nil {
 			log.Errorf("ReadGlobalSegmetas: getallsegmeta err=%v ", err)
 			return make([]*structs.SegMeta, 0)
@@ -255,7 +255,7 @@ func GetLocalSegmetaFName() string {
 	return config.GetSmrBaseDir() + SegmetaFilename
 }
 
-func getAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, error) {
+func GetAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, error) {
 	allSegMetaMap := make(map[string]*structs.SegMeta)
 
 	fd, err := os.OpenFile(segMetaFilename, os.O_RDONLY, 0666)
