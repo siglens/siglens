@@ -64,6 +64,10 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
+	if hook := hooks.GlobalHooks.CheckForOwnedSegmentsProcessingHook; hook != nil {
+		hook()
+	}
+
 	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)

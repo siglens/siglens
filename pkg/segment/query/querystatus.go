@@ -30,6 +30,7 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -274,6 +275,9 @@ func DeleteQuery(qid uint64) {
 }
 
 func canRunQuery() bool {
+	if hook := hooks.GlobalHooks.CheckForOwnedSegmentsProcessingHook; hook != nil {
+		hook()
+	}
 	activeQueries := uint64(GetActiveQueryCount())
 	return activeQueries < MAX_RUNNING_QUERIES
 }
