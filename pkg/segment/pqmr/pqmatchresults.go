@@ -18,6 +18,7 @@
 package pqmr
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +49,10 @@ func CreatePQMatchResultsFromBs(b *bitset.BitSet) *PQMatchResults {
 	retval := &PQMatchResults{}
 	retval.b = b
 	return retval
+}
+
+func GetPQMRFileNameFromSegKey(segmentKey string, pqid string) string {
+	return fmt.Sprintf("%v/pqmr/%v.pqmr", segmentKey, pqid)
 }
 
 func (pqmr *PQMatchResults) AddMatchedRecord(recNum uint) {

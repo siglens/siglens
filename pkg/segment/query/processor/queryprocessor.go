@@ -60,10 +60,7 @@ func (qp *QueryProcessor) cleanupInputStreamForFirstDP() {
 		return
 	}
 
-	streams := qp.chain[0].streams
-	for _, CachedStream := range streams {
-		go CachedStream.Cleanup()
-	}
+	qp.chain[0].CleanupInputStreams()
 }
 
 func (qp *QueryProcessor) Cleanup() {

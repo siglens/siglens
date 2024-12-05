@@ -30,9 +30,11 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/pqmr"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -632,8 +634,13 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
 	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
 
+	pqmrFiles := make(map[string]struct{})
+
 	for _, pqsRequest := range pqsRequests {
 		if pqsRequest.writeToSegFullMeta {
+			pqidFileName := pqmr.GetPQMRFileNameFromSegKey(pqsRequest.segKey, pqsRequest.pqid)
+			pqmrFiles[pqidFileName] = struct{}{}
+
 			allPqidsMap := utils.GetOrCreateNestedMap(segKeyToAllPQIDsMap, pqsRequest.segKey)
 			allPqidsMap[pqsRequest.pqid] = true
 		}
@@ -678,6 +685,13 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	}()
 
 	wg.Wait()
+
+	if hook := hooks.GlobalHooks.UploadPQMRFilesExtrasHook; hook != nil {
+		err := hook(toputils.GetKeysOfMap(pqmrFiles))
+		if err != nil {
+			log.Errorf("processBackFillAndEmptyPQSRequests: failed at UploadPQMRFilesExtrasHook: %v", err)
+		}
+	}
 }
 
 func DeletePQSData() error {
