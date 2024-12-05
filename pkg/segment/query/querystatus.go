@@ -30,6 +30,7 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -172,6 +173,7 @@ type WaitingQueryInfo struct {
 var allRunningQueries = map[uint64]*RunningQueryState{}
 var waitingQueries = []*WaitStateData{}
 var waitingQueriesLock = &sync.Mutex{}
+var rotatedSegmentsInUse = map[string]map[uint64]struct{}{}
 
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
@@ -251,6 +253,35 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 	return runningState, nil
 }
 
+func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{}) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	for segKey := range rotatedSegments {
+		if _, ok := rotatedSegmentsInUse[segKey]; !ok {
+			rotatedSegmentsInUse[segKey] = map[uint64]struct{}{}
+		}
+		rotatedSegmentsInUse[segKey][qid] = struct{}{}
+	}
+}
+
+func RemoveUsageForRotatedSegments(qid uint64) {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	for segKey, qids := range rotatedSegmentsInUse {
+		if _, ok := qids[qid]; ok {
+			delete(qids, qid)
+			if len(qids) == 0 {
+				if hooks := hooks.GlobalHooks.HandleUnusedRotatedSegmentsHook; hooks != nil {
+					hooks(segKey)
+				}
+				delete(rotatedSegmentsInUse, segKey)
+			}
+		}
+	}
+}
+
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
 	// Can remove the LogGlobalSearchErrors after we fully migrate
@@ -271,6 +302,8 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+
+	RemoveUsageForRotatedSegments(qid)
 }
 
 func canRunQuery() bool {

@@ -805,6 +805,9 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 		return nil, 0, 0, err
 	}
 
+	rotatedSegments := getRotatedSegments(rotatedQSR)
+	AddUsageForRotatedSegments(queryInfo.qid, rotatedSegments)
+
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
 
@@ -984,6 +987,15 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 	return finalSstMap
 }
 
+func getRotatedSegments(qsrs []*QuerySegmentRequest) map[string]struct{} {
+	usedSegments := make(map[string]struct{})
+	for _, qsr := range qsrs {
+		usedSegments[qsr.GetSegKey()] = struct{}{}
+	}
+
+	return usedSegments
+}
+
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request
 func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
 	unsortedQsrs := make([]*QuerySegmentRequest, 0)
@@ -1004,6 +1016,9 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
+
+	rotatedSegments := getRotatedSegments(rotatedQSR)
+	AddUsageForRotatedSegments(queryInfo.qid, rotatedSegments)
 
 	unsortedQsrs = append(unsortedQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
