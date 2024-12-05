@@ -105,6 +105,7 @@ type Hooks struct {
 	GetNextSuffixHook               func(uint64, func(uint64) string) (uint64, error)
 	GetOwnedSegmentsHook            func() map[string]struct{}
 	HandleUnusedRotatedSegmentsHook func(segKey string)
+	HandleUsedRotatedSegmentsHook   func(segKey string) error
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

@@ -258,6 +258,12 @@ func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{})
 	defer arqMapLock.RUnlock()
 
 	for segKey := range rotatedSegments {
+		if hooks := hooks.GlobalHooks.HandleUsedRotatedSegmentsHook; hooks != nil {
+			err := hooks(segKey)
+			if err != nil {
+				log.Errorf("AddUsageForRotatedSegments: qid=%v, Error while handling used rotated segments segKey: %v, err: %v", qid, segKey, err)
+			}
+		}
 		if _, ok := rotatedSegmentsInUse[segKey]; !ok {
 			rotatedSegmentsInUse[segKey] = map[uint64]struct{}{}
 		}
