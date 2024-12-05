@@ -99,6 +99,17 @@ func ReadSegmeta(smFilename string) []*structs.SegMeta {
 		log.Errorf("ReadSegmeta: getallsegmetas err=%v ", err)
 	}
 
+	return segMetas
+}
+
+func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
+	smrLock.RLock()
+	segMetas, err := getAllSegmetas(smFilename)
+	smrLock.RUnlock()
+	if err != nil {
+		log.Errorf("ReadSegFullMetas: getallsegmetas err=%v ", err)
+	}
+
 	readSfmForSegMetas(segMetas)
 
 	return segMetas

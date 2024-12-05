@@ -263,7 +263,7 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 		return err
 	}
 
-	allSegMetas := writer.ReadSegmeta(smFile)
+	allSegMetas := writer.ReadSegFullMetas(smFile)
 	if ownedSegments != nil {
 		ownedSegMetas := make([]*structs.SegMeta, 0)
 		for _, segMeta := range allSegMetas {
