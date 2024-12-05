@@ -2,31 +2,30 @@ package fileutils
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func forceCreate(t *testing.T, path string) {
+	dir := filepath.Dir(path)
+	err := os.MkdirAll(dir, 0755)
+	assert.Nil(t, err)
+	// If it is a file, create it
+	if filepath.Ext(path) != "" {
+		_, err = os.Create(path)
+		assert.Nil(t, err)
+	}
+}
+
 func Test_GetAllFilesWithSameNameInDirectory(t *testing.T) {
 	temp := t.TempDir()
-	_, err := os.Create(temp + "/abc.txt")
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir1", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir2", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir1/dir3", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir2/dir4", 0755)
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir1/abc.txt")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir2/def.txt")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir1/dir3/abc.txt")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir2/dir4/abc.txt")
-	assert.Nil(t, err)
+	forceCreate(t, temp+"/abc.txt")
+	forceCreate(t, temp+"/dir1/abc.txt")
+	forceCreate(t, temp+"/dir2/def.txt")
+	forceCreate(t, temp+"/dir1/dir3/abc.txt")
+	forceCreate(t, temp+"/dir2/dir4/abc.txt")
 
 	// Directory Structure
 	// - temp
@@ -53,28 +52,13 @@ func Test_GetAllFilesWithSameNameInDirectory(t *testing.T) {
 
 func Test_GetAllFilesWithSpecificExtensions(t *testing.T) {
 	temp := t.TempDir()
-	_, err := os.Create(temp + "/abc.xyz")
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir1", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir2", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir1/dir3", 0755)
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir2/dir4", 0755)
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir1/abc.txt")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir1/abc.mno")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir2/def.xyz")
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir1/dir3/abc.abc")
-	assert.Nil(t, err)
-	err = os.Mkdir(temp+"/dir1/dir3/abc", 0755)
-	assert.Nil(t, err)
-	_, err = os.Create(temp + "/dir2/dir4/abc.ghi")
-	assert.Nil(t, err)
+	forceCreate(t, temp+"/abc.xyz")
+	forceCreate(t, temp+"/dir1/abc.txt")
+	forceCreate(t, temp+"/dir1/abc.mno")
+	forceCreate(t, temp+"/dir2/def.xyz")
+	forceCreate(t, temp+"/dir1/dir3/abc.abc")
+	forceCreate(t, temp+"/dir1/dir3/abc")
+	forceCreate(t, temp+"/dir2/dir4/abc.ghi")
 
 	// Directory Structure
 	// - temp

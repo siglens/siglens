@@ -150,7 +150,7 @@ func GetAllFilesWithSameNameInDirectory(dir string, fname string) []string {
 	return result
 }
 
-func GetAllFilesWithSpecificExtensions[T any](dir string, ext map[string]T) []string {
+func GetAllFilesWithSpecificExtensions(dir string, ext map[string]struct{}) []string {
 	result := make([]string, 0)
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {

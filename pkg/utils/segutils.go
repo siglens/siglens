@@ -140,7 +140,7 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bo
 }
 
 func IsFileForRotatedSegment(filename string) bool {
-	segBaseDir, err := getSegBaseDirFromFilename(filename)
+	segBaseDir, err := GetSegBaseDirFromFilename(filename)
 	if err != nil {
 		log.Errorf("IsFileForRotatedSegment: cannot get segBaseDir from filename=%v; err=%v", filename, err)
 		return false
@@ -150,7 +150,7 @@ func IsFileForRotatedSegment(filename string) bool {
 	return err == nil
 }
 
-func getSegBaseDirFromFilename(filename string) (string, error) {
+func GetSegBaseDirFromFilename(filename string) (string, error) {
 	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
 	// should change too.
 	// getBaseSegDir looks like path/to/data/hostid/final/index/streamid/suffix
@@ -193,22 +193,4 @@ func WriteValidityFile(segBaseDir string) error {
 	f.Close()
 
 	return nil
-}
-
-func GetSegDirFromSegKey(segKey string) string {
-	parts := strings.Split(segKey, "/")
-	totalParts := len(parts)
-	// Atleast 6 parts are expected in a segKey.
-	// Refer function GetBaseSegDir
-	if len(parts) < 6 {
-		return ""
-	}
-
-	// If duplicate is not present just return the string itself.
-	if parts[totalParts-1] != parts[totalParts-2] {
-		return segKey
-	}
-
-	// Suffixes are present twice in the seg key so remove the duplicate
-	return strings.Join(parts[:totalParts-1], "/")
 }
