@@ -30,9 +30,11 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/pqmr"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -93,31 +95,31 @@ func getSegFullMetaFnameFromSegkey(segkey string) string {
 
 func ReadSegmeta(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	retVal, err := getAllSegmetas(smFilename)
+	segMetas, err := getAllSegmetas(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadSegmeta: getallsegmetas err=%v ", err)
 	}
-	return retVal
+
+	return segMetas
 }
 
-// read only the current node's segmeta
-func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
-
+func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	retVal, err := getAllSegmetas(localSegmetaFname)
+	segMetas, err := getAllSegmetas(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
-		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
-		return retVal
+		log.Errorf("ReadSegFullMetas: getallsegmetas err=%v ", err)
 	}
 
-	if !readFullMeta {
-		return retVal
-	}
+	readSfmForSegMetas(segMetas)
 
+	return segMetas
+}
+
+func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 	// continue reading/merging from individual segfiles
-	for _, smentry := range retVal {
+	for _, smentry := range segmetas {
 		workSfm, err := ReadSfm(smentry.SegmentKey)
 		if err != nil {
 			// error is logged in the func
@@ -134,7 +136,26 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
 		}
 	}
-	return retVal
+}
+
+// read only the current node's segmeta
+func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
+
+	smrLock.RLock()
+	segMetas, err := getAllSegmetas(localSegmetaFname)
+	smrLock.RUnlock()
+	if err != nil {
+		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
+		return segMetas
+	}
+
+	if !readFullMeta {
+		return segMetas
+	}
+
+	readSfmForSegMetas(segMetas)
+
+	return segMetas
 }
 
 func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
@@ -632,8 +653,13 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	// pqid -> segKey -> true ; For empty PQS: Contains all segment Keys to delete for a given pqid
 	emptyPqidSegKeysToDeleteMap := make(map[string]map[string]bool)
 
+	pqmrFiles := make(map[string]struct{})
+
 	for _, pqsRequest := range pqsRequests {
 		if pqsRequest.writeToSegFullMeta {
+			pqidFileName := pqmr.GetPQMRFileNameFromSegKey(pqsRequest.segKey, pqsRequest.pqid)
+			pqmrFiles[pqidFileName] = struct{}{}
+
 			allPqidsMap := utils.GetOrCreateNestedMap(segKeyToAllPQIDsMap, pqsRequest.segKey)
 			allPqidsMap[pqsRequest.pqid] = true
 		}
@@ -678,6 +704,13 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	}()
 
 	wg.Wait()
+
+	if hook := hooks.GlobalHooks.UploadPQMRFilesExtrasHook; hook != nil {
+		err := hook(toputils.GetKeysOfMap(pqmrFiles))
+		if err != nil {
+			log.Errorf("processBackFillAndEmptyPQSRequests: failed at UploadPQMRFilesExtrasHook: %v", err)
+		}
+	}
 }
 
 func DeletePQSData() error {

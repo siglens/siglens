@@ -87,6 +87,7 @@ type Hooks struct {
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
+	UploadPQMRFilesExtrasHook           func(allFiles []string) error
 
 	// Server helpers
 	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
@@ -102,6 +103,7 @@ type Hooks struct {
 	OverrideIngestRequestHook      func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
 	OverrideDeleteIndexRequestHook func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
 	GetNextSuffixHook              func(uint64, func(uint64) string) (uint64, error)
+	GetOwnedSegmentsHook           func() map[string]struct{}
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
