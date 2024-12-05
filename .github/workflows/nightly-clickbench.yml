@@ -8,7 +8,7 @@ on:
 jobs:
   Clickbench-Test:
     timeout-minutes: 720 # 12 hrs
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [worker2]
     name: Clickbench
     steps:
       - uses: actions/setup-go@v3
