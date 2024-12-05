@@ -93,6 +93,7 @@ func GetClickBenchQueriesAndRespTimes() ([]QueryAndRespTimes, error) {
 		}
 
 		if rec[0] == "null" {
+			queriesAndRespTimes = append(queriesAndRespTimes, QueryAndRespTimes{query: "null", respTime: 0})
 			continue
 		}
 
@@ -127,15 +128,38 @@ func ValidateClickBenchQueries(dest string, queriesAndRespTimes []QueryAndRespTi
 		"queryLanguage": queryLanguage,
 	}
 
-	for _, queryAndRespTime := range queriesAndRespTimes {
+	respTimesInMs := make([]float64, len(queriesAndRespTimes))
+
+	for idx, queryAndRespTime := range queriesAndRespTimes {
 		query := queryAndRespTime.query
 		queryReq["searchText"] = query
-		log.Infof("Validating query: %v", query)
+		if query == "null" {
+			continue
+		}
+		log.Infof("Validating Q%v query: %v", idx+1, query)
 		respTimeInMs, err := getQueryResponseTime(queryReq, url)
 		if err != nil {
-			log.Fatalf("ValidateClickBenchQueries: Error getting response time for query: %v, err: %v", query, err)
+			log.Errorf("ValidateClickBenchQueries: Error getting response time for Q%v query: %v, err: %v", idx+1, query, err)
+			respTimesInMs[idx] = -1 // To indicate query failures
+			continue
 		}
+		respTimesInMs[idx] = respTimeInMs
+	}
 
-		log.Infof("ValidateClickBenchQueries: Query: %v respTimeInMs: %v", query, respTimeInMs)
+	failed := false
+	log.Infof("---------------------- SUMMARY ----------------------")
+	for idx := range respTimesInMs {
+		if queriesAndRespTimes[idx].query == "null" {
+			log.Infof("Q%v is not supported", idx+1)
+		} else if respTimesInMs[idx] == -1 {
+			log.Errorf("Q%v failed", idx+1)
+			failed = true
+		} else {
+			log.Infof("Q%v respTimeInMs: %v", idx+1, respTimesInMs[idx])
+		}
+	}
+
+	if failed {
+		log.Fatalf("ValidateClickBenchQueries: Some queries failed")
 	}
 }
