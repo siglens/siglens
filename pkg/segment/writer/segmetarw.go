@@ -95,31 +95,31 @@ func getSegFullMetaFnameFromSegkey(segkey string) string {
 
 func ReadSegmeta(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	retVal, err := getAllSegmetas(smFilename)
+	segMetas, err := getAllSegmetas(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadSegmeta: getallsegmetas err=%v ", err)
 	}
-	return retVal
+
+	return segMetas
 }
 
-// read only the current node's segmeta
-func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
-
+func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	retVal, err := getAllSegmetas(localSegmetaFname)
+	segMetas, err := getAllSegmetas(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
-		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
-		return retVal
+		log.Errorf("ReadSegFullMetas: getallsegmetas err=%v ", err)
 	}
 
-	if !readFullMeta {
-		return retVal
-	}
+	readSfmForSegMetas(segMetas)
 
+	return segMetas
+}
+
+func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 	// continue reading/merging from individual segfiles
-	for _, smentry := range retVal {
+	for _, smentry := range segmetas {
 		workSfm, err := ReadSfm(smentry.SegmentKey)
 		if err != nil {
 			// error is logged in the func
@@ -136,7 +136,26 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
 		}
 	}
-	return retVal
+}
+
+// read only the current node's segmeta
+func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
+
+	smrLock.RLock()
+	segMetas, err := getAllSegmetas(localSegmetaFname)
+	smrLock.RUnlock()
+	if err != nil {
+		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
+		return segMetas
+	}
+
+	if !readFullMeta {
+		return segMetas
+	}
+
+	readSfmForSegMetas(segMetas)
+
+	return segMetas
 }
 
 func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
