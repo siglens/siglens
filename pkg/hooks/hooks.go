@@ -87,6 +87,7 @@ type Hooks struct {
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
+	UploadPQMRFilesExtrasHook           func(allFiles []string) error
 
 	// Server helpers
 	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)

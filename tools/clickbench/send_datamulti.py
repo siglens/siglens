@@ -3,6 +3,11 @@ import json
 import requests
 import os
 import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = logging.getLogger()
 
 # Path to hits.json file
 ndjson_file = "sighits.json"
@@ -17,9 +22,9 @@ def post_data(buffer):
     try:
         response = requests.post(url, data=buffer)
         if response.status_code != 200:
-            print(f"Failed to post data. Status code: {response}")
+            logger.error(f"Failed to post data. Status code: {response}")
     except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
+        logger.error(f"Request failed: {e}")
 
 def process_ndjson(file_path):
     buffer = ""
@@ -47,14 +52,14 @@ def process_ndjson(file_path):
                 buffer_size = 0
             if sent%1_000_000 == 0 :
                 elapsed_time = time.time() - start_time
-                print(f"Sent : {sent:,} records in {elapsed_time:.2f} seconds")
+                logger.info(f"Sent : {sent:,} records in {elapsed_time:.2f} seconds")
 
         # Post any remaining data in the buffer
         if buffer:
             post_data(buffer)
 
         elapsed_time = time.time() - start_time
-        print(f"\n Total Sent : {sent:,} records in {elapsed_time:.2f} seconds")
+        logger.info(f"\n Total Sent : {sent:,} records in {elapsed_time:.2f} seconds")
 
 if __name__ == "__main__":
     # Get a list of all NDJSON files in the directory

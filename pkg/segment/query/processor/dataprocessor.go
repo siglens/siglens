@@ -105,6 +105,13 @@ func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
 	dp.setDefaultLessFunc()
 }
 
+func (dp *DataProcessor) CleanupInputStreams() {
+	streams := dp.streams
+	for _, CachedStream := range streams {
+		go CachedStream.Cleanup()
+	}
+}
+
 func (dp *DataProcessor) Cleanup() {
 	dp.isCleanupCalled = true
 

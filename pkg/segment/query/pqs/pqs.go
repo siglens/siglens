@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"sync"
 
-	blob "github.com/siglens/siglens/pkg/blob"
+	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/utils"
