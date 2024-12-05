@@ -148,14 +148,14 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 				sharedReaderMCR[aFR.ColName] = make(map[int]string)
 			}
 
-			sharedReaderMCR[aFR.ColName][i] = aFR.fileName
+			sharedReaderMCR[aFR.ColName][i] = aFR.GetFileName()
 
 			aFR = sharedAsteriskReader.MultiColReaders[i].allFileReaders[j]
 			_, ok = sharedAsteriskReaderMCR[aFR.ColName]
 			if !ok {
 				sharedAsteriskReaderMCR[aFR.ColName] = make(map[int]string)
 			}
-			sharedAsteriskReaderMCR[aFR.ColName][i] = aFR.fileName
+			sharedAsteriskReaderMCR[aFR.ColName][i] = aFR.GetFileName()
 		}
 	}
 

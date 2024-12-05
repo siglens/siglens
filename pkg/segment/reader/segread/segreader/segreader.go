@@ -559,6 +559,10 @@ func (sfr *SegmentFileReader) GetDeTvl() [][]byte {
 	return sfr.deTlv
 }
 
+func (sfr *SegmentFileReader) GetFileName() string {
+	return sfr.fileName
+}
+
 func (sfr *SegmentFileReader) ValidateAndReadBlock(blockNum uint16) error {
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 		valid, err := sfr.readBlock(blockNum)

@@ -26,6 +26,8 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
+	"github.com/siglens/siglens/pkg/segment/reader/segread"
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -49,7 +51,7 @@ func Test_segReader(t *testing.T) {
 	var queryCol string
 
 	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
+	sharedReader, foundErr := segread.InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
@@ -116,7 +118,7 @@ func Test_timeReader(t *testing.T) {
 	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
-	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
+	timeReader, err := segread.InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
 	assert.Nil(t, err)
 
 	// test across multiple columns types
@@ -152,7 +154,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
+	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
 	assert.Nil(b, err)
 
 	b.ResetTimer()

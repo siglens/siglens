@@ -22,6 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -297,7 +298,7 @@ func Test_getSSRs(t *testing.T) {
 		},
 	}
 
-	allSegRequests, err := getSSRs(blocks)
+	allSegRequests, err := getSSRs(blocks, utils.Option[map[uint16][]uint16]{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(allSegRequests))
 	assert.Equal(t, 3, len(allSegRequests["file1"].AllBlocksToSearch))
@@ -307,7 +308,7 @@ func Test_getSSRs(t *testing.T) {
 
 	// Test when blocks are from different files.
 	blocks[0].segkeyFname = "file2"
-	allSegRequests, err = getSSRs(blocks)
+	allSegRequests, err = getSSRs(blocks, utils.Option[map[uint16][]uint16]{})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allSegRequests))
 	assert.Equal(t, 2, len(allSegRequests["file1"].AllBlocksToSearch))
@@ -319,12 +320,12 @@ func Test_getSSRs(t *testing.T) {
 
 	// Test when blocks are from different SSRs.
 	blocks[0].parentSSR = &structs.SegmentSearchRequest{}
-	_, err = getSSRs(blocks)
+	_, err = getSSRs(blocks, utils.Option[map[uint16][]uint16]{})
 	assert.Error(t, err)
 	blocks[0].parentSSR = ssr // Reset for next test.
 
 	// Test a subset of blocks.
-	allSegRequests, err = getSSRs(blocks[:2])
+	allSegRequests, err = getSSRs(blocks[:2], utils.Option[map[uint16][]uint16]{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(allSegRequests))
 	assert.Equal(t, 2, len(allSegRequests["file1"].AllBlocksToSearch))
