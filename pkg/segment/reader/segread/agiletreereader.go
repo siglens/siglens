@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -78,7 +79,7 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	return &AgileTreeReader{
 		segKey:         segKey,
 		metaFd:         fd,
-		metaFileBuffer: *fileReadBufferPool.Get().(*[]byte),
+		metaFileBuffer: *segreader.FileReadBufferPool.Get().(*[]byte),
 		isMetaLoaded:   false,
 		buckets:        aggsTreeBuckets{},
 	}, nil
@@ -114,7 +115,7 @@ func (str *AgileTreeReader) Close() error {
 }
 
 func (str *AgileTreeReader) returnBuffers() {
-	fileReadBufferPool.Put(&str.metaFileBuffer)
+	segreader.FileReadBufferPool.Put(&str.metaFileBuffer)
 }
 
 func (str *AgileTreeReader) resetBlkVars() {

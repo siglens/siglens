@@ -17,6 +17,8 @@
 
 package common
 
+import "github.com/siglens/siglens/pkg/utils"
+
 type DeploymentType uint8
 
 const (
@@ -145,8 +147,9 @@ type Configuration struct {
 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
 	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
 	UseNewPipelineConverted     bool
-	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
-	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"`
+	UseNewQueryPipeline         string                  `yaml:"isNewQueryPipelineEnabled"`
+	EnableSortIndex             utils.WithDefault[bool] `yaml:"enableSortIndex"`
+	QueryTimeoutSecs            int                     `yaml:"queryTimeoutSecs"`
 }
 
 type RunModConfig struct {

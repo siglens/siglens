@@ -123,6 +123,7 @@ type SegmentSearchRequest struct {
 	SegmentKey           string
 	SearchMetadata       *SearchMetadataHolder
 	AllBlocksToSearch    map[uint16]*BlockMetadataHolder // maps all blocks needed to search to the BlockMetadataHolder needed to read
+	BlockToValidRecNums  map[uint16][]uint16             // If not nil, only search these records
 	VirtualTableName     string
 	AllPossibleColumns   map[string]bool // all possible columns for the segKey
 	LatestEpochMS        uint64          // latest epoch time - used for query planning
