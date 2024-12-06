@@ -70,7 +70,7 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName := fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"m"))
 	err := checkAndDownload(fName)
 	if err != nil {
-		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download min rollup file, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to checkAndDownload min rollup file, err: %v", qid, err)
 	}
 
 	minRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
@@ -83,7 +83,7 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"h"))
 	err = checkAndDownload(fName)
 	if err != nil {
-		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download hour rollup file, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to checkAndDownload hour rollup file, err: %v", qid, err)
 	}
 
 	hourRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
@@ -96,7 +96,7 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"d"))
 	err = checkAndDownload(fName)
 	if err != nil {
-		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download day rollup file, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to checkAndDownload day rollup file, err: %v", qid, err)
 	}
 	dayRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
