@@ -222,32 +222,23 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 	searchResults.NextSegKeyEnc = encoding
 
 	blockToValidRecNums := make(map[uint16][]uint16)
-	numRecords := 0
-	numBlocks := 0
 	for _, line := range lines {
 		for _, block := range line.Blocks {
 			if _, ok := blockToValidRecNums[block.BlockNum]; !ok {
 				blockToValidRecNums[block.BlockNum] = make([]uint16, 0)
 			}
 
-			numBlocks++
-			numRecords += len(block.Records)
 			blockToValidRecNums[block.BlockNum] = append(blockToValidRecNums[block.BlockNum], block.Records...)
 		}
 	}
 
-	log.Errorf("andrew, sort gave %v records across %v blocks", numRecords, numBlocks)
-
 	for segkeyFname := range allSSRs {
 		allSSRs[segkeyFname].BlockToValidRecNums = toputils.NewOptionWithValue(blockToValidRecNums)
-		log.Infof("andrew set blockToValidRecNums=%+v", blockToValidRecNums)
 	}
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
 	timeRange := s.queryInfo.GetQueryRange()
-
-	log.Errorf("andrew calling applyFilterOperatorInternal with allSSRs=%+v", allSSRs)
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
