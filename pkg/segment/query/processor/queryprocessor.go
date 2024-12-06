@@ -105,12 +105,9 @@ func mutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	// TODO: if any of the sort fields are created/modified by the query before
 	// the sort command, return nil (so we use the normal searcher).
 
-	// Replace the sort with a head.
+	// TODO: Replace the sort with a head if the sort is fully handled by the
+	// searcher.
 	sortExpr := sorterAgg.SortExpr
-	// sorterAgg.SortExpr = nil
-	// sorterAgg.HeadExpr = &structs.HeadExpr{
-	// 	MaxRows: sortExpr.Limit,
-	// }
 
 	return sortExpr
 }

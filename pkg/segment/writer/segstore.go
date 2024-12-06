@@ -841,15 +841,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		// TODO: make this a background job; somehow handle siglens being
 		// gracefully shutdown.
-		if config.IsSortIndexEnabled() {
-			for _, cname := range sortIndexCnames {
-				err = sortindex.WriteSortIndex(segstore.SegmentKey, cname)
-				if err != nil {
-					log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v, cname=%v; err=%v",
-						segstore.SegmentKey, cname, err)
-				}
-			}
-		}
+		writeSortIndexes(segstore.SegmentKey)
 
 		// upload ingest node dir to s3
 		err = blob.UploadIngestNodeDir()
@@ -864,6 +856,18 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		}
 	}
 	return nil
+}
+
+func writeSortIndexes(segkey string) {
+	if config.IsSortIndexEnabled() {
+		for _, cname := range sortIndexCnames {
+			err := sortindex.WriteSortIndex(segkey, cname)
+			if err != nil {
+				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+					segkey, cname, err)
+			}
+		}
+	}
 }
 
 func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {

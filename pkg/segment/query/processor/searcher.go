@@ -123,7 +123,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		if config.IsSortIndexEnabled() && s.sortExpr != nil {
-			query.InitProgressForRRCCmd(10 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
+			query.InitProgressForRRCCmd(0 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
 		if !s.gotBlocks {
@@ -186,8 +186,8 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
 	// TODO: handle subsequent fetches to this QSR.
 
-	const recordLimit = 1000              // TODO: find a better way to limit.
-	cname := s.sortExpr.SortEles[0].Field // TODO
+	const recordLimit = 1000 // TODO: find a better way to limit.
+	cname := s.sortExpr.SortEles[0].Field
 	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, recordLimit)
 	if err != nil {
 		return nil, err
