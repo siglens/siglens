@@ -233,7 +233,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 	}
 
 	for segkeyFname := range allSSRs {
-		allSSRs[segkeyFname].BlockToValidRecNums = toputils.NewOptionWithValue(blockToValidRecNums)
+		allSSRs[segkeyFname].BlockToValidRecNums = blockToValidRecNums
 	}
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
@@ -738,7 +738,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 		return nil, nil, err
 	}
 
-	err = s.addRRCsFromRawSearch(searchResults, rawSearchBlocks, toputils.Option[map[uint16][]uint16]{})
+	err = s.addRRCsFromRawSearch(searchResults, rawSearchBlocks, nil)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.readSortedRRCs: failed to get RRCs from search: %v", s.qid, err)
 		return nil, nil, err
@@ -810,7 +810,7 @@ func (s *Searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, bloc
 }
 
 func (s *Searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults, blocks []*block,
-	blockToValidRecNums toputils.Option[map[uint16][]uint16]) error {
+	blockToValidRecNums map[uint16][]uint16) error {
 	if len(blocks) == 0 {
 		return nil
 	}
@@ -872,7 +872,7 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 }
 
 // All of the blocks should be for the same SSR.
-func getSSRs(blocks []*block, blockToValidRecNums toputils.Option[map[uint16][]uint16]) (map[string]*structs.SegmentSearchRequest, error) {
+func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[string]*structs.SegmentSearchRequest, error) {
 
 	if len(blocks) == 0 {
 		return nil, nil

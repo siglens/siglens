@@ -28,7 +28,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -123,8 +122,8 @@ type BlockMetadataHolder struct {
 type SegmentSearchRequest struct {
 	SegmentKey           string
 	SearchMetadata       *SearchMetadataHolder
-	AllBlocksToSearch    map[uint16]*BlockMetadataHolder      // maps all blocks needed to search to the BlockMetadataHolder needed to read
-	BlockToValidRecNums  toputils.Option[map[uint16][]uint16] // If set, only search these records
+	AllBlocksToSearch    map[uint16]*BlockMetadataHolder // maps all blocks needed to search to the BlockMetadataHolder needed to read
+	BlockToValidRecNums  map[uint16][]uint16             // If not nil, only search these records
 	VirtualTableName     string
 	AllPossibleColumns   map[string]bool // all possible columns for the segKey
 	LatestEpochMS        uint64          // latest epoch time - used for query planning
