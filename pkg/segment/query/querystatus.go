@@ -30,6 +30,7 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -270,6 +271,10 @@ func DeleteQuery(qid uint64) {
 		if rQuery.cleanupCallback != nil {
 			rQuery.cleanupCallback()
 		}
+	}
+
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentsHook; hook != nil {
+		hook(qid)
 	}
 }
 
