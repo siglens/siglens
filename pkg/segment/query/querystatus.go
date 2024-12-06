@@ -30,6 +30,7 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -278,19 +279,32 @@ func canRunQuery() bool {
 	return activeQueries < MAX_RUNNING_QUERIES
 }
 
+func initiateRunQuery(segsRLockFunc, segsRUnlockFunc func()) {
+	waitingQueriesLock.Lock()
+	if len(waitingQueries) == 0 {
+		waitingQueriesLock.Unlock()
+		time.Sleep(PULL_QUERY_INTERVAL)
+		return
+	}
+
+	if segsRLockFunc != nil && segsRUnlockFunc != nil {
+		segsRLockFunc()
+		defer segsRUnlockFunc()
+	}
+
+	wsData := waitingQueries[0]
+	waitingQueries = waitingQueries[1:]
+	waitingQueriesLock.Unlock()
+	runQuery(*wsData)
+}
+
 func PullQueriesToRun() {
+	segmentsRLockFunc := hooks.GlobalHooks.AccquireOwnedSegmentRLockHook
+	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
+
 	for {
 		if canRunQuery() {
-			waitingQueriesLock.Lock()
-			if len(waitingQueries) == 0 {
-				waitingQueriesLock.Unlock()
-				time.Sleep(PULL_QUERY_INTERVAL)
-				continue
-			}
-			wsData := waitingQueries[0]
-			waitingQueries = waitingQueries[1:]
-			waitingQueriesLock.Unlock()
-			runQuery(*wsData)
+			initiateRunQuery(segmentsRLockFunc, segmentsRUnlockFunc)
 		}
 		time.Sleep(PULL_QUERY_INTERVAL)
 	}
