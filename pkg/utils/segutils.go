@@ -140,7 +140,7 @@ func IsSubWordPresent(haystack []byte, needle []byte, isCaseInsensitive bool) bo
 }
 
 func IsFileForRotatedSegment(filename string) bool {
-	segBaseDir, err := getSegBaseDirFromFilename(filename)
+	segBaseDir, err := GetSegBaseDirFromFilename(filename)
 	if err != nil {
 		log.Errorf("IsFileForRotatedSegment: cannot get segBaseDir from filename=%v; err=%v", filename, err)
 		return false
@@ -150,7 +150,7 @@ func IsFileForRotatedSegment(filename string) bool {
 	return err == nil
 }
 
-func getSegBaseDirFromFilename(filename string) (string, error) {
+func GetSegBaseDirFromFilename(filename string) (string, error) {
 	// Note: this is coupled to getBaseSegDir. If getBaseSegDir changes, this
 	// should change too.
 	// getBaseSegDir looks like path/to/data/hostid/final/index/streamid/suffix

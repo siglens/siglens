@@ -30,6 +30,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/querytracker"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -87,6 +88,9 @@ func PopulateSegmentMetadataForTheFile_TestOnly(smrFileName string) error {
 }
 
 func initMetadataRefresh() {
+	if config.IsS3Enabled() {
+		return
+	}
 	initSegmentMetaRefresh()
 	initMetricsMetaRefresh()
 }
@@ -131,35 +135,29 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	if !config.IsQueryNode() || !config.IsS3Enabled() {
 		return
 	}
+	err := blob.DownloadAllIngestNodesDir()
+	if err != nil {
+		log.Errorf("initGlobalMetadataRefresh: Error in downloading ingest nodes dir, err:%v", err)
+	}
 
-	err := refreshGlobalMetadata(getMyIds)
+	ownedSegments := getOwnedSegments()
+	err = RefreshGlobalMetadata(getMyIds, ownedSegments)
 	if err != nil {
 		log.Errorf("initGlobalMetadataRefresh: Error in refreshing global metadata, err:%v", err)
 	}
-	go refreshGlobalMetadataLoop(getMyIds)
 }
 
-func refreshGlobalMetadata(fnMyids func() []uint64) error {
-	err := blob.DownloadAllIngestNodesDir()
-	if err != nil {
-		log.Errorf("refreshGlobalMetadataLoop: Error in downloading ingest nodes dir, err:%v", err)
-		return err
-	}
-
+func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]struct{}) error {
 	ingestNodes := make([]string, 0)
 	ingestNodePath := config.GetDataPath() + "ingestnodes"
 
 	files, err := os.ReadDir(ingestNodePath)
-
 	if err != nil {
-		log.Errorf("refreshGlobalMetadataLoop: Error in reading directory, ingestNodePath:%v , err:%v", ingestNodePath, err)
+		log.Errorf("RefreshGlobalMetadata: Error in reading directory, ingestNodePath:%v , err:%v", ingestNodePath, err)
 		return err
 	}
 	for _, file := range files {
 		if file.IsDir() {
-			if strings.Contains(file.Name(), config.GetHostID()) {
-				continue
-			}
 			ingestNodes = append(ingestNodes, file.Name())
 		}
 	}
@@ -175,13 +173,13 @@ func refreshGlobalMetadata(fnMyids func() []uint64) error {
 			vfname := virtualtable.GetFilePathForRemoteNode(node, 0)
 			err := updateVTable(vfname, 0)
 			if err != nil {
-				log.Errorf("refreshGlobalMetadataLoop: Error updating default org vtable, err:%v", err)
+				log.Errorf("RefreshGlobalMetadata: Error updating default org vtable, err:%v", err)
 			}
 			for _, myid := range myids {
 				vfname := virtualtable.GetFilePathForRemoteNode(node, myid)
 				err := updateVTable(vfname, myid)
 				if err != nil {
-					log.Errorf("refreshGlobalMetadataLoop: Error in refreshing vtable for myid=%d  err:%v", myid, err)
+					log.Errorf("RefreshGlobalMetadata: Error in refreshing vtable for myid=%d  err:%v", myid, err)
 				}
 			}
 			// Call populateMicroIndices for all read segmeta.json
@@ -189,25 +187,27 @@ func refreshGlobalMetadata(fnMyids func() []uint64) error {
 			smFile.WriteString(config.GetDataPath() + "ingestnodes/" + node)
 			smFile.WriteString(SEGMETA_FILENAME)
 			smfname := smFile.String()
-			err = populateMicroIndices(smfname)
+			err = populateGlobalMicroIndices(smfname, ownedSegments)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					log.Errorf("refreshGlobalMetadataLoop: Error loading initial metadata from file %v: %v", smfname, err)
+					log.Errorf("RefreshGlobalMetadata: Error loading initial metadata from file %v: %v", smfname, err)
 				}
 			}
 		}(n)
 	}
 	wg.Wait()
+	segmetadata.DiscardUnownedSegments(ownedSegments)
+
 	return err
 }
 
-func refreshGlobalMetadataLoop(getMyIds func() []uint64) {
-	for {
-		err := refreshGlobalMetadata(getMyIds)
-		if err != nil {
-			log.Errorf("refreshGlobalMetadataLoop: Error in refreshing global metadata, err:%v", err)
-		}
-		time.Sleep(SECONDS_REFRESH_GLOBAL_METADATA * time.Second)
+func getOwnedSegments() map[string]struct{} {
+	hook := hooks.GlobalHooks.GetOwnedSegmentsHook
+	if hook == nil {
+		log.Errorf("getOwnedSegments: GetOwnedSegmentsHook is nil")
+		return nil
+	} else {
+		return hook()
 	}
 }
 
@@ -252,6 +252,46 @@ func populateMicroIndices(smFile string) error {
 	return nil
 }
 
+func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}) error {
+
+	_, err := os.Stat(smFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		log.Warnf("populateGlobalMicroIndices: error when trying to stat meta file=%+v. Error=%+v", smFile, err)
+		return err
+	}
+
+	allSegMetas := writer.ReadSegFullMetas(smFile)
+	if ownedSegments != nil {
+		ownedSegMetas := make([]*structs.SegMeta, 0)
+		for _, segMeta := range allSegMetas {
+			_, exists := ownedSegments[segMeta.SegmentKey]
+			if exists {
+				ownedSegMetas = append(ownedSegMetas, segMeta)
+			}
+		}
+		allSegMetas = ownedSegMetas
+	}
+
+	allSmi := make([]*segmetadata.SegmentMicroIndex, len(allSegMetas))
+	for idx, segMetaInfo := range allSegMetas {
+		allSmi[idx] = segmetadata.ProcessSegmetaInfo(segMetaInfo)
+	}
+
+	// Segmeta entries inside segmeta.json are added in increasing time order.
+	// we just reverse this and we get the latest segmeta entry first.
+	// This isn't required for correctness; it just avoids more sorting in the
+	// common case when we actually update the metadata.
+	sort.SliceStable(allSmi, func(i, j int) bool {
+		return true
+	})
+
+	segmetadata.BulkAddSegmentMicroIndex(allSmi)
+	return nil
+}
+
 func syncSegMetaWithSegFullMeta(myId uint64) {
 	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
@@ -260,6 +300,11 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 	}
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
+
+	var ownedSegments map[string]struct{}
+	if hook := hooks.GlobalHooks.GetOwnedSegmentsHook; hook != nil {
+		ownedSegments = hook()
+	}
 
 	for vTableName := range vTableNames {
 		streamid := utils.CreateStreamId(vTableName, myId)
@@ -274,6 +319,11 @@ func syncSegMetaWithSegFullMeta(myId uint64) {
 		for _, file := range filesInDir {
 			fileName := file.Name()
 			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
+			if ownedSegments != nil {
+				if _, exists := ownedSegments[segkey]; !exists {
+					continue
+				}
+			}
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
@@ -396,12 +446,6 @@ func refreshMetricsMetadataLoop() {
 }
 
 func refreshLocalMetadataLoop() {
-	err := blob.DownloadAllIngestNodesDir()
-	if err != nil {
-		log.Errorf("refreshGlobalMetadataLoop: Error in downloading ingest nodes dir, err:%v", err)
-		return
-	}
-
 	for {
 		time.Sleep(SECONDS_REREAD_META * time.Second)
 		smFile := writer.GetLocalSegmetaFName()
