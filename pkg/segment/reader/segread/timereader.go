@@ -422,7 +422,12 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {
-	for _, v := range og {
-		rawTimestampsBufferPool.Put(&v)
+	for k := range og {
+		// Due to a bug in Go 1.19, scope of the loop variable is per loop not per iteration
+		// and thus inserting the same value multiple times in the pool which can cause the same pointer
+		// to a slice being returned multiple times.
+		// Refer https://go.dev/blog/loopvar-preview and https://github.com/golang/go/discussions/56010 for more details.
+		timeBuffer := og[k]
+		rawTimestampsBufferPool.Put(&timeBuffer)
 	}
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -408,19 +409,22 @@ func Test_segQueryFilter(t *testing.T) {
 	numEntriesForBuffer := 10
 	fileCount := 5
 	instrumentation.InitMetrics()
-	config.InitializeTestingConfig(t.TempDir())
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
+	assert.NoError(t, err)
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
 
 	bloomMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
 	rangeMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
 	// pqsSegQuery(t, numBuffers, numEntriesForBuffer, fileCount)
 	// add more simple, complex, and nested metadata checking
 	time.Sleep(1 * time.Second) // sleep to give some time for background pqs threads to write out dirs
-	err = os.RemoveAll("data/")
+	err = os.RemoveAll(dir)
 	assert.Nil(t, err)
 }

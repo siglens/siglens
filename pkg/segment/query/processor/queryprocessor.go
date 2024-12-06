@@ -61,10 +61,7 @@ func (qp *QueryProcessor) cleanupInputStreamForFirstDP() {
 		return
 	}
 
-	streams := qp.chain[0].streams
-	for _, CachedStream := range streams {
-		go CachedStream.Cleanup()
-	}
+	qp.chain[0].CleanupInputStreams()
 }
 
 func (qp *QueryProcessor) Cleanup() {
@@ -152,6 +149,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 					StatisticExpr:  firstAgg.StatisticExpr,
 				}
 				nextAgg.Next = firstAgg.Next
+				nextAgg.StatisticExpr.ExprSplitDone = true
 				firstAgg.Next = nextAgg
 			}
 		}
@@ -184,7 +182,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		chainedDPAsAny := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		if err != nil {
+			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+		}
+
 		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
 		if !ok {
 			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
@@ -198,7 +200,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls)
+	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +213,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
-	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool, shoulDistribute bool) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
@@ -223,22 +225,36 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: invalid query type %v", queryType)
 	}
 
-	headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
-	if headDP == nil {
-		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
+	var fetchDp *DataProcessor
+
+	if len(chain) > 0 {
+		fetchDp = chain[len(chain)-1]
 	}
 
-	headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
+	if shoulDistribute {
+		headDP := NewHeadDP(&structs.HeadExpr{MaxRows: limit})
+		if headDP == nil {
+			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
+		}
 
-	scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
-	if scrollerDP == nil {
-		return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
+		headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
+
+		scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
+		if scrollerDP == nil {
+			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
+		}
+		scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
+
+		fetchDp = scrollerDP
 	}
-	scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
+
+	if fetchDp == nil {
+		return nil, utils.TeeErrorf("newQueryProcessorHelper: the last data processor is nil")
+	}
 
 	return &QueryProcessor{
 		queryType:     queryType,
-		DataProcessor: *scrollerDP,
+		DataProcessor: *fetchDp,
 		chain:         chain,
 		qid:           qid,
 		scrollFrom:    uint64(scrollFrom),
@@ -276,8 +292,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.StatisticExpr != nil {
-		queryAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: queryAgg.GroupByRequest}
-		return NewStatisticExprDP(queryAgg)
+		return NewStatisticExprDP(queryAgg, queryInfo.IsDistributed())
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {
