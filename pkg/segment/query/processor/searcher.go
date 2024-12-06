@@ -172,9 +172,11 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		}
 
 		result, err = iqr.MergeAndDiscardAfter(result, nextIQR, sorter.less, s.sortExpr.Limit)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to merge IQRs: %v", s.qid, err)
+			return nil, err
+		}
 	}
-
-	// TODO: run the RRCs through the initial search node.
 
 	// TODO: don't always return EOF.
 	return result, io.EOF
@@ -255,19 +257,11 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 
 	rrcs := searchResults.GetResults()
 
-	// segKeyEncoding := s.getSegKeyEncoding(qsr.GetSegKey())
-	// rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
-
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 	err = iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
 	if err != nil {
 		return nil, err
 	}
-
-	// err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	return iqr, nil
 }
@@ -552,18 +546,6 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 func (s *Searcher) getNextSegEncTokey() uint32 {
 	return s.segEncToKeyBaseValue + uint32(s.segEncToKey.Len())
-}
-
-func (s *Searcher) getSegKeyEncoding(segKey string) uint32 {
-	encoding, ok := s.segEncToKey.GetReverse(segKey)
-	if ok {
-		return encoding
-	}
-
-	encoding = s.getNextSegEncTokey()
-	s.segEncToKey.Set(encoding, segKey)
-
-	return encoding
 }
 
 func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,

@@ -136,9 +136,15 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 // The returned SegmentFileReader must call .Close() when finished using it to close the fd
 func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
 	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32) (*SegmentFileReader, error) {
+
+	fileName := ""
+	if fd != nil {
+		fileName = fd.Name()
+	}
+
 	return &SegmentFileReader{
 		ColName:               colName,
-		fileName:              fd.Name(),
+		fileName:              fileName,
 		currFD:                fd,
 		blockMetadata:         blockMetadata,
 		currOffset:            0,
@@ -217,7 +223,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		err := sfr.unpackRawCsg(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
 		return true, err
 	} else if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
-		err := sfr.readDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
+		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
 		return true, err
 	} else {
 		log.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
@@ -367,7 +373,7 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 	return true, nil
 }
 
-func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
+func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 
 	idx := uint32(0)
 
@@ -395,7 +401,7 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
-			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
+			return fmt.Errorf("SegmentFileReader.ReadDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
 		}
 
 		sfr.deTlv[w] = buf[soffW:idx]
@@ -454,7 +460,7 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[
 		return false
 	}
 
-	return sfr.deToResultOldPipeline(results, orderedRecNums)
+	return sfr.DeToResultOldPipeline(results, orderedRecNums)
 }
 
 func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
@@ -477,7 +483,7 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]ut
 	return sfr.deToResults(results, orderedRecNums)
 }
 
-func (sfr *SegmentFileReader) deToResultOldPipeline(results map[uint16]map[string]interface{},
+func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[string]interface{},
 	orderedRecNums []uint16) bool {
 
 	for _, rn := range orderedRecNums {
@@ -498,7 +504,7 @@ func (sfr *SegmentFileReader) deToResultOldPipeline(results map[uint16]map[strin
 		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
-			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool")
+			log.Errorf("SegmentFileReader.DeToResultsOldPipeline: de only supported for str/int64/float64/bool")
 			return false
 		}
 	}
@@ -555,12 +561,16 @@ func (sfr *SegmentFileReader) AddRecNumsToMr(dwordIdx uint16, bsh *structs.Block
 	}
 }
 
-func (sfr *SegmentFileReader) GetDeTvl() [][]byte {
+func (sfr *SegmentFileReader) GetFileName() string {
+	return sfr.fileName
+}
+
+func (sfr *SegmentFileReader) GetDeTlv() [][]byte {
 	return sfr.deTlv
 }
 
-func (sfr *SegmentFileReader) GetFileName() string {
-	return sfr.fileName
+func (sfr *SegmentFileReader) GetDeRecToTlv() []uint16 {
+	return sfr.deRecToTlv
 }
 
 func (sfr *SegmentFileReader) ValidateAndReadBlock(blockNum uint16) error {

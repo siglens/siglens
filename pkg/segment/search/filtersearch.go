@@ -227,7 +227,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			return
 		}
 
-		recordNums := make([]uint16, 0)
+		var recordNums []uint16
 		if blockToRecs, ok := searchReq.BlockToValidRecNums.Get(); ok {
 			if _, ok := blockToRecs[blockNum]; !ok {
 				// TODO: do this check in the caller.

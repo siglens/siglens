@@ -56,7 +56,7 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 		}
 	}
 
-	for dwordIdx, dWord := range sfr.GetDeTvl() {
+	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord, compiledRegex, isCaseInsensitive)
 		if err != nil {
 			return false, err
@@ -94,7 +94,7 @@ func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qVal
 	}
 
 	dte := &utils.DtypeEnclosure{}
-	for dwordIdx, dWord := range sfr.GetDeTvl() {
+	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInsensitive)
 		if err != nil {
 			return false, err
