@@ -316,9 +316,6 @@ func DeleteQuery(qid uint64) {
 		}
 	}
 
-	time.Sleep(3 * time.Minute)
-	log.Infof("----------- RELEASED ------------------")
-
 	RemoveUsageForRotatedSegments(qid)
 }
 

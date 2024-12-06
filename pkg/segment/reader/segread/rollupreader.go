@@ -51,14 +51,28 @@ type RollupReader struct {
 	allInUseFiles      []string
 }
 
+func checkAndDownload(fName string) error {
+	_, err := os.Stat(fName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			downloadErr := blob.DownloadSegmentBlob(fName, true)
+			if downloadErr != nil {
+				return fmt.Errorf("checkAndDownload: failed to download min rollup file: %+v, downloadErr: %v", fName, downloadErr)
+			}
+		}
+		return fmt.Errorf("checkAndDownload: failed to stat file: %+v, err: %v", fName, err)
+	}
+	return nil
+}
+
 func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader, error) {
 	allInUseFiles := make([]string, 0)
 	fName := fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"m"))
-	err := blob.DownloadSegmentBlob(fName, true)
+	err := checkAndDownload(fName)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download min rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download min rollup file, err: %v", qid, err)
 	}
+
 	minRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Errorf("qid=%d, InitNewRollupReader: failed to open min rollup file: %s, err: %+v", qid, fName, err)
@@ -67,11 +81,11 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	allInUseFiles = append(allInUseFiles, fName)
 
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"h"))
-	err = blob.DownloadSegmentBlob(fName, true)
+	err = checkAndDownload(fName)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download hour rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download hour rollup file, err: %v", qid, err)
 	}
+
 	hourRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Errorf("qid=%d, InitNewRollupReader: failed to open hour rollup file: %s, err: %+v", qid, fName, err)
@@ -80,10 +94,9 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	allInUseFiles = append(allInUseFiles, fName)
 
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"d"))
-	err = blob.DownloadSegmentBlob(fName, true)
+	err = checkAndDownload(fName)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download day rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		return nil, utils.TeeErrorf("qid=%d, InitNewRollupReader: failed to download day rollup file, err: %v", qid, err)
 	}
 	dayRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
