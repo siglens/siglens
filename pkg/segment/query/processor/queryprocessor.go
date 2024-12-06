@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -81,6 +82,10 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
 }
 
 func mutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
+	if !config.IsSortIndexEnabled() {
+		return nil
+	}
+
 	if queryAgg == nil {
 		return nil
 	}

@@ -63,6 +63,8 @@ const MaxAgileTreeNodeCount = 8_000_000
 
 const BS_INITIAL_SIZE = uint32(1000)
 
+var sortIndexCnames = []string{"app_name", "weekday"} // TODO: don't hardcode
+
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -839,13 +841,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		// TODO: make this a background job; somehow handle siglens being
 		// gracefully shutdown.
-		// err = sortindex.WriteSortIndex(segstore.SegmentKey, "weekday") // TODO: don't hardcode
-		sortCnames := []string{"EventTime", "SearchPhrase"} // TODO: don't hardcode
-		for _, cname := range sortCnames {
-			err = sortindex.WriteSortIndex(segstore.SegmentKey, cname)
-			if err != nil {
-				log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v, cname=%v; err=%v",
-					segstore.SegmentKey, cname, err)
+		if config.IsSortIndexEnabled() {
+			for _, cname := range sortIndexCnames {
+				err = sortindex.WriteSortIndex(segstore.SegmentKey, cname)
+				if err != nil {
+					log.Errorf("checkAndRotateColFiles: failed to write sort index for segkey=%v, cname=%v; err=%v",
+						segstore.SegmentKey, cname, err)
+				}
 			}
 		}
 

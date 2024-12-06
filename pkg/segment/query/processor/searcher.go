@@ -25,6 +25,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -121,7 +122,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
-		if s.sortExpr != nil {
+		if config.IsSortIndexEnabled() && s.sortExpr != nil {
 			query.InitProgressForRRCCmd(10 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
