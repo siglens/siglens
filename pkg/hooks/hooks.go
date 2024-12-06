@@ -65,7 +65,8 @@ type Hooks struct {
 	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
 	AddMultiNodeIndexHook       func(orgId uint64) []string
 
-	CheckForOwnedSegmentsProcessingHook func()
+	AccquireOwnedSegmentRLockHook func()
+	ReleaseOwnedSegmentRLockHook  func()
 
 	// Retention
 	ExtraRetentionCleanerHook     func() error

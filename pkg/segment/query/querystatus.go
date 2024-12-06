@@ -275,26 +275,35 @@ func DeleteQuery(qid uint64) {
 }
 
 func canRunQuery() bool {
-	if hook := hooks.GlobalHooks.CheckForOwnedSegmentsProcessingHook; hook != nil {
-		hook()
-	}
 	activeQueries := uint64(GetActiveQueryCount())
 	return activeQueries < MAX_RUNNING_QUERIES
 }
 
+func initiateRunQuery(segsRLockFunc, segsRUnlockFunc func()) {
+	if segsRLockFunc != nil && segsRUnlockFunc != nil {
+		segsRLockFunc()
+		defer segsRUnlockFunc()
+	}
+
+	waitingQueriesLock.Lock()
+	if len(waitingQueries) == 0 {
+		waitingQueriesLock.Unlock()
+		time.Sleep(PULL_QUERY_INTERVAL)
+		return
+	}
+	wsData := waitingQueries[0]
+	waitingQueries = waitingQueries[1:]
+	waitingQueriesLock.Unlock()
+	runQuery(*wsData)
+}
+
 func PullQueriesToRun() {
+	segmentsRLockFunc := hooks.GlobalHooks.AccquireOwnedSegmentRLockHook
+	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
+
 	for {
 		if canRunQuery() {
-			waitingQueriesLock.Lock()
-			if len(waitingQueries) == 0 {
-				waitingQueriesLock.Unlock()
-				time.Sleep(PULL_QUERY_INTERVAL)
-				continue
-			}
-			wsData := waitingQueries[0]
-			waitingQueries = waitingQueries[1:]
-			waitingQueriesLock.Unlock()
-			runQuery(*wsData)
+			initiateRunQuery(segmentsRLockFunc, segmentsRUnlockFunc)
 		}
 		time.Sleep(PULL_QUERY_INTERVAL)
 	}
