@@ -174,6 +174,7 @@ var allRunningQueries = map[uint64]*RunningQueryState{}
 var waitingQueries = []*WaitStateData{}
 var waitingQueriesLock = &sync.Mutex{}
 var rotatedSegmentsInUse = map[string]map[uint64]struct{}{}
+var rotatedSegmentsInUseLock = &sync.Mutex{}
 
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
@@ -254,8 +255,8 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 }
 
 func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{}) {
-	arqMapLock.RLock()
-	defer arqMapLock.RUnlock()
+	rotatedSegmentsInUseLock.Lock()
+	defer rotatedSegmentsInUseLock.Unlock()
 
 	for segKey := range rotatedSegments {
 		if hooks := hooks.GlobalHooks.HandleUsedRotatedSegmentsHook; hooks != nil {
@@ -272,8 +273,8 @@ func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{})
 }
 
 func RemoveUsageForRotatedSegments(qid uint64) {
-	arqMapLock.RLock()
-	defer arqMapLock.RUnlock()
+	rotatedSegmentsInUseLock.Lock()
+	defer rotatedSegmentsInUseLock.Unlock()
 
 	for segKey, qids := range rotatedSegmentsInUse {
 		if _, ok := qids[qid]; ok {
@@ -308,6 +309,9 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+
+	time.Sleep(3 * time.Minute)
+	log.Infof("----------- RELEASED ------------------")
 
 	RemoveUsageForRotatedSegments(qid)
 }
