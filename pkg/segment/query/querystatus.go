@@ -173,8 +173,6 @@ type WaitingQueryInfo struct {
 var allRunningQueries = map[uint64]*RunningQueryState{}
 var waitingQueries = []*WaitStateData{}
 var waitingQueriesLock = &sync.Mutex{}
-var rotatedSegmentsInUse = map[string]map[uint64]struct{}{}
-var rotatedSegmentsInUseLock = &sync.Mutex{}
 
 var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
@@ -254,47 +252,6 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 	return runningState, nil
 }
 
-func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{}) {
-	if !config.IsS3Enabled() {
-		return
-	}
-	rotatedSegmentsInUseLock.Lock()
-	defer rotatedSegmentsInUseLock.Unlock()
-
-	for segKey := range rotatedSegments {
-		if hooks := hooks.GlobalHooks.HandleUsedRotatedSegmentsHook; hooks != nil {
-			err := hooks(segKey)
-			if err != nil {
-				log.Errorf("AddUsageForRotatedSegments: qid=%v, Error while handling used rotated segments segKey: %v, err: %v", qid, segKey, err)
-			}
-		}
-		if _, ok := rotatedSegmentsInUse[segKey]; !ok {
-			rotatedSegmentsInUse[segKey] = map[uint64]struct{}{}
-		}
-		rotatedSegmentsInUse[segKey][qid] = struct{}{}
-	}
-}
-
-func RemoveUsageForRotatedSegments(qid uint64) {
-	if !config.IsS3Enabled() {
-		return
-	}
-	rotatedSegmentsInUseLock.Lock()
-	defer rotatedSegmentsInUseLock.Unlock()
-
-	for segKey, qids := range rotatedSegmentsInUse {
-		if _, ok := qids[qid]; ok {
-			delete(qids, qid)
-			if len(qids) == 0 {
-				if hooks := hooks.GlobalHooks.HandleUnusedRotatedSegmentsHook; hooks != nil {
-					hooks(segKey)
-				}
-				delete(rotatedSegmentsInUse, segKey)
-			}
-		}
-	}
-}
-
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
 	// Can remove the LogGlobalSearchErrors after we fully migrate
@@ -316,7 +273,9 @@ func DeleteQuery(qid uint64) {
 		}
 	}
 
-	RemoveUsageForRotatedSegments(qid)
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentsHook; hook != nil {
+		hook(qid)
+	}
 }
 
 func canRunQuery() bool {

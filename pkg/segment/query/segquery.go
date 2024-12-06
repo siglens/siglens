@@ -805,8 +805,12 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 		return nil, 0, 0, err
 	}
 
-	rotatedSegments := getRotatedSegments(rotatedQSR)
-	AddUsageForRotatedSegments(queryInfo.qid, rotatedSegments)
+	if config.IsS3Enabled() {
+		rotatedSegments := getRotatedSegments(rotatedQSR)
+		if hook := hooks.GlobalHooks.AddUsageForRotatedSegmentsHook; hook != nil {
+			hook(queryInfo.qid, rotatedSegments)
+		}
+	}
 
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
@@ -1017,8 +1021,12 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 		return nil, 0, 0, 0, err
 	}
 
-	rotatedSegments := getRotatedSegments(rotatedQSR)
-	AddUsageForRotatedSegments(queryInfo.qid, rotatedSegments)
+	if config.IsS3Enabled() {
+		rotatedSegments := getRotatedSegments(rotatedQSR)
+		if hook := hooks.GlobalHooks.AddUsageForRotatedSegmentsHook; hook != nil {
+			hook(queryInfo.qid, rotatedSegments)
+		}
+	}
 
 	unsortedQsrs = append(unsortedQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
