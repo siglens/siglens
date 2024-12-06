@@ -255,6 +255,9 @@ func StartQuery(qid uint64, async bool, cleanupCallback func()) (*RunningQuerySt
 }
 
 func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{}) {
+	if !config.IsS3Enabled() {
+		return
+	}
 	rotatedSegmentsInUseLock.Lock()
 	defer rotatedSegmentsInUseLock.Unlock()
 
@@ -273,6 +276,9 @@ func AddUsageForRotatedSegments(qid uint64, rotatedSegments map[string]struct{})
 }
 
 func RemoveUsageForRotatedSegments(qid uint64) {
+	if !config.IsS3Enabled() {
+		return
+	}
 	rotatedSegmentsInUseLock.Lock()
 	defer rotatedSegmentsInUseLock.Unlock()
 
