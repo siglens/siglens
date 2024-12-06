@@ -583,7 +583,7 @@ func (sfr *SegmentFileReader) ValidateAndReadBlock(blockNum uint16) error {
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			return fmt.Errorf("SegmentFileReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
 		}
 	}
 
