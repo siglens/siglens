@@ -280,17 +280,18 @@ func canRunQuery() bool {
 }
 
 func initiateRunQuery(segsRLockFunc, segsRUnlockFunc func()) {
-	if segsRLockFunc != nil && segsRUnlockFunc != nil {
-		segsRLockFunc()
-		defer segsRUnlockFunc()
-	}
-
 	waitingQueriesLock.Lock()
 	if len(waitingQueries) == 0 {
 		waitingQueriesLock.Unlock()
 		time.Sleep(PULL_QUERY_INTERVAL)
 		return
 	}
+
+	if segsRLockFunc != nil && segsRUnlockFunc != nil {
+		segsRLockFunc()
+		defer segsRUnlockFunc()
+	}
+
 	wsData := waitingQueries[0]
 	waitingQueries = waitingQueries[1:]
 	waitingQueriesLock.Unlock()
