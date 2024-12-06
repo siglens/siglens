@@ -364,6 +364,10 @@ func SetNewQueryPipelineEnabled(enabled bool) {
 	runningConfig.UseNewPipelineConverted = enabled
 }
 
+func IsSortIndexEnabled() bool {
+	return runningConfig.EnableSortIndex.Value()
+}
+
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)
@@ -691,7 +695,9 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 }
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
-	var config common.Configuration
+	config := common.Configuration{
+		EnableSortIndex: utils.DefaultValue(false),
+	}
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
 		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
