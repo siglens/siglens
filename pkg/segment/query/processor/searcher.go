@@ -161,7 +161,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, searcher.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
+		log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to get sorted QSRs: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -202,7 +202,8 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 
 	if len(lines) == 0 {
 		// TODO: raw search this segment if it has the cname
-		panic("got no results in sortindex")
+		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: no lines found in sort index; raw search not implemented", s.qid)
+		return nil, nil
 	}
 
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
@@ -235,7 +236,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 				blockToValidRecNums[block.BlockNum] = make([]uint16, 0)
 			}
 
-			blockToValidRecNums[block.BlockNum] = append(blockToValidRecNums[block.BlockNum], block.Records...)
+			blockToValidRecNums[block.BlockNum] = append(blockToValidRecNums[block.BlockNum], block.RecNums...)
 		}
 	}
 

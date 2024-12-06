@@ -34,11 +34,11 @@ import (
 
 type Block struct {
 	BlockNum uint16   `json:"blockNum"`
-	Records  []uint16 `json:"records"`
+	RecNums  []uint16 `json:"recNums"`
 }
 
 func getFilename(segkey string, cname string) string {
-	return filepath.Join(segkey, cname+".sort")
+	return filepath.Join(segkey, cname+".srt") // srt means "sort", not an acronym
 }
 
 func WriteSortIndex(segkey string, cname string) error {
@@ -88,6 +88,7 @@ func WriteSortIndex(segkey string, cname string) error {
 	return nil
 }
 
+// TODO: describe the file format
 func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
 	filename := getFilename(segkey, cname)
 	dir := filepath.Dir(filename)
@@ -124,7 +125,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
 			block := Block{
 				BlockNum: blockNum,
-				Records:  sortedRecords,
+				RecNums:  sortedRecords,
 			}
 
 			allBlocks = append(allBlocks, block)
@@ -157,7 +158,7 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 
 	for _, line := range lines {
 		for _, block := range line.Blocks {
-			for _, recordNum := range block.Records {
+			for _, recordNum := range block.RecNums {
 				rrcs = append(rrcs, &segutils.RecordResultContainer{
 					BlockNum:  block.BlockNum,
 					RecordNum: recordNum,
@@ -222,7 +223,7 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]Line, error) 
 		}
 
 		for _, block := range blocks {
-			numRecords += len(block.Records)
+			numRecords += len(block.RecNums)
 		}
 
 		lines = append(lines, Line{

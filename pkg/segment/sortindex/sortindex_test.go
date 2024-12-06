@@ -46,14 +46,14 @@ func Test_writeAndRead(t *testing.T) {
 	maxRecords := 100
 	expected := []Line{
 		{Value: "apple", Blocks: []Block{
-			{BlockNum: 1, Records: []uint16{1, 2}},
-			{BlockNum: 2, Records: []uint16{42, 100}},
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 		{Value: "banana", Blocks: []Block{
-			{BlockNum: 2, Records: []uint16{2, 7, 13}},
+			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
 		{Value: "zebra", Blocks: []Block{
-			{BlockNum: 1, Records: []uint16{7}},
+			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
 	}
 
@@ -65,8 +65,8 @@ func Test_writeAndRead(t *testing.T) {
 	maxRecords = 3
 	expected = []Line{
 		{Value: "apple", Blocks: []Block{
-			{BlockNum: 1, Records: []uint16{1, 2}},
-			{BlockNum: 2, Records: []uint16{42, 100}},
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	}
 
