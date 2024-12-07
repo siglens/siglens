@@ -40,6 +40,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var MinSegmentBatchSize = (runtime.GOMAXPROCS(0)/2) + 1
+
 type block struct {
 	*structs.BlockSummary
 	*structs.BlockMetadataHolder
@@ -53,6 +55,10 @@ type block struct {
 	segkeyFname string
 }
 
+type segmentBatch struct {
+	segments []*query.QuerySegmentRequest
+}
+
 type Searcher struct {
 	qid          uint64
 	queryInfo    *query.QueryInformation
@@ -63,6 +69,7 @@ type Searcher struct {
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	qsrs                  []*query.QuerySegmentRequest
+	segmentBatches          []*segmentBatch
 
 	unsentRRCs           []*segutils.RecordResultContainer
 	segEncToKey          *toputils.TwoWayMap[uint32, string]
@@ -102,6 +109,7 @@ func (s *Searcher) SetAsIqrStatsResults() {
 
 func (s *Searcher) Rewind() {
 	s.gotBlocks = false
+	s.segmentBatches = nil
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
 	s.segEncToKey = toputils.NewTwoWayMap[uint32, string]()
@@ -119,11 +127,29 @@ func getNumRecords(blocks []*block) uint64 {
 	return totalRecords
 }
 
+func getAllSegKeysInQSRS(qsrs []*query.QuerySegmentRequest) []string {
+	segKeys := make([]string, 0, len(qsrs))
+	for _, qsr := range qsrs {
+		segKeys = append(segKeys, qsr.GetSegKey())
+	}
+	return segKeys
+}
+
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
+		// Create segment batches if they don't exist.
+		if s.segmentBatches == nil {
+			qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+			if err != nil {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get sorted QSRs: %v", s.qid, err)
+			}
+			s.segmentBatches = getSegmentInBatches(qsrs)
+			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), s.qid)
+		}
+		// Get blocks for the segment batch to process
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
 			if err != nil {
@@ -139,7 +165,6 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 
 			s.remainingBlocksSorted = blocks
 			s.gotBlocks = true
-			query.InitProgressForRRCCmd(uint64(len(blocks)), s.qid)
 		}
 
 		return s.fetchRRCs()
@@ -150,7 +175,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
-	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
+	if len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 && len(s.segmentBatches) == 0 {
 		err := query.SetRawSearchFinished(s.qid)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
@@ -170,6 +195,10 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	// Remove the blocks we're going to process. Since the blocks are sorted,
 	// we always take blocks from the front of the list.
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
+
+	if s.remainingBlocksSorted == nil || len(s.remainingBlocksSorted) == 0 {
+		s.gotBlocks = false
+	}
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
@@ -387,12 +416,51 @@ func (s *Searcher) initializeQSRs() error {
 	return nil
 }
 
-func (s *Searcher) getBlocks() ([]*block, error) {
-	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
-		return nil, err
+func numOverlappingQSRs(endTime uint64, sortedQSRS []*query.QuerySegmentRequest) int {
+	numOverlapping := 0
+	for _, qsr := range sortedQSRS {
+		if qsr.GetStartEpochMs() <= endTime {
+			numOverlapping++
+			endTime = qsr.GetEndEpochMs()
+		}
 	}
+
+	return numOverlapping
+}	
+
+func getSegmentInBatches(qsrs []*query.QuerySegmentRequest) []*segmentBatch {
+	batches := make([]*segmentBatch, 0)
+	if len(qsrs) == 0 {
+		return batches
+	}
+
+	currBatch := &segmentBatch{segments: make([]*query.QuerySegmentRequest, 0)}
+	currBatch.segments = append(currBatch.segments, qsrs[0])
+	currEndTime := qsrs[0].GetEndEpochMs()
+	
+	for i := 1;i < len(qsrs);i++ {
+		if qsrs[i].GetStartEpochMs() > currEndTime && 
+			(len(currBatch.segments) >= MinSegmentBatchSize || 
+			(numOverlappingQSRs(qsrs[i].GetEndEpochMs(), qsrs[i+1:]) + len(currBatch.segments) + 1 > MinSegmentBatchSize)) {
+				batches = append(batches, currBatch)
+				currBatch = &segmentBatch{segments: make([]*query.QuerySegmentRequest, 0)}
+			} else {
+			currBatch.segments = append(currBatch.segments, qsrs[i])
+			currEndTime = qsrs[i].GetEndEpochMs()
+		}
+	}
+
+	if len(currBatch.segments) > 0 {
+		batches = append(batches, currBatch)
+	}
+	
+	return batches
+}
+
+func (s *Searcher) getBlocks() ([]*block, error) {
+
+	qsrs := s.segmentBatches[0].segments
+	s.segmentBatches = s.segmentBatches[1:]
 
 	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
 
