@@ -40,7 +40,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var batch = 2
+const segmentBatchOffset = 2 // TODO: Find an optimal value
 
 type block struct {
 	*structs.BlockSummary
@@ -449,8 +449,7 @@ func (s *Searcher) getQSRSToProcess() []*query.QuerySegmentRequest {
 
 	prevMinTimestamp := s.minTimestamp
 
-	// Batch would contain all the segments having records within the endTime
-	s.segmentIdx += batch
+	s.segmentIdx += segmentBatchOffset
 	if s.segmentIdx >= len(s.qsrs) {
 		s.segmentIdx = len(s.qsrs)
 		s.minTimestamp = 0
@@ -459,7 +458,7 @@ func (s *Searcher) getQSRSToProcess() []*query.QuerySegmentRequest {
 		s.minTimestamp = s.qsrs[s.segmentIdx].GetStartEpochMs()
 	}
 
-	// Create segments to process
+	// Batch all the segments having records within the startTime and are not yet processed
 	for i := 0; i < len(s.qsrs); i++ {
 		_, processed := s.processedSegment[s.qsrs[i].GetSegKey()]
 		if processed {
@@ -467,11 +466,13 @@ func (s *Searcher) getQSRSToProcess() []*query.QuerySegmentRequest {
 		}
 		if s.qsrs[i].GetEndEpochMs() > prevMinTimestamp {
 			s.processedSegment[s.qsrs[i].GetSegKey()] = struct{}{}
-			// TODO: Call evictor
 			continue
 		}
-
-		qsrs = append(qsrs, s.qsrs[i])
+		if s.qsrs[i].GetEndEpochMs() > s.minTimestamp {
+			qsrs = append(qsrs, s.qsrs[i])
+		} else {
+			break
+		}
 	}
 
 	return qsrs
