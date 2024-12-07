@@ -458,6 +458,9 @@ func getSegmentInBatches(qsrs []*query.QuerySegmentRequest) []*segmentBatch {
 }
 
 func (s *Searcher) getBlocks() ([]*block, error) {
+	if len(s.segmentBatches) == 0 {
+		return nil, nil
+	}
 
 	qsrs := s.segmentBatches[0].segments
 	s.segmentBatches = s.segmentBatches[1:]
