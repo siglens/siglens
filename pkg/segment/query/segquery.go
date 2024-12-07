@@ -516,7 +516,7 @@ func getSortedQSRResult(aggs *structs.QueryAggregators, allQSRs []*QuerySegmentR
 		} else {
 			// index 0 should have the earliest time
 			sort.Slice(allQSRs, func(i, j int) bool {
-				return allQSRs[i].segKeyTsRange.StartEpochMs > allQSRs[j].segKeyTsRange.StartEpochMs
+				return allQSRs[i].segKeyTsRange.EndEpochMs > allQSRs[j].segKeyTsRange.EndEpochMs
 			})
 		}
 	}

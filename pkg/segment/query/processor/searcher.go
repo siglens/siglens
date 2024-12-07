@@ -40,7 +40,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var MinSegmentBatchSize = (runtime.GOMAXPROCS(0)/2) + 1
+var batch = 2
 
 type block struct {
 	*structs.BlockSummary
@@ -55,10 +55,6 @@ type block struct {
 	segkeyFname string
 }
 
-type segmentBatch struct {
-	segments []*query.QuerySegmentRequest
-}
-
 type Searcher struct {
 	qid          uint64
 	queryInfo    *query.QueryInformation
@@ -69,7 +65,11 @@ type Searcher struct {
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	qsrs                  []*query.QuerySegmentRequest
-	segmentBatches          []*segmentBatch
+	segmentIdx            int
+	minTimestamp          uint64
+	processedBlocks       map[string]map[uint16]struct{}
+	processedSegment      map[string]struct{}
+	gotAllSegments        bool
 
 	unsentRRCs           []*segutils.RecordResultContainer
 	segEncToKey          *toputils.TwoWayMap[uint32, string]
@@ -96,6 +96,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		querySummary:          querySummary,
 		sortMode:              sortMode,
 		startTime:             startTime,
+		minTimestamp:          math.MaxUint64,
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
 		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
@@ -109,7 +110,12 @@ func (s *Searcher) SetAsIqrStatsResults() {
 
 func (s *Searcher) Rewind() {
 	s.gotBlocks = false
-	s.segmentBatches = nil
+	s.qsrs = nil
+	s.segmentIdx = 0
+	s.processedSegment = nil
+	s.processedBlocks = nil
+	s.minTimestamp = math.MaxUint64
+	s.gotAllSegments = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
 	s.segEncToKey = toputils.NewTwoWayMap[uint32, string]()
@@ -140,14 +146,15 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
-		// Create segment batches if they don't exist.
-		if s.segmentBatches == nil {
-			qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+		// initialize QSRs if they don't exist
+		if s.qsrs == nil {
+			err := s.initializeQSRs()
 			if err != nil {
-				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get sorted QSRs: %v", s.qid, err)
+				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
 			}
-			s.segmentBatches = getSegmentInBatches(qsrs)
-			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), s.qid)
+			s.processedSegment = make(map[string]struct{})
+			s.processedBlocks = make(map[string]map[uint16]struct{})
+			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
 		// Get blocks for the segment batch to process
 		if !s.gotBlocks {
@@ -175,7 +182,8 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 }
 
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
-	if len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 && len(s.segmentBatches) == 0 {
+
+	if len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 && s.gotAllSegments {
 		err := query.SetRawSearchFinished(s.qid)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
@@ -196,7 +204,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	// we always take blocks from the front of the list.
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
-	if s.remainingBlocksSorted == nil || len(s.remainingBlocksSorted) == 0 {
+	if len(s.remainingBlocksSorted) == 0 {
 		s.gotBlocks = false
 	}
 
@@ -416,54 +424,64 @@ func (s *Searcher) initializeQSRs() error {
 	return nil
 }
 
-func numOverlappingQSRs(endTime uint64, sortedQSRS []*query.QuerySegmentRequest) int {
-	numOverlapping := 0
-	for _, qsr := range sortedQSRS {
-		if qsr.GetStartEpochMs() <= endTime {
-			numOverlapping++
-			endTime = qsr.GetEndEpochMs()
+func (s *Searcher) getFilteredBlocks(blocks []*block) []*block {
+	filteredBlocks := make([]*block, 0)
+
+	for _, block := range blocks {
+		if s.processedBlocks[block.parentQSR.GetSegKey()] == nil {
+			s.processedBlocks[block.parentQSR.GetSegKey()] = make(map[uint16]struct{})
+		}
+		_, processed := s.processedBlocks[block.parentQSR.GetSegKey()][block.BlkNum]
+		if processed {
+			continue
+		}
+		if block.HighTs >= s.minTimestamp {
+			filteredBlocks = append(filteredBlocks, block)
+			s.processedBlocks[block.parentQSR.GetSegKey()][block.BlkNum] = struct{}{}
 		}
 	}
 
-	return numOverlapping
-}	
+	return filteredBlocks
+}
 
-func getSegmentInBatches(qsrs []*query.QuerySegmentRequest) []*segmentBatch {
-	batches := make([]*segmentBatch, 0)
-	if len(qsrs) == 0 {
-		return batches
+func (s *Searcher) getQSRSToProcess() []*query.QuerySegmentRequest {
+	qsrs := make([]*query.QuerySegmentRequest, 0)
+
+	prevMinTimestamp := s.minTimestamp
+
+	// Batch would contain all the segments having records within the endTime
+	s.segmentIdx += batch
+	if s.segmentIdx >= len(s.qsrs) {
+		s.segmentIdx = len(s.qsrs)
+		s.minTimestamp = 0
+		s.gotAllSegments = true
+	} else {
+		s.minTimestamp = s.qsrs[s.segmentIdx].GetStartEpochMs()
 	}
 
-	currBatch := &segmentBatch{segments: make([]*query.QuerySegmentRequest, 0)}
-	currBatch.segments = append(currBatch.segments, qsrs[0])
-	currEndTime := qsrs[0].GetEndEpochMs()
-	
-	for i := 1;i < len(qsrs);i++ {
-		if qsrs[i].GetStartEpochMs() > currEndTime && 
-			(len(currBatch.segments) >= MinSegmentBatchSize || 
-			(numOverlappingQSRs(qsrs[i].GetEndEpochMs(), qsrs[i+1:]) + len(currBatch.segments) + 1 > MinSegmentBatchSize)) {
-				batches = append(batches, currBatch)
-				currBatch = &segmentBatch{segments: make([]*query.QuerySegmentRequest, 0)}
-			} else {
-			currBatch.segments = append(currBatch.segments, qsrs[i])
-			currEndTime = qsrs[i].GetEndEpochMs()
+	// Create segments to process
+	for i := 0; i < len(s.qsrs); i++ {
+		_, processed := s.processedSegment[s.qsrs[i].GetSegKey()]
+		if processed {
+			continue
 		}
+		if s.qsrs[i].GetEndEpochMs() > prevMinTimestamp {
+			s.processedSegment[s.qsrs[i].GetSegKey()] = struct{}{}
+			// TODO: Call evictor
+			continue
+		}
+
+		qsrs = append(qsrs, s.qsrs[i])
 	}
 
-	if len(currBatch.segments) > 0 {
-		batches = append(batches, currBatch)
-	}
-	
-	return batches
+	return qsrs
 }
 
 func (s *Searcher) getBlocks() ([]*block, error) {
-	if len(s.segmentBatches) == 0 {
-		return nil, nil
-	}
 
-	qsrs := s.segmentBatches[0].segments
-	s.segmentBatches = s.segmentBatches[1:]
+	allBlocksInBatch := make([]*block, 0)
+
+	qsrs := s.getQSRSToProcess()
 
 	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
 
@@ -488,7 +506,6 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 		}
 	}
 
-	allBlocks := make([]*block, 0)
 	for i, qsr := range qsrs {
 		pqmrBlockNumbers := make(map[uint16]struct{})
 		if pqmr, ok := pqmrs[i].Get(); ok {
@@ -500,7 +517,7 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 			}
 
 			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
-			allBlocks = append(allBlocks, blocks...)
+			allBlocksInBatch = append(allBlocksInBatch, blocks...)
 
 			for _, block := range blocks {
 				pqmrBlockNumbers[block.BlkNum] = struct{}{}
@@ -524,13 +541,13 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 			for _, block := range blocks {
 				if _, ok := pqmrBlockNumbers[block.BlkNum]; !ok {
-					allBlocks = append(allBlocks, block)
+					allBlocksInBatch = append(allBlocksInBatch, block)
 				}
 			}
 		}
 	}
 
-	return allBlocks, nil
+	return s.getFilteredBlocks(allBlocksInBatch), nil
 }
 
 func (s *Searcher) getNextSegEncTokey() uint32 {
