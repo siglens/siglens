@@ -30,6 +30,7 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type Block struct {
@@ -221,7 +222,7 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 
 type checkpoint struct {
 	offsetToStartOfLine uint64
-	offsetWithinLine    uint64
+	totalOffset         uint64
 }
 
 func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
@@ -262,10 +263,6 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed seeking to start of line (position %v): %v",
 				fromCheckpoint.offsetToStartOfLine, err)
-		}
-
-		if fromCheckpoint.offsetWithinLine > 0 {
-			return nil, nil, fmt.Errorf("ReadSortIndex: offsetWithinLine is not yet supported")
 		}
 	}
 
@@ -343,21 +340,32 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 				}
 
 				numRecords++
-				totalRecordsRead++
-				recNums = append(recNums, recNum)
+
+				if pastCheckpoint(fromCheckpoint, file) {
+					totalRecordsRead++
+					recNums = append(recNums, recNum)
+				}
 			}
 
 			if totalRecordsRead >= uint64(maxRecordsToRead) {
 				done = true
+
+				filePos, err = file.Seek(0, io.SeekCurrent)
+				if err != nil {
+					return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+				}
+				finalCheckpoint.totalOffset = uint64(filePos)
 			} else if numRecords != totalRecords {
 				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecords)
 			}
 
 			numBlocks++
-			blocks = append(blocks, Block{
-				BlockNum: blockNum,
-				RecNums:  recNums,
-			})
+			if pastCheckpoint(fromCheckpoint, file) {
+				blocks = append(blocks, Block{
+					BlockNum: blockNum,
+					RecNums:  recNums,
+				})
+			}
 		}
 
 		if !done && numBlocks != totalBlocks {
@@ -369,18 +377,41 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 			Blocks: blocks,
 		})
 
-		filePos, err = file.Seek(0, io.SeekCurrent)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+		if numBlocks == totalBlocks {
+			// We made it to the next line.
+			filePos, err = file.Seek(0, io.SeekCurrent)
+			if err != nil {
+				return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+			}
+			finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 		}
-		finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 	}
 
 	if err != nil && err != io.EOF {
 		return nil, nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
 	}
 
+	filePos, err = file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+	}
+	finalCheckpoint.totalOffset = uint64(filePos)
+
 	return lines, finalCheckpoint, nil
+}
+
+func pastCheckpoint(fromCheckpoint *checkpoint, file *os.File) bool {
+	if fromCheckpoint == nil {
+		return true
+	}
+
+	filePos, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		log.Errorf("pastCheckpoint: failed to get current file position: %v", err)
+		return false
+	}
+
+	return uint64(filePos) > fromCheckpoint.totalOffset
 }
 
 func writeCValEnc(writer *bufio.Writer, CValEnc segutils.CValueEnclosure) error {
