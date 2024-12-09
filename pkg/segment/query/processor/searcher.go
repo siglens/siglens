@@ -218,13 +218,9 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		return nil, nil
 	}
 
-	log.Errorf("andrew checking for match all")
 	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
-		log.Errorf("andrew found match all")
 		queryRange := s.queryInfo.GetTimeRange()
 		segmentRange := qsr.GetTimeRange()
-
-		log.Errorf("andrew checking if %+v encloses %+v", queryRange, segmentRange)
 
 		if queryRange.Encloses(segmentRange) {
 			log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: query range does not enclose segment range", s.qid)
