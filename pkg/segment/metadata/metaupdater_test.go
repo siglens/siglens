@@ -33,15 +33,15 @@ func Test_initMockMetadata(t *testing.T) {
 	createMockMetaStore("data/", fileCount)
 	assert.Len(t, GetAllSegmentMicroIndexForTest(), fileCount)
 	assert.Len(t, GetSegmentMetadataReverseIndexForTest(), fileCount)
-	assert.Contains(t, GetTableSortedMetadataForTest(), "evts")
-	assert.Len(t, GetTableSortedMetadataForTest()["evts"], fileCount)
+	assert.Contains(t, GetTableSortedMetadata(), "evts")
+	assert.Len(t, GetTableSortedMetadata()["evts"], fileCount)
 
 	sortedByLatest := sort.SliceIsSorted(GetAllSegmentMicroIndexForTest(), func(i, j int) bool {
 		return GetAllSegmentMicroIndexForTest()[i].LatestEpochMS > GetAllSegmentMicroIndexForTest()[j].LatestEpochMS
 	})
 	assert.True(t, sortedByLatest, "slice is sorted with most recent at the front")
 
-	tableSorted := GetTableSortedMetadataForTest()["evts"]
+	tableSorted := GetTableSortedMetadata()["evts"]
 	isTableSorted := sort.SliceIsSorted(tableSorted, func(i, j int) bool {
 		return tableSorted[i].LatestEpochMS > tableSorted[j].LatestEpochMS
 	})
@@ -54,10 +54,10 @@ func Test_initMockMetadata(t *testing.T) {
 		assert.Contains(t, GetSegmentMetadataReverseIndexForTest(), rawCMI.SegmentKey, "all segkeys in allSegmentMicroIndex exist in revserse index")
 	}
 
-	duplicate := GetTableSortedMetadataForTest()["evts"][0]
+	duplicate := GetTableSortedMetadata()["evts"][0]
 	BulkAddSegmentMicroIndex([]*SegmentMicroIndex{duplicate})
 	assert.Len(t, GetAllSegmentMicroIndexForTest(), fileCount)
 	assert.Len(t, GetSegmentMetadataReverseIndexForTest(), fileCount)
-	assert.Contains(t, GetTableSortedMetadataForTest(), "evts")
-	assert.Len(t, GetTableSortedMetadataForTest()["evts"], fileCount)
+	assert.Contains(t, GetTableSortedMetadata(), "evts")
+	assert.Len(t, GetTableSortedMetadata()["evts"], fileCount)
 }
