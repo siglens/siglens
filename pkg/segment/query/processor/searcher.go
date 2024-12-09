@@ -207,7 +207,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 	// TODO: handle subsequent fetches to this QSR.
 
 	cname := s.sortExpr.SortEles[0].Field
-	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch)
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, nil) // TODO: checkpoints
 	if err != nil {
 		return nil, err
 	}

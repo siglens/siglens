@@ -219,10 +219,17 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 	return rrcs, values
 }
 
-func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, error) {
+type checkpoint struct {
+	offsetToStartOfLine uint64
+	offsetWithinLine    uint64
+}
+
+func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
+	fromCheckpoint *checkpoint) ([]Line, *checkpoint, error) {
+
 	file, err := os.Open(getFilename(segkey, cname))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
@@ -230,17 +237,17 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 	version := make([]byte, 1)
 	err = binary.Read(file, binary.LittleEndian, &version)
 	if err != nil {
-		return nil, fmt.Errorf("ReadSortIndex: failed reading version: %v", err)
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed reading version: %v", err)
 	}
 	if version[0] != VERSION_SORT_INDEX[0] {
-		return nil, fmt.Errorf("ReadSortIndex: unsupported version: %v", version)
+		return nil, nil, fmt.Errorf("ReadSortIndex: unsupported version: %v", version)
 	}
 
 	// Read Number of unique column values
 	var totalUniqueColValues uint64
 	err = binary.Read(file, binary.LittleEndian, &totalUniqueColValues)
 	if err != nil {
-		return nil, fmt.Errorf("ReadSortIndex: failed reading number of unique column values: %v", err)
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed reading number of unique column values: %v", err)
 	}
 
 	lines := make([]Line, 0)
@@ -248,6 +255,26 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 	numColValues := uint64(0)
 	totalRecordsRead := uint64(0)
 	done := false
+
+	// Skip to the checkpoint.
+	if fromCheckpoint != nil {
+		_, err = file.Seek(int64(fromCheckpoint.offsetToStartOfLine), io.SeekStart)
+		if err != nil {
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed seeking to start of line (position %v): %v",
+				fromCheckpoint.offsetToStartOfLine, err)
+		}
+
+		if fromCheckpoint.offsetWithinLine > 0 {
+			return nil, nil, fmt.Errorf("ReadSortIndex: offsetWithinLine is not yet supported")
+		}
+	}
+
+	finalCheckpoint := &checkpoint{}
+	filePos, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+	}
+	finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 
 	for numColValues < totalUniqueColValues && !done {
 		// Read DType
@@ -257,20 +284,20 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
 		}
 
 		// Read len of value
 		var valueLen uint16
 		err = binary.Read(file, binary.LittleEndian, &valueLen)
 		if err != nil {
-			return nil, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
 		}
 
 		valueBytes := make([]byte, valueLen)
 		_, err = file.Read(valueBytes)
 		if err != nil {
-			return nil, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
 		}
 		value := string(valueBytes)
 
@@ -278,7 +305,7 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 		var totalBlocks uint32
 		err = binary.Read(file, binary.LittleEndian, &totalBlocks)
 		if err != nil {
-			return nil, fmt.Errorf("ReadSortIndex: failed reading totalBlocks: %v", err)
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalBlocks: %v", err)
 		}
 
 		numBlocks := uint32(0)
@@ -292,14 +319,14 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 				break
 			}
 			if err != nil {
-				return nil, fmt.Errorf("ReadSortIndex: failed reading blockNum: %v", err)
+				return nil, nil, fmt.Errorf("ReadSortIndex: failed reading blockNum: %v", err)
 			}
 
 			// Read total records
 			var totalRecords uint32
 			err = binary.Read(file, binary.LittleEndian, &totalRecords)
 			if err != nil {
-				return nil, fmt.Errorf("ReadSortIndex: failed reading totalRecords: %v", err)
+				return nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalRecords: %v", err)
 			}
 
 			numRecords := uint32(0)
@@ -312,7 +339,7 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 					break
 				}
 				if err != nil {
-					return nil, fmt.Errorf("ReadSortIndex: failed reading recNum: %v", err)
+					return nil, nil, fmt.Errorf("ReadSortIndex: failed reading recNum: %v", err)
 				}
 
 				numRecords++
@@ -323,7 +350,7 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 			if totalRecordsRead >= uint64(maxRecordsToRead) {
 				done = true
 			} else if numRecords != totalRecords {
-				return nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecords)
+				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecords)
 			}
 
 			numBlocks++
@@ -334,20 +361,26 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int) ([]Line, e
 		}
 
 		if !done && numBlocks != totalBlocks {
-			return nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
+			return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
 		}
 
 		lines = append(lines, Line{
 			Value:  value,
 			Blocks: blocks,
 		})
+
+		filePos, err = file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+		}
+		finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 	}
 
 	if err != nil && err != io.EOF {
-		return nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
+		return nil, nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
 	}
 
-	return lines, nil
+	return lines, finalCheckpoint, nil
 }
 
 func writeCValEnc(writer *bufio.Writer, CValEnc segutils.CValueEnclosure) error {
