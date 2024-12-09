@@ -74,14 +74,23 @@ func ResetGlobalMetadataForTest() {
 }
 
 func GetAllSegmentMicroIndexForTest() []*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.allSegmentMicroIndex
 }
 
 func GetSegmentMetadataReverseIndexForTest() map[string]*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.segmentMetadataReverseIndex
 }
 
-func GetTableSortedMetadataForTest() map[string][]*SegmentMicroIndex {
+func GetTableSortedMetadata() map[string][]*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.tableSortedMetadata
 }
 
