@@ -41,6 +41,7 @@ import (
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
@@ -61,6 +62,8 @@ const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 
 const BS_INITIAL_SIZE = uint32(1000)
+
+var sortIndexCnames = []string{"app_name", "weekday"} // TODO: don't hardcode
 
 // SegStore Individual stream buffer
 type SegStore struct {
@@ -739,7 +742,6 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 }
 
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
-
 	onTreeRotate := false
 	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
 		nc := segstore.stbHolder.stbPtr.GetNodeCount()
@@ -825,6 +827,10 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
+		// TODO: make this a background job; somehow handle siglens being
+		// gracefully shutdown.
+		writeSortIndexes(segstore.SegmentKey)
+
 		if blobErr == nil {
 			// upload ingest node dir to s3
 			err := blob.UploadIngestNodeDir()
@@ -840,6 +846,18 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		}
 	}
 	return nil
+}
+
+func writeSortIndexes(segkey string) {
+	if config.IsSortIndexEnabled() {
+		for _, cname := range sortIndexCnames {
+			err := sortindex.WriteSortIndex(segkey, cname)
+			if err != nil {
+				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+					segkey, cname, err)
+			}
+		}
+	}
 }
 
 func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {

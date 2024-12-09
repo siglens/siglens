@@ -272,6 +272,10 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentsHook; hook != nil {
+		hook(qid)
+	}
 }
 
 func canRunQuery() bool {
