@@ -56,7 +56,13 @@ type block struct {
 	segkeyFname string
 }
 
+type sortIndexSettings struct {
+	numRecordsPerBatch int
+}
+
 type Searcher struct {
+	sortIndexSettings
+
 	qid          uint64
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
@@ -88,6 +94,11 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 	qid := queryInfo.GetQid()
 
 	return &Searcher{
+		sortIndexSettings: sortIndexSettings{
+			// TODO: find a better way to limit.
+			numRecordsPerBatch: 1000,
+		},
+
 		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
@@ -195,9 +206,8 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
 	// TODO: handle subsequent fetches to this QSR.
 
-	const recordLimit = 1000 // TODO: find a better way to limit.
 	cname := s.sortExpr.SortEles[0].Field
-	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, recordLimit)
+	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch)
 	if err != nil {
 		return nil, err
 	}
