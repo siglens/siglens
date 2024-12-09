@@ -24,10 +24,81 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_segReader(t *testing.T) {
+
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
+	assert.Nil(t, err)
+
+	numBlocks := 10
+	numEntriesInBlock := 10
+	_, bsm, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	assert.Greater(t, len(cols), 1)
+	var queryCol string
+
+	colsToReadIndices := make(map[int]struct{})
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
+	assert.Nil(t, foundErr)
+	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
+	assert.Equal(t, 3, sharedReader.numReaders)
+	multiReader := sharedReader.MultiColReaders[0]
+
+	for colName := range cols {
+		if colName == config.GetTimeStampKey() {
+			continue
+		}
+
+		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
+		assert.True(t, exists)
+		colsToReadIndices[cKeyidx] = struct{}{}
+	}
+
+	// invalid block
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
+	assert.NotNil(t, err)
+
+	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
+	assert.Nil(t, err)
+
+	// test across multiple columns types
+	for queryCol = range cols {
+		if queryCol == config.GetTimeStampKey() {
+			continue // ingore ts
+		}
+
+		colKeyIndex, exists := multiReader.GetColKeyIndex(queryCol)
+		assert.True(t, exists)
+		sfr := multiReader.allFileReaders[colKeyIndex]
+
+		// correct block, incorrect recordNum
+		_, err = sfr.ReadRecord(uint16(numEntriesInBlock))
+		assert.NotNil(t, err, "col %s should not have %+v entries", queryCol, numEntriesInBlock+1)
+
+		// correct block, correct recordNum
+		arr, err := sfr.ReadRecord(uint16(numEntriesInBlock - 3))
+		assert.Nil(t, err)
+		assert.NotNil(t, arr)
+
+		var cVal segutils.CValueEnclosure
+		_, err = writer.GetCvalFromRec(arr, 23, &cVal)
+		assert.Nil(t, err)
+		assert.NotNil(t, cVal)
+		log.Infof("GetCvalFromRec: %+v for column %s", cVal, queryCol)
+
+		err = sfr.Close()
+		assert.Nil(t, err)
+	}
+
+	os.RemoveAll(dataDir)
+}
 
 func Test_multiSegReader(t *testing.T) {
 	var err error
@@ -148,14 +219,14 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 				sharedReaderMCR[aFR.ColName] = make(map[int]string)
 			}
 
-			sharedReaderMCR[aFR.ColName][i] = aFR.fileName
+			sharedReaderMCR[aFR.ColName][i] = aFR.GetFileName()
 
 			aFR = sharedAsteriskReader.MultiColReaders[i].allFileReaders[j]
 			_, ok = sharedAsteriskReaderMCR[aFR.ColName]
 			if !ok {
 				sharedAsteriskReaderMCR[aFR.ColName] = make(map[int]string)
 			}
-			sharedAsteriskReaderMCR[aFR.ColName][i] = aFR.fileName
+			sharedAsteriskReaderMCR[aFR.ColName][i] = aFR.GetFileName()
 		}
 	}
 
