@@ -279,32 +279,41 @@ func canRunQuery() bool {
 	return activeQueries < MAX_RUNNING_QUERIES
 }
 
-func initiateRunQuery(segsRLockFunc, segsRUnlockFunc func()) {
-	waitingQueriesLock.Lock()
-	if len(waitingQueries) == 0 {
-		waitingQueriesLock.Unlock()
-		time.Sleep(PULL_QUERY_INTERVAL)
-		return
-	}
-
+func initiateRunQuery(wsData *WaitStateData, segsRLockFunc, segsRUnlockFunc func()) {
 	if segsRLockFunc != nil && segsRUnlockFunc != nil {
 		segsRLockFunc()
 		defer segsRUnlockFunc()
 	}
 
-	wsData := waitingQueries[0]
-	waitingQueries = waitingQueries[1:]
-	waitingQueriesLock.Unlock()
 	runQuery(*wsData)
 }
 
+func getNextWaitStateData() *WaitStateData {
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+
+	if len(waitingQueries) == 0 {
+		return nil
+	}
+
+	wsData := waitingQueries[0]
+	waitingQueries = waitingQueries[1:]
+	return wsData
+}
+
 func PullQueriesToRun() {
-	segmentsRLockFunc := hooks.GlobalHooks.AccquireOwnedSegmentRLockHook
+	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
 	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
 
 	for {
 		if canRunQuery() {
-			initiateRunQuery(segmentsRLockFunc, segmentsRUnlockFunc)
+			wsData := getNextWaitStateData()
+			if wsData == nil {
+				time.Sleep(PULL_QUERY_INTERVAL)
+				continue
+			}
+
+			initiateRunQuery(wsData, segmentsRLockFunc, segmentsRUnlockFunc)
 		}
 		time.Sleep(PULL_QUERY_INTERVAL)
 	}
