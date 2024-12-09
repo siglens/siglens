@@ -18,8 +18,8 @@
 package sortindex
 
 import (
+	"bufio"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +36,8 @@ type Block struct {
 	BlockNum uint16   `json:"blockNum"`
 	RecNums  []uint16 `json:"recNums"`
 }
+
+var VERSION_SORT_INDEX = []byte{0}
 
 func getFilename(segkey string, cname string) string {
 	return filepath.Join(segkey, cname+".srt") // srt means "sort", not an acronym
@@ -88,7 +90,12 @@ func WriteSortIndex(segkey string, cname string) error {
 	return nil
 }
 
-// TODO: describe the file format
+// Version Number
+// NumOfUniqueColValues
+// [If numeric]
+// DType ColValue1 NumBlocks BlockNum1 NumRecords Rec1, Rec2, … BlockNum2 NumRecords Rec1, Rec2
+// [If string]
+// DType NumBytes ColValue1 NumBlocks BlockNum3 NumRecords Rec1, Rec2, … BlockNum4 NumRecords Rec1, Rec2
 func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
 	filename := getFilename(segkey, cname)
 	dir := filepath.Dir(filename)
@@ -106,16 +113,39 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 	sortedValues := utils.GetKeysOfMap(valToBlockToRecords)
 	sort.Strings(sortedValues)
 
-	bytes := make([]byte, 0)
-	for _, value := range sortedValues {
-		bytes = bytes[:0]
-		bytes = append(bytes, utils.Uint16ToBytesLittleEndian(uint16(len(value)))...)
-		bytes = append(bytes, []byte(value)...)
+	writer := bufio.NewWriter(file)
 
+	// Write version
+	_, err = writer.Write(VERSION_SORT_INDEX)
+	if err != nil {
+		return fmt.Errorf("failed writing version: %v", err)
+	}
+
+	// Write number of unique column values
+	_, err = writer.Write(utils.Uint64ToBytesLittleEndian(uint64(len(sortedValues))))
+	if err != nil {
+		return fmt.Errorf("failed writing number of unique column values: %v", err)
+	}
+
+	for _, value := range sortedValues {
+		// Write column value
+		err = writeCVal(writer, segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  value,
+		})
+		if err != nil {
+			return fmt.Errorf("failed writing value: %v", err)
+		}
+		
 		sortedBlockNums := utils.GetKeysOfMap(valToBlockToRecords[value])
 		sort.Slice(sortedBlockNums, func(i, j int) bool { return sortedBlockNums[i] < sortedBlockNums[j] })
 
-		allBlocks := make([]Block, 0, len(sortedBlockNums))
+		// Write number of blocks
+		_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(sortedBlockNums))))
+		if err != nil {
+			return fmt.Errorf("failed writing number of blocks for cname: %v, colValue: %v, len(sortedBlockNums): %v, err: %v", cname, value, len(sortedBlockNums), err)
+		}
+		
 		for _, blockNum := range sortedBlockNums {
 			sortedRecords, ok := valToBlockToRecords[value][blockNum]
 			if !ok {
@@ -128,19 +158,27 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 				RecNums:  sortedRecords,
 			}
 
-			allBlocks = append(allBlocks, block)
-		}
+			// Write blockNum
+			_, err = writer.Write(utils.Uint16ToBytesLittleEndian(block.BlockNum))
+			if err != nil {
+				return fmt.Errorf("failed writing blockNum: %v", err)
+			}
+			
 
-		jsonBytes, err := json.Marshal(allBlocks)
-		if err != nil {
-			return err
-		}
+			// Write number of records
+			_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(block.RecNums))))
+			if err != nil {
+				return fmt.Errorf("failed writing number of records: %v", err)
+			}
 
-		bytes = append(bytes, utils.Uint64ToBytesLittleEndian(uint64(len(jsonBytes)))...)
-		bytes = append(bytes, jsonBytes...)
-		_, err = file.Write(bytes)
-		if err != nil {
-			return err
+			// Write sortedRecords
+			for _, recNum := range block.RecNums {
+				// Write recNum
+				_, err = writer.Write(utils.Uint16ToBytesLittleEndian(recNum))
+				if err != nil {
+					return fmt.Errorf("failed writing recNum: %v", err)
+				}
+			}
 		}
 	}
 
@@ -184,17 +222,39 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]Line, error) 
 	}
 	defer file.Close()
 
+	// Read version
+	version := make([]byte, 1)
+	err = binary.Read(file, binary.LittleEndian, &version)
+	if err != nil {
+		return nil, fmt.Errorf("failed reading version: %v", err)
+	}
+	if version[0] != VERSION_SORT_INDEX[0] {
+		return nil, fmt.Errorf("unsupported version: %v", version)
+	}
+
+	// Read Number of unique column values
+	var totalUniqueColValues uint64
+	err = binary.Read(file, binary.LittleEndian, &totalUniqueColValues)
+	if err != nil {
+		return nil, fmt.Errorf("failed reading number of unique column values: %v", err)
+	}
+
 	lines := make([]Line, 0)
 
-	numRecords := 0
-	for numRecords < maxRecords {
-		var valueLen uint16
-		err := binary.Read(file, binary.LittleEndian, &valueLen)
-		if err == io.EOF {
-			break
-		}
+	numColValues := uint64(0)
+	for numColValues < totalUniqueColValues && err == nil {
+		// Read DType
+		var Dtype segutils.SS_DTYPE
+		err = binary.Read(file, binary.LittleEndian, &Dtype)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed reading DType: %v", err)
+		}
+
+		// Read len of value
+		var valueLen uint16
+		err = binary.Read(file, binary.LittleEndian, &valueLen)
+		if err != nil {
+			return nil, fmt.Errorf("failed reading len of value: %v", err)
 		}
 
 		valueBytes := make([]byte, valueLen)
@@ -204,26 +264,59 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]Line, error) 
 		}
 		value := string(valueBytes)
 
-		var blocksLen uint64
-		err = binary.Read(file, binary.LittleEndian, &blocksLen)
+
+		// Read total blocks
+		var totalBlocks uint32
+		err = binary.Read(file, binary.LittleEndian, &totalBlocks)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed reading totalBlocks: %v", err)
 		}
 
-		blocksBytes := make([]byte, blocksLen)
-		_, err = file.Read(blocksBytes)
-		if err != nil {
-			return nil, err
+		numBlocks := uint32(0)
+		blocks := make([]Block, 0)
+
+		for numBlocks < totalBlocks || err == io.EOF {
+			// Read blockNum
+			var blockNum uint16
+			err = binary.Read(file, binary.LittleEndian, &blockNum)
+			if err != nil {
+				return nil, fmt.Errorf("failed reading blockNum: %v", err)
+			}
+
+			// Read total records
+			var totalRecords uint32
+			err = binary.Read(file, binary.LittleEndian, &totalRecords)
+			if err != nil {
+				return nil, fmt.Errorf("failed reading totalRecords: %v", err)
+			}
+
+			numRecords := uint32(0)
+			recNums := make([]uint16, 0)
+			for numRecords < totalRecords && err != io.EOF{
+				// Read recNum
+				var recNum uint16
+				err = binary.Read(file, binary.LittleEndian, &recNum)
+				if err != io.EOF {
+					return nil, fmt.Errorf("failed reading recNum: %v", err)
+				}
+
+				numRecords++
+				recNums = append(recNums, recNum)
+			}
+
+			if numRecords != totalRecords {
+				return nil, fmt.Errorf("sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecords)
+			}
+
+			numBlocks++
+			blocks = append(blocks, Block{
+				BlockNum: blockNum,
+				RecNums:  recNums,
+			})
 		}
 
-		var blocks []Block
-		err = json.Unmarshal(blocksBytes, &blocks)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, block := range blocks {
-			numRecords += len(block.RecNums)
+		if numBlocks != totalBlocks {
+			return nil, fmt.Errorf("sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
 		}
 
 		lines = append(lines, Line{
@@ -232,5 +325,34 @@ func ReadSortIndex(segkey string, cname string, maxRecords int) ([]Line, error) 
 		})
 	}
 
+	if err != io.EOF {
+		return nil, fmt.Errorf("Error while reading sort index: %v", err)
+	}
+
 	return lines, nil
+}
+
+func writeCVal(writer *bufio.Writer, CVal segutils.CValueEnclosure) error {
+	if writer == nil {
+		return fmt.Errorf("writeCVal: writer is nil")
+	}
+
+	if CVal.Dtype != segutils.SS_DT_STRING {
+		return fmt.Errorf("writeCVal: Unsupported Dtype: %v", CVal.Dtype)
+	}
+
+	// Write dtype
+	writer.Write([]byte{byte(CVal.Dtype)})
+
+	switch CVal.Dtype {
+	case segutils.SS_DT_STRING:
+		// Write len of string
+		writer.Write(utils.Uint16ToBytesLittleEndian(uint16(len(CVal.CVal.(string)))))
+		// Write string
+		writer.Write([]byte(CVal.CVal.(string)))
+	default:
+		return fmt.Errorf("writeCVal: Unsupported Dtype: %v", CVal.Dtype)
+	}
+
+	return nil
 }
