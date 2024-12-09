@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -77,6 +78,37 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
 	return chainedDP
 }
 
+func mutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
+	if !config.IsSortIndexEnabled() {
+		return nil
+	}
+
+	if queryAgg == nil {
+		return nil
+	}
+
+	var sorterAgg *structs.QueryAggregators
+	for curAgg := queryAgg; curAgg != nil; curAgg = curAgg.Next {
+		if curAgg.SortExpr != nil {
+			sorterAgg = curAgg
+			break
+		}
+	}
+
+	if sorterAgg == nil {
+		return nil
+	}
+
+	// TODO: if any of the sort fields are created/modified by the query before
+	// the sort command, return nil (so we use the normal searcher).
+
+	// TODO: Replace the sort with a head if the sort is fully handled by the
+	// searcher.
+	sortExpr := sorterAgg.SortExpr
+
+	return sortExpr
+}
+
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
 	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
 
@@ -85,7 +117,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	sortMode := recentFirst // TODO: compute this from the query.
-	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, startTime)
+	sortExpr := mutateForSearchSorter(firstAgg)
+	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
 	}

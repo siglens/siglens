@@ -227,7 +227,24 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			return
 		}
 
-		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
+		var recordNums []uint16
+		if searchReq.BlockToValidRecNums != nil {
+			records, ok := searchReq.BlockToValidRecNums[blockNum]
+			if !ok {
+				// TODO: do this check in the caller.
+				return
+			}
+
+			recordNums = records
+		} else {
+			recordNums = make([]uint16, recIT.AllRecLen)
+			for i := uint16(0); i < recIT.AllRecLen; i++ {
+				recordNums[i] = i
+			}
+		}
+
+		for _, i := range recordNums {
+			i := uint(i)
 			if recIT.ShouldProcessRecord(i) {
 				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
 					qid, searchReq, cmiPassedNonDictColKeyIndices,

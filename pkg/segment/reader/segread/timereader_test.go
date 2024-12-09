@@ -29,6 +29,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_timeReader(t *testing.T) {
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
+	assert.Nil(t, err)
+
+	numBlocks := 10
+	numEntriesInBlock := 10
+	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	assert.Greater(t, len(cols), 1)
+	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
+	assert.Nil(t, err)
+
+	// test across multiple columns types
+	for blockNum := 0; blockNum < numBlocks; blockNum++ {
+		currRecs, err := timeReader.GetAllTimeStampsForBlock(uint16(blockNum))
+		assert.Nil(t, err)
+		assert.Len(t, currRecs, numEntriesInBlock)
+
+		startTs := uint64(1)
+		for _, readTs := range currRecs {
+			assert.Equal(t, startTs, readTs)
+			startTs++
+		}
+	}
+	os.RemoveAll(dataDir)
+}
+
 func Test_readTimeStamps(t *testing.T) {
 
 	dataDir := t.TempDir()
