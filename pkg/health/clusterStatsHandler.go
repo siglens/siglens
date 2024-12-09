@@ -64,7 +64,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	segmentsRLockFunc := hooks.GlobalHooks.AccquireOwnedSegmentRLockHook
+	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
 	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
 
 	if segmentsRLockFunc != nil && segmentsRUnlockFunc != nil {
