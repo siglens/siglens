@@ -206,6 +206,38 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		return nil, nil
 	}
 
+	if s.queryInfo.SearchNodeType() == structs.MatchAllQuery {
+		queryRange := s.queryInfo.GetQueryRange()
+		segmentRange := qsr.GetSegmentTimeRange()
+
+		if !queryRange.Encloses(segmentRange) {
+			return s.handleMatchAll(qsr, lines)
+		}
+	}
+
+	return s.handleNonMatchAll(qsr, lines)
+}
+
+func (s *Searcher) handleMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
+	segKeyEncoding := s.getSegKeyEncoding(qsr.GetSegKey())
+
+	rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
+	err := iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
+	if err != nil {
+		return nil, err
+	}
+
+	cname := s.sortExpr.SortEles[0].Field
+	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
+	if err != nil {
+		return nil, err
+	}
+
+	return iqr, nil
+}
+
+func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
 		return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)
@@ -581,6 +613,18 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 func (s *Searcher) getNextSegEncTokey() uint32 {
 	return s.segEncToKeyBaseValue + uint32(s.segEncToKey.Len())
+}
+
+func (s *Searcher) getSegKeyEncoding(segKey string) uint32 {
+	encoding, ok := s.segEncToKey.GetReverse(segKey)
+	if ok {
+		return encoding
+	}
+
+	encoding = s.getNextSegEncTokey()
+	s.segEncToKey.Set(encoding, segKey)
+
+	return encoding
 }
 
 func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,

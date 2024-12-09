@@ -109,6 +109,10 @@ func (qi *QueryInformation) GetParallelismPerFile() int64 {
 	return qi.parallelismPerFile
 }
 
+func (qi *QueryInformation) SearchNodeType() structs.SearchNodeType {
+	return qi.sNodeType
+}
+
 func (qi *QueryInformation) GetQueryType() structs.QueryType {
 	return qi.qType
 }
@@ -146,6 +150,10 @@ func (qi *QueryInformation) GetBatchError() *toputils.BatchError {
 
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
+}
+
+func (qsr *QuerySegmentRequest) GetSegmentTimeRange() *dtu.TimeRange {
+	return qsr.segKeyTsRange
 }
 
 func (qsr *QuerySegmentRequest) GetTableName() string {
