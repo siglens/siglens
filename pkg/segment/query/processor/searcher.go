@@ -165,9 +165,11 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	// TODO: read PQS if enabled.
+	return s.fetchSortedRRCsFromQSRs(qsrs)
+}
 
-	result := iqr.NewIQR(s.queryInfo.GetQid())
+func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
+	result := iqr.NewIQR(s.qid)
 	sorter := &sortProcessor{
 		options: s.sortExpr,
 	}
@@ -206,11 +208,16 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		return nil, nil
 	}
 
-	if s.queryInfo.SearchNodeType() == structs.MatchAllQuery {
-		queryRange := s.queryInfo.GetQueryRange()
-		segmentRange := qsr.GetSegmentTimeRange()
+	log.Errorf("andrew checking for match all")
+	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
+		log.Errorf("andrew found match all")
+		queryRange := s.queryInfo.GetTimeRange()
+		segmentRange := qsr.GetTimeRange()
 
-		if !queryRange.Encloses(segmentRange) {
+		log.Errorf("andrew checking if %+v encloses %+v", queryRange, segmentRange)
+
+		if queryRange.Encloses(segmentRange) {
+			log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: query range does not enclose segment range", s.qid)
 			return s.handleMatchAll(qsr, lines)
 		}
 	}
@@ -237,6 +244,7 @@ func (s *Searcher) handleMatchAll(qsr *query.QuerySegmentRequest, lines []sortin
 	return iqr, nil
 }
 
+// TODO: read PQS if enabled.
 func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
@@ -278,7 +286,7 @@ func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sor
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetQueryRange()
+	timeRange := s.queryInfo.GetTimeRange()
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
@@ -910,7 +918,7 @@ func (s *Searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults,
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetQueryRange()
+	timeRange := s.queryInfo.GetTimeRange()
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
 
