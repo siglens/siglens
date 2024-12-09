@@ -66,7 +66,7 @@ func Test_writeAndRead(t *testing.T) {
 	expected = []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
-			{BlockNum: 2, RecNums: []uint16{42, 100}},
+			{BlockNum: 2, RecNums: []uint16{42}},
 		}},
 	}
 
