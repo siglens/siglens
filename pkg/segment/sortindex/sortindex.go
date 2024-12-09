@@ -161,13 +161,13 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 			// Write blockNum
 			_, err = writer.Write(utils.Uint16ToBytesLittleEndian(block.BlockNum))
 			if err != nil {
-				return fmt.Errorf("writeSortIndex: failed writing blockNum: %v", err)
+				return fmt.Errorf("writeSortIndex: failed writing blockNum, blockNum: %v, err: %v", block.BlockNum, err)
 			}
 
 			// Write number of records
 			_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(block.RecNums))))
 			if err != nil {
-				return fmt.Errorf("writeSortIndex: failed writing number of records: %v", err)
+				return fmt.Errorf("writeSortIndex: failed writing number of records: %v, err: %v", len(block.RecNums), err)
 			}
 
 			// Write sortedRecords
@@ -175,7 +175,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 				// Write recNum
 				_, err = writer.Write(utils.Uint16ToBytesLittleEndian(recNum))
 				if err != nil {
-					return fmt.Errorf("writeSortIndex: failed writing recNum: %v", err)
+					return fmt.Errorf("writeSortIndex: failed writing recNum: %v, err: %v", recNum, err)
 				}
 			}
 		}
