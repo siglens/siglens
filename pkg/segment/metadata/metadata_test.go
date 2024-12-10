@@ -51,8 +51,8 @@ func Test_AddSementInfo(t *testing.T) {
 		log.Infof("i %+v latest: %+v", i, GetAllSegmentMicroIndexForTest()[i].LatestEpochMS)
 		nextVal--
 	}
-	assert.Contains(t, GetTableSortedMetadataForTest(), "test-1")
-	tableSorted := GetTableSortedMetadataForTest()["test-1"]
+	assert.Contains(t, GetTableSortedMetadata(), "test-1")
+	tableSorted := GetTableSortedMetadata()["test-1"]
 	nextVal = uint64(9)
 	for i := 0; i < 10; i++ {
 		assert.Equal(t, tableSorted[i].LatestEpochMS, nextVal)
