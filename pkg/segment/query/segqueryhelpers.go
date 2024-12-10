@@ -65,14 +65,6 @@ type QuerySegmentRequest struct {
 	TotalRecords         uint32
 }
 
-func (qsr *QuerySegmentRequest) GetStartEpochMs() uint64 {
-	return qsr.segKeyTsRange.StartEpochMs
-}
-
-func (qsr *QuerySegmentRequest) GetEndEpochMs() uint64 {
-	return qsr.segKeyTsRange.EndEpochMs
-}
-
 func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {
 	return qi.sNode
 }
@@ -162,6 +154,14 @@ func (qsr *QuerySegmentRequest) GetTableName() string {
 
 func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
 	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) GetStartEpochMs() uint64 {
+	return qsr.segKeyTsRange.StartEpochMs
+}
+
+func (qsr *QuerySegmentRequest) GetEndEpochMs() uint64 {
+	return qsr.segKeyTsRange.EndEpochMs
 }
 
 func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
