@@ -234,8 +234,6 @@ type Checkpoint struct {
 func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 	fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
 
-	log.Errorf("andrew fromCheckpoint: %+v", fromCheckpoint)
-
 	if IsEOF(fromCheckpoint) {
 		return nil, fromCheckpoint, nil
 	}
@@ -279,12 +277,6 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 	}
 
 	finalCheckpoint := &Checkpoint{}
-	// filePos, err := file.Seek(0, io.SeekCurrent)
-	// if err != nil {
-	// 	return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-	// }
-	// finalCheckpoint.offsetToStartOfLine = uint64(filePos)
-
 	for numColValues < totalUniqueColValues && !done {
 		filePos, err := file.Seek(0, io.SeekCurrent)
 		if err != nil {
@@ -396,15 +388,6 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 				Blocks: blocks,
 			})
 		}
-
-		// if numBlocks == totalBlocks && done {
-		// 	// We made it to the next line.
-		// 	filePos, err = file.Seek(0, io.SeekCurrent)
-		// 	if err != nil {
-		// 		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-		// 	}
-		// 	finalCheckpoint.offsetToStartOfLine = uint64(filePos)
-		// }
 	}
 
 	if err != nil && err != io.EOF {

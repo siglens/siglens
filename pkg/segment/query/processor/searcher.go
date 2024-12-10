@@ -204,35 +204,19 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
 			}
-			// if err == io.EOF {
-			// 	continue
-			// }
 
 			s.sortIndexSettings.segKeyToSavedIQR[qsr.GetSegKey()] = nextIQR
 			s.sortIndexSettings.segKeyToQSR[qsr.GetSegKey()] = qsr
-
-			log.Errorf("andrew set segkey=%v in segKeyToQSR", qsr.GetSegKey())
 		}
 	} else {
 		if segkey, ok := s.sortIndexSettings.exhaustedSegKey.Get(); ok {
-			_, ok := s.sortIndexSettings.segKeyToQSR[segkey]
-			if !ok {
-				log.Errorf("andrew segkey=%v not found in segKeyToQSR", segkey)
-			}
 			nextIQR, err := s.fetchSortedRRCsForQSR(s.sortIndexSettings.segKeyToQSR[segkey])
 			if err != nil && err != io.EOF {
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
 			}
-			// if err == io.EOF {
-			// 	// This segment is done.
-			// 	delete(s.sortIndexSettings.segKeyToSavedIQR, segkey)
-			// 	delete(s.sortIndexSettings.segKeyToQSR, segkey)
-			// 	s.sortIndexSettings.exhaustedSegKey.Clear()
-			// 	log.Errorf("andrew delete segkey=%v", segkey)
-			// } else {
+
 			s.sortIndexSettings.segKeyToSavedIQR[segkey] = nextIQR
-			// }
 		}
 
 		segkeys := make([]string, 0, len(s.sortIndexSettings.segKeyToSavedIQR))
@@ -268,7 +252,6 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 				s.sortIndexSettings.exhaustedSegKey.Clear()
 				delete(s.sortIndexSettings.segKeyToSavedIQR, segkey)
 				delete(s.sortIndexSettings.segKeyToQSR, segkey)
-				log.Errorf("andrew deleted segkey=%v", segkey)
 			}
 		}
 	}
