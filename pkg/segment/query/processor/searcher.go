@@ -68,7 +68,7 @@ type Searcher struct {
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	qsrs                  []*query.QuerySegmentRequest
-	cutOffTimestamp       uint64
+	cutOffTimestampInMs   uint64
 	unprocessedQSRs       *list.List
 	processedBlocks       map[string]map[uint16]struct{}
 	gotAllSegments        bool
@@ -328,6 +328,8 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
 	if len(s.remainingBlocksSorted) == 0 {
+		// Since we are fetching blocks in batches based on cutOffTimestampInMs, we need to fetch more
+		// blocks to process if we have processed all the blocks in the current batch.
 		s.gotBlocks = false
 	}
 
@@ -565,9 +567,9 @@ func (s *Searcher) initializeQSRs() error {
 func (s *Searcher) shouldProcessBlock(block *block) bool {
 	switch s.sortMode {
 	case recentFirst:
-		return block.HighTs >= s.cutOffTimestamp
+		return block.HighTs >= s.cutOffTimestampInMs
 	case recentLast:
-		return block.LowTs <= s.cutOffTimestamp
+		return block.LowTs <= s.cutOffTimestampInMs
 	default:
 		return true
 	}
@@ -594,23 +596,23 @@ func (s *Searcher) getFilteredBlocks(blocks []*block) []*block {
 	return filteredBlocks
 }
 
-func (s *Searcher) shouldProcessQSR(cutOff uint64, qsr *query.QuerySegmentRequest) bool {
+func (s *Searcher) shouldProcessQSR(qsr *query.QuerySegmentRequest) bool {
 	switch s.sortMode {
 	case recentFirst:
-		return qsr.GetEndEpochMs() >= cutOff
+		return qsr.GetEndEpochMs() >= s.cutOffTimestampInMs
 	case recentLast:
-		return qsr.GetStartEpochMs() <= cutOff
+		return qsr.GetStartEpochMs() <= s.cutOffTimestampInMs
 	default:
 		return true
 	}
 }
 
-func (s *Searcher) willProcessQSRCompletely(cutOff uint64, qsr *query.QuerySegmentRequest) bool {
+func (s *Searcher) willProcessQSRCompletely(qsr *query.QuerySegmentRequest) bool {
 	switch s.sortMode {
 	case recentFirst:
-		return qsr.GetStartEpochMs() >= cutOff
+		return qsr.GetStartEpochMs() >= s.cutOffTimestampInMs
 	case recentLast:
-		return qsr.GetEndEpochMs() <= cutOff
+		return qsr.GetEndEpochMs() <= s.cutOffTimestampInMs
 	default:
 		return true
 	}
@@ -631,9 +633,9 @@ func (s *Searcher) getQSRSToProcess() ([]*query.QuerySegmentRequest, error) {
 
 	switch s.sortMode {
 	case recentFirst, anyOrder:
-		s.cutOffTimestamp = segForCutOff.GetStartEpochMs()
+		s.cutOffTimestampInMs = segForCutOff.GetStartEpochMs()
 	case recentLast:
-		s.cutOffTimestamp = segForCutOff.GetEndEpochMs()
+		s.cutOffTimestampInMs = segForCutOff.GetEndEpochMs()
 	default:
 		return nil, fmt.Errorf("qid=%v, getQSRSToProcess: invalid sort mode: %v", s.qid, s.sortMode)
 	}
@@ -644,10 +646,10 @@ func (s *Searcher) getQSRSToProcess() ([]*query.QuerySegmentRequest, error) {
 		if !isQSR {
 			return nil, fmt.Errorf("qid=%v, getQSRSToProcess: invalid type: %T", s.qid, e.Value)
 		}
-		if s.shouldProcessQSR(s.cutOffTimestamp, qsr) {
+		if s.shouldProcessQSR(qsr) {
 			qsrs = append(qsrs, qsr)
 		}
-		if s.willProcessQSRCompletely(s.cutOffTimestamp, qsr) {
+		if s.willProcessQSRCompletely(qsr) {
 			s.unprocessedQSRs.Remove(e)
 		}
 		e = next
