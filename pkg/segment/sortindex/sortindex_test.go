@@ -117,7 +117,7 @@ func Test_read_fromCheckpointAtStartOfLine(t *testing.T) {
 		}},
 	}
 
-	actual, checkpoint, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -158,7 +158,7 @@ func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
 		}},
 	}
 
-	actual, checkpoint, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -197,9 +197,7 @@ func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
 		}},
 	}
 
-	t.Logf("reading from checkpoint: %v", checkpoint)
-
-	actual, checkpoint, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
