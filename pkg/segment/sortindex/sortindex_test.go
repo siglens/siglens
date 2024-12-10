@@ -43,8 +43,7 @@ func Test_writeAndRead(t *testing.T) {
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
-	maxRecords := 100
-	expected := []Line{
+	_ = readAndAssert(t, segkey, cname, 100, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
@@ -55,25 +54,15 @@ func Test_writeAndRead(t *testing.T) {
 		{Value: "zebra", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-	}
-
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-	assert.True(t, IsEOF(checkpoint))
+	})
 
 	// Test with maxRecords
-	maxRecords = 3
-	expected = []Line{
+	_ = readAndAssert(t, segkey, cname, 3, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42}},
 		}},
-	}
-
-	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	})
 }
 
 func Test_read_fromCheckpointAtStartOfLine(t *testing.T) {
@@ -95,31 +84,21 @@ func Test_read_fromCheckpointAtStartOfLine(t *testing.T) {
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
-	maxRecords := 4
-	expected := []Line{
+	checkpoint := readAndAssert(t, segkey, cname, 4, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
-	}
+	})
 
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	maxRecords = 4
-	expected = []Line{
+	_ = readAndAssert(t, segkey, cname, 4, checkpoint, []Line{
 		{Value: "banana", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
 		{Value: "zebra", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-	}
-
-	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	})
 }
 
 func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
@@ -141,26 +120,17 @@ func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
-	maxRecords := 2
-	expected := []Line{
+	checkpoint := readAndAssert(t, segkey, cname, 2, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 		}},
-	}
+	})
 
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	expected = []Line{
+	_ = readAndAssert(t, segkey, cname, 2, checkpoint, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
-	}
-
-	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	})
 }
 
 func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
@@ -180,24 +150,26 @@ func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
-	maxRecords := 1
-	expected := []Line{
+	checkpoint := readAndAssert(t, segkey, cname, 1, nil, []Line{
 		{Value: "blue", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1}},
 		}},
-	}
+	})
 
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	expected = []Line{
+	_ = readAndAssert(t, segkey, cname, 1, checkpoint, []Line{
 		{Value: "blue", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2}},
 		}},
-	}
+	})
+}
 
-	actual, _, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoint *Checkpoint,
+	expected []Line) *Checkpoint {
+
+	t.Helper()
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+
+	return checkpoint
 }
