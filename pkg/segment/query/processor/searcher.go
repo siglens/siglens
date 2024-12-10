@@ -328,7 +328,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		segmentRange := qsr.GetTimeRange()
 
 		if queryRange.Encloses(segmentRange) {
-			iqr, err := s.handleMatchAll(qsr, lines)
+			iqr, err := s.handleSortIndexMatchAll(qsr, lines)
 			if err != nil {
 				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
 			}
@@ -341,22 +341,24 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		}
 	}
 
-	return s.handleNonMatchAll(qsr, lines)
+	return s.handleSortIndexWithFilter(qsr, lines)
 }
 
-func (s *Searcher) handleMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
+func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
 	segKeyEncoding := s.getSegKeyEncoding(qsr.GetSegKey())
 
 	rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 	err := iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
 	if err != nil {
+		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append RRCs: %v", s.qid, err)
 		return nil, err
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
 	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
 	if err != nil {
+		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append known values: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -364,10 +366,10 @@ func (s *Searcher) handleMatchAll(qsr *query.QuerySegmentRequest, lines []sortin
 }
 
 // TODO: read PQS if enabled.
-func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
-		return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)
+		return nil, fmt.Errorf("handleSortIndexWithFilter: failed to get SSRs from QSR: err=%v", err)
 	}
 
 	sizeLimit := uint64(math.MaxUint64)
@@ -376,7 +378,7 @@ func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sor
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, s.qid)
 	if err != nil {
-		log.Errorf("qid=%v, fetchSortedRRCsForQSR: failed to initialize search results: %v", s.qid, err)
+		log.Errorf("qid=%v, handleSortIndexWithFilter: failed to initialize search results: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -410,7 +412,7 @@ func (s *Searcher) handleNonMatchAll(qsr *query.QuerySegmentRequest, lines []sor
 	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, searcher.addRRCsFromRawSearch: failed to apply filter operator: %v", s.qid, err)
+		log.Errorf("qid=%v, searcher.handleSortIndexWithFilter: failed to apply filter operator: %v", s.qid, err)
 		return nil, err
 	}
 
