@@ -605,6 +605,17 @@ func (s *Searcher) shouldProcessQSR(cutOff uint64, qsr *query.QuerySegmentReques
 	}
 }
 
+func (s *Searcher) willProcessQSRCompletely(cutOff uint64, qsr *query.QuerySegmentRequest) bool {
+	switch s.sortMode {
+	case recentFirst:
+		return qsr.GetStartEpochMs() >= cutOff
+	case recentLast:
+		return qsr.GetEndEpochMs() <= cutOff
+	default:
+		return true
+	}
+}
+
 func (s *Searcher) getQSRSToProcess() ([]*query.QuerySegmentRequest, error) {
 	qsrs := make([]*query.QuerySegmentRequest, 0)
 
@@ -635,6 +646,8 @@ func (s *Searcher) getQSRSToProcess() ([]*query.QuerySegmentRequest, error) {
 		}
 		if s.shouldProcessQSR(s.cutOffTimestamp, qsr) {
 			qsrs = append(qsrs, qsr)
+		}
+		if s.willProcessQSRCompletely(s.cutOffTimestamp, qsr) {
 			s.unprocessedQSRs.Remove(e)
 		}
 		e = next
