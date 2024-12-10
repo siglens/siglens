@@ -57,9 +57,10 @@ func Test_writeAndRead(t *testing.T) {
 		}},
 	}
 
-	actual, _, err := ReadSortIndex(segkey, cname, maxRecords, nil)
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+	assert.True(t, IsEOF(checkpoint))
 
 	// Test with maxRecords
 	maxRecords = 3
@@ -156,6 +157,47 @@ func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	}
+
+	actual, checkpoint, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
+	data := map[string]map[uint16][]uint16{
+		"blue": {
+			1: {1},
+			2: {2, 3},
+		},
+		"green": {
+			1: {10, 11},
+			2: {1},
+		},
+	}
+
+	segkey := filepath.Join(t.TempDir(), "test-segkey")
+	cname := "col1"
+	err := writeSortIndex(segkey, cname, data)
+	assert.NoError(t, err)
+
+	maxRecords := 1
+	expected := []Line{
+		{Value: "blue", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1}},
+		}},
+	}
+
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	expected = []Line{
+		{Value: "blue", Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{2}},
+		}},
+	}
+
+	t.Logf("reading from checkpoint: %v", checkpoint)
 
 	actual, checkpoint, err = ReadSortIndex(segkey, cname, maxRecords, checkpoint)
 	assert.NoError(t, err)

@@ -187,6 +187,11 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 		return fmt.Errorf("writeSortIndex: failed flushing writer: %v", err)
 	}
 
+	err = file.Sync()
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed syncing file: %v", err)
+	}
+
 	return nil
 }
 
@@ -220,13 +225,20 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 	return rrcs, values
 }
 
-type checkpoint struct {
+type Checkpoint struct {
 	offsetToStartOfLine uint64
 	totalOffset         uint64
+	eof                 bool
 }
 
 func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
-	fromCheckpoint *checkpoint) ([]Line, *checkpoint, error) {
+	fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
+
+	log.Errorf("andrew fromCheckpoint: %+v", fromCheckpoint)
+
+	if IsEOF(fromCheckpoint) {
+		return nil, fromCheckpoint, nil
+	}
 
 	file, err := os.Open(getFilename(segkey, cname))
 	if err != nil {
@@ -266,14 +278,20 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 		}
 	}
 
-	finalCheckpoint := &checkpoint{}
-	filePos, err := file.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-	}
-	finalCheckpoint.offsetToStartOfLine = uint64(filePos)
+	finalCheckpoint := &Checkpoint{}
+	// filePos, err := file.Seek(0, io.SeekCurrent)
+	// if err != nil {
+	// 	return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+	// }
+	// finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 
 	for numColValues < totalUniqueColValues && !done {
+		filePos, err := file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+		}
+		finalCheckpoint.offsetToStartOfLine = uint64(filePos)
+
 		// Read DType
 		var Dtype segutils.SS_DTYPE
 		err = binary.Read(file, binary.LittleEndian, &Dtype)
@@ -372,35 +390,47 @@ func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
 			return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
 		}
 
-		lines = append(lines, Line{
-			Value:  value,
-			Blocks: blocks,
-		})
-
-		if numBlocks == totalBlocks {
-			// We made it to the next line.
-			filePos, err = file.Seek(0, io.SeekCurrent)
-			if err != nil {
-				return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-			}
-			finalCheckpoint.offsetToStartOfLine = uint64(filePos)
+		if pastCheckpoint(fromCheckpoint, file) {
+			lines = append(lines, Line{
+				Value:  value,
+				Blocks: blocks,
+			})
 		}
+
+		// if numBlocks == totalBlocks && done {
+		// 	// We made it to the next line.
+		// 	filePos, err = file.Seek(0, io.SeekCurrent)
+		// 	if err != nil {
+		// 		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+		// 	}
+		// 	finalCheckpoint.offsetToStartOfLine = uint64(filePos)
+		// }
 	}
 
 	if err != nil && err != io.EOF {
 		return nil, nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
 	}
 
-	filePos, err = file.Seek(0, io.SeekCurrent)
+	filePos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
 	}
 	finalCheckpoint.totalOffset = uint64(filePos)
 
+	// Check if we reached the end of the file.
+	fileStat, err := file.Stat()
+	if err != nil {
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get file stat: %v", err)
+	}
+
+	if finalCheckpoint.totalOffset == uint64(fileStat.Size()) {
+		finalCheckpoint.eof = true
+	}
+
 	return lines, finalCheckpoint, nil
 }
 
-func pastCheckpoint(fromCheckpoint *checkpoint, file *os.File) bool {
+func pastCheckpoint(fromCheckpoint *Checkpoint, file *os.File) bool {
 	if fromCheckpoint == nil {
 		return true
 	}
@@ -412,6 +442,14 @@ func pastCheckpoint(fromCheckpoint *checkpoint, file *os.File) bool {
 	}
 
 	return uint64(filePos) > fromCheckpoint.totalOffset
+}
+
+func IsEOF(checkpoint *Checkpoint) bool {
+	if checkpoint == nil {
+		return false
+	}
+
+	return checkpoint.eof
 }
 
 func writeCValEnc(writer *bufio.Writer, CValEnc segutils.CValueEnclosure) error {

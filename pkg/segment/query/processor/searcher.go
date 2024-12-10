@@ -58,6 +58,7 @@ type block struct {
 
 type sortIndexSettings struct {
 	numRecordsPerBatch int
+	segKeyToCheckpoint map[string]*sortindex.Checkpoint
 }
 
 type Searcher struct {
@@ -185,11 +186,23 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		options: s.sortExpr,
 	}
 
+	unanimousEOF := true
 	for _, qsr := range qsrs {
 		nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 			return nil, err
+		}
+
+		rrcs := nextIQR.GetRRCs()
+		rrcsString := ""
+		for _, rrc := range rrcs {
+			rrcsString += fmt.Sprintf("enc: %v, block: %v, rec: %v\n", rrc.SegKeyInfo.SegKeyEnc, rrc.BlockNum, rrc.RecordNum)
+		}
+		log.Errorf("andrew got rrcs=%+v, err=%v for %v", rrcsString, err, qsr.GetSegKey())
+
+		if err != io.EOF {
+			unanimousEOF = false
 		}
 
 		result, err = iqr.MergeAndDiscardAfter(result, nextIQR, sorter.less, s.sortExpr.Limit)
@@ -199,23 +212,33 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		}
 	}
 
-	// TODO: don't always return EOF.
-	return result, io.EOF
+	if unanimousEOF {
+		return result, io.EOF
+	}
+
+	return result, nil
 }
 
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
-	// TODO: handle subsequent fetches to this QSR.
+	if s.segKeyToCheckpoint == nil {
+		s.segKeyToCheckpoint = make(map[string]*sortindex.Checkpoint)
+	}
 
 	cname := s.sortExpr.SortEles[0].Field
-	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, nil) // TODO: checkpoints
+	checkpoint := s.segKeyToCheckpoint[qsr.GetSegKey()]
+	log.Errorf("andrew reading segkey=%v from checkpoint=%+v", qsr.GetSegKey(), checkpoint)
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
+		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
 	}
 
+	s.segKeyToCheckpoint[qsr.GetSegKey()] = checkpoint
+
 	if len(lines) == 0 {
-		// TODO: raw search this segment if it has the cname
-		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: no lines found in sort index; raw search not implemented", s.qid)
-		return nil, nil
+		// TODO: raw search this segment if we got no results because it has
+		// the cname but no sort index.
+		return nil, io.EOF
 	}
 
 	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
@@ -223,8 +246,16 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		segmentRange := qsr.GetTimeRange()
 
 		if queryRange.Encloses(segmentRange) {
-			log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: query range does not enclose segment range", s.qid)
-			return s.handleMatchAll(qsr, lines)
+			iqr, err := s.handleMatchAll(qsr, lines)
+			if err != nil {
+				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
+			}
+
+			if sortindex.IsEOF(checkpoint) {
+				return iqr, io.EOF
+			}
+
+			return iqr, nil
 		}
 	}
 
