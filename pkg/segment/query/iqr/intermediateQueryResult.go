@@ -716,6 +716,9 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 }
 
 func MergeAndDiscardAfter(iqr1, iqr2 *IQR, less func(*Record, *Record) bool, limit uint64) (*IQR, error) {
+	toputils.SigDebugEnter(fmt.Sprintf("andrew limit=%v", limit))
+	defer toputils.SigDebugExit(nil)
+
 	if iqr1 == nil {
 		err := iqr2.DiscardAfter(limit)
 		if err != nil {
